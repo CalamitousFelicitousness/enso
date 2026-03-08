@@ -7,6 +7,7 @@ import { VitePWA } from "vite-plugin-pwa";
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, __dirname, "");
   const backendPort = env.BACKEND_PORT || "7860";
+  const standalone = env.STANDALONE === "true" || backendPort === "0";
   const backend = `http://localhost:${backendPort}`;
 
   return {
@@ -80,7 +81,7 @@ export default defineConfig(({ mode }) => {
   server: {
     port: 5173,
     allowedHosts: true,
-    proxy: {
+    proxy: standalone ? undefined : {
       "/sdapi/v2/ws": { target: backend, ws: true },
       "/sdapi/v2/browser/files": { target: backend, ws: true },
       "/sdapi/v2/jobs": { target: backend, ws: true },
