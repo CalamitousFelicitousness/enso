@@ -9,14 +9,17 @@ This extension entry point:
 import os
 import sys
 
-ext_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-if ext_root not in sys.path:
-    sys.path.insert(0, ext_root)
+from modules import script_callbacks
 
-from modules import script_callbacks # pylint: disable=wrong-import-position
+ext_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
 def on_app_started(blocks, app):
+    # SD.Next resets sys.path after loading each extension script,
+    # so the path must be added here rather than at module level.
+    if ext_root not in sys.path:
+        sys.path.insert(0, ext_root)
+
     from enso_api import register_api
 
     # Register all v2 API routes
