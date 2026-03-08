@@ -389,7 +389,7 @@ function InputFramePanel({ canvasX, frameW, genSize, viewport, labelScale, onPic
   const pixelH = useGenerationStore((s) => s.height);
   const hasLayers = layers.length > 0;
   const isReference = inputRole === "reference";
-  const supportsStrength = useServerInfo().data?.model.supports_strength ?? true;
+  const supportsStrength = useServerInfo().data?.model?.supports_strength ?? true;
 
   // Auto-switch to reference when model doesn't support strength
   useEffect(() => {

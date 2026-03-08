@@ -11,7 +11,7 @@ export function useModelList() {
     queryKey: ["models"],
     queryFn: async () => {
       const resp = await api.get<SdModelsResponse>("/sdapi/v2/sd-models");
-      return resp.items;
+      return resp.items ?? [];
     },
     staleTime: 60_000,
   });
@@ -61,6 +61,7 @@ export function useUpscalerGroups(opts?: { excludeLatent?: boolean }) {
     if (!upscalers?.length) return [];
     const buckets: Record<string, { value: string; label: string }[]> = {};
     for (const u of upscalers) {
+      if (!u?.name) continue;
       if (opts?.excludeLatent && u.name.startsWith("Latent")) continue;
       const g = u.group || "Other";
       (buckets[g] ??= []).push({ value: u.name, label: stripGroupPrefix(u.name, g) });
