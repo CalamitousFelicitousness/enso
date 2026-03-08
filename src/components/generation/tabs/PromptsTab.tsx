@@ -127,7 +127,7 @@ export function PromptsTab() {
     <div className="flex flex-col gap-3 text-sm">
       <PromptEditor />
 
-      {styles && styles.length > 0 && (
+      {Array.isArray(styles) && styles.length > 0 && (
         <ParamSection title="Styles" defaultOpen={false}>
           <div className="flex flex-wrap gap-1 mb-1">
             {selectedStyles.map((name) => (
