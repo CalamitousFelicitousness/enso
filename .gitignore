@@ -30,3 +30,6 @@ jobs.db
 *.njsproj
 *.sln
 *.sw?
+
+# Working documents (local only)
+working-docs/
