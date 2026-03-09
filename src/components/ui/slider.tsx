@@ -36,11 +36,11 @@ function Slider({
     >
       <SliderPrimitive.Track
         data-slot="slider-track"
-        className="bg-muted relative grow data-[orientation=horizontal]:h-[3px] data-[orientation=horizontal]:w-full data-[orientation=vertical]:h-full data-[orientation=vertical]:w-[3px]"
+        className="bg-muted relative grow data-[orientation=horizontal]:h-[5px] data-[orientation=horizontal]:w-full data-[orientation=vertical]:h-full data-[orientation=vertical]:w-[5px]"
       >
         <SliderPrimitive.Range
           data-slot="slider-range"
-          className="bg-primary/60 absolute data-[orientation=horizontal]:h-full data-[orientation=vertical]:w-full after:absolute after:right-0 after:top-1/2 after:h-[7px] after:w-px after:bg-primary after:-translate-y-1/2"
+          className="bg-primary/60 absolute data-[orientation=horizontal]:h-full data-[orientation=vertical]:w-full after:absolute after:right-0 after:top-1/2 after:h-[10px] after:w-[1.5px] after:bg-primary after:-translate-y-1/2"
         />
       </SliderPrimitive.Track>
       {Array.from({ length: _values.length }, (_, index) => (
