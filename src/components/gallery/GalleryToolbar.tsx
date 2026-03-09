@@ -17,7 +17,7 @@ import {
   LayoutGrid,
   Rows3,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+
 
 const SORT_OPTIONS: { value: string; label: string }[] = [
   { value: "name-asc", label: "Name A-Z" },
@@ -208,44 +208,35 @@ export function GalleryToolbar({
         </span>
 
         <div className="flex items-center border border-border rounded-md overflow-hidden">
-          <button
+          <Button
+            variant="toggle-grouped"
+            size="icon-xs"
+            data-state={layoutMode === "grid" ? "on" : "off"}
             onClick={() => setLayoutMode("grid")}
             title="Grid layout"
-            className={cn(
-              "p-1 transition-colors",
-              layoutMode === "grid"
-                ? "bg-primary/15 text-primary"
-                : "text-muted-foreground hover:text-foreground hover:bg-muted",
-            )}
           >
             <LayoutGrid size={13} />
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="toggle-grouped"
+            size="icon-xs"
+            data-state={layoutMode === "masonry" ? "on" : "off"}
             onClick={() => setLayoutMode("masonry")}
             title="Masonry layout"
-            className={cn(
-              "p-1 transition-colors",
-              layoutMode === "masonry"
-                ? "bg-primary/15 text-primary"
-                : "text-muted-foreground hover:text-foreground hover:bg-muted",
-            )}
           >
             <Rows3 size={13} />
-          </button>
+          </Button>
         </div>
 
-        <button
+        <Button
+          variant="toggle"
+          size="icon-xs"
+          data-state={metadataPanelOpen ? "on" : "off"}
           onClick={toggleMetadataPanel}
           title="Toggle metadata panel (I)"
-          className={cn(
-            "p-1 rounded-md transition-colors",
-            metadataPanelOpen
-              ? "bg-primary/15 text-primary"
-              : "text-muted-foreground hover:text-foreground hover:bg-muted",
-          )}
         >
           <PanelRight size={14} />
-        </button>
+        </Button>
       </div>
     </div>
   );

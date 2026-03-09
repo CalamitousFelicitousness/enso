@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { Copy, Trash2, WrapText } from "lucide-react";
 import { useServerLog, useClearLog } from "@/api/hooks/useLog";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 export function ConsoleTab() {
@@ -33,33 +34,31 @@ export function ConsoleTab() {
     <div className="flex flex-col h-full">
       {/* Toolbar */}
       <div className="flex items-center gap-1 px-2 py-1.5 border-b border-border shrink-0">
-        <button
-          type="button"
+        <Button
+          variant="toggle"
+          size="icon-xs"
+          data-state={wrap ? "on" : "off"}
           onClick={() => setWrap(!wrap)}
-          className={cn(
-            "p-1.5 rounded text-muted-foreground hover:text-foreground transition-colors",
-            wrap && "bg-muted text-foreground",
-          )}
           title="Toggle line wrap"
         >
           <WrapText className="h-3.5 w-3.5" />
-        </button>
-        <button
-          type="button"
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon-xs"
           onClick={handleCopy}
-          className="p-1.5 rounded text-muted-foreground hover:text-foreground transition-colors"
           title="Copy all"
         >
           <Copy className="h-3.5 w-3.5" />
-        </button>
-        <button
-          type="button"
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon-xs"
           onClick={() => clearLog.mutate()}
-          className="p-1.5 rounded text-muted-foreground hover:text-foreground transition-colors"
           title="Clear log"
         >
           <Trash2 className="h-3.5 w-3.5" />
-        </button>
+        </Button>
         <span className="ml-auto text-3xs text-muted-foreground font-mono tabular-nums">
           {lines?.length ?? 0} lines
         </span>

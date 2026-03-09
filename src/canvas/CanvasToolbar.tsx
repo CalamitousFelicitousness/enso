@@ -52,8 +52,9 @@ export function CanvasToolbar() {
     <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-2 px-3 py-1.5 rounded-lg dark:bg-popover/80 bg-popover/70 backdrop-blur-xl border border-border/50 ring-1 dark:ring-white/[0.05] ring-black/[0.05] shadow-lg shadow-black/30">
       {/* Move */}
       <Button
-        variant={activeTool === "move" ? "default" : "ghost"}
+        variant="toggle"
         size="icon-xs"
+        data-state={activeTool === "move" ? "on" : "off"}
         onClick={() => setActiveTool("move")}
         title="Move / select layers (V)"
       >
@@ -62,8 +63,9 @@ export function CanvasToolbar() {
 
       {/* Brush */}
       <Button
-        variant={activeTool === "maskBrush" ? "default" : "ghost"}
+        variant="toggle"
         size="icon-xs"
+        data-state={activeTool === "maskBrush" ? "on" : "off"}
         onClick={toggleBrush}
         title="Paint inpainting mask (B)"
       >
@@ -72,8 +74,9 @@ export function CanvasToolbar() {
 
       {/* Eraser */}
       <Button
-        variant={activeTool === "maskEraser" ? "default" : "ghost"}
+        variant="toggle"
         size="icon-xs"
+        data-state={activeTool === "maskEraser" ? "on" : "off"}
         onClick={toggleEraser}
         title="Erase inpainting mask (E)"
       >

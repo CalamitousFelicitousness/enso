@@ -25,8 +25,8 @@ export function ModeToggle({ mode, onModeChange, locked, onLockedChange }: ModeT
         className={cn(
           "absolute inset-y-[2px] left-[2px] rounded-full",
           "w-[calc((100%-24px)/2)]",
-          "dark:bg-white/10 bg-black/[0.07]",
-          "transition-transform duration-150 ease-out",
+          "bg-primary/20 border border-primary/40",
+          "transition-all duration-150 ease-out",
           !isFocus && "translate-x-[calc(100%+20px)]",
         )}
       />
@@ -39,7 +39,10 @@ export function ModeToggle({ mode, onModeChange, locked, onLockedChange }: ModeT
           "relative z-10 flex-1 flex items-center justify-center gap-1 h-full px-2.5",
           "text-2xs font-medium uppercase tracking-wider",
           "transition-colors duration-150 cursor-pointer select-none",
-          isFocus ? "text-foreground" : "text-muted-foreground hover:text-foreground/70",
+          "min-w-[60px]",
+          isFocus
+            ? "text-primary"
+            : "text-muted-foreground hover:text-foreground/70",
         )}
       >
         <Focus size={10} />
@@ -52,7 +55,7 @@ export function ModeToggle({ mode, onModeChange, locked, onLockedChange }: ModeT
         onClick={() => onLockedChange(!locked)}
         title={locked ? "Unlock mode switching" : "Lock current mode"}
         className={cn(
-          "relative z-10 flex items-center justify-center w-5 h-full",
+          "relative z-10 flex items-center justify-center w-5 h-full ml-[1px]",
           "transition-colors duration-150 cursor-pointer",
           locked
             ? "text-primary"
@@ -70,7 +73,10 @@ export function ModeToggle({ mode, onModeChange, locked, onLockedChange }: ModeT
           "relative z-10 flex-1 flex items-center justify-center gap-1 h-full px-2.5",
           "text-2xs font-medium uppercase tracking-wider",
           "transition-colors duration-150 cursor-pointer select-none",
-          !isFocus ? "text-foreground" : "text-muted-foreground hover:text-foreground/70",
+          "min-w-[60px]",
+          !isFocus
+            ? "text-primary"
+            : "text-muted-foreground hover:text-foreground/70",
         )}
       >
         <Maximize size={10} />
