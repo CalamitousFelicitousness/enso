@@ -25,7 +25,10 @@ export function CanvasToolbar() {
     setActiveTool(activeTool === "maskEraser" ? "move" : "maskEraser");
   }, [activeTool, setActiveTool]);
 
-  const handleSizeChange = useCallback(([v]: number[]) => setBrushSize(v), [setBrushSize]);
+  const handleSizeChange = useCallback(
+    ([v]: number[]) => setBrushSize(v),
+    [setBrushSize],
+  );
 
   // Keyboard shortcuts (dispatched via the global shortcut system, scoped to "canvas")
   useShortcut("canvas-move", () => setActiveTool("move"));
@@ -46,7 +49,7 @@ export function CanvasToolbar() {
   });
 
   return (
-    <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-2 px-3 py-1.5 rounded-lg bg-background/80 backdrop-blur-sm border border-border shadow-lg">
+    <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-2 px-3 py-1.5 rounded-lg dark:bg-popover/80 bg-popover/70 backdrop-blur-xl border border-border/50 ring-1 dark:ring-white/[0.05] ring-black/[0.05] shadow-lg shadow-black/30">
       {/* Move */}
       <Button
         variant={activeTool === "move" ? "default" : "ghost"}
@@ -81,7 +84,9 @@ export function CanvasToolbar() {
       <div className="w-px h-5 bg-border" />
 
       {/* Brush size */}
-      <Label className="text-3xs text-muted-foreground whitespace-nowrap">{brushSize}px</Label>
+      <Label className="text-3xs text-muted-foreground whitespace-nowrap">
+        {brushSize}px
+      </Label>
       <Slider
         min={1}
         max={200}

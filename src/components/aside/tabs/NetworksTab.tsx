@@ -1,6 +1,10 @@
 import { useState, useMemo } from "react";
 import { RefreshCw, ImageOff, Loader2, ScanSearch } from "lucide-react";
-import { useExtraNetworks, usePromptStyles, useRefreshNetworks } from "@/api/hooks/useNetworks";
+import {
+  useExtraNetworks,
+  usePromptStyles,
+  useRefreshNetworks,
+} from "@/api/hooks/useNetworks";
 import { useCivitMetadataScan } from "@/api/hooks/useCivitai";
 import { useOptions, useSetOptions } from "@/api/hooks/useSettings";
 import { useGenerationStore } from "@/stores/generationStore";
@@ -12,7 +16,14 @@ import { cn } from "@/lib/utils";
 import { api } from "@/api/client";
 import { toast } from "sonner";
 
-const TYPE_FILTERS = ["Model", "LoRA", "Style", "Wildcards", "Embedding", "VAE"] as const;
+const TYPE_FILTERS = [
+  "Model",
+  "LoRA",
+  "Style",
+  "Wildcards",
+  "Embedding",
+  "VAE",
+] as const;
 type TypeFilter = (typeof TYPE_FILTERS)[number];
 
 const PAGE_MAP: Record<TypeFilter, string | null> = {
@@ -24,13 +35,21 @@ const PAGE_MAP: Record<TypeFilter, string | null> = {
   VAE: "vae",
 };
 
-const TAG_CATEGORIES = ["Distilled", "Quantized", "Nunchaku", "Community", "Cloud"] as const;
+const TAG_CATEGORIES = [
+  "Distilled",
+  "Quantized",
+  "Nunchaku",
+  "Community",
+  "Cloud",
+] as const;
 
 const EXCLUDED_VERSIONS = new Set(["ref", "reference", "ready", "download"]);
 
 type SidebarGroup = { header?: string; items: string[] };
 
-function isExtraNetwork(item: ExtraNetworkV2 | PromptStyleV2): item is ExtraNetworkV2 {
+function isExtraNetwork(
+  item: ExtraNetworkV2 | PromptStyleV2,
+): item is ExtraNetworkV2 {
   return "type" in item && !!item.type;
 }
 
@@ -38,17 +57,28 @@ function isReferenceName(name: string): boolean {
   return name.toLowerCase().includes("reference/");
 }
 
-function isItemActive(item: ExtraNetworkV2 | PromptStyleV2, prompt: string, options: Record<string, unknown> | undefined): boolean {
+function isItemActive(
+  item: ExtraNetworkV2 | PromptStyleV2,
+  prompt: string,
+  options: Record<string, unknown> | undefined,
+): boolean {
   if (!isExtraNetwork(item)) {
     const style = item as PromptStyleV2;
     return !!style.prompt && prompt.includes(style.prompt);
   }
   const t = item.type?.toLowerCase() ?? "";
-  if (t === "model" || t === "checkpoint") return (item.title ?? item.name) === (options?.sd_model_checkpoint as string);
-  if (t === "lora" || t === "lycoris") return prompt.includes(`<lora:${item.name}:`);
-  if (t === "embedding" || t === "textual inversion") return prompt.includes(item.name);
+  if (t === "model" || t === "checkpoint")
+    return (
+      (item.title ?? item.name) === (options?.sd_model_checkpoint as string)
+    );
+
+  if (t === "lora" || t === "lycoris")
+    return prompt.includes(`<lora:${item.name}:`);
+  if (t === "embedding" || t === "textual inversion")
+    return prompt.includes(item.name);
   if (t === "wildcards") return prompt.includes(`__${item.name}__`);
-  if (t === "vae") return (item.title ?? item.name) === (options?.sd_vae as string);
+  if (t === "vae")
+    return (item.title ?? item.name) === (options?.sd_vae as string);
   return false;
 }
 
@@ -77,13 +107,19 @@ export function NetworksTab() {
       const found = results.filter((r) => String(r.code) === "200").length;
       const notFound = results.filter((r) => String(r.code) === "404").length;
       if (results.length === 0) {
-        toast.info("CivitAI scan complete", { description: "No items needed scanning" });
+        toast.info("CivitAI scan complete", {
+          description: "No items needed scanning",
+        });
       } else {
-        toast.success("CivitAI scan complete", { description: `${found} found, ${notFound} not on CivitAI` });
+        toast.success("CivitAI scan complete", {
+          description: `${found} found, ${notFound} not on CivitAI`,
+        });
       }
       refreshNetworks.mutate();
     } catch (err) {
-      toast.error("CivitAI scan failed", { description: err instanceof Error ? err.message : String(err) });
+      toast.error("CivitAI scan failed", {
+        description: err instanceof Error ? err.message : String(err),
+      });
     }
   }
 
@@ -100,7 +136,8 @@ export function NetworksTab() {
     if (filter === "Style") {
       const lowerSearch = search.toLowerCase();
       for (const s of styles ?? []) {
-        if (lowerSearch && !s.name.toLowerCase().includes(lowerSearch)) continue;
+        if (lowerSearch && !s.name.toLowerCase().includes(lowerSearch))
+          continue;
         items.push(s);
       }
     } else {
@@ -114,7 +151,11 @@ export function NetworksTab() {
   const versionSet = useMemo(() => {
     const versions = new Set<string>();
     for (const item of filtered) {
-      if (isExtraNetwork(item) && item.version && !EXCLUDED_VERSIONS.has(item.version.toLowerCase())) {
+      if (
+        isExtraNetwork(item) &&
+        item.version &&
+        !EXCLUDED_VERSIONS.has(item.version.toLowerCase())
+      ) {
         versions.add(item.version);
       }
     }
@@ -122,7 +163,9 @@ export function NetworksTab() {
   }, [filtered]);
 
   const sidebarGroups = useMemo((): SidebarGroup[] => {
-    const sortedVersions = Array.from(versionSet).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }));
+    const sortedVersions = Array.from(versionSet).sort((a, b) =>
+      a.localeCompare(b, undefined, { sensitivity: "base" }),
+    );
 
     if (filter === "Model") {
       const realDirs = new Set<string>();
@@ -138,14 +181,17 @@ export function NetworksTab() {
         const isDiff = item.name.startsWith("Diffusers/");
         if (!isRef && !isDiff) {
           hasLocal = true;
-          const name = item.name.startsWith("models/") ? item.name.substring(7) : item.name;
+          const name = item.name.startsWith("models/")
+            ? item.name.substring(7)
+            : item.name;
           const slash = name.indexOf("/");
           if (slash > 0) realDirs.add(name.substring(0, slash));
         }
         if (isDiff) hasDiffusers = true;
         if (isRef && item.tags.length === 0) hasReference = true;
         for (const cat of TAG_CATEGORIES) {
-          if (itemHasTag(item, cat.toLowerCase())) tagHits.set(cat.toLowerCase(), true);
+          if (itemHasTag(item, cat.toLowerCase()))
+            tagHits.set(cat.toLowerCase(), true);
         }
       }
 
@@ -156,10 +202,13 @@ export function NetworksTab() {
       for (const cat of TAG_CATEGORIES) {
         if (tagHits.get(cat.toLowerCase())) categories.push(cat);
       }
-      const dirs = Array.from(realDirs).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }));
+      const dirs = Array.from(realDirs).sort((a, b) =>
+        a.localeCompare(b, undefined, { sensitivity: "base" }),
+      );
 
       const groups: SidebarGroup[] = [{ items: ["All", ...categories] }];
-      if (sortedVersions.length > 0) groups.push({ header: "Class", items: sortedVersions });
+      if (sortedVersions.length > 0)
+        groups.push({ header: "Class", items: sortedVersions });
       if (dirs.length > 0) groups.push({ header: "Folders", items: dirs });
       return groups;
     }
@@ -167,8 +216,11 @@ export function NetworksTab() {
     if (filter === "Style") {
       const categories: string[] = [];
       for (const item of filtered) {
-        if (isReferenceName(item.name)) { if (!categories.includes("Reference")) categories.push("Reference"); }
-        else { if (!categories.includes("Local")) categories.unshift("Local"); }
+        if (isReferenceName(item.name)) {
+          if (!categories.includes("Reference")) categories.push("Reference");
+        } else {
+          if (!categories.includes("Local")) categories.unshift("Local");
+        }
       }
       return [{ items: ["All", ...categories] }];
     }
@@ -179,49 +231,79 @@ export function NetworksTab() {
       const slash = item.name.indexOf("/");
       if (slash > 0) dirs.add(item.name.substring(0, slash));
     }
-    const sortedDirs = Array.from(dirs).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }));
+    const sortedDirs = Array.from(dirs).sort((a, b) =>
+      a.localeCompare(b, undefined, { sensitivity: "base" }),
+    );
 
     const groups: SidebarGroup[] = [{ items: ["All", ...sortedDirs] }];
-    if (sortedVersions.length > 0) groups.push({ header: "Class", items: sortedVersions });
+    if (sortedVersions.length > 0)
+      groups.push({ header: "Class", items: sortedVersions });
     return groups;
   }, [filtered, filter, versionSet]);
 
-  const sidebarItemCount = sidebarGroups.reduce((n, g) => n + g.items.length, 0);
+  const sidebarItemCount = sidebarGroups.reduce(
+    (n, g) => n + g.items.length,
+    0,
+  );
 
   const displayItems = useMemo(() => {
     if (selectedSubfolder === "All") return filtered;
 
     if (filter === "Model") {
       if (selectedSubfolder === "Local") {
-        return filtered.filter((item) => isExtraNetwork(item) && !isReferenceName(item.name) && !item.name.startsWith("Diffusers/"));
+        return filtered.filter(
+          (item) =>
+            isExtraNetwork(item) &&
+            !isReferenceName(item.name) &&
+            !item.name.startsWith("Diffusers/"),
+        );
       }
       if (selectedSubfolder === "Diffusers") {
-        return filtered.filter((item) => isExtraNetwork(item) && item.name.startsWith("Diffusers/"));
+        return filtered.filter(
+          (item) => isExtraNetwork(item) && item.name.startsWith("Diffusers/"),
+        );
       }
       if (selectedSubfolder === "Reference") {
-        return filtered.filter((item) => isExtraNetwork(item) && isReferenceName(item.name) && item.tags.length === 0);
+        return filtered.filter(
+          (item) =>
+            isExtraNetwork(item) &&
+            isReferenceName(item.name) &&
+            item.tags.length === 0,
+        );
       }
       const tagCat = TAG_CATEGORIES.find((c) => c === selectedSubfolder);
       if (tagCat) {
-        return filtered.filter((item) => isExtraNetwork(item) && itemHasTag(item, tagCat.toLowerCase()));
+        return filtered.filter(
+          (item) =>
+            isExtraNetwork(item) && itemHasTag(item, tagCat.toLowerCase()),
+        );
       }
       if (versionSet.has(selectedSubfolder)) {
-        return filtered.filter((item) => isExtraNetwork(item) && item.version === selectedSubfolder);
+        return filtered.filter(
+          (item) => isExtraNetwork(item) && item.version === selectedSubfolder,
+        );
       }
       // Real subdir
       const prefix = selectedSubfolder + "/";
       const altPrefix = "models/" + prefix;
-      return filtered.filter((item) => item.name.startsWith(prefix) || item.name.startsWith(altPrefix));
+      return filtered.filter(
+        (item) =>
+          item.name.startsWith(prefix) || item.name.startsWith(altPrefix),
+      );
     }
 
     if (filter === "Style") {
-      if (selectedSubfolder === "Local") return filtered.filter((item) => !isReferenceName(item.name));
-      if (selectedSubfolder === "Reference") return filtered.filter((item) => isReferenceName(item.name));
+      if (selectedSubfolder === "Local")
+        return filtered.filter((item) => !isReferenceName(item.name));
+      if (selectedSubfolder === "Reference")
+        return filtered.filter((item) => isReferenceName(item.name));
     }
 
     // LoRA, Wildcards, Embedding, VAE - version or path-based filter
     if (versionSet.has(selectedSubfolder)) {
-      return filtered.filter((item) => isExtraNetwork(item) && item.version === selectedSubfolder);
+      return filtered.filter(
+        (item) => isExtraNetwork(item) && item.version === selectedSubfolder,
+      );
     }
     const prefix = selectedSubfolder + "/";
     return filtered.filter((item) => item.name.startsWith(prefix));
@@ -239,16 +321,27 @@ export function NetworksTab() {
       if (t === "lora" || t === "lycoris") {
         const current = useGenerationStore.getState().prompt;
         const tag = `<lora:${network.name}:1>`;
-        useGenerationStore.getState().setParam("prompt", current ? `${current} ${tag}` : tag);
+        useGenerationStore
+          .getState()
+          .setParam("prompt", current ? `${current} ${tag}` : tag);
       } else if (t === "model" || t === "checkpoint") {
-        setOptions.mutate({ sd_model_checkpoint: network.title ?? network.name });
+        setOptions.mutate({
+          sd_model_checkpoint: network.title ?? network.name,
+        });
       } else if (t === "embedding" || t === "textual inversion") {
         const current = useGenerationStore.getState().prompt;
-        useGenerationStore.getState().setParam("prompt", current ? `${current} ${network.name}` : network.name);
+        useGenerationStore
+          .getState()
+          .setParam(
+            "prompt",
+            current ? `${current} ${network.name}` : network.name,
+          );
       } else if (t === "wildcards") {
         const current = useGenerationStore.getState().prompt;
         const tag = `__${network.name}__`;
-        useGenerationStore.getState().setParam("prompt", current ? `${current} ${tag}` : tag);
+        useGenerationStore
+          .getState()
+          .setParam("prompt", current ? `${current} ${tag}` : tag);
       } else if (t === "vae") {
         setOptions.mutate({ sd_vae: network.title ?? network.name });
       }
@@ -256,11 +349,23 @@ export function NetworksTab() {
       const style = item as PromptStyleV2;
       if (style.prompt) {
         const current = useGenerationStore.getState().prompt;
-        useGenerationStore.getState().setParam("prompt", current ? `${current} ${style.prompt}` : style.prompt);
+        useGenerationStore
+          .getState()
+          .setParam(
+            "prompt",
+            current ? `${current} ${style.prompt}` : style.prompt,
+          );
       }
       if (style.negative_prompt) {
         const currentNeg = useGenerationStore.getState().negativePrompt;
-        useGenerationStore.getState().setParam("negativePrompt", currentNeg ? `${currentNeg} ${style.negative_prompt}` : style.negative_prompt);
+        useGenerationStore
+          .getState()
+          .setParam(
+            "negativePrompt",
+            currentNeg
+              ? `${currentNeg} ${style.negative_prompt}`
+              : style.negative_prompt,
+          );
       }
     }
   }
@@ -277,7 +382,9 @@ export function NetworksTab() {
               onClick={() => handleFilterChange(t)}
               className={cn(
                 "px-2 py-0.5 rounded-full text-2xs font-medium transition-colors",
-                filter === t ? "bg-accent text-accent-foreground" : "bg-muted text-muted-foreground hover:text-foreground",
+                filter === t
+                  ? "bg-accent text-accent-foreground"
+                  : "bg-muted text-muted-foreground hover:text-foreground",
               )}
             >
               {t}
@@ -292,7 +399,11 @@ export function NetworksTab() {
                 title="Scan CivitAI for missing previews & metadata"
                 className="p-1 text-muted-foreground hover:text-foreground disabled:opacity-50"
               >
-                {civitScan.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ScanSearch className="h-3.5 w-3.5" />}
+                {civitScan.isPending ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <ScanSearch className="h-3.5 w-3.5" />
+                )}
               </button>
             )}
             <button
@@ -301,7 +412,9 @@ export function NetworksTab() {
               onClick={() => refreshNetworks.mutate()}
               className="p-1 text-muted-foreground hover:text-foreground disabled:opacity-50"
             >
-              <RefreshCw className={`h-3.5 w-3.5 ${refreshNetworks.isPending ? "animate-spin" : ""}`} />
+              <RefreshCw
+                className={`h-3.5 w-3.5 ${refreshNetworks.isPending ? "animate-spin" : ""}`}
+              />
             </button>
           </div>
         </div>
@@ -320,7 +433,7 @@ export function NetworksTab() {
             {sidebarGroups.map((group, gi) => (
               <div key={group.header ?? gi}>
                 {group.header && (
-                  <div className="px-2 pt-2 pb-0.5 text-4xs font-semibold uppercase tracking-wider text-muted-foreground/60 border-t border-border">
+                  <div className="px-2 pt-2 pb-0.5 text-3xs font-semibold uppercase tracking-wider text-muted-foreground border-t border-border">
                     {group.header}
                   </div>
                 )}
@@ -331,7 +444,9 @@ export function NetworksTab() {
                     onClick={() => setSelectedSubfolder(dir)}
                     className={cn(
                       "w-full text-left px-2 py-1 text-2xs truncate transition-colors",
-                      selectedSubfolder === dir ? "bg-accent text-accent-foreground font-medium" : "text-muted-foreground hover:text-foreground hover:bg-muted/50",
+                      selectedSubfolder === dir
+                        ? "bg-accent text-accent-foreground font-medium"
+                        : "text-muted-foreground hover:text-foreground hover:bg-muted/50",
                     )}
                   >
                     {dir}
@@ -342,14 +457,27 @@ export function NetworksTab() {
           </div>
         )}
         <div className="flex-1 min-w-0 p-2">
-          {isLoading && <p className="text-xs text-muted-foreground p-2">Loading networks...</p>}
+          {isLoading && (
+            <p className="text-xs text-muted-foreground p-2">
+              Loading networks...
+            </p>
+          )}
           <div className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-1.5">
             {displayItems.map((item) => (
-              <NetworkCard key={isExtraNetwork(item) ? `${item.type}-${item.name}` : item.name} item={item} active={isItemActive(item, prompt, options)} onClick={() => handleClick(item)} />
+              <NetworkCard
+                key={
+                  isExtraNetwork(item) ? `${item.type}-${item.name}` : item.name
+                }
+                item={item}
+                active={isItemActive(item, prompt, options)}
+                onClick={() => handleClick(item)}
+              />
             ))}
           </div>
           {!isLoading && displayItems.length === 0 && (
-            <p className="text-xs text-muted-foreground text-center py-6">No results found.</p>
+            <p className="text-xs text-muted-foreground text-center py-6">
+              No results found.
+            </p>
           )}
         </div>
       </div>
@@ -357,14 +485,23 @@ export function NetworksTab() {
   );
 }
 
-
-function NetworkCard({ item, active, onClick }: { item: ExtraNetworkV2 | PromptStyleV2; active: boolean; onClick: () => void }) {
+function NetworkCard({
+  item,
+  active,
+  onClick,
+}: {
+  item: ExtraNetworkV2 | PromptStyleV2;
+  active: boolean;
+  onClick: () => void;
+}) {
   const isNetwork = "type" in item && item.type;
   const network = isNetwork ? (item as ExtraNetworkV2) : null;
-  const typeBadge = network ? (network.version || network.type) : "Style";
+  const typeBadge = network ? network.version || network.type : "Style";
   const preview = item.preview;
   const previewUrl = preview
-    ? preview.startsWith("data:") || preview.startsWith("http") ? preview : `${api.getBaseUrl()}${preview}`
+    ? preview.startsWith("data:") || preview.startsWith("http")
+      ? preview
+      : `${api.getBaseUrl()}${preview}`
     : null;
 
   return (
@@ -372,7 +509,12 @@ function NetworkCard({ item, active, onClick }: { item: ExtraNetworkV2 | PromptS
       role="button"
       tabIndex={0}
       onClick={onClick}
-      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onClick(); } }}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onClick();
+        }
+      }}
       className={cn(
         "flex flex-col rounded-md border overflow-hidden transition-colors text-left cursor-pointer",
         active
@@ -382,15 +524,24 @@ function NetworkCard({ item, active, onClick }: { item: ExtraNetworkV2 | PromptS
     >
       <div className="aspect-square w-full bg-muted/30 flex items-center justify-center overflow-hidden">
         {previewUrl ? (
-          <img src={previewUrl} alt={item.name} className="w-full h-full object-cover" loading="lazy" />
+          <img
+            src={previewUrl}
+            alt={item.name}
+            className="w-full h-full object-cover"
+            loading="lazy"
+          />
         ) : (
           <ImageOff className="h-6 w-6 text-muted-foreground/40" />
         )}
       </div>
       <div className="p-1.5 space-y-0.5">
-        <p className="text-2xs font-medium truncate leading-tight">{item.name}</p>
+        <p className="text-2xs font-medium truncate leading-tight">
+          {item.name}
+        </p>
         <div className="flex items-center justify-between gap-1">
-          <Badge variant="secondary" className="text-4xs px-1 py-0">{typeBadge}</Badge>
+          <Badge variant="secondary" className="text-4xs px-1 py-0">
+            {typeBadge}
+          </Badge>
           <NetworkDetailDialog item={item} />
         </div>
       </div>

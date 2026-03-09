@@ -8,10 +8,11 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, __dirname, "");
   const backendPort = env.BACKEND_PORT || "7860";
   const standalone = env.STANDALONE === "true" || backendPort === "0";
+  const isVercel = !!env.VERCEL;
   const backend = `http://localhost:${backendPort}`;
 
   return {
-  base: mode === "production" ? "/enso/" : "/",
+  base: mode === "production" && !isVercel ? "/enso/" : "/",
   plugins: [
     react(),
     tailwindcss(),
@@ -63,8 +64,8 @@ export default defineConfig(({ mode }) => {
         background_color: "#0a0a0a",
         display: "standalone",
         orientation: "any",
-        scope: mode === "production" ? "/enso/" : "/",
-        start_url: mode === "production" ? "/enso/" : "/",
+        scope: mode === "production" && !isVercel ? "/enso/" : "/",
+        start_url: mode === "production" && !isVercel ? "/enso/" : "/",
         icons: [
           { src: "pwa-192.png", sizes: "192x192", type: "image/png" },
           { src: "pwa-512.png", sizes: "512x512", type: "image/png" },

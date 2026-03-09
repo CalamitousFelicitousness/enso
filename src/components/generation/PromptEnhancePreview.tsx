@@ -10,7 +10,11 @@ interface PromptEnhancePreviewProps {
   onAccept?: (prompt: string) => void;
 }
 
-export function PromptEnhancePreview({ onEnhance, isPending, onAccept: onAcceptProp }: PromptEnhancePreviewProps) {
+export function PromptEnhancePreview({
+  onEnhance,
+  isPending,
+  onAccept: onAcceptProp,
+}: PromptEnhancePreviewProps) {
   const pendingResult = usePromptEnhanceStore((s) => s.pendingResult);
   const setPendingResult = usePromptEnhanceStore((s) => s.setPendingResult);
   const addToHistory = usePromptEnhanceStore((s) => s.addToHistory);
@@ -39,12 +43,31 @@ export function PromptEnhancePreview({ onEnhance, isPending, onAccept: onAcceptP
 
   return (
     <div className="flex flex-col gap-2 p-3">
-      <div className="text-3xs uppercase tracking-wider text-muted-foreground/60">Preview</div>
+      <div className="text-2xs uppercase tracking-wider text-muted-foreground">
+        Preview
+      </div>
       <div className="text-xs leading-relaxed p-2 rounded-md bg-muted/30 max-h-50 overflow-y-auto">
         {segments.map((seg, i) => {
           if (seg.type === "equal") return <span key={i}>{seg.text}</span>;
-          if (seg.type === "added") return <span key={i} className="bg-green-500/20 text-green-300 rounded px-0.5">{seg.text}</span>;
-          return <span key={i} className="bg-red-500/20 text-red-300 line-through rounded px-0.5">{seg.text}</span>;
+
+          if (seg.type === "added")
+            return (
+              <span
+                key={i}
+                className="bg-green-500/20 text-green-300 rounded px-0.5"
+              >
+                {seg.text}
+              </span>
+            );
+
+          return (
+            <span
+              key={i}
+              className="bg-red-500/20 text-red-300 line-through rounded px-0.5"
+            >
+              {seg.text}
+            </span>
+          );
         })}
       </div>
       <div className="flex items-center gap-1.5">
@@ -61,7 +84,12 @@ export function PromptEnhancePreview({ onEnhance, isPending, onAccept: onAcceptP
           disabled={isPending}
           className="flex items-center gap-1 px-2 py-1 rounded text-2xs bg-muted text-muted-foreground hover:bg-muted/80 transition-colors disabled:opacity-50"
         >
-          {isPending ? <Loader2 size={12} className="animate-spin" /> : <RotateCcw size={12} />} Retry
+          {isPending ? (
+            <Loader2 size={12} className="animate-spin" />
+          ) : (
+            <RotateCcw size={12} />
+          )}{" "}
+          Retry
         </button>
         <button
           type="button"
