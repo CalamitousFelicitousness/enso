@@ -82,19 +82,31 @@ function App() {
   // UI scale
   useEffect(() => {
     document.documentElement.style.fontSize = `${uiScale}px`;
-    return () => { document.documentElement.style.fontSize = ""; };
+    return () => {
+      document.documentElement.style.fontSize = "";
+    };
   }, [uiScale]);
 
   // Border radius
   useEffect(() => {
-    document.documentElement.style.setProperty("--radius", `${borderRadius}rem`);
-    return () => { document.documentElement.style.removeProperty("--radius"); };
+    document.documentElement.style.setProperty(
+      "--radius",
+      `${borderRadius}rem`,
+    );
+    return () => {
+      document.documentElement.style.removeProperty("--radius");
+    };
   }, [borderRadius]);
 
   return (
     <TooltipProvider delayDuration={300} skipDelayDuration={300}>
       <AppShell />
-      <Toaster position="bottom-right" richColors closeButton theme={resolvedTheme} />
+      <Toaster
+        position="bottom-right"
+        richColors
+        closeButton
+        theme={resolvedTheme}
+      />
     </TooltipProvider>
   );
 }

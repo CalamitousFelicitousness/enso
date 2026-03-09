@@ -12,10 +12,17 @@ interface ImageUploadProps {
   compact?: boolean;
 }
 
-export function ImageUpload({ image, onImageChange, label = "Drop image", compact = false }: ImageUploadProps) {
+export function ImageUpload({
+  image,
+  onImageChange,
+  label = "Drop image",
+  compact = false,
+}: ImageUploadProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragOver, setDragOver] = useState(false);
-  const [preview, setPreview] = useState<string | null>(() => (image ? URL.createObjectURL(image) : null));
+  const [preview, setPreview] = useState<string | null>(() =>
+    image ? URL.createObjectURL(image) : null,
+  );
 
   // Revoke object URL on unmount
   useEffect(() => {
@@ -24,31 +31,41 @@ export function ImageUpload({ image, onImageChange, label = "Drop image", compac
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps -- cleanup only on unmount
 
-  const handleFile = useCallback((file: File | null) => {
-    if (preview) URL.revokeObjectURL(preview);
-    if (file) {
-      setPreview(URL.createObjectURL(file));
-    } else {
-      setPreview(null);
-    }
-    onImageChange(file);
-  }, [onImageChange, preview]);
+  const handleFile = useCallback(
+    (file: File | null) => {
+      if (preview) URL.revokeObjectURL(preview);
+      if (file) {
+        setPreview(URL.createObjectURL(file));
+      } else {
+        setPreview(null);
+      }
+      onImageChange(file);
+    },
+    [onImageChange, preview],
+  );
 
-  const onDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setDragOver(false);
-    // Check for internal drag payload first
-    const raw = e.dataTransfer.getData(INTERNAL_MIME);
-    if (raw) {
-      try {
-        const payload = JSON.parse(raw) as DragPayload;
-        payloadToFile(payload).then((f) => handleFile(f)).catch(() => {});
-        return;
-      } catch { /* fall through */ }
-    }
-    const file = e.dataTransfer.files?.[0];
-    if (file?.type.startsWith("image/")) handleFile(file);
-  }, [handleFile]);
+  const onDrop = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault();
+      setDragOver(false);
+      // Check for internal drag payload first
+      const raw = e.dataTransfer.getData(INTERNAL_MIME);
+      if (raw) {
+        try {
+          const payload = JSON.parse(raw) as DragPayload;
+          payloadToFile(payload)
+            .then((f) => handleFile(f))
+            .catch(() => {});
+          return;
+        } catch {
+          /* fall through */
+        }
+      }
+      const file = e.dataTransfer.files?.[0];
+      if (file?.type.startsWith("image/")) handleFile(file);
+    },
+    [handleFile],
+  );
 
   const onDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -57,18 +74,28 @@ export function ImageUpload({ image, onImageChange, label = "Drop image", compac
 
   const onDragLeave = useCallback(() => setDragOver(false), []);
 
-  const onInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0] ?? null;
-    handleFile(file);
-    e.target.value = "";
-  }, [handleFile]);
+  const onInputChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0] ?? null;
+      handleFile(file);
+      e.target.value = "";
+    },
+    [handleFile],
+  );
 
   const size = compact ? "h-20" : "h-28";
 
   if (image && preview) {
     return (
-      <div className={`relative ${size} rounded-md overflow-hidden border border-border group`}>
-        <img src={preview} alt="Upload preview" className="w-full h-full object-cover" />
+      <div
+        className={`relative ${size} rounded-md overflow-hidden border border-border group`}
+      >
+        <img
+          src={preview}
+          alt="Upload preview"
+          className="w-full h-full object-cover"
+        />
+
         <Button
           variant="destructive"
           size="icon-sm"
@@ -93,7 +120,13 @@ export function ImageUpload({ image, onImageChange, label = "Drop image", compac
         <Upload size={compact ? 14 : 16} className="mb-1" />
         <span className="text-3xs">{label}</span>
       </div>
-      <input ref={inputRef} type="file" accept="image/*" className="hidden" onChange={onInputChange} />
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={onInputChange}
+      />
     </>
   );
 }

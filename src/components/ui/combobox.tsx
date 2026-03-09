@@ -2,9 +2,18 @@ import { useState, type ReactNode } from "react";
 import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Popover, PopoverContent, PopoverTrigger } from "./popover";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "./command";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "./command";
 
-export type ComboboxOption = string | { value: string; label: string; disabled?: boolean };
+export type ComboboxOption =
+  | string
+  | { value: string; label: string; disabled?: boolean };
 
 export interface ComboboxGroup {
   heading: string;
@@ -62,10 +71,11 @@ export function Combobox({
     ? groups.flatMap((g) => g.options)
     : (options ?? []);
 
-  const currentLabel = allOptions.reduce<string | undefined>((found, opt) => {
-    if (found) return found;
-    return getOptionValue(opt) === value ? getOptionLabel(opt) : undefined;
-  }, undefined) ?? value;
+  const currentLabel =
+    allOptions.reduce<string | undefined>((found, opt) => {
+      if (found) return found;
+      return getOptionValue(opt) === value ? getOptionLabel(opt) : undefined;
+    }, undefined) ?? value;
 
   const renderItem = (opt: ComboboxOption) => {
     const v = getOptionValue(opt);
@@ -76,7 +86,12 @@ export function Combobox({
         key={v}
         value={v}
         keywords={typeof opt === "string" ? undefined : [l]}
-        onSelect={() => { if (!isDisabled) { onValueChange(v); setOpen(false); } }}
+        onSelect={() => {
+          if (!isDisabled) {
+            onValueChange(v);
+            setOpen(false);
+          }
+        }}
         disabled={isDisabled}
         className={cn("text-2xs", v === value && "font-semibold !text-primary")}
       >
@@ -96,7 +111,13 @@ export function Combobox({
             className,
           )}
         >
-          <span className="break-words text-left">{value ? (renderLabel ? renderLabel(value, currentLabel) : currentLabel) : placeholder}</span>
+          <span className="break-words text-left">
+            {value
+              ? renderLabel
+                ? renderLabel(value, currentLabel)
+                : currentLabel
+              : placeholder}
+          </span>
           <ChevronDown size={12} className="shrink-0 opacity-50" />
         </button>
       </PopoverTrigger>
@@ -105,11 +126,13 @@ export function Combobox({
         align={align}
       >
         <Command>
-          {allOptions.length > 6 && <CommandInput placeholder={searchPlaceholder} />}
+          {allOptions.length > 6 && (
+            <CommandInput placeholder={searchPlaceholder} />
+          )}
           <CommandList>
             <CommandEmpty>{emptyText}</CommandEmpty>
-            {groups
-              ? groups.map((g) => (
+            {groups ? (
+              groups.map((g) => (
                 <CommandGroup
                   key={g.heading}
                   heading={g.heading}
@@ -118,11 +141,9 @@ export function Combobox({
                   {g.options.map(renderItem)}
                 </CommandGroup>
               ))
-              : (
-                <CommandGroup>
-                  {(options ?? []).map(renderItem)}
-                </CommandGroup>
-              )}
+            ) : (
+              <CommandGroup>{(options ?? []).map(renderItem)}</CommandGroup>
+            )}
           </CommandList>
         </Command>
       </PopoverContent>

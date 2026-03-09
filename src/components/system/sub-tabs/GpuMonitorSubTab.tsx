@@ -18,11 +18,21 @@ const chartStore = {
   },
   subscribe(listener: () => void) {
     chartStore._listeners.add(listener);
-    return () => { chartStore._listeners.delete(listener); };
+    return () => {
+      chartStore._listeners.delete(listener);
+    };
   },
 };
 
-function Sparkline({ data, color, height = 40 }: { data: number[]; color: string; height?: number }) {
+function Sparkline({
+  data,
+  color,
+  height = 40,
+}: {
+  data: number[];
+  color: string;
+  height?: number;
+}) {
   if (data.length < 2) return null;
   const width = 200;
   const padY = 2;
@@ -30,13 +40,17 @@ function Sparkline({ data, color, height = 40 }: { data: number[]; color: string
   const points = data
     .map((v, i) => {
       const x = (i / (MAX_POINTS - 1)) * width;
-      const y = height - padY - ((v / max) * (height - padY * 2));
+      const y = height - padY - (v / max) * (height - padY * 2);
       return `${x},${y}`;
     })
     .join(" ");
 
   return (
-    <svg viewBox={`0 0 ${width} ${height}`} className="w-full" preserveAspectRatio="none">
+    <svg
+      viewBox={`0 0 ${width} ${height}`}
+      className="w-full"
+      preserveAspectRatio="none"
+    >
       <polyline
         points={points}
         fill="none"
@@ -54,11 +68,22 @@ export function GpuMonitorSubTab() {
   const gpu = gpus?.[0];
 
   useEffect(() => {
-    if (gpu) chartStore.push(gpu.chart_vram_pct ?? 0, gpu.chart_gpu_pct ?? 0, dataUpdatedAt);
+    if (gpu)
+      chartStore.push(
+        gpu.chart_vram_pct ?? 0,
+        gpu.chart_gpu_pct ?? 0,
+        dataUpdatedAt,
+      );
   }, [gpu, dataUpdatedAt]);
 
-  const gpuHistory = useSyncExternalStore(chartStore.subscribe, useCallback(() => chartStore.gpu, []));
-  const vramHistory = useSyncExternalStore(chartStore.subscribe, useCallback(() => chartStore.vram, []));
+  const gpuHistory = useSyncExternalStore(
+    chartStore.subscribe,
+    useCallback(() => chartStore.gpu, []),
+  );
+  const vramHistory = useSyncExternalStore(
+    chartStore.subscribe,
+    useCallback(() => chartStore.vram, []),
+  );
 
   return (
     <div className="space-y-4">
@@ -69,7 +94,9 @@ export function GpuMonitorSubTab() {
               <div>
                 <div className="flex justify-between text-3xs text-muted-foreground mb-0.5">
                   <span>GPU Load</span>
-                  <span className="tabular-nums">{gpu.chart_gpu_pct ?? 0}%</span>
+                  <span className="tabular-nums">
+                    {gpu.chart_gpu_pct ?? 0}%
+                  </span>
                 </div>
                 <div className="border border-border rounded overflow-hidden">
                   <Sparkline data={gpuHistory} color="hsl(var(--accent))" />
@@ -78,10 +105,15 @@ export function GpuMonitorSubTab() {
               <div>
                 <div className="flex justify-between text-3xs text-muted-foreground mb-0.5">
                   <span>VRAM Load</span>
-                  <span className="tabular-nums">{gpu.chart_vram_pct ?? 0}%</span>
+                  <span className="tabular-nums">
+                    {gpu.chart_vram_pct ?? 0}%
+                  </span>
                 </div>
                 <div className="border border-border rounded overflow-hidden">
-                  <Sparkline data={vramHistory} color="hsl(var(--chart-2, var(--accent)))" />
+                  <Sparkline
+                    data={vramHistory}
+                    color="hsl(var(--chart-2, var(--accent)))"
+                  />
                 </div>
               </div>
             </div>
@@ -98,7 +130,9 @@ export function GpuMonitorSubTab() {
       )}
 
       {!gpu && (
-        <p className="text-xs text-muted-foreground text-center py-4">No GPU data available</p>
+        <p className="text-xs text-muted-foreground text-center py-4">
+          No GPU data available
+        </p>
       )}
     </div>
   );

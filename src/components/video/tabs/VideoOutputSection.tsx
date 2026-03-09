@@ -6,10 +6,16 @@ import { ParamGrid } from "@/components/generation/ParamRow";
 import { Combobox } from "@/components/ui/combobox";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { OUTPUT_PRESETS, qualityToCrf, crfToQuality } from "@/lib/videoOutputPresets";
+import {
+  OUTPUT_PRESETS,
+  qualityToCrf,
+  crfToQuality,
+} from "@/lib/videoOutputPresets";
 
 const presetOptions = OUTPUT_PRESETS.map((p) => p.id);
-const presetLabels: Record<string, string> = Object.fromEntries(OUTPUT_PRESETS.map((p) => [p.id, p.label]));
+const presetLabels: Record<string, string> = Object.fromEntries(
+  OUTPUT_PRESETS.map((p) => [p.id, p.label]),
+);
 
 export function VideoOutputSection() {
   const fps = useVideoStore((s) => s.fps);
@@ -54,17 +60,27 @@ export function VideoOutputSection() {
   const handleQualityChange = (value: number) => {
     setParam("outputQuality", value);
     const currentOpts = codecOptions;
-    const hasExtraOpts = currentOpts.replace(/crf:\d+/, "").replace(/^,|,$/g, "").trim();
+    const hasExtraOpts = currentOpts
+      .replace(/crf:\d+/, "")
+      .replace(/^,|,$/g, "")
+      .trim();
     const crfStr = qualityToCrf(value);
-    setParam("codecOptions", hasExtraOpts ? `${crfStr},${hasExtraOpts}` : crfStr);
+    setParam(
+      "codecOptions",
+      hasExtraOpts ? `${crfStr},${hasExtraOpts}` : crfStr,
+    );
   };
 
-  const presetDescription = OUTPUT_PRESETS.find((p) => p.id === outputPreset)?.description;
+  const presetDescription = OUTPUT_PRESETS.find(
+    (p) => p.id === outputPreset,
+  )?.description;
 
   return (
     <ParamSection title="Output" defaultOpen={false}>
       <div className="flex items-center gap-2">
-        <Label className="text-2xs text-muted-foreground w-16 shrink-0">Preset</Label>
+        <Label className="text-2xs text-muted-foreground w-16 shrink-0">
+          Preset
+        </Label>
         <Combobox
           value={outputPreset}
           onValueChange={handlePresetChange}
@@ -74,28 +90,61 @@ export function VideoOutputSection() {
         />
       </div>
       {presetDescription && (
-        <p className="text-3xs text-muted-foreground ml-18 pl-0.5">{presetDescription}</p>
+        <p className="text-3xs text-muted-foreground ml-18 pl-0.5">
+          {presetDescription}
+        </p>
       )}
 
       {showQuality && (
-        <ParamSlider label="Quality" value={outputQuality} onChange={handleQualityChange} min={10} max={100} step={5} />
+        <ParamSlider
+          label="Quality"
+          value={outputQuality}
+          onChange={handleQualityChange}
+          min={10}
+          max={100}
+          step={5}
+        />
       )}
       {resolutionHint && showQuality && (
-        <p className="text-3xs text-amber-500 ml-18 pl-0.5">Consider higher quality for this resolution</p>
+        <p className="text-3xs text-amber-500 ml-18 pl-0.5">
+          Consider higher quality for this resolution
+        </p>
       )}
 
       {isCustom && (
         <>
           <div className="flex items-center gap-2">
-            <Label className="text-2xs text-muted-foreground w-16 shrink-0">Codec</Label>
-            <Combobox value={codec} onValueChange={(v) => setParam("codec", v)} options={["libx264", "libx265", "libvpx-vp9", "libaom-av1", "ffv1"]} className="h-6 text-2xs flex-1" />
+            <Label className="text-2xs text-muted-foreground w-16 shrink-0">
+              Codec
+            </Label>
+            <Combobox
+              value={codec}
+              onValueChange={(v) => setParam("codec", v)}
+              options={[
+                "libx264",
+                "libx265",
+                "libvpx-vp9",
+                "libaom-av1",
+                "ffv1",
+              ]}
+              className="h-6 text-2xs flex-1"
+            />
           </div>
           <div className="flex items-center gap-2">
-            <Label className="text-2xs text-muted-foreground w-16 shrink-0">Format</Label>
-            <Combobox value={format} onValueChange={(v) => setParam("format", v)} options={["mp4", "webm", "mkv", "gif"]} className="h-6 text-2xs flex-1" />
+            <Label className="text-2xs text-muted-foreground w-16 shrink-0">
+              Format
+            </Label>
+            <Combobox
+              value={format}
+              onValueChange={(v) => setParam("format", v)}
+              options={["mp4", "webm", "mkv", "gif"]}
+              className="h-6 text-2xs flex-1"
+            />
           </div>
           <div className="flex items-center gap-2">
-            <Label className="text-2xs text-muted-foreground w-16 shrink-0">Codec opts</Label>
+            <Label className="text-2xs text-muted-foreground w-16 shrink-0">
+              Codec opts
+            </Label>
             <input
               type="text"
               value={codecOptions}
@@ -107,21 +156,51 @@ export function VideoOutputSection() {
       )}
 
       <ParamGrid>
-        <ParamSlider label="FPS" value={fps} onChange={(v) => setParam("fps", v)} min={1} max={60} step={1} />
-        <ParamSlider label="Interpolate" value={interpolate} onChange={(v) => setParam("interpolate", v)} min={0} max={8} step={1} />
+        <ParamSlider
+          label="FPS"
+          value={fps}
+          onChange={(v) => setParam("fps", v)}
+          min={1}
+          max={60}
+          step={1}
+        />
+
+        <ParamSlider
+          label="Interpolate"
+          value={interpolate}
+          onChange={(v) => setParam("interpolate", v)}
+          min={0}
+          max={8}
+          step={1}
+        />
       </ParamGrid>
 
       <div className="flex items-center gap-2">
-        <Label className="text-2xs text-muted-foreground w-16 shrink-0">Video</Label>
-        <Switch checked={saveVideo} onCheckedChange={(v) => setParam("saveVideo", v)} />
+        <Label className="text-2xs text-muted-foreground w-16 shrink-0">
+          Video
+        </Label>
+        <Switch
+          checked={saveVideo}
+          onCheckedChange={(v) => setParam("saveVideo", v)}
+        />
       </div>
       <div className="flex items-center gap-2">
-        <Label className="text-2xs text-muted-foreground w-16 shrink-0">Frames</Label>
-        <Switch checked={saveFrames} onCheckedChange={(v) => setParam("saveFrames", v)} />
+        <Label className="text-2xs text-muted-foreground w-16 shrink-0">
+          Frames
+        </Label>
+        <Switch
+          checked={saveFrames}
+          onCheckedChange={(v) => setParam("saveFrames", v)}
+        />
       </div>
       <div className="flex items-center gap-2">
-        <Label className="text-2xs text-muted-foreground w-16 shrink-0">Safetensors</Label>
-        <Switch checked={saveSafetensors} onCheckedChange={(v) => setParam("saveSafetensors", v)} />
+        <Label className="text-2xs text-muted-foreground w-16 shrink-0">
+          Safetensors
+        </Label>
+        <Switch
+          checked={saveSafetensors}
+          onCheckedChange={(v) => setParam("saveSafetensors", v)}
+        />
       </div>
     </ParamSection>
   );

@@ -3,7 +3,14 @@ import { Play, Square, Sparkles, Settings2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useVideoStore } from "@/stores/videoStore";
 import { usePromptEnhanceStore } from "@/stores/promptEnhanceStore";
-import { useJobQueueStore, selectVideoActive, selectFramepackActive, selectLtxActive, selectDomainProgress, selectDomainRunning } from "@/stores/jobStore";
+import {
+  useJobQueueStore,
+  selectVideoActive,
+  selectFramepackActive,
+  selectLtxActive,
+  selectDomainProgress,
+  selectDomainRunning,
+} from "@/stores/jobStore";
 import { useSubmitToQueue } from "@/hooks/useSubmitToQueue";
 import { sendToJob } from "@/hooks/useJobTracker";
 import { useCancelJob } from "@/api/hooks/useJobs";
@@ -13,7 +20,11 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Label } from "@/components/ui/label";
-import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
+import {
+  Popover,
+  PopoverTrigger,
+  PopoverContent,
+} from "@/components/ui/popover";
 import { PromptEnhanceWorkspace } from "@/components/generation/PromptEnhanceWorkspace";
 import { ModelsVideoTab } from "./tabs/ModelsVideoTab";
 import { FramePackTab } from "./tabs/FramePackTab";
@@ -196,24 +207,35 @@ export function VideoPanel() {
     };
     enhanceMutation.mutate(req, {
       onSuccess: (res) => {
-        setPendingResult({ prompt: res.prompt, seed: res.seed, originalPrompt: prompt });
+        setPendingResult({
+          prompt: res.prompt,
+          seed: res.seed,
+          originalPrompt: prompt,
+        });
         setEnhanceOpen(true);
         toast.success(`Prompt enhanced (seed: ${res.seed})`);
       },
       onError: (err) => {
-        toast.error(`Enhance failed: ${err instanceof Error ? err.message : "Unknown error"}`);
+        toast.error(
+          `Enhance failed: ${err instanceof Error ? err.message : "Unknown error"}`,
+        );
       },
     });
   }, [prompt, enhanceStore, enhanceMutation, setPendingResult]);
 
-  const handleAcceptEnhanced = useCallback((p: string) => setParam("prompt", p), [setParam]);
+  const handleAcceptEnhanced = useCallback(
+    (p: string) => setParam("prompt", p),
+    [setParam],
+  );
 
   const buildRequest = useCallback(async () => {
     const payload = await buildJobPayload(activeVideoTab);
     return { payload, snapshot: {} };
   }, [activeVideoTab]);
 
-  const { submit, isSubmitting } = useSubmitToQueue(useMemo(() => ({ domain, buildRequest }), [domain, buildRequest]));
+  const { submit, isSubmitting } = useSubmitToQueue(
+    useMemo(() => ({ domain, buildRequest }), [domain, buildRequest]),
+  );
 
   const handleCancel = useCallback(() => {
     if (runningVideoJob) {
@@ -239,7 +261,11 @@ export function VideoPanel() {
                 className="p-0.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
                 title="Enhance prompt"
               >
-                {enhanceMutation.isPending ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
+                {enhanceMutation.isPending ? (
+                  <Loader2 size={14} className="animate-spin" />
+                ) : (
+                  <Sparkles size={14} />
+                )}
               </button>
               <Popover open={enhanceOpen} onOpenChange={setEnhanceOpen}>
                 <PopoverTrigger asChild>
@@ -255,8 +281,12 @@ export function VideoPanel() {
                   side="right"
                   align="start"
                   className="w-96 p-0"
-                  onInteractOutside={(e) => { if (pinned) e.preventDefault(); }}
-                  onEscapeKeyDown={(e) => { if (pinned) e.preventDefault(); }}
+                  onInteractOutside={(e) => {
+                    if (pinned) e.preventDefault();
+                  }}
+                  onEscapeKeyDown={(e) => {
+                    if (pinned) e.preventDefault();
+                  }}
                 >
                   <ScrollArea className="max-h-[80vh]">
                     <PromptEnhanceWorkspace
@@ -277,6 +307,7 @@ export function VideoPanel() {
             placeholder="Describe the video..."
             className="text-xs min-h-15 resize-y"
           />
+
           <Textarea
             value={negative}
             onChange={(e) => setParam("negative", e.target.value)}
@@ -314,9 +345,14 @@ export function VideoPanel() {
           {isGenerating && progressPct > 0 && (
             <div className="flex items-center gap-2">
               <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
-                <div className="h-full bg-primary rounded-full transition-[width] duration-300" style={{ width: `${progressPct}%` }} />
+                <div
+                  className="h-full bg-primary rounded-full transition-[width] duration-300"
+                  style={{ width: `${progressPct}%` }}
+                />
               </div>
-              <span className="text-xs text-muted-foreground tabular-nums">{progressPct}%</span>
+              <span className="text-xs text-muted-foreground tabular-nums">
+                {progressPct}%
+              </span>
             </div>
           )}
         </div>

@@ -6,7 +6,11 @@ import { useCapabilities } from "@/api/hooks/useServer";
 import { cn } from "@/lib/utils";
 import { PanelLeftClose, PanelLeftOpen, HelpCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { Separator } from "@/components/ui/separator";
 
 export function Sidebar() {
@@ -43,7 +47,11 @@ export function Sidebar() {
           className="h-10 w-full rounded-none text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent"
           title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
         >
-          {collapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
+          {collapsed ? (
+            <PanelLeftOpen size={18} />
+          ) : (
+            <PanelLeftClose size={18} />
+          )}
         </Button>
 
         {/* Primary nav items */}
@@ -51,7 +59,10 @@ export function Sidebar() {
           {NAV_ITEMS.map((item) => {
             const Icon = item.icon;
             const isActive = activeView === item.id;
-            const isGated = item.capability != null && capabilities != null && !capabilities[item.capability];
+            const isGated =
+              item.capability != null &&
+              capabilities != null &&
+              !capabilities[item.capability];
             return (
               <Tooltip key={item.id}>
                 <TooltipTrigger asChild>
@@ -129,7 +140,10 @@ export function Sidebar() {
 
       {/* Column 2: Sub-tab labels (only for views with sub-tabs) */}
       {hasSubTabs && (
-        <div data-tour="sidebar-subtabs" className="flex flex-col border-l border-sidebar-border py-2 overflow-y-auto">
+        <div
+          data-tour="sidebar-subtabs"
+          className="flex flex-col border-l border-sidebar-border py-2 overflow-y-auto"
+        >
           {IMAGES_SUB_TABS.map((tab) => {
             const Icon = tab.icon;
             const isActive = activeSubTab === tab.id;
@@ -155,7 +169,12 @@ export function Sidebar() {
                 <span className="relative">
                   {tab.label}
                   {/* Invisible bold copy reserves width so the column doesn't shift on selection */}
-                  <span className="font-medium invisible block h-0 overflow-hidden" aria-hidden>{tab.label}</span>
+                  <span
+                    className="font-medium invisible block h-0 overflow-hidden"
+                    aria-hidden
+                  >
+                    {tab.label}
+                  </span>
                 </span>
               </button>
             );

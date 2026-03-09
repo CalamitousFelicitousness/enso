@@ -10,21 +10,26 @@ import { Textarea } from "@/components/ui/textarea";
 import { Combobox } from "@/components/ui/combobox";
 
 export function AdvancedTab() {
-  const state = useGenerationStore(useShallow((s) => ({
-    clipSkip: s.clipSkip,
-    vaeType: s.vaeType,
-    tiling: s.tiling,
-    hidiffusion: s.hidiffusion,
-    overrideSettings: s.overrideSettings,
-  })));
+  const state = useGenerationStore(
+    useShallow((s) => ({
+      clipSkip: s.clipSkip,
+      vaeType: s.vaeType,
+      tiling: s.tiling,
+      hidiffusion: s.hidiffusion,
+      overrideSettings: s.overrideSettings,
+    })),
+  );
   const setParam = useGenerationStore((s) => s.setParam);
 
-  const set = useMemo(() => ({
-    clipSkip: (v: number) => setParam("clipSkip", v),
-    vaeType: (v: string) => setParam("vaeType", v),
-    tiling: (checked: boolean) => setParam("tiling", checked),
-    hidiffusion: (checked: boolean) => setParam("hidiffusion", checked),
-  }), [setParam]);
+  const set = useMemo(
+    () => ({
+      clipSkip: (v: number) => setParam("clipSkip", v),
+      vaeType: (v: string) => setParam("vaeType", v),
+      tiling: (checked: boolean) => setParam("tiling", checked),
+      hidiffusion: (checked: boolean) => setParam("hidiffusion", checked),
+    }),
+    [setParam],
+  );
 
   function parseOverrides(text: string): Record<string, unknown> {
     const result: Record<string, unknown> = {};
@@ -37,23 +42,35 @@ export function AdvancedTab() {
       if (!key) continue;
       if (rawVal === "true") result[key] = true;
       else if (rawVal === "false") result[key] = false;
-      else if (rawVal !== "" && !isNaN(Number(rawVal))) result[key] = Number(rawVal);
+      else if (rawVal !== "" && !isNaN(Number(rawVal)))
+        result[key] = Number(rawVal);
       else result[key] = rawVal;
     }
     return result;
   }
 
   function overridesToText(obj: Record<string, unknown>): string {
-    return Object.entries(obj).map(([k, v]) => `${k}: ${v}`).join("\n");
+    return Object.entries(obj)
+      .map(([k, v]) => `${k}: ${v}`)
+      .join("\n");
   }
 
   return (
     <div className="flex flex-col gap-3 text-sm">
       <ParamSection title="Advanced">
-        <ParamSlider label="CLIP skip" value={state.clipSkip} onChange={set.clipSkip} min={0} max={12} step={0.1} />
+        <ParamSlider
+          label="CLIP skip"
+          value={state.clipSkip}
+          onChange={set.clipSkip}
+          min={0}
+          max={12}
+          step={0.1}
+        />
 
         <div data-param="vae type" className="flex items-center gap-2">
-          <ParamLabel className="text-2xs text-muted-foreground w-16 flex-shrink-0">VAE type</ParamLabel>
+          <ParamLabel className="text-2xs text-muted-foreground w-16 flex-shrink-0">
+            VAE type
+          </ParamLabel>
           <Combobox
             value={state.vaeType}
             onValueChange={set.vaeType}
@@ -64,23 +81,36 @@ export function AdvancedTab() {
 
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
-            <ParamLabel className="text-2xs text-muted-foreground flex-shrink-0">Texture tiling</ParamLabel>
+            <ParamLabel className="text-2xs text-muted-foreground flex-shrink-0">
+              Texture tiling
+            </ParamLabel>
             <Switch checked={state.tiling} onCheckedChange={set.tiling} />
           </div>
           <div className="flex items-center gap-2">
-            <ParamLabel className="text-2xs text-muted-foreground flex-shrink-0">HiDiffusion</ParamLabel>
-            <Switch checked={state.hidiffusion} onCheckedChange={set.hidiffusion} />
+            <ParamLabel className="text-2xs text-muted-foreground flex-shrink-0">
+              HiDiffusion
+            </ParamLabel>
+            <Switch
+              checked={state.hidiffusion}
+              onCheckedChange={set.hidiffusion}
+            />
           </div>
         </div>
       </ParamSection>
 
       <ParamSection title="Override Settings" defaultOpen={false}>
         <div className="flex flex-col gap-1">
-          <Label className="text-2xs text-muted-foreground">Key-value overrides (one per line, key: value)</Label>
+          <Label className="text-2xs text-muted-foreground">
+            Key-value overrides (one per line, key: value)
+          </Label>
           <Textarea
             value={overridesToText(state.overrideSettings)}
-            onChange={(e) => setParam("overrideSettings", parseOverrides(e.target.value))}
-            placeholder={"scheduler: Euler a\nsd_model_checkpoint: model.safetensors"}
+            onChange={(e) =>
+              setParam("overrideSettings", parseOverrides(e.target.value))
+            }
+            placeholder={
+              "scheduler: Euler a\nsd_model_checkpoint: model.safetensors"
+            }
             className="min-h-15 text-xs resize-y font-mono"
           />
         </div>

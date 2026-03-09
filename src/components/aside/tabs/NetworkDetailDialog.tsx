@@ -1,22 +1,45 @@
 import { useState } from "react";
-import { Info, Loader2, ExternalLink, ImageOff, ChevronDown, ChevronRight } from "lucide-react";
+import {
+  Info,
+  Loader2,
+  ExternalLink,
+  ImageOff,
+  ChevronDown,
+  ChevronRight,
+} from "lucide-react";
 import { toast } from "sonner";
 import { useNetworkDetail } from "@/api/hooks/useNetworks";
 import { useGenerationStore } from "@/stores/generationStore";
-import type { ExtraNetworkV2, NetworkDetail, PromptStyleV2 } from "@/api/types/models";
+import type {
+  ExtraNetworkV2,
+  NetworkDetail,
+  PromptStyleV2,
+} from "@/api/types/models";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import { api } from "@/api/client";
 
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  if (bytes < 1024 * 1024 * 1024)
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
 }
 
-function DetailRow({ label, value }: { label: string; value: string | null | undefined }) {
+function DetailRow({
+  label,
+  value,
+}: {
+  label: string;
+  value: string | null | undefined;
+}) {
   if (!value) return null;
   return (
     <div className="flex gap-2 text-xs leading-relaxed">
@@ -28,10 +51,15 @@ function DetailRow({ label, value }: { label: string; value: string | null | und
 
 function getCivitInfo(info: Record<string, unknown> | null | undefined) {
   if (!info || typeof info.id !== "number" || info.id <= 0) return null;
-  const versions = Array.isArray(info.modelVersions) ? info.modelVersions as Array<Record<string, unknown>> : [];
+  const versions = Array.isArray(info.modelVersions)
+    ? (info.modelVersions as Array<Record<string, unknown>>)
+    : [];
   const firstVersion = versions[0];
-  const trainedWords = Array.isArray(firstVersion?.trainedWords) ? (firstVersion.trainedWords as string[]).filter(Boolean) : [];
-  const baseModel = typeof firstVersion?.baseModel === "string" ? firstVersion.baseModel : null;
+  const trainedWords = Array.isArray(firstVersion?.trainedWords)
+    ? (firstVersion.trainedWords as string[]).filter(Boolean)
+    : [];
+  const baseModel =
+    typeof firstVersion?.baseModel === "string" ? firstVersion.baseModel : null;
   return {
     id: info.id as number,
     name: typeof info.name === "string" ? info.name : null,
@@ -51,6 +79,7 @@ function HtmlDescription({ html }: { html: string }) {
           className={`prose prose-invert prose-sm max-w-none prose-p:my-1 prose-headings:my-2 prose-img:my-2 ${!expanded ? "max-h-28 overflow-hidden" : ""}`}
           dangerouslySetInnerHTML={{ __html: html }}
         />
+
         <button
           type="button"
           onClick={() => setExpanded(!expanded)}
@@ -66,7 +95,9 @@ function HtmlDescription({ html }: { html: string }) {
   const isLong = lines.length > 6 || html.length > 400;
   return (
     <div className="space-y-1.5">
-      <p className={`text-xs text-muted-foreground whitespace-pre-wrap ${!expanded && isLong ? "max-h-28 overflow-hidden" : ""}`}>
+      <p
+        className={`text-xs text-muted-foreground whitespace-pre-wrap ${!expanded && isLong ? "max-h-28 overflow-hidden" : ""}`}
+      >
         {html}
       </p>
       {isLong && (
@@ -99,7 +130,11 @@ function TriggerWords({ words }: { words: string[] }) {
         onClick={() => setExpanded(!expanded)}
         className="flex items-center gap-1 text-xs font-medium hover:text-foreground transition-colors"
       >
-        {expanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+        {expanded ? (
+          <ChevronDown className="h-3 w-3" />
+        ) : (
+          <ChevronRight className="h-3 w-3" />
+        )}
         Trigger words ({words.length})
       </button>
       {expanded && (
@@ -120,9 +155,16 @@ function TriggerWords({ words }: { words: string[] }) {
   );
 }
 
-function NetworkDialogBody({ detail, previewUrl }: { detail: NetworkDetail; previewUrl: string | null }) {
+function NetworkDialogBody({
+  detail,
+  previewUrl,
+}: {
+  detail: NetworkDetail;
+  previewUrl: string | null;
+}) {
   const civit = getCivitInfo(detail.info);
-  const tags = detail.tags?.replaceAll("|", ", ").split(", ").filter(Boolean) ?? [];
+  const tags =
+    detail.tags?.replaceAll("|", ", ").split(", ").filter(Boolean) ?? [];
   const hasPreview = !!previewUrl;
 
   return (
@@ -147,8 +189,21 @@ function NetworkDialogBody({ detail, previewUrl }: { detail: NetworkDetail; prev
             <DetailRow label="Alias" value={detail.alias} />
             <DetailRow label="Hash" value={detail.hash} />
             <DetailRow label="Version" value={detail.version} />
-            <DetailRow label="Size" value={detail.size != null ? formatBytes(detail.size) : null} />
-            <DetailRow label="Modified" value={detail.mtime ? new Date(detail.mtime).toLocaleDateString() : null} />
+
+            <DetailRow
+              label="Size"
+              value={detail.size != null ? formatBytes(detail.size) : null}
+            />
+
+            <DetailRow
+              label="Modified"
+              value={
+                detail.mtime
+                  ? new Date(detail.mtime).toLocaleDateString()
+                  : null
+              }
+            />
+
             <DetailRow label="File" value={detail.filename?.split("/").pop()} />
           </div>
 
@@ -199,7 +254,9 @@ function NetworkDialogBody({ detail, previewUrl }: { detail: NetworkDetail; prev
                 </a>
               </div>
               {civit.name && <DetailRow label="Name" value={civit.name} />}
-              {civit.baseModel && <DetailRow label="Base" value={civit.baseModel} />}
+              {civit.baseModel && (
+                <DetailRow label="Base" value={civit.baseModel} />
+              )}
             </div>
           )}
 
@@ -218,27 +275,37 @@ function NetworkDialogBody({ detail, previewUrl }: { detail: NetworkDetail; prev
 
 function StyleDialogBody({ item }: { item: PromptStyleV2 }) {
   const previewUrl = item.preview
-    ? item.preview.startsWith("data:") || item.preview.startsWith("http") ? item.preview : `${api.getBaseUrl()}${item.preview}`
+    ? item.preview.startsWith("data:") || item.preview.startsWith("http")
+      ? item.preview
+      : `${api.getBaseUrl()}${item.preview}`
     : null;
 
   return (
     <div className={`flex gap-5 min-h-0 ${previewUrl ? "" : "flex-col"}`}>
       {previewUrl && (
         <div className="shrink-0 w-56 flex items-start justify-center">
-          <img src={previewUrl} alt={item.name} className="max-h-80 w-full object-contain rounded-md bg-muted/20" />
+          <img
+            src={previewUrl}
+            alt={item.name}
+            className="max-h-80 w-full object-contain rounded-md bg-muted/20"
+          />
         </div>
       )}
       <div className="flex-1 min-w-0 space-y-2">
         {item.prompt && (
           <div className="text-xs space-y-0.5">
             <span className="text-muted-foreground font-medium">Prompt</span>
-            <p className="break-words bg-muted/30 rounded p-2 text-2xs">{item.prompt}</p>
+            <p className="break-words bg-muted/30 rounded p-2 text-2xs">
+              {item.prompt}
+            </p>
           </div>
         )}
         {item.negative_prompt && (
           <div className="text-xs space-y-0.5">
             <span className="text-muted-foreground font-medium">Negative</span>
-            <p className="break-words bg-muted/30 rounded p-2 text-2xs">{item.negative_prompt}</p>
+            <p className="break-words bg-muted/30 rounded p-2 text-2xs">
+              {item.negative_prompt}
+            </p>
           </div>
         )}
         {item.description && (
@@ -247,29 +314,44 @@ function StyleDialogBody({ item }: { item: PromptStyleV2 }) {
             <HtmlDescription html={item.description} />
           </div>
         )}
-        {item.filename && <DetailRow label="File" value={item.filename.split("/").pop()} />}
+        {item.filename && (
+          <DetailRow label="File" value={item.filename.split("/").pop()} />
+        )}
       </div>
     </div>
   );
 }
 
-export function NetworkDetailDialog({ item }: { item: ExtraNetworkV2 | PromptStyleV2 }) {
+export function NetworkDetailDialog({
+  item,
+}: {
+  item: ExtraNetworkV2 | PromptStyleV2;
+}) {
   const [open, setOpen] = useState(false);
   const isNetwork = "type" in item && item.type;
   const network = isNetwork ? (item as ExtraNetworkV2) : null;
-  const { data: detail, isLoading } = useNetworkDetail(network?.type ?? "", item.name, open && !!network);
+  const { data: detail, isLoading } = useNetworkDetail(
+    network?.type ?? "",
+    item.name,
+    open && !!network,
+  );
 
   const previewUrl = item.preview
-    ? item.preview.startsWith("data:") || item.preview.startsWith("http") ? item.preview : `${api.getBaseUrl()}${item.preview}`
+    ? item.preview.startsWith("data:") || item.preview.startsWith("http")
+      ? item.preview
+      : `${api.getBaseUrl()}${item.preview}`
     : null;
 
-  const typeBadge = network ? (network.version || network.type) : "Style";
+  const typeBadge = network ? network.version || network.type : "Style";
 
   return (
     <>
       <button
         type="button"
-        onClick={(e) => { e.stopPropagation(); setOpen(true); }}
+        onClick={(e) => {
+          e.stopPropagation();
+          setOpen(true);
+        }}
         className="p-0.5 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-colors"
       >
         <Info className="h-3 w-3" />
@@ -285,8 +367,12 @@ export function NetworkDetailDialog({ item }: { item: ExtraNetworkV2 | PromptSty
             <DialogTitle className="text-sm font-semibold truncate flex-1 min-w-0">
               {item.name}
             </DialogTitle>
-            <Badge variant="outline" className="text-2xs shrink-0">{typeBadge}</Badge>
-            <DialogDescription className="sr-only">Details for {item.name}</DialogDescription>
+            <Badge variant="outline" className="text-2xs shrink-0">
+              {typeBadge}
+            </Badge>
+            <DialogDescription className="sr-only">
+              Details for {item.name}
+            </DialogDescription>
           </div>
 
           {/* Body */}

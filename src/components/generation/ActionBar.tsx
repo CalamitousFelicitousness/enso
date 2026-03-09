@@ -1,5 +1,10 @@
 import { useGenerationStore } from "@/stores/generationStore";
-import { useJobQueueStore, selectRunningJob, selectGenerateActive, selectPendingCount } from "@/stores/jobStore";
+import {
+  useJobQueueStore,
+  selectRunningJob,
+  selectGenerateActive,
+  selectPendingCount,
+} from "@/stores/jobStore";
 import { useCanvasStore } from "@/stores/canvasStore";
 import { useImg2ImgStore } from "@/stores/img2imgStore";
 import { buildControlRequest, restoreFromResult } from "@/lib/requestBuilder";
@@ -8,13 +13,27 @@ import { snapshotUnits } from "@/stores/controlStore";
 import { useSubmitToQueue } from "@/hooks/useSubmitToQueue";
 import { sendToJob } from "@/hooks/useJobTracker";
 import { useCancelJob } from "@/api/hooks/useJobs";
-import { Play, Square, SkipForward, History, FileSearch, ChevronDown, Layers, Grid3X3 } from "lucide-react";
+import {
+  Play,
+  Square,
+  SkipForward,
+  History,
+  FileSearch,
+  ChevronDown,
+  Layers,
+  Grid3X3,
+} from "lucide-react";
 import { ProgressRing } from "@/components/ui/progress-ring";
 import { useState, useCallback, useMemo, memo } from "react";
 import { toast } from "sonner";
 import { useShortcut } from "@/hooks/useShortcut";
 import { Button } from "@/components/ui/button";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { PngInfoDialog } from "@/components/generation/PngInfoDialog";
 import { BatchDialog } from "@/components/generation/BatchDialog";
 import { XyzGridDialog } from "@/components/generation/XyzGridDialog";
@@ -37,9 +56,11 @@ export const ActionBar = memo(function ActionBar() {
   const buildRequest = useCallback(async () => {
     const isImg2Img = useCanvasStore.getState().layers.length > 0;
     const { request, inputBlob } = await buildControlRequest();
-    const inputImage = isImg2Img && inputBlob ? await blobToBase64(inputBlob) : undefined;
+    const inputImage =
+      isImg2Img && inputBlob ? await blobToBase64(inputBlob) : undefined;
     const maskLines = useImg2ImgStore.getState().maskLines;
-    const inputMask = isImg2Img && maskLines.length > 0 ? maskLines.slice() : undefined;
+    const inputMask =
+      isImg2Img && maskLines.length > 0 ? maskLines.slice() : undefined;
     const controlUnits = await snapshotUnits();
     clearSelection();
     return {
@@ -48,7 +69,12 @@ export const ActionBar = memo(function ActionBar() {
     };
   }, [clearSelection]);
 
-  const { submit, isSubmitting } = useSubmitToQueue(useMemo(() => ({ domain: "generate" as const, buildRequest }), [buildRequest]));
+  const { submit, isSubmitting } = useSubmitToQueue(
+    useMemo(
+      () => ({ domain: "generate" as const, buildRequest }),
+      [buildRequest],
+    ),
+  );
 
   const isGenerating = isActive || isSubmitting;
   const runningGenJob = useJobQueueStore(selectGenerateActive);
@@ -67,22 +93,27 @@ export const ActionBar = memo(function ActionBar() {
     }
   }, [runningJob]);
 
-  const handleHistoryClick = useCallback((e: React.MouseEvent) => {
-    if (!lastResult) return;
-    if (e.shiftKey) {
-      setDiffOpen(true);
-    } else {
-      restoreFromResult(lastResult);
-      toast.success("Settings restored from last generation");
-    }
-  }, [lastResult]);
+  const handleHistoryClick = useCallback(
+    (e: React.MouseEvent) => {
+      if (!lastResult) return;
+      if (e.shiftKey) {
+        setDiffOpen(true);
+      } else {
+        restoreFromResult(lastResult);
+        toast.success("Settings restored from last generation");
+      }
+    },
+    [lastResult],
+  );
 
   const progressPct = Math.round(progress * 100);
   const phase = runningJob?.domain === "generate" ? runningJob.task : "";
   const phaseLabel = phase || "Generating";
 
   // Global keyboard shortcuts for generation
-  useShortcut("generate", () => { if (!isSubmitting) submit(); });
+  useShortcut("generate", () => {
+    if (!isSubmitting) submit();
+  });
   useShortcut("skip", handleSkip);
 
   return (
@@ -98,7 +129,11 @@ export const ActionBar = memo(function ActionBar() {
           size="sm"
           className="flex-1 rounded-r-none"
         >
-          {isGenerating ? <ProgressRing progress={progress} size={14} strokeWidth={2} /> : <Play size={14} />}
+          {isGenerating ? (
+            <ProgressRing progress={progress} size={14} strokeWidth={2} />
+          ) : (
+            <Play size={14} />
+          )}
           {isGenerating
             ? `${phaseLabel}${progressPct > 0 ? ` ${progressPct}%` : ""}${pendingCount > 0 ? ` [+${pendingCount}]` : ""}`
             : `Generate${pendingCount > 0 ? ` [${pendingCount}]` : ""}`}
@@ -126,8 +161,19 @@ export const ActionBar = memo(function ActionBar() {
           </DropdownMenu>
         )}
       </div>
-      <BatchDialog open={batchOpen} onOpenChange={setBatchOpen} buildRequest={buildRequest} />
-      {xyzOpen && <XyzGridDialog open={xyzOpen} onOpenChange={setXyzOpen} buildRequest={buildRequest} />}
+      <BatchDialog
+        open={batchOpen}
+        onOpenChange={setBatchOpen}
+        buildRequest={buildRequest}
+      />
+
+      {xyzOpen && (
+        <XyzGridDialog
+          open={xyzOpen}
+          onOpenChange={setXyzOpen}
+          buildRequest={buildRequest}
+        />
+      )}
 
       {/* Stop button */}
       {isGenerating && (
@@ -157,7 +203,12 @@ export const ActionBar = memo(function ActionBar() {
           >
             <History size={14} />
           </Button>
-          <GenerationDiffDialog open={diffOpen} onOpenChange={setDiffOpen} result={lastResult ?? null} />
+          <GenerationDiffDialog
+            open={diffOpen}
+            onOpenChange={setDiffOpen}
+            result={lastResult ?? null}
+          />
+
           <Button
             type="button"
             data-param="png-info"
@@ -185,7 +236,6 @@ export const ActionBar = memo(function ActionBar() {
           <SkipForward size={14} />
         </Button>
       )}
-
     </div>
   );
 });

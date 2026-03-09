@@ -5,7 +5,12 @@ interface ProgressRingProps {
   className?: string;
 }
 
-export function ProgressRing({ progress, size = 20, strokeWidth = 2.5, className }: ProgressRingProps) {
+export function ProgressRing({
+  progress,
+  size = 20,
+  strokeWidth = 2.5,
+  className,
+}: ProgressRingProps) {
   const r = (size - strokeWidth) / 2;
   const c = 2 * Math.PI * r;
   const offset = c * (1 - Math.max(0, Math.min(1, progress)));
@@ -21,6 +26,7 @@ export function ProgressRing({ progress, size = 20, strokeWidth = 2.5, className
         strokeWidth={strokeWidth}
         opacity={0.2}
       />
+
       <circle
         cx={size / 2}
         cy={size / 2}

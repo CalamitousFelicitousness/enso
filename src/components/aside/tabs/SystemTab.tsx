@@ -1,6 +1,10 @@
 import { useState } from "react";
 import { RotateCcw, PowerOff, Activity } from "lucide-react";
-import { useRestartServer, useShutdownServer, useToggleProfiling } from "@/api/hooks/useSystem";
+import {
+  useRestartServer,
+  useShutdownServer,
+  useToggleProfiling,
+} from "@/api/hooks/useSystem";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -34,7 +38,9 @@ type SubTab = (typeof SUB_TABS)[number];
 
 export function SystemTab() {
   const [active, setActive] = useState<SubTab>("Overview");
-  const [confirmAction, setConfirmAction] = useState<"restart" | "shutdown" | null>(null);
+  const [confirmAction, setConfirmAction] = useState<
+    "restart" | "shutdown" | null
+  >(null);
   const [profiling, setProfiling] = useState(false);
 
   const restartServer = useRestartServer();
@@ -61,11 +67,19 @@ export function SystemTab() {
     <div>
       <div className="sticky top-0 z-10 bg-card p-2 space-y-2 border-b border-border">
         <div className="flex items-center gap-1 flex-wrap">
-          <Button size="sm" variant="destructive-soft" onClick={() => setConfirmAction("restart")}>
+          <Button
+            size="sm"
+            variant="destructive-soft"
+            onClick={() => setConfirmAction("restart")}
+          >
             <RotateCcw />
             Restart
           </Button>
-          <Button size="sm" variant="destructive-soft" onClick={() => setConfirmAction("shutdown")}>
+          <Button
+            size="sm"
+            variant="destructive-soft"
+            onClick={() => setConfirmAction("shutdown")}
+          >
             <PowerOff />
             Shutdown
           </Button>
@@ -110,11 +124,16 @@ export function SystemTab() {
         {active === "Benchmark" && <BenchmarkSubTab />}
       </div>
 
-      <Dialog open={confirmAction !== null} onOpenChange={(open) => !open && setConfirmAction(null)}>
+      <Dialog
+        open={confirmAction !== null}
+        onOpenChange={(open) => !open && setConfirmAction(null)}
+      >
         <DialogContent showCloseButton={false} className="sm:max-w-sm">
           <DialogHeader>
             <DialogTitle>
-              {confirmAction === "restart" ? "Restart Server" : "Shutdown Server"}
+              {confirmAction === "restart"
+                ? "Restart Server"
+                : "Shutdown Server"}
             </DialogTitle>
             <DialogDescription>
               {confirmAction === "restart"
@@ -123,7 +142,13 @@ export function SystemTab() {
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" size="sm" onClick={() => setConfirmAction(null)}>Cancel</Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setConfirmAction(null)}
+            >
+              Cancel
+            </Button>
             <Button variant="destructive" size="sm" onClick={handleConfirm}>
               {confirmAction === "restart" ? "Restart" : "Shutdown"}
             </Button>

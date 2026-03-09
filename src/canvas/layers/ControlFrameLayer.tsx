@@ -1,12 +1,24 @@
 import { useEffect, useRef, useState, useCallback } from "react";
-import { Layer, Rect, Text, Image as KonvaImage, Group, Transformer, Line } from "react-konva";
+import {
+  Layer,
+  Rect,
+  Text,
+  Image as KonvaImage,
+  Group,
+  Transformer,
+  Line,
+} from "react-konva";
 import { useControlStore } from "@/stores/controlStore";
 import type { ControlUnitType } from "@/api/types/control";
 import { useCanvasStore } from "@/stores/canvasStore";
 import { computeFit, type FitMode, type FreeTransform } from "@/lib/image";
 import { useSnap } from "@/canvas/tools/useSnap";
 import { INPUT_COLOR_REFERENCE } from "@/canvas/ControlFramePanel";
-import { ELEMENT_GAP, PROCESSED_HEADER_HEIGHT, type ControlFramePosition } from "@/canvas/useControlFrameLayout";
+import {
+  ELEMENT_GAP,
+  PROCESSED_HEADER_HEIGHT,
+  type ControlFramePosition,
+} from "@/canvas/useControlFrameLayout";
 import type Konva from "konva";
 
 const BORDER_COLOR = "#f59e0b"; // amber
@@ -26,13 +38,22 @@ interface ProcessedImageState {
   htmlImage: HTMLImageElement;
 }
 
-export function ControlFrameLayer({ frames, onPickImage }: ControlFrameLayerProps) {
+export function ControlFrameLayer({
+  frames,
+  onPickImage,
+}: ControlFrameLayerProps) {
   const units = useControlStore((s) => s.units);
-  const setSelectedControlFrame = useCanvasStore((s) => s.setSelectedControlFrame);
+  const setSelectedControlFrame = useCanvasStore(
+    (s) => s.setSelectedControlFrame,
+  );
 
   // Track loaded images per unit index
-  const [imageMap, setImageMap] = useState<Map<number, FrameImageState>>(new Map());
-  const [processedMap, setProcessedMap] = useState<Map<number, ProcessedImageState>>(new Map());
+  const [imageMap, setImageMap] = useState<Map<number, FrameImageState>>(
+    new Map(),
+  );
+  const [processedMap, setProcessedMap] = useState<
+    Map<number, ProcessedImageState>
+  >(new Map());
   const prevUrlsRef = useRef<Map<number, string>>(new Map());
   const prevProcessedUrlsRef = useRef<Map<number, string>>(new Map());
 
@@ -55,7 +76,10 @@ export function ControlFrameLayer({ frames, onPickImage }: ControlFrameLayerProp
           // Same file object - skip
           newPrevUrls.set(frame.unitIndex, prevUrl);
         } else {
-          if (existing) { URL.revokeObjectURL(existing.objectUrl); toClear.push(frame.unitIndex); }
+          if (existing) {
+            URL.revokeObjectURL(existing.objectUrl);
+            toClear.push(frame.unitIndex);
+          }
           toLoad.push({ index: frame.unitIndex, file });
         }
       } else {
@@ -80,8 +104,14 @@ export function ControlFrameLayer({ frames, onPickImage }: ControlFrameLayerProp
         newPrevUrls.set(index, url);
         const img = new window.Image();
         img.src = url;
-        await new Promise<void>((resolve) => { img.onload = () => resolve(); img.onerror = () => resolve(); });
-        if (aborted.current) { URL.revokeObjectURL(url); return; }
+        await new Promise<void>((resolve) => {
+          img.onload = () => resolve();
+          img.onerror = () => resolve();
+        });
+        if (aborted.current) {
+          URL.revokeObjectURL(url);
+          return;
+        }
         newEntries.set(index, { file, objectUrl: url, htmlImage: img });
       }
 
@@ -99,8 +129,10 @@ export function ControlFrameLayer({ frames, onPickImage }: ControlFrameLayerProp
     };
     loadImages();
 
-    return () => { aborted.current = true; };
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally tracking specific refs
+    return () => {
+      aborted.current = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally tracking specific refs
   }, [frames, units]);
 
   // Sync processed images - load for ALL units that have processedSlots in any frame
@@ -152,7 +184,10 @@ export function ControlFrameLayer({ frames, onPickImage }: ControlFrameLayerProp
         if (aborted.current) return;
         const img = new window.Image();
         img.src = src;
-        await new Promise<void>((resolve) => { img.onload = () => resolve(); img.onerror = () => resolve(); });
+        await new Promise<void>((resolve) => {
+          img.onload = () => resolve();
+          img.onerror = () => resolve();
+        });
         if (aborted.current) return;
         newProcessed.set(index, { htmlImage: img });
         newPrevUrls.set(index, src);
@@ -162,26 +197,32 @@ export function ControlFrameLayer({ frames, onPickImage }: ControlFrameLayerProp
     };
     loadProcessed();
 
-    return () => { aborted.current = true; };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    return () => {
+      aborted.current = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [frames, units]);
 
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-      for (const entry of imageMap.values()) URL.revokeObjectURL(entry.objectUrl);
+      for (const entry of imageMap.values())
+        URL.revokeObjectURL(entry.objectUrl);
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const handleFrameClick = useCallback((unitIndex: number, hasImage: boolean, button: number) => {
-    if (button !== 0) return;
-    if (!hasImage && onPickImage) {
-      onPickImage(unitIndex);
-    } else {
-      setSelectedControlFrame(unitIndex);
-    }
-  }, [setSelectedControlFrame, onPickImage]);
+  const handleFrameClick = useCallback(
+    (unitIndex: number, hasImage: boolean, button: number) => {
+      if (button !== 0) return;
+      if (!hasImage && onPickImage) {
+        onPickImage(unitIndex);
+      } else {
+        setSelectedControlFrame(unitIndex);
+      }
+    },
+    [setSelectedControlFrame, onPickImage],
+  );
 
   if (frames.length === 0) return null;
 
@@ -191,13 +232,23 @@ export function ControlFrameLayer({ frames, onPickImage }: ControlFrameLayerProp
         const imgState = imageMap.get(frame.unitIndex);
         const hasImage = !!imgState;
         const unit = units[frame.unitIndex];
-        const fitMode = unit?.unitType === "reference" ? "contain" : (unit?.fitMode ?? "contain");
+        const fitMode =
+          unit?.unitType === "reference"
+            ? "contain"
+            : (unit?.fitMode ?? "contain");
         const freeTransform = unit?.freeTransform ?? null;
 
         // Collect processed images for all slots
         const slotImages = frame.processedSlots
           .map((slot) => ({ slot, state: processedMap.get(slot.unitIndex) }))
-          .filter((entry): entry is { slot: typeof entry.slot; state: ProcessedImageState } => !!entry.state);
+          .filter(
+            (
+              entry,
+            ): entry is {
+              slot: typeof entry.slot;
+              state: ProcessedImageState;
+            } => !!entry.state,
+          );
 
         return (
           <ControlFrame
@@ -233,13 +284,34 @@ interface ControlFrameProps {
   onClick: (unitIndex: number, hasImage: boolean, button: number) => void;
 }
 
-function computeAutoCenter(imgW: number, imgH: number, frameW: number, frameH: number): FreeTransform {
+function computeAutoCenter(
+  imgW: number,
+  imgH: number,
+  frameW: number,
+  frameH: number,
+): FreeTransform {
   const scale = Math.min(frameW / imgW, frameH / imgH);
-  return { x: (frameW - imgW * scale) / 2, y: (frameH - imgH * scale) / 2, scaleX: scale, scaleY: scale, rotation: 0 };
+  return {
+    x: (frameW - imgW * scale) / 2,
+    y: (frameH - imgH * scale) / 2,
+    scaleX: scale,
+    scaleY: scale,
+    rotation: 0,
+  };
 }
 
-function ControlFrame({ frame, unitType, hasImage, image, processedSlots, fitMode, freeTransform, onClick }: ControlFrameProps) {
-  const borderColor = unitType === "reference" ? INPUT_COLOR_REFERENCE : BORDER_COLOR;
+function ControlFrame({
+  frame,
+  unitType,
+  hasImage,
+  image,
+  processedSlots,
+  fitMode,
+  freeTransform,
+  onClick,
+}: ControlFrameProps) {
+  const borderColor =
+    unitType === "reference" ? INPUT_COLOR_REFERENCE : BORDER_COLOR;
   const activeTool = useCanvasStore((s) => s.activeTool);
   const selectedControlFrame = useCanvasStore((s) => s.selectedControlFrame);
   const setFreeTransform = useControlStore((s) => s.setFreeTransform);
@@ -262,42 +334,71 @@ function ControlFrame({ frame, unitType, hasImage, image, processedSlots, fitMod
     }
   }, [isFree, isSelected, activeTool]);
 
-  const handleClick = useCallback((e: Konva.KonvaEventObject<MouseEvent>) => {
-    if (e.evt.button !== 0) return;
-    onClick(frame.unitIndex, hasImage, e.evt.button);
-  }, [onClick, frame.unitIndex, hasImage]);
+  const handleClick = useCallback(
+    (e: Konva.KonvaEventObject<MouseEvent>) => {
+      if (e.evt.button !== 0) return;
+      onClick(frame.unitIndex, hasImage, e.evt.button);
+    },
+    [onClick, frame.unitIndex, hasImage],
+  );
 
   const handleTap = useCallback(() => {
     onClick(frame.unitIndex, hasImage, 0);
   }, [onClick, frame.unitIndex, hasImage]);
 
-  const handleDragEnd = useCallback((e: Konva.KonvaEventObject<DragEvent>) => {
-    snap.clearGuides();
-    setFreeTransform(frame.unitIndex, {
-      x: e.target.x() - frame.x,
-      y: e.target.y() - frame.y,
-      scaleX: e.target.scaleX(),
-      scaleY: e.target.scaleY(),
-      rotation: e.target.rotation(),
-    });
-  }, [snap, setFreeTransform, frame.unitIndex, frame.x, frame.y]);
+  const handleDragEnd = useCallback(
+    (e: Konva.KonvaEventObject<DragEvent>) => {
+      snap.clearGuides();
+      setFreeTransform(frame.unitIndex, {
+        x: e.target.x() - frame.x,
+        y: e.target.y() - frame.y,
+        scaleX: e.target.scaleX(),
+        scaleY: e.target.scaleY(),
+        rotation: e.target.rotation(),
+      });
+    },
+    [snap, setFreeTransform, frame.unitIndex, frame.x, frame.y],
+  );
 
-  const handleTransformEnd = useCallback((e: Konva.KonvaEventObject<Event>) => {
-    snap.clearGuides();
-    const node = e.target as Konva.Image;
-    setFreeTransform(frame.unitIndex, {
-      x: node.x() - frame.x,
-      y: node.y() - frame.y,
-      scaleX: node.scaleX(),
-      scaleY: node.scaleY(),
-      rotation: node.rotation(),
-    });
-  }, [snap, setFreeTransform, frame.unitIndex, frame.x, frame.y]);
+  const handleTransformEnd = useCallback(
+    (e: Konva.KonvaEventObject<Event>) => {
+      snap.clearGuides();
+      const node = e.target as Konva.Image;
+      setFreeTransform(frame.unitIndex, {
+        x: node.x() - frame.x,
+        y: node.y() - frame.y,
+        scaleX: node.scaleX(),
+        scaleY: node.scaleY(),
+        rotation: node.rotation(),
+      });
+    },
+    [snap, setFreeTransform, frame.unitIndex, frame.x, frame.y],
+  );
 
-  const imgFit = (image && fitMode !== "free") ? computeFit(image.naturalWidth, image.naturalHeight, frame.x, frame.y, frame.width, frame.height, fitMode) : null;
+  const imgFit =
+    image && fitMode !== "free"
+      ? computeFit(
+          image.naturalWidth,
+          image.naturalHeight,
+          frame.x,
+          frame.y,
+          frame.width,
+          frame.height,
+          fitMode,
+        )
+      : null;
 
   // Resolve free transform: use stored or auto-center
-  const resolvedFree = (isFree && image) ? (freeTransform ?? computeAutoCenter(image.naturalWidth, image.naturalHeight, frame.width, frame.height)) : null;
+  const resolvedFree =
+    isFree && image
+      ? (freeTransform ??
+        computeAutoCenter(
+          image.naturalWidth,
+          image.naturalHeight,
+          frame.width,
+          frame.height,
+        ))
+      : null;
 
   return (
     <>
@@ -338,11 +439,21 @@ function ControlFrame({ frame, unitType, hasImage, image, processedSlots, fitMod
             onDragEnd={handleDragEnd}
             onTransformEnd={handleTransformEnd}
           />
+
           {isSelected && activeTool === "move" && (
             <Transformer
               ref={trRef}
               keepRatio={false}
-              enabledAnchors={["top-left", "top-right", "bottom-left", "bottom-right", "top-center", "bottom-center", "middle-left", "middle-right"]}
+              enabledAnchors={[
+                "top-left",
+                "top-right",
+                "bottom-left",
+                "bottom-right",
+                "top-center",
+                "bottom-center",
+                "middle-left",
+                "middle-right",
+              ]}
               boundBoxFunc={(_oldBox, newBox) => newBox}
               onTransform={snap.handleTransform}
             />
@@ -350,7 +461,11 @@ function ControlFrame({ frame, unitType, hasImage, image, processedSlots, fitMod
           {snap.guides.map((g, i) => (
             <Line
               key={i}
-              points={g.orientation === "v" ? [g.pos, -5000, g.pos, 5000] : [-5000, g.pos, 5000, g.pos]}
+              points={
+                g.orientation === "v"
+                  ? [g.pos, -5000, g.pos, 5000]
+                  : [-5000, g.pos, 5000, g.pos]
+              }
               stroke="#22d3ee"
               strokeWidth={1}
               strokeScaleEnabled={false}
@@ -396,8 +511,21 @@ function ControlFrame({ frame, unitType, hasImage, image, processedSlots, fitMod
 
       {/* Stacked processed images - headers are HTML overlays in ControlFramePanels */}
       {processedSlots.map((entry, slotIdx) => {
-        const processedY = frame.y + frame.height + ELEMENT_GAP + PROCESSED_HEADER_HEIGHT + slotIdx * (frame.height + ELEMENT_GAP + PROCESSED_HEADER_HEIGHT);
-        const pFit = computeFit(entry.state.htmlImage.naturalWidth, entry.state.htmlImage.naturalHeight, frame.x, processedY, frame.width, frame.height, fitMode === "free" ? "contain" : fitMode);
+        const processedY =
+          frame.y +
+          frame.height +
+          ELEMENT_GAP +
+          PROCESSED_HEADER_HEIGHT +
+          slotIdx * (frame.height + ELEMENT_GAP + PROCESSED_HEADER_HEIGHT);
+        const pFit = computeFit(
+          entry.state.htmlImage.naturalWidth,
+          entry.state.htmlImage.naturalHeight,
+          frame.x,
+          processedY,
+          frame.width,
+          frame.height,
+          fitMode === "free" ? "contain" : fitMode,
+        );
 
         return (
           <ProcessedSlotRender
@@ -426,7 +554,14 @@ interface ProcessedSlotRenderProps {
   fit: ReturnType<typeof computeFit>;
 }
 
-function ProcessedSlotRender({ frameX, y, width, height, image, fit }: ProcessedSlotRenderProps) {
+function ProcessedSlotRender({
+  frameX,
+  y,
+  width,
+  height,
+  image,
+  fit,
+}: ProcessedSlotRenderProps) {
   return (
     <>
       <KonvaImage
@@ -438,6 +573,7 @@ function ProcessedSlotRender({ frameX, y, width, height, image, fit }: Processed
         crop={fit.crop ?? undefined}
         listening={false}
       />
+
       <Rect
         x={frameX}
         y={y}

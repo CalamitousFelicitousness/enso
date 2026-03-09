@@ -72,7 +72,13 @@ export function ConsoleTab() {
         className="flex-1 overflow-auto bg-muted/30 font-mono text-2xs leading-relaxed p-2"
       >
         {lines?.map((line, i) => (
-          <div key={i} className={cn("px-1 hover:bg-muted/50", !wrap && "whitespace-nowrap")}>
+          <div
+            key={i}
+            className={cn(
+              "px-1 hover:bg-muted/50",
+              !wrap && "whitespace-nowrap",
+            )}
+          >
             {line}
           </div>
         ))}

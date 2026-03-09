@@ -9,13 +9,24 @@ export function SystemInfoSubTab() {
 
   return (
     <div className="space-y-4">
-      <Button size="sm" onClick={() => refetch()} disabled={isFetching} className="w-full">
-        {isFetching ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : <RefreshCw className="h-3.5 w-3.5 mr-1.5" />}
+      <Button
+        size="sm"
+        onClick={() => refetch()}
+        disabled={isFetching}
+        className="w-full"
+      >
+        {isFetching ? (
+          <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
+        ) : (
+          <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
+        )}
         {data ? "Refresh" : "Load System Info"}
       </Button>
 
       {!data && !isFetching && (
-        <p className="text-xs text-muted-foreground text-center py-4">Click button to load full system info</p>
+        <p className="text-xs text-muted-foreground text-center py-4">
+          Click button to load full system info
+        </p>
       )}
 
       {data && (
@@ -73,7 +84,9 @@ export function SystemInfoSubTab() {
             <Section title="Flags">
               <div className="flex flex-wrap gap-1">
                 {data.flags.map((flag) => (
-                  <Badge key={flag} variant="secondary" className="text-3xs">{flag}</Badge>
+                  <Badge key={flag} variant="secondary" className="text-3xs">
+                    {flag}
+                  </Badge>
                 ))}
               </div>
             </Section>

@@ -8,14 +8,36 @@ import { useServerInfo } from "@/api/hooks/useServer";
 import { ControlUnitControls } from "@/components/generation/tabs/control/ControlUnitControls";
 import { LayerPanel } from "@/components/generation/LayerPanel";
 import { MaskParams } from "@/components/generation/MaskParams";
-import { ChevronUp, ChevronDown, ImagePlus, Trash2, Minimize2, Maximize2, Move, ArrowLeftFromLine, Hand, LocateFixed, Download } from "lucide-react";
+import {
+  ChevronUp,
+  ChevronDown,
+  ImagePlus,
+  Trash2,
+  Minimize2,
+  Maximize2,
+  Move,
+  ArrowLeftFromLine,
+  Hand,
+  LocateFixed,
+  Download,
+} from "lucide-react";
 import type { FitMode } from "@/lib/image";
 import { Button } from "@/components/ui/button";
 import { ParamSlider } from "@/components/generation/ParamSlider";
-import { contrastText, downloadImage, generateImageFilename, resolveImageSrc } from "@/lib/utils";
+import {
+  contrastText,
+  downloadImage,
+  generateImageFilename,
+  resolveImageSrc,
+} from "@/lib/utils";
 import { fileToBase64 } from "@/lib/image";
 import { toast } from "sonner";
-import { ELEMENT_GAP, PROCESSED_HEADER_HEIGHT, type CanvasLayout, type ControlFramePosition } from "./useControlFrameLayout";
+import {
+  ELEMENT_GAP,
+  PROCESSED_HEADER_HEIGHT,
+  type CanvasLayout,
+  type ControlFramePosition,
+} from "./useControlFrameLayout";
 import { resolveOutputSize } from "@/lib/sizeCompute";
 
 export const HEADER_HEIGHT = 36;
@@ -64,7 +86,22 @@ export interface FrameHeaderProps {
   onToggleCollapsed?: () => void;
 }
 
-export function FrameHeader({ mode, color, label, sizeText, canvasX, canvasY = 0, frameW, viewport, labelScale, actions, subHeader, drawer, collapsed, onToggleCollapsed }: FrameHeaderProps) {
+export function FrameHeader({
+  mode,
+  color,
+  label,
+  sizeText,
+  canvasX,
+  canvasY = 0,
+  frameW,
+  viewport,
+  labelScale,
+  actions,
+  subHeader,
+  drawer,
+  collapsed,
+  onToggleCollapsed,
+}: FrameHeaderProps) {
   const textColor = contrastText(color);
   const combinedScale = viewport.scale * labelScale;
 
@@ -86,7 +123,8 @@ export function FrameHeader({ mode, color, label, sizeText, canvasX, canvasY = 0
     // Panel mode: fixed width, positioned above frame with gap.
     // Left-align to frame edge so the panel never overlaps adjacent frames.
     const screenLeftX = (canvasX - STROKE_HALF) * viewport.scale + viewport.x;
-    const screenTopY = STROKE_HALF * viewport.scale + viewport.y - ELEMENT_GAP * viewport.scale;
+    const screenTopY =
+      STROKE_HALF * viewport.scale + viewport.y - ELEMENT_GAP * viewport.scale;
     return {
       position: "absolute",
       left: `${screenLeftX}px`,
@@ -113,31 +151,58 @@ export function FrameHeader({ mode, color, label, sizeText, canvasX, canvasY = 0
           style={{ backgroundColor: color, minHeight: HEADER_HEIGHT }}
         >
           {/* Row 1: label + actions + chevron */}
-          <div className="flex items-center justify-between px-3" style={{ minHeight: HEADER_HEIGHT }}>
-            <span className="text-base font-medium truncate" style={{ color: textColor }}>{label}</span>
+          <div
+            className="flex items-center justify-between px-3"
+            style={{ minHeight: HEADER_HEIGHT }}
+          >
+            <span
+              className="text-base font-medium truncate"
+              style={{ color: textColor }}
+            >
+              {label}
+            </span>
             <div className="flex items-center gap-0.5 shrink-0">
               {actions}
               {showChevron && (
                 <Button
                   variant="ghost"
                   size="icon-xs"
-                  onClick={(e) => { e.stopPropagation(); onToggleCollapsed!(); }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onToggleCollapsed!();
+                  }}
                   title={collapsed ? "Expand settings" : "Collapse settings"}
                   className="hover:bg-black/10"
                 >
-                  {collapsed ? <ChevronDown size={16} style={{ color: textColor }} /> : <ChevronUp size={16} style={{ color: textColor }} />}
+                  {collapsed ? (
+                    <ChevronDown size={16} style={{ color: textColor }} />
+                  ) : (
+                    <ChevronUp size={16} style={{ color: textColor }} />
+                  )}
                 </Button>
               )}
               {/* Size text on the right for hats (no chevron) */}
               {!isPanel && sizeText && (
-                <span className="text-xs opacity-70 ml-1" style={{ color: textColor }}>{sizeText}</span>
+                <span
+                  className="text-xs opacity-70 ml-1"
+                  style={{ color: textColor }}
+                >
+                  {sizeText}
+                </span>
               )}
             </div>
           </div>
           {/* Sub-header row (size text for panels, or custom content) */}
           {isPanel && (sizeText || subHeader) && (
             <div className="flex items-center justify-between px-3 pb-1.5">
-              {sizeText && <span className="text-xs opacity-70" style={{ color: textColor }}>{sizeText}</span>}
+              {sizeText && (
+                <span
+                  className="text-xs opacity-70"
+                  style={{ color: textColor }}
+                >
+                  {sizeText}
+                </span>
+              )}
               {subHeader}
             </div>
           )}
@@ -168,9 +233,18 @@ interface UnitPanelProps {
   onClearImage?: (unitIndex: number) => void;
 }
 
-function UnitPanel({ unitIndex, isOwner, collapsed, genSize, onPickImage, onClearImage }: UnitPanelProps) {
+function UnitPanel({
+  unitIndex,
+  isOwner,
+  collapsed,
+  genSize,
+  onPickImage,
+  onClearImage,
+}: UnitPanelProps) {
   const togglePanelCollapsed = useCanvasStore((s) => s.togglePanelCollapsed);
-  const setSelectedControlFrame = useCanvasStore((s) => s.setSelectedControlFrame);
+  const setSelectedControlFrame = useCanvasStore(
+    (s) => s.setSelectedControlFrame,
+  );
   const unit = useControlStore((s) => s.units[unitIndex]);
   const setUnitParam = useControlStore((s) => s.setUnitParam);
   const setFreeTransform = useControlStore((s) => s.setFreeTransform);
@@ -183,18 +257,31 @@ function UnitPanel({ unitIndex, isOwner, collapsed, genSize, onPickImage, onClea
   const isReference = unit.unitType === "reference";
   const panelColor = isReference ? INPUT_COLOR_REFERENCE : CONTROL_COLOR;
   const textColor = contrastText(panelColor);
-  const roleLabel = isReference ? "Reference" : `Control: ${UNIT_TYPE_LABELS[unit.unitType] ?? unit.unitType}`;
+  const roleLabel = isReference
+    ? "Reference"
+    : `Control: ${UNIT_TYPE_LABELS[unit.unitType] ?? unit.unitType}`;
   const labelText = `Input ${unifiedIndex} (${roleLabel})`;
 
   let sizeText: string | null = null;
   if (isOwner) {
     if (isReference) {
-      sizeText = imageDims ? `${imageDims.w}\u00d7${imageDims.h}` : `${genW}\u00d7${genH}`;
+      sizeText = imageDims
+        ? `${imageDims.w}\u00d7${imageDims.h}`
+        : `${genW}\u00d7${genH}`;
     } else if (unit.fitMode === "free") {
-      sizeText = imageDims ? `${imageDims.w}\u00d7${imageDims.h} free` : `${genW}\u00d7${genH}`;
+      sizeText = imageDims
+        ? `${imageDims.w}\u00d7${imageDims.h} free`
+        : `${genW}\u00d7${genH}`;
     } else {
-      const fitSuffix = unit.fitMode === "contain" ? "fit" : unit.fitMode === "cover" ? "crop" : "stretch";
-      sizeText = imageDims ? `${imageDims.w}\u00d7${imageDims.h} \u2192 ${genW}\u00d7${genH} ${fitSuffix}` : `${genW}\u00d7${genH}`;
+      const fitSuffix =
+        unit.fitMode === "contain"
+          ? "fit"
+          : unit.fitMode === "cover"
+            ? "crop"
+            : "stretch";
+      sizeText = imageDims
+        ? `${imageDims.w}\u00d7${imageDims.h} \u2192 ${genW}\u00d7${genH} ${fitSuffix}`
+        : `${genW}\u00d7${genH}`;
     }
   }
 
@@ -207,10 +294,28 @@ function UnitPanel({ unitIndex, isOwner, collapsed, genSize, onPickImage, onClea
     <>
       {isOwner && unit.image && (
         <>
-          <Button variant="ghost" size="icon-xs" onClick={(e) => { e.stopPropagation(); onPickImage?.(unitIndex); }} title="Replace image" className="hover:bg-black/10">
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            onClick={(e) => {
+              e.stopPropagation();
+              onPickImage?.(unitIndex);
+            }}
+            title="Replace image"
+            className="hover:bg-black/10"
+          >
             <ImagePlus size={16} style={{ color: textColor }} />
           </Button>
-          <Button variant="ghost" size="icon-xs" onClick={(e) => { e.stopPropagation(); onClearImage?.(unitIndex); }} title="Clear image" className="hover:bg-black/10">
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            onClick={(e) => {
+              e.stopPropagation();
+              onClearImage?.(unitIndex);
+            }}
+            title="Clear image"
+            className="hover:bg-black/10"
+          >
             <Trash2 size={16} style={{ color: textColor }} />
           </Button>
         </>
@@ -218,40 +323,58 @@ function UnitPanel({ unitIndex, isOwner, collapsed, genSize, onPickImage, onClea
     </>
   );
 
-  const fitIcon = unit.fitMode === "contain" ? <Minimize2 size={16} style={{ color: textColor }} />
-    : unit.fitMode === "cover" ? <Maximize2 size={16} style={{ color: textColor }} />
-    : unit.fitMode === "fill" ? <Move size={16} style={{ color: textColor }} />
-    : <Hand size={16} style={{ color: textColor }} />;
+  const fitIcon =
+    unit.fitMode === "contain" ? (
+      <Minimize2 size={16} style={{ color: textColor }} />
+    ) : unit.fitMode === "cover" ? (
+      <Maximize2 size={16} style={{ color: textColor }} />
+    ) : unit.fitMode === "fill" ? (
+      <Move size={16} style={{ color: textColor }} />
+    ) : (
+      <Hand size={16} style={{ color: textColor }} />
+    );
 
-  const subHeader = isOwner && unit.image && !isReference ? (
-    <div className="flex items-center gap-0.5">
-      <Button
-        variant="ghost"
-        size="icon-xs"
-        onClick={(e) => {
-          e.stopPropagation();
-          const next: FitMode = unit.fitMode === "contain" ? "cover" : unit.fitMode === "cover" ? "fill" : unit.fitMode === "fill" ? "free" : "contain";
-          if (next === "free" || unit.fitMode === "free") setFreeTransform(unitIndex, null);
-          setUnitParam(unitIndex, "fitMode", next);
-        }}
-        title={`Fit: ${unit.fitMode}`}
-        className="hover:bg-black/10"
-      >
-        {fitIcon}
-      </Button>
-      {unit.fitMode === "free" && unit.freeTransform !== null && (
+  const subHeader =
+    isOwner && unit.image && !isReference ? (
+      <div className="flex items-center gap-0.5">
         <Button
           variant="ghost"
           size="icon-xs"
-          onClick={(e) => { e.stopPropagation(); setFreeTransform(unitIndex, null); }}
-          title="Re-center image"
+          onClick={(e) => {
+            e.stopPropagation();
+            const next: FitMode =
+              unit.fitMode === "contain"
+                ? "cover"
+                : unit.fitMode === "cover"
+                  ? "fill"
+                  : unit.fitMode === "fill"
+                    ? "free"
+                    : "contain";
+            if (next === "free" || unit.fitMode === "free")
+              setFreeTransform(unitIndex, null);
+            setUnitParam(unitIndex, "fitMode", next);
+          }}
+          title={`Fit: ${unit.fitMode}`}
           className="hover:bg-black/10"
         >
-          <LocateFixed size={16} style={{ color: textColor }} />
+          {fitIcon}
         </Button>
-      )}
-    </div>
-  ) : undefined;
+        {unit.fitMode === "free" && unit.freeTransform !== null && (
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            onClick={(e) => {
+              e.stopPropagation();
+              setFreeTransform(unitIndex, null);
+            }}
+            title="Re-center image"
+            className="hover:bg-black/10"
+          >
+            <LocateFixed size={16} style={{ color: textColor }} />
+          </Button>
+        )}
+      </div>
+    ) : undefined;
 
   // UnitPanel is rendered inside a positioned container (ControlFrameStack),
   // so it doesn't use FrameHeader's positioning - it renders the visual parts directly.
@@ -261,27 +384,47 @@ function UnitPanel({ unitIndex, isOwner, collapsed, genSize, onPickImage, onClea
       style={{ borderColor: panelColor }}
       onClick={handlePanelClick}
     >
-      <div className="flex flex-col shrink-0 rounded-t-md" style={{ backgroundColor: panelColor }}>
-        <div className="flex items-center justify-between px-3" style={{ minHeight: HEADER_HEIGHT }}>
-          <span className="text-base font-medium truncate" style={{ color: textColor }}>{labelText}</span>
+      <div
+        className="flex flex-col shrink-0 rounded-t-md"
+        style={{ backgroundColor: panelColor }}
+      >
+        <div
+          className="flex items-center justify-between px-3"
+          style={{ minHeight: HEADER_HEIGHT }}
+        >
+          <span
+            className="text-base font-medium truncate"
+            style={{ color: textColor }}
+          >
+            {labelText}
+          </span>
           <div className="flex items-center gap-0.5 shrink-0">
             {actions}
             {!isReference && (
               <Button
                 variant="ghost"
                 size="icon-xs"
-                onClick={(e) => { e.stopPropagation(); togglePanelCollapsed(unitIndex, collapsed); }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  togglePanelCollapsed(unitIndex, collapsed);
+                }}
                 title={collapsed ? "Expand settings" : "Collapse settings"}
                 className="hover:bg-black/10"
               >
-                {collapsed ? <ChevronDown size={16} style={{ color: textColor }} /> : <ChevronUp size={16} style={{ color: textColor }} />}
+                {collapsed ? (
+                  <ChevronDown size={16} style={{ color: textColor }} />
+                ) : (
+                  <ChevronUp size={16} style={{ color: textColor }} />
+                )}
               </Button>
             )}
           </div>
         </div>
         {sizeText && (
           <div className="flex items-center justify-between px-3 pb-1.5">
-            <span className="text-xs opacity-70" style={{ color: textColor }}>{sizeText}</span>
+            <span className="text-xs opacity-70" style={{ color: textColor }}>
+              {sizeText}
+            </span>
             {subHeader}
           </div>
         )}
@@ -308,15 +451,23 @@ interface ControlFrameStackProps {
   onClearImage?: (unitIndex: number) => void;
 }
 
-function ControlFrameStack({ frame, genSize, onPickImage, onClearImage }: ControlFrameStackProps) {
+function ControlFrameStack({
+  frame,
+  genSize,
+  onPickImage,
+  onClearImage,
+}: ControlFrameStackProps) {
   const viewport = useCanvasStore((s) => s.viewport);
   const labelScale = useUiStore((s) => s.canvasLabelScale);
-  const panelCollapsedOverrides = useCanvasStore((s) => s.panelCollapsedOverrides);
+  const panelCollapsedOverrides = useCanvasStore(
+    (s) => s.panelCollapsedOverrides,
+  );
   const units = useControlStore((s) => s.units);
 
   const containerStyle = useMemo(() => {
     const screenLeftX = (frame.x - STROKE_HALF) * viewport.scale + viewport.x;
-    const screenTopY = frame.y * viewport.scale + viewport.y - ELEMENT_GAP * viewport.scale;
+    const screenTopY =
+      frame.y * viewport.scale + viewport.y - ELEMENT_GAP * viewport.scale;
     const combinedScale = viewport.scale * labelScale;
 
     return {
@@ -332,14 +483,17 @@ function ControlFrameStack({ frame, genSize, onPickImage, onClearImage }: Contro
     };
   }, [frame, viewport, labelScale]);
 
-  const referencingSlots = frame.processedSlots.filter((s) => s.unitIndex !== frame.unitIndex);
+  const referencingSlots = frame.processedSlots.filter(
+    (s) => s.unitIndex !== frame.unitIndex,
+  );
 
   const ownerUnit = units[frame.unitIndex];
   if (!ownerUnit) return null;
 
   const ownerHasImage = ownerUnit.image !== null;
   const ownerOverride = panelCollapsedOverrides.get(frame.unitIndex);
-  const ownerCollapsed = ownerOverride !== undefined ? ownerOverride : !ownerHasImage;
+  const ownerCollapsed =
+    ownerOverride !== undefined ? ownerOverride : !ownerHasImage;
 
   return (
     <div style={containerStyle} className="z-50">
@@ -370,8 +524,17 @@ function ControlFrameStack({ frame, genSize, onPickImage, onClearImage }: Contro
 
 // ─── Input frame panel (uses FrameHeader in panel mode) ─────────────────────
 
-function InputFramePanel({ canvasX, frameW, genSize, viewport, labelScale, onPickImage, onClearAll }: {
-  canvasX: number; frameW: number;
+function InputFramePanel({
+  canvasX,
+  frameW,
+  genSize,
+  viewport,
+  labelScale,
+  onPickImage,
+  onClearAll,
+}: {
+  canvasX: number;
+  frameW: number;
   genSize: { width: number; height: number };
   viewport: { x: number; y: number; scale: number };
   labelScale: number;
@@ -381,7 +544,9 @@ function InputFramePanel({ canvasX, frameW, genSize, viewport, labelScale, onPic
   const layers = useCanvasStore((s) => s.layers);
   const inputRole = useCanvasStore((s) => s.inputRole);
   const setInputRole = useCanvasStore((s) => s.setInputRole);
-  const panelCollapsedOverrides = useCanvasStore((s) => s.panelCollapsedOverrides);
+  const panelCollapsedOverrides = useCanvasStore(
+    (s) => s.panelCollapsedOverrides,
+  );
   const togglePanelCollapsed = useCanvasStore((s) => s.togglePanelCollapsed);
   const denoisingStrength = useGenerationStore((s) => s.denoisingStrength);
   const setParam = useGenerationStore((s) => s.setParam);
@@ -389,7 +554,8 @@ function InputFramePanel({ canvasX, frameW, genSize, viewport, labelScale, onPic
   const pixelH = useGenerationStore((s) => s.height);
   const hasLayers = layers.length > 0;
   const isReference = inputRole === "reference";
-  const supportsStrength = useServerInfo().data?.model?.supports_strength ?? true;
+  const supportsStrength =
+    useServerInfo().data?.model?.supports_strength ?? true;
 
   // Auto-switch to reference when model doesn't support strength
   useEffect(() => {
@@ -398,57 +564,97 @@ function InputFramePanel({ canvasX, frameW, genSize, viewport, labelScale, onPic
     }
   }, [supportsStrength]); // eslint-disable-line react-hooks/exhaustive-deps -- only react to model capability changes
 
-  const handleRoleChange = useCallback((role: "initial" | "reference") => {
-    if (role === inputRole) return;
-    if (role === "initial" && !supportsStrength) {
-      toast.info("This model uses the image as a reference - denoising strength has no effect.");
-    }
-    setInputRole(role);
-  }, [inputRole, setInputRole, supportsStrength]);
+  const handleRoleChange = useCallback(
+    (role: "initial" | "reference") => {
+      if (role === inputRole) return;
+      if (role === "initial" && !supportsStrength) {
+        toast.info(
+          "This model uses the image as a reference - denoising strength has no effect.",
+        );
+      }
+      setInputRole(role);
+    },
+    [inputRole, setInputRole, supportsStrength],
+  );
 
   const firstImage = layers.find((l): l is ImageLayer => l.type === "image");
 
   const override = panelCollapsedOverrides.get(INPUT_PANEL_KEY);
   const collapsed = override !== undefined ? override : !hasLayers;
 
-  const baseSizeText = firstImage ? `${firstImage.naturalWidth}\u00d7${firstImage.naturalHeight}` : `${pixelW}\u00d7${pixelH}`;
-  const sizeText = (genSize.width !== pixelW || genSize.height !== pixelH)
-    ? `${baseSizeText} \u2192 ${genSize.width}\u00d7${genSize.height}`
-    : baseSizeText;
+  const baseSizeText = firstImage
+    ? `${firstImage.naturalWidth}\u00d7${firstImage.naturalHeight}`
+    : `${pixelW}\u00d7${pixelH}`;
+  const sizeText =
+    genSize.width !== pixelW || genSize.height !== pixelH
+      ? `${baseSizeText} \u2192 ${genSize.width}\u00d7${genSize.height}`
+      : baseSizeText;
 
-  const handleDenoising = useCallback((v: number) => setParam("denoisingStrength", v), [setParam]);
+  const handleDenoising = useCallback(
+    (v: number) => setParam("denoisingStrength", v),
+    [setParam],
+  );
 
-  const inputColor = !hasLayers ? INPUT_COLOR_INACTIVE : isReference ? INPUT_COLOR_REFERENCE : INPUT_COLOR_ACTIVE;
+  const inputColor = !hasLayers
+    ? INPUT_COLOR_INACTIVE
+    : isReference
+      ? INPUT_COLOR_REFERENCE
+      : INPUT_COLOR_ACTIVE;
   const textColor = contrastText(inputColor);
 
   const actions = hasLayers ? (
     <>
-      <Button variant="ghost" size="icon-xs" onClick={() => onPickImage?.()} title="Add image" className="hover:bg-black/10">
+      <Button
+        variant="ghost"
+        size="icon-xs"
+        onClick={() => onPickImage?.()}
+        title="Add image"
+        className="hover:bg-black/10"
+      >
         <ImagePlus size={16} style={{ color: textColor }} />
       </Button>
-      <Button variant="ghost" size="icon-xs" onClick={() => onClearAll?.()} title="Clear all" className="hover:bg-black/10">
+      <Button
+        variant="ghost"
+        size="icon-xs"
+        onClick={() => onClearAll?.()}
+        title="Clear all"
+        className="hover:bg-black/10"
+      >
         <Trash2 size={16} style={{ color: textColor }} />
       </Button>
     </>
   ) : undefined;
 
   const roleToggle = (
-    <div className="flex items-center gap-0.5 rounded-full p-0.5" style={{ backgroundColor: "rgba(0,0,0,0.15)" }}>
+    <div
+      className="flex items-center gap-0.5 rounded-full p-0.5"
+      style={{ backgroundColor: "rgba(0,0,0,0.15)" }}
+    >
       <button
-        onClick={(e) => { e.stopPropagation(); handleRoleChange("initial"); }}
+        onClick={(e) => {
+          e.stopPropagation();
+          handleRoleChange("initial");
+        }}
         className="px-2 py-0.5 text-xs font-medium rounded-full transition-colors"
         style={{
-          backgroundColor: !isReference ? "rgba(255,255,255,0.25)" : "transparent",
+          backgroundColor: !isReference
+            ? "rgba(255,255,255,0.25)"
+            : "transparent",
           color: textColor,
         }}
       >
         Initial
       </button>
       <button
-        onClick={(e) => { e.stopPropagation(); handleRoleChange("reference"); }}
+        onClick={(e) => {
+          e.stopPropagation();
+          handleRoleChange("reference");
+        }}
         className="px-2 py-0.5 text-xs font-medium rounded-full transition-colors"
         style={{
-          backgroundColor: isReference ? "rgba(255,255,255,0.25)" : "transparent",
+          backgroundColor: isReference
+            ? "rgba(255,255,255,0.25)"
+            : "transparent",
           color: textColor,
         }}
       >
@@ -460,7 +666,15 @@ function InputFramePanel({ canvasX, frameW, genSize, viewport, labelScale, onPic
   const drawer = (
     <>
       {!isReference && (
-        <ParamSlider label="Denoise" value={denoisingStrength} onChange={handleDenoising} min={0} max={1} step={0.05} disabled={!hasLayers} />
+        <ParamSlider
+          label="Denoise"
+          value={denoisingStrength}
+          onChange={handleDenoising}
+          min={0}
+          max={1}
+          step={0.05}
+          disabled={!hasLayers}
+        />
       )}
       <LayerPanel />
       {!isReference && <MaskParams />}
@@ -490,10 +704,18 @@ function InputFramePanel({ canvasX, frameW, genSize, viewport, labelScale, onPic
 
 // ─── Output frame header (uses FrameHeader in hat mode) ─────────────────────
 
-function OutputFrameHeader({ canvasX, viewport, frameW, labelScale, sizeText }: {
+function OutputFrameHeader({
+  canvasX,
+  viewport,
+  frameW,
+  labelScale,
+  sizeText,
+}: {
   canvasX: number;
   viewport: { x: number; y: number; scale: number };
-  frameW: number; labelScale: number; sizeText: string;
+  frameW: number;
+  labelScale: number;
+  sizeText: string;
 }) {
   const selectedResultId = useGenerationStore((s) => s.selectedResultId);
   const selectedImageIndex = useGenerationStore((s) => s.selectedImageIndex);
@@ -505,7 +727,10 @@ function OutputFrameHeader({ canvasX, viewport, frameW, labelScale, sizeText }: 
     [results, selectedResultId],
   );
 
-  const hasSelectedImage = selectedResult !== undefined && selectedImageIndex !== null && selectedResult.images[selectedImageIndex] !== undefined;
+  const hasSelectedImage =
+    selectedResult !== undefined &&
+    selectedImageIndex !== null &&
+    selectedResult.images[selectedImageIndex] !== undefined;
 
   const handleSendToInput = useCallback(async () => {
     if (!selectedResult || selectedImageIndex === null) return;
@@ -518,7 +743,9 @@ function OutputFrameHeader({ canvasX, viewport, frameW, labelScale, sizeText }: 
     const objectUrl = URL.createObjectURL(file);
     const img = new window.Image();
     img.src = objectUrl;
-    await new Promise<void>((r) => { img.onload = () => r(); });
+    await new Promise<void>((r) => {
+      img.onload = () => r();
+    });
     addImageLayer(file, base64, objectUrl, img.naturalWidth, img.naturalHeight);
   }, [selectedResult, selectedImageIndex, addImageLayer]);
 
@@ -527,7 +754,10 @@ function OutputFrameHeader({ canvasX, viewport, frameW, labelScale, sizeText }: 
     const raw = selectedResult.images[selectedImageIndex];
     if (!raw) return;
     const src = resolveImageSrc(raw);
-    const filename = generateImageFilename(selectedResult.info, selectedImageIndex);
+    const filename = generateImageFilename(
+      selectedResult.info,
+      selectedImageIndex,
+    );
     downloadImage(src, filename);
   }, [selectedResult, selectedImageIndex]);
 
@@ -575,11 +805,22 @@ function OutputFrameHeader({ canvasX, viewport, frameW, labelScale, sizeText }: 
 
 // ─── Processed frame header (uses FrameHeader in hat mode) ──────────────────
 
-function ProcessedFrameHeader({ canvasX, canvasY, viewport, frameW, labelScale, sizeText, label, imageSrc }: {
+function ProcessedFrameHeader({
+  canvasX,
+  canvasY,
+  viewport,
+  frameW,
+  labelScale,
+  sizeText,
+  label,
+  imageSrc,
+}: {
   canvasX: number;
   canvasY?: number;
   viewport: { x: number; y: number; scale: number };
-  frameW: number; labelScale: number; sizeText?: string;
+  frameW: number;
+  labelScale: number;
+  sizeText?: string;
   label?: string;
   imageSrc?: string | null;
 }) {
@@ -595,7 +836,10 @@ function ProcessedFrameHeader({ canvasX, canvasY, viewport, frameW, labelScale, 
 
   const handleDownload = useCallback(() => {
     if (!processedSrc) return;
-    const timestamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
+    const timestamp = new Date()
+      .toISOString()
+      .replace(/[:.]/g, "-")
+      .slice(0, 19);
     downloadImage(processedSrc, `processed_${timestamp}.png`);
   }, [processedSrc]);
 
@@ -639,7 +883,12 @@ interface ControlFramePanelsProps {
   onClearAll?: () => void;
 }
 
-export function ControlFramePanels({ layout, onPickImage, onClearImage, onClearAll }: ControlFramePanelsProps) {
+export function ControlFramePanels({
+  layout,
+  onPickImage,
+  onClearImage,
+  onClearAll,
+}: ControlFramePanelsProps) {
   const viewport = useCanvasStore((s) => s.viewport);
   const labelScale = useUiStore((s) => s.canvasLabelScale);
   const units = useControlStore((s) => s.units);
@@ -651,7 +900,13 @@ export function ControlFramePanels({ layout, onPickImage, onClearImage, onClearA
 
   const { genSize, displayW } = layout;
   const genSizeText = `${genSize.width}\u00d7${genSize.height}`;
-  const outputSize = resolveOutputSize(genSize, hiresEnabled, hiresScale, hiresResizeX, hiresResizeY);
+  const outputSize = resolveOutputSize(
+    genSize,
+    hiresEnabled,
+    hiresScale,
+    hiresResizeX,
+    hiresResizeY,
+  );
   const outputSizeText = `${outputSize.width}\u00d7${outputSize.height}`;
 
   return (
@@ -674,8 +929,16 @@ export function ControlFramePanels({ layout, onPickImage, onClearImage, onClearA
         });
         if (activeSlots.length === 0) return null;
         return activeSlots.map((slot, slotIdx) => {
-          const imageY = frame.y + frame.height + ELEMENT_GAP + PROCESSED_HEADER_HEIGHT + slotIdx * (frame.height + ELEMENT_GAP + PROCESSED_HEADER_HEIGHT);
-          const slotLabel = activeSlots.length > 1 ? `Processed (Input ${slot.unitIndex + 2})` : "Processed";
+          const imageY =
+            frame.y +
+            frame.height +
+            ELEMENT_GAP +
+            PROCESSED_HEADER_HEIGHT +
+            slotIdx * (frame.height + ELEMENT_GAP + PROCESSED_HEADER_HEIGHT);
+          const slotLabel =
+            activeSlots.length > 1
+              ? `Processed (Input ${slot.unitIndex + 2})`
+              : "Processed";
           const unit = units[slot.unitIndex];
           return (
             <ProcessedFrameHeader

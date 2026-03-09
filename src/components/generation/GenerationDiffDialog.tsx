@@ -1,10 +1,19 @@
 import { useMemo, useCallback } from "react";
 import { ArrowRight } from "lucide-react";
 import { toast } from "sonner";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { useGenerationStore, type GenerationResult } from "@/stores/generationStore";
+import {
+  useGenerationStore,
+  type GenerationResult,
+} from "@/stores/generationStore";
 import { extractParamsFromResult } from "@/lib/requestBuilder";
 import type { GenerationState } from "@/stores/generationStore";
 
@@ -21,15 +30,161 @@ interface DiffGroup {
 
 const DIFF_GROUPS: DiffGroup[] = [
   { label: "Prompt", keys: ["prompt", "negativePrompt"] },
-  { label: "Core", keys: ["sampler", "steps", "width", "height", "batchSize", "batchCount"] },
-  { label: "Guidance", keys: ["cfgScale", "cfgEnd", "guidanceRescale", "imageCfgScale", "pagScale", "pagAdaptive", "seed", "subseed", "subseedStrength", "denoisingStrength"] },
-  { label: "Hires", keys: ["hiresEnabled", "hiresUpscaler", "hiresScale", "hiresSteps", "hiresDenoising", "hiresResizeMode", "hiresSampler", "hiresForce", "hiresResizeX", "hiresResizeY", "hiresResizeContext"] },
-  { label: "Refiner", keys: ["refinerStart", "refinerSteps", "refinerPrompt", "refinerNegative"] },
-  { label: "Scheduler", keys: ["sigmaMethod", "timestepSpacing", "betaSchedule", "predictionMethod", "flowShift", "baseShift", "maxShift", "sigmaAdjust", "sigmaAdjustStart", "sigmaAdjustEnd", "thresholding", "dynamic", "rescale", "lowOrder", "timestepsOverride", "timestepsPreset"] },
-  { label: "Advanced", keys: ["clipSkip", "vaeType", "tiling", "hidiffusion", "freeuEnabled", "freeuB1", "freeuB2", "freeuS1", "freeuS2", "hypertileUnetEnabled", "hypertileHiresOnly", "hypertileUnetTile", "hypertileUnetMinTile", "hypertileUnetSwapSize", "hypertileUnetDepth", "hypertileVaeEnabled", "hypertileVaeTile", "hypertileVaeSwapSize", "teacacheEnabled", "teacacheThresh", "tokenMergingMethod", "tomeRatio", "todoRatio"] },
-  { label: "Detailer", keys: ["detailerEnabled", "detailerModels", "detailerPrompt", "detailerNegative", "detailerSteps", "detailerStrength", "detailerResolution", "detailerMaxDetected", "detailerPadding", "detailerBlur", "detailerConfidence", "detailerIou", "detailerMinSize", "detailerMaxSize", "detailerRenoise", "detailerRenoiseEnd", "detailerSegmentation", "detailerIncludeDetections", "detailerMerge", "detailerSort", "detailerClasses"] },
-  { label: "Latent Corrections", keys: ["hdrMode", "hdrBrightness", "hdrSharpen", "hdrColor", "hdrClamp", "hdrBoundary", "hdrThreshold", "hdrMaximize", "hdrMaxCenter", "hdrMaxBoundary", "hdrColorPicker", "hdrTintRatio"] },
-  { label: "Color Grading", keys: ["gradingBrightness", "gradingContrast", "gradingSaturation", "gradingHue", "gradingGamma", "gradingSharpness", "gradingColorTemp", "gradingShadows", "gradingMidtones", "gradingHighlights", "gradingClaheClip", "gradingClaheGrid", "gradingShadowsTint", "gradingHighlightsTint", "gradingSplitToneBalance", "gradingVignette", "gradingGrain", "gradingLutFile", "gradingLutStrength"] },
+  {
+    label: "Core",
+    keys: ["sampler", "steps", "width", "height", "batchSize", "batchCount"],
+  },
+  {
+    label: "Guidance",
+    keys: [
+      "cfgScale",
+      "cfgEnd",
+      "guidanceRescale",
+      "imageCfgScale",
+      "pagScale",
+      "pagAdaptive",
+      "seed",
+      "subseed",
+      "subseedStrength",
+      "denoisingStrength",
+    ],
+  },
+  {
+    label: "Hires",
+    keys: [
+      "hiresEnabled",
+      "hiresUpscaler",
+      "hiresScale",
+      "hiresSteps",
+      "hiresDenoising",
+      "hiresResizeMode",
+      "hiresSampler",
+      "hiresForce",
+      "hiresResizeX",
+      "hiresResizeY",
+      "hiresResizeContext",
+    ],
+  },
+  {
+    label: "Refiner",
+    keys: ["refinerStart", "refinerSteps", "refinerPrompt", "refinerNegative"],
+  },
+  {
+    label: "Scheduler",
+    keys: [
+      "sigmaMethod",
+      "timestepSpacing",
+      "betaSchedule",
+      "predictionMethod",
+      "flowShift",
+      "baseShift",
+      "maxShift",
+      "sigmaAdjust",
+      "sigmaAdjustStart",
+      "sigmaAdjustEnd",
+      "thresholding",
+      "dynamic",
+      "rescale",
+      "lowOrder",
+      "timestepsOverride",
+      "timestepsPreset",
+    ],
+  },
+  {
+    label: "Advanced",
+    keys: [
+      "clipSkip",
+      "vaeType",
+      "tiling",
+      "hidiffusion",
+      "freeuEnabled",
+      "freeuB1",
+      "freeuB2",
+      "freeuS1",
+      "freeuS2",
+      "hypertileUnetEnabled",
+      "hypertileHiresOnly",
+      "hypertileUnetTile",
+      "hypertileUnetMinTile",
+      "hypertileUnetSwapSize",
+      "hypertileUnetDepth",
+      "hypertileVaeEnabled",
+      "hypertileVaeTile",
+      "hypertileVaeSwapSize",
+      "teacacheEnabled",
+      "teacacheThresh",
+      "tokenMergingMethod",
+      "tomeRatio",
+      "todoRatio",
+    ],
+  },
+  {
+    label: "Detailer",
+    keys: [
+      "detailerEnabled",
+      "detailerModels",
+      "detailerPrompt",
+      "detailerNegative",
+      "detailerSteps",
+      "detailerStrength",
+      "detailerResolution",
+      "detailerMaxDetected",
+      "detailerPadding",
+      "detailerBlur",
+      "detailerConfidence",
+      "detailerIou",
+      "detailerMinSize",
+      "detailerMaxSize",
+      "detailerRenoise",
+      "detailerRenoiseEnd",
+      "detailerSegmentation",
+      "detailerIncludeDetections",
+      "detailerMerge",
+      "detailerSort",
+      "detailerClasses",
+    ],
+  },
+  {
+    label: "Latent Corrections",
+    keys: [
+      "hdrMode",
+      "hdrBrightness",
+      "hdrSharpen",
+      "hdrColor",
+      "hdrClamp",
+      "hdrBoundary",
+      "hdrThreshold",
+      "hdrMaximize",
+      "hdrMaxCenter",
+      "hdrMaxBoundary",
+      "hdrColorPicker",
+      "hdrTintRatio",
+    ],
+  },
+  {
+    label: "Color Grading",
+    keys: [
+      "gradingBrightness",
+      "gradingContrast",
+      "gradingSaturation",
+      "gradingHue",
+      "gradingGamma",
+      "gradingSharpness",
+      "gradingColorTemp",
+      "gradingShadows",
+      "gradingMidtones",
+      "gradingHighlights",
+      "gradingClaheClip",
+      "gradingClaheGrid",
+      "gradingShadowsTint",
+      "gradingHighlightsTint",
+      "gradingSplitToneBalance",
+      "gradingVignette",
+      "gradingGrain",
+      "gradingLutFile",
+      "gradingLutStrength",
+    ],
+  },
 ];
 
 interface DiffRow {
@@ -47,7 +202,11 @@ function formatValue(v: unknown): string {
   return String(v);
 }
 
-export function GenerationDiffDialog({ open, onOpenChange, result }: GenerationDiffDialogProps) {
+export function GenerationDiffDialog({
+  open,
+  onOpenChange,
+  result,
+}: GenerationDiffDialogProps) {
   const storeState = useGenerationStore();
   const setParams = useGenerationStore((s) => s.setParams);
 
@@ -66,7 +225,12 @@ export function GenerationDiffDialog({ open, onOpenChange, result }: GenerationD
         .map((k) => {
           const cur = current[k];
           const res = mapped[k];
-          return { key: k, current: cur, result: res, changed: JSON.stringify(cur) !== JSON.stringify(res) };
+          return {
+            key: k,
+            current: cur,
+            result: res,
+            changed: JSON.stringify(cur) !== JSON.stringify(res),
+          };
         });
       const changedCount = rows.filter((r) => r.changed).length;
       return { ...group, rows, changedCount };
@@ -83,7 +247,9 @@ export function GenerationDiffDialog({ open, onOpenChange, result }: GenerationD
       }
     }
     setParams(updates);
-    toast.success(`Applied ${totalChanged} changed parameter${totalChanged !== 1 ? "s" : ""}`);
+    toast.success(
+      `Applied ${totalChanged} changed parameter${totalChanged !== 1 ? "s" : ""}`,
+    );
     onOpenChange(false);
   }, [groupedRows, totalChanged, setParams, onOpenChange]);
 
@@ -125,15 +291,24 @@ export function GenerationDiffDialog({ open, onOpenChange, result }: GenerationD
           </table>
         </ScrollArea>
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
-          <Button onClick={handleApplyAll} disabled={totalChanged === 0}>Apply All ({totalChanged})</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Close
+          </Button>
+          <Button onClick={handleApplyAll} disabled={totalChanged === 0}>
+            Apply All ({totalChanged})
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
   );
 }
 
-function GroupSection({ label, changedCount, rows, onApplyOne }: {
+function GroupSection({
+  label,
+  changedCount,
+  rows,
+  onApplyOne,
+}: {
   label: string;
   changedCount: number;
   rows: DiffRow[];
@@ -142,18 +317,35 @@ function GroupSection({ label, changedCount, rows, onApplyOne }: {
   return (
     <>
       <tr className="border-t border-border/50">
-        <td colSpan={4} className="py-1 px-2 font-semibold text-muted-foreground text-3xs uppercase tracking-wider">
+        <td
+          colSpan={4}
+          className="py-1 px-2 font-semibold text-muted-foreground text-3xs uppercase tracking-wider"
+        >
           {label} ({changedCount})
         </td>
       </tr>
       {rows.map((row) => (
-        <tr key={row.key} className={row.changed ? "bg-amber-500/10" : "text-muted-foreground/60"}>
+        <tr
+          key={row.key}
+          className={
+            row.changed ? "bg-amber-500/10" : "text-muted-foreground/60"
+          }
+        >
           <td className="py-0.5 px-2 font-mono">{row.key}</td>
-          <td className="py-0.5 px-2 max-w-32 truncate">{formatValue(row.current)}</td>
-          <td className="py-0.5 px-2 max-w-32 truncate font-medium">{formatValue(row.result)}</td>
+          <td className="py-0.5 px-2 max-w-32 truncate">
+            {formatValue(row.current)}
+          </td>
+          <td className="py-0.5 px-2 max-w-32 truncate font-medium">
+            {formatValue(row.result)}
+          </td>
           <td className="py-0.5 px-1">
             {row.changed && (
-              <button type="button" onClick={() => onApplyOne(row.key, row.result)} className="hover:text-primary" title="Apply this value">
+              <button
+                type="button"
+                onClick={() => onApplyOne(row.key, row.result)}
+                className="hover:text-primary"
+                title="Apply this value"
+              >
                 <ArrowRight size={12} />
               </button>
             )}

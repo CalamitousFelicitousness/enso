@@ -15,7 +15,11 @@ function formatParams(n: number): string {
 
 export function CurrentSubTab() {
   const [analyzeEnabled, setAnalyzeEnabled] = useState(false);
-  const { data: analysis, isLoading, refetch } = useModelAnalysis(analyzeEnabled);
+  const {
+    data: analysis,
+    isLoading,
+    refetch,
+  } = useModelAnalysis(analyzeEnabled);
   const saveModel = useSaveModel();
   const [showSave, setShowSave] = useState(false);
   const [showMeta, setShowMeta] = useState(false);
@@ -44,7 +48,13 @@ export function CurrentSubTab() {
 
   return (
     <div className="space-y-3">
-      <Button size="sm" variant="secondary" onClick={handleAnalyze} disabled={isLoading} className="w-full">
+      <Button
+        size="sm"
+        variant="secondary"
+        onClick={handleAnalyze}
+        disabled={isLoading}
+        className="w-full"
+      >
         {isLoading && <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />}
         Analyze model
       </Button>
@@ -52,10 +62,24 @@ export function CurrentSubTab() {
       {analysis && "name" in analysis && (
         <>
           <div className="text-xs space-y-1">
-            <p><span className="text-muted-foreground">Name:</span> {analysis.name}</p>
-            <p><span className="text-muted-foreground">Type:</span> {analysis.type}</p>
-            <p><span className="text-muted-foreground">Class:</span> {analysis.class}</p>
-            {analysis.hash && <p><span className="text-muted-foreground">Hash:</span> {analysis.hash}</p>}
+            <p>
+              <span className="text-muted-foreground">Name:</span>{" "}
+              {analysis.name}
+            </p>
+            <p>
+              <span className="text-muted-foreground">Type:</span>{" "}
+              {analysis.type}
+            </p>
+            <p>
+              <span className="text-muted-foreground">Class:</span>{" "}
+              {analysis.class}
+            </p>
+            {analysis.hash && (
+              <p>
+                <span className="text-muted-foreground">Hash:</span>{" "}
+                {analysis.hash}
+              </p>
+            )}
           </div>
 
           {analysis.modules.length > 0 && (
@@ -72,12 +96,19 @@ export function CurrentSubTab() {
                 </thead>
                 <tbody>
                   {analysis.modules.map((m) => (
-                    <tr key={m.name} className="border-b border-border/50 hover:bg-muted/30">
-                      <td className="px-2 py-1 font-mono truncate max-w-25">{m.name}</td>
+                    <tr
+                      key={m.name}
+                      className="border-b border-border/50 hover:bg-muted/30"
+                    >
+                      <td className="px-2 py-1 font-mono truncate max-w-25">
+                        {m.name}
+                      </td>
                       <td className="px-2 py-1 truncate max-w-25">{m.cls}</td>
                       <td className="px-2 py-1">{m.device ?? "-"}</td>
                       <td className="px-2 py-1">{m.quant ?? m.dtype ?? "-"}</td>
-                      <td className="px-2 py-1 text-right font-mono">{m.params ? formatParams(m.params) : "-"}</td>
+                      <td className="px-2 py-1 text-right font-mono">
+                        {m.params ? formatParams(m.params) : "-"}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -86,41 +117,91 @@ export function CurrentSubTab() {
           )}
 
           {/* Save section */}
-          <button type="button" onClick={() => setShowSave(!showSave)} className="flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground w-full">
-            {showSave ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+          <button
+            type="button"
+            onClick={() => setShowSave(!showSave)}
+            className="flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground w-full"
+          >
+            {showSave ? (
+              <ChevronDown className="h-3 w-3" />
+            ) : (
+              <ChevronRight className="h-3 w-3" />
+            )}
             Save model
           </button>
           {showSave && (
             <div className="space-y-2 pl-4">
               <div>
                 <Label className="text-2xs">Name</Label>
-                <Input className="h-6 text-2xs" value={saveName} onChange={(e) => setSaveName(e.target.value)} placeholder="model-name" />
+                <Input
+                  className="h-6 text-2xs"
+                  value={saveName}
+                  onChange={(e) => setSaveName(e.target.value)}
+                  placeholder="model-name"
+                />
               </div>
               <div>
                 <Label className="text-2xs">Path</Label>
-                <Input className="h-6 text-2xs" value={savePath} onChange={(e) => setSavePath(e.target.value)} placeholder="diffusers directory" />
+                <Input
+                  className="h-6 text-2xs"
+                  value={savePath}
+                  onChange={(e) => setSavePath(e.target.value)}
+                  placeholder="diffusers directory"
+                />
               </div>
               <div>
                 <Label className="text-2xs">Shard size</Label>
-                <Input className="h-6 text-2xs" value={saveShard} onChange={(e) => setSaveShard(e.target.value)} placeholder="10GB" />
+                <Input
+                  className="h-6 text-2xs"
+                  value={saveShard}
+                  onChange={(e) => setSaveShard(e.target.value)}
+                  placeholder="10GB"
+                />
               </div>
               <div className="flex items-center gap-2">
-                <Checkbox id="save-overwrite" checked={saveOverwrite} onCheckedChange={(v) => setSaveOverwrite(!!v)} />
-                <Label htmlFor="save-overwrite" className="text-2xs">Overwrite</Label>
+                <Checkbox
+                  id="save-overwrite"
+                  checked={saveOverwrite}
+                  onCheckedChange={(v) => setSaveOverwrite(!!v)}
+                />
+
+                <Label htmlFor="save-overwrite" className="text-2xs">
+                  Overwrite
+                </Label>
               </div>
-              <Button size="sm" variant="secondary" onClick={handleSave} disabled={saveModel.isPending || !saveName} className="w-full">
-                {saveModel.isPending && <Loader2 className="h-3 w-3 animate-spin mr-1" />}
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={handleSave}
+                disabled={saveModel.isPending || !saveName}
+                className="w-full"
+              >
+                {saveModel.isPending && (
+                  <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                )}
                 Save
               </Button>
-              {saveModel.data && <p className="text-2xs text-muted-foreground">{saveModel.data.status}</p>}
+              {saveModel.data && (
+                <p className="text-2xs text-muted-foreground">
+                  {saveModel.data.status}
+                </p>
+              )}
             </div>
           )}
 
           {/* Metadata section */}
           {analysis.meta && Object.keys(analysis.meta).length > 0 && (
             <>
-              <button type="button" onClick={() => setShowMeta(!showMeta)} className="flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground w-full">
-                {showMeta ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+              <button
+                type="button"
+                onClick={() => setShowMeta(!showMeta)}
+                className="flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground w-full"
+              >
+                {showMeta ? (
+                  <ChevronDown className="h-3 w-3" />
+                ) : (
+                  <ChevronRight className="h-3 w-3" />
+                )}
                 Metadata ({Object.keys(analysis.meta).length} keys)
               </button>
               {showMeta && (
@@ -134,7 +215,9 @@ export function CurrentSubTab() {
       )}
 
       {analyzeEnabled && !isLoading && (!analysis || !("name" in analysis)) && (
-        <p className="text-xs text-muted-foreground">No model loaded or analysis returned empty.</p>
+        <p className="text-xs text-muted-foreground">
+          No model loaded or analysis returned empty.
+        </p>
       )}
     </div>
   );

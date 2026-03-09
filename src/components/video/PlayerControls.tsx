@@ -1,5 +1,17 @@
-import { useCallback, useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
-import { Play, Pause, Maximize, Minimize, SkipBack, SkipForward } from "lucide-react";
+import {
+  useCallback,
+  useRef,
+  useState,
+  type MouseEvent as ReactMouseEvent,
+} from "react";
+import {
+  Play,
+  Pause,
+  Maximize,
+  Minimize,
+  SkipBack,
+  SkipForward,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const SPEEDS = [0.25, 0.5, 1, 2, 4] as const;
@@ -58,7 +70,10 @@ export function PlayerControls({
       const track = trackRef.current;
       if (!track || duration <= 0) return;
       const rect = track.getBoundingClientRect();
-      const fraction = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+      const fraction = Math.max(
+        0,
+        Math.min(1, (clientX - rect.left) / rect.width),
+      );
       onSeek(fraction * duration);
     },
     [duration, onSeek],
@@ -82,15 +97,12 @@ export function PlayerControls({
     [seekFromMouse],
   );
 
-  const handleTrackHover = useCallback(
-    (e: ReactMouseEvent) => {
-      const track = trackRef.current;
-      if (!track) return;
-      const rect = track.getBoundingClientRect();
-      setHoverX(e.clientX - rect.left);
-    },
-    [],
-  );
+  const handleTrackHover = useCallback((e: ReactMouseEvent) => {
+    const track = trackRef.current;
+    if (!track) return;
+    const rect = track.getBoundingClientRect();
+    setHoverX(e.clientX - rect.left);
+  }, []);
 
   const cycleSpeed = useCallback(() => {
     const idx = SPEEDS.indexOf(speed as (typeof SPEEDS)[number]);
@@ -98,9 +110,10 @@ export function PlayerControls({
     onSetSpeed(next);
   }, [speed, onSetSpeed]);
 
-  const hoverTimestamp = hoverX !== null && trackWidth > 0
-    ? formatTime((hoverX / trackWidth) * duration)
-    : null;
+  const hoverTimestamp =
+    hoverX !== null && trackWidth > 0
+      ? formatTime((hoverX / trackWidth) * duration)
+      : null;
 
   return (
     <div
@@ -126,6 +139,7 @@ export function PlayerControls({
               className="absolute inset-y-0 left-0 bg-primary rounded-full"
               style={{ width: `${progressFraction * 100}%` }}
             />
+
             {/* Drag handle */}
             <div
               className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-3 h-3 bg-primary rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow"
@@ -146,17 +160,29 @@ export function PlayerControls({
         {/* Controls row */}
         <div className="flex items-center gap-2 text-white text-xs">
           {/* Frame step back */}
-          <button onClick={() => onStepFrame(-1)} className="hover:text-primary transition-colors" title="Previous frame (Left)">
+          <button
+            onClick={() => onStepFrame(-1)}
+            className="hover:text-primary transition-colors"
+            title="Previous frame (Left)"
+          >
             <SkipBack size={14} />
           </button>
 
           {/* Play/Pause */}
-          <button onClick={onTogglePlay} className="hover:text-primary transition-colors" title="Play/Pause (Space)">
+          <button
+            onClick={onTogglePlay}
+            className="hover:text-primary transition-colors"
+            title="Play/Pause (Space)"
+          >
             {playing ? <Pause size={16} /> : <Play size={16} />}
           </button>
 
           {/* Frame step forward */}
-          <button onClick={() => onStepFrame(1)} className="hover:text-primary transition-colors" title="Next frame (Right)">
+          <button
+            onClick={() => onStepFrame(1)}
+            className="hover:text-primary transition-colors"
+            title="Next frame (Right)"
+          >
             <SkipForward size={14} />
           </button>
 
@@ -189,7 +215,11 @@ export function PlayerControls({
           </button>
 
           {/* Fullscreen */}
-          <button onClick={onToggleFullscreen} className="hover:text-primary transition-colors" title="Fullscreen (F)">
+          <button
+            onClick={onToggleFullscreen}
+            className="hover:text-primary transition-colors"
+            title="Fullscreen (F)"
+          >
             {isFullscreen ? <Minimize size={14} /> : <Maximize size={14} />}
           </button>
         </div>

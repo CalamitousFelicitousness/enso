@@ -6,7 +6,11 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useCaptionStore } from "@/stores/captionStore";
 import { useCaptionSettingsStore } from "@/stores/captionSettingsStore";
-import { useOpenClipCaption, useTaggerCaption, useVqaCaption } from "@/api/hooks/useCaption";
+import {
+  useOpenClipCaption,
+  useTaggerCaption,
+  useVqaCaption,
+} from "@/api/hooks/useCaption";
 import { uploadFile } from "@/lib/upload";
 import { CUSTOM_PROMPT_TASKS } from "@/lib/captionModels";
 import { VlmSettings } from "./methods/VlmSettings";
@@ -40,7 +44,9 @@ export function CaptionPanel() {
           image: ref,
           model: s.model,
           question: s.task,
-          prompt: CUSTOM_PROMPT_TASKS.includes(s.task) ? s.customPrompt : undefined,
+          prompt: CUSTOM_PROMPT_TASKS.includes(s.task)
+            ? s.customPrompt
+            : undefined,
           system: s.system,
           include_annotated: true,
           max_tokens: s.maxTokens,
@@ -89,11 +95,22 @@ export function CaptionPanel() {
         setResult({ ...res, type: "tagger" });
       }
     } catch (err) {
-      toast.error("Captioning failed", { description: err instanceof Error ? err.message : String(err) });
+      toast.error("Captioning failed", {
+        description: err instanceof Error ? err.message : String(err),
+      });
     } finally {
       setProcessing(false);
     }
-  }, [image, isProcessing, method, vqaMut, openclipMut, taggerMut, setProcessing, setResult]);
+  }, [
+    image,
+    isProcessing,
+    method,
+    vqaMut,
+    openclipMut,
+    taggerMut,
+    setProcessing,
+    setResult,
+  ]);
 
   return (
     <div className="flex flex-col h-full">
@@ -122,11 +139,20 @@ export function CaptionPanel() {
       {/* Method tabs + settings */}
       <ScrollArea className="flex-1">
         <div className="p-3">
-          <Tabs value={method} onValueChange={(v) => setMethod(v as CaptionMethod)}>
+          <Tabs
+            value={method}
+            onValueChange={(v) => setMethod(v as CaptionMethod)}
+          >
             <TabsList className="w-full">
-              <TabsTrigger value="vlm" className="text-xs flex-1">VLM</TabsTrigger>
-              <TabsTrigger value="openclip" className="text-xs flex-1">OpenCLiP</TabsTrigger>
-              <TabsTrigger value="tagger" className="text-xs flex-1">Tagger</TabsTrigger>
+              <TabsTrigger value="vlm" className="text-xs flex-1">
+                VLM
+              </TabsTrigger>
+              <TabsTrigger value="openclip" className="text-xs flex-1">
+                OpenCLiP
+              </TabsTrigger>
+              <TabsTrigger value="tagger" className="text-xs flex-1">
+                Tagger
+              </TabsTrigger>
             </TabsList>
 
             <TabsContent value="vlm" className="mt-3">

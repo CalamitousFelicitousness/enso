@@ -1,11 +1,30 @@
 import { useState, useCallback } from "react";
-import { MoreVertical, ImagePlus, Scissors, ArrowUpFromLine, RotateCcw, FastForward, GitCompare } from "lucide-react";
+import {
+  MoreVertical,
+  ImagePlus,
+  Scissors,
+  ArrowUpFromLine,
+  RotateCcw,
+  FastForward,
+  GitCompare,
+} from "lucide-react";
 import { toast } from "sonner";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { FramePickerDialog } from "./FramePickerDialog";
 import { ParamDiffDialog } from "./ParamDiffDialog";
-import { extractFrameFromVideo, sendFrameToVideoInit, sendFrameToUpscale, restoreVideoSettings } from "@/lib/sendTo";
+import {
+  extractFrameFromVideo,
+  sendFrameToVideoInit,
+  sendFrameToUpscale,
+  restoreVideoSettings,
+} from "@/lib/sendTo";
 import type { VideoResult } from "@/api/types/video";
 
 interface VideoResultActionsProps {

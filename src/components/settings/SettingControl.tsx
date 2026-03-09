@@ -12,7 +12,12 @@ import { Button } from "@/components/ui/button";
 import { Check } from "lucide-react";
 import { PathInput } from "./PathInput";
 
-function renderSelect(choices: string[] | undefined, value: unknown, onChange: (value: unknown) => void, setting: SettingDef) {
+function renderSelect(
+  choices: string[] | undefined,
+  value: unknown,
+  onChange: (value: unknown) => void,
+  setting: SettingDef,
+) {
   if (!choices || choices.length === 0) {
     return (
       <Textarea
@@ -35,7 +40,13 @@ function renderSelect(choices: string[] | undefined, value: unknown, onChange: (
   );
 }
 
-function SecretControl({ value, onChange }: { value: unknown; onChange: (value: unknown) => void }) {
+function SecretControl({
+  value,
+  onChange,
+}: {
+  value: unknown;
+  onChange: (value: unknown) => void;
+}) {
   const masked = String(value ?? "");
   const configured = masked.length > 0;
   const [editing, setEditing] = useState(false);
@@ -45,9 +56,29 @@ function SecretControl({ value, onChange }: { value: unknown; onChange: (value: 
     return (
       <div className="flex items-center gap-2">
         <Check className="h-3 w-3 text-green-500 shrink-0" />
-        <span className="text-xs text-muted-foreground font-mono">{masked}</span>
-        <Button size="xs" variant="ghost" onClick={() => { setEditing(true); setDraft(""); }}>Change</Button>
-        <Button size="xs" variant="ghost" className="text-destructive" onClick={() => { onChange(""); }}>Remove</Button>
+        <span className="text-xs text-muted-foreground font-mono">
+          {masked}
+        </span>
+        <Button
+          size="xs"
+          variant="ghost"
+          onClick={() => {
+            setEditing(true);
+            setDraft("");
+          }}
+        >
+          Change
+        </Button>
+        <Button
+          size="xs"
+          variant="ghost"
+          className="text-destructive"
+          onClick={() => {
+            onChange("");
+          }}
+        >
+          Remove
+        </Button>
       </div>
     );
   }
@@ -61,15 +92,29 @@ function SecretControl({ value, onChange }: { value: unknown; onChange: (value: 
         autoComplete="off"
         className="h-6 text-2xs flex-1"
       />
+
       <Button
         size="xs"
         disabled={!draft.trim()}
-        onClick={() => { onChange(draft.trim()); setEditing(false); setDraft(""); }}
+        onClick={() => {
+          onChange(draft.trim());
+          setEditing(false);
+          setDraft("");
+        }}
       >
         Save
       </Button>
       {editing && (
-        <Button size="xs" variant="ghost" onClick={() => { setEditing(false); setDraft(""); }}>Cancel</Button>
+        <Button
+          size="xs"
+          variant="ghost"
+          onClick={() => {
+            setEditing(false);
+            setDraft("");
+          }}
+        >
+          Cancel
+        </Button>
       )}
     </div>
   );
@@ -83,7 +128,13 @@ interface SettingControlProps {
   getSettingValue?: (key: string) => unknown;
 }
 
-export function SettingControl({ setting, value, onChange, dynamicChoices, getSettingValue }: SettingControlProps) {
+export function SettingControl({
+  setting,
+  value,
+  onChange,
+  dynamicChoices,
+  getSettingValue,
+}: SettingControlProps) {
   if (setting.isSecret) {
     return <SecretControl value={value} onChange={onChange} />;
   }
@@ -100,8 +151,14 @@ export function SettingControl({ setting, value, onChange, dynamicChoices, getSe
       );
 
     case "slider": {
-      const numVal = typeof value === "number" ? value : (setting.defaultValue as number) ?? 0;
-      const display = setting.precision != null ? numVal.toFixed(setting.precision) : String(numVal);
+      const numVal =
+        typeof value === "number"
+          ? value
+          : ((setting.defaultValue as number) ?? 0);
+      const display =
+        setting.precision != null
+          ? numVal.toFixed(setting.precision)
+          : String(numVal);
       return (
         <div className="flex items-center gap-2 flex-1">
           <Slider
@@ -112,6 +169,7 @@ export function SettingControl({ setting, value, onChange, dynamicChoices, getSe
             onValueChange={([v]) => onChange(v)}
             className="flex-1"
           />
+
           <span className="text-xs text-muted-foreground tabular-nums w-14 text-right">
             {display}
           </span>
@@ -122,7 +180,10 @@ export function SettingControl({ setting, value, onChange, dynamicChoices, getSe
     case "radio":
       if (choices && choices.length > 0 && choices.length <= 5) {
         return (
-          <div className="inline-flex flex-wrap self-start border border-border bg-muted/40 p-0.5" style={{ borderRadius: "var(--control-radius)" }}>
+          <div
+            className="inline-flex flex-wrap self-start border border-border bg-muted/40 p-0.5"
+            style={{ borderRadius: "var(--control-radius)" }}
+          >
             {choices.map((choice) => (
               <button
                 key={choice}
@@ -148,12 +209,19 @@ export function SettingControl({ setting, value, onChange, dynamicChoices, getSe
       return renderSelect(choices, value, onChange, setting);
 
     case "multiselect": {
-      const selected = Array.isArray(value) ? value as string[] : [];
+      const selected = Array.isArray(value) ? (value as string[]) : [];
       if (!choices || choices.length === 0) {
         return (
           <Input
             value={selected.join(", ")}
-            onChange={(e) => onChange(e.target.value.split(",").map((s) => s.trim()).filter(Boolean))}
+            onChange={(e) =>
+              onChange(
+                e.target.value
+                  .split(",")
+                  .map((s) => s.trim())
+                  .filter(Boolean),
+              )
+            }
             className="h-6 text-2xs"
             placeholder="Comma-separated values"
           />
@@ -164,7 +232,10 @@ export function SettingControl({ setting, value, onChange, dynamicChoices, getSe
           {choices.map((choice) => {
             const checked = selected.includes(choice);
             return (
-              <label key={choice} className="flex items-center gap-1.5 text-xs cursor-pointer">
+              <label
+                key={choice}
+                className="flex items-center gap-1.5 text-xs cursor-pointer"
+              >
                 <Checkbox
                   checked={checked}
                   onCheckedChange={(c) => {
@@ -172,6 +243,7 @@ export function SettingControl({ setting, value, onChange, dynamicChoices, getSe
                     else onChange(selected.filter((s) => s !== choice));
                   }}
                 />
+
                 {choice}
               </label>
             );
@@ -181,7 +253,9 @@ export function SettingControl({ setting, value, onChange, dynamicChoices, getSe
     }
 
     case "number": {
-      const step = setting.step ?? (setting.precision != null ? 10 ** -setting.precision : undefined);
+      const step =
+        setting.step ??
+        (setting.precision != null ? 10 ** -setting.precision : undefined);
       return (
         <NumberInput
           min={setting.min}
@@ -204,6 +278,7 @@ export function SettingControl({ setting, value, onChange, dynamicChoices, getSe
             onChange={(e) => onChange(e.target.value)}
             className="h-7 w-7 rounded border border-border cursor-pointer p-0.5"
           />
+
           <Input
             value={String(value ?? "")}
             onChange={(e) => onChange(e.target.value)}
@@ -214,10 +289,18 @@ export function SettingControl({ setting, value, onChange, dynamicChoices, getSe
       );
 
     case "path": {
-      const basePath = setting.baseFolderKey && getSettingValue
-        ? String(getSettingValue(setting.baseFolderKey) ?? "")
-        : "";
-      return <PathInput value={String(value ?? "")} onChange={(v) => onChange(v)} basePath={basePath} placeholder={setting.description} />;
+      const basePath =
+        setting.baseFolderKey && getSettingValue
+          ? String(getSettingValue(setting.baseFolderKey) ?? "")
+          : "";
+      return (
+        <PathInput
+          value={String(value ?? "")}
+          onChange={(v) => onChange(v)}
+          basePath={basePath}
+          placeholder={setting.description}
+        />
+      );
     }
 
     case "input":

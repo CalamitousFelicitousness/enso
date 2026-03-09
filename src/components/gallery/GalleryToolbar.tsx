@@ -5,7 +5,18 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Combobox } from "@/components/ui/combobox";
 import { Slider } from "@/components/ui/slider";
-import { Search, FolderOpen, PanelRight, Trash2, FolderInput, Download, CheckCheck, XSquare, LayoutGrid, Rows3 } from "lucide-react";
+import {
+  Search,
+  FolderOpen,
+  PanelRight,
+  Trash2,
+  FolderInput,
+  Download,
+  CheckCheck,
+  XSquare,
+  LayoutGrid,
+  Rows3,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const SORT_OPTIONS: { value: string; label: string }[] = [
@@ -27,7 +38,13 @@ interface GalleryToolbarProps {
   onDownloadRequest?: () => void;
 }
 
-export function GalleryToolbar({ totalCount, filteredCount, onDeleteRequest, onMoveRequest, onDownloadRequest }: GalleryToolbarProps) {
+export function GalleryToolbar({
+  totalCount,
+  filteredCount,
+  onDeleteRequest,
+  onMoveRequest,
+  onDownloadRequest,
+}: GalleryToolbarProps) {
   const sort = useGalleryStore((s) => s.sort);
   const setSort = useGalleryStore((s) => s.setSort);
   const setSearchQuery = useGalleryStore((s) => s.setSearchQuery);
@@ -46,13 +63,21 @@ export function GalleryToolbar({ totalCount, filteredCount, onDeleteRequest, onM
   const [localSearch, setLocalSearch] = useState("");
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const handleSearch = useCallback((value: string) => {
-    setLocalSearch(value);
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => setSearchQuery(value), 300);
-  }, [setSearchQuery]);
+  const handleSearch = useCallback(
+    (value: string) => {
+      setLocalSearch(value);
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+      debounceRef.current = setTimeout(() => setSearchQuery(value), 300);
+    },
+    [setSearchQuery],
+  );
 
-  useEffect(() => () => { if (debounceRef.current) clearTimeout(debounceRef.current); }, []);
+  useEffect(
+    () => () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    },
+    [],
+  );
 
   const sortValue = `${sort.field}-${sort.dir}`;
   const handleSortChange = (v: string) => {
@@ -76,8 +101,15 @@ export function GalleryToolbar({ totalCount, filteredCount, onDeleteRequest, onM
       {/* Path breadcrumb */}
       {folderDisplay && (
         <div className="flex items-center gap-1.5 px-3 py-1 border-b border-border/50 bg-muted/30">
-          <FolderOpen size={11} className="text-muted-foreground flex-shrink-0" />
-          <span className="text-3xs text-muted-foreground truncate" title={activeFolder ?? ""}>
+          <FolderOpen
+            size={11}
+            className="text-muted-foreground flex-shrink-0"
+          />
+
+          <span
+            className="text-3xs text-muted-foreground truncate"
+            title={activeFolder ?? ""}
+          >
             {folderDisplay}
           </span>
         </div>
@@ -86,21 +118,48 @@ export function GalleryToolbar({ totalCount, filteredCount, onDeleteRequest, onM
       {/* Selection action bar */}
       {selectionCount > 0 && (
         <div className="flex items-center gap-1.5 px-3 py-1 bg-primary/5 border-b border-primary/20">
-          <span className="text-2xs font-medium text-primary tabular-nums">{selectionCount} selected</span>
-          <Button variant="ghost" size="sm" className="h-5 px-1.5 text-3xs gap-1" onClick={selectAll}>
+          <span className="text-2xs font-medium text-primary tabular-nums">
+            {selectionCount} selected
+          </span>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-5 px-1.5 text-3xs gap-1"
+            onClick={selectAll}
+          >
             <CheckCheck size={12} /> All
           </Button>
-          <Button variant="ghost" size="sm" className="h-5 px-1.5 text-3xs gap-1" onClick={deselectAll}>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-5 px-1.5 text-3xs gap-1"
+            onClick={deselectAll}
+          >
             <XSquare size={12} /> None
           </Button>
           <div className="ml-auto flex items-center gap-1">
-            <Button variant="ghost" size="sm" className="h-5 px-1.5 text-3xs gap-1 text-destructive hover:text-destructive" onClick={onDeleteRequest}>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-5 px-1.5 text-3xs gap-1 text-destructive hover:text-destructive"
+              onClick={onDeleteRequest}
+            >
               <Trash2 size={12} /> Delete
             </Button>
-            <Button variant="ghost" size="sm" className="h-5 px-1.5 text-3xs gap-1" onClick={onMoveRequest}>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-5 px-1.5 text-3xs gap-1"
+              onClick={onMoveRequest}
+            >
               <FolderInput size={12} /> Move
             </Button>
-            <Button variant="ghost" size="sm" className="h-5 px-1.5 text-3xs gap-1" onClick={onDownloadRequest}>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-5 px-1.5 text-3xs gap-1"
+              onClick={onDownloadRequest}
+            >
               <Download size={12} /> Download
             </Button>
           </div>
@@ -110,7 +169,11 @@ export function GalleryToolbar({ totalCount, filteredCount, onDeleteRequest, onM
       {/* Controls */}
       <div className="flex items-center gap-2 px-3 py-1.5">
         <div className="relative flex-1 max-w-xs">
-          <Search size={13} className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground" />
+          <Search
+            size={13}
+            className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground"
+          />
+
           <Input
             placeholder="Search files..."
             value={localSearch}
@@ -150,7 +213,9 @@ export function GalleryToolbar({ totalCount, filteredCount, onDeleteRequest, onM
             title="Grid layout"
             className={cn(
               "p-1 transition-colors",
-              layoutMode === "grid" ? "bg-primary/15 text-primary" : "text-muted-foreground hover:text-foreground hover:bg-muted",
+              layoutMode === "grid"
+                ? "bg-primary/15 text-primary"
+                : "text-muted-foreground hover:text-foreground hover:bg-muted",
             )}
           >
             <LayoutGrid size={13} />
@@ -160,7 +225,9 @@ export function GalleryToolbar({ totalCount, filteredCount, onDeleteRequest, onM
             title="Masonry layout"
             className={cn(
               "p-1 transition-colors",
-              layoutMode === "masonry" ? "bg-primary/15 text-primary" : "text-muted-foreground hover:text-foreground hover:bg-muted",
+              layoutMode === "masonry"
+                ? "bg-primary/15 text-primary"
+                : "text-muted-foreground hover:text-foreground hover:bg-muted",
             )}
           >
             <Rows3 size={13} />
@@ -172,7 +239,9 @@ export function GalleryToolbar({ totalCount, filteredCount, onDeleteRequest, onM
           title="Toggle metadata panel (I)"
           className={cn(
             "p-1 rounded-md transition-colors",
-            metadataPanelOpen ? "bg-primary/15 text-primary" : "text-muted-foreground hover:text-foreground hover:bg-muted",
+            metadataPanelOpen
+              ? "bg-primary/15 text-primary"
+              : "text-muted-foreground hover:text-foreground hover:bg-muted",
           )}
         >
           <PanelRight size={14} />

@@ -1,4 +1,9 @@
-import { useJobQueueStore, selectRunningJob, selectPendingCount, selectHasActiveJobs } from "@/stores/jobStore";
+import {
+  useJobQueueStore,
+  selectRunningJob,
+  selectPendingCount,
+  selectHasActiveJobs,
+} from "@/stores/jobStore";
 import { useBackendStatusStore } from "@/stores/backendStatusStore";
 import { useMemory } from "@/api/hooks/useServer";
 import { formatBytes, formatDuration } from "@/lib/utils";
@@ -29,7 +34,11 @@ export function StatusBar() {
   const bsUptime = useBackendStatusStore((s) => s.uptime);
   const wsConnected = useBackendStatusStore((s) => s.connected);
 
-  const backendIdle = !bsStatus || bsStatus === "idle" || bsStatus === "interrupted" || bsStatus === "skipped";
+  const backendIdle =
+    !bsStatus ||
+    bsStatus === "idle" ||
+    bsStatus === "interrupted" ||
+    bsStatus === "skipped";
   const isIdle = !hasActive && backendIdle;
 
   const progress = runningJob?.progress ?? bsProgress ?? 0;
@@ -40,7 +49,9 @@ export function StatusBar() {
 
   const phase = bsCurrent || bsTask || "";
   const textinfo = runningJob?.textinfo || bsTextinfo || "";
-  const domainLabel = runningJob ? (DOMAIN_LABELS[runningJob.domain] ?? "Working") : "Working";
+  const domainLabel = runningJob
+    ? (DOMAIN_LABELS[runningJob.domain] ?? "Working")
+    : "Working";
   const taskName = phase || domainLabel;
 
   // Connection indicator: green=idle, amber=active, red=disconnected
@@ -55,6 +66,7 @@ export function StatusBar() {
       {/* Status */}
       <span className="flex items-center gap-1.5">
         <span className={`inline-block w-1.5 h-1.5 rounded-full ${dotClass}`} />
+
         {isIdle ? "Idle" : taskName}
         {!isIdle && textinfo && (
           <span className="text-muted-foreground/70">- {textinfo}</span>
@@ -78,12 +90,8 @@ export function StatusBar() {
             </div>
             <span className="tabular-nums">{progressPct}%</span>
           </div>
-          {eta > 0 && (
-            <span>ETA {formatDuration(eta)}</span>
-          )}
-          {pendingCount > 0 && (
-            <span>Queue: {pendingCount}</span>
-          )}
+          {eta > 0 && <span>ETA {formatDuration(eta)}</span>}
+          {pendingCount > 0 && <span>Queue: {pendingCount}</span>}
         </>
       )}
 
@@ -93,15 +101,20 @@ export function StatusBar() {
       {/* Memory info */}
       {memory?.cuda?.allocated && (
         <LoadedModelsPanel>
-          <button type="button" className="hover:text-foreground transition-colors cursor-pointer">
-            VRAM {formatBytes(memory.cuda.allocated.current ?? 0)} / {formatBytes(memory.cuda.system?.total ?? 0)}
+          <button
+            type="button"
+            className="hover:text-foreground transition-colors cursor-pointer"
+          >
+            VRAM {formatBytes(memory.cuda.allocated.current ?? 0)} /{" "}
+            {formatBytes(memory.cuda.system?.total ?? 0)}
           </button>
         </LoadedModelsPanel>
       )}
 
       {memory?.ram && !memory.ram.error && (
         <span>
-          RAM {formatBytes(memory.ram.used ?? 0)} / {formatBytes(memory.ram.total ?? 0)}
+          RAM {formatBytes(memory.ram.used ?? 0)} /{" "}
+          {formatBytes(memory.ram.total ?? 0)}
         </span>
       )}
 

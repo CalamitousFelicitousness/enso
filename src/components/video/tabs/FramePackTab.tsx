@@ -2,7 +2,11 @@ import { useCallback, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useVideoStore } from "@/stores/videoStore";
-import { useFramePackVariants, useLoadFramePack, useUnloadFramePack } from "@/api/hooks/useVideo";
+import {
+  useFramePackVariants,
+  useLoadFramePack,
+  useUnloadFramePack,
+} from "@/api/hooks/useVideo";
 import { ParamSection } from "@/components/generation/ParamSection";
 import { ParamSlider } from "@/components/generation/ParamSlider";
 import { ParamGrid } from "@/components/generation/ParamRow";
@@ -48,16 +52,21 @@ export function FramePackTab() {
   const unloadFP = useUnloadFramePack();
 
   const handleLoad = useCallback(() => {
-    loadFP.mutate({ variant: fpVariant, attention: fpAttention }, {
-      onSuccess: () => toast.success(`Loaded FramePack ${fpVariant}`),
-      onError: (err) => toast.error("Failed to load FramePack", { description: err.message }),
-    });
+    loadFP.mutate(
+      { variant: fpVariant, attention: fpAttention },
+      {
+        onSuccess: () => toast.success(`Loaded FramePack ${fpVariant}`),
+        onError: (err) =>
+          toast.error("Failed to load FramePack", { description: err.message }),
+      },
+    );
   }, [fpVariant, fpAttention, loadFP]);
 
   const handleUnload = useCallback(() => {
     unloadFP.mutate(undefined, {
       onSuccess: () => toast.success("FramePack unloaded"),
-      onError: (err) => toast.error("Failed to unload", { description: err.message }),
+      onError: (err) =>
+        toast.error("Failed to unload", { description: err.message }),
     });
   }, [unloadFP]);
 
@@ -67,15 +76,36 @@ export function FramePackTab() {
       <ParamSection title="Model">
         <div className="space-y-1.5">
           <div className="flex items-center gap-2">
-            <Label className="text-2xs text-muted-foreground w-16 shrink-0">Variant</Label>
-            <Combobox value={fpVariant} onValueChange={(v) => setParam("fpVariant", v)} options={variants ?? ["bi-directional", "forward-only"]} className="h-6 text-2xs flex-1" />
+            <Label className="text-2xs text-muted-foreground w-16 shrink-0">
+              Variant
+            </Label>
+            <Combobox
+              value={fpVariant}
+              onValueChange={(v) => setParam("fpVariant", v)}
+              options={variants ?? ["bi-directional", "forward-only"]}
+              className="h-6 text-2xs flex-1"
+            />
           </div>
           <div className="flex gap-1.5">
-            <Button size="sm" variant="secondary" onClick={handleLoad} disabled={loadFP.isPending} className="flex-1">
-              {loadFP.isPending ? <Loader2 size={14} className="animate-spin" /> : null}
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={handleLoad}
+              disabled={loadFP.isPending}
+              className="flex-1"
+            >
+              {loadFP.isPending ? (
+                <Loader2 size={14} className="animate-spin" />
+              ) : null}
               Load
             </Button>
-            <Button size="sm" variant="outline" onClick={handleUnload} disabled={unloadFP.isPending} className="flex-1">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleUnload}
+              disabled={unloadFP.isPending}
+              className="flex-1"
+            >
               Unload
             </Button>
           </div>
@@ -84,17 +114,54 @@ export function FramePackTab() {
 
       <ParamSection title="Size" defaultOpen={false}>
         <ParamGrid>
-          <ParamSlider label="Resolution" value={fpResolution} onChange={(v) => setParam("fpResolution", v)} min={240} max={1088} step={16} />
-          <ParamSlider label="Duration" value={fpDuration} onChange={(v) => setParam("fpDuration", v)} min={1} max={120} step={1} />
+          <ParamSlider
+            label="Resolution"
+            value={fpResolution}
+            onChange={(v) => setParam("fpResolution", v)}
+            min={240}
+            max={1088}
+            step={16}
+          />
+
+          <ParamSlider
+            label="Duration"
+            value={fpDuration}
+            onChange={(v) => setParam("fpDuration", v)}
+            min={1}
+            max={120}
+            step={1}
+          />
         </ParamGrid>
       </ParamSection>
 
       <ParamSection title="Inputs" defaultOpen={false}>
         <ParamGrid>
-          <ParamSlider label="Start wt" value={fpStartWeight} onChange={(v) => setParam("fpStartWeight", v)} min={0} max={2} step={0.05} />
-          <ParamSlider label="End wt" value={fpEndWeight} onChange={(v) => setParam("fpEndWeight", v)} min={0} max={2} step={0.05} />
+          <ParamSlider
+            label="Start wt"
+            value={fpStartWeight}
+            onChange={(v) => setParam("fpStartWeight", v)}
+            min={0}
+            max={2}
+            step={0.05}
+          />
+
+          <ParamSlider
+            label="End wt"
+            value={fpEndWeight}
+            onChange={(v) => setParam("fpEndWeight", v)}
+            min={0}
+            max={2}
+            step={0.05}
+          />
         </ParamGrid>
-        <ParamSlider label="Vision wt" value={fpVisionWeight} onChange={(v) => setParam("fpVisionWeight", v)} min={0} max={2} step={0.05} />
+        <ParamSlider
+          label="Vision wt"
+          value={fpVisionWeight}
+          onChange={(v) => setParam("fpVisionWeight", v)}
+          min={0}
+          max={2}
+          step={0.05}
+        />
       </ParamSection>
 
       <ParamSection title="Sections" defaultOpen={false}>
@@ -123,15 +190,69 @@ export function FramePackTab() {
       </ParamSection>
 
       <ParamSection title="Advanced" defaultOpen={false}>
-        <ParamSlider label="Seed" value={seed} onChange={(v) => setParam("seed", v)} min={-1} max={999999999} step={1} />
-        <ParamSlider label="Window" value={fpLatentWindowSize} onChange={(v) => setParam("fpLatentWindowSize", v)} min={1} max={33} step={4} />
+        <ParamSlider
+          label="Seed"
+          value={seed}
+          onChange={(v) => setParam("seed", v)}
+          min={-1}
+          max={999999999}
+          step={1}
+        />
+
+        <ParamSlider
+          label="Window"
+          value={fpLatentWindowSize}
+          onChange={(v) => setParam("fpLatentWindowSize", v)}
+          min={1}
+          max={33}
+          step={4}
+        />
+
         <ParamGrid>
-          <ParamSlider label="Steps" value={fpSteps} onChange={(v) => setParam("fpSteps", v)} min={1} max={100} step={1} />
-          <ParamSlider label="Shift" value={fpShift} onChange={(v) => setParam("fpShift", v)} min={0} max={20} step={0.5} />
-          <ParamSlider label="CFG" value={fpCfgScale} onChange={(v) => setParam("fpCfgScale", v)} min={0} max={20} step={0.5} />
-          <ParamSlider label="Distilled" value={fpCfgDistilled} onChange={(v) => setParam("fpCfgDistilled", v)} min={0} max={20} step={0.5} />
+          <ParamSlider
+            label="Steps"
+            value={fpSteps}
+            onChange={(v) => setParam("fpSteps", v)}
+            min={1}
+            max={100}
+            step={1}
+          />
+
+          <ParamSlider
+            label="Shift"
+            value={fpShift}
+            onChange={(v) => setParam("fpShift", v)}
+            min={0}
+            max={20}
+            step={0.5}
+          />
+
+          <ParamSlider
+            label="CFG"
+            value={fpCfgScale}
+            onChange={(v) => setParam("fpCfgScale", v)}
+            min={0}
+            max={20}
+            step={0.5}
+          />
+
+          <ParamSlider
+            label="Distilled"
+            value={fpCfgDistilled}
+            onChange={(v) => setParam("fpCfgDistilled", v)}
+            min={0}
+            max={20}
+            step={0.5}
+          />
         </ParamGrid>
-        <ParamSlider label="Rescale" value={fpCfgRescale} onChange={(v) => setParam("fpCfgRescale", v)} min={0} max={1} step={0.05} />
+        <ParamSlider
+          label="Rescale"
+          value={fpCfgRescale}
+          onChange={(v) => setParam("fpCfgRescale", v)}
+          min={0}
+          max={1}
+          step={0.05}
+        />
       </ParamSection>
 
       <ParamSection title="Model Options" defaultOpen={false}>
@@ -141,29 +262,64 @@ export function FramePackTab() {
           placeholder="System prompt (optional)"
           className="text-xs min-h-9 resize-y"
         />
+
         <div className="flex items-center gap-2">
-          <Label className="text-2xs text-muted-foreground w-16 shrink-0">TeaCache</Label>
-          <Switch checked={fpTeacache} onCheckedChange={(v) => setParam("fpTeacache", v)} />
+          <Label className="text-2xs text-muted-foreground w-16 shrink-0">
+            TeaCache
+          </Label>
+          <Switch
+            checked={fpTeacache}
+            onCheckedChange={(v) => setParam("fpTeacache", v)}
+          />
         </div>
         <div className="flex items-center gap-2">
-          <Label className="text-2xs text-muted-foreground w-16 shrink-0">Optimized</Label>
-          <Switch checked={fpOptimizedPrompt} onCheckedChange={(v) => setParam("fpOptimizedPrompt", v)} />
+          <Label className="text-2xs text-muted-foreground w-16 shrink-0">
+            Optimized
+          </Label>
+          <Switch
+            checked={fpOptimizedPrompt}
+            onCheckedChange={(v) => setParam("fpOptimizedPrompt", v)}
+          />
         </div>
         <div className="flex items-center gap-2">
-          <Label className="text-2xs text-muted-foreground w-16 shrink-0">CFG Zero</Label>
-          <Switch checked={fpCfgZero} onCheckedChange={(v) => setParam("fpCfgZero", v)} />
+          <Label className="text-2xs text-muted-foreground w-16 shrink-0">
+            CFG Zero
+          </Label>
+          <Switch
+            checked={fpCfgZero}
+            onCheckedChange={(v) => setParam("fpCfgZero", v)}
+          />
         </div>
         <div className="flex items-center gap-2">
-          <Label className="text-2xs text-muted-foreground w-16 shrink-0">Preview</Label>
-          <Switch checked={fpPreview} onCheckedChange={(v) => setParam("fpPreview", v)} />
+          <Label className="text-2xs text-muted-foreground w-16 shrink-0">
+            Preview
+          </Label>
+          <Switch
+            checked={fpPreview}
+            onCheckedChange={(v) => setParam("fpPreview", v)}
+          />
         </div>
         <div className="flex items-center gap-2">
-          <Label className="text-2xs text-muted-foreground w-16 shrink-0">Attention</Label>
-          <Combobox value={fpAttention} onValueChange={(v) => setParam("fpAttention", v)} options={["Default", "sdpa", "flash", "sage", "xformers"]} className="h-6 text-2xs flex-1" />
+          <Label className="text-2xs text-muted-foreground w-16 shrink-0">
+            Attention
+          </Label>
+          <Combobox
+            value={fpAttention}
+            onValueChange={(v) => setParam("fpAttention", v)}
+            options={["Default", "sdpa", "flash", "sage", "xformers"]}
+            className="h-6 text-2xs flex-1"
+          />
         </div>
         <div className="flex items-center gap-2">
-          <Label className="text-2xs text-muted-foreground w-16 shrink-0">VAE</Label>
-          <Combobox value={fpVaeType} onValueChange={(v) => setParam("fpVaeType", v)} options={["Full", "Tiny"]} className="h-6 text-2xs flex-1" />
+          <Label className="text-2xs text-muted-foreground w-16 shrink-0">
+            VAE
+          </Label>
+          <Combobox
+            value={fpVaeType}
+            onValueChange={(v) => setParam("fpVaeType", v)}
+            options={["Full", "Tiny"]}
+            className="h-6 text-2xs flex-1"
+          />
         </div>
       </ParamSection>
 

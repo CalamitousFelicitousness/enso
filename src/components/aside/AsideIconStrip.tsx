@@ -3,7 +3,11 @@ import { ASIDE_TABS } from "@/lib/constants";
 import { useUiStore } from "@/stores/uiStore";
 import { useJobQueueStore, selectHasActiveJobs } from "@/stores/jobStore";
 import { cn } from "@/lib/utils";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 export function AsideIconStrip() {
   const activeTab = useUiStore((s) => s.activeAsideTab);
@@ -32,10 +36,16 @@ export function AsideIconStrip() {
             onClick={toggleRightPanel}
             className="flex items-center justify-center w-9 h-9 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
           >
-            {collapsed ? <PanelLeftClose className="h-4 w-4" /> : <PanelLeftOpen className="h-4 w-4" />}
+            {collapsed ? (
+              <PanelLeftClose className="h-4 w-4" />
+            ) : (
+              <PanelLeftOpen className="h-4 w-4" />
+            )}
           </button>
         </TooltipTrigger>
-        <TooltipContent side="left">{collapsed ? "Expand panel" : "Collapse panel"}</TooltipContent>
+        <TooltipContent side="left">
+          {collapsed ? "Expand panel" : "Collapse panel"}
+        </TooltipContent>
       </Tooltip>
 
       <div className="w-6 h-px bg-border my-1" />

@@ -12,22 +12,34 @@ function useTutorialAutoStart() {
   useEffect(() => {
     if (completed || active) return;
     const keys = Object.keys(localStorage);
-    const hasPriorData = keys.some((k) => k.startsWith("enso-") && k !== "enso-tutorial");
+    const hasPriorData = keys.some(
+      (k) => k.startsWith("enso-") && k !== "enso-tutorial",
+    );
     if (hasPriorData) return;
     const timer = setTimeout(start, 800);
     return () => clearTimeout(timer);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 }
 
-interface Rect { top: number; left: number; width: number; height: number }
+interface Rect {
+  top: number;
+  left: number;
+  width: number;
+  height: number;
+}
 
-function useTargetRect(target: string, active: boolean): { rect: Rect | null; el: HTMLElement | null } {
+function useTargetRect(
+  target: string,
+  active: boolean,
+): { rect: Rect | null; el: HTMLElement | null } {
   const [rect, setRect] = useState<Rect | null>(null);
   const [el, setEl] = useState<HTMLElement | null>(null);
   const observerRef = useRef<ResizeObserver | null>(null);
 
   const measure = useCallback(() => {
-    const found = document.querySelector<HTMLElement>(`[data-tour="${target}"]`);
+    const found = document.querySelector<HTMLElement>(
+      `[data-tour="${target}"]`,
+    );
     if (found) {
       const r = found.getBoundingClientRect();
       setRect({ top: r.top, left: r.left, width: r.width, height: r.height });
@@ -41,7 +53,9 @@ function useTargetRect(target: string, active: boolean): { rect: Rect | null; el
   useEffect(() => {
     if (!active) return;
     requestAnimationFrame(measure);
-    const found = document.querySelector<HTMLElement>(`[data-tour="${target}"]`);
+    const found = document.querySelector<HTMLElement>(
+      `[data-tour="${target}"]`,
+    );
     if (found) {
       observerRef.current = new ResizeObserver(measure);
       observerRef.current.observe(found);
@@ -160,7 +174,9 @@ function TutorialOverlayInner() {
           {currentStep + 1} of {TUTORIAL_STEPS.length}
         </div>
         <h3 className="text-sm font-semibold mb-1">{step.title}</h3>
-        <p className="text-xs text-muted-foreground mb-4 leading-relaxed">{step.description}</p>
+        <p className="text-xs text-muted-foreground mb-4 leading-relaxed">
+          {step.description}
+        </p>
         <div className="flex items-center justify-between">
           <button
             type="button"
@@ -171,7 +187,12 @@ function TutorialOverlayInner() {
           </button>
           <div className="flex gap-2">
             {currentStep > 0 && (
-              <Button variant="outline" size="sm" onClick={back} className="text-xs h-7">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={back}
+                className="text-xs h-7"
+              >
                 Back
               </Button>
             )}

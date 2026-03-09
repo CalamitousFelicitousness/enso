@@ -8,7 +8,12 @@ interface ParamSectionProps {
   children: React.ReactNode;
 }
 
-export function ParamSection({ title, defaultOpen = true, action, children }: ParamSectionProps) {
+export function ParamSection({
+  title,
+  defaultOpen = true,
+  action,
+  children,
+}: ParamSectionProps) {
   const [open, setOpen] = useState(defaultOpen);
   const toggle = useCallback(() => setOpen((o) => !o), []);
 

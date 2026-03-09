@@ -1,13 +1,32 @@
 import { useMemo, useRef, useCallback, useEffect, useState } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useGalleryStore } from "@/stores/galleryStore";
-import { useThumbnailLoader, useBackgroundPreloader } from "@/api/hooks/useGallery";
+import {
+  useThumbnailLoader,
+  useBackgroundPreloader,
+} from "@/api/hooks/useGallery";
 import type { GalleryFile } from "@/api/types/gallery";
 import { ConnectedGalleryCard } from "./GalleryCard";
 import { MasonryGrid } from "./MasonryGrid";
 import { sendImageToCanvas, fetchRemoteImage } from "@/lib/sendTo";
-import { ContextMenu, ContextMenuTrigger, ContextMenuContent, ContextMenuItem, ContextMenuSeparator } from "@/components/ui/context-menu";
-import { Trash2, FolderInput, Download, Maximize2, Copy, Paintbrush, CheckSquare, XSquare, CheckCheck } from "lucide-react";
+import {
+  ContextMenu,
+  ContextMenuTrigger,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+} from "@/components/ui/context-menu";
+import {
+  Trash2,
+  FolderInput,
+  Download,
+  Maximize2,
+  Copy,
+  Paintbrush,
+  CheckSquare,
+  XSquare,
+  CheckCheck,
+} from "lucide-react";
 
 const GAP = 6;
 
@@ -17,7 +36,11 @@ interface GalleryGridProps {
   onDownloadRequest?: () => void;
 }
 
-export function GalleryGrid({ onDeleteRequest, onMoveRequest, onDownloadRequest }: GalleryGridProps) {
+export function GalleryGrid({
+  onDeleteRequest,
+  onMoveRequest,
+  onDownloadRequest,
+}: GalleryGridProps) {
   const files = useGalleryStore((s) => s.files);
   const sort = useGalleryStore((s) => s.sort);
   const searchQuery = useGalleryStore((s) => s.searchQuery);
@@ -50,7 +73,13 @@ export function GalleryGrid({ onDeleteRequest, onMoveRequest, onDownloadRequest 
   // individual thumb loads don't trigger re-sort (which would cascade
   // into visibleFileIds change → thumbnail loader abort → stall).
   const thumbsRef = useRef(useGalleryStore.getState().thumbs);
-  useEffect(() => useGalleryStore.subscribe((s) => { thumbsRef.current = s.thumbs; }), []);
+  useEffect(
+    () =>
+      useGalleryStore.subscribe((s) => {
+        thumbsRef.current = s.thumbs;
+      }),
+    [],
+  );
 
   // Filter + sort - only recompute when files/search/sort change, NOT on every thumb load
   const sorted = useMemo(() => {
@@ -88,7 +117,10 @@ export function GalleryGrid({ onDeleteRequest, onMoveRequest, onDownloadRequest 
     setSortedFiles(sorted);
   }, [sorted, setSortedFiles]);
 
-  const cols = Math.max(1, Math.floor((containerWidth + GAP) / (thumbSize + GAP)));
+  const cols = Math.max(
+    1,
+    Math.floor((containerWidth + GAP) / (thumbSize + GAP)),
+  );
   const rowCount = Math.ceil(sorted.length / cols);
 
   const virtualizer = useVirtualizer({
@@ -103,7 +135,8 @@ export function GalleryGrid({ onDeleteRequest, onMoveRequest, onDownloadRequest 
   // which is a new array on every render and would re-fire the thumb loader.
   const visibleRange = virtualizer.getVirtualItems();
   const rangeStart = visibleRange[0]?.index ?? 0;
-  const rangeEnd = visibleRange.length > 0 ? visibleRange[visibleRange.length - 1].index : -1;
+  const rangeEnd =
+    visibleRange.length > 0 ? visibleRange[visibleRange.length - 1].index : -1;
   const visibleFileIds = useMemo(() => {
     const ids: string[] = [];
     for (let row = rangeStart; row <= rangeEnd; row++) {
@@ -118,16 +151,19 @@ export function GalleryGrid({ onDeleteRequest, onMoveRequest, onDownloadRequest 
   useThumbnailLoader(visibleFileIds, sorted);
   useBackgroundPreloader(sorted);
 
-  const handleClick = useCallback((file: GalleryFile, index: number, e: React.MouseEvent) => {
-    const s = useGalleryStore.getState();
-    if (e.shiftKey || e.ctrlKey || e.metaKey) {
-      s.toggleSelect(file.id, index, e.shiftKey, e.ctrlKey || e.metaKey);
-    } else if (s.selectedIds.size > 0) {
-      s.toggleSelect(file.id, index, false, false);
-    } else {
-      s.selectFile(file, s.thumbs.get(file.id) ?? null);
-    }
-  }, []);
+  const handleClick = useCallback(
+    (file: GalleryFile, index: number, e: React.MouseEvent) => {
+      const s = useGalleryStore.getState();
+      if (e.shiftKey || e.ctrlKey || e.metaKey) {
+        s.toggleSelect(file.id, index, e.shiftKey, e.ctrlKey || e.metaKey);
+      } else if (s.selectedIds.size > 0) {
+        s.toggleSelect(file.id, index, false, false);
+      } else {
+        s.selectFile(file, s.thumbs.get(file.id) ?? null);
+      }
+    },
+    [],
+  );
 
   const handleDoubleClick = useCallback((index: number) => {
     useGalleryStore.getState().openLightbox(index);
@@ -165,14 +201,22 @@ export function GalleryGrid({ onDeleteRequest, onMoveRequest, onDownloadRequest 
     }
   }, []);
 
-  const handleDeselectAll = useCallback(() => useGalleryStore.getState().deselectAll(), []);
-  const handleSelectAll = useCallback(() => useGalleryStore.getState().selectAll(), []);
+  const handleDeselectAll = useCallback(
+    () => useGalleryStore.getState().deselectAll(),
+    [],
+  );
+  const handleSelectAll = useCallback(
+    () => useGalleryStore.getState().selectAll(),
+    [],
+  );
 
   const handleSendToCanvas = useCallback(() => {
     const f = contextFileRef.current;
     if (f) {
-      fetchRemoteImage(`/file=${f.fullPath}`, f.relativePath.split("/").pop() ?? "image.png")
-        .then((blob) => sendImageToCanvas(blob));
+      fetchRemoteImage(
+        `/file=${f.fullPath}`,
+        f.relativePath.split("/").pop() ?? "image.png",
+      ).then((blob) => sendImageToCanvas(blob));
     }
   }, []);
 
@@ -181,7 +225,10 @@ export function GalleryGrid({ onDeleteRequest, onMoveRequest, onDownloadRequest 
 
   if (files.length === 0) {
     return (
-      <div ref={containerRef} className="flex flex-col items-center justify-center h-full text-muted-foreground overflow-auto">
+      <div
+        ref={containerRef}
+        className="flex flex-col items-center justify-center h-full text-muted-foreground overflow-auto"
+      >
         <p className="text-sm">No images</p>
         <p className="text-xs mt-1 opacity-60">Select a folder to browse</p>
       </div>
@@ -190,7 +237,10 @@ export function GalleryGrid({ onDeleteRequest, onMoveRequest, onDownloadRequest 
 
   if (sorted.length === 0) {
     return (
-      <div ref={containerRef} className="flex flex-col items-center justify-center h-full text-muted-foreground overflow-auto">
+      <div
+        ref={containerRef}
+        className="flex flex-col items-center justify-center h-full text-muted-foreground overflow-auto"
+      >
         <p className="text-sm">No matches</p>
         <p className="text-xs mt-1 opacity-60">Try a different search term</p>
       </div>
@@ -202,16 +252,28 @@ export function GalleryGrid({ onDeleteRequest, onMoveRequest, onDownloadRequest 
       <ContextMenuTrigger asChild>
         <div ref={containerRef} className="h-full overflow-auto">
           {layoutMode === "masonry" ? (
-            <MasonryGrid sorted={sorted} containerRef={containerRef} containerWidth={containerWidth} />
+            <MasonryGrid
+              sorted={sorted}
+              containerRef={containerRef}
+              containerWidth={containerWidth}
+            />
           ) : (
-            <div className="relative w-full" style={{ height: virtualizer.getTotalSize() }}>
+            <div
+              className="relative w-full"
+              style={{ height: virtualizer.getTotalSize() }}
+            >
               {virtualizer.getVirtualItems().map((vRow) => {
                 const rowStart = vRow.index * cols;
                 return (
                   <div
                     key={vRow.index}
                     className="absolute left-0 w-full flex justify-start"
-                    style={{ top: vRow.start, height: vRow.size, gap: GAP, padding: `0 ${GAP}px` }}
+                    style={{
+                      top: vRow.start,
+                      height: vRow.size,
+                      gap: GAP,
+                      padding: `0 ${GAP}px`,
+                    }}
                   >
                     {Array.from({ length: cols }, (_, c) => {
                       const idx = rowStart + c;
@@ -251,13 +313,15 @@ export function GalleryGrid({ onDeleteRequest, onMoveRequest, onDownloadRequest 
         </ContextMenuItem>
         <ContextMenuSeparator />
         <ContextMenuItem variant="destructive" onClick={onDeleteRequest}>
-          <Trash2 size={14} /> Delete{selectionCount > 1 ? ` (${selectionCount})` : ""}
+          <Trash2 size={14} /> Delete
+          {selectionCount > 1 ? ` (${selectionCount})` : ""}
         </ContextMenuItem>
         <ContextMenuItem onClick={onMoveRequest}>
           <FolderInput size={14} /> Move to...
         </ContextMenuItem>
         <ContextMenuItem onClick={onDownloadRequest}>
-          <Download size={14} /> Download{selectionCount > 1 ? ` (${selectionCount})` : ""}
+          <Download size={14} /> Download
+          {selectionCount > 1 ? ` (${selectionCount})` : ""}
         </ContextMenuItem>
         <ContextMenuSeparator />
         <ContextMenuItem onClick={handleOpenLightbox}>

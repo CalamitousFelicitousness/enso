@@ -7,10 +7,24 @@ import { uploadBlob } from "@/lib/upload";
 import { useState, useCallback } from "react";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
+import {
+  Popover,
+  PopoverTrigger,
+  PopoverContent,
+} from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { ChevronDown, ChevronRight, Sparkles, Loader2, Settings2 } from "lucide-react";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import {
+  ChevronDown,
+  ChevronRight,
+  Sparkles,
+  Loader2,
+  Settings2,
+} from "lucide-react";
 import { toast } from "sonner";
 import { PromptEnhanceWorkspace } from "./PromptEnhanceWorkspace";
 import type { PromptEnhanceRequest } from "@/api/types/promptEnhance";
@@ -72,7 +86,9 @@ export function PromptEditor() {
         toast.success(`Prompt enhanced (seed: ${res.seed})`);
       },
       onError: (err) => {
-        toast.error(`Enhance failed: ${err instanceof Error ? err.message : "Unknown error"}`);
+        toast.error(
+          `Enhance failed: ${err instanceof Error ? err.message : "Unknown error"}`,
+        );
       },
     });
   }, [prompt, enhanceStore, enhanceMutation, setPendingResult]);
@@ -91,9 +107,11 @@ export function PromptEditor() {
               className="p-0.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
               title="Enhance prompt"
             >
-              {enhanceMutation.isPending
-                ? <Loader2 size={14} className="animate-spin" />
-                : <Sparkles size={14} />}
+              {enhanceMutation.isPending ? (
+                <Loader2 size={14} className="animate-spin" />
+              ) : (
+                <Sparkles size={14} />
+              )}
             </button>
             <Popover open={enhanceOpen} onOpenChange={setEnhanceOpen}>
               <PopoverTrigger asChild>
@@ -109,8 +127,12 @@ export function PromptEditor() {
                 side="right"
                 align="start"
                 className="w-96 p-0"
-                onInteractOutside={(e) => { if (pinned) e.preventDefault(); }}
-                onEscapeKeyDown={(e) => { if (pinned) e.preventDefault(); }}
+                onInteractOutside={(e) => {
+                  if (pinned) e.preventDefault();
+                }}
+                onEscapeKeyDown={(e) => {
+                  if (pinned) e.preventDefault();
+                }}
               >
                 <ScrollArea className="max-h-[80vh]">
                   <PromptEnhanceWorkspace
@@ -132,7 +154,10 @@ export function PromptEditor() {
           onKeyDown={(e) => {
             if (e.ctrlKey && (e.key === "ArrowUp" || e.key === "ArrowDown")) {
               e.preventDefault();
-              adjustAttentionWeight(e.currentTarget, e.key === "ArrowUp" ? 0.1 : -0.1);
+              adjustAttentionWeight(
+                e.currentTarget,
+                e.key === "ArrowUp" ? 0.1 : -0.1,
+              );
               setParam("prompt", e.currentTarget.value);
             }
           }}
@@ -142,7 +167,11 @@ export function PromptEditor() {
       {/* Negative prompt */}
       <Collapsible open={showNegative} onOpenChange={setShowNegative}>
         <CollapsibleTrigger className="flex items-center gap-1 text-2xs text-muted-foreground hover:text-foreground transition-colors">
-          {showNegative ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+          {showNegative ? (
+            <ChevronDown size={12} />
+          ) : (
+            <ChevronRight size={12} />
+          )}
           Negative prompt
         </CollapsibleTrigger>
         <CollapsibleContent>
@@ -168,13 +197,15 @@ function adjustAttentionWeight(textarea: HTMLTextAreaElement, delta: number) {
   if (match) {
     const newWeight = Math.max(0, Math.min(2, parseFloat(match[2]) + delta));
     const replacement = `(${match[1]}:${newWeight.toFixed(1)})`;
-    textarea.value = value.slice(0, selectionStart) + replacement + value.slice(selectionEnd);
+    textarea.value =
+      value.slice(0, selectionStart) + replacement + value.slice(selectionEnd);
     textarea.selectionStart = selectionStart;
     textarea.selectionEnd = selectionStart + replacement.length;
   } else {
     const weight = Math.max(0, Math.min(2, 1.0 + delta));
     const replacement = `(${selected}:${weight.toFixed(1)})`;
-    textarea.value = value.slice(0, selectionStart) + replacement + value.slice(selectionEnd);
+    textarea.value =
+      value.slice(0, selectionStart) + replacement + value.slice(selectionEnd);
     textarea.selectionStart = selectionStart;
     textarea.selectionEnd = selectionStart + replacement.length;
   }

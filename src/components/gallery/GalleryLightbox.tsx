@@ -6,12 +6,22 @@ import { useDragSource } from "@/hooks/useDragSource";
 import { useImageZoomPan } from "@/hooks/useImageZoomPan";
 import { isVideoFile } from "@/lib/mediaType";
 import { VideoPlayer } from "@/components/video/VideoPlayer";
-import { X, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, RotateCcw, GitCompareArrows } from "lucide-react";
+import {
+  X,
+  ChevronLeft,
+  ChevronRight,
+  ZoomIn,
+  ZoomOut,
+  RotateCcw,
+  GitCompareArrows,
+} from "lucide-react";
 import { useComparisonStore } from "@/stores/comparisonStore";
 
 export function GalleryLightbox() {
   const lightboxIndex = useGalleryStore((s) => s.lightboxIndex);
-  const file = useGalleryStore((s) => (s.lightboxIndex !== null ? s.sortedFiles[s.lightboxIndex] ?? null : null));
+  const file = useGalleryStore((s) =>
+    s.lightboxIndex !== null ? (s.sortedFiles[s.lightboxIndex] ?? null) : null,
+  );
   const thumb = useGalleryStore((s) => {
     if (s.lightboxIndex === null) return undefined;
     const f = s.sortedFiles[s.lightboxIndex];
@@ -52,13 +62,17 @@ export function GalleryLightbox() {
     if (file && thumb) selectFile(file, thumb);
   }, [file, thumb, selectFile]);
 
-  const navigate = useCallback((delta: number) => {
-    navigateLightbox(delta, maxIndex);
-  }, [navigateLightbox, maxIndex]);
+  const navigate = useCallback(
+    (delta: number) => {
+      navigateLightbox(delta, maxIndex);
+    },
+    [navigateLightbox, maxIndex],
+  );
 
   const handleCompare = useCallback(() => {
     if (!fullUrl || lightboxIndex === null) return;
-    const nextIndex = lightboxIndex < maxIndex ? lightboxIndex + 1 : lightboxIndex - 1;
+    const nextIndex =
+      lightboxIndex < maxIndex ? lightboxIndex + 1 : lightboxIndex - 1;
     if (nextIndex < 0 || nextIndex > maxIndex) return;
     const sortedFiles = useGalleryStore.getState().sortedFiles;
     const nextFile = sortedFiles[nextIndex];
@@ -66,7 +80,12 @@ export function GalleryLightbox() {
     const nextUrl = `/file=${nextFile.fullPath}`;
     const aName = file?.relativePath.split("/").pop() ?? "Image A";
     const bName = nextFile.relativePath.split("/").pop() ?? "Image B";
-    useComparisonStore.getState().openComparison({ src: fullUrl, label: aName }, { src: nextUrl, label: bName });
+    useComparisonStore
+      .getState()
+      .openComparison(
+        { src: fullUrl, label: aName },
+        { src: nextUrl, label: bName },
+      );
   }, [fullUrl, lightboxIndex, maxIndex, file]);
 
   // Keyboard shortcuts (scoped to "lightbox", only active when open)
@@ -75,8 +94,16 @@ export function GalleryLightbox() {
   useShortcut("lightbox-prev", () => navigate(-1), isOpen);
   useShortcut("lightbox-next", () => navigate(1), isOpen);
   useShortcut("lightbox-zoom-in", () => zoom.setScale((s) => s * 1.25), isOpen);
-  useShortcut("lightbox-zoom-in-eq", () => zoom.setScale((s) => s * 1.25), isOpen);
-  useShortcut("lightbox-zoom-out", () => zoom.setScale((s) => s / 1.25), isOpen);
+  useShortcut(
+    "lightbox-zoom-in-eq",
+    () => zoom.setScale((s) => s * 1.25),
+    isOpen,
+  );
+  useShortcut(
+    "lightbox-zoom-out",
+    () => zoom.setScale((s) => s / 1.25),
+    isOpen,
+  );
   useShortcut("lightbox-zoom-reset", () => zoom.resetTransform(), isOpen);
 
   if (!isOpen || !file) return null;
@@ -85,23 +112,43 @@ export function GalleryLightbox() {
   const isVideo = isVideoFile(file.relativePath);
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/90 flex flex-col" onClick={closeLightbox}>
+    <div
+      className="fixed inset-0 z-50 bg-black/90 flex flex-col"
+      onClick={closeLightbox}
+    >
       {/* Top bar */}
-      <div className="flex items-center justify-between px-4 py-2 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
-        <span className="text-xs text-white/70 truncate max-w-[50%]">{filename}</span>
+      <div
+        className="flex items-center justify-between px-4 py-2 flex-shrink-0"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <span className="text-xs text-white/70 truncate max-w-[50%]">
+          {filename}
+        </span>
         <div className="flex items-center gap-1">
           {!isVideo && (
             <>
-              <LightboxButton onClick={() => zoom.setScale((s) => s * 1.25)}><ZoomIn size={16} /></LightboxButton>
-              <LightboxButton onClick={() => zoom.setScale((s) => s / 1.25)}><ZoomOut size={16} /></LightboxButton>
-              <LightboxButton onClick={zoom.resetTransform}><RotateCcw size={16} /></LightboxButton>
-              <span className="text-3xs text-white/50 tabular-nums w-10 text-center">{Math.round(zoom.scale * 100)}%</span>
+              <LightboxButton onClick={() => zoom.setScale((s) => s * 1.25)}>
+                <ZoomIn size={16} />
+              </LightboxButton>
+              <LightboxButton onClick={() => zoom.setScale((s) => s / 1.25)}>
+                <ZoomOut size={16} />
+              </LightboxButton>
+              <LightboxButton onClick={zoom.resetTransform}>
+                <RotateCcw size={16} />
+              </LightboxButton>
+              <span className="text-3xs text-white/50 tabular-nums w-10 text-center">
+                {Math.round(zoom.scale * 100)}%
+              </span>
               {fileCount > 1 && (
-                <LightboxButton onClick={handleCompare}><GitCompareArrows size={16} /></LightboxButton>
+                <LightboxButton onClick={handleCompare}>
+                  <GitCompareArrows size={16} />
+                </LightboxButton>
               )}
             </>
           )}
-          <LightboxButton onClick={closeLightbox}><X size={16} /></LightboxButton>
+          <LightboxButton onClick={closeLightbox}>
+            <X size={16} />
+          </LightboxButton>
         </div>
       </div>
 
@@ -118,7 +165,10 @@ export function GalleryLightbox() {
           className="flex-1 flex items-center justify-center overflow-hidden select-none"
           style={{ cursor: zoom.style.cursor }}
           onWheel={zoom.handlers.onWheel}
-          onMouseDown={(e) => { e.stopPropagation(); zoom.handlers.onMouseDown(e); }}
+          onMouseDown={(e) => {
+            e.stopPropagation();
+            zoom.handlers.onMouseDown(e);
+          }}
           onMouseMove={zoom.handlers.onMouseMove}
           onMouseUp={zoom.handlers.onMouseUp}
           onMouseLeave={zoom.handlers.onMouseLeave}
@@ -140,7 +190,10 @@ export function GalleryLightbox() {
       {lightboxIndex > 0 && (
         <button
           className="absolute left-2 top-1/2 -translate-y-1/2 w-10 h-10 flex items-center justify-center rounded-full bg-black/50 text-white/70 hover:text-white hover:bg-black/70 transition-colors"
-          onClick={(e) => { e.stopPropagation(); navigate(-1); }}
+          onClick={(e) => {
+            e.stopPropagation();
+            navigate(-1);
+          }}
         >
           <ChevronLeft size={24} />
         </button>
@@ -148,14 +201,20 @@ export function GalleryLightbox() {
       {lightboxIndex < maxIndex && (
         <button
           className="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 flex items-center justify-center rounded-full bg-black/50 text-white/70 hover:text-white hover:bg-black/70 transition-colors"
-          onClick={(e) => { e.stopPropagation(); navigate(1); }}
+          onClick={(e) => {
+            e.stopPropagation();
+            navigate(1);
+          }}
         >
           <ChevronRight size={24} />
         </button>
       )}
 
       {/* Bottom bar */}
-      <div className="flex items-center justify-center px-4 py-1.5 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+      <div
+        className="flex items-center justify-center px-4 py-1.5 flex-shrink-0"
+        onClick={(e) => e.stopPropagation()}
+      >
         <span className="text-3xs text-white/40 tabular-nums">
           {lightboxIndex + 1} / {fileCount}
           {thumb && ` | ${thumb.width}x${thumb.height}`}
@@ -165,7 +224,13 @@ export function GalleryLightbox() {
   );
 }
 
-function LightboxButton({ children, onClick }: { children: React.ReactNode; onClick: () => void }) {
+function LightboxButton({
+  children,
+  onClick,
+}: {
+  children: React.ReactNode;
+  onClick: () => void;
+}) {
   return (
     <button
       onClick={onClick}

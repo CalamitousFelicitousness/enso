@@ -1,12 +1,36 @@
-import { useModelList, useLoadModel, useRefreshModels, useReloadModel, useUnloadModel, useCurrentCheckpoint, useIsModelLoading } from "@/api/hooks/useModels";
+import {
+  useModelList,
+  useLoadModel,
+  useRefreshModels,
+  useReloadModel,
+  useUnloadModel,
+  useCurrentCheckpoint,
+  useIsModelLoading,
+} from "@/api/hooks/useModels";
 import { useOptionsSubset } from "@/api/hooks/useSettings";
-import { RefreshCw, ChevronsUpDown, ArrowBigDownDash, FolderSync } from "lucide-react";
+import {
+  RefreshCw,
+  ChevronsUpDown,
+  ArrowBigDownDash,
+  FolderSync,
+} from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 
 function formatPipelineClass(cls: string | null | undefined): string | null {
   if (!cls) return null;
@@ -25,7 +49,8 @@ export function ModelSelector() {
 
   const [open, setOpen] = useState(false);
 
-  const currentModel = (options?.sd_model_checkpoint as string) ?? "No model loaded";
+  const currentModel =
+    (options?.sd_model_checkpoint as string) ?? "No model loaded";
   const pipelineClass = formatPipelineClass(checkpoint?.class_name);
 
   async function handleSelect(title: string) {
@@ -34,7 +59,9 @@ export function ModelSelector() {
       await loadModel.mutateAsync(title);
       toast.success("Model loaded", { description: title });
     } catch (err) {
-      toast.error("Failed to load model", { description: err instanceof Error ? err.message : String(err) });
+      toast.error("Failed to load model", {
+        description: err instanceof Error ? err.message : String(err),
+      });
     }
   }
 
@@ -46,10 +73,15 @@ export function ModelSelector() {
             variant="secondary"
             size="sm"
             disabled={isModelLoading}
-            className={cn("min-w-0 max-w-md justify-between text-xs h-7 px-2", isModelLoading && "opacity-60")}
+            className={cn(
+              "min-w-0 max-w-md justify-between text-xs h-7 px-2",
+              isModelLoading && "opacity-60",
+            )}
           >
             <span className="flex items-center gap-2 truncate">
-              {isModelLoading && <RefreshCw size={12} className="animate-spin flex-shrink-0" />}
+              {isModelLoading && (
+                <RefreshCw size={12} className="animate-spin flex-shrink-0" />
+              )}
               <span className="truncate">{currentModel}</span>
             </span>
             <ChevronsUpDown size={12} className="flex-shrink-0 opacity-50" />
@@ -66,11 +98,17 @@ export function ModelSelector() {
                     key={model.hash || model.title}
                     value={model.title}
                     onSelect={() => handleSelect(model.title)}
-                    className={cn("text-xs", model.title === currentModel && "font-semibold !text-primary")}
+                    className={cn(
+                      "text-xs",
+                      model.title === currentModel &&
+                        "font-semibold !text-primary",
+                    )}
                   >
                     <span className="truncate flex-1">{model.title}</span>
                     {model.hash && (
-                      <span className="text-3xs text-muted-foreground font-mono pl-2">{model.hash.slice(0, 8)}</span>
+                      <span className="text-3xs text-muted-foreground font-mono pl-2">
+                        {model.hash.slice(0, 8)}
+                      </span>
                     )}
                   </CommandItem>
                 ))}
@@ -81,16 +119,36 @@ export function ModelSelector() {
       </Popover>
 
       {pipelineClass && (
-        <span className="text-3xs text-muted-foreground whitespace-nowrap">{pipelineClass}</span>
+        <span className="text-3xs text-muted-foreground whitespace-nowrap">
+          {pipelineClass}
+        </span>
       )}
 
-      <Button variant="ghost" size="icon-sm" title="Reload model" disabled={isModelLoading} onClick={() => reloadModel.mutate(undefined)}>
+      <Button
+        variant="ghost"
+        size="icon-sm"
+        title="Reload model"
+        disabled={isModelLoading}
+        onClick={() => reloadModel.mutate(undefined)}
+      >
         <RefreshCw size={14} />
       </Button>
-      <Button variant="ghost" size="icon-sm" title="Unload model" disabled={isModelLoading} onClick={() => unloadModel.mutate(undefined)}>
+      <Button
+        variant="ghost"
+        size="icon-sm"
+        title="Unload model"
+        disabled={isModelLoading}
+        onClick={() => unloadModel.mutate(undefined)}
+      >
         <ArrowBigDownDash size={14} />
       </Button>
-      <Button variant="ghost" size="icon-sm" title="Refresh model list" disabled={isModelLoading} onClick={() => refreshModels.mutate(undefined)}>
+      <Button
+        variant="ghost"
+        size="icon-sm"
+        title="Refresh model list"
+        disabled={isModelLoading}
+        onClick={() => refreshModels.mutate(undefined)}
+      >
         <FolderSync size={14} />
       </Button>
     </div>

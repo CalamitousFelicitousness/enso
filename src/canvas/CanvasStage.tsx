@@ -42,7 +42,16 @@ export function CanvasStage({ layout, onPickImage }: CanvasStageProps) {
   const maskPaint = useMaskPaint({ stageRef, spaceHeld: panZoom.spaceHeld });
   const imageTransform = useImageTransform(stageRef, trRef);
 
-  const { outputX, processedX, showProcessedFrame, controlFrames, totalBounds, displayScale, displayW, displayH } = layout;
+  const {
+    outputX,
+    processedX,
+    showProcessedFrame,
+    controlFrames,
+    totalBounds,
+    displayScale,
+    displayW,
+    displayH,
+  } = layout;
 
   // Container-responsive sizing
   useEffect(() => {
@@ -76,31 +85,42 @@ export function CanvasStage({ layout, onPickImage }: CanvasStageProps) {
     const availW = containerSize.width - PADDING * 2;
     const availH = containerSize.height - PADDING * 2;
     const scale = Math.min(availW / totalWidth, availH / totalHeight, 1);
-    const x = (containerSize.width - totalWidth * scale) / 2 - totalBounds.minX * scale;
-    const y = (containerSize.height - totalHeight * scale) / 2 + LABEL_HEIGHT * scale;
+    const x =
+      (containerSize.width - totalWidth * scale) / 2 - totalBounds.minX * scale;
+    const y =
+      (containerSize.height - totalHeight * scale) / 2 + LABEL_HEIGHT * scale;
     setViewport({ x, y, scale });
   }, [containerSize, frameW, frameH, totalBounds, setViewport]);
 
   // Compose event handlers: maskPaint first, then panZoom
-  const onMouseDown = useCallback((e: Konva.KonvaEventObject<MouseEvent>) => {
-    maskPaint.onMouseDown(e);
-    panZoom.onMouseDown(e);
-  }, [maskPaint, panZoom]);
+  const onMouseDown = useCallback(
+    (e: Konva.KonvaEventObject<MouseEvent>) => {
+      maskPaint.onMouseDown(e);
+      panZoom.onMouseDown(e);
+    },
+    [maskPaint, panZoom],
+  );
 
-  const onMouseMove = useCallback((e: Konva.KonvaEventObject<MouseEvent>) => {
-    maskPaint.onMouseMove(e);
-    panZoom.onMouseMove(e);
-  }, [maskPaint, panZoom]);
+  const onMouseMove = useCallback(
+    (e: Konva.KonvaEventObject<MouseEvent>) => {
+      maskPaint.onMouseMove(e);
+      panZoom.onMouseMove(e);
+    },
+    [maskPaint, panZoom],
+  );
 
   const onMouseUp = useCallback(() => {
     maskPaint.onMouseUp();
     panZoom.onMouseUp();
   }, [maskPaint, panZoom]);
 
-  const onClick = useCallback((e: Konva.KonvaEventObject<MouseEvent>) => {
-    if (e.evt.button !== 0) return;
-    imageTransform.onStageClick(e);
-  }, [imageTransform]);
+  const onClick = useCallback(
+    (e: Konva.KonvaEventObject<MouseEvent>) => {
+      if (e.evt.button !== 0) return;
+      imageTransform.onStageClick(e);
+    },
+    [imageTransform],
+  );
 
   return (
     <div ref={containerRef} className="w-full h-full overflow-hidden">
@@ -121,12 +141,33 @@ export function CanvasStage({ layout, onPickImage }: CanvasStageProps) {
           onClick={onClick}
         >
           <ControlFrameLayer frames={controlFrames} onPickImage={onPickImage} />
+
           <CompositeLayer trRef={trRef} displayScale={displayScale} />
-          <FrameLayer displayScale={displayScale} onPickImage={onPickImage ? () => onPickImage(-1) : undefined} />
-          {inputRole !== "reference" && <MaskLayer displayScale={displayScale} setActiveLineNode={maskPaint.setActiveLineNode} setCursorNode={maskPaint.setCursorNode} />}
-          <OutputLayer offsetX={outputX} placeholderWidth={displayW} placeholderHeight={displayH} />
+
+          <FrameLayer
+            displayScale={displayScale}
+            onPickImage={onPickImage ? () => onPickImage(-1) : undefined}
+          />
+
+          {inputRole !== "reference" && (
+            <MaskLayer
+              displayScale={displayScale}
+              setActiveLineNode={maskPaint.setActiveLineNode}
+              setCursorNode={maskPaint.setCursorNode}
+            />
+          )}
+          <OutputLayer
+            offsetX={outputX}
+            placeholderWidth={displayW}
+            placeholderHeight={displayH}
+          />
+
           {showProcessedFrame && (
-            <ProcessedCompositeLayer offsetX={processedX} width={displayW} height={displayH} />
+            <ProcessedCompositeLayer
+              offsetX={processedX}
+              width={displayW}
+              height={displayH}
+            />
           )}
         </Stage>
       )}

@@ -14,8 +14,17 @@ interface CivitResultListProps {
   onSelectModel: (modelId: number) => void;
 }
 
-export function CivitResultList({ pages, hasNextPage, isFetchingNextPage, fetchNextPage, onSelectModel }: CivitResultListProps) {
-  const models = useMemo(() => pages?.pages.flatMap((p) => p.items) ?? [], [pages]);
+export function CivitResultList({
+  pages,
+  hasNextPage,
+  isFetchingNextPage,
+  fetchNextPage,
+  onSelectModel,
+}: CivitResultListProps) {
+  const models = useMemo(
+    () => pages?.pages.flatMap((p) => p.items) ?? [],
+    [pages],
+  );
 
   const allHashes = useMemo(() => {
     const hashes: string[] = [];
@@ -38,13 +47,26 @@ export function CivitResultList({ pages, hasNextPage, isFetchingNextPage, fetchN
     <div className="border border-border rounded-md overflow-hidden">
       <div className="divide-y divide-border/50">
         {models.map((m) => (
-          <CivitResultCard key={m.id} model={m} localFiles={localFiles} onClick={() => onSelectModel(m.id)} />
+          <CivitResultCard
+            key={m.id}
+            model={m}
+            localFiles={localFiles}
+            onClick={() => onSelectModel(m.id)}
+          />
         ))}
       </div>
       {hasNextPage && (
         <div className="p-2 flex justify-center border-t border-border/50">
-          <Button size="sm" variant="ghost" onClick={fetchNextPage} disabled={isFetchingNextPage} className="text-xs">
-            {isFetchingNextPage && <Loader2 className="h-3 w-3 animate-spin mr-1" />}
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={fetchNextPage}
+            disabled={isFetchingNextPage}
+            className="text-xs"
+          >
+            {isFetchingNextPage && (
+              <Loader2 className="h-3 w-3 animate-spin mr-1" />
+            )}
             Load more
           </Button>
         </div>

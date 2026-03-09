@@ -16,14 +16,19 @@ function parseInfoMeta(info: string): Record<string, string> {
     if (parsed.seed != null) meta.Seed = String(parsed.seed);
     if (parsed.steps != null) meta.Steps = String(parsed.steps);
     if (parsed.sampler_name) meta.Sampler = parsed.sampler_name;
-    if (parsed.width && parsed.height) meta.Size = `${parsed.width}x${parsed.height}`;
+    if (parsed.width && parsed.height)
+      meta.Size = `${parsed.width}x${parsed.height}`;
     return meta;
   } catch {
     return {};
   }
 }
 
-export function ResultThumbPreview({ result, imageIndex, anchorRect }: ResultThumbPreviewProps) {
+export function ResultThumbPreview({
+  result,
+  imageIndex,
+  anchorRect,
+}: ResultThumbPreviewProps) {
   const src = resolveImageSrc(result.images[imageIndex]);
   const meta = useMemo(() => parseInfoMeta(result.info), [result.info]);
   const entries = Object.entries(meta);
@@ -42,11 +47,18 @@ export function ResultThumbPreview({ result, imageIndex, anchorRect }: ResultThu
   return createPortal(
     <div style={style} className="flex flex-col items-center">
       <div className="rounded-lg overflow-hidden border border-border bg-popover shadow-xl">
-        <img src={src} alt="Preview" className="w-64 max-h-64 object-contain bg-black" />
+        <img
+          src={src}
+          alt="Preview"
+          className="w-64 max-h-64 object-contain bg-black"
+        />
+
         {entries.length > 0 && (
           <div className="px-2 py-1 flex flex-wrap gap-x-3 gap-y-0.5 text-3xs text-muted-foreground">
             {entries.map(([k, v]) => (
-              <span key={k}><span className="text-foreground/60">{k}:</span> {v}</span>
+              <span key={k}>
+                <span className="text-foreground/60">{k}:</span> {v}
+              </span>
             ))}
           </div>
         )}

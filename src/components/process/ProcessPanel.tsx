@@ -41,7 +41,12 @@ export function ProcessPanel() {
     };
   }, [image, upscaler, scale, setResult]);
 
-  const { submit, isSubmitting } = useSubmitToQueue(useMemo(() => ({ domain: "upscale" as const, buildRequest }), [buildRequest]));
+  const { submit, isSubmitting } = useSubmitToQueue(
+    useMemo(
+      () => ({ domain: "upscale" as const, buildRequest }),
+      [buildRequest],
+    ),
+  );
 
   return (
     <div className="flex flex-col h-full">
@@ -56,11 +61,21 @@ export function ProcessPanel() {
             className="h-6 text-2xs"
           />
         </div>
-        <ParamSlider label="Scale" value={scale} onChange={setScale} min={1} max={8} step={0.5} />
+        <ParamSlider
+          label="Scale"
+          value={scale}
+          onChange={setScale}
+          min={1}
+          max={8}
+          step={0.5}
+        />
+
         <Button
           type="button"
           onClick={submit}
-          disabled={!image || isProcessing || isSubmitting || upscaler === "None"}
+          disabled={
+            !image || isProcessing || isSubmitting || upscaler === "None"
+          }
           size="sm"
           className="w-full"
         >

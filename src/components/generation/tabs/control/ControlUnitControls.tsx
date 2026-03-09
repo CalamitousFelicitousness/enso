@@ -1,6 +1,11 @@
 import { useCallback, useMemo } from "react";
 import { useControlStore, resolveUnitImage } from "@/stores/controlStore";
-import { useControlModels, useControlModes, usePreprocessImage, usePreprocessors } from "@/api/hooks/useControl";
+import {
+  useControlModels,
+  useControlModes,
+  usePreprocessImage,
+  usePreprocessors,
+} from "@/api/hooks/useControl";
 import { useIPAdapterModels } from "@/api/hooks/useAdapters";
 import { uploadFile } from "@/lib/upload";
 import { buildProcessorGroups } from "@/lib/processorUtils";
@@ -17,18 +22,48 @@ import { X, Play, Loader2 } from "lucide-react";
 import { Combobox } from "@/components/ui/combobox";
 import { toast } from "sonner";
 
-const COLORMAPS = ["None", "autumn", "bone", "jet", "winter", "rainbow", "ocean", "summer", "spring", "cool", "hsv", "pink", "hot", "parula", "magma", "inferno", "plasma", "viridis", "cividis", "twilight", "shifted", "turbo", "deepgreen"];
+const COLORMAPS = [
+  "None",
+  "autumn",
+  "bone",
+  "jet",
+  "winter",
+  "rainbow",
+  "ocean",
+  "summer",
+  "spring",
+  "cool",
+  "hsv",
+  "pink",
+  "hot",
+  "parula",
+  "magma",
+  "inferno",
+  "plasma",
+  "viridis",
+  "cividis",
+  "twilight",
+  "shifted",
+  "turbo",
+  "deepgreen",
+];
 
 const STRING_PARAM_OPTIONS: Record<string, string[]> = {
   color_map: COLORMAPS,
 };
 
 /** Infer reasonable slider range from a default value when the API provides no metadata. */
-function inferSliderRange(defaultValue: number): { min: number; max: number; step: number } {
+function inferSliderRange(defaultValue: number): {
+  min: number;
+  max: number;
+  step: number;
+} {
   if (Number.isInteger(defaultValue)) {
     if (defaultValue <= 1) return { min: 0, max: 10, step: 1 };
-    if (defaultValue <= 64) return { min: 0, max: Math.max(512, defaultValue * 4), step: 1 };
-    if (defaultValue <= 512) return { min: 0, max: Math.max(2048, defaultValue * 4), step: 1 };
+    if (defaultValue <= 64)
+      return { min: 0, max: Math.max(512, defaultValue * 4), step: 1 };
+    if (defaultValue <= 512)
+      return { min: 0, max: Math.max(2048, defaultValue * 4), step: 1 };
     return { min: 0, max: defaultValue * 4, step: 1 };
   }
   // Float
@@ -41,7 +76,10 @@ interface ControlUnitControlsProps {
   compact?: boolean;
 }
 
-export function ControlUnitControls({ index, compact }: ControlUnitControlsProps) {
+export function ControlUnitControls({
+  index,
+  compact,
+}: ControlUnitControlsProps) {
   const unit = useControlStore((s) => s.units[index]);
   const units = useControlStore((s) => s.units);
   const setUnitParam = useControlStore((s) => s.setUnitParam);
@@ -61,13 +99,33 @@ export function ControlUnitControls({ index, compact }: ControlUnitControlsProps
     if (!resolvedImage || unit.processor === "None") return;
     try {
       const ref = await uploadFile(resolvedImage);
-      const params = Object.keys(unit.processorParams).length > 0 ? unit.processorParams : undefined;
-      const result = await preprocessMutation.mutateAsync({ image: ref, model: unit.processor, params });
-      setUnitParam(index, "processedImage", `data:image/png;base64,${result.image}`);
+      const params =
+        Object.keys(unit.processorParams).length > 0
+          ? unit.processorParams
+          : undefined;
+      const result = await preprocessMutation.mutateAsync({
+        image: ref,
+        model: unit.processor,
+        params,
+      });
+      setUnitParam(
+        index,
+        "processedImage",
+        `data:image/png;base64,${result.image}`,
+      );
     } catch (err) {
-      toast.error("Preprocessing failed", { description: err instanceof Error ? err.message : String(err) });
+      toast.error("Preprocessing failed", {
+        description: err instanceof Error ? err.message : String(err),
+      });
     }
-  }, [resolvedImage, unit.processor, unit.processorParams, preprocessMutation, setUnitParam, index]);
+  }, [
+    resolvedImage,
+    unit.processor,
+    unit.processorParams,
+    preprocessMutation,
+    setUnitParam,
+    index,
+  ]);
 
   const processorGroups = useMemo(() => {
     if (!preprocessors) return [];
@@ -82,17 +140,32 @@ export function ControlUnitControls({ index, compact }: ControlUnitControlsProps
     return info.params;
   }, [preprocessors, unit.processor]);
 
-  const handleProcessorChange = useCallback((v: string) => {
-    setUnitParam(index, "processor", v);
-    setUnitParam(index, "processedImage", null);
-    // Initialize params from API defaults for the new processor
-    const info = preprocessors?.find((p) => p.name === v);
-    setUnitParam(index, "processorParams", info?.params && Object.keys(info.params).length > 0 ? { ...info.params } : {});
-  }, [index, setUnitParam, preprocessors]);
+  const handleProcessorChange = useCallback(
+    (v: string) => {
+      setUnitParam(index, "processor", v);
+      setUnitParam(index, "processedImage", null);
+      // Initialize params from API defaults for the new processor
+      const info = preprocessors?.find((p) => p.name === v);
+      setUnitParam(
+        index,
+        "processorParams",
+        info?.params && Object.keys(info.params).length > 0
+          ? { ...info.params }
+          : {},
+      );
+    },
+    [index, setUnitParam, preprocessors],
+  );
 
-  const handleParamChange = useCallback((key: string, value: unknown) => {
-    setUnitParam(index, "processorParams", { ...unit.processorParams, [key]: value });
-  }, [index, setUnitParam, unit.processorParams]);
+  const handleParamChange = useCallback(
+    (key: string, value: unknown) => {
+      setUnitParam(index, "processorParams", {
+        ...unit.processorParams,
+        [key]: value,
+      });
+    },
+    [index, setUnitParam, unit.processorParams],
+  );
 
   const modesForModel = useMemo(() => {
     if (!controlModes || unit.model === "None") return null;
@@ -104,8 +177,10 @@ export function ControlUnitControls({ index, compact }: ControlUnitControlsProps
   }, [controlModes, unit.model]);
 
   const type = unit.unitType;
-  const showProcessor = type !== "style_transfer" && type !== "ip" && type !== "reference";
-  const showModel = type !== "style_transfer" && type !== "ip" && type !== "reference";
+  const showProcessor =
+    type !== "style_transfer" && type !== "ip" && type !== "reference";
+  const showModel =
+    type !== "style_transfer" && type !== "ip" && type !== "reference";
   const showTiming = type === "controlnet" || type === "xs" || type === "ip";
   const showGuess = type === "controlnet";
   const showFactor = type === "t2i";
@@ -113,8 +188,14 @@ export function ControlUnitControls({ index, compact }: ControlUnitControlsProps
   const showIPAdapter = type === "ip";
   const showControlImage = type !== "ip";
 
-  const imagePreviews = useMemo(() => unit.images.map((f) => URL.createObjectURL(f)), [unit.images]);
-  const maskPreviews = useMemo(() => unit.masks.map((f) => URL.createObjectURL(f)), [unit.masks]);
+  const imagePreviews = useMemo(
+    () => unit.images.map((f) => URL.createObjectURL(f)),
+    [unit.images],
+  );
+  const maskPreviews = useMemo(
+    () => unit.masks.map((f) => URL.createObjectURL(f)),
+    [unit.masks],
+  );
 
   const gap = compact ? "gap-1.5" : "gap-2";
 
@@ -123,7 +204,9 @@ export function ControlUnitControls({ index, compact }: ControlUnitControlsProps
       {/* Processor */}
       {showProcessor && (
         <div className="flex items-center gap-2">
-          <ParamLabel className="text-2xs text-muted-foreground w-16 flex-shrink-0">Processor</ParamLabel>
+          <ParamLabel className="text-2xs text-muted-foreground w-16 flex-shrink-0">
+            Processor
+          </ParamLabel>
           <Combobox
             value={unit.processor}
             onValueChange={handleProcessorChange}
@@ -136,7 +219,9 @@ export function ControlUnitControls({ index, compact }: ControlUnitControlsProps
       {/* Model */}
       {showModel && (
         <div className="flex items-center gap-2">
-          <ParamLabel className="text-2xs text-muted-foreground w-16 flex-shrink-0">Model</ParamLabel>
+          <ParamLabel className="text-2xs text-muted-foreground w-16 flex-shrink-0">
+            Model
+          </ParamLabel>
           <Combobox
             value={unit.model}
             onValueChange={(v) => setUnitParam(index, "model", v)}
@@ -149,7 +234,9 @@ export function ControlUnitControls({ index, compact }: ControlUnitControlsProps
       {/* Mode */}
       {showModel && modesForModel && modesForModel.length > 0 && (
         <div className="flex items-center gap-2">
-          <ParamLabel className="text-2xs text-muted-foreground w-16 flex-shrink-0">Mode</ParamLabel>
+          <ParamLabel className="text-2xs text-muted-foreground w-16 flex-shrink-0">
+            Mode
+          </ParamLabel>
           <Combobox
             value={unit.mode}
             onValueChange={(v) => setUnitParam(index, "mode", v)}
@@ -161,14 +248,23 @@ export function ControlUnitControls({ index, compact }: ControlUnitControlsProps
 
       {/* Strength */}
       {showModel && (
-        <ParamSlider label="Strength" value={unit.strength} onChange={(v) => setUnitParam(index, "strength", v)} min={0.01} max={2} step={0.01} />
+        <ParamSlider
+          label="Strength"
+          value={unit.strength}
+          onChange={(v) => setUnitParam(index, "strength", v)}
+          min={0.01}
+          max={2}
+          step={0.01}
+        />
       )}
 
       {/* IP-Adapter fields */}
       {showIPAdapter && (
         <>
           <div className="flex items-center gap-2">
-            <ParamLabel className="text-2xs text-muted-foreground w-16 flex-shrink-0">Adapter</ParamLabel>
+            <ParamLabel className="text-2xs text-muted-foreground w-16 flex-shrink-0">
+              Adapter
+            </ParamLabel>
             <Combobox
               value={unit.adapter}
               onValueChange={(v) => setUnitParam(index, "adapter", v)}
@@ -176,10 +272,25 @@ export function ControlUnitControls({ index, compact }: ControlUnitControlsProps
               className="h-6 text-2xs flex-1"
             />
           </div>
-          <ParamSlider label="Scale" value={unit.scale} onChange={(v) => setUnitParam(index, "scale", v)} min={0} max={2} step={0.01} />
+          <ParamSlider
+            label="Scale"
+            value={unit.scale}
+            onChange={(v) => setUnitParam(index, "scale", v)}
+            min={0}
+            max={2}
+            step={0.01}
+          />
+
           <div className="flex items-center gap-2">
-            <ParamLabel className="text-2xs text-muted-foreground w-16 flex-shrink-0">Crop</ParamLabel>
-            <Switch checked={unit.crop} onCheckedChange={(checked) => setUnitParam(index, "crop", checked)} />
+            <ParamLabel className="text-2xs text-muted-foreground w-16 flex-shrink-0">
+              Crop
+            </ParamLabel>
+            <Switch
+              checked={unit.crop}
+              onCheckedChange={(checked) =>
+                setUnitParam(index, "crop", checked)
+              }
+            />
           </div>
         </>
       )}
@@ -188,8 +299,23 @@ export function ControlUnitControls({ index, compact }: ControlUnitControlsProps
       {showTiming && (
         <ParamSection title="Timing" defaultOpen={false}>
           <ParamGrid>
-            <ParamSlider label="Start" value={unit.start} onChange={(v) => setUnitParam(index, "start", v)} min={0} max={1} step={0.01} />
-            <ParamSlider label="End" value={unit.end} onChange={(v) => setUnitParam(index, "end", v)} min={0} max={1} step={0.01} />
+            <ParamSlider
+              label="Start"
+              value={unit.start}
+              onChange={(v) => setUnitParam(index, "start", v)}
+              min={0}
+              max={1}
+              step={0.01}
+            />
+
+            <ParamSlider
+              label="End"
+              value={unit.end}
+              onChange={(v) => setUnitParam(index, "end", v)}
+              min={0}
+              max={1}
+              step={0.01}
+            />
           </ParamGrid>
         </ParamSection>
       )}
@@ -201,31 +327,67 @@ export function ControlUnitControls({ index, compact }: ControlUnitControlsProps
             const def = processorDefaults[key];
             if (typeof value === "boolean" || typeof def === "boolean") {
               return (
-                <label key={key} className="flex items-center gap-1.5 text-2xs text-muted-foreground cursor-pointer">
-                  <Checkbox checked={!!value} onCheckedChange={(c) => handleParamChange(key, !!c)} />
+                <label
+                  key={key}
+                  className="flex items-center gap-1.5 text-2xs text-muted-foreground cursor-pointer"
+                >
+                  <Checkbox
+                    checked={!!value}
+                    onCheckedChange={(c) => handleParamChange(key, !!c)}
+                  />
+
                   {key}
                 </label>
               );
             }
             if (typeof value === "number" || typeof def === "number") {
-              const numDef = typeof def === "number" ? def : (typeof value === "number" ? value : 0);
+              const numDef =
+                typeof def === "number"
+                  ? def
+                  : typeof value === "number"
+                    ? value
+                    : 0;
               const inferred = inferSliderRange(numDef);
-              return <ParamSlider key={key} label={key} value={typeof value === "number" ? value : numDef} onChange={(v) => handleParamChange(key, v)} min={inferred.min} max={inferred.max} step={inferred.step} />;
+              return (
+                <ParamSlider
+                  key={key}
+                  label={key}
+                  value={typeof value === "number" ? value : numDef}
+                  onChange={(v) => handleParamChange(key, v)}
+                  min={inferred.min}
+                  max={inferred.max}
+                  step={inferred.step}
+                />
+              );
             }
             if (typeof value === "string" || typeof def === "string") {
               const options = STRING_PARAM_OPTIONS[key];
               if (options) {
                 return (
                   <div key={key} className="flex items-center gap-1.5">
-                    <span className="text-2xs text-muted-foreground shrink-0">{key}</span>
-                    <Combobox value={String(value)} onValueChange={(v) => handleParamChange(key, v)} options={options} className="h-6 text-2xs flex-1" />
+                    <span className="text-2xs text-muted-foreground shrink-0">
+                      {key}
+                    </span>
+                    <Combobox
+                      value={String(value)}
+                      onValueChange={(v) => handleParamChange(key, v)}
+                      options={options}
+                      className="h-6 text-2xs flex-1"
+                    />
                   </div>
                 );
               }
               return (
                 <div key={key} className="flex items-center gap-1.5">
-                  <span className="text-2xs text-muted-foreground shrink-0">{key}</span>
-                  <input type="text" value={String(value)} onChange={(e) => handleParamChange(key, e.target.value)} className="h-6 text-2xs flex-1 rounded border bg-background px-1.5" />
+                  <span className="text-2xs text-muted-foreground shrink-0">
+                    {key}
+                  </span>
+                  <input
+                    type="text"
+                    value={String(value)}
+                    onChange={(e) => handleParamChange(key, e.target.value)}
+                    className="h-6 text-2xs flex-1 rounded border bg-background px-1.5"
+                  />
                 </div>
               );
             }
@@ -239,29 +401,42 @@ export function ControlUnitControls({ index, compact }: ControlUnitControlsProps
         <div className="flex items-center justify-between">
           {showGuess && (
             <label className="flex items-center gap-1.5 text-2xs text-muted-foreground cursor-pointer">
-              <Checkbox checked={unit.guess} onCheckedChange={(c) => setUnitParam(index, "guess", !!c)} />
+              <Checkbox
+                checked={unit.guess}
+                onCheckedChange={(c) => setUnitParam(index, "guess", !!c)}
+              />
               Guess mode
             </label>
           )}
-          {showControlImage && showProcessor && resolvedImage && unit.processor !== "None" && (
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-6 text-2xs px-2 gap-1 ml-auto"
-              onClick={handleProcess}
-              disabled={preprocessMutation.isPending}
-            >
-              {preprocessMutation.isPending ? <Loader2 size={10} className="animate-spin" /> : <Play size={10} />}
-              Process
-            </Button>
-          )}
+          {showControlImage &&
+            showProcessor &&
+            resolvedImage &&
+            unit.processor !== "None" && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-6 text-2xs px-2 gap-1 ml-auto"
+                onClick={handleProcess}
+                disabled={preprocessMutation.isPending}
+              >
+                {preprocessMutation.isPending ? (
+                  <Loader2 size={10} className="animate-spin" />
+                ) : (
+                  <Play size={10} />
+                )}
+                Process
+              </Button>
+            )}
         </div>
       ) : (
         <>
           {/* Guess mode */}
           {showGuess && (
             <label className="flex items-center gap-1.5 text-2xs text-muted-foreground cursor-pointer px-1">
-              <Checkbox checked={unit.guess} onCheckedChange={(c) => setUnitParam(index, "guess", !!c)} />
+              <Checkbox
+                checked={unit.guess}
+                onCheckedChange={(c) => setUnitParam(index, "guess", !!c)}
+              />
               Guess mode
             </label>
           )}
@@ -270,19 +445,27 @@ export function ControlUnitControls({ index, compact }: ControlUnitControlsProps
           {showControlImage && (
             <div className="flex flex-col gap-1">
               <div className="flex items-center justify-between">
-                <ParamLabel className="text-2xs text-muted-foreground">Control Image</ParamLabel>
-                {showProcessor && resolvedImage && unit.processor !== "None" && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-6 text-2xs px-2 gap-1"
-                    onClick={handleProcess}
-                    disabled={preprocessMutation.isPending}
-                  >
-                    {preprocessMutation.isPending ? <Loader2 size={10} className="animate-spin" /> : <Play size={10} />}
-                    Process
-                  </Button>
-                )}
+                <ParamLabel className="text-2xs text-muted-foreground">
+                  Control Image
+                </ParamLabel>
+                {showProcessor &&
+                  resolvedImage &&
+                  unit.processor !== "None" && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-6 text-2xs px-2 gap-1"
+                      onClick={handleProcess}
+                      disabled={preprocessMutation.isPending}
+                    >
+                      {preprocessMutation.isPending ? (
+                        <Loader2 size={10} className="animate-spin" />
+                      ) : (
+                        <Play size={10} />
+                      )}
+                      Process
+                    </Button>
+                  )}
               </div>
               {unit.processedImage && (
                 <button
@@ -301,14 +484,23 @@ export function ControlUnitControls({ index, compact }: ControlUnitControlsProps
 
       {/* Factor */}
       {showFactor && (
-        <ParamSlider label="Factor" value={unit.factor} onChange={(v) => setUnitParam(index, "factor", v)} min={0.01} max={2} step={0.01} />
+        <ParamSlider
+          label="Factor"
+          value={unit.factor}
+          onChange={(v) => setUnitParam(index, "factor", v)}
+          min={0.01}
+          max={2}
+          step={0.01}
+        />
       )}
 
       {/* Style Transfer fields */}
       {showStyleTransfer && (
         <>
           <div className="flex items-center gap-2">
-            <ParamLabel className="text-2xs text-muted-foreground w-16 flex-shrink-0">Attention</ParamLabel>
+            <ParamLabel className="text-2xs text-muted-foreground w-16 flex-shrink-0">
+              Attention
+            </ParamLabel>
             <Combobox
               value={unit.attention}
               onValueChange={(v) => setUnitParam(index, "attention", v)}
@@ -317,10 +509,32 @@ export function ControlUnitControls({ index, compact }: ControlUnitControlsProps
             />
           </div>
           <ParamGrid>
-            <ParamSlider label="Query Weight" value={unit.queryWeight} onChange={(v) => setUnitParam(index, "queryWeight", v)} min={0} max={2} step={0.01} />
-            <ParamSlider label="Adain Weight" value={unit.adainWeight} onChange={(v) => setUnitParam(index, "adainWeight", v)} min={0} max={2} step={0.01} />
+            <ParamSlider
+              label="Query Weight"
+              value={unit.queryWeight}
+              onChange={(v) => setUnitParam(index, "queryWeight", v)}
+              min={0}
+              max={2}
+              step={0.01}
+            />
+
+            <ParamSlider
+              label="Adain Weight"
+              value={unit.adainWeight}
+              onChange={(v) => setUnitParam(index, "adainWeight", v)}
+              min={0}
+              max={2}
+              step={0.01}
+            />
           </ParamGrid>
-          <ParamSlider label="Fidelity" value={unit.fidelity} onChange={(v) => setUnitParam(index, "fidelity", v)} min={0} max={1} step={0.01} />
+          <ParamSlider
+            label="Fidelity"
+            value={unit.fidelity}
+            onChange={(v) => setUnitParam(index, "fidelity", v)}
+            min={0}
+            max={1}
+            step={0.01}
+          />
         </>
       )}
 
@@ -330,15 +544,35 @@ export function ControlUnitControls({ index, compact }: ControlUnitControlsProps
           <Label className="text-2xs text-muted-foreground">Images</Label>
           <div className="flex gap-1 flex-wrap">
             {imagePreviews.map((url, i) => (
-              <div key={i} className="relative h-16 w-16 rounded border border-border overflow-hidden group">
-                <img src={url} alt={`ref ${i}`} className="w-full h-full object-cover" />
-                <Button variant="destructive" size="icon-sm" className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 h-4 w-4" onClick={() => removeUnitImage(index, i)}>
+              <div
+                key={i}
+                className="relative h-16 w-16 rounded border border-border overflow-hidden group"
+              >
+                <img
+                  src={url}
+                  alt={`ref ${i}`}
+                  className="w-full h-full object-cover"
+                />
+
+                <Button
+                  variant="destructive"
+                  size="icon-sm"
+                  className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 h-4 w-4"
+                  onClick={() => removeUnitImage(index, i)}
+                >
                   <X size={8} />
                 </Button>
               </div>
             ))}
           </div>
-          <ImageUpload image={null} onImageChange={(file) => { if (file) addUnitImage(index, file); }} label="Add reference" compact />
+          <ImageUpload
+            image={null}
+            onImageChange={(file) => {
+              if (file) addUnitImage(index, file);
+            }}
+            label="Add reference"
+            compact
+          />
         </div>
       )}
 
@@ -348,15 +582,35 @@ export function ControlUnitControls({ index, compact }: ControlUnitControlsProps
           <Label className="text-2xs text-muted-foreground">Masks</Label>
           <div className="flex gap-1 flex-wrap">
             {maskPreviews.map((url, i) => (
-              <div key={i} className="relative h-16 w-16 rounded border border-border overflow-hidden group">
-                <img src={url} alt={`mask ${i}`} className="w-full h-full object-cover" />
-                <Button variant="destructive" size="icon-sm" className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 h-4 w-4" onClick={() => removeUnitMask(index, i)}>
+              <div
+                key={i}
+                className="relative h-16 w-16 rounded border border-border overflow-hidden group"
+              >
+                <img
+                  src={url}
+                  alt={`mask ${i}`}
+                  className="w-full h-full object-cover"
+                />
+
+                <Button
+                  variant="destructive"
+                  size="icon-sm"
+                  className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 h-4 w-4"
+                  onClick={() => removeUnitMask(index, i)}
+                >
                   <X size={8} />
                 </Button>
               </div>
             ))}
           </div>
-          <ImageUpload image={null} onImageChange={(file) => { if (file) addUnitMask(index, file); }} label="Add mask" compact />
+          <ImageUpload
+            image={null}
+            onImageChange={(file) => {
+              if (file) addUnitMask(index, file);
+            }}
+            label="Add mask"
+            compact
+          />
         </div>
       )}
     </div>

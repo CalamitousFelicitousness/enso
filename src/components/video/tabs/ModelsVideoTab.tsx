@@ -34,7 +34,10 @@ export function ModelsVideoTab() {
   const { data: engines } = useVideoEngines();
   const loadModel = useLoadVideoModel();
 
-  const engineNames = useMemo(() => engines?.map((e) => e.engine) ?? [], [engines]);
+  const engineNames = useMemo(
+    () => engines?.map((e) => e.engine) ?? [],
+    [engines],
+  );
   const modelNames = useMemo(() => {
     if (!engines || !engine) return [];
     const eng = engines.find((e) => e.engine === engine);
@@ -62,30 +65,45 @@ export function ModelsVideoTab() {
     return null;
   }, [engines]);
 
-  const renderModelLabel = useCallback((_value: string, label: string): ReactNode => {
-    const detail = modelDetailsMap.get(_value);
-    if (!detail) return label;
-    return (
-      <span className="flex items-center gap-1.5">
-        {detail.loaded ? (
-          <span className="w-2 h-2 rounded-full bg-blue-500 shrink-0" title="Loaded" />
-        ) : detail.cached ? (
-          <span className="w-2 h-2 rounded-full bg-green-500 shrink-0" title="Cached" />
-        ) : null}
-        <span className="truncate">{label}</span>
-        {detail.mode !== "t2v" && (
-          <span className="text-4xs font-medium uppercase bg-muted px-1 rounded shrink-0">{detail.mode}</span>
-        )}
-      </span>
-    );
-  }, [modelDetailsMap]);
+  const renderModelLabel = useCallback(
+    (_value: string, label: string): ReactNode => {
+      const detail = modelDetailsMap.get(_value);
+      if (!detail) return label;
+      return (
+        <span className="flex items-center gap-1.5">
+          {detail.loaded ? (
+            <span
+              className="w-2 h-2 rounded-full bg-blue-500 shrink-0"
+              title="Loaded"
+            />
+          ) : detail.cached ? (
+            <span
+              className="w-2 h-2 rounded-full bg-green-500 shrink-0"
+              title="Cached"
+            />
+          ) : null}
+          <span className="truncate">{label}</span>
+          {detail.mode !== "t2v" && (
+            <span className="text-4xs font-medium uppercase bg-muted px-1 rounded shrink-0">
+              {detail.mode}
+            </span>
+          )}
+        </span>
+      );
+    },
+    [modelDetailsMap],
+  );
 
   const handleLoad = useCallback(() => {
     if (!engine || !model) return;
-    loadModel.mutate({ engine, model }, {
-      onSuccess: () => toast.success(`Loaded ${model}`),
-      onError: (err) => toast.error("Failed to load model", { description: err.message }),
-    });
+    loadModel.mutate(
+      { engine, model },
+      {
+        onSuccess: () => toast.success(`Loaded ${model}`),
+        onError: (err) =>
+          toast.error("Failed to load model", { description: err.message }),
+      },
+    );
   }, [engine, model, loadModel]);
 
   return (
@@ -94,21 +112,50 @@ export function ModelsVideoTab() {
       <ParamSection title="Model">
         <div className="space-y-1.5">
           <div className="flex items-center gap-2">
-            <Label className="text-2xs text-muted-foreground w-16 shrink-0">Engine</Label>
-            <Combobox value={engine} onValueChange={(v) => { setParam("engine", v); setParam("model", ""); }} options={engineNames} placeholder="Select engine..." className="h-6 text-2xs flex-1" />
+            <Label className="text-2xs text-muted-foreground w-16 shrink-0">
+              Engine
+            </Label>
+            <Combobox
+              value={engine}
+              onValueChange={(v) => {
+                setParam("engine", v);
+                setParam("model", "");
+              }}
+              options={engineNames}
+              placeholder="Select engine..."
+              className="h-6 text-2xs flex-1"
+            />
           </div>
           <div className="flex items-center gap-2">
-            <Label className="text-2xs text-muted-foreground w-16 shrink-0">Model</Label>
-            <Combobox value={model} onValueChange={(v) => setParam("model", v)} options={modelNames} placeholder={engine ? "Select model..." : "Select engine first"} className="h-6 text-2xs flex-1" renderLabel={renderModelLabel} />
+            <Label className="text-2xs text-muted-foreground w-16 shrink-0">
+              Model
+            </Label>
+            <Combobox
+              value={model}
+              onValueChange={(v) => setParam("model", v)}
+              options={modelNames}
+              placeholder={engine ? "Select model..." : "Select engine first"}
+              className="h-6 text-2xs flex-1"
+              renderLabel={renderModelLabel}
+            />
           </div>
           {loadedModelName && (
             <div className="flex items-center gap-1.5 text-3xs text-muted-foreground">
               <span className="w-2 h-2 rounded-full bg-blue-500 shrink-0" />
+
               <span className="truncate">Loaded: {loadedModelName}</span>
             </div>
           )}
-          <Button size="sm" variant="secondary" onClick={handleLoad} disabled={!engine || !model || loadModel.isPending} className="w-full">
-            {loadModel.isPending ? <Loader2 size={14} className="animate-spin" /> : null}
+          <Button
+            size="sm"
+            variant="secondary"
+            onClick={handleLoad}
+            disabled={!engine || !model || loadModel.isPending}
+            className="w-full"
+          >
+            {loadModel.isPending ? (
+              <Loader2 size={14} className="animate-spin" />
+            ) : null}
             Load Model
           </Button>
         </div>
@@ -116,36 +163,123 @@ export function ModelsVideoTab() {
 
       <ParamSection title="Parameters" defaultOpen={false}>
         <ParamGrid>
-          <ParamSlider label="Steps" value={steps} onChange={(v) => setParam("steps", v)} min={1} max={100} step={1} />
-          <ParamSlider label="Guidance" value={guidanceScale} onChange={(v) => setParam("guidanceScale", v)} min={0} max={20} step={0.5} />
-          <ParamSlider label="True CFG" value={guidanceTrue} onChange={(v) => setParam("guidanceTrue", v)} min={-1} max={20} step={0.5} />
-          <ParamSlider label="Shift" value={samplerShift} onChange={(v) => setParam("samplerShift", v)} min={-1} max={20} step={0.5} />
+          <ParamSlider
+            label="Steps"
+            value={steps}
+            onChange={(v) => setParam("steps", v)}
+            min={1}
+            max={100}
+            step={1}
+          />
+
+          <ParamSlider
+            label="Guidance"
+            value={guidanceScale}
+            onChange={(v) => setParam("guidanceScale", v)}
+            min={0}
+            max={20}
+            step={0.5}
+          />
+
+          <ParamSlider
+            label="True CFG"
+            value={guidanceTrue}
+            onChange={(v) => setParam("guidanceTrue", v)}
+            min={-1}
+            max={20}
+            step={0.5}
+          />
+
+          <ParamSlider
+            label="Shift"
+            value={samplerShift}
+            onChange={(v) => setParam("samplerShift", v)}
+            min={-1}
+            max={20}
+            step={0.5}
+          />
         </ParamGrid>
-        <ParamSlider label="Seed" value={seed} onChange={(v) => setParam("seed", v)} min={-1} max={999999999} step={1} />
+        <ParamSlider
+          label="Seed"
+          value={seed}
+          onChange={(v) => setParam("seed", v)}
+          min={-1}
+          max={999999999}
+          step={1}
+        />
+
         <div className="flex items-center gap-2">
-          <Label className="text-2xs text-muted-foreground w-16 shrink-0">Dynamic</Label>
-          <Switch checked={dynamicShift} onCheckedChange={(v) => setParam("dynamicShift", v)} />
+          <Label className="text-2xs text-muted-foreground w-16 shrink-0">
+            Dynamic
+          </Label>
+          <Switch
+            checked={dynamicShift}
+            onCheckedChange={(v) => setParam("dynamicShift", v)}
+          />
         </div>
       </ParamSection>
 
       <ParamSection title="Size" defaultOpen={false}>
         <ParamGrid>
-          <ParamSlider label="Width" value={width} onChange={(v) => setParam("width", v)} min={256} max={1920} step={16} />
-          <ParamSlider label="Height" value={height} onChange={(v) => setParam("height", v)} min={256} max={1920} step={16} />
+          <ParamSlider
+            label="Width"
+            value={width}
+            onChange={(v) => setParam("width", v)}
+            min={256}
+            max={1920}
+            step={16}
+          />
+
+          <ParamSlider
+            label="Height"
+            value={height}
+            onChange={(v) => setParam("height", v)}
+            min={256}
+            max={1920}
+            step={16}
+          />
         </ParamGrid>
-        <ParamSlider label="Frames" value={frames} onChange={(v) => setParam("frames", v)} min={1} max={256} step={1} />
+        <ParamSlider
+          label="Frames"
+          value={frames}
+          onChange={(v) => setParam("frames", v)}
+          min={1}
+          max={256}
+          step={1}
+        />
       </ParamSection>
 
       <ParamSection title="Inputs" defaultOpen={false}>
-        <ParamSlider label="Strength" value={initStrength} onChange={(v) => setParam("initStrength", v)} min={0} max={1} step={0.05} />
+        <ParamSlider
+          label="Strength"
+          value={initStrength}
+          onChange={(v) => setParam("initStrength", v)}
+          min={0}
+          max={1}
+          step={0.05}
+        />
       </ParamSection>
 
       <ParamSection title="Decode" defaultOpen={false}>
         <div className="flex items-center gap-2">
-          <Label className="text-2xs text-muted-foreground w-16 shrink-0">VAE type</Label>
-          <Combobox value={vaeType} onValueChange={(v) => setParam("vaeType", v)} options={["Default", "Tiny", "Remote", "Upscale"]} className="h-6 text-2xs flex-1" />
+          <Label className="text-2xs text-muted-foreground w-16 shrink-0">
+            VAE type
+          </Label>
+          <Combobox
+            value={vaeType}
+            onValueChange={(v) => setParam("vaeType", v)}
+            options={["Default", "Tiny", "Remote", "Upscale"]}
+            className="h-6 text-2xs flex-1"
+          />
         </div>
-        <ParamSlider label="Tile frames" value={vaeTileFrames} onChange={(v) => setParam("vaeTileFrames", v)} min={0} max={64} step={1} />
+        <ParamSlider
+          label="Tile frames"
+          value={vaeTileFrames}
+          onChange={(v) => setParam("vaeTileFrames", v)}
+          min={0}
+          max={64}
+          step={1}
+        />
       </ParamSection>
 
       <VideoOutputSection />

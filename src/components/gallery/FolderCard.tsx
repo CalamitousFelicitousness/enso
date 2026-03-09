@@ -1,4 +1,10 @@
-import { Folder, FolderOpen, ChevronRight, ChevronDown, Loader2 } from "lucide-react";
+import {
+  Folder,
+  FolderOpen,
+  ChevronRight,
+  ChevronDown,
+  Loader2,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface FolderCardProps {
@@ -13,7 +19,17 @@ interface FolderCardProps {
   onToggle?: () => void;
 }
 
-export function FolderCard({ label, path, active, indent = 0, expanded, hasChildren, loading, onSelect, onToggle }: FolderCardProps) {
+export function FolderCard({
+  label,
+  path,
+  active,
+  indent = 0,
+  expanded,
+  hasChildren,
+  loading,
+  onSelect,
+  onToggle,
+}: FolderCardProps) {
   const Icon = active ? FolderOpen : Folder;
   const displayLabel = label || path.split("/").filter(Boolean).pop() || path;
 
@@ -33,7 +49,10 @@ export function FolderCard({ label, path, active, indent = 0, expanded, hasChild
         </span>
       ) : hasChildren ? (
         <button
-          onClick={(e) => { e.stopPropagation(); onToggle?.(); }}
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggle?.();
+          }}
           className="w-5 h-5 flex items-center justify-center flex-shrink-0 hover:text-foreground"
         >
           {expanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
@@ -48,7 +67,14 @@ export function FolderCard({ label, path, active, indent = 0, expanded, hasChild
         className="flex items-center gap-1.5 flex-1 min-w-0 py-1.5 pr-2"
         title={path}
       >
-        <Icon size={13} className={cn("flex-shrink-0", active ? "text-primary" : "text-muted-foreground")} />
+        <Icon
+          size={13}
+          className={cn(
+            "flex-shrink-0",
+            active ? "text-primary" : "text-muted-foreground",
+          )}
+        />
+
         <span className="truncate">{displayLabel}</span>
       </button>
     </div>

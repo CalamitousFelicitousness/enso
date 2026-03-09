@@ -2,7 +2,8 @@ import * as React from "react";
 import { memo, useState } from "react";
 import { Input } from "@/components/ui/input";
 
-interface NumberInputProps extends Omit<React.ComponentProps<"input">, "value" | "onChange" | "type"> {
+interface NumberInputProps
+  extends Omit<React.ComponentProps<"input">, "value" | "onChange" | "type"> {
   value: number;
   onChange: (value: number) => void;
   min?: number;
@@ -15,14 +16,26 @@ interface NumberInputProps extends Omit<React.ComponentProps<"input">, "value" |
  * Number input that defers clamping until blur/Enter so users can freely
  * type multi-digit values without intermediate states being clamped.
  */
-const NumberInput = memo(function NumberInput({ value, onChange, min, max, step, fallback, className, ...props }: NumberInputProps) {
+const NumberInput = memo(function NumberInput({
+  value,
+  onChange,
+  min,
+  max,
+  step,
+  fallback,
+  className,
+  ...props
+}: NumberInputProps) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(String(value));
 
   const commit = () => {
     setEditing(false);
     const parsed = parseFloat(draft);
-    if (Number.isNaN(parsed)) { onChange(fallback ?? min ?? 0); return; }
+    if (Number.isNaN(parsed)) {
+      onChange(fallback ?? min ?? 0);
+      return;
+    }
     let clamped = parsed;
     if (min != null) clamped = Math.max(min, clamped);
     if (max != null) clamped = Math.min(max, clamped);
@@ -36,10 +49,15 @@ const NumberInput = memo(function NumberInput({ value, onChange, min, max, step,
       max={max}
       step={step}
       value={editing ? draft : value}
-      onFocus={() => { setEditing(true); setDraft(String(value)); }}
+      onFocus={() => {
+        setEditing(true);
+        setDraft(String(value));
+      }}
       onChange={(e) => setDraft(e.target.value)}
       onBlur={commit}
-      onKeyDown={(e) => { if (e.key === "Enter") commit(); }}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") commit();
+      }}
       className={className}
       {...props}
     />

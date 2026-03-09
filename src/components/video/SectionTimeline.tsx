@@ -25,11 +25,26 @@ function joinPrompts(prompts: string[]): string {
   return prompts.join(", ");
 }
 
-export function SectionTimeline({ fps, duration, latentWindowSize, variant, interpolate, value, onChange }: SectionTimelineProps) {
+export function SectionTimeline({
+  fps,
+  duration,
+  latentWindowSize,
+  variant,
+  interpolate,
+  value,
+  onChange,
+}: SectionTimelineProps) {
   const [activeSection, setActiveSection] = useState<number | null>(null);
 
   const sectionCount = useMemo(
-    () => computeSectionCount(fps, duration, latentWindowSize, variant, interpolate),
+    () =>
+      computeSectionCount(
+        fps,
+        duration,
+        latentWindowSize,
+        variant,
+        interpolate,
+      ),
     [fps, duration, latentWindowSize, variant, interpolate],
   );
 
@@ -48,16 +63,22 @@ export function SectionTimeline({ fps, duration, latentWindowSize, variant, inte
     return prompts.every((p) => p === first);
   }, [prompts]);
 
-  const handleSectionChange = useCallback((index: number, text: string) => {
-    const next = [...prompts];
-    next[index] = text;
-    onChange(joinPrompts(next));
-  }, [prompts, onChange]);
+  const handleSectionChange = useCallback(
+    (index: number, text: string) => {
+      const next = [...prompts];
+      next[index] = text;
+      onChange(joinPrompts(next));
+    },
+    [prompts, onChange],
+  );
 
-  const handleGlobalChange = useCallback((text: string) => {
-    const filled = new Array(sectionCount).fill(text) as string[];
-    onChange(joinPrompts(filled));
-  }, [sectionCount, onChange]);
+  const handleGlobalChange = useCallback(
+    (text: string) => {
+      const filled = new Array(sectionCount).fill(text) as string[];
+      onChange(joinPrompts(filled));
+    },
+    [sectionCount, onChange],
+  );
 
   const handleCopy = useCallback(() => {
     navigator.clipboard.writeText(value);
@@ -78,12 +99,26 @@ export function SectionTimeline({ fps, duration, latentWindowSize, variant, inte
     <div className="space-y-2">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <span className="text-2xs text-muted-foreground">{sectionCount} section{sectionCount !== 1 ? "s" : ""}</span>
+        <span className="text-2xs text-muted-foreground">
+          {sectionCount} section{sectionCount !== 1 ? "s" : ""}
+        </span>
         <div className="flex gap-0.5">
-          <Button size="icon" variant="ghost" className="h-5 w-5" onClick={handleCopy} title="Copy as text">
+          <Button
+            size="icon"
+            variant="ghost"
+            className="h-5 w-5"
+            onClick={handleCopy}
+            title="Copy as text"
+          >
             <Copy className="h-3 w-3" />
           </Button>
-          <Button size="icon" variant="ghost" className="h-5 w-5" onClick={handlePaste} title="Paste from text">
+          <Button
+            size="icon"
+            variant="ghost"
+            className="h-5 w-5"
+            onClick={handlePaste}
+            title="Paste from text"
+          >
             <ClipboardPaste className="h-3 w-3" />
           </Button>
         </div>
@@ -134,7 +169,9 @@ export function SectionTimeline({ fps, duration, latentWindowSize, variant, inte
       ) : (
         /* Per-section prompt */
         <div className="space-y-1">
-          <label className="text-2xs text-muted-foreground">Section {activeSection + 1}</label>
+          <label className="text-2xs text-muted-foreground">
+            Section {activeSection + 1}
+          </label>
           <Input
             value={prompts[activeSection]}
             onChange={(e) => handleSectionChange(activeSection, e.target.value)}

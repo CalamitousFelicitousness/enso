@@ -5,7 +5,11 @@ import { MainContent } from "./MainContent";
 import { LeftPanel } from "./LeftPanel";
 import { AsideIconStrip } from "@/components/aside/AsideIconStrip";
 import { AsidePanel } from "@/components/aside/AsidePanel";
-import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
+import {
+  ResizablePanelGroup,
+  ResizablePanel,
+  ResizableHandle,
+} from "@/components/ui/resizable";
 import { useUiStore } from "@/stores/uiStore";
 import { useHistoryInit } from "@/hooks/useHistoryInit";
 import { useJobTracker } from "@/hooks/useJobTracker";
@@ -27,8 +31,12 @@ export function AppShell() {
   useModelDefaultsSuggester();
 
   useShortcut("toggle-sidebar", () => useUiStore.getState().toggleSidebar());
-  useShortcut("toggle-left-panel", () => useUiStore.getState().toggleLeftPanel());
-  useShortcut("toggle-right-panel", () => useUiStore.getState().toggleRightPanel());
+  useShortcut("toggle-left-panel", () =>
+    useUiStore.getState().toggleLeftPanel(),
+  );
+  useShortcut("toggle-right-panel", () =>
+    useUiStore.getState().toggleRightPanel(),
+  );
 
   const leftPanelCollapsed = useUiStore((s) => s.leftPanelCollapsed);
   const viewCollapsed = useUiStore((s) => s.viewCollapsed);
@@ -54,7 +62,11 @@ export function AppShell() {
             {!leftHidden && <LeftPanel />}
           </aside>
 
-          <ResizablePanelGroup orientation="horizontal" id="layout-main" className="flex-1">
+          <ResizablePanelGroup
+            orientation="horizontal"
+            id="layout-main"
+            className="flex-1"
+          >
             <ResizablePanel id="panel-main" minSize="30%">
               <main className="h-full overflow-auto">
                 <MainContent />

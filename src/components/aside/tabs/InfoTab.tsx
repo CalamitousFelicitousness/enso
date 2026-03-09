@@ -8,15 +8,31 @@ export function InfoTab() {
     <div className="p-3 space-y-4">
       <div className="space-y-2 text-xs">
         <Row label="Version" value={serverInfo?.version?.app} />
+
         <Row label="Updated" value={serverInfo?.version?.updated} />
+
         <Row label="Backend" value={serverInfo?.backend} />
         <Row label="Platform" value={serverInfo?.platform} />
       </div>
 
       <div className="space-y-1.5 pt-2 border-t border-border">
-        <ExternalLink href="https://vladmandic.github.io/sdnext-docs/" icon={BookOpen} label="Documentation" />
-        <ExternalLink href="https://github.com/vladmandic/sdnext" icon={Github} label="GitHub" />
-        <ExternalLink href="https://discord.gg/VjvR2tabEX" icon={MessageCircle} label="Discord" />
+        <ExternalLink
+          href="https://vladmandic.github.io/sdnext-docs/"
+          icon={BookOpen}
+          label="Documentation"
+        />
+
+        <ExternalLink
+          href="https://github.com/vladmandic/sdnext"
+          icon={Github}
+          label="GitHub"
+        />
+
+        <ExternalLink
+          href="https://discord.gg/VjvR2tabEX"
+          icon={MessageCircle}
+          label="Discord"
+        />
       </div>
     </div>
   );
@@ -32,7 +48,15 @@ function Row({ label, value }: { label: string; value?: string | null }) {
   );
 }
 
-function ExternalLink({ href, icon: Icon, label }: { href: string; icon: React.ComponentType<{ className?: string }>; label: string }) {
+function ExternalLink({
+  href,
+  icon: Icon,
+  label,
+}: {
+  href: string;
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+}) {
   return (
     <a
       href={href}

@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react";
 import { Layer, Image as KonvaImage, Rect } from "react-konva";
-import { useJobQueueStore, selectVideoDomainActiveJob } from "@/stores/jobStore";
+import {
+  useJobQueueStore,
+  selectVideoDomainActiveJob,
+} from "@/stores/jobStore";
 import { useVideoStore } from "@/stores/videoStore";
 
 const BORDER_COLOR = "#60a5fa";
@@ -11,7 +14,11 @@ interface VideoOutputFrameProps {
   height: number;
 }
 
-export function VideoOutputFrame({ offsetX, width, height }: VideoOutputFrameProps) {
+export function VideoOutputFrame({
+  offsetX,
+  width,
+  height,
+}: VideoOutputFrameProps) {
   const activeJob = useJobQueueStore(selectVideoDomainActiveJob);
   const previewUrl = activeJob?.previewUrl ?? null;
   const selectedResultId = useVideoStore((s) => s.selectedResultId);
@@ -36,16 +43,20 @@ export function VideoOutputFrame({ offsetX, width, height }: VideoOutputFramePro
       {hasPreview && (
         <KonvaImage
           image={image}
-          x={offsetX} y={0}
-          width={width} height={height}
+          x={offsetX}
+          y={0}
+          width={width}
+          height={height}
         />
       )}
       <Rect
-        x={offsetX} y={0}
-        width={width} height={height}
+        x={offsetX}
+        y={0}
+        width={width}
+        height={height}
         stroke={BORDER_COLOR}
         strokeWidth={2}
-        dash={(hasPreview || hasResult) ? undefined : [8, 4]}
+        dash={hasPreview || hasResult ? undefined : [8, 4]}
         listening={false}
       />
     </Layer>

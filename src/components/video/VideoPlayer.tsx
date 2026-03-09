@@ -26,7 +26,10 @@ function VideoPlayerInner({ src }: { src: string }) {
 
   const startIdleTimer = useCallback(() => {
     clearTimeout(idleTimerRef.current);
-    idleTimerRef.current = setTimeout(() => setShowControls(false), IDLE_TIMEOUT_MS);
+    idleTimerRef.current = setTimeout(
+      () => setShowControls(false),
+      IDLE_TIMEOUT_MS,
+    );
   }, []);
 
   const resetIdleTimer = useCallback(() => {
@@ -39,7 +42,11 @@ function VideoPlayerInner({ src }: { src: string }) {
     const video = videoRef.current;
     if (!video) return;
     setDuration(video.duration);
-    setMeta({ fps: DEFAULT_FPS, width: video.videoWidth, height: video.videoHeight });
+    setMeta({
+      fps: DEFAULT_FPS,
+      width: video.videoWidth,
+      height: video.videoHeight,
+    });
   }, []);
 
   const handleTimeUpdate = useCallback(() => {
@@ -72,7 +79,10 @@ function VideoPlayerInner({ src }: { src: string }) {
 
   const seek = useCallback((time: number) => {
     if (videoRef.current) {
-      videoRef.current.currentTime = Math.max(0, Math.min(time, videoRef.current.duration || 0));
+      videoRef.current.currentTime = Math.max(
+        0,
+        Math.min(time, videoRef.current.duration || 0),
+      );
     }
   }, []);
 
@@ -82,7 +92,10 @@ function VideoPlayerInner({ src }: { src: string }) {
       if (!video) return;
       video.pause();
       const frameDuration = 1 / meta.fps;
-      video.currentTime = Math.max(0, Math.min(video.duration, video.currentTime + delta * frameDuration));
+      video.currentTime = Math.max(
+        0,
+        Math.min(video.duration, video.currentTime + delta * frameDuration),
+      );
     },
     [meta.fps],
   );
@@ -117,7 +130,8 @@ function VideoPlayerInner({ src }: { src: string }) {
   useEffect(() => {
     const handleFsChange = () => setIsFullscreen(!!document.fullscreenElement);
     document.addEventListener("fullscreenchange", handleFsChange);
-    return () => document.removeEventListener("fullscreenchange", handleFsChange);
+    return () =>
+      document.removeEventListener("fullscreenchange", handleFsChange);
   }, []);
 
   // Keyboard shortcuts
@@ -203,6 +217,7 @@ function VideoPlayerInner({ src }: { src: string }) {
         onPause={handlePause}
         onEnded={handleEnded}
       />
+
       <PlayerControls
         playing={playing}
         currentTime={currentTime}

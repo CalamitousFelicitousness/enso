@@ -1,10 +1,23 @@
 import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { toast } from "sonner";
-import { useOptions, useSetOptions, useOptionsInfo } from "@/api/hooks/useSettings";
-import { useModelList, useSamplerList, useVaeList, useUpscalerList } from "@/api/hooks/useModels";
+import {
+  useOptions,
+  useSetOptions,
+  useOptionsInfo,
+} from "@/api/hooks/useSettings";
+import {
+  useModelList,
+  useSamplerList,
+  useVaeList,
+  useUpscalerList,
+} from "@/api/hooks/useModels";
 import type { OptionInfoMeta } from "@/api/types/settings";
 import type { SettingSectionDef, SettingDef } from "@/lib/settingsSchema";
-import { settingsSchema, getSettingsMap, metaToSettingDef } from "@/lib/settingsSchema";
+import {
+  settingsSchema,
+  getSettingsMap,
+  metaToSettingDef,
+} from "@/lib/settingsSchema";
 import { getParamHelpPlain } from "@/data/parameterHelp";
 import { SettingsSection } from "./SettingsSection";
 import { Button } from "@/components/ui/button";
@@ -12,7 +25,15 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
 import { cn } from "@/lib/utils";
-import { Save, RotateCcw, Search, ListRestart, Plug, Unplug, Check } from "lucide-react";
+import {
+  Save,
+  RotateCcw,
+  Search,
+  ListRestart,
+  Plug,
+  Unplug,
+  Check,
+} from "lucide-react";
 import { useUiStore } from "@/stores/uiStore";
 import type { CornerStyle, ColorMode } from "@/stores/uiStore";
 import { useConnectionStore } from "@/stores/connectionStore";
@@ -39,27 +60,58 @@ const GRADIO_ONLY_KEYS = new Set([
   // Model selector - accessible from the toolbar
   "sd_model_checkpoint",
   // UI section - Gradio/ModernUI layout and appearance
-  "theme_type", "theme_style", "gradio_theme", "quicksettings_list",
-  "ui_request_timeout", "ui_disabled", "compact_view", "ui_columns",
-  "logmonitor_show", "logmonitor_refresh_period", "send_seed", "send_size",
-  "font_size", "ui_locale",
-  "extra_networks_card_size", "extra_networks_card_cover", "extra_networks_card_square",
-  "autolaunch", "motd", "subpath", "gpu_monitor",
+  "theme_type",
+  "theme_style",
+  "gradio_theme",
+  "quicksettings_list",
+  "ui_request_timeout",
+  "ui_disabled",
+  "compact_view",
+  "ui_columns",
+  "logmonitor_show",
+  "logmonitor_refresh_period",
+  "send_seed",
+  "send_size",
+  "font_size",
+  "ui_locale",
+  "extra_networks_card_size",
+  "extra_networks_card_cover",
+  "extra_networks_card_square",
+  "autolaunch",
+  "motd",
+  "subpath",
+  "gpu_monitor",
   // ModernUI extension settings
-  "uiux_grid_image_size", "uiux_panel_min_width", "uiux_hide_legacy",
-  "uiux_persist_layout", "uiux_no_slider_layout",
-  "uiux_show_labels_aside", "uiux_show_labels_main", "uiux_show_labels_tabs",
-  "uiux_show_input_range_ticks", "uiux_no_headers_params", "uiux_show_outline_params",
-  "uiux_default_layout", "uiux_mobile_scale",
+  "uiux_grid_image_size",
+  "uiux_panel_min_width",
+  "uiux_hide_legacy",
+  "uiux_persist_layout",
+  "uiux_no_slider_layout",
+  "uiux_show_labels_aside",
+  "uiux_show_labels_main",
+  "uiux_show_labels_tabs",
+  "uiux_show_input_range_ticks",
+  "uiux_no_headers_params",
+  "uiux_show_outline_params",
+  "uiux_default_layout",
+  "uiux_mobile_scale",
   // Extra networks section
-  "extra_networks_show", "extra_networks_view",
-  "extra_networks_sidebar_width", "extra_networks_height", "extra_networks_fetch",
+  "extra_networks_show",
+  "extra_networks_view",
+  "extra_networks_sidebar_width",
+  "extra_networks_height",
+  "extra_networks_fetch",
   // Live preview section
-  "live_preview_refresh_period", "notification_audio_enable", "notification_audio_path",
+  "live_preview_refresh_period",
+  "notification_audio_enable",
+  "notification_audio_path",
   // Inpaint settings - per-request in generation UI
-  "img2img_color_correction", "color_correction_method",
-  "mask_apply_overlay", "inpainting_mask_weight",
-  "img2img_background_color", "initial_noise_multiplier",
+  "img2img_color_correction",
+  "color_correction_method",
+  "mask_apply_overlay",
+  "inpainting_mask_weight",
+  "img2img_background_color",
+  "initial_noise_multiplier",
   // Aspect ratios - will be consumed by generation panel directly
   "aspect_ratios",
 ]);
@@ -95,21 +147,40 @@ function buildSettingDef(
     ...(curated.setting.min !== undefined && { min: curated.setting.min }),
     ...(curated.setting.max !== undefined && { max: curated.setting.max }),
     ...(curated.setting.step !== undefined && { step: curated.setting.step }),
-    ...(curated.setting.defaultValue !== undefined && { defaultValue: curated.setting.defaultValue }),
+    ...(curated.setting.defaultValue !== undefined && {
+      defaultValue: curated.setting.defaultValue,
+    }),
     ...(curated.setting.requiresRestart && { requiresRestart: true }),
-    ...(curated.setting.baseFolderKey && { baseFolderKey: curated.setting.baseFolderKey }),
+    ...(curated.setting.baseFolderKey && {
+      baseFolderKey: curated.setting.baseFolderKey,
+    }),
     // choices: prefer backend (base), fall back to curated if backend has none
     choices: base.choices ?? curated.setting.choices,
   };
 }
 
-function SettingRow({ label, description, inline, children }: { label: string; description?: string; inline?: boolean; children: React.ReactNode }) {
+function SettingRow({
+  label,
+  description,
+  inline,
+  children,
+}: {
+  label: string;
+  description?: string;
+  inline?: boolean;
+  children: React.ReactNode;
+}) {
   const labelBlock = (
     <div className="flex flex-col gap-0.5">
       <span className="text-xs font-medium">{label}</span>
-      {description && <span className="text-3xs text-muted-foreground leading-tight">{description}</span>}
+      {description && (
+        <span className="text-3xs text-muted-foreground leading-tight">
+          {description}
+        </span>
+      )}
     </div>
   );
+
   if (inline) {
     return (
       <div className="flex items-center justify-between gap-3">
@@ -126,9 +197,20 @@ function SettingRow({ label, description, inline, children }: { label: string; d
   );
 }
 
-function SegmentedControl<T extends string>({ options, value, onChange }: { options: { value: T; label: string }[]; value: T; onChange: (v: T) => void }) {
+function SegmentedControl<T extends string>({
+  options,
+  value,
+  onChange,
+}: {
+  options: { value: T; label: string }[];
+  value: T;
+  onChange: (v: T) => void;
+}) {
   return (
-    <div className="inline-flex border border-border bg-muted/40 p-0.5" style={{ borderRadius: "var(--control-radius)" }}>
+    <div
+      className="inline-flex border border-border bg-muted/40 p-0.5"
+      style={{ borderRadius: "var(--control-radius)" }}
+    >
       {options.map((opt) => (
         <button
           key={opt.value}
@@ -164,17 +246,30 @@ function AppearancePanel() {
   const setCanvasLabelScale = useUiStore((s) => s.setCanvasLabelScale);
 
   const [hexInput, setHexInput] = useState(accentColor);
-  useEffect(() => { setHexInput(accentColor); }, [accentColor]);
+  useEffect(() => {
+    setHexInput(accentColor);
+  }, [accentColor]);
 
   return (
     <div>
       <h3 className="text-sm font-medium mb-4">Appearance</h3>
       <div className="space-y-4">
-        <SettingRow label="Color mode" description="Overall color scheme of the interface">
-          <SegmentedControl options={COLOR_MODES} value={colorMode} onChange={setColorMode} />
+        <SettingRow
+          label="Color mode"
+          description="Overall color scheme of the interface"
+        >
+          <SegmentedControl
+            options={COLOR_MODES}
+            value={colorMode}
+            onChange={setColorMode}
+          />
         </SettingRow>
 
-        <SettingRow label="Accent color" description="Primary color used for buttons, links, and highlights" inline>
+        <SettingRow
+          label="Accent color"
+          description="Primary color used for buttons, links, and highlights"
+          inline
+        >
           <div className="flex items-center gap-2">
             <input
               type="color"
@@ -182,22 +277,34 @@ function AppearancePanel() {
               onChange={(e) => setAccentColor(e.target.value)}
               className="h-7 w-7 cursor-pointer border border-border rounded-sm bg-transparent p-0"
             />
+
             <Input
               value={hexInput}
               onChange={(e) => {
                 setHexInput(e.target.value);
-                if (HEX_REGEX.test(e.target.value)) setAccentColor(e.target.value);
+                if (HEX_REGEX.test(e.target.value))
+                  setAccentColor(e.target.value);
               }}
               className="h-7 w-20 text-xs font-mono"
             />
           </div>
         </SettingRow>
 
-        <SettingRow label="Corner style" description="Shape of toggle switches and segmented controls">
-          <SegmentedControl options={CORNER_STYLES} value={cornerStyle} onChange={setCornerStyle} />
+        <SettingRow
+          label="Corner style"
+          description="Shape of toggle switches and segmented controls"
+        >
+          <SegmentedControl
+            options={CORNER_STYLES}
+            value={cornerStyle}
+            onChange={setCornerStyle}
+          />
         </SettingRow>
 
-        <SettingRow label="Border radius" description="Roundness of cards, inputs, and panels">
+        <SettingRow
+          label="Border radius"
+          description="Roundness of cards, inputs, and panels"
+        >
           <div className="flex items-center gap-2 flex-1">
             <Slider
               min={0}
@@ -207,11 +314,17 @@ function AppearancePanel() {
               onValueChange={([v]) => setBorderRadius(v)}
               className="flex-1"
             />
-            <span className="text-xs text-muted-foreground tabular-nums w-14 text-right">{borderRadius.toFixed(2)}rem</span>
+
+            <span className="text-xs text-muted-foreground tabular-nums w-14 text-right">
+              {borderRadius.toFixed(2)}rem
+            </span>
           </div>
         </SettingRow>
 
-        <SettingRow label="UI scale" description="Base font size - all spacing and controls scale proportionally">
+        <SettingRow
+          label="UI scale"
+          description="Base font size - all spacing and controls scale proportionally"
+        >
           <div className="flex items-center gap-2 flex-1">
             <Slider
               min={8}
@@ -221,11 +334,17 @@ function AppearancePanel() {
               onValueChange={([v]) => setUiScale(v)}
               className="flex-1"
             />
-            <span className="text-xs text-muted-foreground tabular-nums w-14 text-right">{uiScale}px</span>
+
+            <span className="text-xs text-muted-foreground tabular-nums w-14 text-right">
+              {uiScale}px
+            </span>
           </div>
         </SettingRow>
 
-        <SettingRow label="Canvas label scale" description="Size of frame labels and floating control panels on the canvas">
+        <SettingRow
+          label="Canvas label scale"
+          description="Size of frame labels and floating control panels on the canvas"
+        >
           <div className="flex items-center gap-2 flex-1">
             <Slider
               min={0.5}
@@ -235,7 +354,10 @@ function AppearancePanel() {
               onValueChange={([v]) => setCanvasLabelScale(v)}
               className="flex-1"
             />
-            <span className="text-xs text-muted-foreground tabular-nums w-14 text-right">{canvasLabelScale.toFixed(1)}x</span>
+
+            <span className="text-xs text-muted-foreground tabular-nums w-14 text-right">
+              {canvasLabelScale.toFixed(1)}x
+            </span>
           </div>
         </SettingRow>
       </div>
@@ -257,19 +379,25 @@ function ConnectionPanel() {
   const storeReset = useConnectionStore((s) => s.reset);
 
   const [urlInput, setUrlInput] = useState(backendUrl);
-  const [status, setStatus] = useState<"idle" | "checking" | "connected" | "unreachable">("idle");
+  const [status, setStatus] = useState<
+    "idle" | "checking" | "connected" | "unreachable"
+  >("idle");
 
   const authConfigured = username.length > 0 || password.length > 0;
   const [editingAuth, setEditingAuth] = useState(false);
   const [userDraft, setUserDraft] = useState("");
   const [passDraft, setPassDraft] = useState("");
 
-  useEffect(() => { setUrlInput(backendUrl); }, [backendUrl]);
+  useEffect(() => {
+    setUrlInput(backendUrl);
+  }, [backendUrl]);
 
   const checkConnection = useCallback(async (baseUrl: string) => {
     setStatus("checking");
     try {
-      await fetch(`${baseUrl}/sdapi/v2/server-info`, { signal: AbortSignal.timeout(5000) });
+      await fetch(`${baseUrl}/sdapi/v2/server-info`, {
+        signal: AbortSignal.timeout(5000),
+      });
       setStatus("connected");
     } catch {
       setStatus("unreachable");
@@ -284,11 +412,14 @@ function ConnectionPanel() {
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const saveAuth = useCallback((user: string, pass: string) => {
-    storeSetAuth(user, pass);
-    if (user && pass) api.setAuth(user, pass);
-    else api.clearAuth();
-  }, [storeSetAuth]);
+  const saveAuth = useCallback(
+    (user: string, pass: string) => {
+      storeSetAuth(user, pass);
+      if (user && pass) api.setAuth(user, pass);
+      else api.clearAuth();
+    },
+    [storeSetAuth],
+  );
 
   const handleConnect = useCallback(async () => {
     const effectiveUrl = urlInput.replace(/\/$/, "") || window.location.origin;
@@ -315,7 +446,10 @@ function ConnectionPanel() {
     <div>
       <h3 className="text-sm font-medium mb-4">Connection</h3>
       <div className="space-y-4">
-        <SettingRow label="Backend URL" description="Leave empty to use the current origin">
+        <SettingRow
+          label="Backend URL"
+          description="Leave empty to use the current origin"
+        >
           <div className="flex items-center gap-2">
             <Input
               value={urlInput}
@@ -323,21 +457,53 @@ function ConnectionPanel() {
               placeholder={window.location.origin}
               className="h-7 text-xs font-mono flex-1"
             />
-            {status === "checking" && <span className="text-xs text-muted-foreground">Checking...</span>}
-            {status === "connected" && <span className="text-xs text-emerald-500">Connected</span>}
-            {status === "unreachable" && <span className="text-xs text-destructive">Unreachable</span>}
+
+            {status === "checking" && (
+              <span className="text-xs text-muted-foreground">Checking...</span>
+            )}
+            {status === "connected" && (
+              <span className="text-xs text-emerald-500">Connected</span>
+            )}
+            {status === "unreachable" && (
+              <span className="text-xs text-destructive">Unreachable</span>
+            )}
           </div>
         </SettingRow>
 
-        <SettingRow label="Credentials" description="Basic auth username and password (optional)">
+        <SettingRow
+          label="Credentials"
+          description="Basic auth username and password (optional)"
+        >
           {authConfigured && !editingAuth ? (
             <div className="flex items-center gap-2">
               <Check className="h-3 w-3 text-green-500 shrink-0" />
-              <span className="text-xs text-muted-foreground font-mono">{maskValue(username)}</span>
+
+              <span className="text-xs text-muted-foreground font-mono">
+                {maskValue(username)}
+              </span>
               <span className="text-xs text-muted-foreground">/</span>
-              <span className="text-xs text-muted-foreground font-mono">{maskValue(password)}</span>
-              <Button size="xs" variant="ghost" onClick={() => { setEditingAuth(true); setUserDraft(""); setPassDraft(""); }}>Change</Button>
-              <Button size="xs" variant="ghost" className="text-destructive" onClick={() => saveAuth("", "")}>Remove</Button>
+              <span className="text-xs text-muted-foreground font-mono">
+                {maskValue(password)}
+              </span>
+              <Button
+                size="xs"
+                variant="ghost"
+                onClick={() => {
+                  setEditingAuth(true);
+                  setUserDraft("");
+                  setPassDraft("");
+                }}
+              >
+                Change
+              </Button>
+              <Button
+                size="xs"
+                variant="ghost"
+                className="text-destructive"
+                onClick={() => saveAuth("", "")}
+              >
+                Remove
+              </Button>
             </div>
           ) : (
             <div className="flex items-center gap-2">
@@ -348,6 +514,7 @@ function ConnectionPanel() {
                 autoComplete="off"
                 className="h-6 text-2xs flex-1"
               />
+
               <Input
                 value={passDraft}
                 onChange={(e) => setPassDraft(e.target.value)}
@@ -355,14 +522,32 @@ function ConnectionPanel() {
                 autoComplete="off"
                 className="h-6 text-2xs flex-1"
               />
+
               <Button
                 size="xs"
                 disabled={!userDraft.trim() || !passDraft.trim()}
-                onClick={() => { saveAuth(userDraft.trim(), passDraft.trim()); setEditingAuth(false); setUserDraft(""); setPassDraft(""); }}
+                onClick={() => {
+                  saveAuth(userDraft.trim(), passDraft.trim());
+                  setEditingAuth(false);
+                  setUserDraft("");
+                  setPassDraft("");
+                }}
               >
                 Save
               </Button>
-              {editingAuth && <Button size="xs" variant="ghost" onClick={() => { setEditingAuth(false); setUserDraft(""); setPassDraft(""); }}>Cancel</Button>}
+              {editingAuth && (
+                <Button
+                  size="xs"
+                  variant="ghost"
+                  onClick={() => {
+                    setEditingAuth(false);
+                    setUserDraft("");
+                    setPassDraft("");
+                  }}
+                >
+                  Cancel
+                </Button>
+              )}
             </div>
           )}
         </SettingRow>
@@ -372,7 +557,12 @@ function ConnectionPanel() {
             <Plug size={14} />
             Connect
           </Button>
-          <Button variant="secondary" size="sm" onClick={handleReset} className="text-xs">
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={handleReset}
+            className="text-xs"
+          >
             <Unplug size={14} />
             Reset to default
           </Button>
@@ -405,10 +595,22 @@ export function SettingsView({ onDirtyChange }: SettingsViewProps = {}) {
   const dynamicChoices = useMemo(() => {
     const choices: Record<string, string[]> = {};
     if (models) choices["sd_model_checkpoint"] = models.map((m) => m.title);
-    if (models) choices["sd_model_refiner"] = [SENTINEL_NONE, ...models.map((m) => m.title)];
-    if (vaes) choices["sd_vae"] = [SENTINEL_AUTOMATIC, SENTINEL_NONE, ...vaes.map((v) => v.name)];
+    if (models)
+      choices["sd_model_refiner"] = [
+        SENTINEL_NONE,
+        ...models.map((m) => m.title),
+      ];
+
+    if (vaes)
+      choices["sd_vae"] = [
+        SENTINEL_AUTOMATIC,
+        SENTINEL_NONE,
+        ...vaes.map((v) => v.name),
+      ];
+
     if (samplers) choices["sampler_name"] = samplers.map((s) => s.name);
-    if (upscalers) choices["upscaler_for_img2img"] = upscalers.map((u) => u.name);
+    if (upscalers)
+      choices["upscaler_for_img2img"] = upscalers.map((u) => u.name);
     return choices;
   }, [models, samplers, vaes, upscalers]);
 
@@ -429,12 +631,20 @@ export function SettingsView({ onDirtyChange }: SettingsViewProps = {}) {
         if (!info.visible || info.hidden || info.is_legacy) continue;
         if (GRADIO_ONLY_KEYS.has(key)) continue;
         if (info.component === "separator") {
-          if (info.label) pendingSeparator = { key, label: info.label, component: "separator" };
+          if (info.label)
+            pendingSeparator = {
+              key,
+              label: info.label,
+              component: "separator",
+            };
           continue;
         }
         if (!(key in options)) continue;
 
-        if (pendingSeparator) { settings.push(pendingSeparator); pendingSeparator = null; }
+        if (pendingSeparator) {
+          settings.push(pendingSeparator);
+          pendingSeparator = null;
+        }
         settings.push(buildSettingDef(key, info, curatedMap));
       }
 
@@ -450,7 +660,8 @@ export function SettingsView({ onDirtyChange }: SettingsViewProps = {}) {
   const resolvedActive = useMemo(() => {
     if (activeSection === CONNECTION_SECTION_ID) return CONNECTION_SECTION_ID;
     if (activeSection === APPEARANCE_SECTION_ID) return APPEARANCE_SECTION_ID;
-    if (activeSection && allSections.some((s) => s.id === activeSection)) return activeSection;
+    if (activeSection && allSections.some((s) => s.id === activeSection))
+      return activeSection;
     if (allSections.length > 0) return allSections[0].id;
     // Backend hasn't loaded yet - default to Connection so it's reachable
     return CONNECTION_SECTION_ID;
@@ -482,10 +693,14 @@ export function SettingsView({ onDirtyChange }: SettingsViewProps = {}) {
     if (Object.keys(dirty).length === 0) return;
     try {
       await setOptions.mutateAsync(dirty);
-      toast.success("Settings saved", { description: `${Object.keys(dirty).length} setting(s) updated` });
+      toast.success("Settings saved", {
+        description: `${Object.keys(dirty).length} setting(s) updated`,
+      });
       setDirty({});
     } catch (err) {
-      toast.error("Failed to save settings", { description: err instanceof Error ? err.message : String(err) });
+      toast.error("Failed to save settings", {
+        description: err instanceof Error ? err.message : String(err),
+      });
     }
   }
 
@@ -524,7 +739,9 @@ export function SettingsView({ onDirtyChange }: SettingsViewProps = {}) {
   // Warn before page refresh with unsaved changes
   useEffect(() => {
     if (dirtyCount === 0) return;
-    const handler = (e: BeforeUnloadEvent) => { e.preventDefault(); };
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+    };
     window.addEventListener("beforeunload", handler);
     return () => window.removeEventListener("beforeunload", handler);
   }, [dirtyCount]);
@@ -546,7 +763,8 @@ export function SettingsView({ onDirtyChange }: SettingsViewProps = {}) {
     setSearchQuery("");
   }, []);
 
-  const backendReady = !isLoading && !isInfoLoading && !!options && !!optionsInfo;
+  const backendReady =
+    !isLoading && !isInfoLoading && !!options && !!optionsInfo;
 
   return (
     <div className="flex h-full">
@@ -554,7 +772,11 @@ export function SettingsView({ onDirtyChange }: SettingsViewProps = {}) {
       <div className="w-48 border-r border-border flex-shrink-0 flex flex-col">
         <div className="p-2">
           <div className="relative">
-            <Search size={14} className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <Search
+              size={14}
+              className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground"
+            />
+
             <Input
               ref={searchInputRef}
               placeholder="Search..."
@@ -569,7 +791,10 @@ export function SettingsView({ onDirtyChange }: SettingsViewProps = {}) {
           <div className="flex flex-col gap-0.5 p-1">
             {allSections.map((section) => {
               const isMatch = matchingSectionIds?.has(section.id);
-              const matchCount = searchQuery ? filteredSections.find((s) => s.id === section.id)?.settings.length : undefined;
+              const matchCount = searchQuery
+                ? filteredSections.find((s) => s.id === section.id)?.settings
+                    .length
+                : undefined;
               return (
                 <button
                   key={section.id}
@@ -581,7 +806,9 @@ export function SettingsView({ onDirtyChange }: SettingsViewProps = {}) {
                   className={cn(
                     "text-left text-xs px-2 py-1.5 rounded-md transition-colors flex items-center justify-between",
                     "hover:bg-accent hover:text-accent-foreground",
-                    resolvedActive === section.id && !searchQuery && "bg-accent text-accent-foreground font-medium",
+                    resolvedActive === section.id &&
+                      !searchQuery &&
+                      "bg-accent text-accent-foreground font-medium",
                     matchingSectionIds && isMatch && "text-primary font-medium",
                     matchingSectionIds && !isMatch && "opacity-30",
                     !backendReady && "opacity-30 pointer-events-none",
@@ -606,7 +833,9 @@ export function SettingsView({ onDirtyChange }: SettingsViewProps = {}) {
                 className={cn(
                   "w-full text-left text-xs px-2 py-1.5 rounded-md transition-colors",
                   "hover:bg-accent hover:text-accent-foreground",
-                  resolvedActive === CONNECTION_SECTION_ID && !searchQuery && "bg-accent text-accent-foreground font-medium",
+                  resolvedActive === CONNECTION_SECTION_ID &&
+                    !searchQuery &&
+                    "bg-accent text-accent-foreground font-medium",
                   matchingSectionIds && "opacity-30",
                 )}
               >
@@ -620,7 +849,9 @@ export function SettingsView({ onDirtyChange }: SettingsViewProps = {}) {
                 className={cn(
                   "w-full text-left text-xs px-2 py-1.5 rounded-md transition-colors",
                   "hover:bg-accent hover:text-accent-foreground",
-                  resolvedActive === APPEARANCE_SECTION_ID && !searchQuery && "bg-accent text-accent-foreground font-medium",
+                  resolvedActive === APPEARANCE_SECTION_ID &&
+                    !searchQuery &&
+                    "bg-accent text-accent-foreground font-medium",
                   matchingSectionIds && "opacity-30",
                 )}
               >
@@ -691,7 +922,9 @@ export function SettingsView({ onDirtyChange }: SettingsViewProps = {}) {
                 />
               ))}
               {filteredSections.length === 0 && (
-                <p className="text-sm text-muted-foreground text-center py-8">No settings match your search</p>
+                <p className="text-sm text-muted-foreground text-center py-8">
+                  No settings match your search
+                </p>
               )}
             </div>
           ) : (

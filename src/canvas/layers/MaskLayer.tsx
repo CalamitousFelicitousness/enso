@@ -22,7 +22,11 @@ function parseMaskColor(color: string) {
  * into MaskObjectLayers (rendered in CompositeLayer). This layer only
  * shows the live stroke being drawn and the brush cursor.
  */
-export function MaskLayer({ displayScale, setActiveLineNode: parentSetActiveLine, setCursorNode: parentSetCursor }: MaskLayerProps) {
+export function MaskLayer({
+  displayScale,
+  setActiveLineNode: parentSetActiveLine,
+  setCursorNode: parentSetCursor,
+}: MaskLayerProps) {
   const maskVisible = useCanvasStore((s) => s.maskVisible);
   const maskColor = useCanvasStore((s) => s.maskColor);
   const frameW = useGenerationStore((s) => s.width);
@@ -32,10 +36,13 @@ export function MaskLayer({ displayScale, setActiveLineNode: parentSetActiveLine
 
   // Sync the active line's stroke color when maskColor changes
   const activeLineNodeRef = useRef<Konva.Line | null>(null);
-  const setActiveLineNode = useCallback((node: Konva.Line | null) => {
-    activeLineNodeRef.current = node;
-    parentSetActiveLine(node);
-  }, [parentSetActiveLine]);
+  const setActiveLineNode = useCallback(
+    (node: Konva.Line | null) => {
+      activeLineNodeRef.current = node;
+      parentSetActiveLine(node);
+    },
+    [parentSetActiveLine],
+  );
 
   useEffect(() => {
     const node = activeLineNodeRef.current;
@@ -45,16 +52,23 @@ export function MaskLayer({ displayScale, setActiveLineNode: parentSetActiveLine
     }
   }, [rgb, alpha]);
 
-  const setCursorNode = useCallback((node: Konva.Circle | null) => {
-    parentSetCursor(node);
-  }, [parentSetCursor]);
+  const setCursorNode = useCallback(
+    (node: Konva.Circle | null) => {
+      parentSetCursor(node);
+    },
+    [parentSetCursor],
+  );
 
   if (!maskVisible || frameW <= 0 || frameH <= 0) return null;
 
   return (
     <Layer listening={false}>
       <Group scaleX={displayScale} scaleY={displayScale}>
-        <Group clipFunc={(ctx) => { ctx.rect(0, 0, frameW, frameH); }}>
+        <Group
+          clipFunc={(ctx) => {
+            ctx.rect(0, 0, frameW, frameH);
+          }}
+        >
           {/* Active stroke - drawn live by useMaskPaint */}
           <Line
             ref={setActiveLineNode}

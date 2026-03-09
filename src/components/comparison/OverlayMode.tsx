@@ -45,6 +45,7 @@ export function OverlayMode({ imageA, imageB }: OverlayModeProps) {
         style={{ transform: zoom.style.transform, opacity: showB ? 0 : 1 }}
         draggable={false}
       />
+
       {/* Image B */}
       <img
         src={imageB.src}

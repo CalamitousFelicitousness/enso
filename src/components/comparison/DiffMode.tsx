@@ -7,7 +7,10 @@ interface DiffModeProps {
   imageB: ComparisonImage;
 }
 
-function computeHeatmap(imgA: HTMLImageElement, imgB: HTMLImageElement): string {
+function computeHeatmap(
+  imgA: HTMLImageElement,
+  imgB: HTMLImageElement,
+): string {
   const w = Math.min(imgA.naturalWidth, imgB.naturalWidth);
   const h = Math.min(imgA.naturalHeight, imgB.naturalHeight);
 
@@ -31,11 +34,17 @@ function computeHeatmap(imgA: HTMLImageElement, imgB: HTMLImageElement): string 
   const o = output.data;
 
   for (let i = 0; i < a.length; i += 4) {
-    const diff = (Math.abs(a[i] - b[i]) + Math.abs(a[i + 1] - b[i + 1]) + Math.abs(a[i + 2] - b[i + 2])) / 3;
+    const diff =
+      (Math.abs(a[i] - b[i]) +
+        Math.abs(a[i + 1] - b[i + 1]) +
+        Math.abs(a[i + 2] - b[i + 2])) /
+      3;
     const t = diff / 255;
 
     // Heatmap: black → blue → yellow → red
-    let r = 0, g = 0, bl = 0;
+    let r = 0,
+      g = 0,
+      bl = 0;
     if (t < 0.33) {
       const s = t / 0.33;
       bl = s * 255;
@@ -90,7 +99,9 @@ export function DiffMode({ imageA, imageB }: DiffModeProps) {
     imgA.src = imageA.src;
     imgB.src = imageB.src;
 
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [imageA.src, imageB.src]);
 
   return (
@@ -123,6 +134,7 @@ export function DiffMode({ imageA, imageB }: DiffModeProps) {
       <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex items-center gap-2 bg-black/60 px-3 py-1 rounded z-10">
         <div className="flex items-center gap-1">
           <div className="w-3 h-3 rounded-sm bg-black border border-white/20" />
+
           <span className="text-3xs text-white/70">Same</span>
         </div>
         <div className="flex items-center gap-1">
@@ -131,6 +143,7 @@ export function DiffMode({ imageA, imageB }: DiffModeProps) {
         </div>
         <div className="flex items-center gap-1">
           <div className="w-3 h-3 rounded-sm bg-yellow-400" />
+
           <span className="text-3xs text-white/70">Medium</span>
         </div>
         <div className="flex items-center gap-1">

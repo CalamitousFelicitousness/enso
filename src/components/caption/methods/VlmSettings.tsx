@@ -17,8 +17,21 @@ export function VlmSettings() {
   const set = useCaptionSettingsStore((st) => st.setVlm);
 
   const { data: models } = useVlmModels();
-  const selectedModel = useMemo(() => models?.find((m) => m.name === s.model), [models, s.model]);
-  const prompts = useMemo(() => selectedModel?.prompts ?? ["Use Prompt", "Short Caption", "Normal Caption", "Long Caption"], [selectedModel]);
+  const selectedModel = useMemo(
+    () => models?.find((m) => m.name === s.model),
+    [models, s.model],
+  );
+  const prompts = useMemo(
+    () =>
+      selectedModel?.prompts ?? [
+        "Use Prompt",
+        "Short Caption",
+        "Normal Caption",
+        "Long Caption",
+      ],
+
+    [selectedModel],
+  );
 
   const capsByName = useMemo(() => {
     const map = new Map<string, VlmModel>();
@@ -28,24 +41,57 @@ export function VlmSettings() {
 
   const vlmGroups = useMemo<ComboboxGroup[]>(() => {
     if (!models?.length) return [];
-    const order = ["Gemma", "Gemma Finetunes", "Qwen3.5", "Qwen3.5 Finetunes", "Qwen3-VL", "Qwen3-VL Finetunes", "Qwen2.5-VL", "Qwen2.5-VL Finetunes", "Qwen2-VL", "Qwen", "Mistral Finetunes", "Florence", "SmolVLM", "FastVLM", "Moondream", "Ovis", "BLIP", "GIT", "JoyCaption", "ToriiGate", "Other"];
+    const order = [
+      "Gemma",
+      "Gemma Finetunes",
+      "Qwen3.5",
+      "Qwen3.5 Finetunes",
+      "Qwen3-VL",
+      "Qwen3-VL Finetunes",
+      "Qwen2.5-VL",
+      "Qwen2.5-VL Finetunes",
+      "Qwen2-VL",
+      "Qwen",
+      "Mistral Finetunes",
+      "Florence",
+      "SmolVLM",
+      "FastVLM",
+      "Moondream",
+      "Ovis",
+      "BLIP",
+      "GIT",
+      "JoyCaption",
+      "ToriiGate",
+      "Other",
+    ];
+
     const buckets: Record<string, string[]> = {};
     for (const m of models) (buckets[m.group] ??= []).push(m.name);
-    for (const opts of Object.values(buckets)) opts.sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
-    return order.filter((g) => buckets[g]?.length).map((g) => ({ heading: g, options: buckets[g] }));
+    for (const opts of Object.values(buckets))
+      opts.sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+    return order
+      .filter((g) => buckets[g]?.length)
+      .map((g) => ({ heading: g, options: buckets[g] }));
   }, [models]);
 
-  const renderModelLabel = useCallback((value: string, label: string) => {
-    const model = capsByName.get(value);
-    const caps = model?.capabilities ?? [];
-    return (
-      <span className="inline-flex items-center gap-1">
-        {model?.cached && <span className="shrink-0 size-1.5 rounded-full bg-green-500" />}
-        {stripPua(label)}
-        {caps.includes("thinking") && <Lightbulb className="shrink-0 size-[1em]" />}
-      </span>
-    );
-  }, [capsByName]);
+  const renderModelLabel = useCallback(
+    (value: string, label: string) => {
+      const model = capsByName.get(value);
+      const caps = model?.capabilities ?? [];
+      return (
+        <span className="inline-flex items-center gap-1">
+          {model?.cached && (
+            <span className="shrink-0 size-1.5 rounded-full bg-green-500" />
+          )}
+          {stripPua(label)}
+          {caps.includes("thinking") && (
+            <Lightbulb className="shrink-0 size-[1em]" />
+          )}
+        </span>
+      );
+    },
+    [capsByName],
+  );
 
   const handleModelChange = (v: string) => {
     set({ model: v });
@@ -67,7 +113,11 @@ export function VlmSettings() {
         <Combobox
           value={s.model}
           onValueChange={handleModelChange}
-          groups={vlmGroups.length > 0 ? vlmGroups : [{ heading: "", options: [VLM_DEFAULT] }]}
+          groups={
+            vlmGroups.length > 0
+              ? vlmGroups
+              : [{ heading: "", options: [VLM_DEFAULT] }]
+          }
           placeholder={vlmGroups.length === 0 ? "Loading..." : "Select model"}
           className="w-full text-xs"
           renderLabel={renderModelLabel}
@@ -109,25 +159,74 @@ export function VlmSettings() {
 
       <ParamSection title="Advanced Options" defaultOpen={false}>
         <div className="flex flex-col gap-3">
-          <SliderField label="Max Tokens" value={s.maxTokens} min={16} max={4096} step={1}
-            onChange={(v) => set({ maxTokens: v })} />
-          <SliderField label="Num Beams" value={s.numBeams} min={1} max={16} step={1}
-            onChange={(v) => set({ numBeams: v })} />
-          <SliderField label="Temperature" value={s.temperature} min={0} max={1} step={0.01}
-            onChange={(v) => set({ temperature: v })} />
-          <SliderField label="Top-K" value={s.topK} min={0} max={99} step={1}
-            onChange={(v) => set({ topK: v })} />
-          <SliderField label="Top-P" value={s.topP} min={0} max={1} step={0.01}
-            onChange={(v) => set({ topP: v })} />
+          <SliderField
+            label="Max Tokens"
+            value={s.maxTokens}
+            min={16}
+            max={4096}
+            step={1}
+            onChange={(v) => set({ maxTokens: v })}
+          />
 
-          <SwitchField label="Use Samplers" checked={s.doSample}
-            onChange={(v) => set({ doSample: v })} />
-          <SwitchField label="Thinking Mode" checked={s.thinkingMode}
-            onChange={(v) => set({ thinkingMode: v })} />
-          <SwitchField label="Keep Thinking Trace" checked={s.keepThinking}
-            onChange={(v) => set({ keepThinking: v })} />
-          <SwitchField label="Keep Prefill" checked={s.keepPrefill}
-            onChange={(v) => set({ keepPrefill: v })} />
+          <SliderField
+            label="Num Beams"
+            value={s.numBeams}
+            min={1}
+            max={16}
+            step={1}
+            onChange={(v) => set({ numBeams: v })}
+          />
+
+          <SliderField
+            label="Temperature"
+            value={s.temperature}
+            min={0}
+            max={1}
+            step={0.01}
+            onChange={(v) => set({ temperature: v })}
+          />
+
+          <SliderField
+            label="Top-K"
+            value={s.topK}
+            min={0}
+            max={99}
+            step={1}
+            onChange={(v) => set({ topK: v })}
+          />
+
+          <SliderField
+            label="Top-P"
+            value={s.topP}
+            min={0}
+            max={1}
+            step={0.01}
+            onChange={(v) => set({ topP: v })}
+          />
+
+          <SwitchField
+            label="Use Samplers"
+            checked={s.doSample}
+            onChange={(v) => set({ doSample: v })}
+          />
+
+          <SwitchField
+            label="Thinking Mode"
+            checked={s.thinkingMode}
+            onChange={(v) => set({ thinkingMode: v })}
+          />
+
+          <SwitchField
+            label="Keep Thinking Trace"
+            checked={s.keepThinking}
+            onChange={(v) => set({ keepThinking: v })}
+          />
+
+          <SwitchField
+            label="Keep Prefill"
+            checked={s.keepPrefill}
+            onChange={(v) => set({ keepPrefill: v })}
+          />
 
           {s.keepPrefill && (
             <div className="flex flex-col gap-1.5">
@@ -147,24 +246,48 @@ export function VlmSettings() {
   );
 }
 
-function SliderField({ label, value, min, max, step, onChange }: {
-  label: string; value: number; min: number; max: number; step: number;
+function SliderField({
+  label,
+  value,
+  min,
+  max,
+  step,
+  onChange,
+}: {
+  label: string;
+  value: number;
+  min: number;
+  max: number;
+  step: number;
   onChange: (v: number) => void;
 }) {
   return (
     <div className="flex flex-col gap-1.5">
       <div className="flex items-center justify-between">
         <Label className="text-xs">{label}</Label>
-        <span className="text-3xs text-muted-foreground tabular-nums">{value}</span>
+        <span className="text-3xs text-muted-foreground tabular-nums">
+          {value}
+        </span>
       </div>
-      <Slider value={[value]} min={min} max={max} step={step}
-        onValueChange={([v]) => onChange(v)} />
+      <Slider
+        value={[value]}
+        min={min}
+        max={max}
+        step={step}
+        onValueChange={([v]) => onChange(v)}
+      />
     </div>
   );
 }
 
-function SwitchField({ label, checked, onChange }: {
-  label: string; checked: boolean; onChange: (v: boolean) => void;
+function SwitchField({
+  label,
+  checked,
+  onChange,
+}: {
+  label: string;
+  checked: boolean;
+  onChange: (v: boolean) => void;
 }) {
   return (
     <div className="flex items-center justify-between">

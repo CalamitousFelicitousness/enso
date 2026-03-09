@@ -1,5 +1,10 @@
 import { useState, useCallback } from "react";
-import { useCivitOptions, useCivitSearchInfinite, useCivitSettings, useCivitMe } from "@/api/hooks/useCivitai";
+import {
+  useCivitOptions,
+  useCivitSearchInfinite,
+  useCivitSettings,
+  useCivitMe,
+} from "@/api/hooks/useCivitai";
 import type { CivitSearchParams } from "@/api/types/civitai";
 import { CivitSettings } from "./civitai/CivitSettings";
 import { CivitSearchBar } from "./civitai/CivitSearchBar";
@@ -34,7 +39,7 @@ export function CivitaiSubTab() {
     period: period || undefined,
     base_models: baseModel || undefined,
     nsfw: nsfw || undefined,
-    username: favorites && me?.username ? me.username : (creator || undefined),
+    username: favorites && me?.username ? me.username : creator || undefined,
     favorites: favorites || undefined,
     limit: 20,
   };
@@ -66,10 +71,54 @@ export function CivitaiSubTab() {
   return (
     <div className="space-y-3">
       <CivitSettings />
-      <CivitSearchBar query={query} tag={tag} onQueryChange={(v) => { setQuery(v); setSearchEnabled(false); }} onTagChange={(v) => { setTag(v); setSearchEnabled(false); }} onSearch={handleSearch} onHistorySelect={handleHistorySelect} isLoading={infiniteSearch.isFetching} />
-      <CivitFilters options={options} type={type} sort={sort} period={period} baseModel={baseModel} creator={creator} nsfw={nsfw} favorites={favorites} tokenConfigured={tokenConfigured} onTypeChange={setType} onSortChange={setSort} onPeriodChange={setPeriod} onBaseModelChange={setBaseModel} onCreatorChange={setCreator} onNsfwChange={setNsfw} onFavoritesChange={handleFavoritesChange} />
-      <CivitResultList pages={infiniteSearch.data} hasNextPage={!!infiniteSearch.hasNextPage} isFetchingNextPage={infiniteSearch.isFetchingNextPage} fetchNextPage={() => infiniteSearch.fetchNextPage()} onSelectModel={setSelectedModelId} />
-      <CivitModelDetail modelId={selectedModelId} onClose={() => setSelectedModelId(null)} />
+      <CivitSearchBar
+        query={query}
+        tag={tag}
+        onQueryChange={(v) => {
+          setQuery(v);
+          setSearchEnabled(false);
+        }}
+        onTagChange={(v) => {
+          setTag(v);
+          setSearchEnabled(false);
+        }}
+        onSearch={handleSearch}
+        onHistorySelect={handleHistorySelect}
+        isLoading={infiniteSearch.isFetching}
+      />
+
+      <CivitFilters
+        options={options}
+        type={type}
+        sort={sort}
+        period={period}
+        baseModel={baseModel}
+        creator={creator}
+        nsfw={nsfw}
+        favorites={favorites}
+        tokenConfigured={tokenConfigured}
+        onTypeChange={setType}
+        onSortChange={setSort}
+        onPeriodChange={setPeriod}
+        onBaseModelChange={setBaseModel}
+        onCreatorChange={setCreator}
+        onNsfwChange={setNsfw}
+        onFavoritesChange={handleFavoritesChange}
+      />
+
+      <CivitResultList
+        pages={infiniteSearch.data}
+        hasNextPage={!!infiniteSearch.hasNextPage}
+        isFetchingNextPage={infiniteSearch.isFetchingNextPage}
+        fetchNextPage={() => infiniteSearch.fetchNextPage()}
+        onSelectModel={setSelectedModelId}
+      />
+
+      <CivitModelDetail
+        modelId={selectedModelId}
+        onClose={() => setSelectedModelId(null)}
+      />
+
       <CivitDownloadQueue />
     </div>
   );

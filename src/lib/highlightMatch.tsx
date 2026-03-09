@@ -7,8 +7,12 @@ export function highlightMatch(text: string, query: string): ReactNode {
   const parts = text.split(regex);
   if (parts.length === 1) return text;
   return parts.map((part, i) =>
-    regex.test(part)
-      ? <mark key={i} className="bg-primary/20 text-foreground rounded-sm px-0.5">{part}</mark>
-      : part,
+    regex.test(part) ? (
+      <mark key={i} className="bg-primary/20 text-foreground rounded-sm px-0.5">
+        {part}
+      </mark>
+    ) : (
+      part
+    ),
   );
 }

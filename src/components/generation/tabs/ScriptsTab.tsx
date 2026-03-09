@@ -13,7 +13,10 @@ export function ScriptsTab() {
   const store = useScriptStore();
 
   const selectableScripts = useMemo(
-    () => scripts?.scripts.filter((s) => !s.is_alwayson && s.contexts.includes("txt2img")).map((s) => s.name) ?? [],
+    () =>
+      scripts?.scripts
+        .filter((s) => !s.is_alwayson && s.contexts.includes("txt2img"))
+        .map((s) => s.name) ?? [],
     [scripts],
   );
 
@@ -31,13 +34,20 @@ export function ScriptsTab() {
     <div className="flex flex-col gap-3 text-sm">
       <ParamSection title="Script">
         <div className="flex items-center gap-2">
-          <Label className="text-2xs text-muted-foreground w-16 flex-shrink-0">Script</Label>
+          <Label className="text-2xs text-muted-foreground w-16 flex-shrink-0">
+            Script
+          </Label>
           <Combobox
             value={store.selectedScript || "__none__"}
-            onValueChange={(v) => store.setSelectedScript(v === "__none__" ? "" : v)}
+            onValueChange={(v) =>
+              store.setSelectedScript(v === "__none__" ? "" : v)
+            }
             options={[
               { value: "__none__", label: "None" },
-              ...selectableScripts.map((name) => ({ value: name, label: name })),
+              ...selectableScripts.map((name) => ({
+                value: name,
+                label: name,
+              })),
             ]}
             placeholder="None"
             className="h-6 text-2xs flex-1"
@@ -68,17 +78,24 @@ export function ScriptsTab() {
 function AlwaysOnSection({ script }: { script: ScriptInfoV2 }) {
   const store = useScriptStore();
   const getArgValue = useCallback(
-    (index: number) => store.alwaysOnOverrides[script.name]?.[index] ?? script.args[index]?.value,
+    (index: number) =>
+      store.alwaysOnOverrides[script.name]?.[index] ??
+      script.args[index]?.value,
     [store.alwaysOnOverrides, script.name, script.args],
   );
   const setArgValue = useCallback(
-    (index: number, value: unknown) => store.setAlwaysOnArg(script.name, index, value),
+    (index: number, value: unknown) =>
+      store.setAlwaysOnArg(script.name, index, value),
     [store, script.name],
   );
 
   return (
     <ParamSection title={script.name} defaultOpen={false}>
-      <ScriptSection script={script} getArgValue={getArgValue} setArgValue={setArgValue} />
+      <ScriptSection
+        script={script}
+        getArgValue={getArgValue}
+        setArgValue={setArgValue}
+      />
     </ParamSection>
   );
 }

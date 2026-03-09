@@ -31,23 +31,62 @@ export function TaggerSettings() {
 
       <ParamSection title="Advanced Options" defaultOpen={false}>
         <div className="flex flex-col gap-3">
-          <SliderField label="General Threshold" value={s.threshold} min={0} max={1} step={0.01}
-            onChange={(v) => set({ threshold: v })} />
-          <SliderField label="Character Threshold" value={s.characterThreshold} min={0} max={1} step={0.01}
-            onChange={(v) => set({ characterThreshold: v })} />
-          <SliderField label="Max Tags" value={s.maxTags} min={1} max={512} step={1}
-            onChange={(v) => set({ maxTags: v })} />
+          <SliderField
+            label="General Threshold"
+            value={s.threshold}
+            min={0}
+            max={1}
+            step={0.01}
+            onChange={(v) => set({ threshold: v })}
+          />
 
-          <SwitchField label="Include Rating" checked={s.includeRating}
-            onChange={(v) => set({ includeRating: v })} />
-          <SwitchField label="Sort Alphabetically" checked={s.sortAlpha}
-            onChange={(v) => set({ sortAlpha: v })} />
-          <SwitchField label="Use Spaces" checked={s.useSpaces}
-            onChange={(v) => set({ useSpaces: v })} />
-          <SwitchField label="Escape Brackets" checked={s.escapeBrackets}
-            onChange={(v) => set({ escapeBrackets: v })} />
-          <SwitchField label="Show Confidence Scores" checked={s.showScores}
-            onChange={(v) => set({ showScores: v })} />
+          <SliderField
+            label="Character Threshold"
+            value={s.characterThreshold}
+            min={0}
+            max={1}
+            step={0.01}
+            onChange={(v) => set({ characterThreshold: v })}
+          />
+
+          <SliderField
+            label="Max Tags"
+            value={s.maxTags}
+            min={1}
+            max={512}
+            step={1}
+            onChange={(v) => set({ maxTags: v })}
+          />
+
+          <SwitchField
+            label="Include Rating"
+            checked={s.includeRating}
+            onChange={(v) => set({ includeRating: v })}
+          />
+
+          <SwitchField
+            label="Sort Alphabetically"
+            checked={s.sortAlpha}
+            onChange={(v) => set({ sortAlpha: v })}
+          />
+
+          <SwitchField
+            label="Use Spaces"
+            checked={s.useSpaces}
+            onChange={(v) => set({ useSpaces: v })}
+          />
+
+          <SwitchField
+            label="Escape Brackets"
+            checked={s.escapeBrackets}
+            onChange={(v) => set({ escapeBrackets: v })}
+          />
+
+          <SwitchField
+            label="Show Confidence Scores"
+            checked={s.showScores}
+            onChange={(v) => set({ showScores: v })}
+          />
 
           <div className="flex flex-col gap-1.5">
             <Label className="text-xs">Exclude Tags</Label>
@@ -65,24 +104,48 @@ export function TaggerSettings() {
   );
 }
 
-function SliderField({ label, value, min, max, step, onChange }: {
-  label: string; value: number; min: number; max: number; step: number;
+function SliderField({
+  label,
+  value,
+  min,
+  max,
+  step,
+  onChange,
+}: {
+  label: string;
+  value: number;
+  min: number;
+  max: number;
+  step: number;
   onChange: (v: number) => void;
 }) {
   return (
     <div className="flex flex-col gap-1.5">
       <div className="flex items-center justify-between">
         <Label className="text-xs">{label}</Label>
-        <span className="text-3xs text-muted-foreground tabular-nums">{value}</span>
+        <span className="text-3xs text-muted-foreground tabular-nums">
+          {value}
+        </span>
       </div>
-      <Slider value={[value]} min={min} max={max} step={step}
-        onValueChange={([v]) => onChange(v)} />
+      <Slider
+        value={[value]}
+        min={min}
+        max={max}
+        step={step}
+        onValueChange={([v]) => onChange(v)}
+      />
     </div>
   );
 }
 
-function SwitchField({ label, checked, onChange }: {
-  label: string; checked: boolean; onChange: (v: boolean) => void;
+function SwitchField({
+  label,
+  checked,
+  onChange,
+}: {
+  label: string;
+  checked: boolean;
+  onChange: (v: boolean) => void;
 }) {
   return (
     <div className="flex items-center justify-between">

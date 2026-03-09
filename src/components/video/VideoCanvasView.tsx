@@ -2,11 +2,25 @@ import { useCallback, useMemo, useRef, useState } from "react";
 import { Download, Trash2, Film, Columns2, X, ImagePlus } from "lucide-react";
 import { useVideoStore } from "@/stores/videoStore";
 import { useVideoCanvasStore } from "@/stores/videoCanvasStore";
-import { useJobQueueStore, selectVideoActive, selectFramepackActive, selectLtxActive, selectVideoProgress, selectFramepackProgress, selectLtxProgress, selectVideoDomainActiveJob } from "@/stores/jobStore";
+import {
+  useJobQueueStore,
+  selectVideoActive,
+  selectFramepackActive,
+  selectLtxActive,
+  selectVideoProgress,
+  selectFramepackProgress,
+  selectLtxProgress,
+  selectVideoDomainActiveJob,
+} from "@/stores/jobStore";
 import { useUiStore } from "@/stores/uiStore";
 import { useVideoFrameLayout } from "@/canvas/useVideoFrameLayout";
 import { VideoCanvasStage } from "@/canvas/VideoCanvasStage";
-import { FrameHeader, INPUT_COLOR_ACTIVE, INPUT_COLOR_INACTIVE, OUTPUT_COLOR } from "@/canvas/ControlFramePanel";
+import {
+  FrameHeader,
+  INPUT_COLOR_ACTIVE,
+  INPUT_COLOR_INACTIVE,
+  OUTPUT_COLOR,
+} from "@/canvas/ControlFramePanel";
 import { VideoPlayer } from "@/components/video/VideoPlayer";
 import { VideoCompare } from "@/components/video/VideoCompare";
 import { VideoResultActions } from "@/components/video/VideoResultActions";
@@ -43,7 +57,10 @@ export function VideoCanvasView() {
   const setParam = useVideoStore((s) => s.setParam);
   const sizeText = `${videoWidth}\u00d7${videoHeight}`;
 
-  const selectedResult = useMemo(() => results.find((r) => r.id === selectedResultId) ?? null, [results, selectedResultId]);
+  const selectedResult = useMemo(
+    () => results.find((r) => r.id === selectedResultId) ?? null,
+    [results, selectedResultId],
+  );
 
   const isVideoActive = useJobQueueStore(selectVideoActive);
   const isFramepackActive = useJobQueueStore(selectFramepackActive);
@@ -56,11 +73,20 @@ export function VideoCanvasView() {
   const progressPct = Math.round(progress * 100);
 
   const activeVideoJob = useJobQueueStore(selectVideoDomainActiveJob);
-  const stepInfo = activeVideoJob ? { step: activeVideoJob.step, steps: activeVideoJob.steps, textinfo: activeVideoJob.textinfo } : null;
+  const stepInfo = activeVideoJob
+    ? {
+        step: activeVideoJob.step,
+        steps: activeVideoJob.steps,
+        textinfo: activeVideoJob.textinfo,
+      }
+    : null;
 
   // Compare mode
   const [compareMode, setCompareMode] = useState(false);
-  const [compareIds, setCompareIds] = useState<[string | null, string | null]>([null, null]);
+  const [compareIds, setCompareIds] = useState<[string | null, string | null]>([
+    null,
+    null,
+  ]);
 
   const handleCompareToggle = useCallback(() => {
     if (compareMode) {
@@ -87,8 +113,14 @@ export function VideoCanvasView() {
     [compareMode, selectResult],
   );
 
-  const compareLeft = useMemo(() => results.find((r) => r.id === compareIds[0]) ?? null, [results, compareIds]);
-  const compareRight = useMemo(() => results.find((r) => r.id === compareIds[1]) ?? null, [results, compareIds]);
+  const compareLeft = useMemo(
+    () => results.find((r) => r.id === compareIds[0]) ?? null,
+    [results, compareIds],
+  );
+  const compareRight = useMemo(
+    () => results.find((r) => r.id === compareIds[1]) ?? null,
+    [results, compareIds],
+  );
 
   // File input refs for click-to-pick
   const initInputRef = useRef<HTMLInputElement>(null);
@@ -99,51 +131,82 @@ export function VideoCanvasView() {
     else lastInputRef.current?.click();
   }, []);
 
-  const handleFileSelected = useCallback(async (which: "init" | "last", file: File) => {
-    if (!file.type.startsWith("image/")) return;
-    const base64 = await fileToBase64(file);
-    const objectUrl = URL.createObjectURL(file);
-    const img = new window.Image();
-    img.src = objectUrl;
-    await new Promise<void>((r) => { img.onload = () => r(); });
-    setFrame(which, file, base64, objectUrl, img.naturalWidth, img.naturalHeight);
-  }, [setFrame]);
+  const handleFileSelected = useCallback(
+    async (which: "init" | "last", file: File) => {
+      if (!file.type.startsWith("image/")) return;
+      const base64 = await fileToBase64(file);
+      const objectUrl = URL.createObjectURL(file);
+      const img = new window.Image();
+      img.src = objectUrl;
+      await new Promise<void>((r) => {
+        img.onload = () => r();
+      });
+      setFrame(
+        which,
+        file,
+        base64,
+        objectUrl,
+        img.naturalWidth,
+        img.naturalHeight,
+      );
+    },
+    [setFrame],
+  );
 
-  const handleInputChange = useCallback((which: "init" | "last") => (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) handleFileSelected(which, file);
-    e.target.value = "";
-  }, [handleFileSelected]);
+  const handleInputChange = useCallback(
+    (which: "init" | "last") => (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (file) handleFileSelected(which, file);
+      e.target.value = "";
+    },
+    [handleFileSelected],
+  );
 
   // Hit-test: determine which video frame a drop lands on based on screen coords
-  const hitTestTarget = useCallback((e: React.DragEvent): "init" | "last" => {
-    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-    const screenX = e.clientX - rect.left;
-    const canvasX = (screenX - viewport.x) / viewport.scale;
-    const { lastX, displayW } = layout;
-    if (canvasX >= lastX && canvasX < lastX + displayW) return "last";
-    return "init";
-  }, [viewport, layout]);
+  const hitTestTarget = useCallback(
+    (e: React.DragEvent): "init" | "last" => {
+      const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+      const screenX = e.clientX - rect.left;
+      const canvasX = (screenX - viewport.x) / viewport.scale;
+      const { lastX, displayW } = layout;
+      if (canvasX >= lastX && canvasX < lastX + displayW) return "last";
+      return "init";
+    },
+    [viewport, layout],
+  );
 
-  const handleDropFile = useCallback(async (file: File, e: React.DragEvent) => {
-    await handleFileSelected(hitTestTarget(e), file);
-  }, [handleFileSelected, hitTestTarget]);
+  const handleDropFile = useCallback(
+    async (file: File, e: React.DragEvent) => {
+      await handleFileSelected(hitTestTarget(e), file);
+    },
+    [handleFileSelected, hitTestTarget],
+  );
 
   const { isOver, ...dropHandlers } = useDropTarget({
-    onDropPayload: useCallback((payload: DragPayload, e: React.DragEvent) => {
-      const target = hitTestTarget(e);
-      payloadToFile(payload).then((f: File) => handleFileSelected(target, f)).catch(() => {});
-    }, [hitTestTarget, handleFileSelected]),
+    onDropPayload: useCallback(
+      (payload: DragPayload, e: React.DragEvent) => {
+        const target = hitTestTarget(e);
+        payloadToFile(payload)
+          .then((f: File) => handleFileSelected(target, f))
+          .catch(() => {});
+      },
+      [hitTestTarget, handleFileSelected],
+    ),
     onFileDrop: handleDropFile,
   });
 
   // Paste handler
-  const handlePaste = useCallback(async (e: React.ClipboardEvent) => {
-    const item = Array.from(e.clipboardData.items).find((i) => i.type.startsWith("image/"));
-    if (!item) return;
-    const file = item.getAsFile();
-    if (file) await handleFileSelected("init", file);
-  }, [handleFileSelected]);
+  const handlePaste = useCallback(
+    async (e: React.ClipboardEvent) => {
+      const item = Array.from(e.clipboardData.items).find((i) =>
+        i.type.startsWith("image/"),
+      );
+      if (!item) return;
+      const file = item.getAsFile();
+      if (file) await handleFileSelected("init", file);
+    },
+    [handleFileSelected],
+  );
 
   // Compute output frame overlay position
   const { outputX, displayW, displayH } = layout;
@@ -161,7 +224,10 @@ export function VideoCanvasView() {
 
   return (
     <div
-      className={cn("h-full flex flex-col", isOver && "ring-2 ring-primary ring-inset")}
+      className={cn(
+        "h-full flex flex-col",
+        isOver && "ring-2 ring-primary ring-inset",
+      )}
       {...dropHandlers}
       onPaste={handlePaste}
       tabIndex={-1}
@@ -181,21 +247,42 @@ export function VideoCanvasView() {
           labelScale={labelScale}
           actions={
             <>
-              <Button variant="ghost" size="icon-xs" onClick={() => handlePickImage("init")} title="Add image" className="hover:bg-black/10">
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                onClick={() => handlePickImage("init")}
+                title="Add image"
+                className="hover:bg-black/10"
+              >
                 <ImagePlus size={16} style={{ color: initTextColor }} />
               </Button>
               {initFrame && (
-                <Button variant="ghost" size="icon-xs" onClick={() => clearFrame("init")} title="Clear" className="hover:bg-black/10">
+                <Button
+                  variant="ghost"
+                  size="icon-xs"
+                  onClick={() => clearFrame("init")}
+                  title="Clear"
+                  className="hover:bg-black/10"
+                >
                   <Trash2 size={16} style={{ color: initTextColor }} />
                 </Button>
               )}
             </>
           }
           drawer={
-            <ParamSlider label="Strength" value={initStrength} onChange={(v) => setParam("initStrength", v)} min={0} max={1} step={0.05} />
+            <ParamSlider
+              label="Strength"
+              value={initStrength}
+              onChange={(v) => setParam("initStrength", v)}
+              min={0}
+              max={1}
+              step={0.05}
+            />
           }
           collapsed={!initFrame}
-          onToggleCollapsed={() => {/* drawer auto-shows when frame present */}}
+          onToggleCollapsed={() => {
+            /* drawer auto-shows when frame present */
+          }}
         />
 
         {/* Floating header: Last frame */}
@@ -209,11 +296,23 @@ export function VideoCanvasView() {
           labelScale={labelScale}
           actions={
             <>
-              <Button variant="ghost" size="icon-xs" onClick={() => handlePickImage("last")} title="Add image" className="hover:bg-black/10">
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                onClick={() => handlePickImage("last")}
+                title="Add image"
+                className="hover:bg-black/10"
+              >
                 <ImagePlus size={16} style={{ color: lastTextColor }} />
               </Button>
               {lastFrame && (
-                <Button variant="ghost" size="icon-xs" onClick={() => clearFrame("last")} title="Clear" className="hover:bg-black/10">
+                <Button
+                  variant="ghost"
+                  size="icon-xs"
+                  onClick={() => clearFrame("last")}
+                  title="Clear"
+                  className="hover:bg-black/10"
+                >
                   <Trash2 size={16} style={{ color: lastTextColor }} />
                 </Button>
               )}
@@ -236,8 +335,14 @@ export function VideoCanvasView() {
               {selectedResult?.videoUrl && !isGenerating && (
                 <>
                   <VideoResultActions result={selectedResult} />
+
                   <a href={selectedResult.videoUrl} download>
-                    <Button variant="ghost" size="icon-xs" title="Download" className="hover:bg-black/10">
+                    <Button
+                      variant="ghost"
+                      size="icon-xs"
+                      title="Download"
+                      className="hover:bg-black/10"
+                    >
                       <Download size={16} style={{ color: outputTextColor }} />
                     </Button>
                   </a>
@@ -256,15 +361,23 @@ export function VideoCanvasView() {
               top: `${outputScreenY}px`,
               width: `${outputScreenW}px`,
               height: `${outputScreenH}px`,
-              pointerEvents: (selectedResult?.videoUrl || (compareMode && compareLeft?.videoUrl)) ? "auto" : "none",
+              pointerEvents:
+                selectedResult?.videoUrl ||
+                (compareMode && compareLeft?.videoUrl)
+                  ? "auto"
+                  : "none",
             }}
           >
             {compareMode && compareLeft?.videoUrl && compareRight?.videoUrl ? (
               <VideoCompare
                 leftSrc={compareLeft.videoUrl}
                 rightSrc={compareRight.videoUrl}
-                leftLabel={DOMAIN_LABELS[compareLeft.domain] ?? compareLeft.domain}
-                rightLabel={DOMAIN_LABELS[compareRight.domain] ?? compareRight.domain}
+                leftLabel={
+                  DOMAIN_LABELS[compareLeft.domain] ?? compareLeft.domain
+                }
+                rightLabel={
+                  DOMAIN_LABELS[compareRight.domain] ?? compareRight.domain
+                }
               />
             ) : !isGenerating && selectedResult?.videoUrl ? (
               <VideoPlayer src={selectedResult.videoUrl} />
@@ -279,7 +392,9 @@ export function VideoCanvasView() {
               {stepInfo && (stepInfo.step > 0 || stepInfo.textinfo) && (
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
                   {stepInfo.steps > 0 && (
-                    <span className="tabular-nums">Step {stepInfo.step}/{stepInfo.steps}</span>
+                    <span className="tabular-nums">
+                      Step {stepInfo.step}/{stepInfo.steps}
+                    </span>
                   )}
                   {stepInfo.textinfo && (
                     <>
@@ -296,15 +411,30 @@ export function VideoCanvasView() {
                     style={{ width: `${progressPct}%` }}
                   />
                 </div>
-                <span className="text-xs text-muted-foreground tabular-nums min-w-[3ch]">{progressPct}%</span>
+                <span className="text-xs text-muted-foreground tabular-nums min-w-[3ch]">
+                  {progressPct}%
+                </span>
               </div>
             </div>
           </div>
         )}
 
         {/* Hidden file inputs */}
-        <input ref={initInputRef} type="file" accept="image/*" className="hidden" onChange={handleInputChange("init")} />
-        <input ref={lastInputRef} type="file" accept="image/*" className="hidden" onChange={handleInputChange("last")} />
+        <input
+          ref={initInputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={handleInputChange("init")}
+        />
+
+        <input
+          ref={lastInputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={handleInputChange("last")}
+        />
       </div>
 
       {/* Result strip */}
@@ -320,26 +450,37 @@ export function VideoCanvasView() {
                     "flex-shrink-0 w-16 h-10 rounded border overflow-hidden relative group transition-all",
                     !compareMode && r.id === selectedResultId
                       ? "border-primary ring-1 ring-primary/30"
-                      : compareMode && (r.id === compareIds[0] || r.id === compareIds[1])
+                      : compareMode &&
+                          (r.id === compareIds[0] || r.id === compareIds[1])
                         ? "border-primary ring-1 ring-primary/30"
                         : "border-border hover:border-primary/40",
                   )}
                 >
                   {r.thumbnailUrl ? (
-                    <img src={r.thumbnailUrl} alt="" className="w-full h-full object-cover" />
+                    <img
+                      src={r.thumbnailUrl}
+                      alt=""
+                      className="w-full h-full object-cover"
+                    />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center bg-muted">
                       <Film size={12} className="text-muted-foreground/50" />
                     </div>
                   )}
                   <div className="absolute bottom-0 left-0 right-0 px-0.5 bg-black/60">
-                    <span className="text-5xs text-white/80 font-medium">{DOMAIN_LABELS[r.domain] ?? r.domain}</span>
+                    <span className="text-5xs text-white/80 font-medium">
+                      {DOMAIN_LABELS[r.domain] ?? r.domain}
+                    </span>
                   </div>
                   {compareMode && r.id === compareIds[0] && (
-                    <div className="absolute top-0 left-0 px-1 bg-primary text-primary-foreground text-5xs font-bold rounded-br">A</div>
+                    <div className="absolute top-0 left-0 px-1 bg-primary text-primary-foreground text-5xs font-bold rounded-br">
+                      A
+                    </div>
                   )}
                   {compareMode && r.id === compareIds[1] && (
-                    <div className="absolute top-0 left-0 px-1 bg-primary text-primary-foreground text-5xs font-bold rounded-br">B</div>
+                    <div className="absolute top-0 left-0 px-1 bg-primary text-primary-foreground text-5xs font-bold rounded-br">
+                      B
+                    </div>
                   )}
                 </button>
               ))}
@@ -354,7 +495,12 @@ export function VideoCanvasView() {
                 {compareMode ? <X size={12} /> : <Columns2 size={12} />}
               </Button>
             )}
-            <Button variant="ghost" size="icon-sm" onClick={clearResults} title="Clear history">
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={clearResults}
+              title="Clear history"
+            >
               <Trash2 size={12} />
             </Button>
           </div>

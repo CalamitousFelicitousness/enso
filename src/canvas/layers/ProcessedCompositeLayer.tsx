@@ -10,10 +10,16 @@ interface ProcessedCompositeLayerProps {
   height: number;
 }
 
-export function ProcessedCompositeLayer({ offsetX, width, height }: ProcessedCompositeLayerProps) {
+export function ProcessedCompositeLayer({
+  offsetX,
+  width,
+  height,
+}: ProcessedCompositeLayerProps) {
   const units = useControlStore((s) => s.units);
   const compositeProcessed = useControlStore((s) => s.compositeProcessed);
-  const [displayImage, setDisplayImage] = useState<HTMLImageElement | HTMLCanvasElement | null>(null);
+  const [displayImage, setDisplayImage] = useState<
+    HTMLImageElement | HTMLCanvasElement | null
+  >(null);
   const prevKeyRef = useRef<string>("");
 
   // Collect per-unit processed data URLs (from manual preprocessing)
@@ -40,7 +46,10 @@ export function ProcessedCompositeLayer({ offsetX, width, height }: ProcessedCom
         // Backend composite: load single image directly
         const img = new window.Image();
         img.src = compositeProcessed;
-        await new Promise<void>((resolve) => { img.onload = () => resolve(); img.onerror = () => resolve(); });
+        await new Promise<void>((resolve) => {
+          img.onload = () => resolve();
+          img.onerror = () => resolve();
+        });
         if (!aborted.current && img.naturalWidth > 0) setDisplayImage(img);
         else if (!aborted.current) setDisplayImage(null);
         return;
@@ -52,7 +61,10 @@ export function ProcessedCompositeLayer({ offsetX, width, height }: ProcessedCom
         if (aborted.current) return;
         const img = new window.Image();
         img.src = src;
-        await new Promise<void>((resolve) => { img.onload = () => resolve(); img.onerror = () => resolve(); });
+        await new Promise<void>((resolve) => {
+          img.onload = () => resolve();
+          img.onerror = () => resolve();
+        });
         if (aborted.current) return;
         if (img.naturalWidth > 0) images.push(img);
       }
@@ -77,14 +89,23 @@ export function ProcessedCompositeLayer({ offsetX, width, height }: ProcessedCom
     };
 
     load();
-    return () => { aborted.current = true; };
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- srcsKey covers all source changes; width/height for canvas size
+    return () => {
+      aborted.current = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- srcsKey covers all source changes; width/height for canvas size
   }, [srcsKey, width, height]);
 
   return (
     <Layer>
       {displayImage && (
-        <KonvaImage image={displayImage} x={offsetX} y={0} width={width} height={height} listening={false} />
+        <KonvaImage
+          image={displayImage}
+          x={offsetX}
+          y={0}
+          width={width}
+          height={height}
+          listening={false}
+        />
       )}
       <Rect
         x={offsetX}

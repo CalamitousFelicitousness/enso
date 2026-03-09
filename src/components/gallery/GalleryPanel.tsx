@@ -26,8 +26,14 @@ function buildFolderTree(folders: BrowserFolder[]): FolderNode[] {
     // Find a parent: the longest path that is a prefix of this one
     let parent: FolderNode | null = null;
     for (const [candidatePath, candidateNode] of nodeMap) {
-      if (normPath.startsWith(candidatePath + "/") && normPath !== candidatePath) {
-        if (!parent || candidatePath.length > parent.folder.path.replace(/\/+$/, "").length) {
+      if (
+        normPath.startsWith(candidatePath + "/") &&
+        normPath !== candidatePath
+      ) {
+        if (
+          !parent ||
+          candidatePath.length > parent.folder.path.replace(/\/+$/, "").length
+        ) {
           parent = candidateNode;
         }
       }
@@ -61,7 +67,9 @@ function mergeDiscoveredSubdirs(
     }
 
     // Add discovered subdirs that aren't already represented as static children
-    const existingPaths = new Set(mergedChildren.map((c) => c.folder.path.replace(/\/+$/, "")));
+    const existingPaths = new Set(
+      mergedChildren.map((c) => c.folder.path.replace(/\/+$/, "")),
+    );
     const newChildren: FolderNode[] = [];
     for (const sub of subs) {
       const subNorm = sub.path.replace(/\/+$/, "");
@@ -85,7 +93,9 @@ export function GalleryPanel() {
   const [userExpanded, setUserExpanded] = useState<Set<string> | null>(null);
 
   // Dynamic subfolder state
-  const [discoveredSubdirs, setDiscoveredSubdirs] = useState<Map<string, BrowserSubdir[]>>(new Map());
+  const [discoveredSubdirs, setDiscoveredSubdirs] = useState<
+    Map<string, BrowserSubdir[]>
+  >(new Map());
   const [loadingSubdirs, setLoadingSubdirs] = useState<Set<string>>(new Set());
   const [leafPaths, setLeafPaths] = useState<Set<string>>(new Set());
 
@@ -116,54 +126,64 @@ export function GalleryPanel() {
     return toExpand;
   }, [userExpanded, folders, tree]);
 
-  const fetchSubdirs = useCallback(async (path: string) => {
-    const normPath = path.replace(/\/+$/, "");
+  const fetchSubdirs = useCallback(
+    async (path: string) => {
+      const normPath = path.replace(/\/+$/, "");
 
-    // Already discovered or currently loading
-    if (discoveredRef.current.has(normPath) || loadingSubdirs.has(normPath)) return;
+      // Already discovered or currently loading
+      if (discoveredRef.current.has(normPath) || loadingSubdirs.has(normPath))
+        return;
 
-    setLoadingSubdirs((prev) => new Set(prev).add(normPath));
-    try {
-      const subdirs = await api.get<BrowserSubdir[]>("/sdapi/v2/browser/subdirs", { folder: path });
-      setDiscoveredSubdirs((prev) => {
-        const next = new Map(prev);
-        next.set(normPath, subdirs);
-        return next;
-      });
-      if (subdirs.length === 0) {
+      setLoadingSubdirs((prev) => new Set(prev).add(normPath));
+      try {
+        const subdirs = await api.get<BrowserSubdir[]>(
+          "/sdapi/v2/browser/subdirs",
+          { folder: path },
+        );
+        setDiscoveredSubdirs((prev) => {
+          const next = new Map(prev);
+          next.set(normPath, subdirs);
+          return next;
+        });
+        if (subdirs.length === 0) {
+          setLeafPaths((prev) => new Set(prev).add(normPath));
+        }
+      } catch {
+        // On error, mark as leaf to suppress chevron
         setLeafPaths((prev) => new Set(prev).add(normPath));
+      } finally {
+        setLoadingSubdirs((prev) => {
+          const next = new Set(prev);
+          next.delete(normPath);
+          return next;
+        });
       }
-    } catch {
-      // On error, mark as leaf to suppress chevron
-      setLeafPaths((prev) => new Set(prev).add(normPath));
-    } finally {
-      setLoadingSubdirs((prev) => {
-        const next = new Set(prev);
-        next.delete(normPath);
-        return next;
-      });
-    }
-  }, [loadingSubdirs]);
+    },
+    [loadingSubdirs],
+  );
 
-  const toggleExpand = useCallback((path: string) => {
-    const normPath = path.replace(/\/+$/, "");
-    const isCurrentlyExpanded = expanded.has(path);
+  const toggleExpand = useCallback(
+    (path: string) => {
+      const normPath = path.replace(/\/+$/, "");
+      const isCurrentlyExpanded = expanded.has(path);
 
-    if (isCurrentlyExpanded) {
-      // Collapse
-      const next = new Set(expanded);
-      next.delete(path);
-      setUserExpanded(next);
-    } else {
-      // Expand - fetch subdirs if not yet discovered
-      if (!discoveredRef.current.has(normPath)) {
-        fetchSubdirs(path);
+      if (isCurrentlyExpanded) {
+        // Collapse
+        const next = new Set(expanded);
+        next.delete(path);
+        setUserExpanded(next);
+      } else {
+        // Expand - fetch subdirs if not yet discovered
+        if (!discoveredRef.current.has(normPath)) {
+          fetchSubdirs(path);
+        }
+        const next = new Set(expanded);
+        next.add(path);
+        setUserExpanded(next);
       }
-      const next = new Set(expanded);
-      next.add(path);
-      setUserExpanded(next);
-    }
-  }, [expanded, fetchSubdirs]);
+    },
+    [expanded, fetchSubdirs],
+  );
 
   const handleSelect = (path: string) => {
     setActiveFolder(activeFolder === path ? null : path);
@@ -173,6 +193,7 @@ export function GalleryPanel() {
     <div className="flex flex-col h-full">
       <div className="px-3 py-2 border-b border-border flex items-center gap-2">
         <FolderOpen size={14} className="text-muted-foreground" />
+
         <span className="text-xs font-medium">Gallery</span>
       </div>
 
@@ -199,7 +220,9 @@ export function GalleryPanel() {
             />
           ))}
           {folders && folders.length === 0 && (
-            <div className="text-xs text-muted-foreground text-center py-8">No output folders found</div>
+            <div className="text-xs text-muted-foreground text-center py-8">
+              No output folders found
+            </div>
           )}
         </div>
       </ScrollArea>
@@ -207,7 +230,17 @@ export function GalleryPanel() {
   );
 }
 
-function FolderTreeNode({ node, indent, activeFolder, expanded, loadingSubdirs, leafPaths, discoveredSubdirs, onSelect, onToggle }: {
+function FolderTreeNode({
+  node,
+  indent,
+  activeFolder,
+  expanded,
+  loadingSubdirs,
+  leafPaths,
+  discoveredSubdirs,
+  onSelect,
+  onToggle,
+}: {
   node: FolderNode;
   indent: number;
   activeFolder: string | null;
@@ -225,7 +258,10 @@ function FolderTreeNode({ node, indent, activeFolder, expanded, loadingSubdirs, 
 
   // A node has children if it has static children, discovered subdirs, or hasn't been explored yet
   const hasStaticChildren = node.children.length > 0;
-  const hasChildren = hasStaticChildren || (!isLeaf && !discoveredSubdirs.has(normPath)) || (discoveredSubdirs.get(normPath)?.length ?? 0) > 0;
+  const hasChildren =
+    hasStaticChildren ||
+    (!isLeaf && !discoveredSubdirs.has(normPath)) ||
+    (discoveredSubdirs.get(normPath)?.length ?? 0) > 0;
 
   return (
     <>
@@ -240,20 +276,22 @@ function FolderTreeNode({ node, indent, activeFolder, expanded, loadingSubdirs, 
         onSelect={() => onSelect(node.folder.path)}
         onToggle={() => onToggle(node.folder.path)}
       />
-      {isExpanded && node.children.map((child) => (
-        <FolderTreeNode
-          key={child.folder.path}
-          node={child}
-          indent={indent + 1}
-          activeFolder={activeFolder}
-          expanded={expanded}
-          loadingSubdirs={loadingSubdirs}
-          leafPaths={leafPaths}
-          discoveredSubdirs={discoveredSubdirs}
-          onSelect={onSelect}
-          onToggle={onToggle}
-        />
-      ))}
+
+      {isExpanded &&
+        node.children.map((child) => (
+          <FolderTreeNode
+            key={child.folder.path}
+            node={child}
+            indent={indent + 1}
+            activeFolder={activeFolder}
+            expanded={expanded}
+            loadingSubdirs={loadingSubdirs}
+            leafPaths={leafPaths}
+            discoveredSubdirs={discoveredSubdirs}
+            onSelect={onSelect}
+            onToggle={onToggle}
+          />
+        ))}
     </>
   );
 }

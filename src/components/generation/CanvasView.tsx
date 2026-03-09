@@ -31,78 +31,108 @@ export const CanvasView = memo(function CanvasView() {
 
   const layout = useControlFrameLayout();
 
-  const handleFile = useCallback(async (file: File) => {
-    if (!file.type.startsWith("image/")) return;
-    const base64 = await fileToBase64(file);
-    const objectUrl = URL.createObjectURL(file);
-    const img = new window.Image();
-    img.src = objectUrl;
-    await new Promise<void>((r) => { img.onload = () => r(); });
-    addImageLayer(file, base64, objectUrl, img.naturalWidth, img.naturalHeight);
-  }, [addImageLayer]);
+  const handleFile = useCallback(
+    async (file: File) => {
+      if (!file.type.startsWith("image/")) return;
+      const base64 = await fileToBase64(file);
+      const objectUrl = URL.createObjectURL(file);
+      const img = new window.Image();
+      img.src = objectUrl;
+      await new Promise<void>((r) => {
+        img.onload = () => r();
+      });
+      addImageLayer(
+        file,
+        base64,
+        objectUrl,
+        img.naturalWidth,
+        img.naturalHeight,
+      );
+    },
+    [addImageLayer],
+  );
 
   // Hit-test control frames, returning the unitIndex or -1 for canvas
-  const hitTestControlFrame = useCallback((e: React.DragEvent): number => {
-    const container = containerRef.current;
-    if (!container) return -1;
-    const rect = container.getBoundingClientRect();
-    const canvasX = (e.clientX - rect.left - viewport.x) / viewport.scale;
-    const canvasY = (e.clientY - rect.top - viewport.y) / viewport.scale;
-    for (const frame of layout.controlFrames) {
-      if (canvasX >= frame.x && canvasX <= frame.x + frame.width && canvasY >= frame.y && canvasY <= frame.y + frame.height) {
-        return frame.unitIndex;
+  const hitTestControlFrame = useCallback(
+    (e: React.DragEvent): number => {
+      const container = containerRef.current;
+      if (!container) return -1;
+      const rect = container.getBoundingClientRect();
+      const canvasX = (e.clientX - rect.left - viewport.x) / viewport.scale;
+      const canvasY = (e.clientY - rect.top - viewport.y) / viewport.scale;
+      for (const frame of layout.controlFrames) {
+        if (
+          canvasX >= frame.x &&
+          canvasX <= frame.x + frame.width &&
+          canvasY >= frame.y &&
+          canvasY <= frame.y + frame.height
+        ) {
+          return frame.unitIndex;
+        }
       }
-    }
-    return -1;
-  }, [viewport, layout.controlFrames]);
+      return -1;
+    },
+    [viewport, layout.controlFrames],
+  );
 
-  const handleCanvasFileDrop = useCallback((file: File, e: React.DragEvent) => {
-    const unit = hitTestControlFrame(e);
-    if (unit >= 0) {
-      setUnitImage(unit, file);
-      setUnitParam(unit, "processedImage", null);
-    } else {
-      handleFile(file);
-    }
-  }, [hitTestControlFrame, handleFile, setUnitImage, setUnitParam]);
+  const handleCanvasFileDrop = useCallback(
+    (file: File, e: React.DragEvent) => {
+      const unit = hitTestControlFrame(e);
+      if (unit >= 0) {
+        setUnitImage(unit, file);
+        setUnitParam(unit, "processedImage", null);
+      } else {
+        handleFile(file);
+      }
+    },
+    [hitTestControlFrame, handleFile, setUnitImage, setUnitParam],
+  );
 
   const { isOver, ...dropHandlers } = useDropTarget({
-    onDropPayload: useCallback((payload: DragPayload, e: React.DragEvent) => {
-      // Hit-test synchronously before the event is recycled by React
-      const unit = hitTestControlFrame(e);
-      payloadToFile(payload).then((f: File) => {
-        if (unit >= 0) {
-          setUnitImage(unit, f);
-          setUnitParam(unit, "processedImage", null);
-        } else {
-          handleFile(f);
-        }
-      }).catch(() => {});
-    }, [hitTestControlFrame, handleFile, setUnitImage, setUnitParam]),
+    onDropPayload: useCallback(
+      (payload: DragPayload, e: React.DragEvent) => {
+        // Hit-test synchronously before the event is recycled by React
+        const unit = hitTestControlFrame(e);
+        payloadToFile(payload)
+          .then((f: File) => {
+            if (unit >= 0) {
+              setUnitImage(unit, f);
+              setUnitParam(unit, "processedImage", null);
+            } else {
+              handleFile(f);
+            }
+          })
+          .catch(() => {});
+      },
+      [hitTestControlFrame, handleFile, setUnitImage, setUnitParam],
+    ),
     onFileDrop: handleCanvasFileDrop,
   });
 
-  const handleFileInput = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files || files.length === 0) {
+  const handleFileInput = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const files = e.target.files;
+      if (!files || files.length === 0) {
+        e.target.value = "";
+        setPendingUnitIndex(null);
+        return;
+      }
+      if (pendingUnitIndex !== null && pendingUnitIndex >= 0) {
+        // Control frame pick - single file
+        const file = files[0];
+        if (file) {
+          setUnitImage(pendingUnitIndex, file);
+          setUnitParam(pendingUnitIndex, "processedImage", null);
+        }
+      } else {
+        // Input frame pick - multiple files
+        for (const file of files) handleFile(file);
+      }
       e.target.value = "";
       setPendingUnitIndex(null);
-      return;
-    }
-    if (pendingUnitIndex !== null && pendingUnitIndex >= 0) {
-      // Control frame pick - single file
-      const file = files[0];
-      if (file) {
-        setUnitImage(pendingUnitIndex, file);
-        setUnitParam(pendingUnitIndex, "processedImage", null);
-      }
-    } else {
-      // Input frame pick - multiple files
-      for (const file of files) handleFile(file);
-    }
-    e.target.value = "";
-    setPendingUnitIndex(null);
-  }, [pendingUnitIndex, handleFile, setUnitImage, setUnitParam]);
+    },
+    [pendingUnitIndex, handleFile, setUnitImage, setUnitParam],
+  );
 
   const handleResetZoom = useCallback(() => {
     setViewport({ x: 0, y: 0, scale: 1 });
@@ -114,15 +144,18 @@ export const CanvasView = memo(function CanvasView() {
     clearMask();
   }, [clearLayers, clearMask]);
 
-  const handlePaste = useCallback((e: React.ClipboardEvent) => {
-    const items = e.clipboardData.items;
-    for (const item of items) {
-      if (item.type.startsWith("image/")) {
-        const file = item.getAsFile();
-        if (file) handleFile(file);
+  const handlePaste = useCallback(
+    (e: React.ClipboardEvent) => {
+      const items = e.clipboardData.items;
+      for (const item of items) {
+        if (item.type.startsWith("image/")) {
+          const file = item.getAsFile();
+          if (file) handleFile(file);
+        }
       }
-    }
-  }, [handleFile]);
+    },
+    [handleFile],
+  );
 
   const handlePickImage = useCallback((unitIndex: number) => {
     setPendingUnitIndex(unitIndex);
@@ -132,10 +165,13 @@ export const CanvasView = memo(function CanvasView() {
     }
   }, []);
 
-  const handleClearImage = useCallback((unitIndex: number) => {
-    setUnitImage(unitIndex, null);
-    setUnitParam(unitIndex, "processedImage", null);
-  }, [setUnitImage, setUnitParam]);
+  const handleClearImage = useCallback(
+    (unitIndex: number) => {
+      setUnitImage(unitIndex, null);
+      setUnitParam(unitIndex, "processedImage", null);
+    },
+    [setUnitImage, setUnitParam],
+  );
 
   return (
     <div
@@ -184,7 +220,12 @@ export const CanvasView = memo(function CanvasView() {
       {hasLayers && inputRole !== "reference" && <CanvasToolbar />}
 
       {/* Floating control panels (persistent, collapsible) */}
-      <ControlFramePanels layout={layout} onPickImage={handlePickImage} onClearImage={handleClearImage} onClearAll={handleClearAll} />
+      <ControlFramePanels
+        layout={layout}
+        onPickImage={handlePickImage}
+        onClearImage={handleClearImage}
+        onClearAll={handleClearAll}
+      />
 
       {/* Single file input for both input frame and control frame picks */}
       <input

@@ -16,7 +16,10 @@ interface VideoCanvasStageProps {
   onPickImage?: (which: "init" | "last") => void;
 }
 
-export function VideoCanvasStage({ layout, onPickImage }: VideoCanvasStageProps) {
+export function VideoCanvasStage({
+  layout,
+  onPickImage,
+}: VideoCanvasStageProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<Konva.Stage>(null);
   const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
@@ -36,7 +39,10 @@ export function VideoCanvasStage({ layout, onPickImage }: VideoCanvasStageProps)
     const ro = new ResizeObserver((entries) => {
       const entry = entries[0];
       if (entry) {
-        setContainerSize({ width: entry.contentRect.width, height: entry.contentRect.height });
+        setContainerSize({
+          width: entry.contentRect.width,
+          height: entry.contentRect.height,
+        });
       }
     });
     ro.observe(el);
@@ -57,18 +63,26 @@ export function VideoCanvasStage({ layout, onPickImage }: VideoCanvasStageProps)
     const availW = containerSize.width - PADDING * 2;
     const availH = containerSize.height - PADDING * 2;
     const scale = Math.min(availW / totalWidth, availH / totalHeight, 1);
-    const x = (containerSize.width - totalWidth * scale) / 2 - totalBounds.minX * scale;
-    const y = (containerSize.height - totalHeight * scale) / 2 + LABEL_HEIGHT * scale;
+    const x =
+      (containerSize.width - totalWidth * scale) / 2 - totalBounds.minX * scale;
+    const y =
+      (containerSize.height - totalHeight * scale) / 2 + LABEL_HEIGHT * scale;
     setViewport({ x, y, scale });
   }, [containerSize, frameW, frameH, totalBounds, setViewport]);
 
-  const onMouseDown = useCallback((e: Konva.KonvaEventObject<MouseEvent>) => {
-    panZoom.onMouseDown(e);
-  }, [panZoom]);
+  const onMouseDown = useCallback(
+    (e: Konva.KonvaEventObject<MouseEvent>) => {
+      panZoom.onMouseDown(e);
+    },
+    [panZoom],
+  );
 
-  const onMouseMove = useCallback((e: Konva.KonvaEventObject<MouseEvent>) => {
-    panZoom.onMouseMove(e);
-  }, [panZoom]);
+  const onMouseMove = useCallback(
+    (e: Konva.KonvaEventObject<MouseEvent>) => {
+      panZoom.onMouseMove(e);
+    },
+    [panZoom],
+  );
 
   const onMouseUp = useCallback(() => {
     panZoom.onMouseUp();
@@ -90,9 +104,27 @@ export function VideoCanvasStage({ layout, onPickImage }: VideoCanvasStageProps)
           onMouseMove={onMouseMove}
           onMouseUp={onMouseUp}
         >
-          <VideoFrameLayer which="init" offsetX={initX} width={displayW} height={displayH} onPickImage={() => onPickImage?.("init")} />
-          <VideoFrameLayer which="last" offsetX={lastX} width={displayW} height={displayH} onPickImage={() => onPickImage?.("last")} />
-          <VideoOutputFrame offsetX={outputX} width={displayW} height={displayH} />
+          <VideoFrameLayer
+            which="init"
+            offsetX={initX}
+            width={displayW}
+            height={displayH}
+            onPickImage={() => onPickImage?.("init")}
+          />
+
+          <VideoFrameLayer
+            which="last"
+            offsetX={lastX}
+            width={displayW}
+            height={displayH}
+            onPickImage={() => onPickImage?.("last")}
+          />
+
+          <VideoOutputFrame
+            offsetX={outputX}
+            width={displayW}
+            height={displayH}
+          />
         </Stage>
       )}
     </div>

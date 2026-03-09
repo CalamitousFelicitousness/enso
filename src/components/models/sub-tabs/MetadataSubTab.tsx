@@ -8,22 +8,40 @@ export function MetadataSubTab() {
 
   return (
     <div className="space-y-3">
-      <p className="text-xs text-muted-foreground">Fetch model preview metadata from CivitAI.</p>
+      <p className="text-xs text-muted-foreground">
+        Fetch model preview metadata from CivitAI.
+      </p>
 
       <div className="flex gap-2">
-        <Button size="sm" variant="secondary" onClick={() => scan.mutate()} disabled={scan.isPending} className="flex-1">
+        <Button
+          size="sm"
+          variant="secondary"
+          onClick={() => scan.mutate()}
+          disabled={scan.isPending}
+          className="flex-1"
+        >
           {scan.isPending && <Loader2 className="h-3 w-3 animate-spin mr-1" />}
           Scan missing
         </Button>
-        <Button size="sm" variant="secondary" onClick={() => update.mutate()} disabled={update.isPending} className="flex-1">
-          {update.isPending && <Loader2 className="h-3 w-3 animate-spin mr-1" />}
+        <Button
+          size="sm"
+          variant="secondary"
+          onClick={() => update.mutate()}
+          disabled={update.isPending}
+          className="flex-1"
+        >
+          {update.isPending && (
+            <Loader2 className="h-3 w-3 animate-spin mr-1" />
+          )}
           Update all
         </Button>
       </div>
 
       {scan.data && scan.data.results.length > 0 && (
         <div className="space-y-1">
-          <p className="text-xs font-medium">Scan results ({scan.data.results.length})</p>
+          <p className="text-xs font-medium">
+            Scan results ({scan.data.results.length})
+          </p>
           <div className="border border-border rounded-md overflow-auto max-h-75">
             <table className="w-full text-2xs">
               <thead>
@@ -36,10 +54,15 @@ export function MetadataSubTab() {
               </thead>
               <tbody>
                 {scan.data.results.map((r, i) => (
-                  <tr key={i} className="border-b border-border/50 hover:bg-muted/30">
+                  <tr
+                    key={i}
+                    className="border-b border-border/50 hover:bg-muted/30"
+                  >
                     <td className="px-2 py-1 truncate max-w-30">{r.name}</td>
                     <td className="px-2 py-1">{r.type}</td>
-                    <td className="px-2 py-1 font-mono">{r.hash?.slice(0, 10) ?? "-"}</td>
+                    <td className="px-2 py-1 font-mono">
+                      {r.hash?.slice(0, 10) ?? "-"}
+                    </td>
                     <td className="px-2 py-1 truncate max-w-25">{r.note}</td>
                   </tr>
                 ))}
@@ -51,7 +74,9 @@ export function MetadataSubTab() {
 
       {update.data && update.data.results.length > 0 && (
         <div className="space-y-1">
-          <p className="text-xs font-medium">Update results ({update.data.results.length})</p>
+          <p className="text-xs font-medium">
+            Update results ({update.data.results.length})
+          </p>
           <div className="border border-border rounded-md overflow-auto max-h-75">
             <table className="w-full text-2xs">
               <thead>
@@ -64,10 +89,17 @@ export function MetadataSubTab() {
               </thead>
               <tbody>
                 {update.data.results.map((r, i) => (
-                  <tr key={i} className="border-b border-border/50 hover:bg-muted/30">
-                    <td className="px-2 py-1 truncate max-w-30">{r.name ?? r.file}</td>
+                  <tr
+                    key={i}
+                    className="border-b border-border/50 hover:bg-muted/30"
+                  >
+                    <td className="px-2 py-1 truncate max-w-30">
+                      {r.name ?? r.file}
+                    </td>
                     <td className="px-2 py-1">{r.versions ?? "-"}</td>
-                    <td className="px-2 py-1 truncate max-w-20">{r.latest ?? "-"}</td>
+                    <td className="px-2 py-1 truncate max-w-20">
+                      {r.latest ?? "-"}
+                    </td>
                     <td className="px-2 py-1">{r.status ?? "-"}</td>
                   </tr>
                 ))}

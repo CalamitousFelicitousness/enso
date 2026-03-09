@@ -13,8 +13,16 @@ interface VideoFrameLayerProps {
   onPickImage?: () => void;
 }
 
-export function VideoFrameLayer({ which, offsetX, width, height, onPickImage }: VideoFrameLayerProps) {
-  const frame = useVideoCanvasStore((s) => (which === "init" ? s.initFrame : s.lastFrame));
+export function VideoFrameLayer({
+  which,
+  offsetX,
+  width,
+  height,
+  onPickImage,
+}: VideoFrameLayerProps) {
+  const frame = useVideoCanvasStore((s) =>
+    which === "init" ? s.initFrame : s.lastFrame,
+  );
   const [image, setImage] = useState<HTMLImageElement | null>(null);
 
   const objectUrl = frame?.objectUrl;
@@ -31,10 +39,13 @@ export function VideoFrameLayer({ which, offsetX, width, height, onPickImage }: 
 
   const hasImage = !!frame && !!image;
 
-  const handleClick = useCallback((e: import("konva/lib/Node").KonvaEventObject<MouseEvent>) => {
-    if (e.evt.button !== 0) return;
-    if (!hasImage && onPickImage) onPickImage();
-  }, [hasImage, onPickImage]);
+  const handleClick = useCallback(
+    (e: import("konva/lib/Node").KonvaEventObject<MouseEvent>) => {
+      if (e.evt.button !== 0) return;
+      if (!hasImage && onPickImage) onPickImage();
+    },
+    [hasImage, onPickImage],
+  );
 
   const handleTap = useCallback(() => {
     if (!hasImage && onPickImage) onPickImage();
@@ -46,8 +57,10 @@ export function VideoFrameLayer({ which, offsetX, width, height, onPickImage }: 
         {/* Dark background when empty - clickable */}
         {!hasImage && (
           <Rect
-            x={0} y={0}
-            width={width} height={height}
+            x={0}
+            y={0}
+            width={width}
+            height={height}
             fill="#1a1a1a"
             listening={true}
             onClick={handleClick}
@@ -73,16 +86,20 @@ export function VideoFrameLayer({ which, offsetX, width, height, onPickImage }: 
         {hasImage && (
           <KonvaImage
             image={image}
-            x={0} y={0}
-            width={width} height={height}
+            x={0}
+            y={0}
+            width={width}
+            height={height}
             listening={false}
           />
         )}
 
         {/* Border */}
         <Rect
-          x={0} y={0}
-          width={width} height={height}
+          x={0}
+          y={0}
+          width={width}
+          height={height}
           stroke={hasImage ? ACTIVE_COLOR : INACTIVE_COLOR}
           strokeWidth={2}
           dash={hasImage ? undefined : [8, 4]}

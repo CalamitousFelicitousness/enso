@@ -4,7 +4,11 @@ import type { OptionsMap } from "@/api/types/settings";
 import { SettingControl } from "./SettingControl";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
+import {
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent,
+} from "@/components/ui/tooltip";
 import { getParamHelp } from "@/data/parameterHelp";
 import { cn } from "@/lib/utils";
 import { highlightMatch } from "@/lib/highlightMatch";
@@ -20,7 +24,15 @@ interface SettingsSectionProps {
   onNavigateToSection?: (id: string) => void;
 }
 
-export function SettingsSection({ section, values, dirty, onSettingChange, dynamicChoices, searchQuery, onNavigateToSection }: SettingsSectionProps) {
+export function SettingsSection({
+  section,
+  values,
+  dirty,
+  onSettingChange,
+  dynamicChoices,
+  searchQuery,
+  onNavigateToSection,
+}: SettingsSectionProps) {
   const getSettingValue = useCallback(
     (key: string) => dirty[key] ?? values[key],
     [dirty, values],
@@ -34,10 +46,15 @@ export function SettingsSection({ section, values, dirty, onSettingChange, dynam
           onClick={() => onNavigateToSection(section.id)}
           className="text-sm font-semibold text-primary hover:underline text-left"
         >
-          {section.title} <span className="text-3xs font-normal text-muted-foreground">(go to section)</span>
+          {section.title}{" "}
+          <span className="text-3xs font-normal text-muted-foreground">
+            (go to section)
+          </span>
         </button>
       ) : (
-        <h2 className="text-sm font-semibold text-foreground">{section.title}</h2>
+        <h2 className="text-sm font-semibold text-foreground">
+          {section.title}
+        </h2>
       )}
       <div className="space-y-3">
         {section.settings.map((setting) => {
@@ -45,37 +62,70 @@ export function SettingsSection({ section, values, dirty, onSettingChange, dynam
             return (
               <div key={setting.key} className="pt-3 first:pt-0">
                 <div className="border-b border-primary/30 pb-1">
-                  <h3 className="text-sm font-semibold text-primary">{setting.label}</h3>
+                  <h3 className="text-sm font-semibold text-primary">
+                    {setting.label}
+                  </h3>
                 </div>
               </div>
             );
           }
-          const currentValue = dirty[setting.key] ?? values[setting.key] ?? setting.defaultValue;
+          const currentValue =
+            dirty[setting.key] ?? values[setting.key] ?? setting.defaultValue;
           const isDirty = setting.key in dirty;
-          const inline = setting.component === "switch" || setting.component === "number" || setting.component === "color";
+          const inline =
+            setting.component === "switch" ||
+            setting.component === "number" ||
+            setting.component === "color";
           const helpText = getParamHelp(setting.label);
           const labelEl = (
-            <Label className={cn("text-xs font-medium flex items-center gap-1.5", helpText && "cursor-help")}>
+            <Label
+              className={cn(
+                "text-xs font-medium flex items-center gap-1.5",
+                helpText && "cursor-help",
+              )}
+            >
               {highlightMatch(setting.label, searchQuery ?? "")}
-              {isDirty && <Badge variant="outline" className="text-4xs px-1 py-0 h-3.5 text-primary border-primary/30">modified</Badge>}
+              {isDirty && (
+                <Badge
+                  variant="outline"
+                  className="text-4xs px-1 py-0 h-3.5 text-primary border-primary/30"
+                >
+                  modified
+                </Badge>
+              )}
               {isDirty && setting.defaultValue !== undefined && (
                 <button
-                  onClick={() => onSettingChange(setting.key, setting.defaultValue)}
+                  onClick={() =>
+                    onSettingChange(setting.key, setting.defaultValue)
+                  }
                   className="text-muted-foreground hover:text-primary transition-colors"
                   title="Restore default"
                 >
                   <RotateCcw size={10} />
                 </button>
               )}
-              {setting.requiresRestart && <Badge variant="outline" className="text-4xs px-1 py-0 h-3.5 text-amber-500 border-amber-500/30">restart</Badge>}
+              {setting.requiresRestart && (
+                <Badge
+                  variant="outline"
+                  className="text-4xs px-1 py-0 h-3.5 text-amber-500 border-amber-500/30"
+                >
+                  restart
+                </Badge>
+              )}
             </Label>
           );
+
           const labelBlock = helpText ? (
             <Tooltip>
               <TooltipTrigger asChild>{labelEl}</TooltipTrigger>
-              <TooltipContent><span dangerouslySetInnerHTML={{ __html: helpText }} /></TooltipContent>
+              <TooltipContent>
+                <span dangerouslySetInnerHTML={{ __html: helpText }} />
+              </TooltipContent>
             </Tooltip>
-          ) : labelEl;
+          ) : (
+            labelEl
+          );
+
           const controlBlock = (
             <SettingControl
               setting={setting}
@@ -85,14 +135,24 @@ export function SettingsSection({ section, values, dirty, onSettingChange, dynam
               getSettingValue={getSettingValue}
             />
           );
+
           const indented = !!setting.baseFolderKey;
           return inline ? (
-            <div key={setting.key} className={cn("flex items-center justify-between gap-3", indented && "pl-4")}>
+            <div
+              key={setting.key}
+              className={cn(
+                "flex items-center justify-between gap-3",
+                indented && "pl-4",
+              )}
+            >
               {labelBlock}
               {controlBlock}
             </div>
           ) : (
-            <div key={setting.key} className={cn("flex flex-col gap-1", indented && "pl-4")}>
+            <div
+              key={setting.key}
+              className={cn("flex flex-col gap-1", indented && "pl-4")}
+            >
               {labelBlock}
               {controlBlock}
             </div>

@@ -6,26 +6,34 @@ import { SideBySideMode } from "./SideBySideMode";
 import { SwipeMode } from "./SwipeMode";
 import { OverlayMode } from "./OverlayMode";
 import { DiffMode } from "./DiffMode";
-import { X, Columns2, SplitSquareHorizontal, Layers, Grid2x2, ArrowLeftRight } from "lucide-react";
+import {
+  X,
+  Columns2,
+  SplitSquareHorizontal,
+  Layers,
+  Grid2x2,
+  ArrowLeftRight,
+} from "lucide-react";
 
 const MODE_ICONS: Record<ComparisonMode, typeof Columns2> = {
   "side-by-side": Columns2,
-  "swipe": SplitSquareHorizontal,
-  "overlay": Layers,
-  "diff": Grid2x2,
+  swipe: SplitSquareHorizontal,
+  overlay: Layers,
+  diff: Grid2x2,
 };
 
 const MODE_LABELS: Record<ComparisonMode, string> = {
   "side-by-side": "Side by Side",
-  "swipe": "Swipe",
-  "overlay": "Overlay",
-  "diff": "Pixel Diff",
+  swipe: "Swipe",
+  overlay: "Overlay",
+  diff: "Pixel Diff",
 };
 
 const MODES: ComparisonMode[] = ["side-by-side", "swipe", "overlay", "diff"];
 
 export function ComparisonView() {
-  const { open, mode, imageA, imageB, closeComparison, setMode, swapImages } = useComparisonStore();
+  const { open, mode, imageA, imageB, closeComparison, setMode, swapImages } =
+    useComparisonStore();
 
   useShortcutScope("comparison", open);
   useShortcut("comparison-close", closeComparison, open);
@@ -38,7 +46,10 @@ export function ComparisonView() {
   if (!open || !imageA || !imageB) return null;
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/95 flex flex-col" onClick={closeComparison}>
+    <div
+      className="fixed inset-0 z-50 bg-black/95 flex flex-col"
+      onClick={closeComparison}
+    >
       {/* Top toolbar */}
       <div
         className="flex items-center justify-between px-4 py-2 flex-shrink-0"
@@ -78,7 +89,9 @@ export function ComparisonView() {
 
       {/* Content */}
       <div className="flex-1 min-h-0" onClick={(e) => e.stopPropagation()}>
-        {mode === "side-by-side" && <SideBySideMode imageA={imageA} imageB={imageB} />}
+        {mode === "side-by-side" && (
+          <SideBySideMode imageA={imageA} imageB={imageB} />
+        )}
         {mode === "swipe" && <SwipeMode imageA={imageA} imageB={imageB} />}
         {mode === "overlay" && <OverlayMode imageA={imageA} imageB={imageB} />}
         {mode === "diff" && <DiffMode imageA={imageA} imageB={imageB} />}
@@ -97,7 +110,15 @@ export function ComparisonView() {
   );
 }
 
-function ToolbarButton({ children, onClick, title }: { children: React.ReactNode; onClick: () => void; title: string }) {
+function ToolbarButton({
+  children,
+  onClick,
+  title,
+}: {
+  children: React.ReactNode;
+  onClick: () => void;
+  title: string;
+}) {
   return (
     <button
       onClick={onClick}

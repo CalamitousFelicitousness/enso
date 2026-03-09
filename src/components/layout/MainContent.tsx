@@ -12,7 +12,9 @@ function UnavailablePlaceholder({ label }: { label: string }) {
   return (
     <div className="flex flex-col items-center justify-center h-full gap-3 text-muted-foreground">
       <VideoOff size={48} strokeWidth={1} />
-      <p className="text-sm">{label} requires additional models to be installed.</p>
+      <p className="text-sm">
+        {label} requires additional models to be installed.
+      </p>
     </div>
   );
 }
@@ -22,7 +24,11 @@ export function MainContent() {
   const capabilities = useCapabilities();
 
   const navItem = NAV_ITEMS.find((n) => n.id === activeView);
-  if (navItem?.capability && capabilities && !capabilities[navItem.capability]) {
+  if (
+    navItem?.capability &&
+    capabilities &&
+    !capabilities[navItem.capability]
+  ) {
     return <UnavailablePlaceholder label={navItem.label} />;
   }
 

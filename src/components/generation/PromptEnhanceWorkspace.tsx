@@ -13,7 +13,13 @@ interface PromptEnhanceWorkspaceProps {
   onSelectPrompt?: (prompt: string) => void;
 }
 
-export function PromptEnhanceWorkspace({ onEnhance, isPending, onClose, onAccept, onSelectPrompt }: PromptEnhanceWorkspaceProps) {
+export function PromptEnhanceWorkspace({
+  onEnhance,
+  isPending,
+  onClose,
+  onAccept,
+  onSelectPrompt,
+}: PromptEnhanceWorkspaceProps) {
   const pinned = usePromptEnhanceStore((s) => s.pinned);
   const setPinned = usePromptEnhanceStore((s) => s.setPinned);
   const pendingResult = usePromptEnhanceStore((s) => s.pendingResult);
@@ -31,7 +37,11 @@ export function PromptEnhanceWorkspace({ onEnhance, isPending, onClose, onAccept
           className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
           title="Enhance prompt"
         >
-          {isPending ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} />}
+          {isPending ? (
+            <Loader2 size={13} className="animate-spin" />
+          ) : (
+            <Sparkles size={13} />
+          )}
         </button>
         <button
           type="button"
@@ -54,7 +64,12 @@ export function PromptEnhanceWorkspace({ onEnhance, isPending, onClose, onAccept
       {/* Preview */}
       {pendingResult && (
         <>
-          <PromptEnhancePreview onEnhance={onEnhance} isPending={isPending} onAccept={onAccept} />
+          <PromptEnhancePreview
+            onEnhance={onEnhance}
+            isPending={isPending}
+            onAccept={onAccept}
+          />
+
           <Separator />
         </>
       )}

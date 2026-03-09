@@ -1,6 +1,13 @@
 import { useState } from "react";
 import { useBrowserFolders } from "@/api/hooks/useGallery";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { FolderInput, FolderOpen, Loader2 } from "lucide-react";
@@ -14,7 +21,13 @@ interface MoveToDialogProps {
   onCancel: () => void;
 }
 
-export function MoveToDialog({ open, count, isPending, onConfirm, onCancel }: MoveToDialogProps) {
+export function MoveToDialog({
+  open,
+  count,
+  isPending,
+  onConfirm,
+  onCancel,
+}: MoveToDialogProps) {
   const { data: folders, isLoading } = useBrowserFolders();
   const [selected, setSelected] = useState<string | null>(null);
 
@@ -30,15 +43,14 @@ export function MoveToDialog({ open, count, isPending, onConfirm, onCancel }: Mo
             <FolderInput size={18} />
             Move {count} {count === 1 ? "file" : "files"}
           </DialogTitle>
-          <DialogDescription>
-            Select a destination folder.
-          </DialogDescription>
+          <DialogDescription>Select a destination folder.</DialogDescription>
         </DialogHeader>
         <ScrollArea className="max-h-64 border rounded-md">
           <div className="p-1.5 space-y-0.5">
             {isLoading && (
               <div className="flex items-center justify-center py-4 text-muted-foreground gap-2">
                 <Loader2 size={14} className="animate-spin" />
+
                 <span className="text-xs">Loading folders...</span>
               </div>
             )}
@@ -53,14 +65,20 @@ export function MoveToDialog({ open, count, isPending, onConfirm, onCancel }: Mo
                     : "hover:bg-accent text-foreground border border-transparent",
                 )}
               >
-                <FolderOpen size={14} className="flex-shrink-0 text-muted-foreground" />
+                <FolderOpen
+                  size={14}
+                  className="flex-shrink-0 text-muted-foreground"
+                />
+
                 <span className="truncate">{f.label}</span>
               </button>
             ))}
           </div>
         </ScrollArea>
         <DialogFooter>
-          <Button variant="outline" onClick={onCancel} disabled={isPending}>Cancel</Button>
+          <Button variant="outline" onClick={onCancel} disabled={isPending}>
+            Cancel
+          </Button>
           <Button onClick={handleConfirm} disabled={isPending || !selected}>
             {isPending ? "Moving..." : "Move"}
           </Button>

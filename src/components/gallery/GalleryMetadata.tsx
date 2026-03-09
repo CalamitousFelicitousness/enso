@@ -2,12 +2,24 @@ import { useMemo, useState } from "react";
 import { useGalleryStore } from "@/stores/galleryStore";
 import { useGenerationStore } from "@/stores/generationStore";
 import { parseGenerationInfo } from "@/lib/parseGenerationInfo";
-import { sendImageToCanvas, sendPromptToGeneration, fetchRemoteImage } from "@/lib/sendTo";
+import {
+  sendImageToCanvas,
+  sendPromptToGeneration,
+  fetchRemoteImage,
+} from "@/lib/sendTo";
 import { isVideoFile } from "@/lib/mediaType";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
-import { Copy, Download, ExternalLink, ImageIcon, Check, Paintbrush, Wand2 } from "lucide-react";
+import {
+  Copy,
+  Download,
+  ExternalLink,
+  ImageIcon,
+  Check,
+  Paintbrush,
+  Wand2,
+} from "lucide-react";
 
 interface VideoMeta {
   codec: string;
@@ -25,10 +37,19 @@ function parseVideoExif(exif: string): VideoMeta | null {
     const [key, ...rest] = trimmed.split(":");
     const val = rest.join(":").trim();
     const k = key.trim().toLowerCase();
-    if (k === "codec") { result.codec = val; matched = true; }
-    else if (k === "frames") { result.frames = val; matched = true; }
-    else if (k === "duration") { result.duration = val; matched = true; }
-    else if (k === "fps") { result.fps = val; matched = true; }
+    if (k === "codec") {
+      result.codec = val;
+      matched = true;
+    } else if (k === "frames") {
+      result.frames = val;
+      matched = true;
+    } else if (k === "duration") {
+      result.duration = val;
+      matched = true;
+    } else if (k === "fps") {
+      result.fps = val;
+      matched = true;
+    }
   }
   return matched ? result : null;
 }
@@ -67,7 +88,8 @@ export function GalleryMetadata() {
     );
   }
 
-  const filename = selectedFile.relativePath.split("/").pop() ?? selectedFile.relativePath;
+  const filename =
+    selectedFile.relativePath.split("/").pop() ?? selectedFile.relativePath;
   const fullUrl = `/file=${selectedFile.fullPath}`;
 
   const formatSize = (bytes: number) => {
@@ -92,14 +114,17 @@ export function GalleryMetadata() {
 
   const copyNegativeToGeneration = () => {
     if (genInfo.negativePrompt) {
-      useGenerationStore.getState().setParam("negativePrompt", genInfo.negativePrompt);
+      useGenerationStore
+        .getState()
+        .setParam("negativePrompt", genInfo.negativePrompt);
     }
   };
 
   const useAllSettings = () => {
     const gen = useGenerationStore.getState();
     if (genInfo.prompt) gen.setParam("prompt", genInfo.prompt);
-    if (genInfo.negativePrompt) gen.setParam("negativePrompt", genInfo.negativePrompt);
+    if (genInfo.negativePrompt)
+      gen.setParam("negativePrompt", genInfo.negativePrompt);
     const updates: Record<string, unknown> = {};
     for (const [paramKey, storeKey] of Object.entries(PARAM_TO_STORE_KEY)) {
       const val = genInfo.params[paramKey];
@@ -108,7 +133,8 @@ export function GalleryMetadata() {
         updates[storeKey] = Number.isNaN(num) ? val : num;
       }
     }
-    if (Object.keys(updates).length > 0) gen.setParams(updates as Partial<typeof gen>);
+    if (Object.keys(updates).length > 0)
+      gen.setParams(updates as Partial<typeof gen>);
   };
 
   const handleSendToCanvas = async () => {
@@ -120,7 +146,8 @@ export function GalleryMetadata() {
     sendPromptToGeneration(genInfo.prompt, genInfo.negativePrompt || undefined);
   };
 
-  const hasGenParams = !isVideo && (genInfo.prompt || Object.keys(genInfo.params).length > 0);
+  const hasGenParams =
+    !isVideo && (genInfo.prompt || Object.keys(genInfo.params).length > 0);
 
   return (
     <ScrollArea className="h-full">
@@ -146,12 +173,22 @@ export function GalleryMetadata() {
 
         {/* File info */}
         <div>
-          <h3 className="text-3xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">File</h3>
+          <h3 className="text-3xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">
+            File
+          </h3>
           <div className="space-y-1">
             <MetaRow label="Name" value={filename} copyable />
+
             <MetaRow label="Size" value={formatSize(selectedThumb.size)} />
-            <MetaRow label="Dimensions" value={`${selectedThumb.width} x ${selectedThumb.height}`} copyable />
+
+            <MetaRow
+              label="Dimensions"
+              value={`${selectedThumb.width} x ${selectedThumb.height}`}
+              copyable
+            />
+
             <MetaRow label="Modified" value={formatDate(selectedThumb.mtime)} />
+
             <MetaRow label="Path" value={selectedFile.relativePath} copyable />
           </div>
         </div>
@@ -161,12 +198,20 @@ export function GalleryMetadata() {
           <>
             <Separator />
             <div>
-              <h3 className="text-3xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Video</h3>
+              <h3 className="text-3xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">
+                Video
+              </h3>
               <div className="space-y-1">
-                {videoMeta.duration && <MetaRow label="Duration" value={videoMeta.duration} />}
+                {videoMeta.duration && (
+                  <MetaRow label="Duration" value={videoMeta.duration} />
+                )}
                 {videoMeta.fps && <MetaRow label="FPS" value={videoMeta.fps} />}
-                {videoMeta.frames && <MetaRow label="Frames" value={videoMeta.frames} />}
-                {videoMeta.codec && <MetaRow label="Codec" value={videoMeta.codec} />}
+                {videoMeta.frames && (
+                  <MetaRow label="Frames" value={videoMeta.frames} />
+                )}
+                {videoMeta.codec && (
+                  <MetaRow label="Codec" value={videoMeta.codec} />
+                )}
               </div>
             </div>
           </>
@@ -178,13 +223,24 @@ export function GalleryMetadata() {
             <Separator />
             <div>
               <div className="flex items-center justify-between mb-1.5">
-                <h3 className="text-3xs font-semibold text-muted-foreground uppercase tracking-wider">Prompt</h3>
+                <h3 className="text-3xs font-semibold text-muted-foreground uppercase tracking-wider">
+                  Prompt
+                </h3>
                 <div className="flex gap-0.5">
-                  <SmallButton onClick={() => copyToClipboard(genInfo.prompt)} title="Copy"><Copy size={10} /></SmallButton>
-                  <SmallButton onClick={copyPromptToGeneration} title="Use">Use</SmallButton>
+                  <SmallButton
+                    onClick={() => copyToClipboard(genInfo.prompt)}
+                    title="Copy"
+                  >
+                    <Copy size={10} />
+                  </SmallButton>
+                  <SmallButton onClick={copyPromptToGeneration} title="Use">
+                    Use
+                  </SmallButton>
                 </div>
               </div>
-              <p className="text-2xs text-foreground leading-relaxed break-words">{genInfo.prompt}</p>
+              <p className="text-2xs text-foreground leading-relaxed break-words">
+                {genInfo.prompt}
+              </p>
             </div>
           </>
         )}
@@ -192,13 +248,24 @@ export function GalleryMetadata() {
         {!isVideo && genInfo.negativePrompt && (
           <div>
             <div className="flex items-center justify-between mb-1.5">
-              <h3 className="text-3xs font-semibold text-muted-foreground uppercase tracking-wider">Negative</h3>
+              <h3 className="text-3xs font-semibold text-muted-foreground uppercase tracking-wider">
+                Negative
+              </h3>
               <div className="flex gap-0.5">
-                <SmallButton onClick={() => copyToClipboard(genInfo.negativePrompt)} title="Copy"><Copy size={10} /></SmallButton>
-                <SmallButton onClick={copyNegativeToGeneration} title="Use">Use</SmallButton>
+                <SmallButton
+                  onClick={() => copyToClipboard(genInfo.negativePrompt)}
+                  title="Copy"
+                >
+                  <Copy size={10} />
+                </SmallButton>
+                <SmallButton onClick={copyNegativeToGeneration} title="Use">
+                  Use
+                </SmallButton>
               </div>
             </div>
-            <p className="text-2xs text-foreground/70 leading-relaxed break-words">{genInfo.negativePrompt}</p>
+            <p className="text-2xs text-foreground/70 leading-relaxed break-words">
+              {genInfo.negativePrompt}
+            </p>
           </div>
         )}
 
@@ -206,7 +273,9 @@ export function GalleryMetadata() {
           <>
             <Separator />
             <div>
-              <h3 className="text-3xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Parameters</h3>
+              <h3 className="text-3xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">
+                Parameters
+              </h3>
               <div className="space-y-0.5">
                 {Object.entries(genInfo.params).map(([key, value]) => (
                   <MetaRow key={key} label={key} value={value} copyable />
@@ -221,26 +290,51 @@ export function GalleryMetadata() {
         {/* Actions */}
         <div className="space-y-1.5">
           {hasGenParams && (
-            <Button variant="outline" size="sm" className="w-full h-6 text-2xs justify-start gap-2" onClick={useAllSettings}>
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full h-6 text-2xs justify-start gap-2"
+              onClick={useAllSettings}
+            >
               <Wand2 size={12} /> Use all settings
             </Button>
           )}
           {!isVideo && (
-            <Button variant="outline" size="sm" className="w-full h-6 text-2xs justify-start gap-2" onClick={handleSendToCanvas}>
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full h-6 text-2xs justify-start gap-2"
+              onClick={handleSendToCanvas}
+            >
               <Paintbrush size={12} /> Send to canvas
             </Button>
           )}
           {hasGenParams && (
-            <Button variant="outline" size="sm" className="w-full h-6 text-2xs justify-start gap-2" onClick={handleSendToImg2Img}>
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full h-6 text-2xs justify-start gap-2"
+              onClick={handleSendToImg2Img}
+            >
               <ImageIcon size={12} /> Send prompt to generation
             </Button>
           )}
-          <Button variant="outline" size="sm" className="w-full h-6 text-2xs justify-start gap-2" asChild>
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full h-6 text-2xs justify-start gap-2"
+            asChild
+          >
             <a href={fullUrl} target="_blank" rel="noopener noreferrer">
               <ExternalLink size={12} /> Open full size
             </a>
           </Button>
-          <Button variant="outline" size="sm" className="w-full h-6 text-2xs justify-start gap-2" asChild>
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full h-6 text-2xs justify-start gap-2"
+            asChild
+          >
             <a href={fullUrl} download={filename}>
               <Download size={12} /> Download
             </a>
@@ -251,7 +345,15 @@ export function GalleryMetadata() {
   );
 }
 
-function MetaRow({ label, value, copyable }: { label: string; value: string; copyable?: boolean }) {
+function MetaRow({
+  label,
+  value,
+  copyable,
+}: {
+  label: string;
+  value: string;
+  copyable?: boolean;
+}) {
   const [copied, setCopied] = useState(false);
 
   const handleCopy = () => {
@@ -262,7 +364,9 @@ function MetaRow({ label, value, copyable }: { label: string; value: string; cop
 
   return (
     <div className="group/row flex items-start gap-2">
-      <span className="text-3xs text-muted-foreground w-16 flex-shrink-0">{label}</span>
+      <span className="text-3xs text-muted-foreground w-16 flex-shrink-0">
+        {label}
+      </span>
       <span className="text-2xs text-foreground break-all flex-1">{value}</span>
       {copyable && (
         <button
@@ -270,14 +374,26 @@ function MetaRow({ label, value, copyable }: { label: string; value: string; cop
           className="opacity-0 group-hover/row:opacity-100 p-0.5 rounded text-muted-foreground hover:text-foreground transition-opacity flex-shrink-0"
           title="Copy"
         >
-          {copied ? <Check size={10} className="text-green-500" /> : <Copy size={10} />}
+          {copied ? (
+            <Check size={10} className="text-green-500" />
+          ) : (
+            <Copy size={10} />
+          )}
         </button>
       )}
     </div>
   );
 }
 
-function SmallButton({ children, onClick, title }: { children: React.ReactNode; onClick: () => void; title?: string }) {
+function SmallButton({
+  children,
+  onClick,
+  title,
+}: {
+  children: React.ReactNode;
+  onClick: () => void;
+  title?: string;
+}) {
   return (
     <button
       onClick={onClick}

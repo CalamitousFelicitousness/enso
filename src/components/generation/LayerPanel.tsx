@@ -1,5 +1,9 @@
 import { useCallback, useRef } from "react";
-import { useCanvasStore, type ImageLayer, type MaskObjectLayer } from "@/stores/canvasStore";
+import {
+  useCanvasStore,
+  type ImageLayer,
+  type MaskObjectLayer,
+} from "@/stores/canvasStore";
 import { useGenerationStore } from "@/stores/generationStore";
 import { fileToBase64 } from "@/lib/image";
 import { Eye, EyeOff, X, Plus, Frame, Lock, Unlock } from "lucide-react";
@@ -9,10 +13,25 @@ import { cn } from "@/lib/utils";
 function LayerDims({ layer }: { layer: ImageLayer }) {
   const canvasW = Math.round(Math.abs(layer.naturalWidth * layer.scaleX));
   const canvasH = Math.round(Math.abs(layer.naturalHeight * layer.scaleY));
-  const isTransformed = canvasW !== layer.naturalWidth || canvasH !== layer.naturalHeight;
+  const isTransformed =
+    canvasW !== layer.naturalWidth || canvasH !== layer.naturalHeight;
   return (
-    <p className="text-4xs text-muted-foreground" title={`Native: ${layer.naturalWidth}×${layer.naturalHeight}`}>
-      {isTransformed ? <>{canvasW}&times;{canvasH} <span className="opacity-50">({layer.naturalWidth}&times;{layer.naturalHeight})</span></> : <>{layer.naturalWidth}&times;{layer.naturalHeight}</>}
+    <p
+      className="text-4xs text-muted-foreground"
+      title={`Native: ${layer.naturalWidth}×${layer.naturalHeight}`}
+    >
+      {isTransformed ? (
+        <>
+          {canvasW}&times;{canvasH}{" "}
+          <span className="opacity-50">
+            ({layer.naturalWidth}&times;{layer.naturalHeight})
+          </span>
+        </>
+      ) : (
+        <>
+          {layer.naturalWidth}&times;{layer.naturalHeight}
+        </>
+      )}
     </p>
   );
 }
@@ -28,25 +47,41 @@ export function LayerPanel() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const imageLayers = layers.filter((l) => l.type === "image") as ImageLayer[];
-  const maskLayers = layers.filter((l) => l.type === "mask") as MaskObjectLayer[];
+  const maskLayers = layers.filter(
+    (l) => l.type === "mask",
+  ) as MaskObjectLayer[];
 
-  const handleAddFile = useCallback(async (file: File) => {
-    if (!file.type.startsWith("image/")) return;
-    const base64 = await fileToBase64(file);
-    const objectUrl = URL.createObjectURL(file);
-    const img = new window.Image();
-    img.src = objectUrl;
-    await new Promise<void>((r) => { img.onload = () => r(); });
-    addImageLayer(file, base64, objectUrl, img.naturalWidth, img.naturalHeight);
-  }, [addImageLayer]);
+  const handleAddFile = useCallback(
+    async (file: File) => {
+      if (!file.type.startsWith("image/")) return;
+      const base64 = await fileToBase64(file);
+      const objectUrl = URL.createObjectURL(file);
+      const img = new window.Image();
+      img.src = objectUrl;
+      await new Promise<void>((r) => {
+        img.onload = () => r();
+      });
+      addImageLayer(
+        file,
+        base64,
+        objectUrl,
+        img.naturalWidth,
+        img.naturalHeight,
+      );
+    },
+    [addImageLayer],
+  );
 
-  const handleFileInput = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (files) {
-      for (const file of files) handleAddFile(file);
-    }
-    e.target.value = "";
-  }, [handleAddFile]);
+  const handleFileInput = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const files = e.target.files;
+      if (files) {
+        for (const file of files) handleAddFile(file);
+      }
+      e.target.value = "";
+    },
+    [handleAddFile],
+  );
 
   const openPicker = useCallback(() => {
     fileInputRef.current?.click();
@@ -55,18 +90,23 @@ export function LayerPanel() {
   return (
     <div className="flex flex-col gap-1">
       {imageLayers.length === 0 && (
-        <p className="text-3xs text-muted-foreground text-center py-1">Drop images onto canvas</p>
+        <p className="text-3xs text-muted-foreground text-center py-1">
+          Drop images onto canvas
+        </p>
       )}
 
       {imageLayers.map((layer) => {
         const isActive = layer.id === activeLayerId;
-        const truncName = layer.name.length > 18 ? `${layer.name.slice(0, 15)}...` : layer.name;
+        const truncName =
+          layer.name.length > 18 ? `${layer.name.slice(0, 15)}...` : layer.name;
         return (
           <div
             key={layer.id}
             className={cn(
               "flex items-center gap-1.5 px-1.5 py-1 rounded cursor-pointer transition-colors",
-              isActive ? "bg-primary/15 border border-primary/30" : "hover:bg-muted/60 border border-transparent",
+              isActive
+                ? "bg-primary/15 border border-primary/30"
+                : "hover:bg-muted/60 border border-transparent",
             )}
             onClick={() => setActiveLayer(layer.id)}
           >
@@ -76,9 +116,12 @@ export function LayerPanel() {
               alt={layer.name}
               className="w-8 h-8 rounded object-cover flex-shrink-0"
             />
+
             {/* Name + dims */}
             <div className="flex-1 min-w-0">
-              <p className="text-3xs truncate" title={layer.name}>{truncName}</p>
+              <p className="text-3xs truncate" title={layer.name}>
+                {truncName}
+              </p>
               <LayerDims layer={layer} />
             </div>
             {/* Fit frame to image */}
@@ -87,8 +130,16 @@ export function LayerPanel() {
               size="icon-xs"
               onClick={(e) => {
                 e.stopPropagation();
-                const w = Math.max(64, Math.round(Math.abs(layer.naturalWidth * layer.scaleX) / 8) * 8);
-                const h = Math.max(64, Math.round(Math.abs(layer.naturalHeight * layer.scaleY) / 8) * 8);
+                const w = Math.max(
+                  64,
+                  Math.round(Math.abs(layer.naturalWidth * layer.scaleX) / 8) *
+                    8,
+                );
+                const h = Math.max(
+                  64,
+                  Math.round(Math.abs(layer.naturalHeight * layer.scaleY) / 8) *
+                    8,
+                );
                 setParam("width", w);
                 setParam("height", h);
                 updateLayer(layer.id, {
@@ -110,7 +161,11 @@ export function LayerPanel() {
                 updateLayer(layer.id, { visible: !layer.visible });
               }}
               className="text-muted-foreground flex-shrink-0"
-              title={layer.visible ? "Hide layer - hidden layers are excluded from the composite sent to the backend" : "Show layer"}
+              title={
+                layer.visible
+                  ? "Hide layer - hidden layers are excluded from the composite sent to the backend"
+                  : "Show layer"
+              }
             >
               {layer.visible ? <Eye size={10} /> : <EyeOff size={10} />}
             </Button>
@@ -134,7 +189,9 @@ export function LayerPanel() {
       {/* Mask objects */}
       {maskLayers.length > 0 && (
         <>
-          <p className="text-4xs text-muted-foreground uppercase tracking-wider px-1 pt-1">Masks</p>
+          <p className="text-4xs text-muted-foreground uppercase tracking-wider px-1 pt-1">
+            Masks
+          </p>
           {maskLayers.map((layer) => {
             const isActive = layer.id === activeLayerId;
             return (
@@ -142,7 +199,9 @@ export function LayerPanel() {
                 key={layer.id}
                 className={cn(
                   "flex items-center gap-1.5 px-1.5 py-1 rounded cursor-pointer transition-colors",
-                  isActive ? "bg-primary/15 border border-primary/30" : "hover:bg-muted/60 border border-transparent",
+                  isActive
+                    ? "bg-primary/15 border border-primary/30"
+                    : "hover:bg-muted/60 border border-transparent",
                 )}
                 onClick={() => setActiveLayer(layer.id)}
               >
@@ -151,9 +210,14 @@ export function LayerPanel() {
                   alt={layer.name}
                   className="w-8 h-8 rounded object-cover flex-shrink-0 bg-black/20"
                 />
+
                 <div className="flex-1 min-w-0">
-                  <p className="text-3xs truncate" title={layer.name}>{layer.name}</p>
-                  <p className="text-4xs text-muted-foreground">{layer.width}&times;{layer.height}</p>
+                  <p className="text-3xs truncate" title={layer.name}>
+                    {layer.name}
+                  </p>
+                  <p className="text-4xs text-muted-foreground">
+                    {layer.width}&times;{layer.height}
+                  </p>
                 </div>
                 {/* Lock toggle */}
                 <Button
@@ -164,7 +228,11 @@ export function LayerPanel() {
                     updateLayer(layer.id, { locked: !layer.locked });
                   }}
                   className="text-muted-foreground flex-shrink-0"
-                  title={layer.locked ? "Unlock mask - allows moving and resizing" : "Lock mask - prevents accidental interaction"}
+                  title={
+                    layer.locked
+                      ? "Unlock mask - allows moving and resizing"
+                      : "Lock mask - prevents accidental interaction"
+                  }
                 >
                   {layer.locked ? <Lock size={10} /> : <Unlock size={10} />}
                 </Button>

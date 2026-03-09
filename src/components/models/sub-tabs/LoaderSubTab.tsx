@@ -1,6 +1,10 @@
 import { useState } from "react";
 import { Loader2, ExternalLink } from "lucide-react";
-import { useLoaderPipelines, useLoaderComponents, useLoaderLoad } from "@/api/hooks/useModelOps";
+import {
+  useLoaderPipelines,
+  useLoaderComponents,
+  useLoaderLoad,
+} from "@/api/hooks/useModelOps";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,38 +15,76 @@ export function LoaderSubTab() {
   const { data: pipelineData } = useLoaderPipelines();
   const [modelType, setModelType] = useState("Autodetect");
   const fetchEnabled = modelType !== "" && modelType !== "Autodetect";
-  const { data: compData, isLoading: compLoading } = useLoaderComponents(modelType, fetchEnabled);
+  const { data: compData, isLoading: compLoading } = useLoaderComponents(
+    modelType,
+    fetchEnabled,
+  );
 
   const pipelines = pipelineData?.pipelines ?? [];
 
   return (
     <div className="space-y-3">
-      <p className="text-2xs text-muted-foreground">Custom model loader - select pipeline and configure components.</p>
+      <p className="text-2xs text-muted-foreground">
+        Custom model loader - select pipeline and configure components.
+      </p>
 
       <div>
         <Label className="text-2xs">Pipeline type</Label>
-        <Combobox value={modelType} onValueChange={setModelType} options={pipelines} className="h-6 text-2xs" />
+        <Combobox
+          value={modelType}
+          onValueChange={setModelType}
+          options={pipelines}
+          className="h-6 text-2xs"
+        />
       </div>
 
-      {compLoading && <p className="text-xs text-muted-foreground">Loading components...</p>}
+      {compLoading && (
+        <p className="text-xs text-muted-foreground">Loading components...</p>
+      )}
 
-      {compData && <LoaderEditor key={modelType} compData={compData} modelType={modelType} />}
+      {compData && (
+        <LoaderEditor
+          key={modelType}
+          compData={compData}
+          modelType={modelType}
+        />
+      )}
     </div>
   );
 }
 
-function LoaderEditor({ compData, modelType }: { compData: LoaderComponentsResponse; modelType: string }) {
+function LoaderEditor({
+  compData,
+  modelType,
+}: {
+  compData: LoaderComponentsResponse;
+  modelType: string;
+}) {
   const load = useLoaderLoad();
   const [repo, setRepo] = useState(compData.repo ?? "");
-  const [editedComponents, setEditedComponents] = useState<Record<number, { local?: string; remote?: string; dtype?: string; quant?: boolean }>>({});
+  const [editedComponents, setEditedComponents] = useState<
+    Record<
+      number,
+      { local?: string; remote?: string; dtype?: string; quant?: boolean }
+    >
+  >({});
 
-  const loadableComponents = (compData.components ?? []).filter((c) => c.loadable);
+  const loadableComponents = (compData.components ?? []).filter(
+    (c) => c.loadable,
+  );
 
-  function getEditedValue(id: number, field: "local" | "remote" | "dtype" | "quant") {
+  function getEditedValue(
+    id: number,
+    field: "local" | "remote" | "dtype" | "quant",
+  ) {
     return editedComponents[id]?.[field];
   }
 
-  function setComponentField(id: number, field: "local" | "remote" | "dtype" | "quant", value: string | boolean) {
+  function setComponentField(
+    id: number,
+    field: "local" | "remote" | "dtype" | "quant",
+    value: string | boolean,
+  ) {
     setEditedComponents((prev) => ({
       ...prev,
       [id]: { ...prev[id], [field]: value },
@@ -53,10 +95,22 @@ function LoaderEditor({ compData, modelType }: { compData: LoaderComponentsRespo
     if (!repo) return;
     const components = loadableComponents.map((c) => ({
       id: c.id,
-      local: getEditedValue(c.id, "local") as string | undefined ?? c.local ?? undefined,
-      remote: getEditedValue(c.id, "remote") as string | undefined ?? c.remote ?? undefined,
-      dtype: getEditedValue(c.id, "dtype") as string | undefined ?? c.dtype ?? undefined,
-      quant: getEditedValue(c.id, "quant") as boolean | undefined ?? c.quant ?? undefined,
+      local:
+        (getEditedValue(c.id, "local") as string | undefined) ??
+        c.local ??
+        undefined,
+      remote:
+        (getEditedValue(c.id, "remote") as string | undefined) ??
+        c.remote ??
+        undefined,
+      dtype:
+        (getEditedValue(c.id, "dtype") as string | undefined) ??
+        c.dtype ??
+        undefined,
+      quant:
+        (getEditedValue(c.id, "quant") as boolean | undefined) ??
+        c.quant ??
+        undefined,
     }));
     load.mutate({ model_type: modelType, repo, components });
   }
@@ -64,15 +118,28 @@ function LoaderEditor({ compData, modelType }: { compData: LoaderComponentsRespo
   return (
     <>
       <div className="text-xs space-y-1">
-        <p><span className="text-muted-foreground">Class:</span> {compData.class}</p>
+        <p>
+          <span className="text-muted-foreground">Class:</span> {compData.class}
+        </p>
       </div>
 
       <div>
         <Label className="text-2xs">Repo</Label>
         <div className="flex gap-1 items-center">
-          <Input className="h-6 text-2xs flex-1" value={repo} onChange={(e) => setRepo(e.target.value)} placeholder="HuggingFace repo ID" />
+          <Input
+            className="h-6 text-2xs flex-1"
+            value={repo}
+            onChange={(e) => setRepo(e.target.value)}
+            placeholder="HuggingFace repo ID"
+          />
+
           {repo && (
-            <a href={`https://huggingface.co/${repo}`} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-foreground shrink-0">
+            <a
+              href={`https://huggingface.co/${repo}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-muted-foreground hover:text-foreground shrink-0"
+            >
               <ExternalLink className="h-3.5 w-3.5" />
             </a>
           )}
@@ -93,21 +160,37 @@ function LoaderEditor({ compData, modelType }: { compData: LoaderComponentsRespo
             <tbody>
               {loadableComponents.map((c) => (
                 <tr key={c.id} className="border-b border-border/50">
-                  <td className="px-2 py-1 font-mono truncate max-w-20">{c.name}</td>
-                  <td className="px-2 py-1 truncate max-w-25">{c.class_name}</td>
+                  <td className="px-2 py-1 font-mono truncate max-w-20">
+                    {c.name}
+                  </td>
+                  <td className="px-2 py-1 truncate max-w-25">
+                    {c.class_name}
+                  </td>
                   <td className="px-1 py-0.5">
                     <Input
                       className="h-6 text-3xs border-0 bg-transparent p-1"
-                      value={(getEditedValue(c.id, "local") as string | undefined) ?? c.local ?? ""}
-                      onChange={(e) => setComponentField(c.id, "local", e.target.value)}
+                      value={
+                        (getEditedValue(c.id, "local") as string | undefined) ??
+                        c.local ??
+                        ""
+                      }
+                      onChange={(e) =>
+                        setComponentField(c.id, "local", e.target.value)
+                      }
                       placeholder="local path"
                     />
                   </td>
                   <td className="px-1 py-0.5">
                     <Input
                       className="h-6 text-3xs border-0 bg-transparent p-1 w-16"
-                      value={(getEditedValue(c.id, "dtype") as string | undefined) ?? c.dtype ?? ""}
-                      onChange={(e) => setComponentField(c.id, "dtype", e.target.value)}
+                      value={
+                        (getEditedValue(c.id, "dtype") as string | undefined) ??
+                        c.dtype ??
+                        ""
+                      }
+                      onChange={(e) =>
+                        setComponentField(c.id, "dtype", e.target.value)
+                      }
                       placeholder="dtype"
                     />
                   </td>
@@ -119,12 +202,20 @@ function LoaderEditor({ compData, modelType }: { compData: LoaderComponentsRespo
       )}
 
       <div className="flex gap-2">
-        <Button size="sm" variant="default" onClick={handleLoad} disabled={load.isPending || !repo} className="flex-1">
+        <Button
+          size="sm"
+          variant="default"
+          onClick={handleLoad}
+          disabled={load.isPending || !repo}
+          className="flex-1"
+        >
           {load.isPending && <Loader2 className="h-3 w-3 animate-spin mr-1" />}
           Load model
         </Button>
       </div>
-      {load.data && <p className="text-2xs text-muted-foreground">{load.data.status}</p>}
+      {load.data && (
+        <p className="text-2xs text-muted-foreground">{load.data.status}</p>
+      )}
     </>
   );
 }

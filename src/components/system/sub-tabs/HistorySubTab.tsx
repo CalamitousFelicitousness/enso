@@ -38,7 +38,9 @@ export function HistorySubTab() {
       />
 
       {filtered.length === 0 ? (
-        <p className="text-xs text-muted-foreground text-center py-4">No history entries</p>
+        <p className="text-xs text-muted-foreground text-center py-4">
+          No history entries
+        </p>
       ) : (
         <div className="space-y-0.5">
           <div className="grid grid-cols-[1fr_auto_auto] gap-2 text-3xs font-medium text-muted-foreground px-2 pb-1 border-b border-border">
@@ -57,25 +59,39 @@ export function HistorySubTab() {
                   onClick={() => hasOutputs && toggle(i)}
                 >
                   <span className="truncate flex items-center gap-1">
-                    {hasOutputs && (
-                      isExpanded
-                        ? <ChevronDown className="h-3 w-3 shrink-0" />
-                        : <ChevronRight className="h-3 w-3 shrink-0" />
-                    )}
+                    {hasOutputs &&
+                      (isExpanded ? (
+                        <ChevronDown className="h-3 w-3 shrink-0" />
+                      ) : (
+                        <ChevronRight className="h-3 w-3 shrink-0" />
+                      ))}
                     <span className="font-medium">{entry.op}</span>
-                    {entry.job && <span className="text-muted-foreground">({entry.job})</span>}
+                    {entry.job && (
+                      <span className="text-muted-foreground">
+                        ({entry.job})
+                      </span>
+                    )}
                   </span>
                   <span className="tabular-nums text-muted-foreground text-2xs">
-                    {entry.duration != null ? formatDuration(entry.duration) : "-"}
+                    {entry.duration != null
+                      ? formatDuration(entry.duration)
+                      : "-"}
                   </span>
                   <span className="tabular-nums text-muted-foreground text-2xs">
-                    {entry.timestamp ? new Date(entry.timestamp * 1000).toLocaleTimeString() : "-"}
+                    {entry.timestamp
+                      ? new Date(entry.timestamp * 1000).toLocaleTimeString()
+                      : "-"}
                   </span>
                 </button>
                 {isExpanded && hasOutputs && (
                   <div className="pl-7 pr-2 pb-1 space-y-0.5">
                     {entry.outputs.map((output, j) => (
-                      <p key={j} className="text-3xs text-muted-foreground truncate">{output}</p>
+                      <p
+                        key={j}
+                        className="text-3xs text-muted-foreground truncate"
+                      >
+                        {output}
+                      </p>
                     ))}
                   </div>
                 )}

@@ -81,8 +81,12 @@ export function SwipeMode({ imageA, imageB }: SwipeModeProps) {
       </div>
 
       {/* Labels */}
-      <span className="absolute top-2 left-2 bg-black/60 text-white text-2xs px-2 py-0.5 rounded z-10">{imageA.label}</span>
-      <span className="absolute top-2 right-2 bg-black/60 text-white text-2xs px-2 py-0.5 rounded z-10">{imageB.label}</span>
+      <span className="absolute top-2 left-2 bg-black/60 text-white text-2xs px-2 py-0.5 rounded z-10">
+        {imageA.label}
+      </span>
+      <span className="absolute top-2 right-2 bg-black/60 text-white text-2xs px-2 py-0.5 rounded z-10">
+        {imageB.label}
+      </span>
     </div>
   );
 }

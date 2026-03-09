@@ -27,7 +27,10 @@ export function SideBySideMode({ imageA, imageB }: SideBySideModeProps) {
           style={{ transform: left.style.transform }}
           draggable={false}
         />
-        <span className="absolute top-2 left-2 bg-black/60 text-white text-2xs px-2 py-0.5 rounded">{imageA.label}</span>
+
+        <span className="absolute top-2 left-2 bg-black/60 text-white text-2xs px-2 py-0.5 rounded">
+          {imageA.label}
+        </span>
       </div>
       <div className="w-px bg-white/20 flex-shrink-0" />
       <div
@@ -46,7 +49,10 @@ export function SideBySideMode({ imageA, imageB }: SideBySideModeProps) {
           style={{ transform: right.style.transform }}
           draggable={false}
         />
-        <span className="absolute top-2 left-2 bg-black/60 text-white text-2xs px-2 py-0.5 rounded">{imageB.label}</span>
+
+        <span className="absolute top-2 left-2 bg-black/60 text-white text-2xs px-2 py-0.5 rounded">
+          {imageB.label}
+        </span>
       </div>
     </div>
   );

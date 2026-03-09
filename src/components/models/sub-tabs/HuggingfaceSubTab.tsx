@@ -15,7 +15,11 @@ function formatDownloads(n: number): string {
 export function HuggingfaceSubTab() {
   const [keyword, setKeyword] = useState("");
   const [searchEnabled, setSearchEnabled] = useState(false);
-  const { data: results, isLoading, refetch } = useHfSearch(keyword, searchEnabled);
+  const {
+    data: results,
+    isLoading,
+    refetch,
+  } = useHfSearch(keyword, searchEnabled);
   const hfDownload = useHfDownload();
   const [selected, setSelected] = useState<string | null>(null);
   const [showAdvanced, setShowAdvanced] = useState(false);
@@ -51,11 +55,21 @@ export function HuggingfaceSubTab() {
         <Input
           placeholder="Search HuggingFace..."
           value={keyword}
-          onChange={(e) => { setKeyword(e.target.value); setSearchEnabled(false); }}
+          onChange={(e) => {
+            setKeyword(e.target.value);
+            setSearchEnabled(false);
+          }}
           onKeyDown={(e) => e.key === "Enter" && handleSearch()}
           className="h-6 text-2xs flex-1"
         />
-        <Button size="sm" variant="secondary" onClick={handleSearch} disabled={isLoading || !keyword} className="shrink-0">
+
+        <Button
+          size="sm"
+          variant="secondary"
+          onClick={handleSearch}
+          disabled={isLoading || !keyword}
+          className="shrink-0"
+        >
           {isLoading && <Loader2 className="h-3 w-3 animate-spin mr-1" />}
           Search
         </Button>
@@ -79,12 +93,22 @@ export function HuggingfaceSubTab() {
                   onClick={() => setSelected(r.id)}
                   className={`border-b border-border/50 cursor-pointer ${selected === r.id ? "bg-accent/30" : "hover:bg-muted/30"}`}
                 >
-                  <td className="px-2 py-1 truncate max-w-40 font-mono">{r.id}</td>
+                  <td className="px-2 py-1 truncate max-w-40 font-mono">
+                    {r.id}
+                  </td>
                   <td className="px-2 py-1">{r.pipeline_tag ?? "-"}</td>
-                  <td className="px-2 py-1 text-right font-mono">{formatDownloads(r.downloads)}</td>
+                  <td className="px-2 py-1 text-right font-mono">
+                    {formatDownloads(r.downloads)}
+                  </td>
                   <td className="px-2 py-1 text-center">
                     {r.url && (
-                      <a href={r.url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="text-muted-foreground hover:text-foreground">
+                      <a
+                        href={r.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className="text-muted-foreground hover:text-foreground"
+                      >
                         <ExternalLink className="h-3 w-3" />
                       </a>
                     )}
@@ -100,36 +124,76 @@ export function HuggingfaceSubTab() {
         <div className="space-y-2 border border-border rounded-md p-2">
           <p className="text-xs font-medium font-mono">{selected}</p>
 
-          <button type="button" onClick={() => setShowAdvanced(!showAdvanced)} className="flex items-center gap-1 text-2xs text-muted-foreground hover:text-foreground">
-            {showAdvanced ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+          <button
+            type="button"
+            onClick={() => setShowAdvanced(!showAdvanced)}
+            className="flex items-center gap-1 text-2xs text-muted-foreground hover:text-foreground"
+          >
+            {showAdvanced ? (
+              <ChevronDown className="h-3 w-3" />
+            ) : (
+              <ChevronRight className="h-3 w-3" />
+            )}
             Advanced options
           </button>
           {showAdvanced && (
             <div className="space-y-2 pl-3">
               <div>
                 <Label className="text-2xs">Variant</Label>
-                <Input className="h-6 text-2xs" value={variant} onChange={(e) => setVariant(e.target.value)} placeholder="e.g. fp16" />
+                <Input
+                  className="h-6 text-2xs"
+                  value={variant}
+                  onChange={(e) => setVariant(e.target.value)}
+                  placeholder="e.g. fp16"
+                />
               </div>
               <div>
                 <Label className="text-2xs">Revision</Label>
-                <Input className="h-6 text-2xs" value={revision} onChange={(e) => setRevision(e.target.value)} placeholder="branch or commit" />
+                <Input
+                  className="h-6 text-2xs"
+                  value={revision}
+                  onChange={(e) => setRevision(e.target.value)}
+                  placeholder="branch or commit"
+                />
               </div>
               <div>
                 <Label className="text-2xs">Mirror</Label>
-                <Input className="h-6 text-2xs" value={mirror} onChange={(e) => setMirror(e.target.value)} placeholder="optional mirror URL" />
+                <Input
+                  className="h-6 text-2xs"
+                  value={mirror}
+                  onChange={(e) => setMirror(e.target.value)}
+                  placeholder="optional mirror URL"
+                />
               </div>
               <div>
                 <Label className="text-2xs">Custom pipeline</Label>
-                <Input className="h-6 text-2xs" value={customPipeline} onChange={(e) => setCustomPipeline(e.target.value)} placeholder="pipeline name" />
+                <Input
+                  className="h-6 text-2xs"
+                  value={customPipeline}
+                  onChange={(e) => setCustomPipeline(e.target.value)}
+                  placeholder="pipeline name"
+                />
               </div>
             </div>
           )}
 
-          <Button size="sm" variant="secondary" onClick={handleDownload} disabled={hfDownload.isPending} className="w-full">
-            {hfDownload.isPending && <Loader2 className="h-3 w-3 animate-spin mr-1" />}
+          <Button
+            size="sm"
+            variant="secondary"
+            onClick={handleDownload}
+            disabled={hfDownload.isPending}
+            className="w-full"
+          >
+            {hfDownload.isPending && (
+              <Loader2 className="h-3 w-3 animate-spin mr-1" />
+            )}
             Download
           </Button>
-          {hfDownload.data && <p className="text-2xs text-muted-foreground">{hfDownload.data.status}</p>}
+          {hfDownload.data && (
+            <p className="text-2xs text-muted-foreground">
+              {hfDownload.data.status}
+            </p>
+          )}
         </div>
       )}
     </div>
