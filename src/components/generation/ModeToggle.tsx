@@ -24,10 +24,10 @@ export function ModeToggle({ mode, onModeChange, locked, onLockedChange }: ModeT
       <div
         className={cn(
           "absolute inset-y-[2px] left-[2px] rounded-full",
-          "w-[calc((100%-24px)/2)]",
+          "w-[calc((100%-28px)/2)]",
           "bg-primary/20 border border-primary/40",
           "transition-all duration-150 ease-out",
-          !isFocus && "translate-x-[calc(100%+20px)]",
+          !isFocus && "translate-x-[calc(100%+24px)]",
         )}
       />
 
