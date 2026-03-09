@@ -23,7 +23,7 @@ export function ModeToggle({ mode, onModeChange, locked, onLockedChange }: ModeT
       {/* Sliding highlight */}
       <div
         className={cn(
-          "absolute inset-y-[2px] left-[2px] rounded-full",
+          "absolute inset-y-[2px] left-[2px] rounded-full overflow-hidden",
           "w-[calc((100%-24px)/2)]",
           "bg-primary/15 shadow-[var(--glow-primary)]",
           "transition-all duration-150 ease-out",
