@@ -1,10 +1,10 @@
 <div align="center">
   <br/>
-  <img src="./public/favicon.svg" alt="Enso" width="200"/>
+  <img src="./public/favicon.svg" alt="SD.Next Enso" width="200"/>
   <br/>
   <br/>
 
-  <h1>Enso</h1>
+  <h1>SD.Next Enso</h1>
 
   <p align="center">
     <strong>React UI and V2 API extension for SD.Next</strong>
@@ -34,7 +34,7 @@
 
 ## Overview
 
-**Enso** is a React-based frontend and V2 API for [SD.Next](https://github.com/vladmandic/sdnext), packaged as an extension. It replaces the default Gradio UI with an infinite canvas workspace, an async job queue API, and real-time WebSocket progress - while keeping full compatibility with all SD.Next backends and models.
+**SD.Next Enso** is a React-based frontend and V2 API for [SD.Next](https://github.com/vladmandic/sdnext), packaged as an extension. It replaces the default Gradio UI with an infinite canvas workspace, an async job queue API, and real-time WebSocket progress - while keeping full compatibility with all SD.Next backends and models.
 
 It runs as a standard SD.Next extension: drop it into `extensions-builtin/` and it registers its API routes and mounts the frontend automatically.
 
@@ -132,24 +132,19 @@ It runs as a standard SD.Next extension: drop it into `extensions-builtin/` and 
 
 ## Quick Start
 
-### As an SD.Next Extension - manual installation
-
-It's currently a manual clone only, pending integration into SDNext
+### Installation
 
 ```bash
 # Clone into SD.Next extensions directory
 cd /path/to/sdnext/extensions-builtin
 git clone https://github.com/CalamitousFelicitousness/enso.git sdnext-enso
 
-# Build the frontend
-cd sdnext-enso
-npm install
-npm run build
-
-# Start SD.Next - Enso registers automatically
+# Start SD.Next with the --enso flag
 cd /path/to/sdnext
-./webui.sh
+./webui.sh --enso
 ```
+
+The `--enso` flag triggers the built-in `install.py` which automatically runs `npm install` and `npm run build` when needed. It detects source changes and only rebuilds when necessary.
 
 The UI will be available at `http://localhost:7860/enso/`
 
@@ -158,14 +153,11 @@ The UI will be available at `http://localhost:7860/enso/`
 ```bash
 cd /path/to/sdnext/extensions-builtin/sdnext-enso
 
-# Install dependencies
-npm install
-
 # Start dev server (HMR, proxies API to SD.Next backend)
 npm run dev
 ```
 
-Dev server runs at `http://localhost:5173/enso/` with hot reload. API requests proxy to the SD.Next backend.
+Dev server runs at `http://localhost:5174/` with hot reload. API requests automatically proxy to whatever port SD.Next is running on (detected via `.sdnext.port` written at startup). To override, copy `.env.example` to `.env.local` and uncomment the settings you need.
 
 ---
 
@@ -205,6 +197,7 @@ enso/
 │   └── misc_routes.py        # HuggingFace, extra-networks, WS ticket
 ├── scripts/
 │   └── enso.py               # SD.Next extension entry point
+├── install.py                # Auto npm install + build (triggered by --enso)
 ├── public/                   # Static assets, PWA icons, fonts
 ├── index.html                # SPA entry
 ├── package.json
@@ -218,9 +211,8 @@ enso/
 | Command | Description |
 |---------|-------------|
 | `npm run dev` | Start development server with HMR |
-| `npm run build` | TypeScript check + Vite production build |
-| `npm run lint` | Lint with ESLint |
-| `npm run preview` | Preview production build |
+
+Production builds (`npm run build`) are handled automatically by `install.py` when SD.Next starts with `--enso`.
 
 ### Technology Stack
 

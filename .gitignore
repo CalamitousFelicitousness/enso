@@ -12,6 +12,7 @@ dist
 dist-ssr
 dev-dist
 *.local
+.sdnext.port
 
 # Python
 __pycache__

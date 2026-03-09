@@ -10,7 +10,7 @@ function useTutorialAutoStart() {
   const start = useTutorialStore((s) => s.start);
 
   useEffect(() => {
-    if (completed || active) return;
+    if (completed || active || __VERCEL__) return;
     const keys = Object.keys(localStorage);
     const hasPriorData = keys.some(
       (k) => k.startsWith("enso-") && k !== "enso-tutorial",

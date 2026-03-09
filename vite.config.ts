@@ -1,14 +1,22 @@
+import fs from "fs";
 import path from "path";
 import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import { VitePWA } from "vite-plugin-pwa";
 
+// Read the port SD.Next wrote on last startup (falls back to 7860)
+let sdnextPort = "7860";
+try {
+  sdnextPort = fs.readFileSync(path.resolve(__dirname, ".sdnext.port"), "utf-8").trim();
+} catch {}
+
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, __dirname, "");
-  const backendPort = env.BACKEND_PORT || "7860";
-  const standalone = env.STANDALONE === "true" || backendPort === "0";
-  const isVercel = !!env.VERCEL;
+  const isVercel = !!process.env.VERCEL;
+  const devPort = parseInt(env.DEV_PORT || (isVercel ? "5173" : "5174"), 10);
+  const backendPort = env.BACKEND_PORT || sdnextPort;
+  const standalone = env.STANDALONE === "true" || backendPort === "0" || isVercel;
   const backend = `http://localhost:${backendPort}`;
 
   return {
@@ -57,8 +65,8 @@ export default defineConfig(({ mode }) => {
         ],
       },
       manifest: {
-        name: mode === "production" ? "Enso" : "Enso Dev",
-        short_name: mode === "production" ? "Enso" : "Enso Dev",
+        name: mode === "production" ? "SD.Next Enso" : "SD.Next Enso Dev",
+        short_name: mode === "production" ? "SD.Next Enso" : "SD.Next Enso Dev",
         description: "AI Image & Video Generation",
         theme_color: "#0a0a0a",
         background_color: "#0a0a0a",
@@ -80,7 +88,7 @@ export default defineConfig(({ mode }) => {
     alias: { "@": path.resolve(__dirname, "./src") },
   },
   server: {
-    port: 5173,
+    port: devPort,
     allowedHosts: true,
     proxy: standalone ? undefined : {
       "/sdapi/v2/ws": { target: backend, ws: true },
@@ -90,6 +98,9 @@ export default defineConfig(({ mode }) => {
       "/internal": backend,
       "/file": backend,
     },
+  },
+  define: {
+    __VERCEL__: JSON.stringify(isVercel),
   },
   build: {
     outDir: "dist",

@@ -20,7 +20,16 @@ def on_app_started(blocks, app):
     if ext_root not in sys.path:
         sys.path.insert(0, ext_root)
 
+    from modules import shared
     from enso_api import register_api
+
+    # Write SD.Next port so the Vite dev server can auto-detect it
+    port = getattr(shared.cmd_opts, 'port', 7860) or 7860
+    try:
+        with open(os.path.join(ext_root, '.sdnext.port'), 'w') as f:
+            f.write(str(port))
+    except Exception:
+        pass
 
     # Register all v2 API routes
     register_api(app)
