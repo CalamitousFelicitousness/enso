@@ -173,7 +173,7 @@ export function GalleryMetadata() {
 
         {/* File info */}
         <div>
-          <h3 className="text-3xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">
+          <h3 className="text-2xs font-medium text-muted-foreground uppercase tracking-wider mb-1.5">
             File
           </h3>
           <div className="space-y-1">
@@ -198,7 +198,7 @@ export function GalleryMetadata() {
           <>
             <Separator />
             <div>
-              <h3 className="text-3xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">
+              <h3 className="text-2xs font-medium text-muted-foreground uppercase tracking-wider mb-1.5">
                 Video
               </h3>
               <div className="space-y-1">
@@ -223,7 +223,7 @@ export function GalleryMetadata() {
             <Separator />
             <div>
               <div className="flex items-center justify-between mb-1.5">
-                <h3 className="text-3xs font-semibold text-muted-foreground uppercase tracking-wider">
+                <h3 className="text-2xs font-medium text-muted-foreground uppercase tracking-wider">
                   Prompt
                 </h3>
                 <div className="flex gap-0.5">
@@ -248,7 +248,7 @@ export function GalleryMetadata() {
         {!isVideo && genInfo.negativePrompt && (
           <div>
             <div className="flex items-center justify-between mb-1.5">
-              <h3 className="text-3xs font-semibold text-muted-foreground uppercase tracking-wider">
+              <h3 className="text-2xs font-medium text-muted-foreground uppercase tracking-wider">
                 Negative
               </h3>
               <div className="flex gap-0.5">
@@ -273,7 +273,7 @@ export function GalleryMetadata() {
           <>
             <Separator />
             <div>
-              <h3 className="text-3xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">
+              <h3 className="text-2xs font-medium text-muted-foreground uppercase tracking-wider mb-1.5">
                 Parameters
               </h3>
               <div className="space-y-0.5">

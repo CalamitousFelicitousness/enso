@@ -152,7 +152,7 @@ export function BarRow({ label, value, max, unit, formatter }: BarRowProps) {
     <div className="space-y-0.5">
       <div className="flex justify-between text-xs">
         <span className="text-muted-foreground">{label}</span>
-        <span className="tabular-nums">
+        <span className="font-mono tabular-nums">
           {fmt(value)} / {fmt(max)}
         </span>
       </div>

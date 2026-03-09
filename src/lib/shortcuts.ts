@@ -33,6 +33,9 @@ export const SHORTCUTS: Record<string, ShortcutDef> = {
   "canvas-brush-larger": { id: "canvas-brush-larger", key: "]", scope: "canvas", category: "Canvas", label: "Larger brush" },
   "canvas-delete": { id: "canvas-delete", key: "Delete", scope: "canvas", category: "Canvas", label: "Remove layer" },
   "canvas-delete-backspace": { id: "canvas-delete-backspace", key: "Backspace", scope: "canvas", category: "Canvas", label: "Remove layer" },
+  "canvas-toggle-mode": { id: "canvas-toggle-mode", key: "f", scope: "canvas", category: "Canvas", label: "Toggle Focus / Canvas mode" },
+  "canvas-focus-prev": { id: "canvas-focus-prev", key: "ArrowLeft", scope: "canvas", category: "Canvas", label: "Previous frame" },
+  "canvas-focus-next": { id: "canvas-focus-next", key: "ArrowRight", scope: "canvas", category: "Canvas", label: "Next frame" },
 
   // Gallery
   "gallery-toggle-info": { id: "gallery-toggle-info", key: "i", scope: "gallery", category: "Gallery", label: "Toggle metadata panel" },

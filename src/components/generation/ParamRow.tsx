@@ -20,7 +20,7 @@ export function ParamRow({
       className={disabled ? "opacity-50 pointer-events-none" : undefined}
     >
       <ParamLabel
-        className="text-2xs text-muted-foreground mb-0.5 block"
+        className="text-2xs mb-0.5 block"
         tooltip={tooltip}
       >
         {label}

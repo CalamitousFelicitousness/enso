@@ -114,7 +114,7 @@ export function BenchmarkSubTab() {
                 className="grid grid-cols-2 gap-2 text-xs px-2 py-0.5"
               >
                 <span>{r.batch}</span>
-                <span className="text-right tabular-nums font-medium">
+                <span className="text-right font-mono tabular-nums font-medium">
                   {typeof r.its === "number" ? r.its.toFixed(2) : r.its}
                 </span>
               </div>

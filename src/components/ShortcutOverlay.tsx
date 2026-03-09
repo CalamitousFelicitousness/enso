@@ -43,7 +43,7 @@ export function ShortcutOverlay() {
         <div className="flex flex-col gap-4 mt-2">
           {[...grouped.entries()].map(([category, shortcuts]) => (
             <div key={category}>
-              <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+              <h3 className="text-2xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
                 {category}
               </h3>
               <div className="flex flex-col gap-1">

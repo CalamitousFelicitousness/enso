@@ -224,7 +224,7 @@ export function QueueJobCard({
               style={{ width: `${(job.progress * 100).toFixed(1)}%` }}
             />
           </div>
-          <span className="text-4xs text-muted-foreground tabular-nums w-8 text-right">
+          <span className="text-4xs text-muted-foreground font-mono tabular-nums w-8 text-right">
             {job.step > 0
               ? `${job.step}/${job.steps}`
               : `${Math.round(job.progress * 100)}%`}

@@ -1,5 +1,6 @@
 import * as React from "react";
 import { memo, useState } from "react";
+import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 
 interface NumberInputProps
@@ -58,7 +59,7 @@ const NumberInput = memo(function NumberInput({
       onKeyDown={(e) => {
         if (e.key === "Enter") commit();
       }}
-      className={className}
+      className={cn("font-mono tabular-nums", className)}
       {...props}
     />
   );

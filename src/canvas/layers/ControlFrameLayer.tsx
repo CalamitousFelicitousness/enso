@@ -491,6 +491,7 @@ function ControlFrame({
           width={frame.width}
           align="center"
           text="Drop image or click to upload"
+          fontFamily="IBM Plex Sans"
           fontSize={14}
           fill="#666"
           listening={false}

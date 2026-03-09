@@ -319,7 +319,7 @@ function GroupSection({
       <tr className="border-t border-border/50">
         <td
           colSpan={4}
-          className="py-1 px-2 font-semibold text-muted-foreground text-3xs uppercase tracking-wider"
+          className="py-1 px-2 font-medium text-muted-foreground text-2xs uppercase tracking-wider"
         >
           {label} ({changedCount})
         </td>

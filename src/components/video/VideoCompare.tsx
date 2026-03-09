@@ -263,7 +263,7 @@ export function VideoCompare({
           >
             <SkipForward size={14} />
           </button>
-          <span className="tabular-nums text-white/80 text-3xs">
+          <span className="font-mono tabular-nums text-white/80 text-3xs">
             {formatTime(currentTime)} / {formatTime(duration)}
           </span>
           <div className="flex-1" />
@@ -273,7 +273,7 @@ export function VideoCompare({
               setPlaybackSpeed(SPEEDS[(idx + 1) % SPEEDS.length]);
             }}
             className={cn(
-              "tabular-nums text-3xs px-1.5 py-0.5 rounded bg-white/10 hover:bg-white/20 transition-colors",
+              "font-mono tabular-nums text-3xs px-1.5 py-0.5 rounded bg-white/10 hover:bg-white/20 transition-colors",
             )}
           >
             {speed}x

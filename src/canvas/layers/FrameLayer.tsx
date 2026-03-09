@@ -61,6 +61,7 @@ export function FrameLayer({ displayScale, onPickImage }: FrameLayerProps) {
             width={frameW}
             align="center"
             text="Drop image or click to upload."
+            fontFamily="IBM Plex Sans"
             fontSize={14 / displayScale}
             fill="#666"
             listening={false}

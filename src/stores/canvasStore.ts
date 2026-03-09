@@ -4,6 +4,7 @@ import { useGenerationStore } from "@/stores/generationStore";
 import { useUiStore } from "@/stores/uiStore";
 import { base64ToBlob } from "@/lib/utils";
 import { createIdbStorage } from "@/lib/idbStorage";
+import type { FrameId } from "@/canvas/frameList";
 
 export type ToolType = "move" | "brush" | "eraser" | "maskBrush" | "maskEraser" | "rectSelect" | "lassoSelect" | "colorPicker" | "zoom" | "pan";
 
@@ -66,9 +67,16 @@ interface CanvasState {
   inputRole: "initial" | "reference";
   selectedControlFrame: number | null;
   panelCollapsedOverrides: Map<number, boolean>;  // explicit user overrides
+  canvasMode: "focus" | "canvas";
+  focusedFrameId: FrameId | null;
+  focusFitTrigger: number;
 
   setInputRole: (role: "initial" | "reference") => void;
   setViewport: (viewport: Partial<ViewportState>) => void;
+  setCanvasMode: (mode: "focus" | "canvas") => void;
+  setFocusedFrame: (id: FrameId) => void;
+  switchToCanvasMode: () => void;
+  bumpFocusFitTrigger: () => void;
   addLayer: (layer: CanvasLayer) => void;
   addImageLayer: (file: File, base64: string, objectUrl: string, w: number, h: number) => void;
   removeLayer: (id: string) => void;
@@ -105,6 +113,8 @@ interface PersistedCanvasState {
   maskVisible: boolean;
   maskColor: string;
   panelCollapsedOverrides: [number, boolean][];
+  canvasMode: "focus" | "canvas";
+  focusedFrameId: FrameId | null;
 }
 
 const canvasIdbStorage = createIdbStorage("enso-canvas", "state");
@@ -146,8 +156,18 @@ export const useCanvasStore = create<CanvasState>()(
       inputRole: "initial",
       selectedControlFrame: null,
       panelCollapsedOverrides: new Map<number, boolean>(),
+      canvasMode: "focus",
+      focusedFrameId: null,
+      focusFitTrigger: 0,
 
       setInputRole: (role) => set({ inputRole: role }),
+      setCanvasMode: (mode) => set((s) => ({
+        canvasMode: mode,
+        focusedFrameId: mode === "focus" && !s.focusedFrameId ? "output" : s.focusedFrameId,
+      })),
+      setFocusedFrame: (id) => set({ focusedFrameId: id }),
+      switchToCanvasMode: () => set((s) => s.canvasMode === "canvas" ? s : { canvasMode: "canvas" }),
+      bumpFocusFitTrigger: () => set((s) => ({ focusFitTrigger: s.focusFitTrigger + 1 })),
       setViewport: (viewport) =>
         set((s) => ({ viewport: { ...s.viewport, ...viewport } })),
 
@@ -323,6 +343,8 @@ export const useCanvasStore = create<CanvasState>()(
         maskVisible: state.maskVisible,
         maskColor: state.maskColor,
         panelCollapsedOverrides: [...state.panelCollapsedOverrides.entries()],
+        canvasMode: state.canvasMode,
+        focusedFrameId: state.focusedFrameId,
       }),
       merge: (persisted, current) => {
         const saved = persisted as Partial<PersistedCanvasState> | undefined;
@@ -342,6 +364,8 @@ export const useCanvasStore = create<CanvasState>()(
           panelCollapsedOverrides: saved.panelCollapsedOverrides
             ? new Map(saved.panelCollapsedOverrides)
             : current.panelCollapsedOverrides,
+          canvasMode: saved.canvasMode ?? "focus",
+          focusedFrameId: saved.focusedFrameId ?? null,
           layers: saved.layers ? saved.layers.map(rehydrateLayer) : current.layers,
         };
       },

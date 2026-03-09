@@ -218,7 +218,7 @@ export function QueueTab() {
       {runningJobs.length > 0 && (
         <div>
           <div className="flex items-center gap-1.5 px-3 py-1">
-            <p className="text-3xs font-medium text-muted-foreground uppercase tracking-wide flex-1">
+            <p className="text-2xs font-medium text-muted-foreground uppercase tracking-wider flex-1">
               Running
             </p>
             {runningJobs.length > 1 && (
@@ -241,7 +241,7 @@ export function QueueTab() {
         <div>
           {runningJobs.length > 0 && <Separator className="my-1" />}
           <div className="flex items-center justify-between px-3 py-1">
-            <p className="text-3xs font-medium text-muted-foreground uppercase tracking-wide">
+            <p className="text-2xs font-medium text-muted-foreground uppercase tracking-wider">
               Queued ({pendingJobsSorted.length})
             </p>
             <Button
@@ -274,7 +274,7 @@ export function QueueTab() {
             <Separator className="my-1" />
           )}
           <div className="flex items-center justify-between px-3 py-1">
-            <p className="text-3xs font-medium text-muted-foreground uppercase tracking-wide">
+            <p className="text-2xs font-medium text-muted-foreground uppercase tracking-wider">
               History ({terminalJobs.length})
             </p>
             <Button

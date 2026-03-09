@@ -123,7 +123,7 @@ export function FramePickerDialog({
           />
 
           <div className="flex items-center gap-2">
-            <span className="text-xs tabular-nums text-muted-foreground min-w-[4.5rem]">
+            <span className="text-xs font-mono tabular-nums text-muted-foreground min-w-[4.5rem]">
               {formatTime(currentTime)}
             </span>
             <Slider
@@ -135,7 +135,7 @@ export function FramePickerDialog({
               className="flex-1"
             />
 
-            <span className="text-xs tabular-nums text-muted-foreground min-w-[4.5rem] text-right">
+            <span className="text-xs font-mono tabular-nums text-muted-foreground min-w-[4.5rem] text-right">
               {formatTime(duration)}
             </span>
           </div>

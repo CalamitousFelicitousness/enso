@@ -187,14 +187,14 @@ export function PlayerControls({
           </button>
 
           {/* Time display */}
-          <span className="tabular-nums text-white/80 text-3xs select-none">
+          <span className="font-mono tabular-nums text-white/80 text-3xs select-none">
             {formatTime(currentTime)} / {formatTime(duration)}
           </span>
 
           <div className="flex-1" />
 
           {/* Frame counter */}
-          <span className="tabular-nums text-white/60 text-3xs select-none hidden sm:inline">
+          <span className="font-mono tabular-nums text-white/60 text-3xs select-none hidden sm:inline">
             {currentFrame} / {totalFrames}f
           </span>
 
@@ -208,7 +208,7 @@ export function PlayerControls({
           {/* Speed */}
           <button
             onClick={cycleSpeed}
-            className="tabular-nums text-3xs px-1.5 py-0.5 rounded bg-white/10 hover:bg-white/20 transition-colors select-none"
+            className="font-mono tabular-nums text-3xs px-1.5 py-0.5 rounded bg-white/10 hover:bg-white/20 transition-colors select-none"
             title="Playback speed ([/])"
           >
             {speed}x

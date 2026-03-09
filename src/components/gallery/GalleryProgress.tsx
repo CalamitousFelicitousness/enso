@@ -24,7 +24,7 @@ export function GalleryProgress() {
             <div className="h-full bg-primary rounded-full animate-[indeterminate_1.5s_ease-in-out_infinite] origin-left" />
           )}
         </div>
-        <span className="text-3xs text-muted-foreground tabular-nums whitespace-nowrap">
+        <span className="text-3xs text-muted-foreground font-mono tabular-nums whitespace-nowrap">
           {loaded > 0
             ? `${loaded} files${hasTotal ? ` / ${total}` : ""}…`
             : "Loading files…"}
@@ -44,7 +44,7 @@ export function GalleryProgress() {
             style={{ width: `${pct}%` }}
           />
         </div>
-        <span className="text-3xs text-muted-foreground tabular-nums whitespace-nowrap">
+        <span className="text-3xs text-muted-foreground font-mono tabular-nums whitespace-nowrap">
           {thumbCount} / {fileCount} thumbnails
         </span>
       </div>

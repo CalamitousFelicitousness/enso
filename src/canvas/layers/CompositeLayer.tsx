@@ -162,7 +162,7 @@ export function CompositeLayer({ trRef, displayScale }: CompositeLayerProps) {
             onClick={(e) => handleClick(layer.id, e)}
           />
         ))}
-        {/* eslint-disable-next-line react-hooks/refs -- imageMap synced with maskLayers in effect above */}
+        {/* eslint-disable react-hooks/refs -- imageMap synced with maskLayers in effect above */}
         {maskVisible &&
           maskLayers.map((layer) => (
             <KonvaImage
@@ -184,6 +184,7 @@ export function CompositeLayer({ trRef, displayScale }: CompositeLayerProps) {
               onClick={(e) => handleClick(layer.id, e)}
             />
           ))}
+        {/* eslint-enable react-hooks/refs */}
         <Transformer
           ref={trRef}
           keepRatio={false}

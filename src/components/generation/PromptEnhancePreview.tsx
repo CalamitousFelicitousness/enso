@@ -43,7 +43,7 @@ export function PromptEnhancePreview({
 
   return (
     <div className="flex flex-col gap-2 p-3">
-      <div className="text-2xs uppercase tracking-wider text-muted-foreground">
+      <div className="text-2xs font-medium uppercase tracking-wider text-muted-foreground">
         Preview
       </div>
       <div className="text-xs leading-relaxed p-2 rounded-md bg-muted/30 max-h-50 overflow-y-auto">

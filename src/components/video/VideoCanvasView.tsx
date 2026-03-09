@@ -392,7 +392,7 @@ export function VideoCanvasView() {
               {stepInfo && (stepInfo.step > 0 || stepInfo.textinfo) && (
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
                   {stepInfo.steps > 0 && (
-                    <span className="tabular-nums">
+                    <span className="font-mono tabular-nums">
                       Step {stepInfo.step}/{stepInfo.steps}
                     </span>
                   )}
@@ -411,7 +411,7 @@ export function VideoCanvasView() {
                     style={{ width: `${progressPct}%` }}
                   />
                 </div>
-                <span className="text-xs text-muted-foreground tabular-nums min-w-[3ch]">
+                <span className="text-xs text-muted-foreground font-mono tabular-nums min-w-[3ch]">
                   {progressPct}%
                 </span>
               </div>

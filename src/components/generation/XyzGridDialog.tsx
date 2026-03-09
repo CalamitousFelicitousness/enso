@@ -134,7 +134,7 @@ function AxisSection({
           />
         </div>
         {axisType && valCount > 0 && (
-          <Badge variant="secondary" className="text-3xs tabular-nums shrink-0">
+          <Badge variant="secondary" className="text-3xs font-mono tabular-nums shrink-0">
             {valCount}
           </Badge>
         )}
@@ -491,9 +491,9 @@ export function XyzGridDialog({
           {/* Grid preview */}
           {dimensionText && (
             <div className="flex items-center gap-2 rounded-md bg-muted/50 px-3 py-2 text-xs">
-              <span className="font-medium tabular-nums">{dimensionText}</span>
+              <span className="font-medium font-mono tabular-nums">{dimensionText}</span>
               <span className="text-muted-foreground">=</span>
-              <span className="tabular-nums">
+              <span className="font-mono tabular-nums">
                 {totalCells} image{totalCells !== 1 ? "s" : ""}
               </span>
               {preview && (

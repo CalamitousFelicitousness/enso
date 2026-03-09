@@ -115,7 +115,7 @@ export function ScriptSection({
           <div key={gi} className="flex flex-col gap-2">
             {group.title && (
               <span
-                className={`text-3xs font-medium uppercase tracking-wider text-muted-foreground/70${sectionDisabled || ownDisabled ? " opacity-50" : ""}`}
+                className={`text-2xs font-medium uppercase tracking-wider text-muted-foreground${sectionDisabled || ownDisabled ? " opacity-50" : ""}`}
               >
                 {group.title}
               </span>

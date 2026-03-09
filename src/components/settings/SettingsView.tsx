@@ -315,7 +315,7 @@ function AppearancePanel() {
               className="flex-1"
             />
 
-            <span className="text-xs text-muted-foreground tabular-nums w-14 text-right">
+            <span className="text-xs text-muted-foreground font-mono tabular-nums w-14 text-right">
               {borderRadius.toFixed(2)}rem
             </span>
           </div>
@@ -335,7 +335,7 @@ function AppearancePanel() {
               className="flex-1"
             />
 
-            <span className="text-xs text-muted-foreground tabular-nums w-14 text-right">
+            <span className="text-xs text-muted-foreground font-mono tabular-nums w-14 text-right">
               {uiScale}px
             </span>
           </div>
@@ -355,7 +355,7 @@ function AppearancePanel() {
               className="flex-1"
             />
 
-            <span className="text-xs text-muted-foreground tabular-nums w-14 text-right">
+            <span className="text-xs text-muted-foreground font-mono tabular-nums w-14 text-right">
               {canvasLabelScale.toFixed(1)}x
             </span>
           </div>

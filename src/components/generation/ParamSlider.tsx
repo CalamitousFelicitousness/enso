@@ -36,7 +36,7 @@ export const ParamSlider = memo(function ParamSlider({
     >
       <div className="flex items-center justify-between mb-0.5">
         <ParamLabel
-          className="text-2xs text-muted-foreground"
+          className="text-2xs"
           tooltip={tooltip}
         >
           {label}

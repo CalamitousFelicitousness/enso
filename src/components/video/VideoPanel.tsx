@@ -350,7 +350,7 @@ export function VideoPanel() {
                   style={{ width: `${progressPct}%` }}
                 />
               </div>
-              <span className="text-xs text-muted-foreground tabular-nums">
+              <span className="text-xs text-muted-foreground font-mono tabular-nums">
                 {progressPct}%
               </span>
             </div>

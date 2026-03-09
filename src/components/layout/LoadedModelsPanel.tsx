@@ -69,7 +69,7 @@ export function ModelRow({ model }: { model: LoadedModel }) {
       <div className="flex items-center gap-1.5 shrink-0">
         <DtypeLabel model={model} />
         {model.size_bytes != null && model.size_bytes > 0 && (
-          <span className="text-3xs text-muted-foreground tabular-nums">
+          <span className="text-3xs text-muted-foreground font-mono tabular-nums">
             {formatBytes(model.size_bytes)}
           </span>
         )}

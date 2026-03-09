@@ -1,8 +1,9 @@
-import { useCallback, useRef, memo, useState } from "react";
+import { useCallback, useRef, useEffect, memo, useState } from "react";
 import { useCanvasStore } from "@/stores/canvasStore";
 import { useControlStore } from "@/stores/controlStore";
 import { useImg2ImgStore } from "@/stores/img2imgStore";
 import { useShortcutScope } from "@/hooks/useShortcutScope";
+import { useShortcut } from "@/hooks/useShortcut";
 import { useDropTarget } from "@/hooks/useDropTarget";
 import { payloadToFile } from "@/lib/sendTo";
 import type { DragPayload } from "@/stores/dragStore";
@@ -11,7 +12,8 @@ import { CanvasStage } from "@/canvas/CanvasStage";
 import { CanvasToolbar } from "@/canvas/CanvasToolbar";
 import { ControlFramePanels } from "@/canvas/ControlFramePanel";
 import { useControlFrameLayout } from "@/canvas/useControlFrameLayout";
-import { RotateCcw, X, Plus } from "lucide-react";
+import { getOrderedFrames } from "@/canvas/frameList";
+import { RotateCcw, X, Plus, Focus, Maximize } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export const CanvasView = memo(function CanvasView() {
@@ -22,6 +24,11 @@ export const CanvasView = memo(function CanvasView() {
   const hasLayers = useCanvasStore((s) => s.layers.length > 0);
   const inputRole = useCanvasStore((s) => s.inputRole);
   const clearMask = useImg2ImgStore((s) => s.clearMask);
+  const canvasMode = useCanvasStore((s) => s.canvasMode);
+  const focusedFrameId = useCanvasStore((s) => s.focusedFrameId);
+  const setCanvasMode = useCanvasStore((s) => s.setCanvasMode);
+  const setFocusedFrame = useCanvasStore((s) => s.setFocusedFrame);
+  const bumpFocusFitTrigger = useCanvasStore((s) => s.bumpFocusFitTrigger);
   const viewport = useCanvasStore((s) => s.viewport);
   const setUnitImage = useControlStore((s) => s.setUnitImage);
   const setUnitParam = useControlStore((s) => s.setUnitParam);
@@ -135,9 +142,47 @@ export const CanvasView = memo(function CanvasView() {
   );
 
   const handleResetZoom = useCallback(() => {
-    setViewport({ x: 0, y: 0, scale: 1 });
-    setTimeout(() => setViewport({ x: 0, y: 0, scale: 0.999 }), 0);
-  }, [setViewport]);
+    if (canvasMode === "focus") {
+      bumpFocusFitTrigger();
+    } else {
+      setViewport({ x: 0, y: 0, scale: 1 });
+      setTimeout(() => setViewport({ x: 0, y: 0, scale: 0.999 }), 0);
+    }
+  }, [canvasMode, bumpFocusFitTrigger, setViewport]);
+
+  const handleToggleMode = useCallback(() => {
+    setCanvasMode(canvasMode === "focus" ? "canvas" : "focus");
+  }, [canvasMode, setCanvasMode]);
+
+  // Shortcut: toggle focus/canvas mode
+  useShortcut("canvas-toggle-mode", handleToggleMode);
+
+  // Shortcut: previous frame (focus mode only)
+  useShortcut("canvas-focus-prev", useCallback(() => {
+    if (canvasMode !== "focus") return;
+    const frames = getOrderedFrames(layout);
+    const currentId = focusedFrameId ?? "output";
+    const idx = frames.findIndex((f) => f.id === currentId);
+    if (idx > 0) setFocusedFrame(frames[idx - 1].id);
+  }, [canvasMode, layout, focusedFrameId, setFocusedFrame]));
+
+  // Shortcut: next frame (focus mode only)
+  useShortcut("canvas-focus-next", useCallback(() => {
+    if (canvasMode !== "focus") return;
+    const frames = getOrderedFrames(layout);
+    const currentId = focusedFrameId ?? "output";
+    const idx = frames.findIndex((f) => f.id === currentId);
+    if (idx >= 0 && idx < frames.length - 1) setFocusedFrame(frames[idx + 1].id);
+  }, [canvasMode, layout, focusedFrameId, setFocusedFrame]));
+
+  // Validate focused frame still exists when layout changes
+  useEffect(() => {
+    if (canvasMode !== "focus" || !focusedFrameId) return;
+    const frames = getOrderedFrames(layout);
+    if (!frames.some((f) => f.id === focusedFrameId)) {
+      setFocusedFrame("output");
+    }
+  }, [canvasMode, focusedFrameId, layout, setFocusedFrame]);
 
   const handleClearAll = useCallback(() => {
     clearLayers();
@@ -193,6 +238,15 @@ export const CanvasView = memo(function CanvasView() {
           className="bg-background/80 backdrop-blur-sm"
         >
           <Plus size={12} />
+        </Button>
+        <Button
+          variant="secondary"
+          size="icon-xs"
+          onClick={handleToggleMode}
+          title={canvasMode === "focus" ? "Canvas mode (F)" : "Focus mode (F)"}
+          className="bg-background/80 backdrop-blur-sm"
+        >
+          {canvasMode === "focus" ? <Maximize size={12} /> : <Focus size={12} />}
         </Button>
         <Button
           variant="secondary"

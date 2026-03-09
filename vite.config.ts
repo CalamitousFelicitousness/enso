@@ -9,7 +9,7 @@ import { VitePWA } from "vite-plugin-pwa";
 let sdnextPort = "7860";
 try {
   sdnextPort = fs.readFileSync(path.resolve(__dirname, ".sdnext.port"), "utf-8").trim();
-} catch {}
+} catch { /* .sdnext.port not found, use default */ }
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, __dirname, "");

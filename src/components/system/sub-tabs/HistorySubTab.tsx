@@ -72,12 +72,12 @@ export function HistorySubTab() {
                       </span>
                     )}
                   </span>
-                  <span className="tabular-nums text-muted-foreground text-2xs">
+                  <span className="font-mono tabular-nums text-muted-foreground text-2xs">
                     {entry.duration != null
                       ? formatDuration(entry.duration)
                       : "-"}
                   </span>
-                  <span className="tabular-nums text-muted-foreground text-2xs">
+                  <span className="font-mono tabular-nums text-muted-foreground text-2xs">
                     {entry.timestamp
                       ? new Date(entry.timestamp * 1000).toLocaleTimeString()
                       : "-"}

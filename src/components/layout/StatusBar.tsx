@@ -88,7 +88,7 @@ export function StatusBar() {
                 style={{ width: `${progressPct}%` }}
               />
             </div>
-            <span className="tabular-nums">{progressPct}%</span>
+            <span className="font-mono tabular-nums">{progressPct}%</span>
           </div>
           {eta > 0 && <span>ETA {formatDuration(eta)}</span>}
           {pendingCount > 0 && <span>Queue: {pendingCount}</span>}
@@ -105,16 +105,22 @@ export function StatusBar() {
             type="button"
             className="hover:text-foreground transition-colors cursor-pointer"
           >
-            VRAM {formatBytes(memory.cuda.allocated.current ?? 0)} /{" "}
-            {formatBytes(memory.cuda.system?.total ?? 0)}
+            VRAM{" "}
+            <span className="font-mono tabular-nums">
+              {formatBytes(memory.cuda.allocated.current ?? 0)} /{" "}
+              {formatBytes(memory.cuda.system?.total ?? 0)}
+            </span>
           </button>
         </LoadedModelsPanel>
       )}
 
       {memory?.ram && !memory.ram.error && (
         <span>
-          RAM {formatBytes(memory.ram.used ?? 0)} /{" "}
-          {formatBytes(memory.ram.total ?? 0)}
+          RAM{" "}
+          <span className="font-mono tabular-nums">
+            {formatBytes(memory.ram.used ?? 0)} /{" "}
+            {formatBytes(memory.ram.total ?? 0)}
+          </span>
         </span>
       )}
 

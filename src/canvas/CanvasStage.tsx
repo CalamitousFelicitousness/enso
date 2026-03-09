@@ -11,6 +11,7 @@ import { MaskLayer } from "./layers/MaskLayer";
 import { OutputLayer } from "./layers/OutputLayer";
 import { ProcessedCompositeLayer } from "./layers/ProcessedCompositeLayer";
 import { ControlFrameLayer } from "./layers/ControlFrameLayer";
+import { getOrderedFrames, computeFocusViewport } from "./frameList";
 import type { CanvasLayout } from "./useControlFrameLayout";
 import Konva from "konva";
 
@@ -37,6 +38,9 @@ export function CanvasStage({ layout, onPickImage }: CanvasStageProps) {
   const frameW = useGenerationStore((s) => s.width);
   const frameH = useGenerationStore((s) => s.height);
   const inputRole = useCanvasStore((s) => s.inputRole);
+  const canvasMode = useCanvasStore((s) => s.canvasMode);
+  const focusedFrameId = useCanvasStore((s) => s.focusedFrameId);
+  const focusFitTrigger = useCanvasStore((s) => s.focusFitTrigger);
 
   const panZoom = usePanZoom(stageRef);
   const maskPaint = useMaskPaint({ stageRef, spaceHeld: panZoom.spaceHeld });
@@ -70,10 +74,11 @@ export function CanvasStage({ layout, onPickImage }: CanvasStageProps) {
     return () => ro.disconnect();
   }, []);
 
-  // Fit viewport to show all frames - runs on initial render and whenever
+  // Canvas-mode auto-fit: show all frames. Runs on initial render and whenever
   // the generation size changes (e.g. autoFitFrame resizing to match image).
   const prevFrameRef = useRef<string>("");
   useEffect(() => {
+    if (canvasMode !== "canvas") return;
     if (frameW <= 0 || frameH <= 0) return;
     if (containerSize.width <= 0 || containerSize.height <= 0) return;
     const key = `${frameW}x${frameH}`;
@@ -90,7 +95,26 @@ export function CanvasStage({ layout, onPickImage }: CanvasStageProps) {
     const y =
       (containerSize.height - totalHeight * scale) / 2 + LABEL_HEIGHT * scale;
     setViewport({ x, y, scale });
-  }, [containerSize, frameW, frameH, totalBounds, setViewport]);
+  }, [canvasMode, containerSize, frameW, frameH, totalBounds, setViewport]);
+
+  // Focus-mode viewport: fit a single frame to fill the container.
+  useEffect(() => {
+    if (canvasMode !== "focus") return;
+    if (containerSize.width <= 0 || containerSize.height <= 0) return;
+
+    const frames = getOrderedFrames(layout);
+    const targetId = focusedFrameId ?? "output";
+    const frame = frames.find((f) => f.id === targetId) ?? frames.find((f) => f.id === "output");
+    if (!frame) return;
+
+    const vp = computeFocusViewport(frame, containerSize.width, containerSize.height);
+    setViewport(vp);
+  }, [canvasMode, focusedFrameId, focusFitTrigger, layout, containerSize, setViewport]);
+
+  // Reset prevFrameRef when entering canvas mode so auto-fit can re-trigger.
+  useEffect(() => {
+    if (canvasMode === "canvas") prevFrameRef.current = "";
+  }, [canvasMode]);
 
   // Compose event handlers: maskPaint first, then panZoom
   const onMouseDown = useCallback(

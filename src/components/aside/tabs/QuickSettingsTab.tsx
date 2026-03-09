@@ -241,7 +241,7 @@ export function QuickSettingsTab() {
       {/* Settings grouped by backend section */}
       {groups.map((group) => (
         <div key={group.title}>
-          <h3 className="text-2xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
+          <h3 className="text-2xs font-medium uppercase tracking-wider text-muted-foreground mb-1.5">
             {group.title}
           </h3>
           <div className="space-y-1.5">

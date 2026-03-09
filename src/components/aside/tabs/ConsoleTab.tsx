@@ -60,7 +60,7 @@ export function ConsoleTab() {
         >
           <Trash2 className="h-3.5 w-3.5" />
         </button>
-        <span className="ml-auto text-3xs text-muted-foreground tabular-nums">
+        <span className="ml-auto text-3xs text-muted-foreground font-mono tabular-nums">
           {lines?.length ?? 0} lines
         </span>
       </div>

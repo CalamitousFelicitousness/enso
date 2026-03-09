@@ -118,7 +118,7 @@ export function GalleryToolbar({
       {/* Selection action bar */}
       {selectionCount > 0 && (
         <div className="flex items-center gap-1.5 px-3 py-1 bg-primary/5 border-b border-primary/20">
-          <span className="text-2xs font-medium text-primary tabular-nums">
+          <span className="text-2xs font-medium text-primary font-mono tabular-nums">
             {selectionCount} selected
           </span>
           <Button
@@ -201,7 +201,7 @@ export function GalleryToolbar({
           />
         </div>
 
-        <span className="text-3xs text-muted-foreground tabular-nums ml-auto whitespace-nowrap">
+        <span className="text-3xs text-muted-foreground font-mono tabular-nums ml-auto whitespace-nowrap">
           {filteredCount === totalCount
             ? `${totalCount} file${totalCount !== 1 ? "s" : ""}`
             : `${filteredCount} / ${totalCount}`}

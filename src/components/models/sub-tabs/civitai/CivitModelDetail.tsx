@@ -501,7 +501,7 @@ function ImageLightbox({
             <ChevronRight size={24} />
           </button>
         )}
-        <div className="absolute bottom-2 left-1/2 -translate-x-1/2 text-3xs text-white/40 tabular-nums">
+        <div className="absolute bottom-2 left-1/2 -translate-x-1/2 text-3xs text-white/40 font-mono tabular-nums">
           {index + 1} / {images.length} | {img.width}x{img.height}
         </div>
       </div>

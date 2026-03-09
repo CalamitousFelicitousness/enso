@@ -189,7 +189,7 @@ export function LayerPanel() {
       {/* Mask objects */}
       {maskLayers.length > 0 && (
         <>
-          <p className="text-4xs text-muted-foreground uppercase tracking-wider px-1 pt-1">
+          <p className="text-2xs text-muted-foreground uppercase tracking-wider px-1 pt-1">
             Masks
           </p>
           {maskLayers.map((layer) => {

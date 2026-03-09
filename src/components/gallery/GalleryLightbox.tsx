@@ -136,7 +136,7 @@ export function GalleryLightbox() {
               <LightboxButton onClick={zoom.resetTransform}>
                 <RotateCcw size={16} />
               </LightboxButton>
-              <span className="text-3xs text-white/50 tabular-nums w-10 text-center">
+              <span className="text-3xs text-white/50 font-mono tabular-nums w-10 text-center">
                 {Math.round(zoom.scale * 100)}%
               </span>
               {fileCount > 1 && (
@@ -215,7 +215,7 @@ export function GalleryLightbox() {
         className="flex items-center justify-center px-4 py-1.5 flex-shrink-0"
         onClick={(e) => e.stopPropagation()}
       >
-        <span className="text-3xs text-white/40 tabular-nums">
+        <span className="text-3xs text-white/40 font-mono tabular-nums">
           {lightboxIndex + 1} / {fileCount}
           {thumb && ` | ${thumb.width}x${thumb.height}`}
         </span>

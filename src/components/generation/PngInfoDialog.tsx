@@ -137,7 +137,7 @@ function PromptSection({
   return (
     <div className="space-y-1.5">
       <div className="flex items-center justify-between">
-        <span className="text-3xs font-semibold text-muted-foreground uppercase tracking-wider">
+        <span className="text-2xs font-medium text-muted-foreground uppercase tracking-wider">
           {label}
         </span>
         <div className="flex gap-1">
@@ -176,7 +176,7 @@ function ParamGroup({
   if (entries.length === 0) return null;
   return (
     <div className="space-y-1.5">
-      <span className="text-3xs font-semibold text-muted-foreground uppercase tracking-wider">
+      <span className="text-2xs font-medium text-muted-foreground uppercase tracking-wider">
         {label}
       </span>
       <div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 text-2xs">

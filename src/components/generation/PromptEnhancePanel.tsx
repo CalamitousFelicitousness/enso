@@ -45,7 +45,7 @@ function SwitchRow({
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <Label className="text-2xs uppercase tracking-wider text-muted-foreground pt-1">
+    <Label className="text-2xs font-medium uppercase tracking-wider text-muted-foreground pt-1">
       {children}
     </Label>
   );

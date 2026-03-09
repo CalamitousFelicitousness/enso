@@ -433,7 +433,7 @@ export function NetworksTab() {
             {sidebarGroups.map((group, gi) => (
               <div key={group.header ?? gi}>
                 {group.header && (
-                  <div className="px-2 pt-2 pb-0.5 text-3xs font-semibold uppercase tracking-wider text-muted-foreground border-t border-border">
+                  <div className="px-2 pt-2 pb-0.5 text-2xs font-medium uppercase tracking-wider text-muted-foreground border-t border-border">
                     {group.header}
                   </div>
                 )}
