@@ -13,6 +13,13 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
 import { ParamLabel } from "../ParamLabel";
 import { getParamHelp } from "@/data/parameterHelp";
+import { Dices, RotateCcw } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import type { GenerationInfo } from "@/api/types/generation";
 
 const SAMPLER_GROUP_ORDER = ["Standard", "FlowMatch", "Res4Lyf"] as const;
@@ -311,73 +318,87 @@ export function SamplerTab() {
       </ParamSection>
 
       <ParamSection title="Seed">
-        <ParamRow label="Seed">
-          <div className="flex items-center gap-1">
-            <NumberInput
-              value={state.seed}
-              onChange={set.seed}
-              fallback={-1}
-              className="flex-1 h-6 text-2xs px-2 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-            />
+        <ParamGrid>
+          <ParamRow label="Seed">
+            <div className="flex items-center gap-1">
+              <NumberInput
+                value={state.seed}
+                onChange={set.seed}
+                fallback={-1}
+                className="min-w-0 flex-1 h-6 text-2xs px-2 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+              />
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="secondary"
+                    size="icon-xs"
+                    className="text-muted-foreground shrink-0"
+                    title="Seed options"
+                  >
+                    <Dices className="size-3.5" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={set.seedRandom}>
+                    <Dices className="size-3.5" />
+                    <span>Random</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={set.seedReuse}
+                    disabled={lastInfo?.seed == null}
+                  >
+                    <RotateCcw className="size-3.5" />
+                    <span>
+                      {lastInfo?.seed != null
+                        ? `Reuse (${lastInfo.seed})`
+                        : "Reuse last"}
+                    </span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          </ParamRow>
 
-            <Button
-              variant="secondary"
-              size="xs"
-              onClick={set.seedRandom}
-              className="text-muted-foreground"
-            >
-              Random
-            </Button>
-            <Button
-              variant="secondary"
-              size="xs"
-              onClick={set.seedReuse}
-              disabled={lastInfo?.seed == null}
-              className="text-muted-foreground"
-              title={
-                lastInfo?.seed != null
-                  ? `Reuse seed ${lastInfo.seed}`
-                  : "No previous generation"
-              }
-            >
-              Reuse
-            </Button>
-          </div>
-        </ParamRow>
-
-        <ParamRow label="Variation">
-          <div className="flex items-center gap-1">
-            <NumberInput
-              value={state.subseed}
-              onChange={set.subseed}
-              fallback={-1}
-              className="flex-1 h-6 text-2xs px-2 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-            />
-
-            <Button
-              variant="secondary"
-              size="xs"
-              onClick={set.subseedRandom}
-              className="text-muted-foreground"
-            >
-              Random
-            </Button>
-            <Button
-              variant="secondary"
-              size="xs"
-              onClick={set.subseedReuse}
-              disabled={lastInfo?.subseed == null}
-              className="text-muted-foreground"
-              title={
-                lastInfo?.subseed != null
-                  ? `Reuse subseed ${lastInfo.subseed}`
-                  : "No previous generation"
-              }
-            >
-              Reuse
-            </Button>
-          </div>
-        </ParamRow>
+          <ParamRow label="Variation">
+            <div className="flex items-center gap-1">
+              <NumberInput
+                value={state.subseed}
+                onChange={set.subseed}
+                fallback={-1}
+                className="min-w-0 flex-1 h-6 text-2xs px-2 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+              />
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="secondary"
+                    size="icon-xs"
+                    className="text-muted-foreground shrink-0"
+                    title="Variation options"
+                  >
+                    <Dices className="size-3.5" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={set.subseedRandom}>
+                    <Dices className="size-3.5" />
+                    <span>Random</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={set.subseedReuse}
+                    disabled={lastInfo?.subseed == null}
+                  >
+                    <RotateCcw className="size-3.5" />
+                    <span>
+                      {lastInfo?.subseed != null
+                        ? `Reuse (${lastInfo.subseed})`
+                        : "Reuse last"}
+                    </span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          </ParamRow>
+        </ParamGrid>
 
         <ParamSlider
           label="Var. str."
