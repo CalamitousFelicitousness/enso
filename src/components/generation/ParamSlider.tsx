@@ -2,6 +2,7 @@ import { memo, useCallback } from "react";
 import { Slider } from "@/components/ui/slider";
 import { NumberInput } from "@/components/ui/number-input";
 import { ParamLabel } from "./ParamLabel";
+import { cn } from "@/lib/utils";
 
 interface ParamSliderProps {
   label: string;
@@ -32,13 +33,14 @@ export const ParamSlider = memo(function ParamSlider({
   return (
     <div
       data-param={label.toLowerCase()}
-      className={disabled ? "opacity-50 pointer-events-none" : undefined}
+      className={cn(
+        "flex flex-col gap-1.5",
+        disabled && "opacity-50 pointer-events-none",
+      )}
     >
-      <div className="flex items-center justify-between mb-0.5">
-        <ParamLabel
-          className="text-2xs"
-          tooltip={tooltip}
-        >
+      {/* Row 1: label left, value right */}
+      <div className="flex items-baseline justify-between gap-1">
+        <ParamLabel className="text-2xs truncate leading-none" tooltip={tooltip}>
           {label}
         </ParamLabel>
         <NumberInput
@@ -48,10 +50,12 @@ export const ParamSlider = memo(function ParamSlider({
           value={value}
           onChange={onChange}
           fallback={min}
-          className="w-12 h-5 text-2xs text-right px-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
           disabled={disabled}
+          className="w-10 h-4 text-3xs text-right px-1 leading-none shrink-0 bg-transparent border-transparent shadow-none focus-visible:border-border focus-visible:bg-input/50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
         />
       </div>
+
+      {/* Row 2: slider full-width */}
       <Slider
         min={min}
         max={max}
