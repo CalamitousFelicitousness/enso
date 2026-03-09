@@ -17,7 +17,7 @@ export interface SegmentedControlProps<T extends string = string> {
   options: SegmentOption<T>[];
   value: T;
   onValueChange: (value: T) => void;
-  variant?: "default" | "icon-label" | "icon-only" | "dense";
+  variant?: "default" | "icon-label" | "icon-only" | "dense" | "tabs" | "stacked";
   animated?: boolean;
   className?: string;
 }
@@ -35,6 +35,10 @@ const itemVariants = cva(
         "icon-only": "h-6 px-2",
         dense:
           "h-5 px-1.5 text-3xs font-medium tracking-wide",
+        tabs:
+          "h-8 px-3 text-xs font-medium",
+        stacked:
+          "flex-col gap-0.5 py-2 px-3 text-3xs font-medium uppercase tracking-wider",
       },
       animated: {
         true: "",
@@ -42,11 +46,45 @@ const itemVariants = cva(
       },
     },
     compoundVariants: [
+      // Standard variants: subtle active state
       {
+        variant: "default",
         animated: false,
         className:
           "data-[state=on]:bg-primary/15 data-[state=on]:text-primary data-[state=on]:ring-1 data-[state=on]:ring-primary/40",
       },
+      {
+        variant: "icon-label",
+        animated: false,
+        className:
+          "data-[state=on]:bg-primary/15 data-[state=on]:text-primary data-[state=on]:ring-1 data-[state=on]:ring-primary/40",
+      },
+      {
+        variant: "icon-only",
+        animated: false,
+        className:
+          "data-[state=on]:bg-primary/15 data-[state=on]:text-primary data-[state=on]:ring-1 data-[state=on]:ring-primary/40",
+      },
+      {
+        variant: "dense",
+        animated: false,
+        className:
+          "data-[state=on]:bg-primary/15 data-[state=on]:text-primary data-[state=on]:ring-1 data-[state=on]:ring-primary/40",
+      },
+      // Tabs + Stacked variants: bolder active state for panel navigation
+      {
+        variant: "tabs",
+        animated: false,
+        className:
+          "data-[state=on]:bg-primary/25 data-[state=on]:text-primary data-[state=on]:ring-1 data-[state=on]:ring-primary/60",
+      },
+      {
+        variant: "stacked",
+        animated: false,
+        className:
+          "data-[state=on]:bg-primary/25 data-[state=on]:text-primary data-[state=on]:ring-1 data-[state=on]:ring-primary/60",
+      },
+      // Animated: text only (bg/ring comes from sliding indicator)
       {
         animated: true,
         className: "data-[state=on]:text-primary",
@@ -116,12 +154,21 @@ function SegmentedControlInner<T extends string = string>(
               {animated && isActive && (
                 <motion.div
                   layoutId={layoutId}
-                  className="absolute inset-0 bg-primary/15 ring-1 ring-primary/40"
+                  className={cn(
+                    "absolute inset-0 ring-1",
+                    variant === "tabs" || variant === "stacked"
+                      ? "bg-primary/25 ring-primary/60"
+                      : "bg-primary/15 ring-primary/40",
+                  )}
                   style={{ borderRadius: "var(--control-inner-radius)" }}
                   transition={springTransition}
                 />
               )}
-              {(variant === "icon-label" || variant === "icon-only") &&
+              {variant === "stacked" && Icon && (
+                <Icon size={16} className="relative z-10 shrink-0" />
+              )}
+              {variant !== "stacked" &&
+                (variant === "icon-label" || variant === "icon-only") &&
                 Icon && (
                   <Icon
                     size={variant === "icon-only" ? 13 : 11}

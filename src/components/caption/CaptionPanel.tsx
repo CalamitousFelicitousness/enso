@@ -1,11 +1,15 @@
-import { useCallback } from "react";
-import { Play, Loader2 } from "lucide-react";
+import { useCallback, useState } from "react";
+import { Play, Loader2, Eye, Aperture, Tags, Settings } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { SegmentedControl } from "@/components/ui/segmented-control";
 import { useCaptionStore } from "@/stores/captionStore";
 import { useCaptionSettingsStore } from "@/stores/captionSettingsStore";
+import {
+  useOptionsSubset,
+  useSetOptions,
+} from "@/api/hooks/useSettings";
 import {
   useOpenClipCaption,
   useTaggerCaption,
@@ -18,6 +22,23 @@ import { OpenClipSettings } from "./methods/OpenClipSettings";
 import { TaggerSettings } from "./methods/TaggerSettings";
 import type { CaptionMethod } from "@/api/types/caption";
 
+type CaptionDefaultType = "VLM" | "OpenCLiP" | "Tagger";
+
+type CaptionTab = CaptionMethod | "default";
+
+const CAPTION_TAB_OPTIONS: { value: CaptionTab; label: string; icon: typeof Eye }[] = [
+  { value: "vlm", label: "VLM", icon: Eye },
+  { value: "openclip", label: "OpenCLiP", icon: Aperture },
+  { value: "tagger", label: "Tagger", icon: Tags },
+  { value: "default", label: "Default", icon: Settings },
+];
+
+const CAPTION_DEFAULT_OPTIONS: { value: CaptionDefaultType; label: string }[] = [
+  { value: "VLM", label: "VLM" },
+  { value: "OpenCLiP", label: "OpenCLiP" },
+  { value: "Tagger", label: "Tagger" },
+];
+
 export function CaptionPanel() {
   const image = useCaptionStore((s) => s.image);
   const isProcessing = useCaptionStore((s) => s.isProcessing);
@@ -25,6 +46,26 @@ export function CaptionPanel() {
   const setResult = useCaptionStore((s) => s.setResult);
   const setProcessing = useCaptionStore((s) => s.setProcessing);
   const setMethod = useCaptionStore((s) => s.setMethod);
+
+  const [activeTab, setActiveTab] = useState<CaptionMethod | "default">(method);
+  const { data: captionOpts } = useOptionsSubset(["caption_default_type"]);
+  const setOptions = useSetOptions();
+  const defaultType = (captionOpts?.caption_default_type as CaptionDefaultType) ?? "VLM";
+
+  const handleTabChange = useCallback(
+    (v: CaptionMethod | "default") => {
+      setActiveTab(v);
+      if (v !== "default") setMethod(v);
+    },
+    [setMethod],
+  );
+
+  const handleDefaultTypeChange = useCallback(
+    (v: CaptionDefaultType) => {
+      setOptions.mutate({ caption_default_type: v });
+    },
+    [setOptions],
+  );
 
   const openclipMut = useOpenClipCaption();
   const taggerMut = useTaggerCaption();
@@ -139,34 +180,38 @@ export function CaptionPanel() {
       {/* Method tabs + settings */}
       <ScrollArea className="flex-1">
         <div className="p-3">
-          <Tabs
-            value={method}
-            onValueChange={(v) => setMethod(v as CaptionMethod)}
-          >
-            <TabsList className="w-full">
-              <TabsTrigger value="vlm" className="text-xs flex-1">
-                VLM
-              </TabsTrigger>
-              <TabsTrigger value="openclip" className="text-xs flex-1">
-                OpenCLiP
-              </TabsTrigger>
-              <TabsTrigger value="tagger" className="text-xs flex-1">
-                Tagger
-              </TabsTrigger>
-            </TabsList>
+          <SegmentedControl
+            options={CAPTION_TAB_OPTIONS}
+            value={activeTab}
+            onValueChange={handleTabChange}
+            variant="stacked"
+            animated
+            className="w-full"
+          />
 
-            <TabsContent value="vlm" className="mt-3">
-              <VlmSettings />
-            </TabsContent>
-
-            <TabsContent value="openclip" className="mt-3">
-              <OpenClipSettings />
-            </TabsContent>
-
-            <TabsContent value="tagger" className="mt-3">
-              <TaggerSettings />
-            </TabsContent>
-          </Tabs>
+          <div className="mt-3">
+            {activeTab === "vlm" && <VlmSettings />}
+            {activeTab === "openclip" && <OpenClipSettings />}
+            {activeTab === "tagger" && <TaggerSettings />}
+            {activeTab === "default" && (
+              <div className="space-y-3">
+                <div className="space-y-1">
+                  <span className="text-2xs font-medium uppercase tracking-wider text-muted-foreground">
+                    Default Caption Type
+                  </span>
+                  <p className="text-3xs text-muted-foreground leading-tight">
+                    Caption method used for quick interrogate actions
+                  </p>
+                </div>
+                <SegmentedControl
+                  options={CAPTION_DEFAULT_OPTIONS}
+                  value={defaultType}
+                  onValueChange={handleDefaultTypeChange}
+                  animated
+                />
+              </div>
+            )}
+          </div>
         </div>
       </ScrollArea>
     </div>
