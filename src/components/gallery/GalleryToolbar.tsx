@@ -17,7 +17,7 @@ import {
   LayoutGrid,
   Rows3,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+
 
 const SORT_OPTIONS: { value: string; label: string }[] = [
   { value: "name-asc", label: "Name A-Z" },
