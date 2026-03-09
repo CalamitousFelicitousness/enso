@@ -14,7 +14,7 @@ export function ModeToggle({ mode, onModeChange, locked, onLockedChange }: ModeT
   return (
     <div
       className={cn(
-        "relative flex items-center h-6 rounded-full overflow-hidden",
+        "relative flex items-center h-6 rounded-full",
         "dark:bg-popover/80 bg-popover/70 backdrop-blur-xl",
         "ring-1 dark:ring-white/[0.05] ring-black/[0.05]",
         "border border-border/50 shadow-lg shadow-black/20",
@@ -24,10 +24,10 @@ export function ModeToggle({ mode, onModeChange, locked, onLockedChange }: ModeT
       <div
         className={cn(
           "absolute inset-y-[2px] left-[2px] rounded-full",
-          "w-[calc(50%-4px)]",
+          "w-[calc((100%-24px)/2)]",
           "bg-primary/20 border border-primary/40",
           "transition-all duration-150 ease-out",
-          !isFocus && "translate-x-[calc(100%+4px)]",
+          !isFocus && "translate-x-[calc(100%+20px)]",
         )}
       />
 
@@ -36,10 +36,10 @@ export function ModeToggle({ mode, onModeChange, locked, onLockedChange }: ModeT
         type="button"
         onClick={() => onModeChange("focus")}
         className={cn(
-          "relative z-10 flex items-center justify-center gap-1 h-full",
+          "relative z-10 flex-1 flex items-center justify-center gap-1 h-full px-2.5",
           "text-2xs font-medium uppercase tracking-wider",
           "transition-colors duration-150 cursor-pointer select-none",
-          "w-1/2",
+          "min-w-[60px]",
           isFocus
             ? "text-primary"
             : "text-muted-foreground hover:text-foreground/70",
@@ -49,15 +49,31 @@ export function ModeToggle({ mode, onModeChange, locked, onLockedChange }: ModeT
         Focus
       </button>
 
+      {/* Lock divider */}
+      <button
+        type="button"
+        onClick={() => onLockedChange(!locked)}
+        title={locked ? "Unlock mode switching" : "Lock current mode"}
+        className={cn(
+          "relative z-10 flex items-center justify-center w-5 h-full ml-1",
+          "transition-colors duration-150 cursor-pointer",
+          locked
+            ? "text-primary"
+            : "text-muted-foreground/50 hover:text-muted-foreground",
+        )}
+      >
+        {locked ? <Lock size={10} /> : <Unlock size={10} />}
+      </button>
+
       {/* Canvas */}
       <button
         type="button"
         onClick={() => onModeChange("canvas")}
         className={cn(
-          "relative z-10 flex items-center justify-center gap-1 h-full",
+          "relative z-10 flex-1 flex items-center justify-center gap-1 h-full px-2.5",
           "text-2xs font-medium uppercase tracking-wider",
           "transition-colors duration-150 cursor-pointer select-none",
-          "w-1/2",
+          "min-w-[60px]",
           !isFocus
             ? "text-primary"
             : "text-muted-foreground hover:text-foreground/70",
@@ -65,24 +81,6 @@ export function ModeToggle({ mode, onModeChange, locked, onLockedChange }: ModeT
       >
         <Maximize size={10} />
         Canvas
-      </button>
-
-      {/* Lock — absolutely positioned over the centre join */}
-      <button
-        type="button"
-        onClick={() => onLockedChange(!locked)}
-        title={locked ? "Unlock mode switching" : "Lock current mode"}
-        className={cn(
-          "absolute z-20 left-1/2 -translate-x-1/2",
-          "flex items-center justify-center w-4 h-4 rounded-full",
-          "transition-colors duration-150 cursor-pointer",
-          "dark:bg-popover bg-popover border border-border/60",
-          locked
-            ? "text-primary"
-            : "text-muted-foreground/50 hover:text-muted-foreground",
-        )}
-      >
-        {locked ? <Lock size={8} /> : <Unlock size={8} />}
       </button>
     </div>
   );
