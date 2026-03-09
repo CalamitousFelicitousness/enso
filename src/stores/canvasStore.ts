@@ -70,6 +70,7 @@ interface CanvasState {
   canvasMode: "focus" | "canvas";
   focusedFrameId: FrameId | null;
   focusFitTrigger: number;
+  modeLocked: boolean;
 
   setInputRole: (role: "initial" | "reference") => void;
   setViewport: (viewport: Partial<ViewportState>) => void;
@@ -77,6 +78,7 @@ interface CanvasState {
   setFocusedFrame: (id: FrameId) => void;
   switchToCanvasMode: () => void;
   bumpFocusFitTrigger: () => void;
+  setModeLocked: (locked: boolean) => void;
   addLayer: (layer: CanvasLayer) => void;
   addImageLayer: (file: File, base64: string, objectUrl: string, w: number, h: number) => void;
   removeLayer: (id: string) => void;
@@ -115,6 +117,7 @@ interface PersistedCanvasState {
   panelCollapsedOverrides: [number, boolean][];
   canvasMode: "focus" | "canvas";
   focusedFrameId: FrameId | null;
+  modeLocked: boolean;
 }
 
 const canvasIdbStorage = createIdbStorage("enso-canvas", "state");
@@ -159,6 +162,7 @@ export const useCanvasStore = create<CanvasState>()(
       canvasMode: "focus",
       focusedFrameId: null,
       focusFitTrigger: 0,
+      modeLocked: false,
 
       setInputRole: (role) => set({ inputRole: role }),
       setCanvasMode: (mode) => set((s) => ({
@@ -168,6 +172,7 @@ export const useCanvasStore = create<CanvasState>()(
       setFocusedFrame: (id) => set({ focusedFrameId: id }),
       switchToCanvasMode: () => set((s) => s.canvasMode === "canvas" ? s : { canvasMode: "canvas" }),
       bumpFocusFitTrigger: () => set((s) => ({ focusFitTrigger: s.focusFitTrigger + 1 })),
+      setModeLocked: (locked) => set({ modeLocked: locked }),
       setViewport: (viewport) =>
         set((s) => ({ viewport: { ...s.viewport, ...viewport } })),
 
@@ -345,6 +350,7 @@ export const useCanvasStore = create<CanvasState>()(
         panelCollapsedOverrides: [...state.panelCollapsedOverrides.entries()],
         canvasMode: state.canvasMode,
         focusedFrameId: state.focusedFrameId,
+        modeLocked: state.modeLocked,
       }),
       merge: (persisted, current) => {
         const saved = persisted as Partial<PersistedCanvasState> | undefined;
@@ -366,6 +372,7 @@ export const useCanvasStore = create<CanvasState>()(
             : current.panelCollapsedOverrides,
           canvasMode: saved.canvasMode ?? "focus",
           focusedFrameId: saved.focusedFrameId ?? null,
+          modeLocked: saved.modeLocked ?? false,
           layers: saved.layers ? saved.layers.map(rehydrateLayer) : current.layers,
         };
       },

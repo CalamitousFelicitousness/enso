@@ -2,6 +2,7 @@ import { useCallback, useRef, useEffect, memo, useState } from "react";
 import { useCanvasStore } from "@/stores/canvasStore";
 import { useControlStore } from "@/stores/controlStore";
 import { useImg2ImgStore } from "@/stores/img2imgStore";
+import { useUiStore } from "@/stores/uiStore";
 import { useShortcutScope } from "@/hooks/useShortcutScope";
 import { useShortcut } from "@/hooks/useShortcut";
 import { useDropTarget } from "@/hooks/useDropTarget";
@@ -13,7 +14,8 @@ import { CanvasToolbar } from "@/canvas/CanvasToolbar";
 import { ControlFramePanels } from "@/canvas/ControlFramePanel";
 import { useControlFrameLayout } from "@/canvas/useControlFrameLayout";
 import { getOrderedFrames } from "@/canvas/frameList";
-import { RotateCcw, X, Plus, Focus, Maximize } from "lucide-react";
+import { ModeToggle } from "./ModeToggle";
+import { RotateCcw, X, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export const CanvasView = memo(function CanvasView() {
@@ -29,6 +31,8 @@ export const CanvasView = memo(function CanvasView() {
   const setCanvasMode = useCanvasStore((s) => s.setCanvasMode);
   const setFocusedFrame = useCanvasStore((s) => s.setFocusedFrame);
   const bumpFocusFitTrigger = useCanvasStore((s) => s.bumpFocusFitTrigger);
+  const modeLocked = useCanvasStore((s) => s.modeLocked);
+  const setModeLocked = useCanvasStore((s) => s.setModeLocked);
   const viewport = useCanvasStore((s) => s.viewport);
   const setUnitImage = useControlStore((s) => s.setUnitImage);
   const setUnitParam = useControlStore((s) => s.setUnitParam);
@@ -175,6 +179,14 @@ export const CanvasView = memo(function CanvasView() {
     if (idx >= 0 && idx < frames.length - 1) setFocusedFrame(frames[idx + 1].id);
   }, [canvasMode, layout, focusedFrameId, setFocusedFrame]));
 
+  // Re-center focused frame when panels resize the canvas area
+  const rightPanelCollapsed = useUiStore((s) => s.rightPanelCollapsed);
+  const leftPanelCollapsed = useUiStore((s) => s.leftPanelCollapsed);
+  const viewCollapsed = useUiStore((s) => s.viewCollapsed);
+  useEffect(() => {
+    if (canvasMode === "focus") bumpFocusFitTrigger();
+  }, [rightPanelCollapsed, leftPanelCollapsed, viewCollapsed, canvasMode, bumpFocusFitTrigger]);
+
   // Validate focused frame still exists when layout changes
   useEffect(() => {
     if (canvasMode !== "focus" || !focusedFrameId) return;
@@ -229,7 +241,13 @@ export const CanvasView = memo(function CanvasView() {
       <CanvasStage layout={layout} onPickImage={handlePickImage} />
 
       {/* Top-right utility buttons */}
-      <div className="absolute top-2 right-2 flex items-center gap-1">
+      <div className="absolute top-2 right-2 flex items-center gap-1.5">
+        <ModeToggle
+          mode={canvasMode}
+          onModeChange={setCanvasMode}
+          locked={modeLocked}
+          onLockedChange={setModeLocked}
+        />
         <Button
           variant="secondary"
           size="icon-xs"
@@ -238,15 +256,6 @@ export const CanvasView = memo(function CanvasView() {
           className="bg-background/80 backdrop-blur-sm"
         >
           <Plus size={12} />
-        </Button>
-        <Button
-          variant="secondary"
-          size="icon-xs"
-          onClick={handleToggleMode}
-          title={canvasMode === "focus" ? "Canvas mode (F)" : "Focus mode (F)"}
-          className="bg-background/80 backdrop-blur-sm"
-        >
-          {canvasMode === "focus" ? <Maximize size={12} /> : <Focus size={12} />}
         </Button>
         <Button
           variant="secondary"

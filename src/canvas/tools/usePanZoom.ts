@@ -8,6 +8,7 @@ type SetViewportFn = (v: { x?: number; y?: number; scale?: number }) => void;
 export function usePanZoom(stageRef: React.RefObject<Konva.Stage | null>, setViewportOverride?: SetViewportFn) {
   const canvasSetViewport = useCanvasStore((s) => s.setViewport);
   const switchToCanvasMode = useCanvasStore((s) => s.switchToCanvasMode);
+  const modeLocked = useCanvasStore((s) => s.modeLocked);
   const setViewport = setViewportOverride ?? canvasSetViewport;
   const isOverride = !!setViewportOverride;
   const spaceHeld = useRef(false);
@@ -16,6 +17,7 @@ export function usePanZoom(stageRef: React.RefObject<Konva.Stage | null>, setVie
 
   const handleWheel = useCallback((e: Konva.KonvaEventObject<WheelEvent>) => {
     e.evt.preventDefault();
+    if (!isOverride && modeLocked) return;
     if (!isOverride) switchToCanvasMode();
     const stage = stageRef.current;
     if (!stage) return;
@@ -41,12 +43,13 @@ export function usePanZoom(stageRef: React.RefObject<Konva.Stage | null>, setVie
       x: pointer.x - mousePointTo.x * newScale,
       y: pointer.y - mousePointTo.y * newScale,
     });
-  }, [stageRef, setViewport, isOverride, switchToCanvasMode]);
+  }, [stageRef, setViewport, isOverride, modeLocked, switchToCanvasMode]);
 
   const handleMouseDown = useCallback((e: Konva.KonvaEventObject<MouseEvent>) => {
     // Middle-click or space+left-click to pan
     if (e.evt.button === 1 || (spaceHeld.current && e.evt.button === 0)) {
       e.evt.preventDefault();
+      if (!isOverride && modeLocked) return;
       if (!isOverride) switchToCanvasMode();
       isPanning.current = true;
       lastPointer.current = { x: e.evt.clientX, y: e.evt.clientY };
@@ -56,7 +59,7 @@ export function usePanZoom(stageRef: React.RefObject<Konva.Stage | null>, setVie
         container.style.cursor = "grabbing";
       }
     }
-  }, [stageRef, isOverride, switchToCanvasMode]);
+  }, [stageRef, isOverride, modeLocked, switchToCanvasMode]);
 
   const handleMouseMove = useCallback((e: Konva.KonvaEventObject<MouseEvent>) => {
     if (!isPanning.current) return;
