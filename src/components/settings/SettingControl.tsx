@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { SettingDef } from "@/lib/settingsSchema";
-import { cn } from "@/lib/utils";
+import { SegmentedControl } from "@/components/ui/segmented-control";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -180,27 +180,14 @@ export function SettingControl({
     case "radio":
       if (choices && choices.length > 0 && choices.length <= 5) {
         return (
-          <div
-            className="inline-grid auto-cols-fr grid-flow-col self-start border border-border bg-muted/40 p-0.5"
-            style={{ borderRadius: "var(--control-radius)" }}
-          >
-            {choices.map((choice) => (
-              <button
-                key={choice}
-                type="button"
-                onClick={() => onChange(choice)}
-                className={cn(
-                  "px-2.5 py-1 text-xs text-center transition-all",
-                  String(value) === choice
-                    ? "bg-primary/15 text-primary ring-1 ring-primary/40"
-                    : "text-muted-foreground hover:text-foreground",
-                )}
-                style={{ borderRadius: "var(--control-inner-radius)" }}
-              >
-                {choice}
-              </button>
-            ))}
-          </div>
+          <SegmentedControl
+            options={choices.map((c) => ({ value: c, label: c }))}
+            value={String(value ?? "")}
+            onValueChange={(v) => onChange(v)}
+            variant={choices.length >= 4 ? "dense" : "default"}
+            animated
+            className="self-start"
+          />
         );
       }
       return renderSelect(choices, value, onChange, setting);

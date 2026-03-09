@@ -24,6 +24,7 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
+import { SegmentedControl } from "@/components/ui/segmented-control";
 import { cn } from "@/lib/utils";
 import {
   Save,
@@ -192,40 +193,6 @@ function SettingRow({
   );
 }
 
-function SegmentedControl<T extends string>({
-  options,
-  value,
-  onChange,
-}: {
-  options: { value: T; label: string }[];
-  value: T;
-  onChange: (v: T) => void;
-}) {
-  return (
-    <div
-      className="inline-grid auto-cols-fr grid-flow-col border border-border bg-muted/40 p-0.5"
-      style={{ borderRadius: "var(--control-radius)" }}
-    >
-      {options.map((opt) => (
-        <button
-          key={opt.value}
-          type="button"
-          onClick={() => onChange(opt.value)}
-          className={cn(
-            "px-2.5 py-1 text-xs text-center transition-colors",
-            value === opt.value
-              ? "bg-primary/15 text-primary ring-1 ring-primary/40"
-              : "text-muted-foreground hover:text-foreground",
-          )}
-          style={{ borderRadius: "var(--control-inner-radius)" }}
-        >
-          {opt.label}
-        </button>
-      ))}
-    </div>
-  );
-}
-
 function AppearancePanel() {
   const colorMode = useUiStore((s) => s.colorMode);
   const setColorMode = useUiStore((s) => s.setColorMode);
@@ -254,7 +221,8 @@ function AppearancePanel() {
           <SegmentedControl
             options={COLOR_MODES}
             value={colorMode}
-            onChange={setColorMode}
+            onValueChange={setColorMode}
+            animated
           />
         </SettingRow>
 

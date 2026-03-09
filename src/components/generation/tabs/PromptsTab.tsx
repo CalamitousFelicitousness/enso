@@ -24,7 +24,7 @@ import {
   PopoverTrigger,
   PopoverContent,
 } from "@/components/ui/popover";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { SegmentedControl } from "@/components/ui/segmented-control";
 
 interface AspectPreset {
   label: string;
@@ -233,22 +233,16 @@ export function PromptsTab() {
       >
         {/* Size mode pill selector (img2img + auto-fit only) */}
         {showSizeModes && (
-          <Tabs
+          <SegmentedControl
+            options={[
+              { value: "fixed", label: "Fixed" },
+              { value: "scale", label: "Scale" },
+              { value: "megapixel", label: "Megapixel" },
+            ]}
             value={sizeMode}
             onValueChange={(v) => setSizeMode(v as SizeMode)}
-          >
-            <TabsList className="h-7 w-full">
-              <TabsTrigger value="fixed" className="text-2xs h-5 px-2">
-                Fixed
-              </TabsTrigger>
-              <TabsTrigger value="scale" className="text-2xs h-5 px-2">
-                Scale
-              </TabsTrigger>
-              <TabsTrigger value="megapixel" className="text-2xs h-5 px-2">
-                Megapixel
-              </TabsTrigger>
-            </TabsList>
-          </Tabs>
+            animated
+          />
         )}
 
         {/* Width / Height row */}
