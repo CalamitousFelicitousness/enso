@@ -47,7 +47,7 @@ function Slider({
         <SliderPrimitive.Thumb
           data-slot="slider-thumb"
           key={index}
-          className="relative block h-[10px] w-[1.5px] shrink-0 bg-primary focus-visible:outline-hidden disabled:pointer-events-none"
+          className="relative block h-[10px] w-[2px] shrink-0 bg-primary focus-visible:outline-hidden disabled:pointer-events-none"
         />
       ))}
     </SliderPrimitive.Root>
