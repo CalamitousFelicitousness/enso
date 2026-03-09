@@ -25,7 +25,7 @@ export function ModeToggle({ mode, onModeChange, locked, onLockedChange }: ModeT
         className={cn(
           "absolute inset-y-[2px] left-[2px] rounded-full",
           "w-[calc((100%-24px)/2)]",
-          "bg-primary/20 shadow-[inset_0_0_8px_0_var(--primary)]",
+          "bg-primary/20 border border-primary/40",
           "transition-all duration-150 ease-out",
           !isFocus && "translate-x-[calc(100%+20px)]",
         )}
