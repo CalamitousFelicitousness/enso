@@ -23,9 +23,9 @@ export function ModeToggle({ mode, onModeChange, locked, onLockedChange }: ModeT
       {/* Sliding highlight */}
       <div
         className={cn(
-          "absolute inset-y-[2px] left-[2px] rounded-full overflow-hidden",
+          "absolute inset-y-[2px] left-[2px] rounded-full",
           "w-[calc((100%-24px)/2)]",
-          "bg-primary/15 shadow-[var(--glow-primary)]",
+          "bg-primary/15",
           "transition-all duration-150 ease-out",
           !isFocus && "translate-x-[calc(100%+20px)]",
         )}
@@ -40,7 +40,9 @@ export function ModeToggle({ mode, onModeChange, locked, onLockedChange }: ModeT
           "text-2xs font-medium uppercase tracking-wider",
           "transition-colors duration-150 cursor-pointer select-none",
           "min-w-[60px]",
-          isFocus ? "text-primary" : "text-muted-foreground hover:text-foreground/70",
+          isFocus
+            ? "text-primary drop-shadow-[0_0_8px_color-mix(in_oklch,_var(--primary)_50%,_transparent)]"
+            : "text-muted-foreground hover:text-foreground/70",
         )}
       >
         <Focus size={10} />
@@ -72,7 +74,9 @@ export function ModeToggle({ mode, onModeChange, locked, onLockedChange }: ModeT
           "text-2xs font-medium uppercase tracking-wider",
           "transition-colors duration-150 cursor-pointer select-none",
           "min-w-[60px]",
-          !isFocus ? "text-primary" : "text-muted-foreground hover:text-foreground/70",
+          !isFocus
+            ? "text-primary drop-shadow-[0_0_8px_color-mix(in_oklch,_var(--primary)_50%,_transparent)]"
+            : "text-muted-foreground hover:text-foreground/70",
         )}
       >
         <Maximize size={10} />
