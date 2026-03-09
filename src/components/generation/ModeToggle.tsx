@@ -25,7 +25,7 @@ export function ModeToggle({ mode, onModeChange, locked, onLockedChange }: ModeT
         className={cn(
           "absolute inset-y-[2px] left-[2px] rounded-full",
           "w-[calc((100%-24px)/2)]",
-          "bg-primary/15",
+          "bg-primary/15 ring-1 ring-primary/40",
           "transition-all duration-150 ease-out",
           !isFocus && "translate-x-[calc(100%+20px)]",
         )}
@@ -41,7 +41,7 @@ export function ModeToggle({ mode, onModeChange, locked, onLockedChange }: ModeT
           "transition-colors duration-150 cursor-pointer select-none",
           "min-w-[60px]",
           isFocus
-            ? "text-primary drop-shadow-[0_0_8px_color-mix(in_oklch,_var(--primary)_50%,_transparent)]"
+            ? "text-primary"
             : "text-muted-foreground hover:text-foreground/70",
         )}
       >
@@ -75,7 +75,7 @@ export function ModeToggle({ mode, onModeChange, locked, onLockedChange }: ModeT
           "transition-colors duration-150 cursor-pointer select-none",
           "min-w-[60px]",
           !isFocus
-            ? "text-primary drop-shadow-[0_0_8px_color-mix(in_oklch,_var(--primary)_50%,_transparent)]"
+            ? "text-primary"
             : "text-muted-foreground hover:text-foreground/70",
         )}
       >
