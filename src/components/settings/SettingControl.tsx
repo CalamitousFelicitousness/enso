@@ -181,7 +181,7 @@ export function SettingControl({
       if (choices && choices.length > 0 && choices.length <= 5) {
         return (
           <div
-            className="inline-flex flex-wrap self-start border border-border bg-muted/40 p-0.5"
+            className="inline-grid auto-cols-fr grid-flow-col self-start border border-border bg-muted/40 p-0.5"
             style={{ borderRadius: "var(--control-radius)" }}
           >
             {choices.map((choice) => (
@@ -190,9 +190,9 @@ export function SettingControl({
                 type="button"
                 onClick={() => onChange(choice)}
                 className={cn(
-                  "px-2.5 py-1 text-xs transition-colors",
+                  "px-2.5 py-1 text-xs text-center transition-all",
                   String(value) === choice
-                    ? "bg-background text-foreground shadow-sm"
+                    ? "bg-primary/15 text-primary ring-1 ring-primary/40"
                     : "text-muted-foreground hover:text-foreground",
                 )}
                 style={{ borderRadius: "var(--control-inner-radius)" }}

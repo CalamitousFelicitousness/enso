@@ -44,9 +44,9 @@ export function ModelsTab() {
               type="button"
               onClick={() => setActive(tab)}
               className={cn(
-                "px-2 py-0.5 rounded-full text-2xs font-medium transition-colors",
+                "px-2 py-0.5 rounded-md text-2xs font-medium transition-colors",
                 active === tab
-                  ? "bg-accent text-accent-foreground"
+                  ? "bg-primary/15 text-primary ring-1 ring-primary/40"
                   : "bg-muted text-muted-foreground hover:text-foreground",
               )}
             >

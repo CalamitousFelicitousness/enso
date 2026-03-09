@@ -144,7 +144,7 @@ function TriggerWords({ words }: { words: string[] }) {
               key={`${w}-${i}`}
               type="button"
               onClick={() => handleClick(w)}
-              className="inline-flex items-center rounded-full border border-transparent bg-secondary text-secondary-foreground px-2 py-0.5 text-2xs font-medium cursor-pointer hover:bg-primary/20 select-none transition-colors"
+              className="inline-flex items-center rounded-md border border-transparent bg-secondary text-secondary-foreground px-2 py-0.5 text-2xs font-medium cursor-pointer hover:bg-primary/20 select-none transition-colors"
             >
               {w}
             </button>
@@ -223,7 +223,7 @@ function NetworkDialogBody({
                       useGenerationStore.getState().setParam("prompt", updated);
                       toast.success(`Added "${tag}" to prompt`);
                     }}
-                    className="inline-flex items-center rounded-full border border-transparent bg-secondary text-secondary-foreground px-2 py-0.5 text-2xs font-medium cursor-pointer hover:bg-primary/20 select-none transition-colors"
+                    className="inline-flex items-center rounded-md border border-transparent bg-secondary text-secondary-foreground px-2 py-0.5 text-2xs font-medium cursor-pointer hover:bg-primary/20 select-none transition-colors"
                   >
                     {t.trim()}
                   </button>

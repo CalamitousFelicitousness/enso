@@ -26,7 +26,6 @@ function useResolvedTheme(): "dark" | "light" {
 }
 
 function App() {
-  const cornerStyle = useUiStore((s) => s.cornerStyle);
   const accentColor = useUiStore((s) => s.accentColor);
   const borderRadius = useUiStore((s) => s.borderRadius);
   const uiScale = useUiStore((s) => s.uiScale);
@@ -38,11 +37,6 @@ function App() {
     if (backendUrl) api.setBaseUrl(backendUrl);
     if (username && password) api.setAuth(username, password);
   }, []);
-
-  // Corner style
-  useEffect(() => {
-    document.documentElement.dataset.corners = cornerStyle;
-  }, [cornerStyle]);
 
   // Color mode
   useEffect(() => {

@@ -35,7 +35,7 @@ import {
   Check,
 } from "lucide-react";
 import { useUiStore } from "@/stores/uiStore";
-import type { CornerStyle, ColorMode } from "@/stores/uiStore";
+import type { ColorMode } from "@/stores/uiStore";
 import { useConnectionStore } from "@/stores/connectionStore";
 import { api } from "@/api/client";
 import { ws } from "@/api/wsManager";
@@ -43,11 +43,6 @@ import { queryClient } from "@/main";
 
 const CONNECTION_SECTION_ID = "__connection";
 const APPEARANCE_SECTION_ID = "__appearance";
-
-const CORNER_STYLES: { value: CornerStyle; label: string }[] = [
-  { value: "rounded", label: "Rounded" },
-  { value: "square", label: "Square" },
-];
 
 const COLOR_MODES: { value: ColorMode; label: string }[] = [
   { value: "dark", label: "Dark" },
@@ -208,7 +203,7 @@ function SegmentedControl<T extends string>({
 }) {
   return (
     <div
-      className="inline-flex border border-border bg-muted/40 p-0.5"
+      className="inline-grid auto-cols-fr grid-flow-col border border-border bg-muted/40 p-0.5"
       style={{ borderRadius: "var(--control-radius)" }}
     >
       {options.map((opt) => (
@@ -217,9 +212,9 @@ function SegmentedControl<T extends string>({
           type="button"
           onClick={() => onChange(opt.value)}
           className={cn(
-            "px-2.5 py-1 text-xs transition-colors",
+            "px-2.5 py-1 text-xs text-center transition-colors",
             value === opt.value
-              ? "bg-background text-foreground shadow-sm"
+              ? "bg-primary/15 text-primary ring-1 ring-primary/40"
               : "text-muted-foreground hover:text-foreground",
           )}
           style={{ borderRadius: "var(--control-inner-radius)" }}
@@ -236,8 +231,6 @@ function AppearancePanel() {
   const setColorMode = useUiStore((s) => s.setColorMode);
   const accentColor = useUiStore((s) => s.accentColor);
   const setAccentColor = useUiStore((s) => s.setAccentColor);
-  const cornerStyle = useUiStore((s) => s.cornerStyle);
-  const setCornerStyle = useUiStore((s) => s.setCornerStyle);
   const borderRadius = useUiStore((s) => s.borderRadius);
   const setBorderRadius = useUiStore((s) => s.setBorderRadius);
   const uiScale = useUiStore((s) => s.uiScale);
@@ -288,17 +281,6 @@ function AppearancePanel() {
               className="h-7 w-20 text-xs font-mono"
             />
           </div>
-        </SettingRow>
-
-        <SettingRow
-          label="Corner style"
-          description="Shape of toggle switches and segmented controls"
-        >
-          <SegmentedControl
-            options={CORNER_STYLES}
-            value={cornerStyle}
-            onChange={setCornerStyle}
-          />
         </SettingRow>
 
         <SettingRow
@@ -816,7 +798,7 @@ export function SettingsView({ onDirtyChange }: SettingsViewProps = {}) {
                 >
                   <span>{section.title}</span>
                   {matchCount != null && matchCount > 0 && (
-                    <span className="text-4xs bg-primary/10 text-primary rounded-full px-1.5 min-w-[1.125rem] text-center">
+                    <span className="text-4xs bg-primary/10 text-primary rounded-md px-1.5 min-w-[1.125rem] text-center">
                       {matchCount}
                     </span>
                   )}

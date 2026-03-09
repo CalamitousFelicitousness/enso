@@ -14,21 +14,23 @@ export function ModeToggle({ mode, onModeChange, locked, onLockedChange }: ModeT
   return (
     <div
       className={cn(
-        "relative flex items-center h-6 rounded-full",
+        "relative flex items-center h-6",
         "dark:bg-popover/80 bg-popover/70 backdrop-blur-xl",
         "ring-1 dark:ring-white/[0.05] ring-black/[0.05]",
         "border border-border/50 shadow-lg shadow-black/20",
       )}
+      style={{ borderRadius: "var(--control-radius)" }}
     >
       {/* Sliding highlight */}
       <div
         className={cn(
-          "absolute inset-y-[2px] left-[2px] rounded-full",
+          "absolute inset-y-[2px] left-[2px]",
           "w-[calc((100%-24px)/2)]",
           "bg-primary/20 border border-primary/40",
           "transition-all duration-150 ease-out",
           !isFocus && "translate-x-[calc(100%+20px)]",
         )}
+        style={{ borderRadius: "var(--control-inner-radius)" }}
       />
 
       {/* Focus */}

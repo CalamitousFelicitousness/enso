@@ -627,7 +627,7 @@ function InputFramePanel({
 
   const roleToggle = (
     <div
-      className="flex items-center gap-0.5 rounded-full p-0.5"
+      className="flex items-center gap-0.5 rounded-md p-0.5"
       style={{ backgroundColor: "rgba(0,0,0,0.15)" }}
     >
       <button
@@ -635,7 +635,7 @@ function InputFramePanel({
           e.stopPropagation();
           handleRoleChange("initial");
         }}
-        className="px-2 py-0.5 text-xs font-medium rounded-full transition-colors"
+        className="px-2 py-0.5 text-xs font-medium rounded-sm transition-colors"
         style={{
           backgroundColor: !isReference
             ? "rgba(255,255,255,0.25)"
@@ -650,7 +650,7 @@ function InputFramePanel({
           e.stopPropagation();
           handleRoleChange("reference");
         }}
-        className="px-2 py-0.5 text-xs font-medium rounded-full transition-colors"
+        className="px-2 py-0.5 text-xs font-medium rounded-sm transition-colors"
         style={{
           backgroundColor: isReference
             ? "rgba(255,255,255,0.25)"

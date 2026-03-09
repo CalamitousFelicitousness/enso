@@ -381,9 +381,9 @@ export function NetworksTab() {
               type="button"
               onClick={() => handleFilterChange(t)}
               className={cn(
-                "px-2 py-0.5 rounded-full text-2xs font-medium transition-colors",
+                "px-2 py-0.5 rounded-md text-2xs font-medium transition-colors",
                 filter === t
-                  ? "bg-accent text-accent-foreground"
+                  ? "bg-primary/15 text-primary ring-1 ring-primary/40"
                   : "bg-muted text-muted-foreground hover:text-foreground",
               )}
             >

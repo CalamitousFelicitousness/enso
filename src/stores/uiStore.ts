@@ -4,7 +4,6 @@ import type { AsideTab } from "@/lib/constants";
 
 type SidebarView = "images" | "video" | "process" | "caption" | "gallery";
 type ImagesSubTab = "prompts" | "sampler" | "guidance" | "refine" | "detail" | "advanced" | "color" | "control" | "scripts";
-type CornerStyle = "rounded" | "square";
 type ColorMode = "dark" | "light" | "system";
 
 interface UiState {
@@ -44,7 +43,6 @@ interface UiState {
   // Appearance
   colorMode: ColorMode;
   accentColor: string;
-  cornerStyle: CornerStyle;
   borderRadius: number;
   uiScale: number;
   canvasLabelScale: number;
@@ -65,7 +63,6 @@ interface UiState {
   openAsideTab: (tab: AsideTab) => void;
   setColorMode: (mode: ColorMode) => void;
   setAccentColor: (color: string) => void;
-  setCornerStyle: (style: CornerStyle) => void;
   setBorderRadius: (radius: number) => void;
   setUiScale: (scale: number) => void;
   setCanvasLabelScale: (scale: number) => void;
@@ -74,7 +71,7 @@ interface UiState {
   setPendingSettingsSearch: (query: string | null) => void;
 }
 
-export type { SidebarView, ImagesSubTab, CornerStyle, ColorMode };
+export type { SidebarView, ImagesSubTab, ColorMode };
 
 export const useUiStore = create<UiState>()(
   persist(
@@ -96,8 +93,7 @@ export const useUiStore = create<UiState>()(
       quickSettingsKeys: null,
       colorMode: "dark" as ColorMode,
       accentColor: "#00bcd4",
-      cornerStyle: "rounded" as CornerStyle,
-      borderRadius: 0.5,
+      borderRadius: 0.375,
       uiScale: 18,
       canvasLabelScale: 1,
 
@@ -116,7 +112,6 @@ export const useUiStore = create<UiState>()(
       openAsideTab: (tab) => set({ activeAsideTab: tab, rightPanelCollapsed: false }),
       setColorMode: (mode) => set({ colorMode: mode }),
       setAccentColor: (color) => set({ accentColor: color }),
-      setCornerStyle: (style) => set({ cornerStyle: style }),
       setBorderRadius: (radius) => set({ borderRadius: Math.max(0, Math.min(1, radius)) }),
       setUiScale: (scale) => set({ uiScale: Math.max(8, Math.min(28, scale)) }),
       setCanvasLabelScale: (scale) => set({ canvasLabelScale: Math.max(0.5, Math.min(2, scale)) }),
