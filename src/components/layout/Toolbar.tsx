@@ -1,6 +1,7 @@
 import { useUiStore } from "@/stores/uiStore";
 import { ModelSelector } from "@/components/models/ModelSelector";
 import { PresetSelector } from "@/components/generation/PresetSelector";
+import { ImageToolsMenu } from "@/components/generation/ImageToolsMenu";
 import { ConnectionIndicator } from "@/components/connection/ConnectionIndicator";
 import { PanelLeftOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -35,6 +36,14 @@ export function Toolbar() {
       {/* Parameter presets */}
       <div className="flex-shrink-0">
         <PresetSelector />
+      </div>
+
+      {/* Separator */}
+      <div className="h-5 w-px bg-border flex-shrink-0" />
+
+      {/* Image tools */}
+      <div className="flex-shrink-0">
+        <ImageToolsMenu />
       </div>
 
       {/* Spacer */}

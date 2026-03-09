@@ -18,7 +18,6 @@ import {
   Square,
   SkipForward,
   History,
-  FileSearch,
   ChevronDown,
   Layers,
   Grid3X3,
@@ -34,7 +33,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { PngInfoDialog } from "@/components/generation/PngInfoDialog";
 import { BatchDialog } from "@/components/generation/BatchDialog";
 import { XyzGridDialog } from "@/components/generation/XyzGridDialog";
 import { GenerationDiffDialog } from "@/components/generation/GenerationDiffDialog";
@@ -47,7 +45,6 @@ export const ActionBar = memo(function ActionBar() {
   const runningJob = useJobQueueStore(selectRunningJob);
   const pendingCount = useJobQueueStore(selectPendingCount);
 
-  const [pngInfoOpen, setPngInfoOpen] = useState(false);
   const [batchOpen, setBatchOpen] = useState(false);
   const [xyzOpen, setXyzOpen] = useState(false);
   const [diffOpen, setDiffOpen] = useState(false);
@@ -208,18 +205,6 @@ export const ActionBar = memo(function ActionBar() {
             onOpenChange={setDiffOpen}
             result={lastResult ?? null}
           />
-
-          <Button
-            type="button"
-            data-param="png-info"
-            onClick={() => setPngInfoOpen(true)}
-            variant="secondary"
-            size="icon-sm"
-            title="Extract PNG info"
-          >
-            <FileSearch size={14} />
-          </Button>
-          <PngInfoDialog open={pngInfoOpen} onOpenChange={setPngInfoOpen} />
         </>
       )}
 
