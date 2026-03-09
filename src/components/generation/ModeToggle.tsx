@@ -55,7 +55,7 @@ export function ModeToggle({ mode, onModeChange, locked, onLockedChange }: ModeT
         onClick={() => onLockedChange(!locked)}
         title={locked ? "Unlock mode switching" : "Lock current mode"}
         className={cn(
-          "relative z-10 flex items-center justify-center w-5 h-full ml-1",
+          "relative z-10 flex items-center justify-center w-5 h-full ml-0.5",
           "transition-colors duration-150 cursor-pointer",
           locked
             ? "text-primary"
