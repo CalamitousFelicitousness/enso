@@ -44,6 +44,8 @@
   --chart-5: #ef4444;
   --control-radius: 9999px;
   --control-inner-radius: 9999px;
+  --glow-primary: 0 0 8px 0 oklch(from var(--primary) l c h / 0.5);
+  --glow-primary-intense: 0 0 12px 2px oklch(from var(--primary) l c h / 0.6);
 }
 
 :root[data-corners=square] {

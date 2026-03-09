@@ -21,6 +21,10 @@ const buttonVariants = cva(
         ghost:
           "hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50",
         link: "text-primary underline-offset-4 hover:underline",
+        toggle:
+          "text-muted-foreground hover:text-foreground hover:bg-accent/50 data-[state=on]:bg-primary/15 data-[state=on]:text-primary data-[state=on]:shadow-[var(--glow-primary)]",
+        "toggle-grouped":
+          "text-muted-foreground hover:text-foreground hover:bg-accent/50 data-[state=on]:bg-primary/15 data-[state=on]:text-primary data-[state=on]:shadow-[var(--glow-primary)] rounded-none first:rounded-l-md last:rounded-r-md",
       },
       size: {
         default: "h-9 px-4 py-2 has-[>svg]:px-3",
