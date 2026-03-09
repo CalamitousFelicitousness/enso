@@ -36,9 +36,10 @@ export function ModeToggle({ mode, onModeChange, locked, onLockedChange }: ModeT
         type="button"
         onClick={() => onModeChange("focus")}
         className={cn(
-          "relative z-10 flex-1 flex items-center justify-center gap-1 h-full px-2.5",
+          "relative z-10 flex items-center justify-center gap-1 h-full px-2.5",
           "text-2xs font-medium uppercase tracking-wider",
           "transition-colors duration-150 cursor-pointer select-none",
+          "min-w-[60px]",
           isFocus ? "text-primary" : "text-muted-foreground hover:text-foreground/70",
         )}
       >
@@ -67,9 +68,10 @@ export function ModeToggle({ mode, onModeChange, locked, onLockedChange }: ModeT
         type="button"
         onClick={() => onModeChange("canvas")}
         className={cn(
-          "relative z-10 flex-1 flex items-center justify-center gap-1 h-full px-2.5",
+          "relative z-10 flex items-center justify-center gap-1 h-full px-2.5",
           "text-2xs font-medium uppercase tracking-wider",
           "transition-colors duration-150 cursor-pointer select-none",
+          "min-w-[60px]",
           !isFocus ? "text-primary" : "text-muted-foreground hover:text-foreground/70",
         )}
       >
