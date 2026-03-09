@@ -22,18 +22,32 @@ function Slider({
     [value, defaultValue, min, max],
   );
 
-  const isDragging = React.useRef(false);
   const [dragging, setDragging] = React.useState(false);
+  const dragTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
 
-  const handlePointerDown = React.useCallback(() => {
-    isDragging.current = true;
-    setDragging(true);
-  }, []);
+  const handleValueChange = React.useCallback(
+    (newValue: number[]) => {
+      // Clear any pending timeout
+      if (dragTimeoutRef.current) {
+        clearTimeout(dragTimeoutRef.current);
+      }
 
-  const handlePointerUp = React.useCallback(() => {
-    isDragging.current = false;
-    setDragging(false);
-  }, []);
+      // If we're not already in dragging state, enter it
+      if (!dragging) {
+        setDragging(true);
+      }
+
+      // Set a timeout to exit dragging state after a short delay
+      // If another change fires before this, it clears and resets (indicating a drag)
+      // If it completes, we exit dragging (indicating a click)
+      dragTimeoutRef.current = setTimeout(() => {
+        setDragging(false);
+      }, 50);
+
+      onValueChange?.(newValue);
+    },
+    [dragging, onValueChange],
+  );
 
   return (
     <SliderPrimitive.Root
@@ -43,9 +57,7 @@ function Slider({
       value={value}
       min={min}
       max={max}
-      onValueChange={onValueChange}
-      onPointerDown={handlePointerDown}
-      onPointerUp={handlePointerUp}
+      onValueChange={handleValueChange}
       className={cn(
         "relative flex w-full touch-none items-center select-none data-[disabled]:opacity-50 data-[orientation=vertical]:h-full data-[orientation=vertical]:min-h-44 data-[orientation=vertical]:w-auto data-[orientation=vertical]:flex-col",
         className,
@@ -58,14 +70,14 @@ function Slider({
       >
         <SliderPrimitive.Range
           data-slot="slider-range"
-          className="bg-primary/60 absolute data-[orientation=horizontal]:h-full data-[orientation=vertical]:w-full not-[[data-dragging]_&]:transition-[width] not-[[data-dragging]_&]:duration-100 not-[[data-dragging]_&]:ease-out"
+          className="bg-primary/60 absolute data-[orientation=horizontal]:h-full data-[orientation=vertical]:w-full data-[not-dragging]:transition-[width] data-[not-dragging]:duration-100 data-[not-dragging]:ease-out"
         />
       </SliderPrimitive.Track>
       {Array.from({ length: _values.length }, (_, index) => (
         <SliderPrimitive.Thumb
           data-slot="slider-thumb"
           key={index}
-          className="relative block h-[10px] w-[2px] shrink-0 bg-primary outline-none not-[[data-dragging]_&]:transition-[height,box-shadow,transform] not-[[data-dragging]_&]:duration-100 not-[[data-dragging]_&]:ease-out [[data-dragging]_&]:transition-[height,box-shadow] focus-visible:h-[13px] focus-visible:shadow-[0_0_0_2px_var(--ring)] disabled:pointer-events-none"
+          className="relative block h-[10px] w-[2px] shrink-0 bg-primary outline-none transition-[height,box-shadow] data-[not-dragging]:transition-[height,box-shadow,transform] data-[not-dragging]:duration-100 data-[not-dragging]:ease-out focus-visible:h-[13px] focus-visible:shadow-[0_0_0_2px_var(--ring)] disabled:pointer-events-none"
         />
       ))}
     </SliderPrimitive.Root>
