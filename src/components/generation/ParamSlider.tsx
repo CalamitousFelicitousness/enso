@@ -34,7 +34,7 @@ export const ParamSlider = memo(function ParamSlider({
     <div
       data-param={label.toLowerCase()}
       className={cn(
-        "flex flex-col gap-1",
+        "flex flex-col gap-1.5",
         disabled && "opacity-50 pointer-events-none",
       )}
     >
