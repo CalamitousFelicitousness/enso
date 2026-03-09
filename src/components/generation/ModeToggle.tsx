@@ -14,7 +14,7 @@ export function ModeToggle({ mode, onModeChange, locked, onLockedChange }: ModeT
   return (
     <div
       className={cn(
-        "relative flex items-center h-6 rounded-full",
+        "relative flex items-center h-6 rounded-full overflow-hidden",
         "dark:bg-popover/80 bg-popover/70 backdrop-blur-xl",
         "ring-1 dark:ring-white/[0.05] ring-black/[0.05]",
         "border border-border/50 shadow-lg shadow-black/20",
