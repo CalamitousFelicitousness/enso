@@ -5,7 +5,7 @@ import type { RightTab } from "@/lib/constants";
 export interface NavigateTarget {
   view?: string;
   tab?: ImagesSubTab;
-  aside?: RightTab;
+  rightTab?: RightTab;
   section?: string;
   param?: string;
 }
@@ -33,9 +33,9 @@ function highlight(el: Element) {
 export async function navigateToParam(target: NavigateTarget) {
   const store = useUiStore.getState();
 
-  // 1. Aside tab navigation (right panel)
-  if (target.aside) {
-    store.openRightTab(target.aside);
+  // 1. Right panel tab navigation
+  if (target.rightTab) {
+    store.openRightTab(target.rightTab);
     return;
   }
 

@@ -49,7 +49,7 @@ export const RIGHT_TABS: RightTabItem[] = [
   { id: "console", label: "Console", icon: Terminal },
 ];
 
-/** Primary sidebar navigation */
+/** Primary nav items (Left Rail) */
 export const NAV_ITEMS: NavItem[] = [
   { id: "images", label: "Images", icon: ImageIcon },
   { id: "video", label: "Video", icon: Video, capability: "video" },
@@ -71,7 +71,7 @@ export const IMAGES_SUB_TABS: SubTabItem[] = [
   { id: "scripts", label: "Scripts", icon: FileCode },
 ];
 
-/** External links at the bottom of the sidebar */
+/** External links at the bottom of the Left Rail */
 export const EXTERNAL_LINKS: ExternalLink[] = [
   { label: "Docs", icon: BookOpen, url: "https://vladmandic.github.io/sdnext-docs/" },
   { label: "GitHub", icon: Github, url: "https://github.com/vladmandic/sdnext" },

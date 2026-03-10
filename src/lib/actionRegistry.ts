@@ -85,7 +85,7 @@ export function buildActions(): PaletteAction[] {
     icon: RefreshCw,
     group: "Actions",
     keywords: ["model", "checkpoint", "scan"],
-    target: { aside: "models" },
+    target: { rightTab: "models" },
   });
 
   actions.push({
@@ -94,7 +94,7 @@ export function buildActions(): PaletteAction[] {
     icon: Download,
     group: "Actions",
     keywords: ["model", "checkpoint", "load"],
-    target: { aside: "models" },
+    target: { rightTab: "models" },
   });
 
   actions.push({
@@ -103,7 +103,7 @@ export function buildActions(): PaletteAction[] {
     icon: Upload,
     group: "Actions",
     keywords: ["model", "checkpoint", "free", "memory"],
-    target: { aside: "models" },
+    target: { rightTab: "models" },
   });
 
   // --- Settings search ---
@@ -113,7 +113,7 @@ export function buildActions(): PaletteAction[] {
     icon: Settings,
     group: "Navigation",
     keywords: ["settings", "search", "find", "option", "preference", "configure"],
-    target: { aside: "settings" },
+    target: { rightTab: "settings" },
   });
 
   // --- Navigation: views ---
@@ -143,12 +143,12 @@ export function buildActions(): PaletteAction[] {
   // --- Navigation: right panel tabs ---
   for (const tab of RIGHT_TABS) {
     actions.push({
-      id: `aside-${tab.id}`,
+      id: `right-${tab.id}`,
       label: `Open ${tab.label} panel`,
       icon: tab.icon,
       group: "Navigation",
       keywords: ["panel", "right panel", tab.label.toLowerCase()],
-      target: { aside: tab.id as RightTab },
+      target: { rightTab: tab.id as RightTab },
     });
   }
 

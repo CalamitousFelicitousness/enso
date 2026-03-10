@@ -120,25 +120,7 @@ export const useUiStore = create<UiState>()(
     }),
     {
       name: "enso-ui",
-      version: 1,
-      migrate: (persisted: unknown, version: number) => {
-        const state = persisted as Record<string, unknown>;
-        if (version === 0) {
-          if ("sidebarCollapsed" in state) {
-            state.leftRailCollapsed = state.sidebarCollapsed;
-            delete state.sidebarCollapsed;
-          }
-          if ("activeSidebarView" in state) {
-            state.activeNavView = state.activeSidebarView;
-            delete state.activeSidebarView;
-          }
-          if ("activeAsideTab" in state) {
-            state.activeRightTab = state.activeAsideTab;
-            delete state.activeAsideTab;
-          }
-        }
-        return state;
-      },
+      version: 2,
       partialize: (state) => {
         const { pendingSettingsSearch: _pending, ...rest } = state;
         return rest;
