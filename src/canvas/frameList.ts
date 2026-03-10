@@ -10,8 +10,11 @@ export interface FrameBounds {
   height: number;
 }
 
-const PADDING = 32;
-const LABEL_HEIGHT = 19;
+const PADDING = 40;
+/** Reserve space above frame for an expanded glass dock panel (header + tabs + drawer + gap) */
+const LABEL_HEIGHT = 160;
+/** Bottom clearance for the floating canvas toolbar */
+const TOOLBAR_RESERVE = 56;
 
 /**
  * Returns all visible frames sorted left-to-right.
@@ -74,10 +77,11 @@ export function computeFocusViewport(
   containerH: number,
 ): { x: number; y: number; scale: number } {
   const availW = containerW - PADDING * 2;
-  const availH = containerH - PADDING * 2;
+  const availH = containerH - PADDING - (PADDING + TOOLBAR_RESERVE);
   const totalFrameH = LABEL_HEIGHT + frame.height;
-  const scale = Math.min(availW / frame.width, availH / totalFrameH, 1);
+  const scale = Math.min(availW / frame.width, availH / totalFrameH, 2);
   const x = (containerW - frame.width * scale) / 2 - frame.x * scale;
-  const y = (containerH - totalFrameH * scale) / 2 + LABEL_HEIGHT * scale;
+  const y =
+    PADDING + (availH - totalFrameH * scale) / 2 + LABEL_HEIGHT * scale;
   return { x, y, scale };
 }
