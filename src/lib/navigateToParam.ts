@@ -1,11 +1,11 @@
 import { useUiStore } from "@/stores/uiStore";
 import type { ImagesSubTab } from "@/stores/uiStore";
-import type { AsideTab } from "@/lib/constants";
+import type { RightTab } from "@/lib/constants";
 
 export interface NavigateTarget {
   view?: string;
   tab?: ImagesSubTab;
-  aside?: AsideTab;
+  aside?: RightTab;
   section?: string;
   param?: string;
 }
@@ -35,7 +35,7 @@ export async function navigateToParam(target: NavigateTarget) {
 
   // 1. Aside tab navigation (right panel)
   if (target.aside) {
-    store.openAsideTab(target.aside);
+    store.openRightTab(target.aside);
     return;
   }
 
@@ -43,9 +43,9 @@ export async function navigateToParam(target: NavigateTarget) {
   if (store.leftPanelCollapsed) store.toggleLeftPanel();
 
   // 3. Switch view/tab
-  if (target.view) store.setSidebarView(target.view as Parameters<typeof store.setSidebarView>[0]);
+  if (target.view) store.setNavView(target.view as Parameters<typeof store.setNavView>[0]);
   if (target.tab) {
-    store.setSidebarView("images");
+    store.setNavView("images");
     store.setImagesSubTab(target.tab);
   }
 

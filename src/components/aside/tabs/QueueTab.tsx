@@ -50,13 +50,13 @@ export function QueueTab() {
 
   const handleView = useCallback((job: TrackedJob) => {
     if (job.domain === "generate") {
-      useUiStore.getState().setSidebarView("images");
+      useUiStore.getState().setNavView("images");
     } else if (
       job.domain === "video" ||
       job.domain === "framepack" ||
       job.domain === "ltx"
     ) {
-      useUiStore.getState().setSidebarView("video");
+      useUiStore.getState().setNavView("video");
     }
   }, []);
 

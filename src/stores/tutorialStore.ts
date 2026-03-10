@@ -29,7 +29,7 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     placement: "top",
   },
   {
-    target: "sidebar-subtabs",
+    target: "left-rail-subtabs",
     title: "Explore more options",
     description: "These tabs let you fine-tune sampler settings, guidance, refinement, control networks, and more.",
     placement: "right",
@@ -57,8 +57,8 @@ export const useTutorialStore = create<TutorialState>()(
 
       start: () => {
         const ui = useUiStore.getState();
-        if (ui.sidebarCollapsed) ui.toggleSidebar();
-        ui.setSidebarView("images");
+        if (ui.leftRailCollapsed) ui.toggleLeftRail();
+        ui.setNavView("images");
         ui.setImagesSubTab("prompts");
         if (ui.leftPanelCollapsed) ui.toggleLeftPanel();
         if (ui.viewCollapsed) ui.toggleViewCollapsed();

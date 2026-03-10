@@ -1,15 +1,15 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { AsideTab } from "@/lib/constants";
+import type { RightTab } from "@/lib/constants";
 
-type SidebarView = "images" | "video" | "process" | "caption" | "gallery";
+type NavView = "images" | "video" | "process" | "caption" | "gallery";
 type ImagesSubTab = "prompts" | "sampler" | "guidance" | "refine" | "detail" | "advanced" | "color" | "control" | "scripts";
 type ColorMode = "dark" | "light" | "system";
 
 interface UiState {
-  // Sidebar
-  sidebarCollapsed: boolean;
-  activeSidebarView: SidebarView;
+  // Left Rail
+  leftRailCollapsed: boolean;
+  activeNavView: NavView;
   activeImagesSubTab: ImagesSubTab;
   viewCollapsed: boolean;
 
@@ -18,8 +18,8 @@ interface UiState {
   leftPanelWidth: number;
   rightPanelCollapsed: boolean;
 
-  // Aside tabs
-  activeAsideTab: AsideTab;
+  // Right tabs
+  activeRightTab: RightTab;
 
   // Result gallery
   resultThumbSize: number;
@@ -47,8 +47,8 @@ interface UiState {
   canvasLabelScale: number;
 
   // Actions
-  toggleSidebar: () => void;
-  setSidebarView: (view: SidebarView) => void;
+  toggleLeftRail: () => void;
+  setNavView: (view: NavView) => void;
   setImagesSubTab: (tab: ImagesSubTab) => void;
   toggleViewCollapsed: () => void;
   setResultThumbSize: (size: number) => void;
@@ -58,8 +58,8 @@ interface UiState {
   toggleLeftPanel: () => void;
   setLeftPanelWidth: (width: number) => void;
   toggleRightPanel: () => void;
-  setAsideTab: (tab: AsideTab) => void;
-  openAsideTab: (tab: AsideTab) => void;
+  setRightTab: (tab: RightTab) => void;
+  openRightTab: (tab: RightTab) => void;
   setColorMode: (mode: ColorMode) => void;
   setAccentColor: (color: string) => void;
   setUiScale: (scale: number) => void;
@@ -69,19 +69,19 @@ interface UiState {
   setPendingSettingsSearch: (query: string | null) => void;
 }
 
-export type { SidebarView, ImagesSubTab, ColorMode };
+export type { NavView, ImagesSubTab, ColorMode };
 
 export const useUiStore = create<UiState>()(
   persist(
     (set) => ({
-      sidebarCollapsed: false,
-      activeSidebarView: "images",
+      leftRailCollapsed: false,
+      activeNavView: "images",
       activeImagesSubTab: "prompts",
       viewCollapsed: false,
       leftPanelCollapsed: false,
       leftPanelWidth: 380,
       rightPanelCollapsed: true,
-      activeAsideTab: "networks" as AsideTab,
+      activeRightTab: "networks" as RightTab,
       resultThumbSize: 56,
       autoFitFrame: true,
       reprocessOnGenerate: true,
@@ -94,8 +94,8 @@ export const useUiStore = create<UiState>()(
       uiScale: 18,
       canvasLabelScale: 1,
 
-      toggleSidebar: () => set((s) => ({ sidebarCollapsed: !s.sidebarCollapsed })),
-      setSidebarView: (view) => set({ activeSidebarView: view }),
+      toggleLeftRail: () => set((s) => ({ leftRailCollapsed: !s.leftRailCollapsed })),
+      setNavView: (view) => set({ activeNavView: view }),
       setImagesSubTab: (tab) => set({ activeImagesSubTab: tab }),
       toggleViewCollapsed: () => set((s) => ({ viewCollapsed: !s.viewCollapsed })),
       setResultThumbSize: (size) => set({ resultThumbSize: Math.max(40, Math.min(160, size)) }),
@@ -105,8 +105,8 @@ export const useUiStore = create<UiState>()(
       toggleLeftPanel: () => set((s) => ({ leftPanelCollapsed: !s.leftPanelCollapsed })),
       setLeftPanelWidth: (width) => set({ leftPanelWidth: Math.max(280, Math.min(600, width)) }),
       toggleRightPanel: () => set((s) => ({ rightPanelCollapsed: !s.rightPanelCollapsed })),
-      setAsideTab: (tab) => set({ activeAsideTab: tab }),
-      openAsideTab: (tab) => set({ activeAsideTab: tab, rightPanelCollapsed: false }),
+      setRightTab: (tab) => set({ activeRightTab: tab }),
+      openRightTab: (tab) => set({ activeRightTab: tab, rightPanelCollapsed: false }),
       setColorMode: (mode) => set({ colorMode: mode }),
       setAccentColor: (color) => set({ accentColor: color }),
       setUiScale: (scale) => set({ uiScale: Math.max(8, Math.min(28, scale)) }),
@@ -120,6 +120,25 @@ export const useUiStore = create<UiState>()(
     }),
     {
       name: "enso-ui",
+      version: 1,
+      migrate: (persisted: unknown, version: number) => {
+        const state = persisted as Record<string, unknown>;
+        if (version === 0) {
+          if ("sidebarCollapsed" in state) {
+            state.leftRailCollapsed = state.sidebarCollapsed;
+            delete state.sidebarCollapsed;
+          }
+          if ("activeSidebarView" in state) {
+            state.activeNavView = state.activeSidebarView;
+            delete state.activeSidebarView;
+          }
+          if ("activeAsideTab" in state) {
+            state.activeRightTab = state.activeAsideTab;
+            delete state.activeAsideTab;
+          }
+        }
+        return state;
+      },
       partialize: (state) => {
         const { pendingSettingsSearch: _pending, ...rest } = state;
         return rest;

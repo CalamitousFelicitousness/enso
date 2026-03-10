@@ -366,7 +366,7 @@ export const parameterHelp = new Map<string, string>([
   ["show reference styles", "Show or hide build-it styles"],
   ["show result images", "Enable to show the processed images in the image pane"],
   ["shuffle", "Loads full model in RAM and calculates on VRAM: Less speedup, suggested for SDXL merges"],
-  ["sidebar", "sidebar on the right side of the screen"],
+  ["sidebar", "Right Panel tabs on the right side of the screen"],
   ["sigma adjust", "Adjust sampler sigma value"],
   ["sigma method", "Controls how noise levels (sigmas) are distributed across diffusion steps. Options:<br>- default: the model default<br>- karras: smoother noise schedule, higher quality with fewer steps<br>- beta: based on beta schedule values<br>- exponential: exponential decay of noise<br>- lambdas: experimental, balances signal-to-noise<br>- flowmatch: tuned for flow-matching models"],
   ["simple", "Very cheap approximation. Very fast compared to VAE, but produces pictures with 8 times smaller horizontal/vertical resolution and extremely low quality"],

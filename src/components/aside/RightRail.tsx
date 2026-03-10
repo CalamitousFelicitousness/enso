@@ -1,5 +1,5 @@
 import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
-import { ASIDE_TABS } from "@/lib/constants";
+import { RIGHT_TABS } from "@/lib/constants";
 import { useUiStore } from "@/stores/uiStore";
 import { useJobQueueStore, selectHasActiveJobs } from "@/stores/jobStore";
 import { cn } from "@/lib/utils";
@@ -9,21 +9,21 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 
-export function AsideIconStrip() {
-  const activeTab = useUiStore((s) => s.activeAsideTab);
+export function RightRail() {
+  const activeTab = useUiStore((s) => s.activeRightTab);
   const collapsed = useUiStore((s) => s.rightPanelCollapsed);
-  const openAsideTab = useUiStore((s) => s.openAsideTab);
+  const openRightTab = useUiStore((s) => s.openRightTab);
   const toggleRightPanel = useUiStore((s) => s.toggleRightPanel);
 
   const hasActiveJobs = useJobQueueStore(selectHasActiveJobs);
 
   function handleTabClick(tabId: typeof activeTab) {
     if (collapsed) {
-      openAsideTab(tabId);
+      openRightTab(tabId);
     } else if (activeTab === tabId) {
       toggleRightPanel();
     } else {
-      openAsideTab(tabId);
+      openRightTab(tabId);
     }
   }
 
@@ -44,13 +44,13 @@ export function AsideIconStrip() {
           </button>
         </TooltipTrigger>
         <TooltipContent side="left">
-          {collapsed ? "Expand panel" : "Collapse panel"}
+          {collapsed ? "Expand Right Panel" : "Collapse Right Panel"}
         </TooltipContent>
       </Tooltip>
 
       <div className="w-6 h-px bg-border my-1" />
 
-      {ASIDE_TABS.map((tab) => (
+      {RIGHT_TABS.map((tab) => (
         <div key={tab.id} className="flex flex-col items-center">
           <Tooltip>
             <TooltipTrigger asChild>

@@ -20,7 +20,7 @@ export const SHORTCUTS: Record<string, ShortcutDef> = {
   "cheatsheet": { id: "cheatsheet", key: "?", scope: "global", category: "Global", label: "Keyboard shortcuts" },
   "generate": { id: "generate", key: "Enter", ctrl: true, scope: "global", category: "Global", label: "Generate" },
   "skip": { id: "skip", key: "Enter", ctrl: true, shift: true, scope: "global", category: "Global", label: "Skip current step" },
-  "toggle-sidebar": { id: "toggle-sidebar", key: "b", ctrl: true, scope: "global", category: "Global", label: "Toggle sidebar" },
+  "toggle-left-rail": { id: "toggle-left-rail", key: "b", ctrl: true, scope: "global", category: "Global", label: "Toggle Left Rail" },
   "toggle-left-panel": { id: "toggle-left-panel", key: "\\", ctrl: true, scope: "global", category: "Global", label: "Toggle left panel" },
   "toggle-right-panel": { id: "toggle-right-panel", key: "\\", ctrl: true, shift: true, scope: "global", category: "Global", label: "Toggle right panel" },
 

@@ -6,20 +6,20 @@ import { ConnectionIndicator } from "@/components/connection/ConnectionIndicator
 import { PanelLeftOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-export function Toolbar() {
-  const sidebarCollapsed = useUiStore((s) => s.sidebarCollapsed);
-  const toggleSidebar = useUiStore((s) => s.toggleSidebar);
+export function TopBar() {
+  const leftRailCollapsed = useUiStore((s) => s.leftRailCollapsed);
+  const toggleLeftRail = useUiStore((s) => s.toggleLeftRail);
 
   return (
     <header className="flex items-center h-11 px-2 gap-2 border-b border-border bg-card flex-shrink-0">
-      {/* Sidebar toggle (visible when sidebar is collapsed) */}
-      {sidebarCollapsed && (
+      {/* Left Rail toggle (visible when rail is collapsed) */}
+      {leftRailCollapsed && (
         <Button
           variant="ghost"
           size="icon-sm"
-          onClick={toggleSidebar}
+          onClick={toggleLeftRail}
           className="text-muted-foreground"
-          title="Show sidebar"
+          title="Show Left Rail"
         >
           <PanelLeftOpen size={16} />
         </Button>

@@ -1,7 +1,7 @@
 import { NAV_ITEMS, IMAGES_SUB_TABS, EXTERNAL_LINKS } from "@/lib/constants";
 import { useUiStore } from "@/stores/uiStore";
 import { useTutorialStore } from "@/stores/tutorialStore";
-import type { SidebarView, ImagesSubTab } from "@/stores/uiStore";
+import type { NavView, ImagesSubTab } from "@/stores/uiStore";
 import { useCapabilities } from "@/api/hooks/useServer";
 import { cn } from "@/lib/utils";
 import { PanelLeftClose, PanelLeftOpen, HelpCircle } from "lucide-react";
@@ -20,17 +20,17 @@ const SUBTAB_OPTIONS = IMAGES_SUB_TABS.map((tab) => ({
   icon: tab.icon,
 }));
 
-export function Sidebar() {
-  const collapsed = useUiStore((s) => s.sidebarCollapsed);
-  const activeView = useUiStore((s) => s.activeSidebarView);
+export function LeftRail() {
+  const collapsed = useUiStore((s) => s.leftRailCollapsed);
+  const activeView = useUiStore((s) => s.activeNavView);
   const activeSubTab = useUiStore((s) => s.activeImagesSubTab);
   const viewCollapsed = useUiStore((s) => s.viewCollapsed);
   const leftPanelCollapsed = useUiStore((s) => s.leftPanelCollapsed);
-  const setSidebarView = useUiStore((s) => s.setSidebarView);
+  const setNavView = useUiStore((s) => s.setNavView);
   const setImagesSubTab = useUiStore((s) => s.setImagesSubTab);
   const toggleViewCollapsed = useUiStore((s) => s.toggleViewCollapsed);
   const toggleLeftPanel = useUiStore((s) => s.toggleLeftPanel);
-  const toggleSidebar = useUiStore((s) => s.toggleSidebar);
+  const toggleLeftRail = useUiStore((s) => s.toggleLeftRail);
   const startTutorial = useTutorialStore((s) => s.start);
 
   const capabilities = useCapabilities();
@@ -40,7 +40,7 @@ export function Sidebar() {
   return (
     <div
       className={cn(
-        "flex bg-sidebar border-r border-sidebar-border transition-[width] duration-200 flex-shrink-0",
+        "flex bg-rail border-r border-rail-border transition-[width] duration-200 flex-shrink-0",
         collapsed ? "w-0 overflow-hidden" : !hasSubTabs && "w-14",
       )}
     >
@@ -50,9 +50,9 @@ export function Sidebar() {
         <Button
           variant="ghost"
           size="icon"
-          onClick={toggleSidebar}
-          className="h-10 w-full rounded-none text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent"
-          title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          onClick={toggleLeftRail}
+          className="h-10 w-full rounded-none text-rail-foreground/60 hover:text-rail-foreground hover:bg-rail-accent"
+          title={collapsed ? "Expand Left Rail" : "Collapse Left Rail"}
         >
           {collapsed ? (
             <PanelLeftOpen size={18} />
@@ -82,13 +82,13 @@ export function Sidebar() {
                       if (isActive) {
                         toggleViewCollapsed();
                       } else {
-                        setSidebarView(item.id as SidebarView);
+                        setNavView(item.id as NavView);
                         if (viewCollapsed) toggleViewCollapsed();
                       }
                     }}
                     className={cn(
-                      "w-full aspect-square text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent",
-                      isActive && "bg-sidebar-accent text-primary",
+                      "w-full aspect-square text-rail-foreground/60 hover:text-rail-foreground hover:bg-rail-accent",
+                      isActive && "bg-rail-accent text-primary",
                       isGated && "opacity-40 pointer-events-none",
                     )}
                   >
@@ -105,7 +105,7 @@ export function Sidebar() {
 
         {/* Help + External links */}
         <div className="flex flex-col gap-0.5 px-1.5 pb-2">
-          <Separator className="mb-1.5 bg-sidebar-border" />
+          <Separator className="mb-1.5 bg-rail-border" />
           <Tooltip>
             <TooltipTrigger asChild>
               <button
@@ -113,7 +113,7 @@ export function Sidebar() {
                 onClick={startTutorial}
                 className={cn(
                   "flex items-center justify-center w-full aspect-square rounded-md transition-colors",
-                  "text-sidebar-foreground/30 hover:text-sidebar-foreground/60 hover:bg-sidebar-accent",
+                  "text-rail-foreground/30 hover:text-rail-foreground/60 hover:bg-rail-accent",
                 )}
               >
                 <HelpCircle size={16} />
@@ -132,7 +132,7 @@ export function Sidebar() {
                     rel="noopener noreferrer"
                     className={cn(
                       "flex items-center justify-center w-full aspect-square rounded-md transition-colors",
-                      "text-sidebar-foreground/30 hover:text-sidebar-foreground/60 hover:bg-sidebar-accent",
+                      "text-rail-foreground/30 hover:text-rail-foreground/60 hover:bg-rail-accent",
                     )}
                   >
                     <Icon size={16} />
@@ -148,8 +148,8 @@ export function Sidebar() {
       {/* Column 2: Sub-tab labels (only for views with sub-tabs) */}
       {hasSubTabs && (
         <div
-          data-tour="sidebar-subtabs"
-          className="border-l border-sidebar-border py-2 overflow-y-auto"
+          data-tour="left-rail-subtabs"
+          className="border-l border-rail-border py-2 overflow-y-auto"
         >
           <SegmentedControl
             options={SUBTAB_OPTIONS}

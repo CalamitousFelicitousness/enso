@@ -27,16 +27,16 @@ export interface ExternalLink {
   url: string;
 }
 
-export type AsideTab = "quick-settings" | "networks" | "models" | "queue" | "extensions" | "settings" | "system" | "history" | "info" | "console";
+export type RightTab = "quick-settings" | "networks" | "models" | "queue" | "extensions" | "settings" | "system" | "history" | "info" | "console";
 
-export interface AsideTabItem {
-  id: AsideTab;
+export interface RightTabItem {
+  id: RightTab;
   label: string;
   icon: LucideIcon;
   hasSeparatorAfter?: boolean;
 }
 
-export const ASIDE_TABS: AsideTabItem[] = [
+export const RIGHT_TABS: RightTabItem[] = [
   { id: "quick-settings", label: "Quick Settings", icon: Gauge },
   { id: "networks", label: "Networks", icon: LayoutGrid },
   { id: "models", label: "Models", icon: Box },

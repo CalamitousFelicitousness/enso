@@ -1,5 +1,5 @@
 import { lazy, Suspense } from "react";
-import { ASIDE_TABS } from "@/lib/constants";
+import { RIGHT_TABS } from "@/lib/constants";
 import { useUiStore } from "@/stores/uiStore";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
@@ -54,9 +54,9 @@ const TAB_COMPONENTS: Record<
 
 const SELF_SCROLL_TABS = new Set<string>(["settings"]);
 
-export function AsidePanel() {
-  const activeTab = useUiStore((s) => s.activeAsideTab);
-  const tabMeta = ASIDE_TABS.find((t) => t.id === activeTab);
+export function RightPanel() {
+  const activeTab = useUiStore((s) => s.activeRightTab);
+  const tabMeta = RIGHT_TABS.find((t) => t.id === activeTab);
   const TabComponent = TAB_COMPONENTS[activeTab];
   const Wrapper = SELF_SCROLL_TABS.has(activeTab) ? "div" : ScrollArea;
 

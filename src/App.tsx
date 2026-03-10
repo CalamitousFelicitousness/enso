@@ -46,16 +46,16 @@ function App() {
     }
   }, [resolvedTheme]);
 
-  // Accent color - set CSS custom properties for primary/ring/sidebar-primary/chart-1
+  // Accent color - set CSS custom properties for primary/ring/rail-primary/chart-1
   const accentProps = useMemo(() => {
     const fg = contrastText(accentColor);
     return {
       "--primary": accentColor,
       "--primary-foreground": fg,
       "--ring": accentColor,
-      "--sidebar-primary": accentColor,
-      "--sidebar-primary-foreground": fg,
-      "--sidebar-ring": accentColor,
+      "--rail-primary": accentColor,
+      "--rail-primary-foreground": fg,
+      "--rail-ring": accentColor,
       "--chart-1": accentColor,
     } as Record<string, string>;
   }, [accentColor]);

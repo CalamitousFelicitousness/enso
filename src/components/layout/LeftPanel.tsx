@@ -17,7 +17,7 @@ import { VideoPanel } from "@/components/video/VideoPanel";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 export function LeftPanel() {
-  const activeView = useUiStore((s) => s.activeSidebarView);
+  const activeView = useUiStore((s) => s.activeNavView);
   const activeSubTab = useUiStore((s) => s.activeImagesSubTab);
 
   if (activeView === "caption") {

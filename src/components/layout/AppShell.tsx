@@ -1,10 +1,10 @@
-import { Sidebar } from "./Sidebar";
-import { Toolbar } from "./Toolbar";
-import { StatusBar } from "./StatusBar";
+import { LeftRail } from "./LeftRail";
+import { TopBar } from "./TopBar";
+import { BottomBar } from "./BottomBar";
 import { MainContent } from "./MainContent";
 import { LeftPanel } from "./LeftPanel";
-import { AsideIconStrip } from "@/components/aside/AsideIconStrip";
-import { AsidePanel } from "@/components/aside/AsidePanel";
+import { RightRail } from "@/components/aside/RightRail";
+import { RightPanel } from "@/components/aside/RightPanel";
 import {
   ResizablePanelGroup,
   ResizablePanel,
@@ -30,7 +30,7 @@ export function AppShell() {
   useShortcutDispatcher();
   useModelDefaultsSuggester();
 
-  useShortcut("toggle-sidebar", () => useUiStore.getState().toggleSidebar());
+  useShortcut("toggle-left-rail", () => useUiStore.getState().toggleLeftRail());
   useShortcut("toggle-left-panel", () =>
     useUiStore.getState().toggleLeftPanel(),
   );
@@ -46,10 +46,10 @@ export function AppShell() {
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-background text-foreground">
-      <Sidebar />
+      <LeftRail />
 
       <div className="flex flex-1 flex-col min-w-0">
-        <Toolbar />
+        <TopBar />
 
         <div className="flex flex-1 min-h-0">
           <aside
@@ -76,21 +76,21 @@ export function AppShell() {
               <>
                 <ResizableHandle />
                 <ResizablePanel
-                  id="panel-aside"
+                  id="panel-right"
                   minSize={280}
                   maxSize="70%"
                   defaultSize="30%"
                 >
-                  <AsidePanel />
+                  <RightPanel />
                 </ResizablePanel>
               </>
             )}
           </ResizablePanelGroup>
 
-          <AsideIconStrip />
+          <RightRail />
         </div>
 
-        <StatusBar />
+        <BottomBar />
       </div>
 
       <ShortcutOverlay />

@@ -17,7 +17,7 @@ const DOMAIN_LABELS: Record<string, string> = {
   ltx: "LTX Video",
 };
 
-export function StatusBar() {
+export function BottomBar() {
   const runningJob = useJobQueueStore(selectRunningJob);
   const pendingCount = useJobQueueStore(selectPendingCount);
   const hasActive = useJobQueueStore(selectHasActiveJobs);

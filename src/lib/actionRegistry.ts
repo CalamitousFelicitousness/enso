@@ -5,11 +5,11 @@ import {
   ImageIcon, Video, Sparkles, MessageSquare, Images,
   Settings,
 } from "lucide-react";
-import { NAV_ITEMS, IMAGES_SUB_TABS, ASIDE_TABS } from "@/lib/constants";
+import { NAV_ITEMS, IMAGES_SUB_TABS, RIGHT_TABS } from "@/lib/constants";
 import { PARAM_MAP } from "@/lib/paramMap";
 import type { NavigateTarget } from "@/lib/navigateToParam";
 import type { ImagesSubTab } from "@/stores/uiStore";
-import type { AsideTab } from "@/lib/constants";
+import type { RightTab } from "@/lib/constants";
 
 export interface PaletteAction {
   id: string;
@@ -140,15 +140,15 @@ export function buildActions(): PaletteAction[] {
     });
   }
 
-  // --- Navigation: aside tabs ---
-  for (const tab of ASIDE_TABS) {
+  // --- Navigation: right panel tabs ---
+  for (const tab of RIGHT_TABS) {
     actions.push({
       id: `aside-${tab.id}`,
       label: `Open ${tab.label} panel`,
       icon: tab.icon,
       group: "Navigation",
-      keywords: ["panel", "aside", tab.label.toLowerCase()],
-      target: { aside: tab.id as AsideTab },
+      keywords: ["panel", "right panel", tab.label.toLowerCase()],
+      target: { aside: tab.id as RightTab },
     });
   }
 

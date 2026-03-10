@@ -20,7 +20,7 @@ function UnavailablePlaceholder({ label }: { label: string }) {
 }
 
 export function MainContent() {
-  const activeView = useUiStore((s) => s.activeSidebarView);
+  const activeView = useUiStore((s) => s.activeNavView);
   const capabilities = useCapabilities();
 
   const navItem = NAV_ITEMS.find((n) => n.id === activeView);

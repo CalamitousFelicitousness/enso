@@ -64,7 +64,7 @@ export async function sendFrameToVideoInit(blob: Blob) {
   img.src = objectUrl;
   await new Promise<void>((r) => { img.onload = () => r(); });
   useVideoCanvasStore.getState().setFrame("init", file, base64, objectUrl, img.naturalWidth, img.naturalHeight);
-  useUiStore.getState().setSidebarView("video");
+  useUiStore.getState().setNavView("video");
 }
 
 export async function sendFrameToVideoLast(blob: Blob) {
@@ -75,12 +75,12 @@ export async function sendFrameToVideoLast(blob: Blob) {
   img.src = objectUrl;
   await new Promise<void>((r) => { img.onload = () => r(); });
   useVideoCanvasStore.getState().setFrame("last", file, base64, objectUrl, img.naturalWidth, img.naturalHeight);
-  useUiStore.getState().setSidebarView("video");
+  useUiStore.getState().setNavView("video");
 }
 
 export function sendFrameToUpscale(blob: Blob) {
   useProcessStore.getState().setImage(blobToFile(blob, "frame.png"));
-  useUiStore.getState().setSidebarView("process");
+  useUiStore.getState().setNavView("process");
 }
 
 export async function fetchRemoteImage(url: string, filename = "image.png"): Promise<File> {
@@ -97,21 +97,21 @@ export async function sendImageToCanvas(file: File) {
   img.src = objectUrl;
   await new Promise<void>((r) => { img.onload = () => r(); });
   useCanvasStore.getState().addImageLayer(file, base64, objectUrl, img.naturalWidth, img.naturalHeight);
-  useUiStore.getState().setSidebarView("images");
+  useUiStore.getState().setNavView("images");
 }
 
 export function sendPromptToGeneration(prompt: string, negative?: string) {
   const gen = useGenerationStore.getState();
   gen.setParam("prompt", prompt);
   if (negative) gen.setParam("negativePrompt", negative);
-  useUiStore.getState().setSidebarView("images");
+  useUiStore.getState().setNavView("images");
 }
 
 export function sendPromptToVideo(prompt: string, negative?: string) {
   const store = useVideoStore.getState();
   store.setParam("prompt", prompt);
   if (negative) store.setParam("negative", negative);
-  useUiStore.getState().setSidebarView("video");
+  useUiStore.getState().setNavView("video");
 }
 
 export function appendToGenerationPrompt(text: string) {
