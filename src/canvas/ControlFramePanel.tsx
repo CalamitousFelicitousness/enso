@@ -128,17 +128,27 @@ function InfoRow({
 
 // ─── Tether ─────────────────────────────────────────────────────────────────
 
-function Tether({ accent }: { accent: string }) {
+function Tether({
+  accent,
+  height,
+}: {
+  accent: string;
+  /** Height in the panel's pre-scale coordinate space */
+  height: number;
+}) {
   return (
-    <div className="flex justify-center">
-      <div
-        style={{
-          width: 1,
-          height: 10,
-          background: `linear-gradient(to bottom, ${accent}99, ${accent}1A)`,
-        }}
-      />
-    </div>
+    <div
+      style={{
+        position: "absolute",
+        top: "100%",
+        left: "50%",
+        transform: "translateX(-50%)",
+        width: 1,
+        height,
+        background: `linear-gradient(to bottom, ${accent}99, ${accent}00)`,
+        pointerEvents: "none",
+      }}
+    />
   );
 }
 
@@ -285,7 +295,9 @@ export function FrameHeader({
       </div>
 
       {/* Tether line (panel mode only) */}
-      {isPanel && <Tether accent={color} />}
+      {isPanel && (
+        <Tether accent={color} height={ELEMENT_GAP / labelScale} />
+      )}
     </div>
   );
 }
@@ -620,7 +632,7 @@ function ControlFrameStack({
         onPickImage={onPickImage}
         onClearImage={onClearImage}
       />
-      <Tether accent={tetherColor} />
+      <Tether accent={tetherColor} height={ELEMENT_GAP / labelScale} />
     </div>
   );
 }
