@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Layer, Image as KonvaImage, Rect } from "react-konva";
+import { CornerBrackets } from "@/canvas/layers/ControlFrameLayer";
 import { useGenerationStore } from "@/stores/generationStore";
 import { useJobQueueStore, selectViewedJob } from "@/stores/jobStore";
 import { resolveImageSrc } from "@/lib/utils";
@@ -93,9 +94,15 @@ export function OutputLayer({
         width={placeholderWidth}
         height={placeholderHeight}
         stroke={BORDER_COLOR}
-        strokeWidth={2}
-        dash={hasImage ? undefined : [8, 4]}
+        strokeWidth={1}
         listening={false}
+      />
+      <CornerBrackets
+        x={offsetX}
+        y={0}
+        w={placeholderWidth}
+        h={placeholderHeight}
+        color={BORDER_COLOR}
       />
     </Layer>
   );

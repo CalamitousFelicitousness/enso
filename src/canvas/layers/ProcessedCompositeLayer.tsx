@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Layer, Rect, Image as KonvaImage } from "react-konva";
+import { CornerBrackets } from "@/canvas/layers/ControlFrameLayer";
 import { useControlStore } from "@/stores/controlStore";
 
 const BORDER_COLOR = "#c084fc"; // purple-400
@@ -113,10 +114,19 @@ export function ProcessedCompositeLayer({
         width={width}
         height={height}
         stroke={BORDER_COLOR}
-        strokeWidth={2}
+        strokeWidth={1}
         dash={displayImage ? undefined : [8, 4]}
         listening={false}
       />
+      {displayImage && (
+        <CornerBrackets
+          x={offsetX}
+          y={0}
+          w={width}
+          h={height}
+          color={BORDER_COLOR}
+        />
+      )}
     </Layer>
   );
 }

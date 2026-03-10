@@ -23,6 +23,69 @@ import type Konva from "konva";
 
 const BORDER_COLOR = "#f59e0b"; // amber
 
+// ─── Corner Brackets ────────────────────────────────────────────────────────
+
+interface CornerBracketsProps {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  color: string;
+  size?: number;
+  offset?: number;
+  strokeWidth?: number;
+  strokeScaleEnabled?: boolean;
+}
+
+export function CornerBrackets({
+  x,
+  y,
+  w,
+  h,
+  color,
+  size = 12,
+  offset = 2,
+  strokeWidth = 1.5,
+  strokeScaleEnabled = false,
+}: CornerBracketsProps) {
+  const s = size;
+  const o = offset;
+  const shared = {
+    stroke: color,
+    strokeWidth,
+    strokeScaleEnabled,
+    listening: false as const,
+    lineCap: "round" as const,
+  };
+  return (
+    <>
+      <Line
+        points={[x - o, y - o + s, x - o, y - o, x - o + s, y - o]}
+        {...shared}
+      />
+      <Line
+        points={[x + w + o - s, y - o, x + w + o, y - o, x + w + o, y - o + s]}
+        {...shared}
+      />
+      <Line
+        points={[x - o, y + h + o - s, x - o, y + h + o, x - o + s, y + h + o]}
+        {...shared}
+      />
+      <Line
+        points={[
+          x + w + o - s,
+          y + h + o,
+          x + w + o,
+          y + h + o,
+          x + w + o,
+          y + h + o - s,
+        ]}
+        {...shared}
+      />
+    </>
+  );
+}
+
 interface ControlFrameLayerProps {
   frames: ControlFramePosition[];
   onPickImage?: (unitIndex: number) => void;
@@ -505,10 +568,21 @@ function ControlFrame({
         width={frame.width}
         height={frame.height}
         stroke={borderColor}
-        strokeWidth={2}
+        strokeWidth={1}
         dash={hasImage ? undefined : [8, 4]}
         listening={false}
       />
+
+      {/* Corner brackets (only when image loaded) */}
+      {hasImage && (
+        <CornerBrackets
+          x={frame.x}
+          y={frame.y}
+          w={frame.width}
+          h={frame.height}
+          color={borderColor}
+        />
+      )}
 
       {/* Stacked processed images - headers are HTML overlays in ControlFramePanels */}
       {processedSlots.map((entry, slotIdx) => {
@@ -583,6 +657,13 @@ function ProcessedSlotRender({
         stroke={PROCESSED_COLOR}
         strokeWidth={1}
         listening={false}
+      />
+      <CornerBrackets
+        x={frameX}
+        y={y}
+        w={width}
+        h={height}
+        color={PROCESSED_COLOR}
       />
     </>
   );

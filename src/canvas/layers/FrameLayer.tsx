@@ -7,6 +7,7 @@ import {
   INPUT_COLOR_REFERENCE,
   INPUT_COLOR_INACTIVE,
 } from "@/canvas/ControlFramePanel";
+import { CornerBrackets } from "@/canvas/layers/ControlFrameLayer";
 
 interface FrameLayerProps {
   displayScale: number;
@@ -68,17 +69,32 @@ export function FrameLayer({ displayScale, onPickImage }: FrameLayerProps) {
           />
         )}
 
-        {/* Border - dashed when empty, solid when has layers */}
+        {/* Border */}
         <Rect
           x={0}
           y={0}
           width={frameW}
           height={frameH}
           stroke={borderColor}
-          strokeWidth={2 / displayScale}
+          strokeWidth={1 / displayScale}
           dash={hasLayers ? undefined : [8 / displayScale, 4 / displayScale]}
           listening={false}
         />
+
+        {/* Corner brackets (only when has content) */}
+        {hasLayers && (
+          <CornerBrackets
+            x={0}
+            y={0}
+            w={frameW}
+            h={frameH}
+            color={borderColor}
+            size={12 / displayScale}
+            offset={2 / displayScale}
+            strokeWidth={1.5}
+            strokeScaleEnabled={false}
+          />
+        )}
       </Group>
     </Layer>
   );

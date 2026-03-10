@@ -15,7 +15,7 @@ const FRAME_GAP = 48;
 /** Spacing between a frame and its associated elements (processed image, floating panel) */
 export const ELEMENT_GAP = 16;
 /** Height of the per-unit processed image header bar (matches HEADER_HEIGHT in ControlFramePanel) */
-export const PROCESSED_HEADER_HEIGHT = 36;
+export const PROCESSED_HEADER_HEIGHT = 30;
 
 export interface ProcessedSlot {
   unitIndex: number;

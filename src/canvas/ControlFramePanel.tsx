@@ -1,4 +1,4 @@
-import { useMemo, useCallback, useEffect, type ReactNode } from "react";
+import { useMemo, useCallback, useEffect, useState, type ReactNode } from "react";
 import { useCanvasStore, type ImageLayer } from "@/stores/canvasStore";
 import { useControlStore } from "@/stores/controlStore";
 import { UNIT_TYPE_LABELS } from "@/api/types/control";
@@ -20,16 +20,18 @@ import {
   Hand,
   LocateFixed,
   Download,
+  Layers,
+  SlidersHorizontal,
 } from "lucide-react";
 import type { FitMode } from "@/lib/image";
 import { Button } from "@/components/ui/button";
 import { ParamSlider } from "@/components/generation/ParamSlider";
 import {
-  contrastText,
   downloadImage,
   generateImageFilename,
   resolveImageSrc,
 } from "@/lib/utils";
+import type { GenerationInfo } from "@/api/types/generation";
 import { fileToBase64 } from "@/lib/image";
 import { toast } from "sonner";
 import {
@@ -40,7 +42,7 @@ import {
 } from "./useControlFrameLayout";
 import { resolveOutputSize } from "@/lib/sizeCompute";
 
-export const HEADER_HEIGHT = 36;
+export const HEADER_HEIGHT = 30;
 const DRAWER_MAX_HEIGHT = 420;
 export const PANEL_WIDTH = 320;
 const STROKE_HALF = 1;
@@ -51,39 +53,118 @@ export const INPUT_COLOR_INACTIVE = "#6b7280";
 export const OUTPUT_COLOR = "#60a5fa";
 const PROCESSED_COLOR = "#c084fc";
 const INPUT_PANEL_KEY = -1;
+const OUTPUT_PANEL_KEY = -2;
+
+// Glass dock styling
+const GLASS_BORDER = "rgba(42,42,62,0.5)";
+const GLASS_BORDER_SUBTLE = "rgba(42,42,62,0.3)";
+const GLASS_STYLE: React.CSSProperties = {
+  backgroundColor: "rgba(17,17,24,0.85)",
+  border: `1px solid ${GLASS_BORDER}`,
+  boxShadow:
+    "inset 0 0 0 1px rgba(255,255,255,0.04), 0 10px 15px -3px rgba(0,0,0,0.1)",
+  backdropFilter: "blur(24px)",
+  WebkitBackdropFilter: "blur(24px)",
+};
+
+// ─── DockTab ────────────────────────────────────────────────────────────────
+
+interface DockTabProps {
+  active: boolean;
+  label: string;
+  icon: React.ComponentType<{ size?: number }>;
+  accent: string;
+  onClick: () => void;
+}
+
+function DockTab({ active, label, icon: Icon, accent, onClick }: DockTabProps) {
+  return (
+    <button
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick();
+      }}
+      className="flex items-center gap-1 transition-colors"
+      style={{
+        padding: "3px 7px",
+        borderRadius: 4,
+        fontSize: 10,
+        fontWeight: 500,
+        backgroundColor: active ? `${accent}26` : "transparent",
+        color: active ? accent : "var(--muted-foreground)",
+        boxShadow: active ? `inset 0 0 0 1px ${accent}66` : "none",
+      }}
+    >
+      <Icon size={10} />
+      {label}
+    </button>
+  );
+}
+
+// ─── InfoRow ────────────────────────────────────────────────────────────────
+
+function InfoRow({
+  label,
+  value,
+  mono = false,
+}: {
+  label: string;
+  value: string;
+  mono?: boolean;
+}) {
+  return (
+    <div className="flex items-center justify-between">
+      <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
+        {label}
+      </span>
+      <span
+        className={`text-[10px] text-foreground ${mono ? "font-mono tabular-nums" : ""}`}
+      >
+        {value}
+      </span>
+    </div>
+  );
+}
+
+// ─── Tether ─────────────────────────────────────────────────────────────────
+
+function Tether({ accent }: { accent: string }) {
+  return (
+    <div className="flex justify-center">
+      <div
+        style={{
+          width: 1,
+          height: 10,
+          background: `linear-gradient(to bottom, ${accent}99, ${accent}1A)`,
+        }}
+      />
+    </div>
+  );
+}
 
 // ─── Unified FrameHeader ────────────────────────────────────────────────────
 //
 // Two modes:
-//   "panel" - fixed 320px width, centered above frame with gap, expandable drawer
-//   "hat"   - matches frame width, flush to frame top, no drawer
+//   "panel" — fixed 320px width, positioned above frame with gap, expandable drawer
+//   "hat"   — matches frame width, flush to frame top, no drawer
 //
-// Visual affordance: hats are flat bars = nothing to expand.
-//                    Panels have rounded top + border = expandable.
+// Both modes use glass dock styling with accent-colored dot.
 
 export interface FrameHeaderProps {
   mode: "panel" | "hat";
   color: string;
   label: string;
   sizeText?: string;
-  /** Canvas-space X of the frame's left edge */
   canvasX: number;
-  /** Canvas-space Y of the frame's top edge (default 0) */
   canvasY?: number;
-  /** Canvas-space frame width */
   frameW: number;
   viewport: { x: number; y: number; scale: number };
   labelScale: number;
-  /** Buttons rendered to the right of the label (inside the colored header) */
   actions?: ReactNode;
-  /** Extra content between the label row and the actions (e.g. size+fit row) */
-  subHeader?: ReactNode;
-  /** Drawer content (panel mode only) - rendered below header when expanded */
   drawer?: ReactNode;
-  /** Whether the drawer is collapsed (panel mode only) */
   collapsed?: boolean;
-  /** Toggle callback for the chevron (panel mode only) */
   onToggleCollapsed?: () => void;
+  tabBar?: ReactNode;
 }
 
 export function FrameHeader({
@@ -97,17 +178,15 @@ export function FrameHeader({
   viewport,
   labelScale,
   actions,
-  subHeader,
   drawer,
   collapsed,
   onToggleCollapsed,
+  tabBar,
 }: FrameHeaderProps) {
-  const textColor = contrastText(color);
   const combinedScale = viewport.scale * labelScale;
 
   const style = useMemo<React.CSSProperties>(() => {
     if (mode === "hat") {
-      // Frame-width, flush to top edge, anchor bottom-left
       const anchorX = (canvasX - STROKE_HALF) * viewport.scale + viewport.x;
       const anchorY = (canvasY + STROKE_HALF) * viewport.scale + viewport.y;
       const widthPx = (frameW + STROKE_HALF * 2) / labelScale;
@@ -120,8 +199,6 @@ export function FrameHeader({
         transformOrigin: "bottom left",
       };
     }
-    // Panel mode: fixed width, positioned above frame with gap.
-    // Left-align to frame edge so the panel never overlaps adjacent frames.
     const screenLeftX = (canvasX - STROKE_HALF) * viewport.scale + viewport.x;
     const screenTopY =
       STROKE_HALF * viewport.scale + viewport.y - ELEMENT_GAP * viewport.scale;
@@ -136,88 +213,79 @@ export function FrameHeader({
   }, [mode, canvasX, canvasY, frameW, viewport, labelScale, combinedScale]);
 
   const isPanel = mode === "panel";
-  const showDrawer = isPanel && drawer && !collapsed;
   const showChevron = isPanel && drawer !== undefined && onToggleCollapsed;
+  const showExpandedSection = isPanel && !collapsed && (tabBar || drawer);
 
   return (
     <div style={style} className="z-50">
       <div
-        className={`flex flex-col overflow-hidden ${isPanel ? "rounded-t-md border shadow-lg" : ""}`}
-        style={isPanel ? { borderColor: color } : undefined}
+        className="flex flex-col overflow-hidden rounded-md shadow-lg"
+        style={GLASS_STYLE}
       >
-        {/* Colored header */}
+        {/* Glass header row */}
         <div
-          className={`flex flex-col shrink-0 ${isPanel ? "rounded-t-md" : "rounded-t-md"}`}
-          style={{ backgroundColor: color, minHeight: HEADER_HEIGHT }}
+          className="flex items-center justify-between px-3 shrink-0"
+          style={{ minHeight: HEADER_HEIGHT }}
         >
-          {/* Row 1: label + actions + chevron */}
-          <div
-            className="flex items-center justify-between px-3"
-            style={{ minHeight: HEADER_HEIGHT }}
-          >
-            <span
-              className="text-base font-medium truncate"
-              style={{ color: textColor }}
-            >
+          <div className="flex items-center gap-2 min-w-0">
+            <div
+              className="shrink-0 rounded-full"
+              style={{ width: 6, height: 6, backgroundColor: color }}
+            />
+            <span className="text-[11px] font-medium text-foreground truncate">
               {label}
             </span>
-            <div className="flex items-center gap-0.5 shrink-0">
-              {actions}
-              {showChevron && (
-                <Button
-                  variant="ghost"
-                  size="icon-xs"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onToggleCollapsed!();
-                  }}
-                  title={collapsed ? "Expand settings" : "Collapse settings"}
-                  className="hover:bg-black/10"
-                >
-                  {collapsed ? (
-                    <ChevronDown size={16} style={{ color: textColor }} />
-                  ) : (
-                    <ChevronUp size={16} style={{ color: textColor }} />
-                  )}
-                </Button>
-              )}
-              {/* Size text on the right for hats (no chevron) */}
-              {!isPanel && sizeText && (
-                <span
-                  className="text-xs opacity-70 ml-1"
-                  style={{ color: textColor }}
-                >
-                  {sizeText}
-                </span>
-              )}
-            </div>
+            {sizeText && (
+              <span className="text-[10px] text-muted-foreground font-mono tabular-nums shrink-0">
+                {sizeText}
+              </span>
+            )}
           </div>
-          {/* Sub-header row (size text for panels, or custom content) */}
-          {isPanel && (sizeText || subHeader) && (
-            <div className="flex items-center justify-between px-3 pb-1.5">
-              {sizeText && (
-                <span
-                  className="text-xs opacity-70"
-                  style={{ color: textColor }}
-                >
-                  {sizeText}
-                </span>
-              )}
-              {subHeader}
-            </div>
-          )}
+          <div className="flex items-center gap-0.5 shrink-0">
+            {actions}
+            {showChevron && (
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onToggleCollapsed!();
+                }}
+                title={collapsed ? "Expand settings" : "Collapse settings"}
+                className="text-muted-foreground hover:bg-white/5"
+              >
+                {collapsed ? (
+                  <ChevronDown size={12} />
+                ) : (
+                  <ChevronUp size={12} />
+                )}
+              </Button>
+            )}
+          </div>
         </div>
 
-        {/* Drawer (panel mode only) */}
-        {showDrawer && (
-          <div
-            className="p-3 overflow-y-auto bg-background/95 backdrop-blur-sm border-t border-border/50 flex flex-col gap-2"
-            style={{ maxHeight: DRAWER_MAX_HEIGHT }}
-          >
-            {drawer}
+        {/* Expandable section: tabs + drawer */}
+        {showExpandedSection && (
+          <div style={{ borderTop: `1px solid ${GLASS_BORDER_SUBTLE}` }}>
+            {tabBar && (
+              <div className="flex items-center gap-1 px-3 pt-2 pb-1">
+                {tabBar}
+              </div>
+            )}
+            {drawer && (
+              <div
+                className="p-3 overflow-y-auto flex flex-col gap-2"
+                style={{ maxHeight: DRAWER_MAX_HEIGHT }}
+              >
+                {drawer}
+              </div>
+            )}
           </div>
         )}
       </div>
+
+      {/* Tether line (panel mode only) */}
+      {isPanel && <Tether accent={color} />}
     </div>
   );
 }
@@ -249,6 +317,7 @@ function UnitPanel({
   const setUnitParam = useControlStore((s) => s.setUnitParam);
   const setFreeTransform = useControlStore((s) => s.setFreeTransform);
   const { width: genW, height: genH } = genSize;
+  const [activeTab, setActiveTab] = useState<"info" | "params">("info");
 
   if (!unit) return null;
 
@@ -256,7 +325,6 @@ function UnitPanel({
   const unifiedIndex = unitIndex + 2;
   const isReference = unit.unitType === "reference";
   const panelColor = isReference ? INPUT_COLOR_REFERENCE : CONTROL_COLOR;
-  const textColor = contrastText(panelColor);
   const roleLabel = isReference
     ? "Reference"
     : `Control: ${UNIT_TYPE_LABELS[unit.unitType] ?? unit.unitType}`;
@@ -290,152 +358,183 @@ function UnitPanel({
     setSelectedControlFrame(unitIndex);
   };
 
-  const actions = (
-    <>
-      {isOwner && unit.image && (
-        <>
-          <Button
-            variant="ghost"
-            size="icon-xs"
-            onClick={(e) => {
-              e.stopPropagation();
-              onPickImage?.(unitIndex);
-            }}
-            title="Replace image"
-            className="hover:bg-black/10"
-          >
-            <ImagePlus size={16} style={{ color: textColor }} />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon-xs"
-            onClick={(e) => {
-              e.stopPropagation();
-              onClearImage?.(unitIndex);
-            }}
-            title="Clear image"
-            className="hover:bg-black/10"
-          >
-            <Trash2 size={16} style={{ color: textColor }} />
-          </Button>
-        </>
-      )}
-    </>
-  );
-
   const fitIcon =
     unit.fitMode === "contain" ? (
-      <Minimize2 size={16} style={{ color: textColor }} />
+      <Minimize2 size={14} />
     ) : unit.fitMode === "cover" ? (
-      <Maximize2 size={16} style={{ color: textColor }} />
+      <Maximize2 size={14} />
     ) : unit.fitMode === "fill" ? (
-      <Move size={16} style={{ color: textColor }} />
+      <Move size={14} />
     ) : (
-      <Hand size={16} style={{ color: textColor }} />
+      <Hand size={14} />
     );
 
-  const subHeader =
-    isOwner && unit.image && !isReference ? (
-      <div className="flex items-center gap-0.5">
-        <Button
-          variant="ghost"
-          size="icon-xs"
-          onClick={(e) => {
-            e.stopPropagation();
-            const next: FitMode =
-              unit.fitMode === "contain"
-                ? "cover"
-                : unit.fitMode === "cover"
-                  ? "fill"
-                  : unit.fitMode === "fill"
-                    ? "free"
-                    : "contain";
-            if (next === "free" || unit.fitMode === "free")
-              setFreeTransform(unitIndex, null);
-            setUnitParam(unitIndex, "fitMode", next);
-          }}
-          title={`Fit: ${unit.fitMode}`}
-          className="hover:bg-black/10"
-        >
-          {fitIcon}
-        </Button>
-        {unit.fitMode === "free" && unit.freeTransform !== null && (
-          <Button
-            variant="ghost"
-            size="icon-xs"
-            onClick={(e) => {
-              e.stopPropagation();
-              setFreeTransform(unitIndex, null);
-            }}
-            title="Re-center image"
-            className="hover:bg-black/10"
-          >
-            <LocateFixed size={16} style={{ color: textColor }} />
-          </Button>
-        )}
-      </div>
-    ) : undefined;
+  const hasExpandableContent = !isReference;
 
-  // UnitPanel is rendered inside a positioned container (ControlFrameStack),
-  // so it doesn't use FrameHeader's positioning - it renders the visual parts directly.
+  const infoContent = (
+    <div className="flex flex-col gap-1.5">
+      <InfoRow
+        label="Type"
+        value={UNIT_TYPE_LABELS[unit.unitType] ?? unit.unitType}
+      />
+      {unit.model && unit.model !== "None" && (
+        <InfoRow label="Model" value={unit.model} />
+      )}
+      {imageDims && (
+        <InfoRow
+          label="Dimensions"
+          value={`${imageDims.w}\u00d7${imageDims.h}`}
+          mono
+        />
+      )}
+      {!isReference && <InfoRow label="Fit" value={unit.fitMode} />}
+    </div>
+  );
+
   return (
     <div
-      className="flex flex-col overflow-hidden rounded-t-md border shadow-lg"
-      style={{ borderColor: panelColor }}
+      className="flex flex-col overflow-hidden rounded-md shadow-lg"
+      style={GLASS_STYLE}
       onClick={handlePanelClick}
     >
+      {/* Glass header */}
       <div
-        className="flex flex-col shrink-0 rounded-t-md"
-        style={{ backgroundColor: panelColor }}
+        className="flex items-center justify-between px-3 shrink-0"
+        style={{ minHeight: HEADER_HEIGHT }}
       >
-        <div
-          className="flex items-center justify-between px-3"
-          style={{ minHeight: HEADER_HEIGHT }}
-        >
-          <span
-            className="text-base font-medium truncate"
-            style={{ color: textColor }}
-          >
+        <div className="flex items-center gap-2 min-w-0">
+          <div
+            className="shrink-0 rounded-full"
+            style={{ width: 6, height: 6, backgroundColor: panelColor }}
+          />
+          <span className="text-[11px] font-medium text-foreground truncate">
             {labelText}
           </span>
-          <div className="flex items-center gap-0.5 shrink-0">
-            {actions}
-            {!isReference && (
+          {sizeText && (
+            <span className="text-[10px] text-muted-foreground font-mono tabular-nums shrink-0">
+              {sizeText}
+            </span>
+          )}
+        </div>
+        <div className="flex items-center gap-0.5 shrink-0">
+          {isOwner && unit.image && (
+            <>
               <Button
                 variant="ghost"
                 size="icon-xs"
                 onClick={(e) => {
                   e.stopPropagation();
-                  togglePanelCollapsed(unitIndex, collapsed);
+                  onPickImage?.(unitIndex);
                 }}
-                title={collapsed ? "Expand settings" : "Collapse settings"}
-                className="hover:bg-black/10"
+                title="Replace image"
+                className="text-muted-foreground hover:bg-white/5"
               >
-                {collapsed ? (
-                  <ChevronDown size={16} style={{ color: textColor }} />
-                ) : (
-                  <ChevronUp size={16} style={{ color: textColor }} />
-                )}
+                <ImagePlus size={14} />
               </Button>
-            )}
-          </div>
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onClearImage?.(unitIndex);
+                }}
+                title="Clear image"
+                className="text-muted-foreground hover:bg-white/5"
+              >
+                <Trash2 size={14} />
+              </Button>
+            </>
+          )}
+          {isOwner && unit.image && !isReference && (
+            <>
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const next: FitMode =
+                    unit.fitMode === "contain"
+                      ? "cover"
+                      : unit.fitMode === "cover"
+                        ? "fill"
+                        : unit.fitMode === "fill"
+                          ? "free"
+                          : "contain";
+                  if (next === "free" || unit.fitMode === "free")
+                    setFreeTransform(unitIndex, null);
+                  setUnitParam(unitIndex, "fitMode", next);
+                }}
+                title={`Fit: ${unit.fitMode}`}
+                className="text-muted-foreground hover:bg-white/5"
+              >
+                {fitIcon}
+              </Button>
+              {unit.fitMode === "free" && unit.freeTransform !== null && (
+                <Button
+                  variant="ghost"
+                  size="icon-xs"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setFreeTransform(unitIndex, null);
+                  }}
+                  title="Re-center image"
+                  className="text-muted-foreground hover:bg-white/5"
+                >
+                  <LocateFixed size={14} />
+                </Button>
+              )}
+            </>
+          )}
+          {hasExpandableContent && (
+            <Button
+              variant="ghost"
+              size="icon-xs"
+              onClick={(e) => {
+                e.stopPropagation();
+                togglePanelCollapsed(unitIndex, collapsed);
+              }}
+              title={collapsed ? "Expand settings" : "Collapse settings"}
+              className="text-muted-foreground hover:bg-white/5"
+            >
+              {collapsed ? (
+                <ChevronDown size={12} />
+              ) : (
+                <ChevronUp size={12} />
+              )}
+            </Button>
+          )}
         </div>
-        {sizeText && (
-          <div className="flex items-center justify-between px-3 pb-1.5">
-            <span className="text-xs opacity-70" style={{ color: textColor }}>
-              {sizeText}
-            </span>
-            {subHeader}
-          </div>
-        )}
       </div>
 
-      {!isReference && !collapsed && (
-        <div
-          className="p-3 overflow-y-auto bg-background/95 backdrop-blur-sm border-t border-border/50"
-          style={{ maxHeight: DRAWER_MAX_HEIGHT }}
-        >
-          <ControlUnitControls index={unitIndex} compact />
+      {/* Expandable section with tabs */}
+      {hasExpandableContent && !collapsed && (
+        <div style={{ borderTop: `1px solid ${GLASS_BORDER_SUBTLE}` }}>
+          <div className="flex items-center gap-1 px-3 pt-2 pb-1">
+            <DockTab
+              active={activeTab === "info"}
+              label="Info"
+              icon={Layers}
+              accent={panelColor}
+              onClick={() => setActiveTab("info")}
+            />
+            <DockTab
+              active={activeTab === "params"}
+              label="Params"
+              icon={SlidersHorizontal}
+              accent={panelColor}
+              onClick={() => setActiveTab("params")}
+            />
+          </div>
+          <div
+            className="p-3 overflow-y-auto flex flex-col gap-2"
+            style={{ maxHeight: DRAWER_MAX_HEIGHT }}
+          >
+            {activeTab === "info" ? (
+              infoContent
+            ) : (
+              <ControlUnitControls index={unitIndex} compact />
+            )}
+          </div>
         </div>
       )}
     </div>
@@ -495,6 +594,9 @@ function ControlFrameStack({
   const ownerCollapsed =
     ownerOverride !== undefined ? ownerOverride : !ownerHasImage;
 
+  const isReference = ownerUnit.unitType === "reference";
+  const tetherColor = isReference ? INPUT_COLOR_REFERENCE : CONTROL_COLOR;
+
   return (
     <div style={containerStyle} className="z-50">
       {referencingSlots.map((slot) => {
@@ -518,6 +620,7 @@ function ControlFrameStack({
         onPickImage={onPickImage}
         onClearImage={onClearImage}
       />
+      <Tether accent={tetherColor} />
     </div>
   );
 }
@@ -556,6 +659,7 @@ function InputFramePanel({
   const isReference = inputRole === "reference";
   const supportsStrength =
     useServerInfo().data?.model?.supports_strength ?? true;
+  const [activeTab, setActiveTab] = useState<"info" | "params">("info");
 
   // Auto-switch to reference when model doesn't support strength
   useEffect(() => {
@@ -600,7 +704,6 @@ function InputFramePanel({
     : isReference
       ? INPUT_COLOR_REFERENCE
       : INPUT_COLOR_ACTIVE;
-  const textColor = contrastText(inputColor);
 
   const actions = hasLayers ? (
     <>
@@ -609,38 +712,35 @@ function InputFramePanel({
         size="icon-xs"
         onClick={() => onPickImage?.()}
         title="Add image"
-        className="hover:bg-black/10"
+        className="text-muted-foreground hover:bg-white/5"
       >
-        <ImagePlus size={16} style={{ color: textColor }} />
+        <ImagePlus size={14} />
       </Button>
       <Button
         variant="ghost"
         size="icon-xs"
         onClick={() => onClearAll?.()}
         title="Clear all"
-        className="hover:bg-black/10"
+        className="text-muted-foreground hover:bg-white/5"
       >
-        <Trash2 size={16} style={{ color: textColor }} />
+        <Trash2 size={14} />
       </Button>
     </>
   ) : undefined;
 
+  const label = isReference ? "Input 1 (Reference)" : "Input 1 (Initial)";
+
   const roleToggle = (
-    <div
-      className="flex items-center gap-0.5 rounded-md p-0.5"
-      style={{ backgroundColor: "rgba(0,0,0,0.15)" }}
-    >
+    <div className="flex items-center gap-0.5 rounded-md p-0.5 bg-white/5">
       <button
         onClick={(e) => {
           e.stopPropagation();
           handleRoleChange("initial");
         }}
-        className="px-2 py-0.5 text-xs font-medium rounded-sm transition-colors"
+        className="px-2 py-0.5 text-[10px] font-medium rounded-sm transition-colors"
         style={{
-          backgroundColor: !isReference
-            ? "rgba(255,255,255,0.25)"
-            : "transparent",
-          color: textColor,
+          backgroundColor: !isReference ? `${inputColor}26` : "transparent",
+          color: !isReference ? inputColor : "var(--muted-foreground)",
         }}
       >
         Initial
@@ -650,12 +750,10 @@ function InputFramePanel({
           e.stopPropagation();
           handleRoleChange("reference");
         }}
-        className="px-2 py-0.5 text-xs font-medium rounded-sm transition-colors"
+        className="px-2 py-0.5 text-[10px] font-medium rounded-sm transition-colors"
         style={{
-          backgroundColor: isReference
-            ? "rgba(255,255,255,0.25)"
-            : "transparent",
-          color: textColor,
+          backgroundColor: isReference ? `${inputColor}26` : "transparent",
+          color: isReference ? inputColor : "var(--muted-foreground)",
         }}
       >
         Reference
@@ -663,25 +761,55 @@ function InputFramePanel({
     </div>
   );
 
-  const drawer = (
+  const tabBar = (
     <>
-      {!isReference && (
-        <ParamSlider
-          label="Denoise"
-          value={denoisingStrength}
-          onChange={handleDenoising}
-          min={0}
-          max={1}
-          step={0.05}
-          disabled={!hasLayers}
-        />
-      )}
-      <LayerPanel />
-      {!isReference && <MaskParams />}
+      <DockTab
+        active={activeTab === "info"}
+        label="Info"
+        icon={Layers}
+        accent={inputColor}
+        onClick={() => setActiveTab("info")}
+      />
+      <DockTab
+        active={activeTab === "params"}
+        label="Params"
+        icon={SlidersHorizontal}
+        accent={inputColor}
+        onClick={() => setActiveTab("params")}
+      />
     </>
   );
 
-  const label = isReference ? "Input 1 (Reference)" : "Input 1 (Initial)";
+  const drawer =
+    activeTab === "info" ? (
+      <div className="flex flex-col gap-2">
+        {roleToggle}
+        <InfoRow label="Resolution" value={sizeText} mono />
+        {firstImage && (
+          <InfoRow
+            label="Source"
+            value={`${firstImage.naturalWidth}\u00d7${firstImage.naturalHeight}`}
+            mono
+          />
+        )}
+      </div>
+    ) : (
+      <>
+        {!isReference && (
+          <ParamSlider
+            label="Denoise"
+            value={denoisingStrength}
+            onChange={handleDenoising}
+            min={0}
+            max={1}
+            step={0.05}
+            disabled={!hasLayers}
+          />
+        )}
+        <LayerPanel />
+        {!isReference && <MaskParams />}
+      </>
+    );
 
   return (
     <FrameHeader
@@ -694,7 +822,7 @@ function InputFramePanel({
       viewport={viewport}
       labelScale={labelScale}
       actions={actions}
-      subHeader={roleToggle}
+      tabBar={tabBar}
       drawer={drawer}
       collapsed={collapsed}
       onToggleCollapsed={() => togglePanelCollapsed(INPUT_PANEL_KEY, collapsed)}
@@ -702,9 +830,9 @@ function InputFramePanel({
   );
 }
 
-// ─── Output frame header (uses FrameHeader in hat mode) ─────────────────────
+// ─── Output frame panel (uses FrameHeader in panel mode) ────────────────────
 
-function OutputFrameHeader({
+function OutputFramePanel({
   canvasX,
   viewport,
   frameW,
@@ -721,6 +849,11 @@ function OutputFrameHeader({
   const selectedImageIndex = useGenerationStore((s) => s.selectedImageIndex);
   const results = useGenerationStore((s) => s.results);
   const addImageLayer = useCanvasStore((s) => s.addImageLayer);
+  const panelCollapsedOverrides = useCanvasStore(
+    (s) => s.panelCollapsedOverrides,
+  );
+  const togglePanelCollapsed = useCanvasStore((s) => s.togglePanelCollapsed);
+  const [activeTab, setActiveTab] = useState<"info" | "params">("info");
 
   const selectedResult = useMemo(
     () => results.find((r) => r.id === selectedResultId),
@@ -731,6 +864,19 @@ function OutputFrameHeader({
     selectedResult !== undefined &&
     selectedImageIndex !== null &&
     selectedResult.images[selectedImageIndex] !== undefined;
+
+  // Parse generation info from selected result
+  const genInfo = useMemo<GenerationInfo | null>(() => {
+    if (!selectedResult?.info) return null;
+    try {
+      return JSON.parse(selectedResult.info) as GenerationInfo;
+    } catch {
+      return null;
+    }
+  }, [selectedResult]);
+
+  const override = panelCollapsedOverrides.get(OUTPUT_PANEL_KEY);
+  const collapsed = override !== undefined ? override : !hasSelectedImage;
 
   const handleSendToInput = useCallback(async () => {
     if (!selectedResult || selectedImageIndex === null) return;
@@ -761,8 +907,6 @@ function OutputFrameHeader({
     downloadImage(src, filename);
   }, [selectedResult, selectedImageIndex]);
 
-  const textColor = contrastText(OUTPUT_COLOR);
-
   const actions = (
     <>
       <Button
@@ -771,9 +915,9 @@ function OutputFrameHeader({
         onClick={handleDownload}
         disabled={!hasSelectedImage}
         title="Download output image"
-        className="hover:bg-black/10 disabled:opacity-30"
+        className="text-muted-foreground hover:bg-white/5 disabled:opacity-30"
       >
-        <Download size={16} style={{ color: textColor }} />
+        <Download size={14} />
       </Button>
       <Button
         variant="ghost"
@@ -781,16 +925,63 @@ function OutputFrameHeader({
         onClick={handleSendToInput}
         disabled={!hasSelectedImage}
         title="Send selected output to Input frame"
-        className="hover:bg-black/10 disabled:opacity-30"
+        className="text-muted-foreground hover:bg-white/5 disabled:opacity-30"
       >
-        <ArrowLeftFromLine size={16} style={{ color: textColor }} />
+        <ArrowLeftFromLine size={14} />
       </Button>
     </>
   );
 
+  const tabBar = (
+    <>
+      <DockTab
+        active={activeTab === "info"}
+        label="Info"
+        icon={Layers}
+        accent={OUTPUT_COLOR}
+        onClick={() => setActiveTab("info")}
+      />
+      <DockTab
+        active={activeTab === "params"}
+        label="Params"
+        icon={SlidersHorizontal}
+        accent={OUTPUT_COLOR}
+        onClick={() => setActiveTab("params")}
+      />
+    </>
+  );
+
+  const drawer =
+    activeTab === "info" ? (
+      <div className="flex flex-col gap-1.5">
+        <InfoRow label="Size" value={sizeText} mono />
+        {genInfo?.model && <InfoRow label="Model" value={genInfo.model} />}
+        {genInfo?.sampler_name && (
+          <InfoRow label="Sampler" value={genInfo.sampler_name} />
+        )}
+      </div>
+    ) : (
+      <div className="flex flex-col gap-1.5">
+        {genInfo?.steps !== undefined && (
+          <InfoRow label="Steps" value={String(genInfo.steps)} mono />
+        )}
+        {genInfo?.cfg_scale !== undefined && (
+          <InfoRow label="CFG" value={String(genInfo.cfg_scale)} mono />
+        )}
+        {genInfo?.seed !== undefined && (
+          <InfoRow label="Seed" value={String(genInfo.seed)} mono />
+        )}
+        {!genInfo && (
+          <span className="text-[10px] text-muted-foreground">
+            No generation data
+          </span>
+        )}
+      </div>
+    );
+
   return (
     <FrameHeader
-      mode="hat"
+      mode="panel"
       color={OUTPUT_COLOR}
       label="Output"
       sizeText={sizeText}
@@ -799,6 +990,12 @@ function OutputFrameHeader({
       viewport={viewport}
       labelScale={labelScale}
       actions={actions}
+      tabBar={tabBar}
+      drawer={drawer}
+      collapsed={collapsed}
+      onToggleCollapsed={() =>
+        togglePanelCollapsed(OUTPUT_PANEL_KEY, collapsed)
+      }
     />
   );
 }
@@ -843,8 +1040,6 @@ function ProcessedFrameHeader({
     downloadImage(processedSrc, `processed_${timestamp}.png`);
   }, [processedSrc]);
 
-  const textColor = contrastText(PROCESSED_COLOR);
-
   const actions = (
     <Button
       variant="ghost"
@@ -852,9 +1047,9 @@ function ProcessedFrameHeader({
       onClick={handleDownload}
       disabled={!processedSrc}
       title="Download processed image"
-      className="hover:bg-black/10 disabled:opacity-30"
+      className="text-muted-foreground hover:bg-white/5 disabled:opacity-30"
     >
-      <Download size={16} style={{ color: textColor }} />
+      <Download size={14} />
     </Button>
   );
 
@@ -965,7 +1160,7 @@ export function ControlFramePanels({
         onClearAll={onClearAll}
       />
 
-      <OutputFrameHeader
+      <OutputFramePanel
         canvasX={layout.outputX}
         viewport={viewport}
         frameW={displayW}
