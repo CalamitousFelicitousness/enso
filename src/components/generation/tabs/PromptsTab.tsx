@@ -13,7 +13,7 @@ import { resolveGenerationSize, formatMegapixels } from "@/lib/sizeCompute";
 import type { SizeMode } from "@/lib/sizeCompute";
 import { PromptEditor } from "../PromptEditor";
 import { ParamSlider } from "../ParamSlider";
-import { ParamSection } from "../ParamSection";
+import { ParamSection, SectionDivider } from "../ParamSection";
 import { ParamGrid } from "../ParamRow";
 import { NumberInput } from "@/components/ui/number-input";
 import { ParamLabel } from "../ParamLabel";
@@ -182,33 +182,36 @@ export function PromptsTab() {
       <PromptEditor />
 
       {Array.isArray(styles) && styles.length > 0 && (
-        <ParamSection title="Styles" defaultOpen={false}>
-          <div className="flex flex-wrap gap-1 mb-1">
-            {selectedStyles.map((name) => (
-              <span
-                key={name}
-                className="inline-flex items-center gap-0.5 px-1.5 py-0.5 text-3xs bg-muted rounded"
-              >
-                {name}
-                <button
-                  onClick={() => removeStyle(name)}
-                  className="text-muted-foreground hover:text-foreground"
+        <>
+          <ParamSection title="Styles" defaultOpen={false}>
+            <div className="flex flex-wrap gap-1 mb-1">
+              {selectedStyles.map((name) => (
+                <span
+                  key={name}
+                  className="inline-flex items-center gap-0.5 px-1.5 py-0.5 text-3xs bg-muted rounded"
                 >
-                  <X size={10} />
-                </button>
-              </span>
-            ))}
-          </div>
-          <Combobox
-            value=""
-            onValueChange={addStyle}
-            options={styles
-              .filter((s) => !selectedStyles.includes(s.name))
-              .map((s) => s.name)}
-            placeholder="Add style..."
-            className="h-6 text-2xs"
-          />
-        </ParamSection>
+                  {name}
+                  <button
+                    onClick={() => removeStyle(name)}
+                    className="text-muted-foreground hover:text-foreground"
+                  >
+                    <X size={10} />
+                  </button>
+                </span>
+              ))}
+            </div>
+            <Combobox
+              value=""
+              onValueChange={addStyle}
+              options={styles
+                .filter((s) => !selectedStyles.includes(s.name))
+                .map((s) => s.name)}
+              placeholder="Add style..."
+              className="h-6 text-2xs"
+            />
+          </ParamSection>
+          <SectionDivider />
+        </>
       )}
 
       <ParamSection
@@ -394,6 +397,8 @@ export function PromptsTab() {
           </div>
         )}
       </ParamSection>
+
+      <SectionDivider />
 
       <ParamSection title="Batch">
         <ParamGrid>

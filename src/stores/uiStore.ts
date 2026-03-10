@@ -43,7 +43,6 @@ interface UiState {
   // Appearance
   colorMode: ColorMode;
   accentColor: string;
-  borderRadius: number;
   uiScale: number;
   canvasLabelScale: number;
 
@@ -63,7 +62,6 @@ interface UiState {
   openAsideTab: (tab: AsideTab) => void;
   setColorMode: (mode: ColorMode) => void;
   setAccentColor: (color: string) => void;
-  setBorderRadius: (radius: number) => void;
   setUiScale: (scale: number) => void;
   setCanvasLabelScale: (scale: number) => void;
   addRecentCommand: (id: string) => void;
@@ -93,7 +91,6 @@ export const useUiStore = create<UiState>()(
       quickSettingsKeys: null,
       colorMode: "dark" as ColorMode,
       accentColor: "#00bcd4",
-      borderRadius: 0.375,
       uiScale: 18,
       canvasLabelScale: 1,
 
@@ -112,7 +109,6 @@ export const useUiStore = create<UiState>()(
       openAsideTab: (tab) => set({ activeAsideTab: tab, rightPanelCollapsed: false }),
       setColorMode: (mode) => set({ colorMode: mode }),
       setAccentColor: (color) => set({ accentColor: color }),
-      setBorderRadius: (radius) => set({ borderRadius: Math.max(0, Math.min(1, radius)) }),
       setUiScale: (scale) => set({ uiScale: Math.max(8, Math.min(28, scale)) }),
       setCanvasLabelScale: (scale) => set({ canvasLabelScale: Math.max(0.5, Math.min(2, scale)) }),
       addRecentCommand: (id) => set((s) => {

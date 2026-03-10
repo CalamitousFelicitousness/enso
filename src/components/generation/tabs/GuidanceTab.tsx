@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { useGenerationStore } from "@/stores/generationStore";
 import { useShallow } from "zustand/react/shallow";
 import { ParamSlider } from "../ParamSlider";
-import { ParamSection } from "../ParamSection";
+import { ParamSection, SectionDivider } from "../ParamSection";
 import { ParamGrid } from "../ParamRow";
 import { getParamHelp } from "@/data/parameterHelp";
 
@@ -64,6 +64,8 @@ export function GuidanceTab() {
         />
       </ParamSection>
 
+      <SectionDivider />
+
       <ParamSection title="Refine Guidance" defaultOpen={false}>
         <ParamSlider
           label="Refine guidance scale"
@@ -74,6 +76,8 @@ export function GuidanceTab() {
           step={0.1}
         />
       </ParamSection>
+
+      <SectionDivider />
 
       <ParamSection title="Attention Guidance" defaultOpen={false}>
         <ParamGrid>

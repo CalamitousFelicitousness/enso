@@ -3,7 +3,7 @@ import { useGenerationStore } from "@/stores/generationStore";
 import { useShallow } from "zustand/react/shallow";
 import { useDetailerModels } from "@/api/hooks/useDetailer";
 import { ParamSlider } from "../ParamSlider";
-import { ParamSection } from "../ParamSection";
+import { ParamSection, SectionDivider } from "../ParamSection";
 import { ParamRow, ParamGrid } from "../ParamRow";
 import { getParamHelp } from "@/data/parameterHelp";
 import { Switch } from "@/components/ui/switch";
@@ -175,6 +175,8 @@ export function DetailTab() {
         </div>
       </ParamSection>
 
+      <SectionDivider />
+
       <div
         className={
           state.detailerEnabled ? "" : "opacity-40 pointer-events-none"
@@ -213,6 +215,8 @@ export function DetailTab() {
               disabled={!state.detailerEnabled}
             />
           </ParamSection>
+
+          <SectionDivider />
 
           <ParamSection title="Detection" defaultOpen={false}>
             <ParamGrid>
@@ -302,6 +306,8 @@ export function DetailTab() {
             </ParamRow>
           </ParamSection>
 
+          <SectionDivider />
+
           <ParamSection title="Options" defaultOpen={false}>
             <div className="grid grid-cols-2 gap-2">
               <label className="flex items-center gap-1.5 text-2xs text-muted-foreground cursor-pointer">
@@ -359,6 +365,8 @@ export function DetailTab() {
               </label>
             </div>
           </ParamSection>
+
+          <SectionDivider />
 
           <ParamSection title="Noise" defaultOpen={false}>
             <ParamGrid>

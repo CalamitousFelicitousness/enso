@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { useGenerationStore } from "@/stores/generationStore";
 import { useShallow } from "zustand/react/shallow";
 import { ParamSlider } from "../ParamSlider";
-import { ParamSection } from "../ParamSection";
+import { ParamSection, SectionDivider } from "../ParamSection";
 import { Switch } from "@/components/ui/switch";
 import { ParamLabel } from "../ParamLabel";
 import { Label } from "@/components/ui/label";
@@ -97,6 +97,8 @@ export function AdvancedTab() {
           </div>
         </div>
       </ParamSection>
+
+      <SectionDivider />
 
       <ParamSection title="Override Settings" defaultOpen={false}>
         <div className="flex flex-col gap-1">

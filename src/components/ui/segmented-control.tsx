@@ -17,7 +17,9 @@ export interface SegmentedControlProps<T extends string = string> {
   options: SegmentOption<T>[];
   value: T;
   onValueChange: (value: T) => void;
+  onActiveClick?: (value: T) => void;
   variant?: "default" | "icon-label" | "icon-only" | "dense" | "tabs" | "stacked";
+  orientation?: "horizontal" | "vertical";
   animated?: boolean;
   className?: string;
 }
@@ -109,7 +111,9 @@ function SegmentedControlInner<T extends string = string>(
     options,
     value,
     onValueChange,
+    onActiveClick,
     variant = "default",
+    orientation = "horizontal",
     animated = false,
     className,
   }: SegmentedControlProps<T>,
@@ -125,11 +129,16 @@ function SegmentedControlInner<T extends string = string>(
         value={value}
         onValueChange={(v) => {
           if (v) onValueChange(v as T);
+          else onActiveClick?.(value);
         }}
         data-slot="segmented-control"
         data-animated={animated || undefined}
+        data-orientation={orientation}
         className={cn(
-          "group/segmented inline-grid auto-cols-fr grid-flow-col border border-border bg-muted/40 p-[5px] gap-[3px] relative",
+          "group/segmented inline-grid border border-border bg-muted/40 p-[5px] gap-[3px] relative",
+          orientation === "vertical"
+            ? "auto-rows-fr grid-flow-row"
+            : "auto-cols-fr grid-flow-col",
           className,
         )}
         style={{ borderRadius: "var(--control-radius)" }}

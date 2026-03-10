@@ -6,12 +6,19 @@ import { useCapabilities } from "@/api/hooks/useServer";
 import { cn } from "@/lib/utils";
 import { PanelLeftClose, PanelLeftOpen, HelpCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { SegmentedControl } from "@/components/ui/segmented-control";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Separator } from "@/components/ui/separator";
+
+const SUBTAB_OPTIONS = IMAGES_SUB_TABS.map((tab) => ({
+  value: tab.id,
+  label: tab.label,
+  icon: tab.icon,
+}));
 
 export function Sidebar() {
   const collapsed = useUiStore((s) => s.sidebarCollapsed);
@@ -142,43 +149,26 @@ export function Sidebar() {
       {hasSubTabs && (
         <div
           data-tour="sidebar-subtabs"
-          className="flex flex-col border-l border-sidebar-border py-2 overflow-y-auto"
+          className="border-l border-sidebar-border py-2 overflow-y-auto"
         >
-          {IMAGES_SUB_TABS.map((tab) => {
-            const Icon = tab.icon;
-            const isActive = activeSubTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => {
-                  if (isActive && !leftPanelCollapsed && !viewCollapsed) {
-                    toggleLeftPanel();
-                  } else {
-                    setImagesSubTab(tab.id as ImagesSubTab);
-                    if (leftPanelCollapsed) toggleLeftPanel();
-                    if (viewCollapsed) toggleViewCollapsed();
-                  }
-                }}
-                className={cn(
-                  "flex items-center gap-2 px-3 py-1.5 text-xs transition-colors text-left whitespace-nowrap",
-                  "text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent",
-                  isActive && "bg-sidebar-accent text-primary font-medium",
-                )}
-              >
-                <Icon size={14} className="flex-shrink-0" />
-                <span className="relative">
-                  {tab.label}
-                  {/* Invisible bold copy reserves width so the column doesn't shift on selection */}
-                  <span
-                    className="font-medium invisible block h-0 overflow-hidden"
-                    aria-hidden
-                  >
-                    {tab.label}
-                  </span>
-                </span>
-              </button>
-            );
-          })}
+          <SegmentedControl
+            options={SUBTAB_OPTIONS}
+            value={activeSubTab}
+            onValueChange={(v) => {
+              setImagesSubTab(v as ImagesSubTab);
+              if (leftPanelCollapsed) toggleLeftPanel();
+              if (viewCollapsed) toggleViewCollapsed();
+            }}
+            onActiveClick={() => {
+              if (!leftPanelCollapsed && !viewCollapsed) {
+                toggleLeftPanel();
+              }
+            }}
+            variant="stacked"
+            orientation="vertical"
+            animated
+            className="border-0 bg-transparent px-1.5 py-0 gap-0.5 rounded-none"
+          />
         </div>
       )}
     </div>

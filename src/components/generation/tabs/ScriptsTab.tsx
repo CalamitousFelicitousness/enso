@@ -1,7 +1,7 @@
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, Fragment } from "react";
 import { useScripts } from "@/api/hooks/useScripts";
 import { useScriptStore } from "@/stores/scriptStore";
-import { ParamSection } from "../ParamSection";
+import { ParamSection, SectionDivider } from "../ParamSection";
 import { ScriptArgControl } from "./scripts/ScriptArgControl";
 import { ScriptSection } from "./scripts/ScriptSection";
 import { Label } from "@/components/ui/label";
@@ -69,7 +69,10 @@ export function ScriptsTab() {
       </ParamSection>
 
       {alwaysOnScripts.map((script) => (
-        <AlwaysOnSection key={script.name} script={script} />
+        <Fragment key={script.name}>
+          <SectionDivider />
+          <AlwaysOnSection script={script} />
+        </Fragment>
       ))}
     </div>
   );

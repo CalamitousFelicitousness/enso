@@ -3,7 +3,7 @@ import { useGenerationStore } from "@/stores/generationStore";
 import { useShallow } from "zustand/react/shallow";
 import { useSamplerList, useCurrentCheckpoint } from "@/api/hooks/useModels";
 import { ParamSlider } from "../ParamSlider";
-import { ParamSection } from "../ParamSection";
+import { ParamSection, SectionDivider } from "../ParamSection";
 import { ParamRow, ParamGrid } from "../ParamRow";
 import { Combobox, type ComboboxGroup } from "@/components/ui/combobox";
 import { Input } from "@/components/ui/input";
@@ -136,6 +136,8 @@ export function SamplerTab() {
         />
       </ParamSection>
 
+      <SectionDivider />
+
       <ParamSection title="Scheduler" defaultOpen={false}>
         <ParamGrid>
           <ParamRow label="Sigma" tooltip={getParamHelp("sigma method")}>
@@ -188,6 +190,8 @@ export function SamplerTab() {
         </ParamGrid>
       </ParamSection>
 
+      <SectionDivider />
+
       <ParamSection title="Timesteps" defaultOpen={false}>
         <ParamGrid>
           <ParamRow label="Preset" tooltip={getParamHelp("timesteps preset")}>
@@ -211,6 +215,8 @@ export function SamplerTab() {
           </ParamRow>
         </ParamGrid>
       </ParamSection>
+
+      <SectionDivider />
 
       <ParamSection title="Sigma" defaultOpen={false}>
         <ParamGrid>
@@ -244,6 +250,8 @@ export function SamplerTab() {
           step={0.01}
         />
       </ParamSection>
+
+      <SectionDivider />
 
       <ParamSection title="Shifts" defaultOpen={false}>
         <ParamSlider
@@ -288,6 +296,8 @@ export function SamplerTab() {
         </ParamGrid>
       </ParamSection>
 
+      <SectionDivider />
+
       <ParamSection title="Options" defaultOpen={false}>
         <div className="grid grid-cols-2 gap-2">
           <label className="flex items-center gap-1.5 text-2xs text-muted-foreground cursor-pointer">
@@ -316,6 +326,8 @@ export function SamplerTab() {
           </label>
         </div>
       </ParamSection>
+
+      <SectionDivider />
 
       <ParamSection title="Seed">
         <ParamGrid>

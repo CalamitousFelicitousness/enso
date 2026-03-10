@@ -2,7 +2,7 @@ import { useCallback, useMemo, useRef } from "react";
 import { useGenerationStore } from "@/stores/generationStore";
 import { useShallow } from "zustand/react/shallow";
 import { ParamSlider } from "../ParamSlider";
-import { ParamSection } from "../ParamSection";
+import { ParamSection, SectionDivider } from "../ParamSection";
 import { ParamGrid } from "../ParamRow";
 import { ParamLabel } from "../ParamLabel";
 import { getParamHelp } from "@/data/parameterHelp";
@@ -154,6 +154,8 @@ export function ColorTab() {
         </div>
       </ParamSection>
 
+      <SectionDivider />
+
       <ParamSection title="Latent Corrections" defaultOpen={false}>
         <div className="flex items-center gap-2">
           <ParamLabel
@@ -302,6 +304,8 @@ export function ColorTab() {
         </div>
       </ParamSection>
 
+      <SectionDivider />
+
       <ParamSection title="Basic" defaultOpen={false}>
         <ParamGrid>
           <ParamSlider
@@ -374,6 +378,8 @@ export function ColorTab() {
         />
       </ParamSection>
 
+      <SectionDivider />
+
       <ParamSection title="Tone" defaultOpen={false}>
         <ParamGrid>
           <ParamSlider
@@ -425,6 +431,8 @@ export function ColorTab() {
         />
       </ParamSection>
 
+      <SectionDivider />
+
       <ParamSection title="Split Toning" defaultOpen={false}>
         <ColorPicker
           label="Shadows tint"
@@ -449,6 +457,8 @@ export function ColorTab() {
         />
       </ParamSection>
 
+      <SectionDivider />
+
       <ParamSection title="Effects" defaultOpen={false}>
         <ParamGrid>
           <ParamSlider
@@ -472,6 +482,8 @@ export function ColorTab() {
           />
         </ParamGrid>
       </ParamSection>
+
+      <SectionDivider />
 
       <ParamSection title="LUT" defaultOpen={false}>
         <div className="flex items-center gap-2">

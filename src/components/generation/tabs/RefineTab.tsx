@@ -8,7 +8,7 @@ import {
   HIRES_CONTEXT_MODES,
 } from "@/lib/constants";
 import { ParamSlider } from "../ParamSlider";
-import { ParamSection } from "../ParamSection";
+import { ParamSection, SectionDivider } from "../ParamSection";
 import { ParamRow, ParamGrid } from "../ParamRow";
 import { getParamHelp } from "@/data/parameterHelp";
 import { Switch } from "@/components/ui/switch";
@@ -242,6 +242,8 @@ export function RefineTab() {
           </div>
         </div>
       </ParamSection>
+
+      <SectionDivider />
 
       <ParamSection title="Refiner" defaultOpen={false}>
         <ParamGrid>

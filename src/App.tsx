@@ -27,7 +27,6 @@ function useResolvedTheme(): "dark" | "light" {
 
 function App() {
   const accentColor = useUiStore((s) => s.accentColor);
-  const borderRadius = useUiStore((s) => s.borderRadius);
   const uiScale = useUiStore((s) => s.uiScale);
   const resolvedTheme = useResolvedTheme();
 
@@ -80,17 +79,6 @@ function App() {
       document.documentElement.style.fontSize = "";
     };
   }, [uiScale]);
-
-  // Border radius
-  useEffect(() => {
-    document.documentElement.style.setProperty(
-      "--radius",
-      `${borderRadius}rem`,
-    );
-    return () => {
-      document.documentElement.style.removeProperty("--radius");
-    };
-  }, [borderRadius]);
 
   return (
     <TooltipProvider delayDuration={300} skipDelayDuration={300}>

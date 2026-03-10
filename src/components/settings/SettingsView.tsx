@@ -198,8 +198,6 @@ function AppearancePanel() {
   const setColorMode = useUiStore((s) => s.setColorMode);
   const accentColor = useUiStore((s) => s.accentColor);
   const setAccentColor = useUiStore((s) => s.setAccentColor);
-  const borderRadius = useUiStore((s) => s.borderRadius);
-  const setBorderRadius = useUiStore((s) => s.setBorderRadius);
   const uiScale = useUiStore((s) => s.uiScale);
   const setUiScale = useUiStore((s) => s.setUiScale);
   const canvasLabelScale = useUiStore((s) => s.canvasLabelScale);
@@ -248,26 +246,6 @@ function AppearancePanel() {
               }}
               className="h-7 w-20 text-xs font-mono"
             />
-          </div>
-        </SettingRow>
-
-        <SettingRow
-          label="Border radius"
-          description="Roundness of cards, inputs, and panels"
-        >
-          <div className="flex items-center gap-2 flex-1">
-            <Slider
-              min={0}
-              max={1}
-              step={0.05}
-              value={[borderRadius]}
-              onValueChange={([v]) => setBorderRadius(v)}
-              className="flex-1"
-            />
-
-            <span className="text-xs text-muted-foreground font-mono tabular-nums w-14 text-right">
-              {borderRadius.toFixed(2)}rem
-            </span>
           </div>
         </SettingRow>
 
