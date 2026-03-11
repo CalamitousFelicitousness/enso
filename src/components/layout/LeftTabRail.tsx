@@ -20,7 +20,7 @@ const SUBTAB_OPTIONS = IMAGES_SUB_TABS.map((tab) => ({
   icon: tab.icon,
 }));
 
-export function LeftRail() {
+export function LeftTabRail() {
   const collapsed = useUiStore((s) => s.leftRailCollapsed);
   const activeView = useUiStore((s) => s.activeNavView);
   const activeSubTab = useUiStore((s) => s.activeImagesSubTab);

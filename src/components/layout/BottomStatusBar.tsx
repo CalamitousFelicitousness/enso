@@ -109,7 +109,7 @@ function Sep() {
 // Main component
 // ---------------------------------------------------------------------------
 
-export function BottomBar() {
+export function BottomStatusBar() {
   const { data: checkpoint } = useCurrentCheckpoint();
   const isModelLoading = useIsModelLoading();
   const { data: loadedModels } = useLoadedModels();

@@ -1,10 +1,10 @@
-import { LeftRail } from "./LeftRail";
-import { TopBar } from "./TopBar";
-import { BottomBar } from "./BottomBar";
-import { MainContent } from "./MainContent";
-import { LeftPanel } from "./LeftPanel";
-import { RightRail } from "@/components/aside/RightRail";
-import { RightPanel } from "@/components/aside/RightPanel";
+import { LeftTabRail } from "./LeftTabRail";
+import { TopToolBar } from "./TopToolBar";
+import { BottomStatusBar } from "./BottomStatusBar";
+import { MainCanvas } from "./MainCanvas";
+import { LeftTabPanel } from "./LeftTabPanel";
+import { RightTabRail } from "@/components/aside/RightTabRail";
+import { RightTabPanel } from "@/components/aside/RightTabPanel";
 import {
   ResizablePanelGroup,
   ResizablePanel,
@@ -46,10 +46,10 @@ export function AppShell() {
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-background text-foreground">
-      <LeftRail />
+      <LeftTabRail />
 
       <div className="flex flex-1 flex-col min-w-0">
-        <TopBar />
+        <TopToolBar />
 
         <div className="flex flex-1 min-h-0">
           <aside
@@ -59,7 +59,7 @@ export function AppShell() {
             )}
             style={{ width: leftHidden ? 0 : leftPanelWidth }}
           >
-            {!leftHidden && <LeftPanel />}
+            {!leftHidden && <LeftTabPanel />}
           </aside>
 
           <ResizablePanelGroup
@@ -69,7 +69,7 @@ export function AppShell() {
           >
             <ResizablePanel id="panel-main" minSize="30%">
               <main className="h-full overflow-auto">
-                <MainContent />
+                <MainCanvas />
               </main>
             </ResizablePanel>
             {!rightPanelCollapsed && (
@@ -81,16 +81,16 @@ export function AppShell() {
                   maxSize="70%"
                   defaultSize="30%"
                 >
-                  <RightPanel />
+                  <RightTabPanel />
                 </ResizablePanel>
               </>
             )}
           </ResizablePanelGroup>
 
-          <RightRail />
+          <RightTabRail />
         </div>
 
-        <BottomBar />
+        <BottomStatusBar />
       </div>
 
       <ShortcutOverlay />

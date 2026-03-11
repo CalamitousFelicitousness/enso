@@ -9,7 +9,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 
-export function RightRail() {
+export function RightTabRail() {
   const activeTab = useUiStore((s) => s.activeRightTab);
   const collapsed = useUiStore((s) => s.rightPanelCollapsed);
   const openRightTab = useUiStore((s) => s.openRightTab);

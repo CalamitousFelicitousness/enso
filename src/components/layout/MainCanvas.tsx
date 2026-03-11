@@ -19,7 +19,7 @@ function UnavailablePlaceholder({ label }: { label: string }) {
   );
 }
 
-export function MainContent() {
+export function MainCanvas() {
   const activeView = useUiStore((s) => s.activeNavView);
   const capabilities = useCapabilities();
 

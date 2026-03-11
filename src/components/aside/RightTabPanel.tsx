@@ -54,7 +54,7 @@ const TAB_COMPONENTS: Record<
 
 const SELF_SCROLL_TABS = new Set<string>(["settings"]);
 
-export function RightPanel() {
+export function RightTabPanel() {
   const activeTab = useUiStore((s) => s.activeRightTab);
   const tabMeta = RIGHT_TABS.find((t) => t.id === activeTab);
   const TabComponent = TAB_COMPONENTS[activeTab];

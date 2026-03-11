@@ -6,7 +6,7 @@ import { ConnectionIndicator } from "@/components/connection/ConnectionIndicator
 import { PanelLeftOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-export function TopBar() {
+export function TopToolBar() {
   const leftRailCollapsed = useUiStore((s) => s.leftRailCollapsed);
   const toggleLeftRail = useUiStore((s) => s.toggleLeftRail);
 

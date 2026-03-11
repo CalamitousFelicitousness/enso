@@ -16,7 +16,7 @@ import { ProcessPanel } from "@/components/process/ProcessPanel";
 import { VideoPanel } from "@/components/video/VideoPanel";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
-export function LeftPanel() {
+export function LeftTabPanel() {
   const activeView = useUiStore((s) => s.activeNavView);
   const activeSubTab = useUiStore((s) => s.activeImagesSubTab);
 
