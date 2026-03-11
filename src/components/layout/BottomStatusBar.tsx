@@ -53,8 +53,8 @@ function GpuGauge({ percent }: { percent: number }) {
 /** Format bytes as GB pair (always GB, no auto-scaling). */
 function formatGbPair(used: number, total: number): { usedNum: string; totalNum: string } {
   const GB = 1024 ** 3;
-  const usedNum = parseFloat((used / GB).toFixed(1)).toString();
-  const totalNum = parseFloat((total / GB).toFixed(1)).toString();
+  const usedNum = (used / GB).toFixed(1);
+  const totalNum = (total / GB).toFixed(1);
   return { usedNum, totalNum };
 }
 
