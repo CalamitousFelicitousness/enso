@@ -50,27 +50,23 @@ function GpuGauge({ percent }: { percent: number }) {
   );
 }
 
-/** Format bytes as number + unit in a given unit scale (determined by total). */
-function formatMemPair(used: number, total: number): { usedNum: string; totalNum: string; unit: string } {
-  if (total === 0) return { usedNum: "0", totalNum: "0", unit: "B" };
-  const k = 1024;
-  const sizes = ["B", "KB", "MB", "GB", "TB"];
-  const i = Math.floor(Math.log(total) / Math.log(k));
-  const unit = sizes[i];
-  const usedNum = parseFloat((used / Math.pow(k, i)).toFixed(2)).toString();
-  const totalNum = parseFloat((total / Math.pow(k, i)).toFixed(2)).toString();
-  return { usedNum, totalNum, unit };
+/** Format bytes as GB pair (always GB, no auto-scaling). */
+function formatGbPair(used: number, total: number): { usedNum: string; totalNum: string } {
+  const GB = 1024 ** 3;
+  const usedNum = parseFloat((used / GB).toFixed(1)).toString();
+  const totalNum = parseFloat((total / GB).toFixed(1)).toString();
+  return { usedNum, totalNum };
 }
 
 /** Inline memory bar with label, value, and 48px progress track. */
 function MemBar({ label, used, total }: { label: string; used: number; total: number }) {
   const pct = total > 0 ? (used / total) * 100 : 0;
   const critical = pct >= 90;
-  const { usedNum, totalNum, unit } = formatMemPair(used, total);
+  const { usedNum, totalNum } = formatGbPair(used, total);
   return (
     <span className="inline-flex items-center gap-1.5">
       <span className="text-3xs text-muted-foreground">{label}</span>
-      <MonoSlot value={`${usedNum} / ${totalNum} ${unit}`} phantom="00.00 / 00.00 GB" />
+      <MonoSlot value={`${usedNum} / ${totalNum} GB`} phantom="000.0 / 000.0 GB" />
       <span className="w-12 h-[3px] rounded-full bg-muted overflow-hidden">
         <span
           className={`block h-full rounded-full transition-[width] duration-300 ${critical ? "bg-destructive" : "bg-primary"}`}
