@@ -5,6 +5,7 @@ import type { RightTab } from "@/lib/constants";
 type NavView = "images" | "video" | "process" | "caption" | "gallery";
 type ImagesSubTab = "prompts" | "sampler" | "guidance" | "refine" | "detail" | "advanced" | "color" | "control" | "scripts";
 type ColorMode = "dark" | "light" | "system";
+type CanvasBackground = "dots" | "noise" | "iso";
 
 interface UiState {
   // Left Rail
@@ -45,6 +46,7 @@ interface UiState {
   accentColor: string;
   uiScale: number;
   canvasLabelScale: number;
+  canvasBackground: CanvasBackground;
 
   // Actions
   toggleLeftRail: () => void;
@@ -64,12 +66,13 @@ interface UiState {
   setAccentColor: (color: string) => void;
   setUiScale: (scale: number) => void;
   setCanvasLabelScale: (scale: number) => void;
+  setCanvasBackground: (bg: CanvasBackground) => void;
   addRecentCommand: (id: string) => void;
   setQuickSettingsKeys: (keys: string[] | null) => void;
   setPendingSettingsSearch: (query: string | null) => void;
 }
 
-export type { NavView, ImagesSubTab, ColorMode };
+export type { NavView, ImagesSubTab, ColorMode, CanvasBackground };
 
 export const useUiStore = create<UiState>()(
   persist(
@@ -93,6 +96,7 @@ export const useUiStore = create<UiState>()(
       accentColor: "#00bcd4",
       uiScale: 18,
       canvasLabelScale: 1,
+      canvasBackground: "dots" as CanvasBackground,
 
       toggleLeftRail: () => set((s) => ({ leftRailCollapsed: !s.leftRailCollapsed })),
       setNavView: (view) => set({ activeNavView: view }),
@@ -111,6 +115,7 @@ export const useUiStore = create<UiState>()(
       setAccentColor: (color) => set({ accentColor: color }),
       setUiScale: (scale) => set({ uiScale: Math.max(8, Math.min(28, scale)) }),
       setCanvasLabelScale: (scale) => set({ canvasLabelScale: Math.max(0.5, Math.min(2, scale)) }),
+      setCanvasBackground: (bg) => set({ canvasBackground: bg }),
       addRecentCommand: (id) => set((s) => {
         const filtered = s.recentCommandIds.filter((c) => c !== id);
         return { recentCommandIds: [id, ...filtered].slice(0, 5) };

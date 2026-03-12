@@ -13,6 +13,7 @@ import { ProcessedCompositeLayer } from "./layers/ProcessedCompositeLayer";
 import { ControlFrameLayer } from "./layers/ControlFrameLayer";
 import { getOrderedFrames, computeFocusViewport } from "./frameList";
 import type { CanvasLayout } from "./useControlFrameLayout";
+import { CanvasBackground } from "./CanvasBackground";
 import Konva from "konva";
 
 // Only allow left mouse button to initiate Konva node drags.
@@ -147,8 +148,14 @@ export function CanvasStage({ layout, onPickImage }: CanvasStageProps) {
   );
 
   return (
-    <div ref={containerRef} className="w-full h-full overflow-hidden">
+    <div ref={containerRef} className="relative w-full h-full overflow-hidden">
       {containerSize.width > 0 && containerSize.height > 0 && (
+        <>
+        <CanvasBackground
+          width={containerSize.width}
+          height={containerSize.height}
+          viewport={viewport}
+        />
         <Stage
           ref={stageRef}
           width={containerSize.width}
@@ -194,6 +201,7 @@ export function CanvasStage({ layout, onPickImage }: CanvasStageProps) {
             />
           )}
         </Stage>
+        </>
       )}
     </div>
   );

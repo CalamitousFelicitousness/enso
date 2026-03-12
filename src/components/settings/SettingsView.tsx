@@ -36,7 +36,7 @@ import {
   Check,
 } from "lucide-react";
 import { useUiStore } from "@/stores/uiStore";
-import type { ColorMode } from "@/stores/uiStore";
+import type { ColorMode, CanvasBackground as CanvasBg } from "@/stores/uiStore";
 import { useConnectionStore } from "@/stores/connectionStore";
 import { api } from "@/api/client";
 import { ws } from "@/api/wsManager";
@@ -49,6 +49,12 @@ const COLOR_MODES: { value: ColorMode; label: string }[] = [
   { value: "dark", label: "Dark" },
   { value: "light", label: "Light" },
   { value: "system", label: "System" },
+];
+
+const CANVAS_BACKGROUNDS: { value: CanvasBg; label: string }[] = [
+  { value: "dots", label: "Dot Field" },
+  { value: "noise", label: "Noise" },
+  { value: "iso", label: "Isometric" },
 ];
 
 /** Backend settings that are Gradio-specific and meaningless to the Enso UI */
@@ -202,6 +208,8 @@ function AppearancePanel() {
   const setUiScale = useUiStore((s) => s.setUiScale);
   const canvasLabelScale = useUiStore((s) => s.canvasLabelScale);
   const setCanvasLabelScale = useUiStore((s) => s.setCanvasLabelScale);
+  const canvasBackground = useUiStore((s) => s.canvasBackground);
+  const setCanvasBackground = useUiStore((s) => s.setCanvasBackground);
 
   const [hexInput, setHexInput] = useState(accentColor);
   useEffect(() => {
@@ -287,6 +295,18 @@ function AppearancePanel() {
               {canvasLabelScale.toFixed(1)}x
             </span>
           </div>
+        </SettingRow>
+
+        <SettingRow
+          label="Canvas background"
+          description="Pattern displayed behind the infinite canvas workspace"
+        >
+          <SegmentedControl
+            options={CANVAS_BACKGROUNDS}
+            value={canvasBackground}
+            onValueChange={setCanvasBackground}
+            animated
+          />
         </SettingRow>
       </div>
     </div>

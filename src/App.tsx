@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useSyncExternalStore } from "react";
+import { useEffect, useMemo } from "react";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/sonner";
 import { AppShell } from "@/components/layout/AppShell";
@@ -6,24 +6,8 @@ import { useUiStore } from "@/stores/uiStore";
 import { useConnectionStore } from "@/stores/connectionStore";
 import { api } from "@/api/client";
 import { contrastText } from "@/lib/utils";
+import { useResolvedTheme } from "@/hooks/useResolvedTheme";
 import "./App.css";
-
-function getSystemDark() {
-  return window.matchMedia("(prefers-color-scheme: dark)").matches;
-}
-
-function subscribeSystemTheme(cb: () => void) {
-  const mq = window.matchMedia("(prefers-color-scheme: dark)");
-  mq.addEventListener("change", cb);
-  return () => mq.removeEventListener("change", cb);
-}
-
-function useResolvedTheme(): "dark" | "light" {
-  const colorMode = useUiStore((s) => s.colorMode);
-  const systemDark = useSyncExternalStore(subscribeSystemTheme, getSystemDark);
-  if (colorMode === "system") return systemDark ? "dark" : "light";
-  return colorMode;
-}
 
 function App() {
   const accentColor = useUiStore((s) => s.accentColor);
