@@ -34,3 +34,6 @@ jobs.db
 
 # Working documents (local only)
 working-docs/
+
+# MCP server (local dev tool)
+mcp/
