@@ -27,8 +27,7 @@ export default defineConfig(({ mode }) => {
     VitePWA({
       registerType: "autoUpdate",
       devOptions: {
-        enabled: true,
-        type: "module",
+        enabled: false,
       },
       workbox: {
         // Force new service worker to activate immediately instead of waiting for all tabs to close
@@ -91,12 +90,12 @@ export default defineConfig(({ mode }) => {
     port: devPort,
     allowedHosts: true,
     proxy: standalone ? undefined : {
-      "/sdapi/v2/ws": { target: backend, ws: true },
-      "/sdapi/v2/browser/files": { target: backend, ws: true },
-      "/sdapi/v2/jobs": { target: backend, ws: true },
-      "/sdapi": backend,
-      "/internal": backend,
-      "/file": backend,
+      "/sdapi/v2/ws": { target: backend, ws: true, timeout: 5000 },
+      "/sdapi/v2/browser/files": { target: backend, ws: true, timeout: 5000 },
+      "/sdapi/v2/jobs": { target: backend, ws: true, timeout: 5000 },
+      "/sdapi": { target: backend, timeout: 5000 },
+      "/internal": { target: backend, timeout: 5000 },
+      "/file": { target: backend, timeout: 5000 },
     },
   },
   define: {

@@ -604,16 +604,20 @@ export function SettingsView({ onDirtyChange }: SettingsViewProps = {}) {
     return result;
   }, [optionsInfo, options, curatedMap]);
 
+  const backendReady =
+    !isLoading && !isInfoLoading && !!options && !!optionsInfo;
+
   // Resolve active section: use first section if none selected or selection is stale
   const resolvedActive = useMemo(() => {
     if (activeSection === CONNECTION_SECTION_ID) return CONNECTION_SECTION_ID;
     if (activeSection === APPEARANCE_SECTION_ID) return APPEARANCE_SECTION_ID;
     if (activeSection && allSections.some((s) => s.id === activeSection))
       return activeSection;
-    if (allSections.length > 0) return allSections[0].id;
-    // Backend hasn't loaded yet - default to Connection so it's reachable
+    // When backend is ready, default to the first backend section;
+    // otherwise show Connection so users can fix the URL
+    if (backendReady && allSections.length > 0) return allSections[0].id;
     return CONNECTION_SECTION_ID;
-  }, [allSections, activeSection]);
+  }, [allSections, activeSection, backendReady]);
 
   // Filter sections by search
   const filteredSections = useMemo(() => {
@@ -710,9 +714,6 @@ export function SettingsView({ onDirtyChange }: SettingsViewProps = {}) {
     setActiveSection(id);
     setSearchQuery("");
   }, []);
-
-  const backendReady =
-    !isLoading && !isInfoLoading && !!options && !!optionsInfo;
 
   return (
     <div className="flex h-full">
