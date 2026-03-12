@@ -7,6 +7,7 @@ import {
 } from "@/api/hooks/useNetworks";
 import { useCivitMetadataScan } from "@/api/hooks/useCivitai";
 import { useOptions, useSetOptions } from "@/api/hooks/useSettings";
+import { useLoadModel } from "@/api/hooks/useModels";
 import { useGenerationStore } from "@/stores/generationStore";
 import type { ExtraNetworkV2, PromptStyleV2 } from "@/api/types/models";
 import { Input } from "@/components/ui/input";
@@ -89,6 +90,7 @@ function itemHasTag(item: ExtraNetworkV2, tag: string): boolean {
 export function NetworksTab() {
   const { data: options } = useOptions();
   const setOptions = useSetOptions();
+  const loadModel = useLoadModel();
   const { data: styles } = usePromptStyles();
   const prompt = useGenerationStore((s) => s.prompt);
   const refreshNetworks = useRefreshNetworks();
@@ -325,9 +327,13 @@ export function NetworksTab() {
           .getState()
           .setParam("prompt", current ? `${current} ${tag}` : tag);
       } else if (t === "model" || t === "checkpoint") {
-        setOptions.mutate({
-          sd_model_checkpoint: network.title ?? network.name,
-        });
+        if (isReferenceName(network.name) && network.filename) {
+          loadModel.mutate(network.filename);
+        } else {
+          setOptions.mutate({
+            sd_model_checkpoint: network.title ?? network.name,
+          });
+        }
       } else if (t === "embedding" || t === "textual inversion") {
         const current = useGenerationStore.getState().prompt;
         useGenerationStore

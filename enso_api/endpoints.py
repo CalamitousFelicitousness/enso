@@ -360,13 +360,28 @@ async def get_checkpoint_v2():
 async def set_checkpoint_v2(req: ReqSetCheckpointV2):
     """Load a checkpoint by name with optional dtype and force options."""
     def _load():
-        from modules import sd_models, devices
+        from modules import sd_models, devices, modelloader
         if req.force:
             sd_models.unload_model_weights(op='model')
         if req.dtype is not None:
             shared.opts.cuda_dtype = req.dtype
             devices.set_dtype()
-        shared.opts.sd_model_checkpoint = req.sd_model_checkpoint
+        checkpoint = req.sd_model_checkpoint
+        # Handle reference models (same logic as ui_settings.reference_submit)
+        ref_opts = modelloader.get_reference_opts(checkpoint, quiet=True)
+        if ref_opts:
+            if '@' not in checkpoint:
+                loaded = modelloader.load_reference(checkpoint)
+                if not loaded:
+                    return None
+            else:
+                model, url = checkpoint.split('@', 1)
+                loaded = modelloader.load_civitai(model, url)
+                if loaded is not None:
+                    checkpoint = loaded
+                else:
+                    return None
+        shared.opts.sd_model_checkpoint = checkpoint
         return sd_models.reload_model_weights()
     model = await asyncio.to_thread(_load)
     return ResSetCheckpointV2(ok=model is not None, checkpoint=_build_checkpoint_info())
