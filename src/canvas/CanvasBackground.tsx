@@ -1,6 +1,7 @@
 import { useRef, useEffect, useCallback } from "react";
 import { useResolvedTheme } from "@/hooks/useResolvedTheme";
 import { useUiStore } from "@/stores/uiStore";
+import type { ViewportBus } from "./viewportBus";
 
 interface Viewport {
   x: number;
@@ -12,6 +13,7 @@ interface CanvasBackgroundProps {
   width: number;
   height: number;
   viewport: Viewport;
+  bus?: ViewportBus;
 }
 
 // --- Colors ---
@@ -208,45 +210,82 @@ function drawIsometric(
 
 // --- Component ---
 
-export function CanvasBackground({ width, height, viewport }: CanvasBackgroundProps) {
+export function CanvasBackground({ width, height, viewport, bus }: CanvasBackgroundProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const noiseCache = useRef<{ data: ImageData; w: number; h: number; mode: string } | null>(null);
+  const ctxRef = useRef<CanvasRenderingContext2D | null>(null);
+  const canvasSizeRef = useRef({ w: 0, h: 0 });
   const mode = useResolvedTheme();
   const pattern = useUiStore((s) => s.canvasBackground);
 
-  const prepCanvas = useCallback(() => {
+  // Get canvas context, only reallocating the buffer when dimensions change
+  const getCtx = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas || width <= 0 || height <= 0) return null;
 
     const dpr = window.devicePixelRatio || 1;
-    canvas.width = width * dpr;
-    canvas.height = height * dpr;
 
-    const ctx = canvas.getContext("2d");
+    if (canvasSizeRef.current.w !== width || canvasSizeRef.current.h !== height) {
+      canvas.width = width * dpr;
+      canvas.height = height * dpr;
+      canvasSizeRef.current = { w: width, h: height };
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return null;
+      ctx.scale(dpr, dpr);
+      ctxRef.current = ctx;
+    }
+
+    const ctx = ctxRef.current;
     if (!ctx) return null;
-
-    ctx.scale(dpr, dpr);
+    // Reset transform to DPR scale (draw functions assume clean state)
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     return ctx;
   }, [width, height]);
 
-  // Viewport-aware patterns: redraw on every pan/zoom
+  // Viewport-aware patterns: redraw on store-driven changes (auto-fit, mode switch)
   useEffect(() => {
     if (pattern === "noise") return;
-    const ctx = prepCanvas();
+    const ctx = getCtx();
     if (!ctx) return;
 
     if (pattern === "dots") drawDotField(ctx, width, height, viewport, mode);
     else drawIsometric(ctx, width, height, viewport, mode);
-  }, [prepCanvas, width, height, viewport, mode, pattern]);
+  }, [getCtx, width, height, viewport, mode, pattern]);
+
+  // Bus-driven imperative redraw during pan/zoom gesture (rAF-coalesced)
+  useEffect(() => {
+    if (!bus) return;
+    let pendingVp: Viewport | null = null;
+    let rafId: number | null = null;
+
+    const unsub = bus.subscribe((vp) => {
+      pendingVp = vp;
+      if (rafId !== null) return;
+      rafId = requestAnimationFrame(() => {
+        rafId = null;
+        if (!pendingVp || pattern === "noise") return;
+        const ctx = getCtx();
+        if (!ctx) return;
+        if (pattern === "dots") drawDotField(ctx, width, height, pendingVp, mode);
+        else drawIsometric(ctx, width, height, pendingVp, mode);
+        pendingVp = null;
+      });
+    });
+
+    return () => {
+      unsub();
+      if (rafId !== null) cancelAnimationFrame(rafId);
+    };
+  }, [bus, pattern, getCtx, width, height, mode]);
 
   // Static noise: only redraw on resize or mode change
   useEffect(() => {
     if (pattern !== "noise") return;
-    const ctx = prepCanvas();
+    const ctx = getCtx();
     if (!ctx) return;
 
     drawWovenNoise(ctx, width, height, mode, noiseCache);
-  }, [prepCanvas, width, height, mode, pattern]);
+  }, [getCtx, width, height, mode, pattern]);
 
   return (
     <canvas

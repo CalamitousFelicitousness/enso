@@ -207,6 +207,7 @@ export function FrameHeader({
         width: `${widthPx}px`,
         transform: `scale(${combinedScale})`,
         transformOrigin: "bottom left",
+        pointerEvents: "auto" as const,
       };
     }
     const screenLeftX = (canvasX - STROKE_HALF) * viewport.scale + viewport.x;
@@ -219,6 +220,7 @@ export function FrameHeader({
       width: `${PANEL_WIDTH}px`,
       transform: `scale(${combinedScale})`,
       transformOrigin: "bottom left",
+      pointerEvents: "auto" as const,
     };
   }, [mode, canvasX, canvasY, frameW, viewport, labelScale, combinedScale]);
 
@@ -591,6 +593,7 @@ function ControlFrameStack({
       display: "flex",
       flexDirection: "column" as const,
       gap: "4px",
+      pointerEvents: "auto" as const,
     };
   }, [frame, viewport, labelScale]);
 

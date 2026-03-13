@@ -1,5 +1,5 @@
-import { useState, useMemo } from "react";
-import { RefreshCw, ImageOff, Loader2, ScanSearch } from "lucide-react";
+import { useState, useMemo, useEffect, useRef } from "react";
+import { RefreshCw, ImageOff, Info, Loader2, ScanSearch } from "lucide-react";
 import {
   useExtraNetworks,
   usePromptStyles,
@@ -97,6 +97,7 @@ export function NetworksTab() {
   const [filter, setFilter] = useState<TypeFilter>("Model");
   const [search, setSearch] = useState("");
   const [selectedSubfolder, setSelectedSubfolder] = useState("All");
+  const [detailItem, setDetailItem] = useState<ExtraNetworkV2 | PromptStyleV2 | null>(null);
 
   const civitScan = useCivitMetadataScan();
   const canScan = filter !== "Style" && filter !== "Wildcards";
@@ -311,6 +312,31 @@ export function NetworksTab() {
     return filtered.filter((item) => item.name.startsWith(prefix));
   }, [filtered, selectedSubfolder, filter, versionSet]);
 
+  // Progressive rendering: mount a small batch first, expand on scroll
+  const BATCH = 40;
+  const [extraBatches, setExtraBatches] = useState(0);
+  const [prevItems, setPrevItems] = useState(displayItems);
+  if (prevItems !== displayItems) {
+    setPrevItems(displayItems);
+    if (extraBatches !== 0) setExtraBatches(0);
+  }
+  const renderCount = Math.min(BATCH + extraBatches * BATCH, displayItems.length);
+  const sentinelRef = useRef<HTMLDivElement>(null);
+
+  // Intersection observer to load more cards as user scrolls
+  useEffect(() => {
+    if (renderCount >= displayItems.length) return;
+    const el = sentinelRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver((entries) => {
+      if (entries[0]?.isIntersecting) {
+        setExtraBatches((c) => c + 1);
+      }
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [renderCount, displayItems.length]);
+
   function handleFilterChange(t: TypeFilter) {
     setFilter(t);
     setSelectedSubfolder("All");
@@ -469,7 +495,7 @@ export function NetworksTab() {
             </p>
           )}
           <div className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-1.5">
-            {displayItems.map((item) => (
+            {displayItems.slice(0, renderCount).map((item) => (
               <NetworkCard
                 key={
                   isExtraNetwork(item) ? `${item.type}-${item.name}` : item.name
@@ -477,9 +503,13 @@ export function NetworksTab() {
                 item={item}
                 active={isItemActive(item, prompt, options)}
                 onClick={() => handleClick(item)}
+                onInfo={() => setDetailItem(item)}
               />
             ))}
           </div>
+          {renderCount < displayItems.length && (
+            <div ref={sentinelRef} className="h-8" />
+          )}
           {!isLoading && displayItems.length === 0 && (
             <p className="text-xs text-muted-foreground text-center py-6">
               No results found.
@@ -487,6 +517,11 @@ export function NetworksTab() {
           )}
         </div>
       </div>
+      <NetworkDetailDialog
+        item={detailItem}
+        open={detailItem !== null}
+        onOpenChange={(open) => { if (!open) setDetailItem(null); }}
+      />
     </div>
   );
 }
@@ -495,10 +530,12 @@ function NetworkCard({
   item,
   active,
   onClick,
+  onInfo,
 }: {
   item: ExtraNetworkV2 | PromptStyleV2;
   active: boolean;
   onClick: () => void;
+  onInfo: () => void;
 }) {
   const isNetwork = "type" in item && item.type;
   const network = isNetwork ? (item as ExtraNetworkV2) : null;
@@ -548,7 +585,16 @@ function NetworkCard({
           <Badge variant="secondary" className="text-4xs px-1 py-0">
             {typeBadge}
           </Badge>
-          <NetworkDetailDialog item={item} />
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onInfo();
+            }}
+            className="p-0.5 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-colors"
+          >
+            <Info className="h-3 w-3" />
+          </button>
         </div>
       </div>
     </div>

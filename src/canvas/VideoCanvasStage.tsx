@@ -6,6 +6,7 @@ import { usePanZoom } from "./tools/usePanZoom";
 import { VideoFrameLayer } from "./layers/VideoFrameLayer";
 import { VideoOutputFrame } from "./layers/VideoOutputFrame";
 import type { VideoCanvasLayout } from "./useVideoFrameLayout";
+import { videoViewportBus } from "./viewportBus";
 import type Konva from "konva";
 
 const PADDING = 32;
@@ -28,7 +29,7 @@ export function VideoCanvasStage({
   const frameW = useVideoStore((s) => s.width);
   const frameH = useVideoStore((s) => s.height);
 
-  const panZoom = usePanZoom(stageRef, setViewport);
+  const panZoom = usePanZoom(stageRef, setViewport, videoViewportBus);
 
   const { initX, lastX, outputX, totalBounds, displayW, displayH } = layout;
 

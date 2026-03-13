@@ -14,6 +14,7 @@ import { ControlFrameLayer } from "./layers/ControlFrameLayer";
 import { getOrderedFrames, computeFocusViewport } from "./frameList";
 import type { CanvasLayout } from "./useControlFrameLayout";
 import { CanvasBackground } from "./CanvasBackground";
+import { mainViewportBus } from "./viewportBus";
 import Konva from "konva";
 
 // Only allow left mouse button to initiate Konva node drags.
@@ -43,7 +44,7 @@ export function CanvasStage({ layout, onPickImage }: CanvasStageProps) {
   const focusedFrameId = useCanvasStore((s) => s.focusedFrameId);
   const focusFitTrigger = useCanvasStore((s) => s.focusFitTrigger);
 
-  const panZoom = usePanZoom(stageRef);
+  const panZoom = usePanZoom(stageRef, undefined, mainViewportBus);
   const maskPaint = useMaskPaint({ stageRef, spaceHeld: panZoom.spaceHeld });
   const imageTransform = useImageTransform(stageRef, trRef);
 
@@ -155,6 +156,7 @@ export function CanvasStage({ layout, onPickImage }: CanvasStageProps) {
           width={containerSize.width}
           height={containerSize.height}
           viewport={viewport}
+          bus={mainViewportBus}
         />
         <Stage
           ref={stageRef}

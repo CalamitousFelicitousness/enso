@@ -1,7 +1,8 @@
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Download, Trash2, Film, Columns2, X, ImagePlus } from "lucide-react";
 import { useVideoStore } from "@/stores/videoStore";
 import { useVideoCanvasStore } from "@/stores/videoCanvasStore";
+import { videoViewportBus } from "@/canvas/viewportBus";
 import {
   useJobQueueStore,
   selectVideoActive,
@@ -125,6 +126,7 @@ export function VideoCanvasView() {
   // File input refs for click-to-pick
   const initInputRef = useRef<HTMLInputElement>(null);
   const lastInputRef = useRef<HTMLInputElement>(null);
+  const overlayRef = useRef<HTMLDivElement>(null);
 
   const handlePickImage = useCallback((which: "init" | "last") => {
     if (which === "init") initInputRef.current?.click();
@@ -162,17 +164,41 @@ export function VideoCanvasView() {
     [handleFileSelected],
   );
 
+  // Move overlay wrapper imperatively during pan/zoom gestures
+  useEffect(() => {
+    return videoViewportBus.subscribe((vp) => {
+      if (!overlayRef.current) return;
+      const storeVp = useVideoCanvasStore.getState().viewport;
+      const ratio = vp.scale / storeVp.scale;
+      const dx = vp.x - storeVp.x * ratio;
+      const dy = vp.y - storeVp.y * ratio;
+      overlayRef.current.style.transform = `translate(${dx}px, ${dy}px) scale(${ratio})`;
+    });
+  }, []);
+
+  // Reset overlay when store viewport changes programmatically
+  useEffect(() => {
+    let prevVp = useVideoCanvasStore.getState().viewport;
+    return useVideoCanvasStore.subscribe((state) => {
+      if (state.viewport !== prevVp) {
+        prevVp = state.viewport;
+        if (overlayRef.current) overlayRef.current.style.transform = '';
+      }
+    });
+  }, []);
+
   // Hit-test: determine which video frame a drop lands on based on screen coords
   const hitTestTarget = useCallback(
     (e: React.DragEvent): "init" | "last" => {
+      const vp = useVideoCanvasStore.getState().viewport;
       const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
       const screenX = e.clientX - rect.left;
-      const canvasX = (screenX - viewport.x) / viewport.scale;
+      const canvasX = (screenX - vp.x) / vp.scale;
       const { lastX, displayW } = layout;
       if (canvasX >= lastX && canvasX < lastX + displayW) return "last";
       return "init";
     },
-    [viewport, layout],
+    [layout],
   );
 
   const handleDropFile = useCallback(
@@ -236,121 +262,124 @@ export function VideoCanvasView() {
       <div className="flex-1 relative min-h-0">
         <VideoCanvasStage layout={layout} onPickImage={handlePickImage} />
 
-        {/* Floating header: Init frame */}
-        <FrameHeader
-          mode="panel"
-          color={initColor}
-          label="Init"
-          canvasX={layout.initX}
-          frameW={displayW}
-          viewport={viewport}
-          labelScale={labelScale}
-          actions={
-            <>
-              <Button
-                variant="ghost"
-                size="icon-xs"
-                onClick={() => handlePickImage("init")}
-                title="Add image"
-                className="hover:bg-black/10"
-              >
-                <ImagePlus size={16} style={{ color: initTextColor }} />
-              </Button>
-              {initFrame && (
+        {/* Floating headers — delta-transform wrapper for zero-render pan/zoom */}
+        <div ref={overlayRef} style={{ position: 'absolute', inset: 0, pointerEvents: 'none', transformOrigin: '0 0' }}>
+          {/* Floating header: Init frame */}
+          <FrameHeader
+            mode="panel"
+            color={initColor}
+            label="Init"
+            canvasX={layout.initX}
+            frameW={displayW}
+            viewport={viewport}
+            labelScale={labelScale}
+            actions={
+              <>
                 <Button
                   variant="ghost"
                   size="icon-xs"
-                  onClick={() => clearFrame("init")}
-                  title="Clear"
+                  onClick={() => handlePickImage("init")}
+                  title="Add image"
                   className="hover:bg-black/10"
                 >
-                  <Trash2 size={16} style={{ color: initTextColor }} />
+                  <ImagePlus size={16} style={{ color: initTextColor }} />
                 </Button>
-              )}
-            </>
-          }
-          drawer={
-            <ParamSlider
-              label="Strength"
-              value={initStrength}
-              onChange={(v) => setParam("initStrength", v)}
-              min={0}
-              max={1}
-              step={0.05}
-            />
-          }
-          collapsed={!initFrame}
-          onToggleCollapsed={() => {
-            /* drawer auto-shows when frame present */
-          }}
-        />
+                {initFrame && (
+                  <Button
+                    variant="ghost"
+                    size="icon-xs"
+                    onClick={() => clearFrame("init")}
+                    title="Clear"
+                    className="hover:bg-black/10"
+                  >
+                    <Trash2 size={16} style={{ color: initTextColor }} />
+                  </Button>
+                )}
+              </>
+            }
+            drawer={
+              <ParamSlider
+                label="Strength"
+                value={initStrength}
+                onChange={(v) => setParam("initStrength", v)}
+                min={0}
+                max={1}
+                step={0.05}
+              />
+            }
+            collapsed={!initFrame}
+            onToggleCollapsed={() => {
+              /* drawer auto-shows when frame present */
+            }}
+          />
 
-        {/* Floating header: Last frame */}
-        <FrameHeader
-          mode="panel"
-          color={lastColor}
-          label="Last"
-          canvasX={layout.lastX}
-          frameW={displayW}
-          viewport={viewport}
-          labelScale={labelScale}
-          actions={
-            <>
-              <Button
-                variant="ghost"
-                size="icon-xs"
-                onClick={() => handlePickImage("last")}
-                title="Add image"
-                className="hover:bg-black/10"
-              >
-                <ImagePlus size={16} style={{ color: lastTextColor }} />
-              </Button>
-              {lastFrame && (
+          {/* Floating header: Last frame */}
+          <FrameHeader
+            mode="panel"
+            color={lastColor}
+            label="Last"
+            canvasX={layout.lastX}
+            frameW={displayW}
+            viewport={viewport}
+            labelScale={labelScale}
+            actions={
+              <>
                 <Button
                   variant="ghost"
                   size="icon-xs"
-                  onClick={() => clearFrame("last")}
-                  title="Clear"
+                  onClick={() => handlePickImage("last")}
+                  title="Add image"
                   className="hover:bg-black/10"
                 >
-                  <Trash2 size={16} style={{ color: lastTextColor }} />
+                  <ImagePlus size={16} style={{ color: lastTextColor }} />
                 </Button>
-              )}
-            </>
-          }
-        />
+                {lastFrame && (
+                  <Button
+                    variant="ghost"
+                    size="icon-xs"
+                    onClick={() => clearFrame("last")}
+                    title="Clear"
+                    className="hover:bg-black/10"
+                  >
+                    <Trash2 size={16} style={{ color: lastTextColor }} />
+                  </Button>
+                )}
+              </>
+            }
+          />
 
-        {/* Floating header: Output frame */}
-        <FrameHeader
-          mode="hat"
-          color={OUTPUT_COLOR}
-          label="Output"
-          sizeText={sizeText}
-          canvasX={outputX}
-          frameW={displayW}
-          viewport={viewport}
-          labelScale={labelScale}
-          actions={
-            <>
-              {selectedResult?.videoUrl && !isGenerating && (
-                <>
-                  <VideoResultActions result={selectedResult} />
+          {/* Floating header: Output frame */}
+          <FrameHeader
+            mode="hat"
+            color={OUTPUT_COLOR}
+            label="Output"
+            sizeText={sizeText}
+            canvasX={outputX}
+            frameW={displayW}
+            viewport={viewport}
+            labelScale={labelScale}
+            actions={
+              <>
+                {selectedResult?.videoUrl && !isGenerating && (
+                  <>
+                    <VideoResultActions result={selectedResult} />
 
-                  <a href={selectedResult.videoUrl} download>
-                    <Button
-                      variant="ghost"
-                      size="icon-xs"
-                      title="Download"
-                      className="hover:bg-black/10"
-                    >
-                      <Download size={16} style={{ color: outputTextColor }} />
-                    </Button>
-                  </a>
-                </>
-              )}
-            </>
-          }
-        />
+                    <a href={selectedResult.videoUrl} download>
+                      <Button
+                        variant="ghost"
+                        size="icon-xs"
+                        title="Download"
+                        className="hover:bg-black/10"
+                      >
+                        <Download size={16} style={{ color: outputTextColor }} />
+                      </Button>
+                    </a>
+                  </>
+                )}
+              </>
+            }
+          />
+        </div>
 
         {/* Video player overlay positioned at output frame */}
         {showVideoOverlay && (

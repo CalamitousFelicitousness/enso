@@ -1,5 +1,6 @@
 import { useCallback, useRef, useEffect, memo, useState } from "react";
 import { useCanvasStore } from "@/stores/canvasStore";
+import { mainViewportBus } from "@/canvas/viewportBus";
 import { useControlStore } from "@/stores/controlStore";
 import { useImg2ImgStore } from "@/stores/img2imgStore";
 import { useUiStore } from "@/stores/uiStore";
@@ -33,11 +34,11 @@ export const CanvasView = memo(function CanvasView() {
   const bumpFocusFitTrigger = useCanvasStore((s) => s.bumpFocusFitTrigger);
   const modeLocked = useCanvasStore((s) => s.modeLocked);
   const setModeLocked = useCanvasStore((s) => s.setModeLocked);
-  const viewport = useCanvasStore((s) => s.viewport);
   const setUnitImage = useControlStore((s) => s.setUnitImage);
   const setUnitParam = useControlStore((s) => s.setUnitParam);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const overlayRef = useRef<HTMLDivElement>(null);
   const [pendingUnitIndex, setPendingUnitIndex] = useState<number | null>(null);
 
   const layout = useControlFrameLayout();
@@ -69,8 +70,9 @@ export const CanvasView = memo(function CanvasView() {
       const container = containerRef.current;
       if (!container) return -1;
       const rect = container.getBoundingClientRect();
-      const canvasX = (e.clientX - rect.left - viewport.x) / viewport.scale;
-      const canvasY = (e.clientY - rect.top - viewport.y) / viewport.scale;
+      const vp = useCanvasStore.getState().viewport;
+      const canvasX = (e.clientX - rect.left - vp.x) / vp.scale;
+      const canvasY = (e.clientY - rect.top - vp.y) / vp.scale;
       for (const frame of layout.controlFrames) {
         if (
           canvasX >= frame.x &&
@@ -83,7 +85,7 @@ export const CanvasView = memo(function CanvasView() {
       }
       return -1;
     },
-    [viewport, layout.controlFrames],
+    [layout.controlFrames],
   );
 
   const handleCanvasFileDrop = useCallback(
@@ -196,6 +198,29 @@ export const CanvasView = memo(function CanvasView() {
     }
   }, [canvasMode, focusedFrameId, layout, setFocusedFrame]);
 
+  // Move overlay wrapper imperatively during pan/zoom gestures
+  useEffect(() => {
+    return mainViewportBus.subscribe((vp) => {
+      if (!overlayRef.current) return;
+      const storeVp = useCanvasStore.getState().viewport;
+      const ratio = vp.scale / storeVp.scale;
+      const dx = vp.x - storeVp.x * ratio;
+      const dy = vp.y - storeVp.y * ratio;
+      overlayRef.current.style.transform = `translate(${dx}px, ${dy}px) scale(${ratio})`;
+    });
+  }, []);
+
+  // Reset overlay when store viewport changes programmatically (auto-fit, reset zoom)
+  useEffect(() => {
+    let prevVp = useCanvasStore.getState().viewport;
+    return useCanvasStore.subscribe((state) => {
+      if (state.viewport !== prevVp) {
+        prevVp = state.viewport;
+        if (overlayRef.current) overlayRef.current.style.transform = '';
+      }
+    });
+  }, []);
+
   const handleClearAll = useCallback(() => {
     clearLayers();
     clearMask();
@@ -282,13 +307,15 @@ export const CanvasView = memo(function CanvasView() {
       {/* Canvas toolbar for mask painting - only in initial mode with images */}
       {hasLayers && inputRole !== "reference" && <CanvasToolbar />}
 
-      {/* Floating control panels (persistent, collapsible) */}
-      <ControlFramePanels
-        layout={layout}
-        onPickImage={handlePickImage}
-        onClearImage={handleClearImage}
-        onClearAll={handleClearAll}
-      />
+      {/* Floating control panels — delta-transform wrapper for zero-render pan/zoom */}
+      <div ref={overlayRef} style={{ position: 'absolute', inset: 0, pointerEvents: 'none', transformOrigin: '0 0' }}>
+        <ControlFramePanels
+          layout={layout}
+          onPickImage={handlePickImage}
+          onClearImage={handleClearImage}
+          onClearAll={handleClearAll}
+        />
+      </div>
 
       {/* Single file input for both input frame and control frame picks */}
       <input

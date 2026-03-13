@@ -1,6 +1,5 @@
 import { useState } from "react";
 import {
-  Info,
   Loader2,
   ExternalLink,
   ImageOff,
@@ -324,19 +323,22 @@ function StyleDialogBody({ item }: { item: PromptStyleV2 }) {
 
 export function NetworkDetailDialog({
   item,
+  open,
+  onOpenChange,
 }: {
-  item: ExtraNetworkV2 | PromptStyleV2;
+  item: ExtraNetworkV2 | PromptStyleV2 | null;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
 }) {
-  const [open, setOpen] = useState(false);
-  const isNetwork = "type" in item && item.type;
+  const isNetwork = item && "type" in item && item.type;
   const network = isNetwork ? (item as ExtraNetworkV2) : null;
   const { data: detail, isLoading } = useNetworkDetail(
     network?.type ?? "",
-    item.name,
+    item?.name ?? "",
     open && !!network,
   );
 
-  const previewUrl = item.preview
+  const previewUrl = item?.preview
     ? item.preview.startsWith("data:") || item.preview.startsWith("http")
       ? item.preview
       : `${api.getBaseUrl()}${item.preview}`
@@ -345,56 +347,48 @@ export function NetworkDetailDialog({
   const typeBadge = network ? network.version || network.type : "Style";
 
   return (
-    <>
-      <button
-        type="button"
-        onClick={(e) => {
-          e.stopPropagation();
-          setOpen(true);
-        }}
-        className="p-0.5 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-colors"
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent
+        showCloseButton
+        className="sm:max-w-3xl max-h-[80vh] flex flex-col p-0 gap-0 overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
       >
-        <Info className="h-3 w-3" />
-      </button>
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent
-          showCloseButton
-          className="sm:max-w-3xl max-h-[80vh] flex flex-col p-0 gap-0 overflow-hidden"
-          onClick={(e) => e.stopPropagation()}
-        >
-          {/* Header - pr-10 reserves space for the absolute-positioned close button */}
-          <div className="flex items-center gap-3 px-5 pr-10 py-3 border-b border-border/50 shrink-0">
-            <DialogTitle className="text-sm font-semibold truncate flex-1 min-w-0">
-              {item.name}
-            </DialogTitle>
-            <Badge variant="outline" className="text-2xs shrink-0">
-              {typeBadge}
-            </Badge>
-            <DialogDescription className="sr-only">
-              Details for {item.name}
-            </DialogDescription>
-          </div>
+        {item && (
+          <>
+            {/* Header - pr-10 reserves space for the absolute-positioned close button */}
+            <div className="flex items-center gap-3 px-5 pr-10 py-3 border-b border-border/50 shrink-0">
+              <DialogTitle className="text-sm font-semibold truncate flex-1 min-w-0">
+                {item.name}
+              </DialogTitle>
+              <Badge variant="outline" className="text-2xs shrink-0">
+                {typeBadge}
+              </Badge>
+              <DialogDescription className="sr-only">
+                Details for {item.name}
+              </DialogDescription>
+            </div>
 
-          {/* Body */}
-          <div className="flex-1 min-h-0 overflow-y-auto p-5">
-            {!network ? (
-              <StyleDialogBody item={item as PromptStyleV2} />
-            ) : isLoading ? (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground py-8 justify-center">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Loading details...
-              </div>
-            ) : detail && detail.name ? (
-              <NetworkDialogBody detail={detail} previewUrl={previewUrl} />
-            ) : (
-              <div className="flex flex-col items-center gap-2 text-muted-foreground py-8">
-                <ImageOff className="h-8 w-8 opacity-40" />
-                <p className="text-sm">No details available</p>
-              </div>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
-    </>
+            {/* Body */}
+            <div className="flex-1 min-h-0 overflow-y-auto p-5">
+              {!network ? (
+                <StyleDialogBody item={item as PromptStyleV2} />
+              ) : isLoading ? (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground py-8 justify-center">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Loading details...
+                </div>
+              ) : detail && detail.name ? (
+                <NetworkDialogBody detail={detail} previewUrl={previewUrl} />
+              ) : (
+                <div className="flex flex-col items-center gap-2 text-muted-foreground py-8">
+                  <ImageOff className="h-8 w-8 opacity-40" />
+                  <p className="text-sm">No details available</p>
+                </div>
+              )}
+            </div>
+          </>
+        )}
+      </DialogContent>
+    </Dialog>
   );
 }
