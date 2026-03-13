@@ -84,7 +84,7 @@ export const MatteCard = forwardRef<
 
       {/* Frosted glass info strip */}
       <div
-        className="absolute -bottom-px -inset-x-px px-3 py-2.5 backdrop-blur-xl border-t dark:border-white/[0.05] border-black/[0.05] rounded-b-lg dark:bg-[rgb(17,17,24)]/25 bg-white/25"
+        className="absolute -bottom-px -inset-x-px px-3 py-2.5 backdrop-blur-xl border-t dark:border-white/[0.05] border-black/[0.05] rounded-b-lg dark:bg-[rgb(17,17,24)]/2.5 bg-white/2.5"
       >
         <div className="flex items-end gap-1.5">
           <span className="text-[0.6875rem] font-medium line-clamp-3 leading-tight text-foreground flex-1 break-words">

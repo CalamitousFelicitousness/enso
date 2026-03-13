@@ -242,17 +242,17 @@ export function NetworksTab() {
           onCivitScan={handleCivitScan}
           onRefresh={() => refreshNetworks.mutate()}
         />
+        <ActiveLoraStack
+          activeLoras={loraManager.activeLoras}
+          loraPreviewMap={loraPreviewMap}
+          onRemove={loraManager.removeLora}
+          onWeightChange={loraManager.setLoraWeight}
+        />
       </div>
 
       {/* Scrollable body */}
       <div className="flex-1 overflow-y-auto">
         <div className="p-3 space-y-2">
-          <ActiveLoraStack
-            activeLoras={loraManager.activeLoras}
-            loraPreviewMap={loraPreviewMap}
-            onRemove={loraManager.removeLora}
-            onWeightChange={loraManager.setLoraWeight}
-          />
           {isLoading && (
             <p className="text-xs text-muted-foreground p-2">
               Loading networks...
