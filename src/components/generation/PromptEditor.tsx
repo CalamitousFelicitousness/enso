@@ -4,8 +4,9 @@ import { usePromptEnhanceStore } from "@/stores/promptEnhanceStore";
 import { usePromptEnhance } from "@/api/hooks/usePromptEnhance";
 import { flattenCanvas } from "@/lib/flattenCanvas";
 import { uploadBlob } from "@/lib/upload";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { Textarea } from "@/components/ui/textarea";
+import { ChipPromptDisplay } from "./ChipPromptDisplay";
 import { Label } from "@/components/ui/label";
 import {
   Popover,
@@ -35,6 +36,16 @@ export function PromptEditor() {
   const setParam = useGenerationStore((s) => s.setParam);
   const [showNegative, setShowNegative] = useState(false);
   const [enhanceOpen, setEnhanceOpen] = useState(false);
+  const [promptFocused, setPromptFocused] = useState(false);
+  const promptRef = useRef<HTMLTextAreaElement>(null);
+  const hasLoRATags = /<lora:[^>]+>/.test(prompt);
+  const showChips = !promptFocused && hasLoRATags;
+
+  useEffect(() => {
+    if (promptFocused && promptRef.current) {
+      promptRef.current.focus();
+    }
+  }, [promptFocused]);
 
   const enhanceStore = usePromptEnhanceStore();
   const pinned = usePromptEnhanceStore((s) => s.pinned);
@@ -145,23 +156,35 @@ export function PromptEditor() {
             </Popover>
           </div>
         </div>
-        <Textarea
-          data-tour="prompt-editor"
-          value={prompt}
-          onChange={(e) => setParam("prompt", e.target.value)}
-          placeholder="Describe what you want to generate..."
-          className="min-h-20 max-h-50 resize-y text-sm"
-          onKeyDown={(e) => {
-            if (e.ctrlKey && (e.key === "ArrowUp" || e.key === "ArrowDown")) {
-              e.preventDefault();
-              adjustAttentionWeight(
-                e.currentTarget,
-                e.key === "ArrowUp" ? 0.1 : -0.1,
-              );
-              setParam("prompt", e.currentTarget.value);
-            }
-          }}
-        />
+        <div data-tour="prompt-editor">
+          {showChips ? (
+            <ChipPromptDisplay
+              value={prompt}
+              placeholder="Describe what you want to generate..."
+              className="min-h-20 max-h-50 text-sm"
+              onClick={() => setPromptFocused(true)}
+            />
+          ) : (
+            <Textarea
+              ref={promptRef}
+              value={prompt}
+              onChange={(e) => setParam("prompt", e.target.value)}
+              placeholder="Describe what you want to generate..."
+              className="min-h-20 max-h-50 resize-y text-sm"
+              onBlur={() => setPromptFocused(false)}
+              onKeyDown={(e) => {
+                if (e.ctrlKey && (e.key === "ArrowUp" || e.key === "ArrowDown")) {
+                  e.preventDefault();
+                  adjustAttentionWeight(
+                    e.currentTarget,
+                    e.key === "ArrowUp" ? 0.1 : -0.1,
+                  );
+                  setParam("prompt", e.currentTarget.value);
+                }
+              }}
+            />
+          )}
+        </div>
       </div>
 
       {/* Negative prompt */}
