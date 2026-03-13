@@ -52,7 +52,7 @@ const TAB_COMPONENTS: Record<
   console: ConsoleTab,
 };
 
-const SELF_SCROLL_TABS = new Set<string>(["settings"]);
+const SELF_SCROLL_TABS = new Set<string>(["settings", "networks"]);
 
 export function RightTabPanel() {
   const activeTab = useUiStore((s) => s.activeRightTab);

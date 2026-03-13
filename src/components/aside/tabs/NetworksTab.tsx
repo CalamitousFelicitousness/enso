@@ -1,5 +1,4 @@
-import { useState, useMemo, useEffect, useRef } from "react";
-import { RefreshCw, ImageOff, Info, Loader2, ScanSearch } from "lucide-react";
+import { useState, useMemo, useRef } from "react";
 import {
   useExtraNetworks,
   usePromptStyles,
@@ -9,83 +8,27 @@ import { useCivitMetadataScan } from "@/api/hooks/useCivitai";
 import { useOptions, useSetOptions } from "@/api/hooks/useSettings";
 import { useLoadModel } from "@/api/hooks/useModels";
 import { useGenerationStore } from "@/stores/generationStore";
-import type { ExtraNetworkV2, PromptStyleV2 } from "@/api/types/models";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
+import type { ExtraNetworkV2 } from "@/api/types/models";
+import { SegmentedControl } from "@/components/ui/segmented-control";
+import type { SegmentOption } from "@/components/ui/segmented-control";
 import { NetworkDetailDialog } from "./NetworkDetailDialog";
-import { cn } from "@/lib/utils";
-import { api } from "@/api/client";
 import { toast } from "sonner";
 
-const TYPE_FILTERS = [
-  "Model",
-  "LoRA",
-  "Style",
-  "Wildcards",
-  "Embedding",
-  "VAE",
-] as const;
-type TypeFilter = (typeof TYPE_FILTERS)[number];
+import { TYPE_FILTERS, type TypeFilter, type SortMode, type NetworkItem } from "./networks/types";
+import { PAGE_MAP } from "./networks/constants";
+import { isExtraNetwork, isReferenceName } from "./networks/utils";
+import { useNetworkFiltering } from "./networks/useNetworkFiltering";
+import { useProgressiveRender } from "./networks/useProgressiveRender";
+import { useActiveLoraManager } from "./networks/useActiveLoraManager";
+import { MatteCard } from "./networks/MatteCard";
+import { ActiveLoraStack } from "./networks/ActiveLoraStack";
+import { CommandBar } from "./networks/CommandBar";
+import { FilterPanel } from "./networks/FilterPanel";
+import { NetworkGrid } from "./networks/NetworkGrid";
 
-const PAGE_MAP: Record<TypeFilter, string | null> = {
-  Model: "model",
-  LoRA: "lora",
-  Style: null,
-  Wildcards: "wildcards",
-  Embedding: "embedding",
-  VAE: "vae",
-};
-
-const TAG_CATEGORIES = [
-  "Distilled",
-  "Quantized",
-  "Nunchaku",
-  "Community",
-  "Cloud",
-] as const;
-
-const EXCLUDED_VERSIONS = new Set(["ref", "reference", "ready", "download"]);
-
-type SidebarGroup = { header?: string; items: string[] };
-
-function isExtraNetwork(
-  item: ExtraNetworkV2 | PromptStyleV2,
-): item is ExtraNetworkV2 {
-  return "type" in item && !!item.type;
-}
-
-function isReferenceName(name: string): boolean {
-  return name.toLowerCase().includes("reference/");
-}
-
-function isItemActive(
-  item: ExtraNetworkV2 | PromptStyleV2,
-  prompt: string,
-  options: Record<string, unknown> | undefined,
-): boolean {
-  if (!isExtraNetwork(item)) {
-    const style = item as PromptStyleV2;
-    return !!style.prompt && prompt.includes(style.prompt);
-  }
-  const t = item.type?.toLowerCase() ?? "";
-  if (t === "model" || t === "checkpoint")
-    return (
-      (item.title ?? item.name) === (options?.sd_model_checkpoint as string)
-    );
-
-  if (t === "lora" || t === "lycoris")
-    return prompt.includes(`<lora:${item.name}:`);
-  if (t === "embedding" || t === "textual inversion")
-    return prompt.includes(item.name);
-  if (t === "wildcards") return prompt.includes(`__${item.name}__`);
-  if (t === "vae")
-    return (item.title ?? item.name) === (options?.sd_vae as string);
-  return false;
-}
-
-function itemHasTag(item: ExtraNetworkV2, tag: string): boolean {
-  return item.tags.some((t) => t.toLowerCase() === tag.toLowerCase());
-}
+const TYPE_FILTER_OPTIONS: SegmentOption<TypeFilter>[] = TYPE_FILTERS.map(
+  (t) => ({ value: t, label: t }),
+);
 
 export function NetworksTab() {
   const { data: options } = useOptions();
@@ -94,48 +37,30 @@ export function NetworksTab() {
   const { data: styles } = usePromptStyles();
   const prompt = useGenerationStore((s) => s.prompt);
   const refreshNetworks = useRefreshNetworks();
+  const civitScan = useCivitMetadataScan();
+
   const [filter, setFilter] = useState<TypeFilter>("Model");
   const [search, setSearch] = useState("");
   const [selectedSubfolder, setSelectedSubfolder] = useState("All");
-  const [detailItem, setDetailItem] = useState<ExtraNetworkV2 | PromptStyleV2 | null>(null);
+  const [sortMode, setSortMode] = useState<SortMode>("recent");
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [detailItem, setDetailItem] = useState<NetworkItem | null>(null);
 
-  const civitScan = useCivitMetadataScan();
+  const loraManager = useActiveLoraManager();
+  const panelRef = useRef<HTMLDivElement>(null);
   const canScan = filter !== "Style" && filter !== "Wildcards";
 
-  async function handleCivitScan() {
-    const page = PAGE_MAP[filter] ?? undefined;
-    try {
-      const data = await civitScan.mutateAsync(page);
-      const results = data.results ?? [];
-      const found = results.filter((r) => String(r.code) === "200").length;
-      const notFound = results.filter((r) => String(r.code) === "404").length;
-      if (results.length === 0) {
-        toast.info("CivitAI scan complete", {
-          description: "No items needed scanning",
-        });
-      } else {
-        toast.success("CivitAI scan complete", {
-          description: `${found} found, ${notFound} not on CivitAI`,
-        });
-      }
-      refreshNetworks.mutate();
-    } catch (err) {
-      toast.error("CivitAI scan failed", {
-        description: err instanceof Error ? err.message : String(err),
-      });
-    }
-  }
-
+  // Fetch networks
   const page = PAGE_MAP[filter];
   const { data: networksResp, isLoading } = useExtraNetworks({
     page: page ?? undefined,
     search: search || undefined,
     limit: 500,
   });
-  const networks = networksResp?.items;
 
+  // Merge networks + styles into unified list
   const filtered = useMemo(() => {
-    const items: (ExtraNetworkV2 | PromptStyleV2)[] = [];
+    const items: NetworkItem[] = [];
     if (filter === "Style") {
       const lowerSearch = search.toLowerCase();
       for (const s of styles ?? []) {
@@ -144,214 +69,79 @@ export function NetworksTab() {
         items.push(s);
       }
     } else {
-      for (const n of networks ?? []) {
+      for (const n of networksResp?.items ?? []) {
         items.push(n);
       }
     }
     return items;
-  }, [networks, styles, filter, search]);
+  }, [networksResp?.items, styles, filter, search]);
 
-  const versionSet = useMemo(() => {
-    const versions = new Set<string>();
-    for (const item of filtered) {
-      if (
-        isExtraNetwork(item) &&
-        item.version &&
-        !EXCLUDED_VERSIONS.has(item.version.toLowerCase())
-      ) {
-        versions.add(item.version);
-      }
-    }
-    return versions;
-  }, [filtered]);
-
-  const sidebarGroups = useMemo((): SidebarGroup[] => {
-    const sortedVersions = Array.from(versionSet).sort((a, b) =>
-      a.localeCompare(b, undefined, { sensitivity: "base" }),
-    );
-
-    if (filter === "Model") {
-      const realDirs = new Set<string>();
-      let hasLocal = false;
-      let hasDiffusers = false;
-      let hasReference = false;
-      const tagHits = new Map<string, boolean>();
-      for (const cat of TAG_CATEGORIES) tagHits.set(cat.toLowerCase(), false);
-
-      for (const item of filtered) {
-        if (!isExtraNetwork(item)) continue;
-        const isRef = isReferenceName(item.name);
-        const isDiff = item.name.startsWith("Diffusers/");
-        if (!isRef && !isDiff) {
-          hasLocal = true;
-          const name = item.name.startsWith("models/")
-            ? item.name.substring(7)
-            : item.name;
-          const slash = name.indexOf("/");
-          if (slash > 0) realDirs.add(name.substring(0, slash));
-        }
-        if (isDiff) hasDiffusers = true;
-        if (isRef && item.tags.length === 0) hasReference = true;
-        for (const cat of TAG_CATEGORIES) {
-          if (itemHasTag(item, cat.toLowerCase()))
-            tagHits.set(cat.toLowerCase(), true);
-        }
-      }
-
-      const categories: string[] = [];
-      if (hasLocal) categories.push("Local");
-      if (hasDiffusers) categories.push("Diffusers");
-      if (hasReference) categories.push("Reference");
-      for (const cat of TAG_CATEGORIES) {
-        if (tagHits.get(cat.toLowerCase())) categories.push(cat);
-      }
-      const dirs = Array.from(realDirs).sort((a, b) =>
-        a.localeCompare(b, undefined, { sensitivity: "base" }),
-      );
-
-      const groups: SidebarGroup[] = [{ items: ["All", ...categories] }];
-      if (sortedVersions.length > 0)
-        groups.push({ header: "Class", items: sortedVersions });
-      if (dirs.length > 0) groups.push({ header: "Folders", items: dirs });
-      return groups;
-    }
-
-    if (filter === "Style") {
-      const categories: string[] = [];
-      for (const item of filtered) {
-        if (isReferenceName(item.name)) {
-          if (!categories.includes("Reference")) categories.push("Reference");
-        } else {
-          if (!categories.includes("Local")) categories.unshift("Local");
-        }
-      }
-      return [{ items: ["All", ...categories] }];
-    }
-
-    // LoRA, Wildcards, Embedding, VAE
-    const dirs = new Set<string>();
-    for (const item of filtered) {
-      const slash = item.name.indexOf("/");
-      if (slash > 0) dirs.add(item.name.substring(0, slash));
-    }
-    const sortedDirs = Array.from(dirs).sort((a, b) =>
-      a.localeCompare(b, undefined, { sensitivity: "base" }),
-    );
-
-    const groups: SidebarGroup[] = [{ items: ["All", ...sortedDirs] }];
-    if (sortedVersions.length > 0)
-      groups.push({ header: "Class", items: sortedVersions });
-    return groups;
-  }, [filtered, filter, versionSet]);
-
-  const sidebarItemCount = sidebarGroups.reduce(
-    (n, g) => n + g.items.length,
-    0,
+  // Filtering + sorting
+  const { sidebarGroups, displayItems } = useNetworkFiltering(
+    filtered,
+    filter,
+    selectedSubfolder,
+    sortMode,
   );
 
-  const displayItems = useMemo(() => {
-    if (selectedSubfolder === "All") return filtered;
+  // Progressive rendering
+  const { visibleItems, sentinelRef, hasMore } =
+    useProgressiveRender(displayItems);
 
-    if (filter === "Model") {
-      if (selectedSubfolder === "Local") {
-        return filtered.filter(
-          (item) =>
-            isExtraNetwork(item) &&
-            !isReferenceName(item.name) &&
-            !item.name.startsWith("Diffusers/"),
-        );
+  // LoRA preview map for ActiveLoraStack thumbnails
+  const loraPreviewMap = useMemo(() => {
+    const map = new Map<string, string | null>();
+    for (const item of networksResp?.items ?? []) {
+      const t = item.type?.toLowerCase() ?? "";
+      if (t === "lora" || t === "lycoris") {
+        map.set(item.name, item.preview ?? null);
       }
-      if (selectedSubfolder === "Diffusers") {
-        return filtered.filter(
-          (item) => isExtraNetwork(item) && item.name.startsWith("Diffusers/"),
-        );
-      }
-      if (selectedSubfolder === "Reference") {
-        return filtered.filter(
-          (item) =>
-            isExtraNetwork(item) &&
-            isReferenceName(item.name) &&
-            item.tags.length === 0,
-        );
-      }
-      const tagCat = TAG_CATEGORIES.find((c) => c === selectedSubfolder);
-      if (tagCat) {
-        return filtered.filter(
-          (item) =>
-            isExtraNetwork(item) && itemHasTag(item, tagCat.toLowerCase()),
-        );
-      }
-      if (versionSet.has(selectedSubfolder)) {
-        return filtered.filter(
-          (item) => isExtraNetwork(item) && item.version === selectedSubfolder,
-        );
-      }
-      // Real subdir
-      const prefix = selectedSubfolder + "/";
-      const altPrefix = "models/" + prefix;
-      return filtered.filter(
-        (item) =>
-          item.name.startsWith(prefix) || item.name.startsWith(altPrefix),
-      );
     }
+    return map;
+  }, [networksResp?.items]);
 
-    if (filter === "Style") {
-      if (selectedSubfolder === "Local")
-        return filtered.filter((item) => !isReferenceName(item.name));
-      if (selectedSubfolder === "Reference")
-        return filtered.filter((item) => isReferenceName(item.name));
+  // Active filter count for badge
+  const activeFilterCount =
+    selectedSubfolder !== "All" ? 1 : 0;
+
+  // Is item active (checkbox/model loaded/lora in prompt)
+  function isActive(item: NetworkItem): boolean {
+    if (!isExtraNetwork(item)) {
+      const style = item;
+      return !!style.prompt && prompt.includes(style.prompt);
     }
-
-    // LoRA, Wildcards, Embedding, VAE - version or path-based filter
-    if (versionSet.has(selectedSubfolder)) {
-      return filtered.filter(
-        (item) => isExtraNetwork(item) && item.version === selectedSubfolder,
-      );
-    }
-    const prefix = selectedSubfolder + "/";
-    return filtered.filter((item) => item.name.startsWith(prefix));
-  }, [filtered, selectedSubfolder, filter, versionSet]);
-
-  // Progressive rendering: mount a small batch first, expand on scroll
-  const BATCH = 40;
-  const [extraBatches, setExtraBatches] = useState(0);
-  const [prevItems, setPrevItems] = useState(displayItems);
-  if (prevItems !== displayItems) {
-    setPrevItems(displayItems);
-    if (extraBatches !== 0) setExtraBatches(0);
+    const t = item.type?.toLowerCase() ?? "";
+    if (t === "model" || t === "checkpoint")
+      return (item.title ?? item.name) === (options?.sd_model_checkpoint as string);
+    if (t === "lora" || t === "lycoris")
+      return prompt.includes(`<lora:${item.name}:`);
+    if (t === "embedding" || t === "textual inversion")
+      return prompt.includes(item.name);
+    if (t === "wildcards") return prompt.includes(`__${item.name}__`);
+    if (t === "vae")
+      return (item.title ?? item.name) === (options?.sd_vae as string);
+    return false;
   }
-  const renderCount = Math.min(BATCH + extraBatches * BATCH, displayItems.length);
-  const sentinelRef = useRef<HTMLDivElement>(null);
 
-  // Intersection observer to load more cards as user scrolls
-  useEffect(() => {
-    if (renderCount >= displayItems.length) return;
-    const el = sentinelRef.current;
-    if (!el) return;
-    const observer = new IntersectionObserver((entries) => {
-      if (entries[0]?.isIntersecting) {
-        setExtraBatches((c) => c + 1);
-      }
-    });
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, [renderCount, displayItems.length]);
+  function isActiveLora(item: NetworkItem): boolean {
+    if (!isExtraNetwork(item)) return false;
+    const t = item.type?.toLowerCase() ?? "";
+    if (t !== "lora" && t !== "lycoris") return false;
+    return loraManager.activeLoras.some((l) => l.name === item.name);
+  }
 
   function handleFilterChange(t: TypeFilter) {
     setFilter(t);
     setSelectedSubfolder("All");
+    setSearch("");
   }
 
-  function handleClick(item: ExtraNetworkV2 | PromptStyleV2) {
-    if ("type" in item && item.type) {
+  function handleClick(item: NetworkItem) {
+    if (isExtraNetwork(item)) {
       const network = item as ExtraNetworkV2;
       const t = network.type.toLowerCase();
       if (t === "lora" || t === "lycoris") {
-        const current = useGenerationStore.getState().prompt;
-        const tag = `<lora:${network.name}:1>`;
-        useGenerationStore
-          .getState()
-          .setParam("prompt", current ? `${current} ${tag}` : tag);
+        loraManager.toggleLora(network.name);
       } else if (t === "model" || t === "checkpoint") {
         if (isReferenceName(network.name) && network.filename) {
           loadModel.mutate(network.filename);
@@ -378,7 +168,7 @@ export function NetworksTab() {
         setOptions.mutate({ sd_vae: network.title ?? network.name });
       }
     } else {
-      const style = item as PromptStyleV2;
+      const style = item;
       if (style.prompt) {
         const current = useGenerationStore.getState().prompt;
         useGenerationStore
@@ -402,114 +192,89 @@ export function NetworksTab() {
     }
   }
 
+  async function handleCivitScan() {
+    const scanPage = PAGE_MAP[filter] ?? undefined;
+    try {
+      const data = await civitScan.mutateAsync(scanPage);
+      const results = data.results ?? [];
+      const found = results.filter((r) => String(r.code) === "200").length;
+      const notFound = results.filter((r) => String(r.code) === "404").length;
+      if (results.length === 0) {
+        toast.info("CivitAI scan complete", {
+          description: "No items needed scanning",
+        });
+      } else {
+        toast.success("CivitAI scan complete", {
+          description: `${found} found, ${notFound} not on CivitAI`,
+        });
+      }
+      refreshNetworks.mutate();
+    } catch (err) {
+      toast.error("CivitAI scan failed", {
+        description: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
+
   return (
-    <div>
-      {/* Header */}
-      <div className="sticky top-0 z-10 bg-card p-2 space-y-2 border-b border-border">
-        <div className="flex items-center gap-1.5 flex-wrap">
-          {TYPE_FILTERS.map((t) => (
-            <button
-              key={t}
-              type="button"
-              onClick={() => handleFilterChange(t)}
-              className={cn(
-                "px-2 py-0.5 rounded-md text-2xs font-medium transition-colors",
-                filter === t
-                  ? "bg-primary/15 text-primary ring-1 ring-primary/40"
-                  : "bg-muted text-muted-foreground hover:text-foreground",
-              )}
-            >
-              {t}
-            </button>
-          ))}
-          <div className="ml-auto flex items-center gap-0.5">
-            {canScan && (
-              <button
-                type="button"
-                disabled={civitScan.isPending || refreshNetworks.isPending}
-                onClick={handleCivitScan}
-                title="Scan CivitAI for missing previews & metadata"
-                className="p-1 text-muted-foreground hover:text-foreground disabled:opacity-50"
-              >
-                {civitScan.isPending ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <ScanSearch className="h-3.5 w-3.5" />
-                )}
-              </button>
-            )}
-            <button
-              type="button"
-              disabled={refreshNetworks.isPending || civitScan.isPending}
-              onClick={() => refreshNetworks.mutate()}
-              className="p-1 text-muted-foreground hover:text-foreground disabled:opacity-50"
-            >
-              <RefreshCw
-                className={`h-3.5 w-3.5 ${refreshNetworks.isPending ? "animate-spin" : ""}`}
-              />
-            </button>
-          </div>
-        </div>
-        <Input
-          placeholder="Search..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="h-6 text-2xs"
+    <div ref={panelRef} className="flex flex-col h-full">
+      {/* Sticky header */}
+      <div className="sticky top-0 z-10 bg-card p-3 space-y-2.5 border-b border-border/50 shrink-0">
+        <SegmentedControl
+          variant="neon-wire"
+          animated
+          options={TYPE_FILTER_OPTIONS}
+          value={filter}
+          onValueChange={handleFilterChange}
+          className="w-full"
+        />
+        <CommandBar
+          search={search}
+          onSearchChange={setSearch}
+          filterOpen={filterOpen}
+          onFilterToggle={() => setFilterOpen((v) => !v)}
+          activeFilterCount={activeFilterCount}
+          sort={sortMode}
+          onSortChange={setSortMode}
+          canScan={canScan}
+          isScanPending={civitScan.isPending}
+          isRefreshPending={refreshNetworks.isPending}
+          onCivitScan={handleCivitScan}
+          onRefresh={() => refreshNetworks.mutate()}
         />
       </div>
 
-      {/* Sidebar + Grid */}
-      <div className="flex">
-        {sidebarItemCount > 2 && (
-          <div className="sticky top-[5.5rem] self-start w-28 shrink-0 border-r border-border max-h-[calc(100dvh-10rem)] overflow-y-auto">
-            {sidebarGroups.map((group, gi) => (
-              <div key={group.header ?? gi}>
-                {group.header && (
-                  <div className="px-2 pt-2 pb-0.5 text-2xs font-medium uppercase tracking-wider text-muted-foreground border-t border-border">
-                    {group.header}
-                  </div>
-                )}
-                {group.items.map((dir) => (
-                  <button
-                    key={dir}
-                    type="button"
-                    onClick={() => setSelectedSubfolder(dir)}
-                    className={cn(
-                      "w-full text-left px-2 py-1 text-2xs truncate transition-colors",
-                      selectedSubfolder === dir
-                        ? "bg-accent text-accent-foreground font-medium"
-                        : "text-muted-foreground hover:text-foreground hover:bg-muted/50",
-                    )}
-                  >
-                    {dir}
-                  </button>
-                ))}
-              </div>
-            ))}
-          </div>
-        )}
-        <div className="flex-1 min-w-0 p-2">
+      {/* Scrollable body */}
+      <div className="flex-1 overflow-y-auto">
+        <div className="p-3 space-y-2">
+          <ActiveLoraStack
+            activeLoras={loraManager.activeLoras}
+            loraPreviewMap={loraPreviewMap}
+            onRemove={loraManager.removeLora}
+            onWeightChange={loraManager.setLoraWeight}
+          />
           {isLoading && (
             <p className="text-xs text-muted-foreground p-2">
               Loading networks...
             </p>
           )}
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-1.5">
-            {displayItems.slice(0, renderCount).map((item) => (
-              <NetworkCard
+          <NetworkGrid>
+            {visibleItems.map((item) => (
+              <MatteCard
                 key={
-                  isExtraNetwork(item) ? `${item.type}-${item.name}` : item.name
+                  isExtraNetwork(item)
+                    ? `${item.type}-${item.name}`
+                    : item.name
                 }
                 item={item}
-                active={isItemActive(item, prompt, options)}
+                active={isActive(item)}
+                isActiveLora={isActiveLora(item)}
                 onClick={() => handleClick(item)}
                 onInfo={() => setDetailItem(item)}
               />
             ))}
-          </div>
-          {renderCount < displayItems.length && (
-            <div ref={sentinelRef} className="h-8" />
-          )}
+          </NetworkGrid>
+          {hasMore && <div ref={sentinelRef} className="h-8" />}
           {!isLoading && displayItems.length === 0 && (
             <p className="text-xs text-muted-foreground text-center py-6">
               No results found.
@@ -517,86 +282,23 @@ export function NetworksTab() {
           )}
         </div>
       </div>
+
+      {/* Filter panel — portaled to body, anchored to left edge of this container */}
+      <FilterPanel
+        open={filterOpen}
+        sidebarGroups={sidebarGroups}
+        selectedSubfolder={selectedSubfolder}
+        onSubfolderSelect={setSelectedSubfolder}
+        anchorRef={panelRef}
+      />
+
       <NetworkDetailDialog
         item={detailItem}
         open={detailItem !== null}
-        onOpenChange={(open) => { if (!open) setDetailItem(null); }}
+        onOpenChange={(open) => {
+          if (!open) setDetailItem(null);
+        }}
       />
-    </div>
-  );
-}
-
-function NetworkCard({
-  item,
-  active,
-  onClick,
-  onInfo,
-}: {
-  item: ExtraNetworkV2 | PromptStyleV2;
-  active: boolean;
-  onClick: () => void;
-  onInfo: () => void;
-}) {
-  const isNetwork = "type" in item && item.type;
-  const network = isNetwork ? (item as ExtraNetworkV2) : null;
-  const typeBadge = network ? network.version || network.type : "Style";
-  const preview = item.preview;
-  const previewUrl = preview
-    ? preview.startsWith("data:") || preview.startsWith("http")
-      ? preview
-      : `${api.getBaseUrl()}${preview}`
-    : null;
-
-  return (
-    <div
-      role="button"
-      tabIndex={0}
-      onClick={onClick}
-      onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          onClick();
-        }
-      }}
-      className={cn(
-        "flex flex-col rounded-md border overflow-hidden transition-colors text-left cursor-pointer",
-        active
-          ? "border-primary bg-primary/15"
-          : "border-border hover:border-primary/50 hover:bg-primary/5",
-      )}
-    >
-      <div className="aspect-square w-full bg-muted/30 flex items-center justify-center overflow-hidden">
-        {previewUrl ? (
-          <img
-            src={previewUrl}
-            alt={item.name}
-            className="w-full h-full object-cover"
-            loading="lazy"
-          />
-        ) : (
-          <ImageOff className="h-6 w-6 text-muted-foreground/40" />
-        )}
-      </div>
-      <div className="p-1.5 space-y-0.5">
-        <p className="text-2xs font-medium truncate leading-tight">
-          {item.name}
-        </p>
-        <div className="flex items-center justify-between gap-1">
-          <Badge variant="secondary" className="text-4xs px-1 py-0">
-            {typeBadge}
-          </Badge>
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              onInfo();
-            }}
-            className="p-0.5 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-colors"
-          >
-            <Info className="h-3 w-3" />
-          </button>
-        </div>
-      </div>
     </div>
   );
 }
