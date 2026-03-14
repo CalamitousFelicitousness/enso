@@ -38,3 +38,4 @@ working-docs/
 
 # MCP server (local dev tool)
 mcp/
+.playwright-mcp/
