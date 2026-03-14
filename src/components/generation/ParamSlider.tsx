@@ -27,17 +27,13 @@ function applySnap(
   snapRadius: number,
   range: number,
   shiftHeld: boolean,
-): { value: number; snapped: boolean; snapTarget: number | null } {
-  if (!notches || notches.length === 0 || shiftHeld) {
-    return { value: raw, snapped: false, snapTarget: null };
-  }
+): number {
+  if (!notches || notches.length === 0 || shiftHeld) return raw;
   const threshold = snapRadius * range;
   for (const n of notches) {
-    if (Math.abs(raw - n) <= threshold) {
-      return { value: n, snapped: true, snapTarget: n };
-    }
+    if (Math.abs(raw - n) <= threshold) return n;
   }
-  return { value: raw, snapped: false, snapTarget: null };
+  return raw;
 }
 
 // ── Props ──────────────────────────────────────────────────────────
@@ -77,53 +73,57 @@ export const ParamSlider = memo(function ParamSlider({
 }: ParamSliderProps) {
   const decimals = decimalsProp ?? deriveDecimals(step);
   const range = max - min;
-  const fill = range === 0 ? 100 : Math.min(100, Math.max(0, ((value - min) / range) * 100));
+  const fill = range === 0 ? 100 : ((value - min) / range) * 100;
 
-  // ── Edit state ─────────────────────────────────────────────────
+  // ── State ──────────────────────────────────────────────────────
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState("");
   const [dragging, setDragging] = useState(false);
-  const [snapTarget, setSnapTarget] = useState<number | null>(null);
 
-  // ── Refs for drag state (avoid re-renders) ─────────────────────
+  // ── Refs ────────────────────────────────────────────────────────
   const trackRef = useRef<HTMLDivElement>(null);
+  const fillRef = useRef<HTMLDivElement>(null);
+  const edgeRef = useRef<HTMLDivElement>(null);
+  const valueRef = useRef<HTMLSpanElement>(null);
   const dragRef = useRef({
-    active: false,
     startX: 0,
     startValue: 0,
-    grabOffset: 0,
     moved: false,
     shiftHeld: false,
+    lastValue: 0,
   });
 
   // ── Helpers ────────────────────────────────────────────────────
 
-  const clamp = useCallback(
-    (v: number) => {
-      const clamped = Math.min(max, Math.max(min, v));
-      // Round to step precision
-      return Number((Math.round(clamped / step) * step).toFixed(decimals));
+  const clampToStep = useCallback(
+    (raw: number) => {
+      const stepped = Math.round((raw - min) / step) * step + min;
+      return Math.min(max, Math.max(min, Number(stepped.toFixed(decimals))));
     },
     [min, max, step, decimals],
   );
 
-  const positionToValue = useCallback(
-    (clientX: number): number => {
-      const track = trackRef.current;
-      if (!track) return min;
-      const rect = track.getBoundingClientRect();
-      const ratio = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width));
-      return min + ratio * range;
+  /** Imperative visual update — sets fill width, edge position, value text */
+  const updateVisuals = useCallback(
+    (val: number) => {
+      const pct = range === 0 ? 100 : Math.min(100, Math.max(0, ((val - min) / range) * 100));
+      if (fillRef.current) fillRef.current.style.width = `${pct}%`;
+      if (edgeRef.current) {
+        edgeRef.current.style.left = `${pct}%`;
+        edgeRef.current.style.display = pct > 0 && pct < 100 ? "" : "none";
+      }
+      if (valueRef.current) valueRef.current.textContent = formatValue(val, decimals, suffix);
     },
-    [min, range],
+    [min, range, decimals, suffix],
   );
 
   // ── Drag interaction ───────────────────────────────────────────
+  // No onChange during drag — only imperative DOM updates.
+  // onChange fires once on pointerUp with the final value.
 
   const handlePointerDown = useCallback(
     (e: React.PointerEvent) => {
       if (disabled || editing) return;
-      // Don't start drag if clicking the value span
       if ((e.target as HTMLElement).dataset.valueSpan) return;
       if (e.button !== 0) return;
 
@@ -132,78 +132,83 @@ export const ParamSlider = memo(function ParamSlider({
       if (!track) return;
       track.setPointerCapture(e.pointerId);
 
-      const cursorValue = positionToValue(e.clientX);
-      dragRef.current = {
-        active: true,
-        startX: e.clientX,
-        startValue: value,
-        grabOffset: value - cursorValue,
-        moved: false,
-        shiftHeld: e.shiftKey,
-      };
+      const d = dragRef.current;
+      d.startX = e.clientX;
+      d.startValue = value;
+      d.moved = false;
+      d.shiftHeld = e.shiftKey;
+      d.lastValue = value;
       setDragging(true);
     },
-    [disabled, editing, positionToValue, value],
+    [disabled, editing, value],
   );
 
   const handlePointerMove = useCallback(
     (e: React.PointerEvent) => {
-      const d = dragRef.current;
-      if (!d.active) return;
+      if (!dragging) return;
+      const track = trackRef.current;
+      if (!track) return;
 
+      const d = dragRef.current;
       const dx = Math.abs(e.clientX - d.startX);
       if (dx > 2) d.moved = true;
 
-      // Handle shift key transitions
+      // Re-anchor on shift key transitions to avoid jolts
       if (e.shiftKey !== d.shiftHeld) {
         d.startX = e.clientX;
-        d.startValue = value;
+        d.startValue = d.lastValue;
         d.shiftHeld = e.shiftKey;
       }
 
+      const rect = track.getBoundingClientRect();
       let raw: number;
+
       if (e.shiftKey) {
         // Precision mode: relative delta, 10× finer
         const pxDelta = e.clientX - d.startX;
-        const track = trackRef.current;
-        if (!track) return;
-        const pxRange = track.getBoundingClientRect().width;
-        raw = d.startValue + (pxDelta / pxRange) * range * 0.1;
+        raw = d.startValue + (pxDelta / rect.width) * range * 0.1;
       } else {
-        // Normal: absolute cursor mapping with offset convergence
-        const cursorValue = positionToValue(e.clientX);
-        const convergePx = 30;
-        const convergence = Math.min(1, dx / convergePx);
-        const offset = d.grabOffset * (1 - convergence);
-        raw = cursorValue + offset;
+        // Absolute mode: cursor position maps directly to value
+        const frac = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+        raw = min + frac * range;
       }
 
-      const snap = applySnap(raw, notches, snapRadius, range, e.shiftKey);
-      setSnapTarget(snap.snapTarget);
-      onChange(clamp(snap.value));
+      const snapped = applySnap(raw, notches, snapRadius, range, e.shiftKey);
+      const clamped = clampToStep(snapped);
+
+      if (clamped === d.lastValue) return;
+      d.lastValue = clamped;
+
+      // Imperative visual update only — no store update, no re-render
+      updateVisuals(clamped);
     },
-    [value, range, positionToValue, notches, snapRadius, onChange, clamp],
+    [dragging, min, range, notches, snapRadius, clampToStep, updateVisuals],
   );
 
   const handlePointerUp = useCallback(
     (e: React.PointerEvent) => {
+      if (!dragging) return;
       const d = dragRef.current;
-      if (!d.active) return;
-      d.active = false;
       setDragging(false);
-      setSnapTarget(null);
 
       const track = trackRef.current;
       if (track) track.releasePointerCapture(e.pointerId);
 
-      // Click-to-jump if no significant drag occurred (and not on value span)
       if (!d.moved && !(e.target as HTMLElement).dataset.valueSpan) {
-        const raw = positionToValue(e.clientX);
-        const snap = applySnap(raw, notches, snapRadius, range, e.shiftKey);
-        onChange(clamp(snap.value));
+        // Click-to-jump — direct to cursor position
+        if (track) {
+          const rect = track.getBoundingClientRect();
+          const frac = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+          const raw = min + frac * range;
+          const snapped = applySnap(raw, notches, snapRadius, range, e.shiftKey);
+          onChange(clampToStep(snapped));
+        }
+      } else {
+        // Commit final drag value
+        onChange(d.lastValue);
       }
     },
-    [positionToValue, notches, snapRadius, range, onChange, clamp],
+    [dragging, min, range, notches, snapRadius, clampToStep, onChange],
   );
 
   // ── Click-to-edit ──────────────────────────────────────────────
@@ -217,31 +222,28 @@ export const ParamSlider = memo(function ParamSlider({
   const commitEdit = useCallback(() => {
     setEditing(false);
     const parsed = parseFloat(draft);
-    if (!isNaN(parsed)) {
-      onChange(clamp(parsed));
-    }
-  }, [draft, onChange, clamp]);
+    if (!isNaN(parsed)) onChange(clampToStep(parsed));
+  }, [draft, onChange, clampToStep]);
 
   const cancelEdit = useCallback(() => {
     setEditing(false);
   }, []);
 
-  // ── Mousewheel ─────────────────────────────────────────────────
+  // ── Mousewheel (focus-gated) ───────────────────────────────────
 
   useEffect(() => {
     const track = trackRef.current;
     if (!track) return;
     const handler = (e: WheelEvent) => {
-      if (disabled) return;
-      if (document.activeElement !== track) return;
+      if (disabled || document.activeElement !== track) return;
       e.preventDefault();
       const dir = e.deltaY < 0 ? 1 : -1;
       const mult = e.shiftKey ? 0.1 : 1;
-      onChange(clamp(value + step * mult * dir));
+      onChange(clampToStep(value + step * mult * dir));
     };
     track.addEventListener("wheel", handler, { passive: false });
     return () => track.removeEventListener("wheel", handler);
-  }, [disabled, value, step, onChange, clamp]);
+  }, [disabled, value, step, onChange, clampToStep]);
 
   // ── Keyboard ───────────────────────────────────────────────────
 
@@ -253,12 +255,12 @@ export const ParamSlider = memo(function ParamSlider({
         case "ArrowRight":
         case "ArrowUp":
           e.preventDefault();
-          onChange(clamp(value + step * mult));
+          onChange(clampToStep(value + step * mult));
           break;
         case "ArrowLeft":
         case "ArrowDown":
           e.preventDefault();
-          onChange(clamp(value - step * mult));
+          onChange(clampToStep(value - step * mult));
           break;
         case "Home":
           e.preventDefault();
@@ -274,20 +276,17 @@ export const ParamSlider = memo(function ParamSlider({
           break;
       }
     },
-    [disabled, value, step, min, max, onChange, clamp, startEdit],
+    [disabled, value, step, min, max, onChange, clampToStep, startEdit],
   );
 
-  // ── Context menu helpers ───────────────────────────────────────
+  // ── Context menu ───────────────────────────────────────────────
 
   const helpText = tooltip ?? getParamHelp(label);
   const hasReset = defaultValue !== undefined;
   const isAtDefault = hasReset && value === defaultValue;
   const hasContextItems = hasReset || !!helpText;
 
-  // ── Snap tooltip state ─────────────────────────────────────────
-
   const [showHelp, setShowHelp] = useState(false);
-
   const triggerHelp = useCallback(() => {
     setShowHelp(true);
     setTimeout(() => setShowHelp(false), 3000);
@@ -316,9 +315,13 @@ export const ParamSlider = memo(function ParamSlider({
       onPointerUp={handlePointerUp}
       onKeyDown={handleKeyDown}
     >
-      {/* Fill bar with oklch gradient */}
+      {/* Fill bar — React-managed when idle (with transition), imperative during drag */}
       <div
-        className="absolute inset-y-0 left-0 rounded-sm pointer-events-none"
+        ref={fillRef}
+        className={cn(
+          "absolute inset-y-0 left-0 rounded-sm pointer-events-none",
+          dragging ? "transition-none" : "transition-[width] duration-200 ease-out",
+        )}
         style={{
           width: `${fill}%`,
           background: `linear-gradient(to right, oklch(from var(--primary) l c h / 0.08), oklch(from var(--primary) l c h / 0.20) 70%, oklch(from var(--primary) l c h / 0.28))`,
@@ -326,12 +329,14 @@ export const ParamSlider = memo(function ParamSlider({
       />
 
       {/* Edge line at fill boundary */}
-      {fill > 0 && fill < 100 && (
-        <div
-          className="absolute top-[3px] bottom-[3px] w-px bg-primary/60 pointer-events-none"
-          style={{ left: `${fill}%` }}
-        />
-      )}
+      <div
+        ref={edgeRef}
+        className={cn(
+          "absolute top-[3px] bottom-[3px] w-px bg-primary/60 pointer-events-none",
+          dragging ? "transition-none" : "transition-[left] duration-200 ease-out",
+        )}
+        style={{ left: `${fill}%`, display: fill > 0 && fill < 100 ? "" : "none" }}
+      />
 
       {/* Boundary indicators */}
       {value <= min && (
@@ -348,24 +353,11 @@ export const ParamSlider = memo(function ParamSlider({
         return (
           <div
             key={n}
-            className={cn(
-              "absolute top-[3px] bottom-[3px] w-px pointer-events-none",
-              snapTarget === n ? "bg-primary/60" : "bg-muted-foreground/20",
-            )}
+            className="absolute top-[3px] bottom-[3px] w-px pointer-events-none bg-muted-foreground/20"
             style={{ left: `${pos}%` }}
           />
         );
       })}
-
-      {/* Snap tooltip */}
-      {snapTarget !== null && dragging && (
-        <div
-          className="absolute -top-6 text-3xs font-mono bg-popover/80 backdrop-blur-sm px-1 py-0.5 rounded-sm pointer-events-none z-10"
-          style={{ left: `${range === 0 ? 0 : ((snapTarget - min) / range) * 100}%`, transform: "translateX(-50%)" }}
-        >
-          {formatValue(snapTarget, decimals)}
-        </div>
-      )}
 
       {/* Help tooltip */}
       {showHelp && helpText && (
@@ -400,12 +392,10 @@ export const ParamSlider = memo(function ParamSlider({
         />
       ) : (
         <span
+          ref={valueRef}
           data-value-span=""
           onClick={(e) => { e.stopPropagation(); startEdit(); }}
-          className={cn(
-            "absolute inset-y-0 right-1.5 flex items-center text-3xs font-mono tabular-nums text-foreground/80 pointer-events-auto cursor-text leading-none transition-opacity duration-150",
-            "hover:underline hover:decoration-dotted hover:underline-offset-2 hover:decoration-muted-foreground",
-          )}
+          className="absolute inset-y-0 right-1.5 flex items-center text-3xs font-mono tabular-nums text-foreground/80 pointer-events-auto cursor-text leading-none hover:underline hover:decoration-dotted hover:underline-offset-2 hover:decoration-muted-foreground"
         >
           {formatValue(value, decimals, suffix)}
         </span>
