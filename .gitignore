@@ -15,6 +15,7 @@ dev-dist
 .sdnext.port
 
 # Python
+venv/
 __pycache__
 *.pyc
 *.pyo

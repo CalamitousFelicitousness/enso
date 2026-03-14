@@ -1,0 +1,49 @@
+# Ruff config — aligned with vladmandic/sdnext
+
+line-length = 250
+target-version = "py310"
+indent-width = 4
+
+include = ["enso_api/**/*.py", "scripts/**/*.py"]
+
+[lint]
+select = [
+  "F",     # Pyflakes
+  "E",     # pycodestyle errors
+  "W",     # pycodestyle warnings
+  "C",     # convention / mccabe
+  "B",     # bugbear
+  "I",     # isort
+  "YTT",   # flake8-2020
+  "ASYNC", # flake8-async
+  "RUF",   # ruff-specific
+  "C4",    # flake8-comprehensions
+  "T10",   # flake8-debugger
+  "EXE",   # flake8-executable
+  "ISC",   # flake8-implicit-str-concat
+  "ICN",   # flake8-import-conventions
+  "RSE",   # flake8-raise
+  "TCH",   # flake8-type-checking
+  "TID",   # flake8-tidy-imports
+  "INT",   # flake8-gettext
+  "PLE",   # pylint errors
+]
+ignore = [
+  "E402",   # module-level import not at top of file
+  "E501",   # line too long (handled by line-length)
+  "E731",   # lambda assignment
+  "F401",   # unused import
+  "I001",   # import sorting
+  "RUF012", # mutable class default
+  "RUF013", # implicit Optional
+  "E721",   # type comparison (sdnext uses == for type checks)
+  "ASYNC240", # os.path in async (sync calls are fine in our context)
+]
+
+[lint.mccabe]
+max-complexity = 150
+
+[format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "auto"
