@@ -83,7 +83,6 @@ export const ParamSlider = memo(function ParamSlider({
   // ── Refs ────────────────────────────────────────────────────────
   const trackRef = useRef<HTMLDivElement>(null);
   const fillRef = useRef<HTMLDivElement>(null);
-  const edgeRef = useRef<HTMLDivElement>(null);
   const valueRef = useRef<HTMLSpanElement>(null);
   const dragRef = useRef({
     startX: 0,
@@ -108,10 +107,6 @@ export const ParamSlider = memo(function ParamSlider({
     (val: number) => {
       const pct = range === 0 ? 100 : Math.min(100, Math.max(0, ((val - min) / range) * 100));
       if (fillRef.current) fillRef.current.style.width = `${pct}%`;
-      if (edgeRef.current) {
-        edgeRef.current.style.left = `${pct}%`;
-        edgeRef.current.style.display = pct > 0 && pct < 100 ? "" : "none";
-      }
       if (valueRef.current) valueRef.current.textContent = formatValue(val, decimals, suffix);
     },
     [min, range, decimals, suffix],
@@ -315,27 +310,20 @@ export const ParamSlider = memo(function ParamSlider({
       onPointerUp={handlePointerUp}
       onKeyDown={handleKeyDown}
     >
-      {/* Fill bar — React-managed when idle (with transition), imperative during drag */}
+      {/* Fill bar with U-shaped edge glow via inset box-shadow */}
       <div
         ref={fillRef}
         className={cn(
           "absolute inset-y-0 left-0 rounded-sm pointer-events-none",
-          dragging ? "transition-none" : "transition-[width] duration-200 ease-out",
+          dragging ? "transition-none" : "transition-[width,box-shadow] duration-200 ease-out",
         )}
         style={{
           width: `${fill}%`,
           background: `linear-gradient(to right, oklch(from var(--primary) l c h / 0.08), oklch(from var(--primary) l c h / 0.20) 70%, oklch(from var(--primary) l c h / 0.28))`,
+          boxShadow: fill > 0 && fill < 100
+            ? `inset -1px 0 0 0 oklch(from var(--primary) l c h / 0.6), inset -4px 0 6px -3px oklch(from var(--primary) l c h / 0.2)`
+            : "none",
         }}
-      />
-
-      {/* Edge line at fill boundary */}
-      <div
-        ref={edgeRef}
-        className={cn(
-          "absolute top-[3px] bottom-[3px] w-px bg-primary/60 pointer-events-none",
-          dragging ? "transition-none" : "transition-[left] duration-200 ease-out",
-        )}
-        style={{ left: `${fill}%`, display: fill > 0 && fill < 100 ? "" : "none" }}
       />
 
       {/* Boundary indicators */}
