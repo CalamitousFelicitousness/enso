@@ -193,7 +193,7 @@ export interface GenerationState {
   reset: () => void;
 }
 
-const defaultParams = {
+export const defaultParams = {
   prompt: "",
   negativePrompt: "",
   sampler: "Euler",
