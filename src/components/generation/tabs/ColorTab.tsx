@@ -7,6 +7,7 @@ import { ParamGrid } from "../ParamRow";
 import { ParamLabel } from "../ParamLabel";
 import { getParamHelp } from "@/data/parameterHelp";
 import { Switch } from "@/components/ui/switch";
+import { SectionLeader } from "@/components/ui/section-leader";
 import { Combobox } from "@/components/ui/combobox";
 import { ColorPicker } from "@/components/ui/color-picker";
 import { Button } from "@/components/ui/button";
@@ -120,19 +121,7 @@ export function ColorTab() {
 
   return (
     <div className="flex flex-col gap-3 text-sm">
-      <ParamSection title="Color Correction" defaultOpen={false}>
-        <div className="flex items-center gap-2">
-          <ParamLabel
-            className="text-2xs text-muted-foreground w-16 flex-shrink-0"
-            tooltip={getParamHelp("color correction enabled")}
-          >
-            Enabled
-          </ParamLabel>
-          <Switch
-            checked={state.colorCorrectionEnabled}
-            onCheckedChange={set.colorCorrectionEnabled}
-          />
-        </div>
+      <SectionLeader title="Color Correction" enabled={state.colorCorrectionEnabled} onToggle={set.colorCorrectionEnabled}>
         <div data-param="method" className="flex items-center gap-2">
           <ParamLabel
             className="text-2xs text-muted-foreground w-16 flex-shrink-0"
@@ -152,7 +141,7 @@ export function ColorTab() {
             disabled={!state.colorCorrectionEnabled}
           />
         </div>
-      </ParamSection>
+      </SectionLeader>
 
       <SectionDivider />
 

@@ -11,7 +11,7 @@ import { ParamSlider } from "../ParamSlider";
 import { ParamSection, SectionDivider } from "../ParamSection";
 import { ParamRow, ParamGrid } from "../ParamRow";
 import { getParamHelp } from "@/data/parameterHelp";
-import { Switch } from "@/components/ui/switch";
+import { SectionLeader } from "@/components/ui/section-leader";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { NumberInput } from "@/components/ui/number-input";
@@ -95,19 +95,7 @@ export function RefineTab() {
 
   return (
     <div className="flex flex-col gap-3 text-sm">
-      <ParamSection title="Hires Fix">
-        {/* Enable toggle */}
-        <div className="flex items-center justify-between">
-          <Label className="text-2xs text-muted-foreground">Enable</Label>
-          <Switch
-            checked={state.hiresEnabled}
-            onCheckedChange={set.hiresEnabled}
-          />
-        </div>
-
-        <div
-          className={state.hiresEnabled ? "" : "opacity-40 pointer-events-none"}
-        >
+      <SectionLeader title="Hires Fix" enabled={state.hiresEnabled} onToggle={set.hiresEnabled}>
           <div className="flex flex-col gap-2">
             <ParamRow label="Upscaler">
               <Combobox
@@ -240,8 +228,7 @@ export function RefineTab() {
               Force hires
             </label>
           </div>
-        </div>
-      </ParamSection>
+      </SectionLeader>
 
       <SectionDivider />
 

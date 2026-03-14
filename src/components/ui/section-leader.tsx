@@ -12,7 +12,7 @@ interface SectionLeaderProps {
   title: string;
   enabled: boolean;
   onToggle: (enabled: boolean) => void;
-  children: React.ReactNode;
+  children?: React.ReactNode;
   className?: string;
 }
 

@@ -6,7 +6,7 @@ import { ParamSlider } from "../ParamSlider";
 import { ParamSection, SectionDivider } from "../ParamSection";
 import { ParamRow, ParamGrid } from "../ParamRow";
 import { getParamHelp } from "@/data/parameterHelp";
-import { Switch } from "@/components/ui/switch";
+import { SectionLeader } from "@/components/ui/section-leader";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ParamLabel } from "../ParamLabel";
 import { Label } from "@/components/ui/label";
@@ -101,22 +101,7 @@ export function DetailTab() {
 
   return (
     <div className="flex flex-col gap-3 text-sm">
-      <ParamSection title="Detailer">
-        <div className="flex items-center justify-between">
-          <ParamLabel className="text-2xs text-muted-foreground">
-            Enabled
-          </ParamLabel>
-          <Switch
-            checked={state.detailerEnabled}
-            onCheckedChange={set.detailerEnabled}
-          />
-        </div>
-
-        <div
-          className={
-            state.detailerEnabled ? "" : "opacity-40 pointer-events-none"
-          }
-        >
+      <SectionLeader title="Detailer" enabled={state.detailerEnabled} onToggle={set.detailerEnabled}>
           <div className="flex flex-col gap-2">
             <div data-param="models" className="flex flex-col gap-1">
               <Label className="text-2xs text-muted-foreground">Models</Label>
@@ -172,8 +157,7 @@ export function DetailTab() {
               />
             </div>
           </div>
-        </div>
-      </ParamSection>
+      </SectionLeader>
 
       <SectionDivider />
 

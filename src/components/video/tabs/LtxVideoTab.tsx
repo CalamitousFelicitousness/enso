@@ -9,7 +9,7 @@ import { ParamGrid } from "@/components/generation/ParamRow";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Combobox } from "@/components/ui/combobox";
-import { Switch } from "@/components/ui/switch";
+import { SectionLeader } from "@/components/ui/section-leader";
 import { VideoOutputSection } from "./VideoOutputSection";
 import { VideoPresetSelector } from "../VideoPresetSelector";
 
@@ -146,16 +146,7 @@ export function LtxVideoTab() {
         />
       </ParamSection>
 
-      <ParamSection title="Upsample" defaultOpen={false}>
-        <div className="flex items-center gap-2">
-          <Label className="text-2xs text-muted-foreground w-16 shrink-0">
-            Enable
-          </Label>
-          <Switch
-            checked={ltxUpsampleEnable}
-            onCheckedChange={(v) => setParam("ltxUpsampleEnable", v)}
-          />
-        </div>
+      <SectionLeader title="Upsample" enabled={ltxUpsampleEnable} onToggle={(v) => setParam("ltxUpsampleEnable", v)}>
         <ParamSlider
           label="Ratio"
           value={ltxUpsampleRatio}
@@ -165,18 +156,9 @@ export function LtxVideoTab() {
           step={0.5}
           disabled={!ltxUpsampleEnable}
         />
-      </ParamSection>
+      </SectionLeader>
 
-      <ParamSection title="Refine" defaultOpen={false}>
-        <div className="flex items-center gap-2">
-          <Label className="text-2xs text-muted-foreground w-16 shrink-0">
-            Enable
-          </Label>
-          <Switch
-            checked={ltxRefineEnable}
-            onCheckedChange={(v) => setParam("ltxRefineEnable", v)}
-          />
-        </div>
+      <SectionLeader title="Refine" enabled={ltxRefineEnable} onToggle={(v) => setParam("ltxRefineEnable", v)}>
         <ParamSlider
           label="Strength"
           value={ltxRefineStrength}
@@ -186,7 +168,7 @@ export function LtxVideoTab() {
           step={0.05}
           disabled={!ltxRefineEnable}
         />
-      </ParamSection>
+      </SectionLeader>
 
       <ParamSection title="Advanced" defaultOpen={false}>
         <ParamGrid>
@@ -210,17 +192,7 @@ export function LtxVideoTab() {
         </ParamGrid>
       </ParamSection>
 
-      <ParamSection title="Audio" defaultOpen={false}>
-        <div className="flex items-center gap-2">
-          <Label className="text-2xs text-muted-foreground w-16 shrink-0">
-            Enable
-          </Label>
-          <Switch
-            checked={ltxAudioEnable}
-            onCheckedChange={(v) => setParam("ltxAudioEnable", v)}
-          />
-        </div>
-      </ParamSection>
+      <SectionLeader title="Audio" enabled={ltxAudioEnable} onToggle={(v) => setParam("ltxAudioEnable", v)} />
 
       <VideoOutputSection />
     </div>
