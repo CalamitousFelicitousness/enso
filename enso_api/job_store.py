@@ -39,7 +39,7 @@ class JobStore:
         """)
 
     @staticmethod
-    def _now() -> str:
+    def now() -> str:
         return datetime.now(timezone.utc).isoformat()
 
     @staticmethod
@@ -54,7 +54,7 @@ class JobStore:
 
     def create(self, job_type: str, params: dict, priority: int = 0) -> dict:
         job_id = uuid.uuid4().hex[:16]
-        now = self._now()
+        now = self.now()
         params_json = json.dumps(params, default=str)
         with self._write_lock:
             self._conn.execute(
@@ -106,7 +106,7 @@ class JobStore:
 
     def cancel(self, job_id: str) -> bool:
         with self._write_lock:
-            cur = self._conn.execute("UPDATE jobs SET status = 'cancelled', completed_at = ? WHERE id = ? AND status IN ('pending', 'running')", (self._now(), job_id))
+            cur = self._conn.execute("UPDATE jobs SET status = 'cancelled', completed_at = ? WHERE id = ? AND status IN ('pending', 'running')", (self.now(), job_id))
             self._conn.commit()
             return cur.rowcount > 0
 

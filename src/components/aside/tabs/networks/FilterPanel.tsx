@@ -29,8 +29,9 @@ export function FilterPanel({
 
   useEffect(() => {
     if (!open || !anchorRef.current) {
-      setRect(null);
-      return;
+      // Use cleanup-style reset via a microtask to avoid synchronous setState in effect body
+      const id = requestAnimationFrame(() => setRect(null));
+      return () => cancelAnimationFrame(id);
     }
     measure();
     const el = anchorRef.current;

@@ -5,7 +5,7 @@ only accessible through the Gradio UI.
 """
 
 import os
-import collections
+
 import inspect
 from modules import shared
 from modules.logger import log
@@ -254,7 +254,7 @@ def get_merge_methods():
     }
 
 
-def post_merge(
+def post_merge(  # pylint: disable=unused-argument
     custom_name: str,
     primary_model_name: str,
     secondary_model_name: str,
@@ -430,12 +430,12 @@ def post_loader_load(model_type: str, repo: str, components: list = None):
         import diffusers as _diffusers
         from modules import shared_items
         if model_type == "Current":
-            _cls = shared.sd_model.__class__ if shared.sd_loaded else None
+            cls = shared.sd_model.__class__ if shared.sd_loaded else None
         else:
-            _cls = shared_items.pipelines.get(model_type, None)
-        if _cls is None:
-            _cls = _diffusers.AutoPipelineForText2Image
-        cls_name = _cls.__name__
+            cls = shared_items.pipelines.get(model_type, None)
+        if cls is None:
+            cls = _diffusers.AutoPipelineForText2Image
+        cls_name = cls.__name__
     # Update components from provided data
     if components:
         for comp_data in components:

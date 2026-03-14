@@ -14,7 +14,7 @@ from modules import script_callbacks
 ext_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
-def on_app_started(blocks, app):
+def on_app_started(blocks, app):  # pylint: disable=unused-argument
     # SD.Next resets sys.path after loading each extension script,
     # so the path must be added here rather than at module level.
     if ext_root not in sys.path:
@@ -26,7 +26,7 @@ def on_app_started(blocks, app):
     # Write SD.Next port so the Vite dev server can auto-detect it
     port = getattr(shared.cmd_opts, 'port', 7860) or 7860
     try:
-        with open(os.path.join(ext_root, '.sdnext.port'), 'w') as f:
+        with open(os.path.join(ext_root, '.sdnext.port'), 'w', encoding='utf-8') as f:
             f.write(str(port))
     except Exception:
         pass

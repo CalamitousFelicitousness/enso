@@ -63,11 +63,11 @@ class ResXyzPreview(BaseModel):
 
 # --- Helpers ---
 
-_re_category = re.compile(r'^\[([^\]]+)\]\s*')
+re_category = re.compile(r'^\[([^\]]+)\]\s*')
 
 
 def _get_axis_options():
-    from scripts.xyz.xyz_grid_classes import axis_options
+    from scripts.xyz.xyz_grid_classes import axis_options  # pylint: disable=no-name-in-module
     return axis_options
 
 
@@ -79,7 +79,7 @@ def _find_axis(label: str):
 
 
 def _resolve_axis_values(axis_label: str, values_str: str) -> tuple[list, list[str]]:
-    from scripts.xyz.xyz_grid_shared import re_range, re_plain_comma, restore_comma, str_permutations
+    from scripts.xyz.xyz_grid_shared import re_range, re_plain_comma, restore_comma, str_permutations  # pylint: disable=no-name-in-module
 
     opt = _find_axis(axis_label)
     if opt is None:
@@ -145,7 +145,7 @@ async def get_axes(expand: Optional[str] = Query(default=None, description="Axis
     for opt in axis_options:
         if opt.label == 'Nothing':
             continue
-        m = _re_category.match(opt.label)
+        m = re_category.match(opt.label)
         category = m.group(1) if m else "Other"
         categories.add(category)
         info = XyzAxisInfo(

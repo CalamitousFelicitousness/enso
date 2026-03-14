@@ -3,7 +3,7 @@ import io
 import json
 import os
 import threading
-import time
+
 from enso_api.job_store import JobStore
 
 
@@ -34,7 +34,7 @@ class JobQueue:
             return
         jobs, _ = self.store.list(status='running', limit=100)
         for job in jobs:
-            self.store.update_status(job['id'], 'failed', error='Server restarted', completed_at=JobStore._now())
+            self.store.update_status(job['id'], 'failed', error='Server restarted', completed_at=JobStore.now())
 
     def submit(self, job_type: str, params: dict, priority: int = 0) -> dict:
         job = self.store.create(job_type=job_type, params=params, priority=priority)
@@ -109,7 +109,7 @@ class JobQueue:
         job_type = job['type']
         self._current_job_id = job_id
         log.info(f'Job queue: executing id={job_id} type={job_type}')
-        self.store.update_status(job_id, 'running', started_at=JobStore._now())
+        self.store.update_status(job_id, 'running', started_at=JobStore.now())
         self._push_progress(job_id, {'type': 'status', 'status': 'running'})
 
         # Start progress poller thread
@@ -122,24 +122,24 @@ class JobQueue:
             with queue_lock:
                 if job_id in self._cancel_ids:
                     self._cancel_ids.discard(job_id)
-                    self.store.update_status(job_id, 'cancelled', completed_at=JobStore._now())
+                    self.store.update_status(job_id, 'cancelled', completed_at=JobStore.now())
                     self._push_progress(job_id, {'type': 'status', 'status': 'cancelled'})
                     return
                 result = self._dispatch(job_type, job.get('params', {}), job_id)
             result_json = json.dumps(result, default=str)
-            self.store.update_status(job_id, 'completed', completed_at=JobStore._now(), result=result_json)
+            self.store.update_status(job_id, 'completed', completed_at=JobStore.now(), result=result_json)
             self._push_progress(job_id, {'type': 'completed', 'result': result})
             log.info(f'Job queue: completed id={job_id}')
         except Exception as e:
             from modules import errors
             errors.display(e, f'Job queue: {job_type}')
             error_msg = f'{type(e).__name__}: {e}'
-            self.store.update_status(job_id, 'failed', completed_at=JobStore._now(), error=error_msg)
+            self.store.update_status(job_id, 'failed', completed_at=JobStore.now(), error=error_msg)
             self._push_progress(job_id, {'type': 'error', 'error': error_msg})
             # Handle cancellation via interrupt
             if job_id in self._cancel_ids:
                 self._cancel_ids.discard(job_id)
-                self.store.update_status(job_id, 'cancelled', completed_at=JobStore._now())
+                self.store.update_status(job_id, 'cancelled', completed_at=JobStore.now())
                 self._push_progress(job_id, {'type': 'status', 'status': 'cancelled'})
         finally:
             poller_stop.set()

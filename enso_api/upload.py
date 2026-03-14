@@ -7,7 +7,6 @@ from PIL import Image
 from pydantic import BaseModel
 from fastapi import APIRouter, HTTPException, UploadFile
 from fastapi.responses import FileResponse
-from modules import shared
 from modules.logger import log
 
 
@@ -91,7 +90,7 @@ upload_store: Optional[UploadStore] = None
 
 
 def init_upload_store(staging_dir: str, ttl: int = 1800):
-    global upload_store
+    global upload_store  # pylint: disable=global-statement
     upload_store = UploadStore(staging_dir, ttl)
     from modules.api.helpers import register_upload_store
     register_upload_store(get_upload_store)

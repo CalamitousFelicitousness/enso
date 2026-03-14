@@ -8,7 +8,7 @@ from enso_api.models import (
 
 router = APIRouter(prefix="/sdapi/v2", tags=["Caption"])
 
-_VLM_GROUP_RULES = [
+VLM_GROUP_RULES = [
     # Gemma - official first (vendor prefix), then finetunes
     ("google gemma", "Gemma"),
     ("paligemma", "Gemma"),
@@ -44,7 +44,7 @@ _VLM_GROUP_RULES = [
 
 def _vlm_group(name: str) -> str:
     lower = name.lower()
-    for pattern, group in _VLM_GROUP_RULES:
+    for pattern, group in VLM_GROUP_RULES:
         if pattern in lower:
             return group
     return "Other"

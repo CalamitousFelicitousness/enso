@@ -212,7 +212,7 @@ async def post_preprocess_v2(req: ReqPreprocessV2):
 @router.get("/sd-models", response_model=ResModelsV2, tags=["Models"])
 async def get_sd_models_v2(
     search: str | None = Query(default=None, description="Case-insensitive search on title/filename"),
-    type: str | None = Query(default=None, description="Filter by model type", alias="type"),
+    type: str | None = Query(default=None, description="Filter by model type", alias="type"),  # pylint: disable=redefined-builtin
     offset: int = Query(default=0, ge=0),
     limit: int | None = Query(default=None, ge=1, description="Max items to return (omit for all)"),
 ):

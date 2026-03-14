@@ -59,7 +59,7 @@ def _safe_quant_method(model) -> str | None:
         q = getattr(model, 'quantization_method', None)
         if q is not None:
             s = str(q)
-            return s.split('.')[-1] if '.' in s else s
+            return s.rsplit('.', maxsplit=1)[-1] if '.' in s else s
     except Exception:
         pass
     return None

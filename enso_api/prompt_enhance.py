@@ -7,7 +7,7 @@ from enso_api.models import (
 
 router = APIRouter(prefix="/sdapi/v2", tags=["Prompt Enhance"])
 
-_ENHANCE_GROUP_RULES = [
+ENHANCE_GROUP_RULES = [
     # Gemma official (google/ only)
     ("google/gemma", "Gemma"),
     # Gemma Finetunes
@@ -50,7 +50,7 @@ _ENHANCE_GROUP_RULES = [
 
 def _enhance_group(repo: str) -> str:
     lower = repo.lower()
-    for pattern, group in _ENHANCE_GROUP_RULES:
+    for pattern, group in ENHANCE_GROUP_RULES:
         if pattern in lower:
             return group
     return "Other"
@@ -59,7 +59,7 @@ def _enhance_group(repo: str) -> str:
 @router.get("/prompt-enhance/models", response_model=list[ItemPromptEnhanceModelV2])
 async def get_prompt_enhance_models_v2():
     """List available prompt enhancement models with capability flags."""
-    from scripts.prompt_enhance import Options, is_vision_model, is_thinking_model
+    from scripts.prompt_enhance import Options, is_vision_model, is_thinking_model  # pylint: disable=no-name-in-module
     from modules import ui_symbols
     return [
         ItemPromptEnhanceModelV2(name=repo, group=_enhance_group(repo), vision=is_vision_model(repo), thinking=is_thinking_model(repo), cached=ui_symbols.is_model_cached(repo))

@@ -94,9 +94,9 @@ def execute_generate(params: dict, job_id: str) -> dict:
     sampler_index = processing_helpers.get_sampler_index(sampler_name)
 
     # Build args dict for control_run, only passing params it accepts
-    _valid_params = set(inspect.signature(control_run_module.control_run).parameters.keys())
+    valid_params = set(inspect.signature(control_run_module.control_run).parameters.keys())
     skip_keys = {'type', 'inputs', 'inits', 'mask', 'control', 'init_control', 'ip_adapter', 'save_images', 'sampler_name', 'script_name', 'script_args', 'alwayson_scripts', 'extra', 'priority'}
-    run_args = {k: v for k, v in params.items() if k in _valid_params and k not in skip_keys}
+    run_args = {k: v for k, v in params.items() if k in valid_params and k not in skip_keys}
     run_args['sampler_index'] = sampler_index
     run_args['is_generator'] = True
     run_args['inputs'] = inputs
@@ -253,7 +253,7 @@ def execute_upscale(params: dict, job_id: str) -> dict:
     return {'images': image_refs, 'info': {}, 'params': {k: v for k, v in params.items() if k not in ('type', 'image')}}
 
 
-def execute_caption(params: dict, job_id: str) -> dict:
+def execute_caption(params: dict, job_id: str) -> dict:  # pylint: disable=unused-argument
     from modules import shared
     from modules.api import helpers
 
@@ -285,7 +285,7 @@ def execute_caption(params: dict, job_id: str) -> dict:
     return {'images': [], 'info': {'caption': caption_text}, 'params': {k: v for k, v in params.items() if k not in ('type', 'image')}}
 
 
-def execute_enhance(params: dict, job_id: str) -> dict:
+def execute_enhance(params: dict, job_id: str) -> dict:  # pylint: disable=unused-argument
     from modules import shared, processing_helpers
     from modules.api import helpers
 
@@ -305,7 +305,7 @@ def execute_enhance(params: dict, job_id: str) -> dict:
             from modules.scripts_manager import scripts_txt2img
             default_model = 'google/gemma-3-4b-it' if enhance_type == 'image' else 'google/gemma-3-1b-it'
             use_model = default_model if model is None or len(model) < 4 else model
-            instance = [s for s in scripts_txt2img.scripts if 'prompt_enhance.py' in s.filename][0]
+            instance = next(s for s in scripts_txt2img.scripts if 'prompt_enhance.py' in s.filename)
             result_prompt = instance.enhance(
                 model=use_model, prompt=prompt,
                 system=params.get('system_prompt', ''), prefix=params.get('prefix', ''), suffix=params.get('suffix', ''),
@@ -323,7 +323,7 @@ def execute_enhance(params: dict, job_id: str) -> dict:
     return {'images': [], 'info': {'prompt': result_prompt, 'seed': seed}, 'params': {k: v for k, v in params.items() if k not in ('type', 'image')}}
 
 
-def execute_detect(params: dict, job_id: str) -> dict:
+def execute_detect(params: dict, job_id: str) -> dict:  # pylint: disable=unused-argument
     from modules import shared
     from modules.api import helpers
     from modules.shared import yolo
