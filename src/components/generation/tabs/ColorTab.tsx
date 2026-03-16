@@ -2,12 +2,13 @@ import { useCallback, useMemo, useRef } from "react";
 import { useGenerationStore } from "@/stores/generationStore";
 import { useShallow } from "zustand/react/shallow";
 import { ParamSlider } from "../ParamSlider";
-import { ParamSection, SectionDivider } from "../ParamSection";
+
 import { ParamGrid } from "../ParamRow";
 import { ParamLabel } from "../ParamLabel";
 import { getParamHelp } from "@/data/parameterHelp";
 import { Switch } from "@/components/ui/switch";
-import { SectionLeader } from "@/components/ui/section-leader";
+import { SectionLeader, SectionDivider } from "@/components/ui/section-leader";
+
 import { Combobox } from "@/components/ui/combobox";
 import { ColorPicker } from "@/components/ui/color-picker";
 import { Button } from "@/components/ui/button";
@@ -121,7 +122,7 @@ export function ColorTab() {
 
   return (
     <div className="flex flex-col gap-3 text-sm">
-      <SectionLeader title="Color Correction" enabled={state.colorCorrectionEnabled} onToggle={set.colorCorrectionEnabled}>
+      <SectionLeader title="Color Correction" enableable enabled={state.colorCorrectionEnabled} onToggleEnabled={set.colorCorrectionEnabled}>
         <div data-param="method" className="flex items-center gap-2">
           <ParamLabel
             className="text-2xs text-muted-foreground w-16 flex-shrink-0"
@@ -138,14 +139,13 @@ export function ColorTab() {
               { value: "adain", label: "AdaIN" },
             ]}
             className="h-6 text-2xs flex-1"
-            disabled={!state.colorCorrectionEnabled}
           />
         </div>
       </SectionLeader>
 
       <SectionDivider />
 
-      <ParamSection title="Latent Corrections" defaultOpen={false}>
+      <SectionLeader title="Latent Corrections" collapsible defaultCollapsed>
         <div className="flex items-center gap-2">
           <ParamLabel
             className="text-2xs text-muted-foreground w-16 flex-shrink-0"
@@ -291,11 +291,11 @@ export function ColorTab() {
             onCheckedChange={set.hdrApplyHires}
           />
         </div>
-      </ParamSection>
+      </SectionLeader>
 
       <SectionDivider />
 
-      <ParamSection title="Basic" defaultOpen={false}>
+      <SectionLeader title="Basic" collapsible defaultCollapsed>
         <ParamGrid>
           <ParamSlider
             label="Brightness"
@@ -365,11 +365,11 @@ export function ColorTab() {
           max={12000}
           step={100}
         />
-      </ParamSection>
+      </SectionLeader>
 
       <SectionDivider />
 
-      <ParamSection title="Tone" defaultOpen={false}>
+      <SectionLeader title="Tone" collapsible defaultCollapsed>
         <ParamGrid>
           <ParamSlider
             label="Shadows"
@@ -418,11 +418,11 @@ export function ColorTab() {
           step={0.05}
           tooltip={getParamHelp("grading highlights")}
         />
-      </ParamSection>
+      </SectionLeader>
 
       <SectionDivider />
 
-      <ParamSection title="Split Toning" defaultOpen={false}>
+      <SectionLeader title="Split Toning" collapsible defaultCollapsed>
         <ColorPicker
           label="Shadows tint"
           value={state.gradingShadowsTint}
@@ -444,11 +444,11 @@ export function ColorTab() {
           step={0.05}
           tooltip={getParamHelp("split tone balance")}
         />
-      </ParamSection>
+      </SectionLeader>
 
       <SectionDivider />
 
-      <ParamSection title="Effects" defaultOpen={false}>
+      <SectionLeader title="Effects" collapsible defaultCollapsed>
         <ParamGrid>
           <ParamSlider
             label="Vignette"
@@ -470,11 +470,11 @@ export function ColorTab() {
             tooltip={getParamHelp("grading grain")}
           />
         </ParamGrid>
-      </ParamSection>
+      </SectionLeader>
 
       <SectionDivider />
 
-      <ParamSection title="LUT" defaultOpen={false}>
+      <SectionLeader title="LUT" collapsible defaultCollapsed>
         <div className="flex items-center gap-2">
           <ParamLabel
             className="text-2xs text-muted-foreground w-16 flex-shrink-0"
@@ -523,7 +523,7 @@ export function ColorTab() {
           disabled={!hasLut}
           tooltip={getParamHelp("lut strength")}
         />
-      </ParamSection>
+      </SectionLeader>
     </div>
   );
 }

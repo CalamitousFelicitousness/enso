@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { useGenerationStore } from "@/stores/generationStore";
 import { useShallow } from "zustand/react/shallow";
 import { ParamSlider } from "../ParamSlider";
-import { ParamSection, SectionDivider } from "../ParamSection";
+import { SectionLeader, SectionDivider } from "@/components/ui/section-leader";
 import { ParamGrid } from "../ParamRow";
 import { getParamHelp } from "@/data/parameterHelp";
 
@@ -33,7 +33,7 @@ export function GuidanceTab() {
 
   return (
     <div className="flex flex-col gap-3 text-sm">
-      <ParamSection title="Guidance">
+      <SectionLeader title="Guidance" collapsible>
         <ParamGrid>
           <ParamSlider
             label="Guidance scale"
@@ -62,11 +62,11 @@ export function GuidanceTab() {
           max={1}
           step={0.05}
         />
-      </ParamSection>
+      </SectionLeader>
 
       <SectionDivider />
 
-      <ParamSection title="Refine Guidance" defaultOpen={false}>
+      <SectionLeader title="Refine Guidance" collapsible defaultCollapsed>
         <ParamSlider
           label="Refine guidance scale"
           value={state.imageCfgScale}
@@ -75,11 +75,11 @@ export function GuidanceTab() {
           max={30}
           step={0.1}
         />
-      </ParamSection>
+      </SectionLeader>
 
       <SectionDivider />
 
-      <ParamSection title="Attention Guidance" defaultOpen={false}>
+      <SectionLeader title="Attention Guidance" collapsible defaultCollapsed>
         <ParamGrid>
           <ParamSlider
             label="PAG scale"
@@ -100,7 +100,7 @@ export function GuidanceTab() {
             step={0.05}
           />
         </ParamGrid>
-      </ParamSection>
+      </SectionLeader>
     </div>
   );
 }

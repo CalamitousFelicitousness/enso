@@ -13,7 +13,7 @@ import { resolveGenerationSize, formatMegapixels } from "@/lib/sizeCompute";
 import type { SizeMode } from "@/lib/sizeCompute";
 import { PromptEditor } from "../PromptEditor";
 import { ParamSlider } from "../ParamSlider";
-import { ParamSection, SectionDivider } from "../ParamSection";
+import { SectionLeader, SectionDivider } from "@/components/ui/section-leader";
 import { ParamGrid } from "../ParamRow";
 import { NumberInput } from "@/components/ui/number-input";
 import { ParamLabel } from "../ParamLabel";
@@ -183,7 +183,7 @@ export function PromptsTab() {
 
       {Array.isArray(styles) && styles.length > 0 && (
         <>
-          <ParamSection title="Styles" defaultOpen={false}>
+          <SectionLeader title="Styles" collapsible defaultCollapsed>
             <div className="flex flex-wrap gap-1 mb-1">
               {selectedStyles.map((name) => (
                 <span
@@ -209,13 +209,14 @@ export function PromptsTab() {
               placeholder="Add style..."
               className="h-6 text-2xs"
             />
-          </ParamSection>
+          </SectionLeader>
           <SectionDivider />
         </>
       )}
 
-      <ParamSection
+      <SectionLeader
         title="Size"
+        collapsible
         action={
           isImg2Img ? (
             <Button
@@ -396,11 +397,11 @@ export function PromptsTab() {
             </span>
           </div>
         )}
-      </ParamSection>
+      </SectionLeader>
 
       <SectionDivider />
 
-      <ParamSection title="Batch">
+      <SectionLeader title="Batch" collapsible>
         <ParamGrid>
           <ParamSlider
             label="Count"
@@ -418,7 +419,7 @@ export function PromptsTab() {
             max={16}
           />
         </ParamGrid>
-      </ParamSection>
+      </SectionLeader>
     </div>
   );
 }

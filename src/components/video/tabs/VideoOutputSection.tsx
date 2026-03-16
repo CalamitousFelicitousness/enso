@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { useVideoStore } from "@/stores/videoStore";
-import { ParamSection } from "@/components/generation/ParamSection";
+import { SectionLeader } from "@/components/ui/section-leader";
 import { ParamSlider } from "@/components/generation/ParamSlider";
 import { ParamGrid } from "@/components/generation/ParamRow";
 import { Combobox } from "@/components/ui/combobox";
@@ -76,7 +76,7 @@ export function VideoOutputSection() {
   )?.description;
 
   return (
-    <ParamSection title="Output" defaultOpen={false}>
+    <SectionLeader title="Output" collapsible defaultCollapsed>
       <div className="flex items-center gap-2">
         <Label className="text-2xs text-muted-foreground w-16 shrink-0">
           Preset
@@ -202,6 +202,6 @@ export function VideoOutputSection() {
           onCheckedChange={(v) => setParam("saveSafetensors", v)}
         />
       </div>
-    </ParamSection>
+    </SectionLeader>
   );
 }

@@ -1,7 +1,7 @@
 import { useCallback, useMemo, Fragment } from "react";
 import { useScripts } from "@/api/hooks/useScripts";
 import { useScriptStore } from "@/stores/scriptStore";
-import { ParamSection, SectionDivider } from "../ParamSection";
+import { SectionLeader, SectionDivider } from "@/components/ui/section-leader";
 import { ScriptArgControl } from "./scripts/ScriptArgControl";
 import { ScriptSection } from "./scripts/ScriptSection";
 import { Label } from "@/components/ui/label";
@@ -32,7 +32,7 @@ export function ScriptsTab() {
 
   return (
     <div className="flex flex-col gap-3 text-sm">
-      <ParamSection title="Script">
+      <SectionLeader title="Script" collapsible>
         <div className="flex items-center gap-2">
           <Label className="text-2xs text-muted-foreground w-16 flex-shrink-0">
             Script
@@ -66,7 +66,7 @@ export function ScriptsTab() {
             ))}
           </div>
         )}
-      </ParamSection>
+      </SectionLeader>
 
       {alwaysOnScripts.map((script) => (
         <Fragment key={script.name}>
@@ -93,12 +93,12 @@ function AlwaysOnSection({ script }: { script: ScriptInfoV2 }) {
   );
 
   return (
-    <ParamSection title={script.name} defaultOpen={false}>
+    <SectionLeader title={script.name} collapsible defaultCollapsed>
       <ScriptSection
         script={script}
         getArgValue={getArgValue}
         setArgValue={setArgValue}
       />
-    </ParamSection>
+    </SectionLeader>
   );
 }

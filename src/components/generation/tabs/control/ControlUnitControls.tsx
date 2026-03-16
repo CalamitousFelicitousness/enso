@@ -10,7 +10,7 @@ import { useIPAdapterModels } from "@/api/hooks/useAdapters";
 import { uploadFile } from "@/lib/upload";
 import { buildProcessorGroups } from "@/lib/processorUtils";
 import { ParamSlider } from "../../ParamSlider";
-import { ParamSection } from "../../ParamSection";
+import { SectionLeader } from "@/components/ui/section-leader";
 import { ParamGrid } from "../../ParamRow";
 import { ImageUpload } from "../../ImageUpload";
 import { Switch } from "@/components/ui/switch";
@@ -297,7 +297,7 @@ export function ControlUnitControls({
 
       {/* Timing */}
       {showTiming && (
-        <ParamSection title="Timing" defaultOpen={false}>
+        <SectionLeader title="Timing" collapsible defaultCollapsed>
           <ParamGrid>
             <ParamSlider
               label="Start"
@@ -317,12 +317,12 @@ export function ControlUnitControls({
               step={0.01}
             />
           </ParamGrid>
-        </ParamSection>
+        </SectionLeader>
       )}
 
       {/* Processor params */}
       {showProcessor && processorDefaults && (
-        <ParamSection title="Processor Settings" defaultOpen={false}>
+        <SectionLeader title="Processor Settings" collapsible defaultCollapsed>
           {Object.entries(unit.processorParams).map(([key, value]) => {
             const def = processorDefaults[key];
             if (typeof value === "boolean" || typeof def === "boolean") {
@@ -393,7 +393,7 @@ export function ControlUnitControls({
             }
             return null;
           })}
-        </ParamSection>
+        </SectionLeader>
       )}
 
       {/* Guess mode + process button - merged row in compact mode */}

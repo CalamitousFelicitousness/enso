@@ -4,7 +4,7 @@ import { Combobox } from "@/components/ui/combobox";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import { ParamSection } from "@/components/generation/ParamSection";
+import { SectionLeader } from "@/components/ui/section-leader";
 import { useCaptionSettingsStore } from "@/stores/captionSettingsStore";
 import { useTaggerModels } from "@/api/hooks/useCaption";
 import { TAGGER_DEFAULT } from "@/lib/captionModels";
@@ -29,7 +29,7 @@ export function TaggerSettings() {
         />
       </div>
 
-      <ParamSection title="Advanced Options" defaultOpen={false}>
+      <SectionLeader title="Advanced Options" collapsible defaultCollapsed>
         <div className="flex flex-col gap-3">
           <SliderField
             label="General Threshold"
@@ -99,7 +99,7 @@ export function TaggerSettings() {
             />
           </div>
         </div>
-      </ParamSection>
+      </SectionLeader>
     </div>
   );
 }

@@ -8,10 +8,9 @@ import {
   HIRES_CONTEXT_MODES,
 } from "@/lib/constants";
 import { ParamSlider } from "../ParamSlider";
-import { ParamSection, SectionDivider } from "../ParamSection";
+import { SectionLeader, SectionDivider } from "@/components/ui/section-leader";
 import { ParamRow, ParamGrid } from "../ParamRow";
 import { getParamHelp } from "@/data/parameterHelp";
-import { SectionLeader } from "@/components/ui/section-leader";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { NumberInput } from "@/components/ui/number-input";
@@ -95,7 +94,7 @@ export function RefineTab() {
 
   return (
     <div className="flex flex-col gap-3 text-sm">
-      <SectionLeader title="Hires Fix" enabled={state.hiresEnabled} onToggle={set.hiresEnabled}>
+      <SectionLeader title="Hires Fix" enableable enabled={state.hiresEnabled} onToggleEnabled={set.hiresEnabled}>
           <div className="flex flex-col gap-2">
             <ParamRow label="Upscaler">
               <Combobox
@@ -103,7 +102,6 @@ export function RefineTab() {
                 onValueChange={set.hiresUpscaler}
                 groups={upscalerGroups}
                 className="h-6 text-2xs"
-                disabled={!state.hiresEnabled}
               />
             </ParamRow>
 
@@ -113,7 +111,6 @@ export function RefineTab() {
                 onValueChange={handleSizeMode}
                 options={HIRES_SIZE_MODES}
                 className="h-6 text-2xs"
-                disabled={!state.hiresEnabled}
               />
             </ParamRow>
 
@@ -125,7 +122,6 @@ export function RefineTab() {
                 min={1}
                 max={4}
                 step={0.1}
-                disabled={!state.hiresEnabled}
               />
             ) : (
               <>
@@ -139,7 +135,6 @@ export function RefineTab() {
                       min={0}
                       max={8192}
                       fallback={0}
-                      disabled={!state.hiresEnabled}
                       className="flex-1 h-6 text-2xs text-center px-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                     />
 
@@ -152,7 +147,6 @@ export function RefineTab() {
                       min={0}
                       max={8192}
                       fallback={0}
-                      disabled={!state.hiresEnabled}
                       className="flex-1 h-6 text-2xs text-center px-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                     />
                   </div>
@@ -163,7 +157,6 @@ export function RefineTab() {
                     onValueChange={set.hiresResizeMode}
                     options={HIRES_FIT_MODES}
                     className="h-6 text-2xs"
-                    disabled={!state.hiresEnabled}
                   />
                 </ParamRow>
                 {showContextDropdown && (
@@ -173,7 +166,6 @@ export function RefineTab() {
                       onValueChange={set.hiresResizeContext}
                       options={HIRES_CONTEXT_MODES}
                       className="h-6 text-2xs"
-                      disabled={!state.hiresEnabled}
                     />
                   </ParamRow>
                 )}
@@ -193,7 +185,6 @@ export function RefineTab() {
                 ]}
                 placeholder="Same as primary"
                 className="h-6 text-2xs"
-                disabled={!state.hiresEnabled}
               />
             </ParamRow>
 
@@ -205,7 +196,6 @@ export function RefineTab() {
                 min={0}
                 max={1}
                 step={0.05}
-                disabled={!state.hiresEnabled}
               />
 
               <ParamSlider
@@ -215,7 +205,6 @@ export function RefineTab() {
                 onChange={set.hiresSteps}
                 min={0}
                 max={150}
-                disabled={!state.hiresEnabled}
               />
             </ParamGrid>
 
@@ -223,7 +212,6 @@ export function RefineTab() {
               <Checkbox
                 checked={state.hiresForce}
                 onCheckedChange={set.hiresForce}
-                disabled={!state.hiresEnabled}
               />
               Force hires
             </label>
@@ -232,7 +220,7 @@ export function RefineTab() {
 
       <SectionDivider />
 
-      <ParamSection title="Refiner" defaultOpen={false}>
+      <SectionLeader title="Refiner" collapsible defaultCollapsed>
         <ParamGrid>
           <ParamSlider
             label="Start"
@@ -276,7 +264,7 @@ export function RefineTab() {
             className="min-h-9 text-xs resize-none"
           />
         </div>
-      </ParamSection>
+      </SectionLeader>
     </div>
   );
 }

@@ -3,13 +3,12 @@ import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useVideoStore } from "@/stores/videoStore";
 import { useVideoEngines, useLoadVideoModel } from "@/api/hooks/useVideo";
-import { ParamSection } from "@/components/generation/ParamSection";
 import { ParamSlider } from "@/components/generation/ParamSlider";
 import { ParamGrid } from "@/components/generation/ParamRow";
+import { SectionLeader } from "@/components/ui/section-leader";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Combobox } from "@/components/ui/combobox";
-import { SectionLeader } from "@/components/ui/section-leader";
 import { VideoOutputSection } from "./VideoOutputSection";
 import { VideoPresetSelector } from "../VideoPresetSelector";
 
@@ -54,7 +53,7 @@ export function LtxVideoTab() {
   return (
     <div className="space-y-1">
       <VideoPresetSelector domain="ltx" />
-      <ParamSection title="Model">
+      <SectionLeader title="Model" collapsible>
         <div className="space-y-1.5">
           <div className="flex items-center gap-2">
             <Label className="text-2xs text-muted-foreground w-16 shrink-0">
@@ -81,9 +80,9 @@ export function LtxVideoTab() {
             Load Model
           </Button>
         </div>
-      </ParamSection>
+      </SectionLeader>
 
-      <ParamSection title="Size" defaultOpen={false}>
+      <SectionLeader title="Size" collapsible defaultCollapsed>
         <ParamGrid>
           <ParamSlider
             label="Width"
@@ -111,9 +110,9 @@ export function LtxVideoTab() {
           max={257}
           step={8}
         />
-      </ParamSection>
+      </SectionLeader>
 
-      <ParamSection title="Sampling" defaultOpen={false}>
+      <SectionLeader title="Sampling" collapsible defaultCollapsed>
         <ParamGrid>
           <ParamSlider
             label="Steps"
@@ -133,9 +132,9 @@ export function LtxVideoTab() {
             step={1}
           />
         </ParamGrid>
-      </ParamSection>
+      </SectionLeader>
 
-      <ParamSection title="Condition" defaultOpen={false}>
+      <SectionLeader title="Condition" collapsible defaultCollapsed>
         <ParamSlider
           label="Strength"
           value={ltxConditionStrength}
@@ -144,9 +143,9 @@ export function LtxVideoTab() {
           max={1}
           step={0.05}
         />
-      </ParamSection>
+      </SectionLeader>
 
-      <SectionLeader title="Upsample" enabled={ltxUpsampleEnable} onToggle={(v) => setParam("ltxUpsampleEnable", v)}>
+      <SectionLeader title="Upsample" enableable enabled={ltxUpsampleEnable} onToggleEnabled={(v) => setParam("ltxUpsampleEnable", v)}>
         <ParamSlider
           label="Ratio"
           value={ltxUpsampleRatio}
@@ -154,11 +153,10 @@ export function LtxVideoTab() {
           min={1}
           max={4}
           step={0.5}
-          disabled={!ltxUpsampleEnable}
         />
       </SectionLeader>
 
-      <SectionLeader title="Refine" enabled={ltxRefineEnable} onToggle={(v) => setParam("ltxRefineEnable", v)}>
+      <SectionLeader title="Refine" enableable enabled={ltxRefineEnable} onToggleEnabled={(v) => setParam("ltxRefineEnable", v)}>
         <ParamSlider
           label="Strength"
           value={ltxRefineStrength}
@@ -166,11 +164,10 @@ export function LtxVideoTab() {
           min={0.1}
           max={1}
           step={0.05}
-          disabled={!ltxRefineEnable}
         />
       </SectionLeader>
 
-      <ParamSection title="Advanced" defaultOpen={false}>
+      <SectionLeader title="Advanced" collapsible defaultCollapsed>
         <ParamGrid>
           <ParamSlider
             label="Decode dt"
@@ -190,9 +187,9 @@ export function LtxVideoTab() {
             step={0.005}
           />
         </ParamGrid>
-      </ParamSection>
+      </SectionLeader>
 
-      <SectionLeader title="Audio" enabled={ltxAudioEnable} onToggle={(v) => setParam("ltxAudioEnable", v)} />
+      <SectionLeader title="Audio" enableable enabled={ltxAudioEnable} onToggleEnabled={(v) => setParam("ltxAudioEnable", v)} />
 
       <VideoOutputSection />
     </div>

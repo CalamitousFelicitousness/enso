@@ -5,7 +5,7 @@ import { Combobox, type ComboboxGroup } from "@/components/ui/combobox";
 import { Textarea } from "@/components/ui/textarea";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
-import { ParamSection } from "@/components/generation/ParamSection";
+import { SectionLeader } from "@/components/ui/section-leader";
 import { useCaptionSettingsStore } from "@/stores/captionSettingsStore";
 import { useVlmModels } from "@/api/hooks/useCaption";
 import { VLM_DEFAULT, CUSTOM_PROMPT_TASKS } from "@/lib/captionModels";
@@ -147,7 +147,7 @@ export function VlmSettings() {
         </div>
       )}
 
-      <ParamSection title="System Prompt" defaultOpen={false}>
+      <SectionLeader title="System Prompt" collapsible defaultCollapsed>
         <Textarea
           value={s.system}
           onChange={(e) => set({ system: e.target.value })}
@@ -155,9 +155,9 @@ export function VlmSettings() {
           className="min-h-12 text-xs"
           rows={2}
         />
-      </ParamSection>
+      </SectionLeader>
 
-      <ParamSection title="Advanced Options" defaultOpen={false}>
+      <SectionLeader title="Advanced Options" collapsible defaultCollapsed>
         <div className="flex flex-col gap-3">
           <SliderField
             label="Max Tokens"
@@ -241,7 +241,7 @@ export function VlmSettings() {
             </div>
           )}
         </div>
-      </ParamSection>
+      </SectionLeader>
     </div>
   );
 }

@@ -2,7 +2,7 @@ import { Label } from "@/components/ui/label";
 import { Combobox } from "@/components/ui/combobox";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
-import { ParamSection } from "@/components/generation/ParamSection";
+import { SectionLeader } from "@/components/ui/section-leader";
 import { useCaptionSettingsStore } from "@/stores/captionSettingsStore";
 import { useOpenClipModels } from "@/api/hooks/useCaption";
 import { INTERROGATE_MODES, BLIP_MODEL_NAMES } from "@/lib/captionModels";
@@ -58,7 +58,7 @@ export function OpenClipSettings() {
         />
       </div>
 
-      <ParamSection title="Advanced Options" defaultOpen={false}>
+      <SectionLeader title="Advanced Options" collapsible defaultCollapsed>
         <div className="flex flex-col gap-3">
           <SliderField
             label="Max Length"
@@ -114,7 +114,7 @@ export function OpenClipSettings() {
             onChange={(v) => set({ numBeams: v })}
           />
         </div>
-      </ParamSection>
+      </SectionLeader>
     </div>
   );
 }

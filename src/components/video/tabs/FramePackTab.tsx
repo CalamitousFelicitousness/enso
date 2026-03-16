@@ -7,7 +7,7 @@ import {
   useLoadFramePack,
   useUnloadFramePack,
 } from "@/api/hooks/useVideo";
-import { ParamSection } from "@/components/generation/ParamSection";
+import { SectionLeader } from "@/components/ui/section-leader";
 import { ParamSlider } from "@/components/generation/ParamSlider";
 import { ParamGrid } from "@/components/generation/ParamRow";
 import { SectionTimeline } from "@/components/video/SectionTimeline";
@@ -73,7 +73,7 @@ export function FramePackTab() {
   return (
     <div className="space-y-1">
       <VideoPresetSelector domain="framepack" />
-      <ParamSection title="Model">
+      <SectionLeader title="Model" collapsible>
         <div className="space-y-1.5">
           <div className="flex items-center gap-2">
             <Label className="text-2xs text-muted-foreground w-16 shrink-0">
@@ -110,9 +110,9 @@ export function FramePackTab() {
             </Button>
           </div>
         </div>
-      </ParamSection>
+      </SectionLeader>
 
-      <ParamSection title="Size" defaultOpen={false}>
+      <SectionLeader title="Size" collapsible defaultCollapsed>
         <ParamGrid>
           <ParamSlider
             label="Resolution"
@@ -132,9 +132,9 @@ export function FramePackTab() {
             step={1}
           />
         </ParamGrid>
-      </ParamSection>
+      </SectionLeader>
 
-      <ParamSection title="Inputs" defaultOpen={false}>
+      <SectionLeader title="Inputs" collapsible defaultCollapsed>
         <ParamGrid>
           <ParamSlider
             label="Start wt"
@@ -162,9 +162,9 @@ export function FramePackTab() {
           max={2}
           step={0.05}
         />
-      </ParamSection>
+      </SectionLeader>
 
-      <ParamSection title="Sections" defaultOpen={false}>
+      <SectionLeader title="Sections" collapsible defaultCollapsed>
         <div className="flex items-center justify-between mb-1">
           <Label className="text-2xs text-muted-foreground">Raw edit</Label>
           <Switch checked={rawEdit} onCheckedChange={setRawEdit} />
@@ -187,9 +187,9 @@ export function FramePackTab() {
             onChange={(v) => setParam("fpSectionPrompt", v)}
           />
         )}
-      </ParamSection>
+      </SectionLeader>
 
-      <ParamSection title="Advanced" defaultOpen={false}>
+      <SectionLeader title="Advanced" collapsible defaultCollapsed>
         <ParamSlider
           label="Seed"
           value={seed}
@@ -253,9 +253,9 @@ export function FramePackTab() {
           max={1}
           step={0.05}
         />
-      </ParamSection>
+      </SectionLeader>
 
-      <ParamSection title="Model Options" defaultOpen={false}>
+      <SectionLeader title="Model Options" collapsible defaultCollapsed>
         <Textarea
           value={fpSystemPrompt}
           onChange={(e) => setParam("fpSystemPrompt", e.target.value)}
@@ -321,7 +321,7 @@ export function FramePackTab() {
             className="h-6 text-2xs flex-1"
           />
         </div>
-      </ParamSection>
+      </SectionLeader>
 
       <VideoOutputSection />
     </div>

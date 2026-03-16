@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { useGenerationStore } from "@/stores/generationStore";
 import { useShallow } from "zustand/react/shallow";
 import { ParamSlider } from "../ParamSlider";
-import { ParamSection, SectionDivider } from "../ParamSection";
+import { SectionLeader, SectionDivider } from "@/components/ui/section-leader";
 import { Switch } from "@/components/ui/switch";
 import { ParamLabel } from "../ParamLabel";
 import { Label } from "@/components/ui/label";
@@ -57,7 +57,7 @@ export function AdvancedTab() {
 
   return (
     <div className="flex flex-col gap-3 text-sm">
-      <ParamSection title="Advanced">
+      <SectionLeader title="Advanced" collapsible>
         <ParamSlider
           label="CLIP skip"
           value={state.clipSkip}
@@ -96,11 +96,11 @@ export function AdvancedTab() {
             />
           </div>
         </div>
-      </ParamSection>
+      </SectionLeader>
 
       <SectionDivider />
 
-      <ParamSection title="Override Settings" defaultOpen={false}>
+      <SectionLeader title="Override Settings" collapsible defaultCollapsed>
         <div className="flex flex-col gap-1">
           <Label className="text-2xs text-muted-foreground">
             Key-value overrides (one per line, key: value)
@@ -116,7 +116,7 @@ export function AdvancedTab() {
             className="min-h-15 text-xs resize-y font-mono"
           />
         </div>
-      </ParamSection>
+      </SectionLeader>
     </div>
   );
 }

@@ -3,10 +3,10 @@ import { useGenerationStore } from "@/stores/generationStore";
 import { useShallow } from "zustand/react/shallow";
 import { useDetailerModels } from "@/api/hooks/useDetailer";
 import { ParamSlider } from "../ParamSlider";
-import { ParamSection, SectionDivider } from "../ParamSection";
+
 import { ParamRow, ParamGrid } from "../ParamRow";
 import { getParamHelp } from "@/data/parameterHelp";
-import { SectionLeader } from "@/components/ui/section-leader";
+import { SectionLeader, SectionDivider } from "@/components/ui/section-leader";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ParamLabel } from "../ParamLabel";
 import { Label } from "@/components/ui/label";
@@ -101,7 +101,7 @@ export function DetailTab() {
 
   return (
     <div className="flex flex-col gap-3 text-sm">
-      <SectionLeader title="Detailer" enabled={state.detailerEnabled} onToggle={set.detailerEnabled}>
+      <SectionLeader title="Detailer" enableable enabled={state.detailerEnabled} onToggleEnabled={set.detailerEnabled}>
           <div className="flex flex-col gap-2">
             <div data-param="models" className="flex flex-col gap-1">
               <Label className="text-2xs text-muted-foreground">Models</Label>
@@ -131,7 +131,6 @@ export function DetailTab() {
                 }
                 placeholder="Add model..."
                 className="h-6 text-2xs flex-1"
-                disabled={!state.detailerEnabled}
               />
             </div>
 
@@ -142,7 +141,6 @@ export function DetailTab() {
                 onChange={set.detailerPrompt}
                 placeholder="Detailer prompt (optional)"
                 className="min-h-12 text-xs resize-none"
-                disabled={!state.detailerEnabled}
               />
             </div>
 
@@ -153,7 +151,6 @@ export function DetailTab() {
                 onChange={set.detailerNegative}
                 placeholder="Detailer negative prompt (optional)"
                 className="min-h-9 text-xs resize-none"
-                disabled={!state.detailerEnabled}
               />
             </div>
           </div>
@@ -167,7 +164,7 @@ export function DetailTab() {
         }
       >
         <div className="flex flex-col gap-3">
-          <ParamSection title="Generation">
+          <SectionLeader title="Generation" collapsible>
             <ParamGrid>
               <ParamSlider
                 label="Steps"
@@ -198,11 +195,11 @@ export function DetailTab() {
               step={8}
               disabled={!state.detailerEnabled}
             />
-          </ParamSection>
+          </SectionLeader>
 
           <SectionDivider />
 
-          <ParamSection title="Detection" defaultOpen={false}>
+          <SectionLeader title="Detection" collapsible defaultCollapsed>
             <ParamGrid>
               <ParamSlider
                 label="Confidence"
@@ -288,11 +285,11 @@ export function DetailTab() {
                 disabled={!state.detailerEnabled}
               />
             </ParamRow>
-          </ParamSection>
+          </SectionLeader>
 
           <SectionDivider />
 
-          <ParamSection title="Options" defaultOpen={false}>
+          <SectionLeader title="Options" collapsible defaultCollapsed>
             <div className="grid grid-cols-2 gap-2">
               <label className="flex items-center gap-1.5 text-2xs text-muted-foreground cursor-pointer">
                 <Checkbox
@@ -348,11 +345,11 @@ export function DetailTab() {
                 </ParamLabel>
               </label>
             </div>
-          </ParamSection>
+          </SectionLeader>
 
           <SectionDivider />
 
-          <ParamSection title="Noise" defaultOpen={false}>
+          <SectionLeader title="Noise" collapsible defaultCollapsed>
             <ParamGrid>
               <ParamSlider
                 label="Renoise"
@@ -375,7 +372,7 @@ export function DetailTab() {
                 disabled={!state.detailerEnabled}
               />
             </ParamGrid>
-          </ParamSection>
+          </SectionLeader>
         </div>
       </div>
     </div>

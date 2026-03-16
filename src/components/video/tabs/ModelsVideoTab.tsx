@@ -3,7 +3,7 @@ import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useVideoStore } from "@/stores/videoStore";
 import { useVideoEngines, useLoadVideoModel } from "@/api/hooks/useVideo";
-import { ParamSection } from "@/components/generation/ParamSection";
+import { SectionLeader } from "@/components/ui/section-leader";
 import { ParamSlider } from "@/components/generation/ParamSlider";
 import { ParamGrid } from "@/components/generation/ParamRow";
 import { Combobox } from "@/components/ui/combobox";
@@ -109,7 +109,7 @@ export function ModelsVideoTab() {
   return (
     <div className="space-y-1">
       <VideoPresetSelector domain="video" />
-      <ParamSection title="Model">
+      <SectionLeader title="Model" collapsible>
         <div className="space-y-1.5">
           <div className="flex items-center gap-2">
             <Label className="text-2xs text-muted-foreground w-16 shrink-0">
@@ -159,9 +159,9 @@ export function ModelsVideoTab() {
             Load Model
           </Button>
         </div>
-      </ParamSection>
+      </SectionLeader>
 
-      <ParamSection title="Parameters" defaultOpen={false}>
+      <SectionLeader title="Parameters" collapsible defaultCollapsed>
         <ParamGrid>
           <ParamSlider
             label="Steps"
@@ -217,9 +217,9 @@ export function ModelsVideoTab() {
             onCheckedChange={(v) => setParam("dynamicShift", v)}
           />
         </div>
-      </ParamSection>
+      </SectionLeader>
 
-      <ParamSection title="Size" defaultOpen={false}>
+      <SectionLeader title="Size" collapsible defaultCollapsed>
         <ParamGrid>
           <ParamSlider
             label="Width"
@@ -247,9 +247,9 @@ export function ModelsVideoTab() {
           max={256}
           step={1}
         />
-      </ParamSection>
+      </SectionLeader>
 
-      <ParamSection title="Inputs" defaultOpen={false}>
+      <SectionLeader title="Inputs" collapsible defaultCollapsed>
         <ParamSlider
           label="Strength"
           value={initStrength}
@@ -258,9 +258,9 @@ export function ModelsVideoTab() {
           max={1}
           step={0.05}
         />
-      </ParamSection>
+      </SectionLeader>
 
-      <ParamSection title="Decode" defaultOpen={false}>
+      <SectionLeader title="Decode" collapsible defaultCollapsed>
         <div className="flex items-center gap-2">
           <Label className="text-2xs text-muted-foreground w-16 shrink-0">
             VAE type
@@ -280,7 +280,7 @@ export function ModelsVideoTab() {
           max={64}
           step={1}
         />
-      </ParamSection>
+      </SectionLeader>
 
       <VideoOutputSection />
     </div>

@@ -2,7 +2,7 @@ import { useCallback } from "react";
 import { useImg2ImgStore } from "@/stores/img2imgStore";
 import { useCanvasStore } from "@/stores/canvasStore";
 import { getParamHelp } from "@/data/parameterHelp";
-import { ParamSection } from "@/components/generation/ParamSection";
+import { SectionLeader } from "@/components/ui/section-leader";
 import { ParamSlider } from "@/components/generation/ParamSlider";
 import { Switch } from "@/components/ui/switch";
 import { ParamLabel } from "./ParamLabel";
@@ -47,7 +47,7 @@ export function MaskParams() {
   if (maskLineCount === 0 && maskObjectCount === 0) return null;
 
   return (
-    <ParamSection title="Mask" defaultOpen>
+    <SectionLeader title="Mask" collapsible>
       <ParamSlider
         label="Blur"
         value={maskBlur}
@@ -107,6 +107,6 @@ export function MaskParams() {
         max={1}
         step={0.01}
       />
-    </ParamSection>
+    </SectionLeader>
   );
 }
