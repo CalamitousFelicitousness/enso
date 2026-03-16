@@ -3,7 +3,7 @@ import { useGenerationStore } from "@/stores/generationStore";
 import { useShallow } from "zustand/react/shallow";
 import { useSamplerList, useCurrentCheckpoint } from "@/api/hooks/useModels";
 import { ParamSlider } from "../ParamSlider";
-import { ParamSection, SectionDivider } from "../ParamSection";
+import { SectionLeader, SectionDivider } from "@/components/ui/section-leader";
 import { ParamRow, ParamGrid } from "../ParamRow";
 import { Combobox, type ComboboxGroup } from "@/components/ui/combobox";
 import { Input } from "@/components/ui/input";
@@ -118,27 +118,51 @@ export function SamplerTab() {
 
   return (
     <div className="flex flex-col gap-3 text-sm">
-      <ParamSection title="Sampler">
-        <ParamRow label="Method" tooltip={getParamHelp("sampling method")}>
+      <SectionLeader title="Sampler" collapsible>
+        <ParamGrid>
           <Combobox
             value={state.sampler}
             onValueChange={set.sampler}
             groups={samplerGroups}
-            className="h-6 text-2xs"
+            className="h-5 text-2xs"
           />
-        </ParamRow>
-        <ParamSlider
-          label="Steps"
-          value={state.steps}
-          onChange={set.steps}
-          min={1}
-          max={150}
-        />
-      </ParamSection>
+          <ParamSlider
+            label="Steps"
+            value={state.steps}
+            onChange={set.steps}
+            min={1}
+            max={150}
+          />
+        </ParamGrid>
+        <SectionDivider label="Options" />
+        <div className="flex items-center gap-4">
+          <label className="flex items-center gap-1.5 text-2xs text-muted-foreground cursor-pointer">
+            <Checkbox checked={state.lowOrder} onCheckedChange={set.lowOrder} />
+            <ParamLabel className="text-2xs text-muted-foreground">
+              Low order
+            </ParamLabel>
+          </label>
+          <label className="flex items-center gap-1.5 text-2xs text-muted-foreground cursor-pointer">
+            <Checkbox
+              checked={state.thresholding}
+              onCheckedChange={set.thresholding}
+            />
+            <ParamLabel className="text-2xs text-muted-foreground">
+              Thresholding
+            </ParamLabel>
+          </label>
+          <label className="flex items-center gap-1.5 text-2xs text-muted-foreground cursor-pointer">
+            <Checkbox checked={state.rescale} onCheckedChange={set.rescale} />
+            <ParamLabel className="text-2xs text-muted-foreground">
+              Rescale
+            </ParamLabel>
+          </label>
+        </div>
+      </SectionLeader>
 
       <SectionDivider />
 
-      <ParamSection title="Scheduler" defaultOpen={false}>
+      <SectionLeader title="Schedule" collapsible defaultCollapsed>
         <ParamGrid>
           <ParamRow label="Sigma" tooltip={getParamHelp("sigma method")}>
             <Combobox
@@ -188,11 +212,7 @@ export function SamplerTab() {
             />
           </ParamRow>
         </ParamGrid>
-      </ParamSection>
-
-      <SectionDivider />
-
-      <ParamSection title="Timesteps" defaultOpen={false}>
+        <SectionDivider label="Timesteps" />
         <ParamGrid>
           <ParamRow label="Preset" tooltip={getParamHelp("timesteps preset")}>
             <Combobox
@@ -214,11 +234,7 @@ export function SamplerTab() {
             />
           </ParamRow>
         </ParamGrid>
-      </ParamSection>
-
-      <SectionDivider />
-
-      <ParamSection title="Sigma" defaultOpen={false}>
+        <SectionDivider label="Sigma" />
         <ParamGrid>
           <ParamSlider
             label="Start"
@@ -229,7 +245,6 @@ export function SamplerTab() {
             max={1}
             step={0.01}
           />
-
           <ParamSlider
             label="End"
             tooltip={getParamHelp("adjust end")}
@@ -249,11 +264,11 @@ export function SamplerTab() {
           max={1.5}
           step={0.01}
         />
-      </ParamSection>
+      </SectionLeader>
 
       <SectionDivider />
 
-      <ParamSection title="Shifts" defaultOpen={false}>
+      <SectionLeader title="Shifts" collapsible defaultCollapsed>
         <ParamSlider
           label="Flow shift"
           value={state.flowShift}
@@ -294,42 +309,11 @@ export function SamplerTab() {
             disabled={!state.dynamic}
           />
         </ParamGrid>
-      </ParamSection>
+      </SectionLeader>
 
       <SectionDivider />
 
-      <ParamSection title="Options" defaultOpen={false}>
-        <div className="grid grid-cols-2 gap-2">
-          <label className="flex items-center gap-1.5 text-2xs text-muted-foreground cursor-pointer">
-            <Checkbox checked={state.lowOrder} onCheckedChange={set.lowOrder} />
-
-            <ParamLabel className="text-2xs text-muted-foreground">
-              Low order
-            </ParamLabel>
-          </label>
-          <label className="flex items-center gap-1.5 text-2xs text-muted-foreground cursor-pointer">
-            <Checkbox
-              checked={state.thresholding}
-              onCheckedChange={set.thresholding}
-            />
-
-            <ParamLabel className="text-2xs text-muted-foreground">
-              Thresholding
-            </ParamLabel>
-          </label>
-          <label className="flex items-center gap-1.5 text-2xs text-muted-foreground cursor-pointer">
-            <Checkbox checked={state.rescale} onCheckedChange={set.rescale} />
-
-            <ParamLabel className="text-2xs text-muted-foreground">
-              Rescale
-            </ParamLabel>
-          </label>
-        </div>
-      </ParamSection>
-
-      <SectionDivider />
-
-      <ParamSection title="Seed">
+      <SectionLeader title="Seed" collapsible>
         <ParamGrid>
           <ParamRow label="Seed">
             <div className="flex items-center gap-1">
@@ -421,7 +405,7 @@ export function SamplerTab() {
           max={1}
           step={0.01}
         />
-      </ParamSection>
+      </SectionLeader>
     </div>
   );
 }
