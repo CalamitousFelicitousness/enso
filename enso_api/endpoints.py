@@ -108,8 +108,8 @@ async def get_options_v2(
     keys: str | None = Query(default=None, description="Comma-separated list of keys to return"),
 ) -> dict[str, Any]:
     """Return server options, optionally filtered by key names."""
-    from modules.api.server import get_config
-    options = get_config()
+    from modules.api.options import get_options
+    options = get_options()
     if keys:
         requested = [k.strip() for k in keys.split(',') if k.strip()]
         return {k: v for k, v in options.items() if k in requested}
@@ -119,8 +119,8 @@ async def get_options_v2(
 @router.post("/options", response_model=ResSetOptionsV2, tags=["Server"])
 async def set_options_v2(req: dict[str, Any]):
     """Update one or more application options and persist them to disk."""
-    from modules.api.server import set_config
-    result = await asyncio.to_thread(set_config, req)
+    from modules.api.options import set_options
+    result = await asyncio.to_thread(set_options, req)
     updated = []
     for item in result.get("updated", []):
         for k, v in item.items():
@@ -131,15 +131,14 @@ async def set_options_v2(req: dict[str, Any]):
 @router.get("/options-info", response_model=ResOptionsInfoV2, tags=["Server"])
 async def get_options_info_v2():
     """Return metadata for all application settings."""
-    from modules.api.server import get_options_info
+    from modules.api.options import get_options_info
     return get_options_info()
 
 
 @router.get("/secrets-status", response_model=dict[str, ItemSecretStatusV2], tags=["Server"])
 async def get_secrets_status_v2():
     """Return configuration status for all secret options."""
-    from modules.api.server import get_secrets_status
-    return get_secrets_status()
+    return {} # secrets_manager not yet available in core
 
 
 # --- Control ---
