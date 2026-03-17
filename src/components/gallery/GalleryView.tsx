@@ -133,7 +133,7 @@ export function GalleryView() {
 
       <GalleryProgress />
       <ResizablePanelGroup orientation="horizontal" className="flex-1 min-h-0">
-        <ResizablePanel defaultSize={70} minSize={40}>
+        <ResizablePanel defaultSize="70%" minSize="30%">
           <GalleryGrid
             onDeleteRequest={handleDeleteRequest}
             onMoveRequest={handleMoveRequest}
@@ -143,7 +143,7 @@ export function GalleryView() {
         {metadataPanelOpen && (
           <>
             <ResizableHandle />
-            <ResizablePanel defaultSize={30} minSize={15} maxSize={50}>
+            <ResizablePanel defaultSize="30%" minSize={200} maxSize="50%">
               <GalleryMetadata />
             </ResizablePanel>
           </>
