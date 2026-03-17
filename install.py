@@ -1,7 +1,6 @@
 import os
 import shutil
 import subprocess
-import sys
 
 
 def newest_source_mtime(ext_root):
@@ -25,9 +24,6 @@ def newest_source_mtime(ext_root):
 
 
 def run():
-    if "--enso" not in sys.argv:
-        return
-
     ext_root = os.path.dirname(os.path.abspath(__file__))
     dist_dir = os.path.join(ext_root, "dist")
     node_modules = os.path.join(ext_root, "node_modules")
