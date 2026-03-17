@@ -68,5 +68,63 @@ def register_api(app, dependencies=None):
     from enso_api.misc_routes import register_misc_routes
     register_misc_routes(app, shared.api.add_api_route)
 
+    # Log suppression — literal path prefixes (startswith matching in middleware)
+    from modules.api.middleware import ignore_endpoints
+    ignore_endpoints.extend([
+        '/sdapi/v2/jobs',           # job polling (covers jobs/, jobs/{id}, jobs/{id}/images/...)
+        '/sdapi/v2/server-info',
+        '/sdapi/v2/memory',
+        '/sdapi/v2/gpu',
+        '/sdapi/v2/log',
+        '/sdapi/v2/system-info',
+        '/sdapi/v2/options',        # also matches options-info via startswith
+        '/sdapi/v2/browser/thumb',
+    ])
+
+    # Rate limit costs
+    from modules.api.validate import request_cost
+    request_cost.update({
+        # Cost 0 — polling / status / file serving (exempt)
+        '/sdapi/v2/server-info': 0,
+        '/sdapi/v2/memory': 0,
+        '/sdapi/v2/gpu': 0,
+        '/sdapi/v2/log': 0,
+        '/sdapi/v2/system-info': 0,
+        '/sdapi/v2/options': 0,
+        '/sdapi/v2/options-info': 0,
+        '/sdapi/v2/secrets-status': 0,
+        '/sdapi/v2/browser/thumb': 0,
+        '/sdapi/v2/browser/files': 0,
+        '/sdapi/v2/browser/folders': 0,
+        '/sdapi/v2/browser/folder-info': 0,
+        '/sdapi/v2/browser/subdirs': 0,
+        '/sdapi/v2/loaded-models': 0,
+        '/sdapi/v2/ws-ticket': 0,
+        '/sdapi/v2/extra-networks/detail': 0,
+        '/sdapi/v2/extra-networks/details': 0,
+        '/sdapi/v2/uploads/{ref_id}': 0,                   # dormant until route-template keys
+        '/sdapi/v2/jobs/{job_id}': 0,                       # dormant until route-template keys
+        '/sdapi/v2/jobs/{job_id}/images/{index}': 0,        # dormant until route-template keys
+        '/sdapi/v2/jobs/{job_id}/processed/{index}': 0,     # dormant until route-template keys
+        # Cost 5 — GPU / compute / IO intensive
+        '/sdapi/v2/jobs': 5,
+        '/sdapi/v2/video/load': 5,
+        '/sdapi/v2/framepack/load': 5,
+        '/sdapi/v2/checkpoint': 5,
+        '/sdapi/v2/checkpoint/reload': 5,
+        '/sdapi/v2/model/loader/load': 5,
+        '/sdapi/v2/model/merge': 5,
+        '/sdapi/v2/model/lora/extract': 5,
+        '/sdapi/v2/model/save': 5,
+        '/sdapi/v2/model/replace': 5,
+        '/sdapi/v2/caption/vlm': 5,
+        '/sdapi/v2/caption/tagger': 5,
+        '/sdapi/v2/caption/openclip': 5,
+        '/sdapi/v2/prompt-enhance': 5,
+        '/sdapi/v2/preprocess': 5,
+        '/sdapi/v2/benchmark/run': 5,
+        '/sdapi/v2/xyz-grid/preview': 5,
+    })
+
     from modules.logger import log
     log.info('Enso API: registered')
