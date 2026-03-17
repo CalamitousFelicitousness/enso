@@ -161,7 +161,10 @@ def post_civitai_download(url: str, name: str = "", path: str = "", model_type: 
     """
     from modules.civitai.download_civitai import download_manager
     from modules.civitai.filemanage_civitai import get_type_folder
-    from modules.api.security import validate_download_url, is_confined_to
+    try:
+        from modules.api.security import validate_download_url, is_confined_to
+    except ImportError:
+        from enso_api.security_stubs import validate_download_url, is_confined_to
     if not url:
         return {"status": "Error: no url provided"}
     validate_download_url(url)

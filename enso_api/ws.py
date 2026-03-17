@@ -7,7 +7,10 @@ from modules.logger import log
 async def ws_job_endpoint(ws: WebSocket, job_id: str):
     from modules import shared
     if shared.cmd_opts.auth or shared.cmd_opts.auth_file:
-        from modules.api.security import ws_tickets
+        try:
+            from modules.api.security import ws_tickets
+        except ImportError:
+            from enso_api.security_stubs import ws_tickets
         ticket = ws.query_params.get("ticket")
         if not ticket or not ws_tickets.validate(ticket):
             await ws.close(code=1008, reason="Invalid or expired ticket")

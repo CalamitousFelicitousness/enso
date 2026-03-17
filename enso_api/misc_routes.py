@@ -162,7 +162,10 @@ def get_extra_network_details(page: str | None = None, name: str | None = None, 
 
 def post_ws_ticket():
     """Create a one-time WebSocket authentication ticket."""
-    from modules.api.security import ws_tickets
+    try:
+        from modules.api.security import ws_tickets
+    except ImportError:
+        from enso_api.security_stubs import ws_tickets
     return {"ticket": ws_tickets.create()}
 
 

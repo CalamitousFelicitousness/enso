@@ -123,7 +123,10 @@ def _serve_job_file(job: dict, key: str, index: int):
     if not os.path.isfile(file_path):
         raise HTTPException(status_code=404, detail="File not found on disk")
     from modules import shared
-    from modules.api.security import is_confined_to
+    try:
+        from modules.api.security import is_confined_to
+    except ImportError:
+        from enso_api.security_stubs import is_confined_to
     allowed = [r for r in [getattr(shared.opts, 'outdir_samples', None), getattr(shared.opts, 'outdir_grids', None), getattr(shared.opts, 'outdir_video', None)] if r]
     if allowed and not is_confined_to(file_path, allowed):
         raise HTTPException(status_code=403, detail="Access denied")
