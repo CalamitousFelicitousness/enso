@@ -429,7 +429,7 @@ function CopyEntriesButton({ entries }: { entries: [string, string][] }) {
   return (
     <button
       onClick={handleCopy}
-      className="p-0.5 rounded text-muted-foreground hover:text-foreground transition-colors"
+      className="px-1.5 py-0.5 rounded bg-accent/50 text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
       title="Copy all"
     >
       {copied ? (

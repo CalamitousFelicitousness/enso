@@ -89,7 +89,7 @@ const SectionLeader = memo(function SectionLeader({
     <span
       onClick={(e) => e.stopPropagation()}
       onPointerDown={(e) => e.stopPropagation()}
-      className="ml-auto"
+      className="ml-1.5"
     >
       {action}
     </span>
