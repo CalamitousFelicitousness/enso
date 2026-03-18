@@ -25,11 +25,12 @@ def on_app_started(blocks, app):  # pylint: disable=unused-argument
 
     # Write SD.Next port so the Vite dev server can auto-detect it
     port = getattr(shared.cmd_opts, 'port', 7860) or 7860
-    try:
-        with open(os.path.join(ext_root, '.sdnext.port'), 'w', encoding='utf-8') as f:
-            f.write(str(port))
-    except Exception:
-        pass
+    for port_path in [os.path.join(ext_root, '.sdnext.port'), os.path.expanduser('~/.sdnext.port')]:
+        try:
+            with open(port_path, 'w', encoding='utf-8') as f:
+                f.write(str(port))
+        except Exception:
+            pass
 
     # Register all v2 API routes
     register_api(app)

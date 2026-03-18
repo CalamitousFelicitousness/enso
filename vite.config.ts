@@ -1,23 +1,76 @@
 import fs from "fs";
+import http from "http";
 import path from "path";
 import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import { VitePWA } from "vite-plugin-pwa";
 
-// Read the port SD.Next wrote on last startup (falls back to 7860)
-let sdnextPort = "7860";
-try {
-  sdnextPort = fs.readFileSync(path.resolve(__dirname, ".sdnext.port"), "utf-8").trim();
-} catch { /* .sdnext.port not found, use default */ }
+const portFilePaths = [
+  path.resolve(__dirname, ".sdnext.port"),
+  path.join(process.env.HOME || "", ".sdnext.port"),
+];
+
+function readPortFile(): string | null {
+  for (const p of portFilePaths) {
+    try {
+      const port = fs.readFileSync(p, "utf-8").trim();
+      if (port && /^\d+$/.test(port)) return port;
+    } catch { /* not found */ }
+  }
+  return null;
+}
+
+function writePortFile(port: string) {
+  for (const p of portFilePaths) {
+    try { fs.writeFileSync(p, port, "utf-8"); } catch { /* ignore */ }
+  }
+}
+
+function probePort(port: number, timeout = 500): Promise<boolean> {
+  return new Promise((resolve) => {
+    const req = http.get(`http://localhost:${port}/sdapi/v1/cmd-flags`, { timeout }, (res) => {
+      res.resume();
+      resolve(res.statusCode === 200);
+    });
+    req.on("error", () => resolve(false));
+    req.on("timeout", () => { req.destroy(); resolve(false); });
+  });
+}
+
+async function detectBackendPort(envPort?: string): Promise<string> {
+  // 1. Explicit env var — always wins
+  if (envPort) return envPort;
+
+  // 2. Port file — trust it even if SD.Next hasn't started yet
+  const filePort = readPortFile();
+  if (filePort) return filePort;
+
+  // 3. No file exists — probe to discover SD.Next for the first time
+  const candidates = [7855, 7860, 7861, 7862, 7863, 7864, 7865];
+  const results = await Promise.all(
+    candidates.map(async (p) => ({ port: p, alive: await probePort(p) })),
+  );
+  const found = results.find((r) => r.alive);
+  if (found) {
+    const port = String(found.port);
+    writePortFile(port);
+    return port;
+  }
+
+  return "7860";
+}
+
+const detectedPort = await detectBackendPort(process.env.BACKEND_PORT);
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, __dirname, "");
   const isVercel = !!process.env.VERCEL;
   const devPort = parseInt(env.DEV_PORT || (isVercel ? "5173" : "5174"), 10);
-  const backendPort = env.BACKEND_PORT || sdnextPort;
-  const standalone = env.STANDALONE === "true" || backendPort === "0" || isVercel;
+  const standalone = env.STANDALONE === "true" || isVercel;
+  const backendPort = standalone ? "0" : detectedPort;
   const backend = `http://localhost:${backendPort}`;
+  if (!standalone) console.log(`\x1b[36m[enso]\x1b[0m SD.Next backend at ${backend}`);
 
   return {
   base: mode === "production" && !isVercel ? "/enso/" : "/",
