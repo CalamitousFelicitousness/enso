@@ -13,8 +13,8 @@ interface SectionLeaderProps {
   /** Current enabled state (only matters if enableable). */
   enabled?: boolean;
   onToggleEnabled?: (v: boolean) => void;
-  /** Nesting level — 0 (top) or 1 (nested inside another section). */
-  level?: 0 | 1;
+  /** Nesting level — 0 (top), 1 (nested), 2 (inline sub-header, no bar). */
+  level?: 0 | 1 | 2;
   /** When true, the entire section is visually disabled (parent is off). */
   parentDisabled?: boolean;
   /** Action slot — rendered in the header row, right-aligned. */
@@ -33,6 +33,7 @@ interface SectionLeaderProps {
  *   [bar] ▾ TITLE              — collapsible (entire row clickable)
  *   [bar] • TITLE          ▾   — both (dot=enable, chevron=collapse)
  *   [bar]   TITLE              — neither
+ *         ▾ TITLE              — level 2 (no bar, inline sub-header)
  */
 const SectionLeader = memo(function SectionLeader({
   title,
@@ -49,9 +50,11 @@ const SectionLeader = memo(function SectionLeader({
   const [collapsed, setCollapsed] = useState(defaultCollapsed);
 
   const isActive = enableable ? enabled && !parentDisabled : !parentDisabled;
+  const hasBar = level < 2;
   const barWidth = level === 0 ? "w-[3px]" : "w-[2px]";
-  const titleSize = level === 0 ? "text-2xs" : "text-[10px]";
-  const dotSize = level === 0 ? "h-[5px] w-[5px]" : "h-[4px] w-[4px]";
+  const titleSize = level === 2 ? "text-3xs" : level === 1 ? "text-[10px]" : "text-2xs";
+  const dotSize = level === 2 ? "h-[3px] w-[3px]" : level === 1 ? "h-[4px] w-[4px]" : "h-[5px] w-[5px]";
+  const headerPy = level === 0 ? "py-[7px]" : level === 1 ? "py-1" : "py-0.5";
 
   // Programmatic expand via custom event (used by navigateToParam.ts)
   useEffect(() => {
@@ -121,32 +124,33 @@ const SectionLeader = memo(function SectionLeader({
   let header: React.ReactNode;
 
   if (!enableable && collapsible) {
-    // Collapse-only: chevron left-anchored, entire row clickable
+    // Collapse-only: chevron + title are the toggle, action is a sibling
     header = (
-      <button
-        type="button"
-        onClick={toggleCollapse}
-        onKeyDown={handleKeyDown}
-        aria-expanded={!collapsed}
-        className={cn(
-          "w-full flex items-center gap-1.5 text-left outline-none transition-colors group",
-          "focus-visible:ring-ring/50 focus-visible:ring-[3px] rounded-sm",
-          level === 0 ? "py-[7px]" : "py-1",
-        )}
-      >
-        <span className="text-muted-foreground/40 group-hover:text-muted-foreground/70 transition-colors shrink-0">
-          {chevron}
-        </span>
-        <span
+      <div className={cn("flex items-center w-full", headerPy)}>
+        <button
+          type="button"
+          onClick={toggleCollapse}
+          onKeyDown={handleKeyDown}
+          aria-expanded={!collapsed}
           className={cn(
-            titleSize,
-            "font-medium uppercase tracking-[0.06em] text-muted-foreground group-hover:text-foreground transition-colors",
+            "flex items-center gap-1.5 text-left outline-none transition-colors group",
+            "focus-visible:ring-ring/50 focus-visible:ring-[3px] rounded-sm",
           )}
         >
-          {title}
-        </span>
+          <span className="text-muted-foreground/40 group-hover:text-muted-foreground/70 transition-colors shrink-0">
+            {chevron}
+          </span>
+          <span
+            className={cn(
+              titleSize,
+              "font-medium uppercase tracking-[0.06em] text-muted-foreground group-hover:text-foreground transition-colors",
+            )}
+          >
+            {title}
+          </span>
+        </button>
         {actionSlot}
-      </button>
+      </div>
     );
   } else if (enableable) {
     // Enable-only or Both: dot left-anchored before title
@@ -154,7 +158,7 @@ const SectionLeader = memo(function SectionLeader({
       <div
         className={cn(
           "flex items-center w-full rounded-sm",
-          level === 0 ? "py-1.5" : "py-1",
+          headerPy,
         )}
       >
         <button
@@ -212,7 +216,7 @@ const SectionLeader = memo(function SectionLeader({
       <div
         className={cn(
           "flex items-center w-full",
-          level === 0 ? "py-1.5" : "py-1",
+          headerPy,
         )}
       >
         <span
@@ -236,14 +240,16 @@ const SectionLeader = memo(function SectionLeader({
         parentDisabled && "opacity-40 pointer-events-none",
       )}
     >
-      {/* Left edge bar — always present for visual cohesion */}
-      <div
-        className={cn(
-          "shrink-0 rounded-full transition-all duration-300 mr-2 self-stretch",
-          barWidth,
-          barColor,
-        )}
-      />
+      {/* Left edge bar — present at level 0 and 1 for visual cohesion */}
+      {hasBar && (
+        <div
+          className={cn(
+            "shrink-0 rounded-full transition-all duration-300 mr-2 self-stretch",
+            barWidth,
+            barColor,
+          )}
+        />
+      )}
 
       {/* Content column */}
       <div className="flex-1 flex flex-col min-w-0">
