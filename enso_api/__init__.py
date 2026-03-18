@@ -79,6 +79,7 @@ def register_api(app, dependencies=None):
         '/sdapi/v2/system-info',
         '/sdapi/v2/options',        # also matches options-info via startswith
         '/sdapi/v2/browser/thumb',
+        '/sdapi/v2/loaded-models',
     ])
 
     # Rate limit costs
