@@ -68,19 +68,23 @@ def register_api(app, dependencies=None):
     from enso_api.misc_routes import register_misc_routes
     register_misc_routes(app, shared.api.add_api_route)
 
-    # Log suppression — literal path prefixes (startswith matching in middleware)
-    from modules.api.middleware import ignore_endpoints
-    ignore_endpoints.extend([
-        '/sdapi/v2/jobs',           # job polling (covers jobs/, jobs/{id}, jobs/{id}/images/...)
-        '/sdapi/v2/server-info',
-        '/sdapi/v2/memory',
-        '/sdapi/v2/gpu',
-        '/sdapi/v2/log',
-        '/sdapi/v2/system-info',
-        '/sdapi/v2/options',        # also matches options-info via startswith
-        '/sdapi/v2/browser/thumb',
-        '/sdapi/v2/loaded-models',
-    ])
+    # Log suppression — register noisy polling endpoints with the rate-limited logger
+    try:
+        from modules.api.validate import log_cost
+        log_cost.update({
+            '/sdapi/v2/jobs': -1,
+            '/sdapi/v2/server-info': -1,
+            '/sdapi/v2/memory': -1,
+            '/sdapi/v2/gpu': -1,
+            '/sdapi/v2/log': -1,
+            '/sdapi/v2/system-info': -1,
+            '/sdapi/v2/options': -1,
+            '/sdapi/v2/options-info': -1,
+            '/sdapi/v2/browser/thumb': -1,
+            '/sdapi/v2/loaded-models': -1,
+        })
+    except ImportError:
+        pass
 
     # Rate limit costs
     from modules.api.validate import request_cost
