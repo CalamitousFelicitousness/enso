@@ -127,7 +127,12 @@ def _serve_job_file(job: dict, key: str, index: int):
         from modules.api.security import is_confined_to
     except ImportError:
         from enso_api.security_stubs import is_confined_to
-    allowed = [r for r in [getattr(shared.opts, 'outdir_samples', None), getattr(shared.opts, 'outdir_grids', None), getattr(shared.opts, 'outdir_video', None)] if r]
+    allowed_attrs = [
+        'outdir_samples', 'outdir_grids', 'outdir_video',
+        'outdir_txt2img_samples', 'outdir_img2img_samples',
+        'outdir_control_samples', 'outdir_extras_samples',
+    ]
+    allowed = list({r for attr in allowed_attrs for r in [getattr(shared.opts, attr, None)] if r})
     if allowed and not is_confined_to(file_path, allowed):
         raise HTTPException(status_code=403, detail="Access denied")
     ext = os.path.splitext(file_path)[1].lstrip('.').lower()
