@@ -25,7 +25,7 @@ def register_api(app, dependencies=None):
 
     from enso_api.temp_store import init as init_temp_store
     temp_staging_dir = os.path.join(shared.opts.temp_dir or tempfile.gettempdir(), 'enso_staging')
-    init_temp_store(temp_staging_dir, ttl=3600)
+    init_temp_store(temp_staging_dir, ttl_seconds=3600)
 
     app.include_router(router, dependencies=deps)
     app.include_router(upload_router, dependencies=deps)

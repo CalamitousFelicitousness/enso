@@ -19,9 +19,8 @@ class WsTickets:
 ws_tickets = WsTickets()
 
 
-def validate_download_url(url):
+def validate_download_url(_url):
     """No-op until core security module is available."""
-    pass
 
 
 def is_confined_to(path, allowed_roots):

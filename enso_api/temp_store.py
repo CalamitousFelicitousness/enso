@@ -12,21 +12,19 @@ import time
 
 from PIL import Image
 
-staging_root: str | None = None
-ttl: int = 3600
+state: dict = {'root': None, 'ttl': 3600}
 
 
 def init(root_dir: str, ttl_seconds: int = 3600) -> None:
-    global staging_root, ttl
-    staging_root = root_dir
-    ttl = ttl_seconds
+    state['root'] = root_dir
+    state['ttl'] = ttl_seconds
     os.makedirs(root_dir, exist_ok=True)
 
 
 def stage_image(job_id: str, index: int, image: Image.Image, fmt: str = 'png') -> dict | None:
-    if staging_root is None:
+    if state['root'] is None:
         return None
-    job_dir = os.path.join(staging_root, job_id)
+    job_dir = os.path.join(state['root'], job_id)
     os.makedirs(job_dir, exist_ok=True)
     fmt = fmt.lower()
     save_fmt = {'jpg': 'JPEG', 'jpeg': 'JPEG', 'webp': 'WebP', 'jxl': 'JXL'}.get(fmt, 'PNG')
@@ -43,19 +41,19 @@ def stage_image(job_id: str, index: int, image: Image.Image, fmt: str = 'png') -
 
 
 def get_staging_dir() -> str | None:
-    return staging_root
+    return state['root']
 
 
 def cleanup_expired() -> int:
-    if staging_root is None or not os.path.isdir(staging_root):
+    if state['root'] is None or not os.path.isdir(state['root']):
         return 0
     now = time.time()
     removed = 0
-    for name in os.listdir(staging_root):
-        job_dir = os.path.join(staging_root, name)
+    for name in os.listdir(state['root']):
+        job_dir = os.path.join(state['root'], name)
         if not os.path.isdir(job_dir):
             continue
-        if now - os.path.getmtime(job_dir) > ttl:
+        if now - os.path.getmtime(job_dir) > state['ttl']:
             shutil.rmtree(job_dir, ignore_errors=True)
             removed += 1
     return removed
