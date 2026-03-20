@@ -216,7 +216,7 @@ def get_storage():
         ("cache.json", os.path.join(data_dir, "data", "cache.json")),
         ("metadata.json", os.path.join(data_dir, "data", "metadata.json")),
         ("extensions.json", os.path.join(data_dir, "data", "extensions.json")),
-        ("jobs.db", os.path.join(data_dir, "jobs.db")),
+        ("jobs.db", os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "jobs.db")),
     ]
     result["caches"] = [{"label": label, "path": p, "size": _file_size(p)} for label, p in cache_files]
 

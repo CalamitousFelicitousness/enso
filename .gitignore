@@ -20,7 +20,7 @@ __pycache__
 *.pyc
 *.pyo
 enso_api/__pycache__
-jobs.db
+jobs.db*
 
 # Editor directories and files
 .vscode/*

@@ -17,10 +17,8 @@ def register_api(app, dependencies=None):
 
     deps = dependencies or []
 
-    data_path = os.path.dirname(shared.cmd_opts.config)
-    if not data_path:
-        data_path = '.'
-    job_queue.init(data_path)
+    enso_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    job_queue.init(enso_root)
 
     staging_dir = os.path.join(shared.opts.temp_dir or tempfile.gettempdir(), 'uploads')
     init_upload_store(staging_dir, ttl=1800)
