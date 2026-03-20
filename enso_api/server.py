@@ -86,7 +86,7 @@ def _safe_float(val) -> float | None:
 
 
 def _parse_metrics(raw: dict[str, str]) -> GpuMetrics:
-    """Parse GPU metrics from raw string values. Format depends on modules/api/gpu.py get_gpu_status()."""
+    """Parse GPU metrics from raw string values. Format depends on modules/api/gpu.py get_gpu_smi()."""
     metrics = GpuMetrics()
     system_load = raw.get("System load") or raw.get("GPU usage", "")
     if system_load:
@@ -127,8 +127,8 @@ def _parse_metrics(raw: dict[str, str]) -> GpuMetrics:
 @router.get("/gpu", response_model=list[ResGpuV2])
 async def get_gpu_v2():
     """Return GPU name, utilization metrics, and driver details for each detected GPU."""
-    from modules.api.gpu import get_gpu_status
-    raw_list = get_gpu_status()
+    from modules.api.gpu import get_gpu_smi
+    raw_list = get_gpu_smi()
     result = []
     for raw in raw_list:
         data = raw.get('data', {})
