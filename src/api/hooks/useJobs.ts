@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../client";
-import type { Job, JobListResponse, JobRequest, PurgeResponse, JobStats } from "../types/v2";
+import type { Job, JobListResponse, JobRequest, PurgeResponse, JobStats, BulkJobRequest, BulkJobResponse } from "../types/v2";
 
 export function useSubmitJob() {
   const queryClient = useQueryClient();
@@ -57,6 +57,14 @@ export function usePurgeJobs() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: () => api.delete<PurgeResponse>("/sdapi/v2/jobs"),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["v2-jobs"] }),
+  });
+}
+
+export function useBulkJobAction() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (params: BulkJobRequest) => api.post<BulkJobResponse>("/sdapi/v2/jobs/bulk", params),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["v2-jobs"] }),
   });
 }

@@ -148,6 +148,55 @@ class JobStore:
             self._conn.commit()
             return cur.rowcount
 
+    def bulk_cancel(self, job_type: str | None = None, ids: list[str] | None = None, before: str | None = None) -> int:
+        where_parts = ["status = 'pending'"]
+        binds: list = []
+        if job_type:
+            where_parts.append("type = ?")
+            binds.append(job_type)
+        if ids:
+            placeholders = ','.join('?' for _ in ids)
+            where_parts.append(f"id IN ({placeholders})")
+            binds.extend(ids)
+        if before:
+            where_parts.append("created_at < ?")
+            binds.append(before)
+        where_clause = f"WHERE {' AND '.join(where_parts)}"
+        now = self.now()
+        with self._write_lock:
+            cur = self._conn.execute(
+                f"UPDATE jobs SET status = 'cancelled', completed_at = ? {where_clause}",
+                [now, *binds],
+            )
+            self._conn.commit()
+            return cur.rowcount
+
+    def bulk_delete(self, status: str | None = None, job_type: str | None = None, ids: list[str] | None = None, before: str | None = None) -> int:
+        terminal = ('completed', 'failed', 'cancelled')
+        where_parts = [f"status IN ({','.join('?' for _ in terminal)})"]
+        binds: list = list(terminal)
+        if status:
+            where_parts = ["status = ?"]
+            binds = [status]
+        if job_type:
+            where_parts.append("type = ?")
+            binds.append(job_type)
+        if ids:
+            placeholders = ','.join('?' for _ in ids)
+            where_parts.append(f"id IN ({placeholders})")
+            binds.extend(ids)
+        if before:
+            where_parts.append("created_at < ?")
+            binds.append(before)
+        where_clause = f"WHERE {' AND '.join(where_parts)}"
+        with self._write_lock:
+            rows = self._conn.execute(f"SELECT result FROM jobs {where_clause}", binds).fetchall()
+            for row in rows:
+                self._cleanup_staging(row[0])
+            cur = self._conn.execute(f"DELETE FROM jobs {where_clause}", binds)
+            self._conn.commit()
+            return cur.rowcount
+
     def stats(self) -> dict:
         rows = self._conn.execute("SELECT status, COUNT(*) FROM jobs GROUP BY status").fetchall()
         counts = {row[0]: row[1] for row in rows}

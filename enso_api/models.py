@@ -182,6 +182,18 @@ class ResJobStatsV2(BaseModel):
     staging_bytes: int
 
 
+class ReqBulkJobV2(BaseModel):
+    action: str              # "cancel" or "delete"
+    status: str | None = None
+    type: str | None = None
+    ids: list[str] | None = None
+    before: str | None = None  # ISO timestamp
+
+class ResBulkJobV2(BaseModel):
+    action: str
+    affected: int
+
+
 class VideoModelEnriched(BaseModel):
     name: str
     repo: str = ''

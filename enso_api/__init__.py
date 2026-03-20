@@ -85,6 +85,7 @@ def register_api(app, dependencies=None):
             '/sdapi/v2/browser/thumb': -1,
             '/sdapi/v2/loaded-models': -1,
             '/sdapi/v2/jobs/stats': -1,
+            '/sdapi/v2/jobs/bulk': -1,
         })
     except ImportError:
         pass
@@ -108,6 +109,7 @@ def register_api(app, dependencies=None):
         '/sdapi/v2/browser/subdirs': 0,
         '/sdapi/v2/loaded-models': 0,
         '/sdapi/v2/jobs/stats': 0,
+        '/sdapi/v2/jobs/bulk': 5,
         '/sdapi/v2/ws-ticket': 0,
         '/sdapi/v2/extra-networks/detail': 0,
         '/sdapi/v2/extra-networks/details': 0,

@@ -253,6 +253,21 @@ export interface JobStats {
   staging_bytes: number;
 }
 
+// --- Bulk job types ---
+
+export interface BulkJobRequest {
+  action: "cancel" | "delete";
+  status?: string;
+  type?: string;
+  ids?: string[];
+  before?: string;
+}
+
+export interface BulkJobResponse {
+  action: string;
+  affected: number;
+}
+
 // --- WebSocket event types ---
 
 export type JobWsEvent =

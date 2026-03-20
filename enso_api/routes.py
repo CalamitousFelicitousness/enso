@@ -4,7 +4,7 @@ import os
 from typing import Optional
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import FileResponse
-from enso_api.models import JobResponse, JobListResponse, JobResult, ImageRef, StatusResponse, ResPurgeV2, ResJobStatsV2, VideoEngine, VideoModel, VideoModelEnriched, VideoLoadResponse, MessageResponse, FramePackLoadResponse
+from enso_api.models import JobResponse, JobListResponse, JobResult, ImageRef, StatusResponse, ResPurgeV2, ResJobStatsV2, ReqBulkJobV2, ResBulkJobV2, VideoEngine, VideoModel, VideoModelEnriched, VideoLoadResponse, MessageResponse, FramePackLoadResponse
 
 
 router = APIRouter(prefix="/sdapi/v2", tags=["v2"])
@@ -74,6 +74,26 @@ async def purge_jobs():
 async def job_stats():
     from enso_api.job_queue import job_queue
     return await asyncio.to_thread(job_queue.store.stats)
+
+
+@router.post("/jobs/bulk", response_model=ResBulkJobV2, tags=["Jobs"])
+async def bulk_job_action(request: ReqBulkJobV2):
+    if request.action not in ("cancel", "delete"):
+        raise HTTPException(status_code=400, detail="action must be 'cancel' or 'delete'")
+    if not any([request.status, request.type, request.ids, request.before]):
+        raise HTTPException(status_code=400, detail="At least one filter (status, type, ids, before) is required")
+    from enso_api.job_queue import job_queue
+    if request.action == "cancel":
+        affected = await asyncio.to_thread(
+            job_queue.store.bulk_cancel,
+            job_type=request.type, ids=request.ids, before=request.before,
+        )
+    else:
+        affected = await asyncio.to_thread(
+            job_queue.store.bulk_delete,
+            status=request.status, job_type=request.type, ids=request.ids, before=request.before,
+        )
+    return ResBulkJobV2(action=request.action, affected=affected)
 
 
 @router.get("/jobs/{job_id}", response_model=JobResponse, tags=["Jobs"])
