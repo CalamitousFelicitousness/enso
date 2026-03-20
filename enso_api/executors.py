@@ -173,28 +173,47 @@ def execute_generate(params: dict, job_id: str) -> dict:
                 'format': ext if ext else 'png',
                 'size': os.path.getsize(path),
             })
-        elif save_images and img is not None:
-            # Fallback: save image manually if not saved by the pipeline
-            from modules import images as img_module
-            from modules.paths import resolve_output_path
-            try:
-                output_dir = resolve_output_path(shared.opts.outdir_samples, shared.opts.outdir_txt2img_samples if not inits else shared.opts.outdir_img2img_samples)
-                path_info = img_module.save_image(img, output_dir, "", seed=params.get('seed', -1), prompt=params.get('prompt', ''))
-                if path_info and len(path_info) > 0:
-                    fpath = path_info[0] if isinstance(path_info, (list, tuple)) else str(path_info)
-                    if os.path.isfile(str(fpath)):
-                        ext = os.path.splitext(str(fpath))[1].lstrip('.').lower()
+        elif img is not None:
+            if save_images:
+                # Fallback: save image manually if not saved by the pipeline
+                from modules import images as img_module
+                from modules.paths import resolve_output_path
+                try:
+                    output_dir = resolve_output_path(shared.opts.outdir_samples, shared.opts.outdir_txt2img_samples if not inits else shared.opts.outdir_img2img_samples)
+                    path_info = img_module.save_image(img, output_dir, "", seed=params.get('seed', -1), prompt=params.get('prompt', ''))
+                    if path_info and len(path_info) > 0:
+                        fpath = path_info[0] if isinstance(path_info, (list, tuple)) else str(path_info)
+                        if os.path.isfile(str(fpath)):
+                            ext = os.path.splitext(str(fpath))[1].lstrip('.').lower()
+                            image_refs.append({
+                                'index': i,
+                                'path': str(fpath),
+                                'url': f'/sdapi/v2/jobs/{job_id}/images/{i}',
+                                'width': img.width if hasattr(img, 'width') else 0,
+                                'height': img.height if hasattr(img, 'height') else 0,
+                                'format': ext if ext else 'png',
+                                'size': os.path.getsize(str(fpath)),
+                            })
+                except Exception as e:
+                    log.warning(f'Job {job_id}: failed to save fallback image {i}: {e}')
+            else:
+                # save_images=False: stage to temp dir so images are still downloadable
+                from enso_api.temp_store import stage_image
+                try:
+                    staged = stage_image(job_id, i, img)
+                    if staged:
                         image_refs.append({
                             'index': i,
-                            'path': str(fpath),
+                            'path': staged['path'],
                             'url': f'/sdapi/v2/jobs/{job_id}/images/{i}',
-                            'width': img.width if hasattr(img, 'width') else 0,
-                            'height': img.height if hasattr(img, 'height') else 0,
-                            'format': ext if ext else 'png',
-                            'size': os.path.getsize(str(fpath)),
+                            'width': staged['width'],
+                            'height': staged['height'],
+                            'format': staged['format'],
+                            'size': staged['size'],
+                            'temp': True,
                         })
-            except Exception as e:
-                log.warning(f'Job {job_id}: failed to save fallback image {i}: {e}')
+                except Exception as e:
+                    log.warning(f'Job {job_id}: failed to stage temp image {i}: {e}')
 
     # Save processed control images to disk and build refs
     processed_refs = []
@@ -221,7 +240,13 @@ def execute_generate(params: dict, job_id: str) -> dict:
             except Exception as e:
                 log.warning(f'Job {job_id}: failed to save processed image {pi}: {e}')
 
-    return {'images': image_refs, 'processed': processed_refs, 'info': {}, 'params': {k: v for k, v in params.items() if k != 'type'}}
+    result = {'images': image_refs, 'processed': processed_refs, 'info': {}, 'params': {k: v for k, v in params.items() if k != 'type'}}
+    if not save_images and image_refs:
+        from enso_api.temp_store import get_staging_dir
+        root = get_staging_dir()
+        if root:
+            result['_staging_dir'] = os.path.join(root, job_id)
+    return result
 
 
 def execute_upscale(params: dict, job_id: str) -> dict:

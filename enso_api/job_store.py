@@ -52,6 +52,18 @@ class JobStore:
                 pass
         return d
 
+    @staticmethod
+    def _cleanup_staging(result_raw) -> None:
+        import shutil
+        try:
+            result = json.loads(result_raw) if isinstance(result_raw, str) else result_raw
+            if isinstance(result, dict):
+                staging_dir = result.get('_staging_dir')
+                if staging_dir and os.path.isdir(staging_dir):
+                    shutil.rmtree(staging_dir, ignore_errors=True)
+        except (json.JSONDecodeError, TypeError, OSError):
+            pass
+
     def create(self, job_type: str, params: dict, priority: int = 0) -> dict:
         job_id = uuid.uuid4().hex[:16]
         now = self.now()
@@ -110,9 +122,57 @@ class JobStore:
             self._conn.commit()
             return cur.rowcount > 0
 
+    def delete(self, job_id: str) -> bool:
+        with self._write_lock:
+            row = self._conn.execute(
+                "SELECT result FROM jobs WHERE id = ? AND status IN ('completed', 'failed', 'cancelled')",
+                (job_id,),
+            ).fetchone()
+            if row is None:
+                return False
+            self._cleanup_staging(row[0])
+            self._conn.execute("DELETE FROM jobs WHERE id = ?", (job_id,))
+            self._conn.commit()
+            return True
+
+    def purge(self) -> int:
+        with self._write_lock:
+            rows = self._conn.execute(
+                "SELECT result FROM jobs WHERE status IN ('completed', 'failed', 'cancelled')"
+            ).fetchall()
+            for row in rows:
+                self._cleanup_staging(row[0])
+            cur = self._conn.execute(
+                "DELETE FROM jobs WHERE status IN ('completed', 'failed', 'cancelled')"
+            )
+            self._conn.commit()
+            return cur.rowcount
+
+    def stats(self) -> dict:
+        rows = self._conn.execute("SELECT status, COUNT(*) FROM jobs GROUP BY status").fetchall()
+        counts = {row[0]: row[1] for row in rows}
+        total = sum(counts.values())
+        staging_bytes = 0
+        from enso_api.temp_store import get_staging_dir
+        staging_dir = get_staging_dir()
+        if staging_dir and os.path.isdir(staging_dir):
+            for dirpath, _dirnames, filenames in os.walk(staging_dir):
+                for f in filenames:
+                    try:
+                        staging_bytes += os.path.getsize(os.path.join(dirpath, f))
+                    except OSError:
+                        pass
+        return {'total': total, 'counts': counts, 'staging_bytes': staging_bytes}
+
     def cleanup(self, max_age_hours: int = 168) -> int:
         cutoff = datetime.now(timezone.utc).isoformat()
         with self._write_lock:
+            rows = self._conn.execute(
+                "SELECT result FROM jobs WHERE status IN ('completed', 'failed', 'cancelled') AND completed_at IS NOT NULL AND completed_at < datetime(?, '-' || ? || ' hours')",
+                (cutoff, max_age_hours),
+            ).fetchall()
+            for row in rows:
+                self._cleanup_staging(row[0])
             cur = self._conn.execute(
                 "DELETE FROM jobs WHERE status IN ('completed', 'failed', 'cancelled') AND completed_at IS NOT NULL AND completed_at < datetime(?, '-' || ? || ' hours')",
                 (cutoff, max_age_hours),

@@ -4,7 +4,7 @@ import os
 from typing import Optional
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import FileResponse
-from enso_api.models import JobResponse, JobListResponse, JobResult, ImageRef, StatusResponse, VideoEngine, VideoModel, VideoModelEnriched, VideoLoadResponse, MessageResponse, FramePackLoadResponse
+from enso_api.models import JobResponse, JobListResponse, JobResult, ImageRef, StatusResponse, ResPurgeV2, ResJobStatsV2, VideoEngine, VideoModel, VideoModelEnriched, VideoLoadResponse, MessageResponse, FramePackLoadResponse
 
 
 router = APIRouter(prefix="/sdapi/v2", tags=["v2"])
@@ -63,6 +63,19 @@ async def list_jobs(
     return JobListResponse(items=[_job_to_response(j) for j in items], total=total, offset=offset, limit=limit)
 
 
+@router.delete("/jobs", response_model=ResPurgeV2, tags=["Jobs"])
+async def purge_jobs():
+    from enso_api.job_queue import job_queue
+    deleted = await asyncio.to_thread(job_queue.store.purge)
+    return {"deleted": deleted}
+
+
+@router.get("/jobs/stats", response_model=ResJobStatsV2, tags=["Jobs"])
+async def job_stats():
+    from enso_api.job_queue import job_queue
+    return await asyncio.to_thread(job_queue.store.stats)
+
+
 @router.get("/jobs/{job_id}", response_model=JobResponse, tags=["Jobs"])
 async def get_job(job_id: str):
     from enso_api.job_queue import job_queue
@@ -81,15 +94,16 @@ async def get_job(job_id: str):
 
 
 @router.delete("/jobs/{job_id}", response_model=StatusResponse, tags=["Jobs"])
-async def cancel_job(job_id: str):
+async def delete_job(job_id: str):
     from enso_api.job_queue import job_queue
     job = job_queue.store.get(job_id)
     if job is None:
         raise HTTPException(status_code=404, detail=f"Job not found: {job_id}")
     success = job_queue.cancel(job_id)
     if not success:
-        raise HTTPException(status_code=409, detail="Job cannot be cancelled (already completed/failed/cancelled)")
-    return {"id": job_id, "status": "cancelled"}
+        raise HTTPException(status_code=409, detail="Job cannot be cancelled or deleted")
+    status = "cancelled" if job["status"] in ("pending", "running") else "deleted"
+    return {"id": job_id, "status": status}
 
 
 def _embed_base64(job: dict, resp: JobResponse) -> None:
@@ -132,7 +146,11 @@ def _serve_job_file(job: dict, key: str, index: int):
         'outdir_txt2img_samples', 'outdir_img2img_samples',
         'outdir_control_samples', 'outdir_extras_samples',
     ]
+    from enso_api.temp_store import get_staging_dir
     allowed = list({r for attr in allowed_attrs for r in [getattr(shared.opts, attr, None)] if r})
+    staging = get_staging_dir()
+    if staging:
+        allowed.append(staging)
     if allowed and not is_confined_to(file_path, allowed):
         raise HTTPException(status_code=403, detail="Access denied")
     ext = os.path.splitext(file_path)[1].lstrip('.').lower()

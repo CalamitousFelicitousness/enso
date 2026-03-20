@@ -172,6 +172,16 @@ class MessageResponse(BaseModel):
     messages: list[str]
 
 
+class ResPurgeV2(BaseModel):
+    deleted: int
+
+
+class ResJobStatsV2(BaseModel):
+    total: int
+    counts: dict[str, int]
+    staging_bytes: int
+
+
 class VideoModelEnriched(BaseModel):
     name: str
     repo: str = ''

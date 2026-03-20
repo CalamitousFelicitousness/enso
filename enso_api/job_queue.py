@@ -47,14 +47,16 @@ class JobQueue:
             return False
         if job['status'] == 'running':
             self._cancel_ids.add(job_id)
-            # Interrupt the running generation
             try:
                 from modules import shared
                 shared.state.interrupt()
             except Exception:
                 pass
             return True
-        return self.store.cancel(job_id)
+        if job['status'] == 'pending':
+            return self.store.cancel(job_id)
+        # Terminal job — delete row + staging
+        return self.store.delete(job_id)
 
     def subscribe(self, job_id: str) -> asyncio.Queue:
         queue: asyncio.Queue = asyncio.Queue()
@@ -93,15 +95,37 @@ class JobQueue:
     def _worker_loop(self) -> None:
         from modules.logger import log
         log.debug('Job queue: worker started')
+        cleanup_counter = 0
         while True:
             self._job_event.wait(timeout=1.0)
             self._job_event.clear()
             if self.store is None:
                 continue
+            cleanup_counter += 1
+            if cleanup_counter >= 300:  # ~5 minutes
+                cleanup_counter = 0
+                self._periodic_cleanup()
             job = self.store.next_pending()
             if job is None:
                 continue
             self._execute_job(job)
+
+    def _periodic_cleanup(self) -> None:
+        from modules.logger import log
+        try:
+            from enso_api.temp_store import cleanup_expired
+            removed = cleanup_expired()
+            if removed:
+                log.debug(f'Job queue: cleaned {removed} expired staging dirs')
+        except Exception as e:
+            log.debug(f'Job queue: staging cleanup error: {e}')
+        try:
+            if self.store:
+                purged = self.store.cleanup(max_age_hours=168)
+                if purged:
+                    log.debug(f'Job queue: purged {purged} old job rows')
+        except Exception as e:
+            log.debug(f'Job queue: job cleanup error: {e}')
 
     def _execute_job(self, job: dict) -> None:
         from modules.logger import log

@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { useJobQueueStore, selectPendingJobsSorted } from "@/stores/jobStore";
 import type { TrackedJob } from "@/stores/jobStore";
 import { useUiStore } from "@/stores/uiStore";
-import { useSubmitJob, useCancelJob } from "@/api/hooks/useJobs";
+import { useSubmitJob, useDeleteJob, usePurgeJobs } from "@/api/hooks/useJobs";
 import { putJobPayload } from "@/lib/jobPayloadDb";
 import { QueueJobCard } from "./QueueJobCard";
 import { Button } from "@/components/ui/button";
@@ -24,7 +24,8 @@ export function QueueTab() {
     [jobsMap],
   );
   const submitJob = useSubmitJob();
-  const cancelJob = useCancelJob();
+  const deleteJob = useDeleteJob();
+  const purgeJobs = usePurgeJobs();
 
   const { runningJobs, terminalJobs, totalCount, avgProgress } = useMemo(() => {
     const all = Array.from(jobsMap.values()).sort(
@@ -122,7 +123,7 @@ export function QueueTab() {
         sorted.length > 0 ? Math.max(...sorted.map((j) => j.priority)) : 0;
       if (job.priority >= maxPriority && sorted[0]?.id === job.id) return;
       try {
-        cancelJob.mutate(job.id);
+        deleteJob.mutate(job.id);
         const newPriority = maxPriority + 1;
         const newRequest = {
           ...job.request,
@@ -144,7 +145,7 @@ export function QueueTab() {
         });
       }
     },
-    [cancelJob, submitJob, trackJob],
+    [deleteJob, submitJob, trackJob],
   );
 
   const handleMoveDown = useCallback(
@@ -163,7 +164,7 @@ export function QueueTab() {
       )
         return;
       try {
-        cancelJob.mutate(job.id);
+        deleteJob.mutate(job.id);
         const newPriority = minPriority - 1;
         const newRequest = {
           ...job.request,
@@ -185,22 +186,34 @@ export function QueueTab() {
         });
       }
     },
-    [cancelJob, submitJob, trackJob],
+    [deleteJob, submitJob, trackJob],
   );
 
   const handleRemove = useCallback(
     (job: TrackedJob) => {
-      removeJob(job.id);
+      deleteJob.mutate(job.id, {
+        onSettled: () => removeJob(job.id),
+      });
     },
-    [removeJob],
+    [deleteJob, removeJob],
   );
+
+  const handleClearHistory = useCallback(() => {
+    purgeJobs.mutate(undefined, {
+      onSuccess: (data) => {
+        clearTerminal();
+        if (data.deleted > 0) toast.success(`Purged ${data.deleted} jobs`);
+      },
+      onError: () => clearTerminal(),
+    });
+  }, [purgeJobs, clearTerminal]);
 
   const handleCancelAll = useCallback(() => {
     for (const job of pendingJobsSorted) {
-      cancelJob.mutate(job.id);
+      deleteJob.mutate(job.id);
     }
     toast.success(`Cancelling ${pendingJobsSorted.length} pending jobs`);
-  }, [cancelJob, pendingJobsSorted]);
+  }, [deleteJob, pendingJobsSorted]);
 
   if (totalCount === 0) {
     return (
@@ -281,7 +294,7 @@ export function QueueTab() {
               size="icon"
               variant="ghost"
               className="h-5 w-5"
-              onClick={clearTerminal}
+              onClick={handleClearHistory}
               title="Clear history"
             >
               <Trash2 className="h-3 w-3" />

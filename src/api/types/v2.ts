@@ -243,6 +243,16 @@ export interface JobListResponse {
   limit: number;
 }
 
+export interface PurgeResponse {
+  deleted: number;
+}
+
+export interface JobStats {
+  total: number;
+  counts: Partial<Record<JobStatus, number>>;
+  staging_bytes: number;
+}
+
 // --- WebSocket event types ---
 
 export type JobWsEvent =

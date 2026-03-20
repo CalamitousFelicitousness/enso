@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../client";
-import type { Job, JobListResponse, JobRequest } from "../types/v2";
+import type { Job, JobListResponse, JobRequest, PurgeResponse, JobStats } from "../types/v2";
 
 export function useSubmitJob() {
   const queryClient = useQueryClient();
@@ -42,10 +42,29 @@ export function useJobList(params?: {
   });
 }
 
-export function useCancelJob() {
+export function useDeleteJob() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (jobId: string) => api.delete(`/sdapi/v2/jobs/${jobId}`),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["v2-jobs"] }),
+  });
+}
+
+/** @deprecated Use useDeleteJob — handles both cancel and delete */
+export const useCancelJob = useDeleteJob;
+
+export function usePurgeJobs() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => api.delete<PurgeResponse>("/sdapi/v2/jobs"),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["v2-jobs"] }),
+  });
+}
+
+export function useJobStats() {
+  return useQuery({
+    queryKey: ["v2-jobs", "stats"],
+    queryFn: () => api.get<JobStats>("/sdapi/v2/jobs/stats"),
+    staleTime: 10000,
   });
 }

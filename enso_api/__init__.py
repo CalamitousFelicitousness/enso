@@ -23,6 +23,10 @@ def register_api(app, dependencies=None):
     staging_dir = os.path.join(shared.opts.temp_dir or tempfile.gettempdir(), 'uploads')
     init_upload_store(staging_dir, ttl=1800)
 
+    from enso_api.temp_store import init as init_temp_store
+    temp_staging_dir = os.path.join(shared.opts.temp_dir or tempfile.gettempdir(), 'enso_staging')
+    init_temp_store(temp_staging_dir, ttl=3600)
+
     app.include_router(router, dependencies=deps)
     app.include_router(upload_router, dependencies=deps)
     app.add_api_websocket_route("/sdapi/v2/jobs/{job_id}/ws", ws_job_endpoint)
@@ -80,6 +84,7 @@ def register_api(app, dependencies=None):
             '/sdapi/v2/options-info': -1,
             '/sdapi/v2/browser/thumb': -1,
             '/sdapi/v2/loaded-models': -1,
+            '/sdapi/v2/jobs/stats': -1,
         })
     except ImportError:
         pass
@@ -102,6 +107,7 @@ def register_api(app, dependencies=None):
         '/sdapi/v2/browser/folder-info': 0,
         '/sdapi/v2/browser/subdirs': 0,
         '/sdapi/v2/loaded-models': 0,
+        '/sdapi/v2/jobs/stats': 0,
         '/sdapi/v2/ws-ticket': 0,
         '/sdapi/v2/extra-networks/detail': 0,
         '/sdapi/v2/extra-networks/details': 0,
