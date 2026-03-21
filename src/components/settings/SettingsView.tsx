@@ -540,6 +540,20 @@ export function SettingsView({ onDirtyChange }: SettingsViewProps = {}) {
 
   const curatedMap = useMemo(() => getSettingsMap(), []);
 
+  // Merge explicit option values with defaults from metadata.
+  // GET /options only returns keys the user has explicitly changed, so
+  // settings still at their default would be invisible without this.
+  const mergedOptions = useMemo(() => {
+    if (!options || !optionsInfo) return options;
+    const merged: Record<string, unknown> = { ...options };
+    for (const [key, info] of Object.entries(optionsInfo.options)) {
+      if (!(key in merged) && info.default !== undefined) {
+        merged[key] = info.default;
+      }
+    }
+    return merged;
+  }, [options, optionsInfo]);
+
   const dynamicChoices = useMemo(() => {
     const choices: Record<string, string[]> = {};
     if (models) choices["sd_model_checkpoint"] = models.map((m) => m.title);
@@ -564,7 +578,7 @@ export function SettingsView({ onDirtyChange }: SettingsViewProps = {}) {
 
   // Build all sections from backend metadata, with curated overrides
   const allSections = useMemo((): SettingSectionDef[] => {
-    if (!optionsInfo || !options) return settingsSchema; // fallback before metadata loads
+    if (!optionsInfo || !mergedOptions) return settingsSchema; // fallback before metadata loads
 
     const meta = optionsInfo.options;
     const result: SettingSectionDef[] = [];
@@ -587,7 +601,6 @@ export function SettingsView({ onDirtyChange }: SettingsViewProps = {}) {
             };
           continue;
         }
-        if (!(key in options)) continue;
 
         if (pendingSeparator) {
           settings.push(pendingSeparator);
@@ -602,7 +615,7 @@ export function SettingsView({ onDirtyChange }: SettingsViewProps = {}) {
     }
 
     return result;
-  }, [optionsInfo, options, curatedMap]);
+  }, [optionsInfo, mergedOptions, curatedMap]);
 
   const backendReady =
     !isLoading && !isInfoLoading && !!options && !!optionsInfo;
@@ -862,7 +875,7 @@ export function SettingsView({ onDirtyChange }: SettingsViewProps = {}) {
                 <SettingsSection
                   key={section.id}
                   section={section}
-                  values={options}
+                  values={mergedOptions}
                   dirty={dirty}
                   onSettingChange={handleSettingChange}
                   dynamicChoices={dynamicChoices}
@@ -884,7 +897,7 @@ export function SettingsView({ onDirtyChange }: SettingsViewProps = {}) {
               return (
                 <SettingsSection
                   section={section}
-                  values={options}
+                  values={mergedOptions}
                   dirty={dirty}
                   onSettingChange={handleSettingChange}
                   dynamicChoices={dynamicChoices}
