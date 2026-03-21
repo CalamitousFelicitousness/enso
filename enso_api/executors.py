@@ -11,6 +11,12 @@ identical results:
     v2 detect    -> shared.yolo.predict()                      (same as v1 /detect)
     v2 preprocess-> modules.control.processors.Processor       (same as v1 /preprocess)
     v2 model-load-> modules.sd_models.reload_model_weights()   (v2-only, replaces v1 poll-based reload)
+    v2 model-merge  -> modules.extras.run_modelmerger()        (v2-only, job-based merge)
+    v2 model-replace-> modules.extras.run_model_modules()      (v2-only, job-based component replace)
+    v2 model-save   -> modules.sd_models.save_model()          (v2-only, job-based save)
+    v2 loader-load  -> modules.ui_models_load.load_model()     (v2-only, job-based component loader)
+    v2 lora-extract -> modules.lora.lora_extract.make_lora()   (v2-only, job-based LoRA extraction)
+    v2 hf-download  -> modules.models_hf.hf_download_model()   (v2-only, job-based HF download)
 
 Do NOT duplicate processing logic here.  If v1 has a function for it,
 call that function.
@@ -680,6 +686,169 @@ def execute_model_load(params: dict, job_id: str) -> dict:  # pylint: disable=un
     return {'images': [], 'info': info, 'params': {k: v for k, v in params.items() if k != 'type'}}
 
 
+def execute_model_merge(params: dict, job_id: str) -> dict:  # pylint: disable=unused-argument
+    """Merge two or three checkpoint models as a V2 job.
+
+    SD.Next's run_modelmerger() manages its own shared.state.begin/end
+    internally, so we don't wrap it in another state block.
+    """
+    from modules import extras, sd_models
+
+    merge_params = {k: v for k, v in params.items() if k != 'type' and v not in [None, "None", "", 0, []]}
+    if not merge_params.get('custom_name'):
+        raise ValueError('Merge requires an output model name')
+    if not merge_params.get('primary_model_name') or not merge_params.get('secondary_model_name'):
+        raise ValueError('Merge requires primary and secondary models')
+
+    results = extras.run_modelmerger(None, **merge_params)
+    status = results[-1] if isinstance(results, list) else str(results)
+    sd_models.list_models()
+
+    return {'images': [], 'info': {'status': status}, 'params': {k: v for k, v in params.items() if k != 'type'}}
+
+
+def execute_model_replace(params: dict, job_id: str) -> dict:  # pylint: disable=unused-argument
+    """Replace model components and save as a new model as a V2 job.
+
+    SD.Next's run_model_modules() is a generator that manages its own
+    shared.state.begin/end internally. The generator must be iterated
+    to completion so state.end is reached.
+    """
+    from modules import extras
+
+    status = 'Unknown'
+    for msg in extras.run_model_modules(
+        params.get('model_type', ''),
+        params.get('model_name', ''),
+        params.get('custom_name', ''),
+        params.get('comp_unet', ''),
+        params.get('comp_vae', ''),
+        params.get('comp_te1', ''),
+        params.get('comp_te2', ''),
+        params.get('precision', 'fp16'),
+        params.get('comp_scheduler', ''),
+        params.get('comp_prediction', ''),
+        params.get('comp_lora', ''),
+        params.get('comp_fuse', 0.0),
+        params.get('meta_author', ''),
+        params.get('meta_version', ''),
+        params.get('meta_license', ''),
+        params.get('meta_desc', ''),
+        params.get('meta_hint', ''),
+        None,  # meta_thumbnail - not applicable via API
+        params.get('create_diffusers', True),
+        params.get('create_safetensors', False),
+        params.get('debug', False),
+    ):
+        status = msg
+
+    return {'images': [], 'info': {'status': status}, 'params': {k: v for k, v in params.items() if k != 'type'}}
+
+
+def execute_model_save(params: dict, job_id: str) -> dict:  # pylint: disable=unused-argument
+    """Save the currently loaded model to disk as a V2 job.
+
+    sd_models.save_model() does not manage shared.state, so we wrap
+    the call in state.begin/end for progress visibility.
+    """
+    from modules import shared, sd_models
+
+    name = params.get('name', '')
+    if not name:
+        raise ValueError('Save requires a model name')
+
+    jobid = shared.state.begin('Save', api=True)
+    try:
+        result = sd_models.save_model(
+            name=name,
+            path=params.get('path'),
+            shard=params.get('shard'),
+            overwrite=params.get('overwrite', False),
+        )
+    finally:
+        shared.state.end(jobid)
+
+    if result and any(result.startswith(e) for e in ['Invalid', 'Model not', 'Path exists', 'Error']):
+        raise RuntimeError(result)
+
+    return {'images': [], 'info': {'status': result}, 'params': {k: v for k, v in params.items() if k != 'type'}}
+
+
+def execute_loader_load(params: dict, job_id: str) -> dict:  # pylint: disable=unused-argument
+    """Load a model with custom component configuration as a V2 job.
+
+    ui_models_load.load_model() does not manage shared.state, so we wrap
+    the call in state.begin/end. Delegates to models_ops.post_loader_load()
+    to reuse the component setup logic.
+    """
+    from modules import shared
+    from enso_api.models_ops import post_loader_load
+
+    model_type = params.get('model_type', '')
+    repo = params.get('repo', '')
+    if not model_type or not repo:
+        raise ValueError('Loader requires model_type and repo')
+
+    jobid = shared.state.begin('Load', api=True)
+    try:
+        result = post_loader_load(model_type, repo, params.get('components'))
+    finally:
+        shared.state.end(jobid)
+
+    return {'images': [], 'info': result, 'params': {k: v for k, v in params.items() if k != 'type'}}
+
+
+def execute_lora_extract(params: dict, job_id: str) -> dict:  # pylint: disable=unused-argument
+    """Extract a LoRA from the currently loaded model as a V2 job.
+
+    lora_extract.make_lora() is a generator that manages its own
+    shared.state.begin/end internally. The generator must be iterated
+    to completion so state.end is reached.
+    """
+    from modules.lora import lora_extract
+
+    filename = params.get('filename', '')
+    if not filename:
+        raise ValueError('LoRA extract requires a filename')
+
+    status = 'Unknown'
+    for msg in lora_extract.make_lora(
+        filename,
+        params.get('max_rank', 64),
+        params.get('auto_rank', False),
+        params.get('rank_ratio', 0.5),
+        params.get('modules', ['te', 'unet']),
+        params.get('overwrite', False),
+    ):
+        status = msg
+
+    return {'images': [], 'info': {'status': status}, 'params': {k: v for k, v in params.items() if k != 'type'}}
+
+
+def execute_hf_download(params: dict, job_id: str) -> dict:  # pylint: disable=unused-argument
+    """Download a model from HuggingFace Hub as a V2 job.
+
+    models_hf.hf_download_model() delegates to download_diffusers_model()
+    which manages its own shared.state.begin/end internally.
+    """
+    from modules import models_hf
+
+    hub_id = params.get('hub_id', '')
+    if not hub_id:
+        raise ValueError('HF download requires a hub_id')
+
+    result = models_hf.hf_download_model(
+        hub_id,
+        params.get('token', ''),
+        params.get('variant', ''),
+        params.get('revision', ''),
+        params.get('mirror', ''),
+        params.get('custom_pipeline', ''),
+    )
+
+    return {'images': [], 'info': {'status': result}, 'params': {k: v for k, v in params.items() if k != 'type'}}
+
+
 EXECUTORS = {
     'generate': execute_generate,
     'upscale': execute_upscale,
@@ -692,4 +861,10 @@ EXECUTORS = {
     'ltx': execute_ltx,
     'xyz-grid': execute_xyz_grid_dispatch,
     'model-load': execute_model_load,
+    'model-merge': execute_model_merge,
+    'model-replace': execute_model_replace,
+    'model-save': execute_model_save,
+    'loader-load': execute_loader_load,
+    'lora-extract': execute_lora_extract,
+    'hf-download': execute_hf_download,
 }
