@@ -11,6 +11,17 @@ from modules import shared
 from modules.logger import log
 
 
+def _jsonable(obj):
+    """Recursively convert a nested dict/list so all values are JSON-serializable."""
+    if isinstance(obj, dict):
+        return {k: _jsonable(v) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        return [_jsonable(v) for v in obj]
+    if isinstance(obj, (str, int, float, bool, type(None))):
+        return obj
+    return str(obj)
+
+
 # ---------------------------------------------------------------------------
 # Phase 1 - Current model & list
 # ---------------------------------------------------------------------------
@@ -33,7 +44,7 @@ def get_analyze():
         "hash": model.hash or None,
         "size": model.size,
         "mtime": str(model.mtime) if model.mtime else None,
-        "meta": model.meta or {},
+        "meta": _jsonable(model.meta) if model.meta else {},
         "modules": [
             {
                 "name": m.name,
@@ -43,7 +54,7 @@ def get_analyze():
                 "quant": str(m.quant) if m.quant else None,
                 "params": m.params,
                 "modules": m.modules,
-                "config": dict(m.config) if m.config and hasattr(m.config, 'items') else None,
+                "config": _jsonable(dict(m.config)) if m.config and hasattr(m.config, 'items') else None,
             }
             for m in model.modules
         ],
