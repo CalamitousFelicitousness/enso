@@ -53,7 +53,7 @@ def run():
     if needs_build:
         print("Enso: building frontend...")
         subprocess.run([npm, "run", "build"], cwd=ext_root, check=True, capture_output=True)
-        with open(stamp, "w") as f:
+        with open(stamp, "w", encoding="utf-8"):
             pass
 
 

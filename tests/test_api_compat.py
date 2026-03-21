@@ -176,7 +176,8 @@ def main():
     # Quick connectivity check
     print(f"\n  Checking {base}/sdapi/v2/server-info ...")
     try:
-        urllib.request.urlopen(f"{base}/sdapi/v2/server-info", timeout=5)
+        with urllib.request.urlopen(f"{base}/sdapi/v2/server-info", timeout=5):
+            pass
         print("  Connected.\n")
     except Exception as e:
         print(f"  Cannot connect: {e}")
@@ -226,7 +227,7 @@ def main():
                 except Exception:
                     pass
                 # Show just the last meaningful line for brevity
-                lines = [l.strip() for l in str(detail).split("\n") if l.strip()]
+                lines = [line.strip() for line in str(detail).split("\n") if line.strip()]
                 if lines:
                     print(f"         Error: {lines[-1][:120]}")
             print()

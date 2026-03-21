@@ -20,7 +20,7 @@ jobs=8
 limit-inference-results=100
 persistent=no
 py-version=3.10
-recursive=no
+recursive=yes
 unsafe-load-any-extension=no
 
 [BASIC]

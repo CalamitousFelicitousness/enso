@@ -6,8 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "lint": "eslint . && venv/bin/ruff check && venv/bin/pylint enso_api/ scripts/",
-    "lint:py": "venv/bin/ruff check && venv/bin/pylint enso_api/ scripts/",
+    "lint": "eslint . && venv/bin/ruff check && venv/bin/pylint .",
+    "lint:py": "venv/bin/ruff check && venv/bin/pylint .",
     "preview": "vite preview"
   },
   "dependencies": {
