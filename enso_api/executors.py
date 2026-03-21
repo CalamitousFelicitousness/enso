@@ -10,6 +10,7 @@ identical results:
     v2 enhance   -> scripts.prompt_enhance.enhance()           (same as v1 /prompt-enhance)
     v2 detect    -> shared.yolo.predict()                      (same as v1 /detect)
     v2 preprocess-> modules.control.processors.Processor       (same as v1 /preprocess)
+    v2 model-load-> modules.sd_models.reload_model_weights()   (v2-only, replaces v1 poll-based reload)
 
 Do NOT duplicate processing logic here.  If v1 has a function for it,
 call that function.
@@ -623,6 +624,62 @@ def execute_xyz_grid_dispatch(params: dict, job_id: str) -> dict:
     return execute_xyz_grid(params, job_id)
 
 
+def execute_model_load(params: dict, job_id: str) -> dict:  # pylint: disable=unused-argument
+    """Load or reload a checkpoint as a V2 job.
+
+    SD.Next's reload_model_weights() manages its own shared.state.begin/end
+    internally, so we don't wrap it in another state block - the job queue's
+    progress poller picks up the state that reload_model_weights sets.
+
+    Note: model loading is not cancellable - reload_model_weights does not
+    check shared.state.interrupted. Cancellation will only take effect
+    before execution starts (while queued) or after it completes.
+    """
+    from modules import shared, sd_models, devices, modelloader
+
+    checkpoint = params.get('sd_model_checkpoint')
+    force = params.get('force', False)
+    dtype = params.get('dtype')
+
+    if force:
+        sd_models.unload_model_weights(op='model')
+    if dtype is not None:
+        shared.opts.cuda_dtype = dtype
+        devices.set_dtype()
+    if checkpoint:
+        ref_opts = modelloader.get_reference_opts(checkpoint, quiet=True)
+        if ref_opts:
+            if '@' not in checkpoint:
+                loaded = modelloader.load_reference(checkpoint)
+                if not loaded:
+                    raise RuntimeError(f'Failed to load reference model: {checkpoint}')
+            else:
+                model, url = checkpoint.split('@', 1)
+                loaded = modelloader.load_civitai(model, url)
+                if loaded is not None:
+                    checkpoint = loaded
+                else:
+                    raise RuntimeError(f'Failed to load CivitAI model: {checkpoint}')
+        shared.opts.sd_model_checkpoint = checkpoint
+    sd_models.reload_model_weights()
+
+    # Build checkpoint info for the result
+    info = {'loaded': shared.sd_loaded and shared.sd_model is not None}
+    if shared.sd_loaded and shared.sd_model is not None:
+        info['type'] = shared.sd_model_type
+        info['class_name'] = shared.sd_model.__class__.__name__
+        if hasattr(shared.sd_model, 'sd_model_checkpoint'):
+            info['checkpoint'] = shared.sd_model.sd_model_checkpoint
+        if hasattr(shared.sd_model, 'sd_checkpoint_info'):
+            ci = shared.sd_model.sd_checkpoint_info
+            info['title'] = ci.title
+            info['name'] = ci.name
+            info['filename'] = ci.filename
+            info['hash'] = ci.shorthash
+
+    return {'images': [], 'info': info, 'params': {k: v for k, v in params.items() if k != 'type'}}
+
+
 EXECUTORS = {
     'generate': execute_generate,
     'upscale': execute_upscale,
@@ -634,4 +691,5 @@ EXECUTORS = {
     'framepack': execute_framepack,
     'ltx': execute_ltx,
     'xyz-grid': execute_xyz_grid_dispatch,
+    'model-load': execute_model_load,
 }
