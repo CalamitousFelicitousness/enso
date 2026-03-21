@@ -14,17 +14,13 @@ from modules.logger import log
 
 def get_hf_settings():
     """Return HuggingFace token configuration status."""
-    from modules import secrets_manager
-    return {
-        "token_configured": secrets_manager.has('huggingface_token', 'HF_TOKEN'),
-    }
+    return {"token_configured": bool(shared.opts.huggingface_token)}
 
 
 def post_hf_settings(request: dict):
     """Validate and store a HuggingFace token."""
     import os
     from starlette.responses import JSONResponse
-    from modules import secrets_manager
     token = request.get('token')
     if token is not None:
         token = token.strip()
@@ -35,7 +31,8 @@ def post_hf_settings(request: dict):
                 log.info(f'HuggingFace token validated: user={user.get("name", "?")}')
             except Exception:
                 return JSONResponse(content={"error": "Invalid token"}, status_code=400)
-        secrets_manager.set('huggingface_token', token)
+        shared.opts.huggingface_token = token
+        shared.opts.save()
         if token:
             os.environ['HF_TOKEN'] = token
             try:
@@ -51,8 +48,7 @@ def post_hf_settings(request: dict):
 def get_hf_profile():
     """Return HuggingFace profile for the configured token."""
     from starlette.responses import JSONResponse
-    from modules import secrets_manager
-    token = secrets_manager.get('huggingface_token', 'HF_TOKEN')
+    token = shared.opts.huggingface_token
     if not token:
         return JSONResponse(content={"error": "not authenticated"}, status_code=401)
     try:
@@ -81,6 +77,7 @@ def _format_tags(raw_tags):
 
 def get_extra_network_detail(page: str, name: str):
     """Get detailed metadata for a single extra network item."""
+    from starlette.responses import JSONResponse
     for pg in shared.extra_networks:
         if pg.name.lower() != page.lower():
             continue
@@ -106,7 +103,7 @@ def get_extra_network_detail(page: str, name: str):
                 'description': item.get('description', None),
                 'info': item.get('info', None) if isinstance(item.get('info'), dict) else None,
             }
-    return {}
+    return JSONResponse(content={"detail": "Not found"}, status_code=404)
 
 
 def get_extra_network_details(page: str | None = None, name: str | None = None, filename: str | None = None, title: str | None = None, fullname: str | None = None, hash: str | None = None, offset: int = 0, limit: int = 50):  # pylint: disable=redefined-builtin

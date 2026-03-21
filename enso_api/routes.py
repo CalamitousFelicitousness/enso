@@ -215,7 +215,7 @@ def _parse_video_mode(name: str) -> str:
 async def list_video_engines():
     from modules.video_models import models_def
     from modules.video_models import video_load
-    from modules.ui_symbols import is_model_cached
+    from enso_api.util import is_model_cached
     current_loaded = video_load.loaded_model
     result = []
     for engine_name, model_list in models_def.models.items():
