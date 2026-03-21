@@ -544,7 +544,7 @@ export function SettingsView({ onDirtyChange }: SettingsViewProps = {}) {
   // GET /options only returns keys the user has explicitly changed, so
   // settings still at their default would be invisible without this.
   const mergedOptions = useMemo(() => {
-    if (!options || !optionsInfo) return options;
+    if (!options || !optionsInfo) return options ?? {};
     const merged: Record<string, unknown> = { ...options };
     for (const [key, info] of Object.entries(optionsInfo.options)) {
       if (!(key in merged) && info.default !== undefined) {
