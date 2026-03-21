@@ -2,12 +2,25 @@ import { useEffect } from "react";
 import { ws, ensureWs } from "@/api/wsManager";
 import { useBackendStatusStore } from "@/stores/backendStatusStore";
 import { useDownloadStore } from "@/stores/downloadStore";
+import { queryClient } from "@/main";
+
+/** Query keys to invalidate when the backend reconnects (e.g. after restart). */
+const RECONNECT_INVALIDATE_KEYS = [
+  "checkpoint", "options", "loaded-models", "memory", "gpu", "server-info",
+];
 
 export function useGlobalWs() {
   useEffect(() => {
     ensureWs();
+    let wasConnected = false;
 
     const offOpen = ws.on("open", () => {
+      if (wasConnected) {
+        for (const key of RECONNECT_INVALIDATE_KEYS) {
+          queryClient.invalidateQueries({ queryKey: [key] });
+        }
+      }
+      wasConnected = true;
       useBackendStatusStore.getState().setConnected(true);
     });
 
