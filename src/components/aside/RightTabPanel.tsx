@@ -52,7 +52,7 @@ const TAB_COMPONENTS: Record<
   console: ConsoleTab,
 };
 
-const SELF_SCROLL_TABS = new Set<string>(["settings", "networks", "history"]);
+const SELF_SCROLL_TABS = new Set<string>(["settings", "networks", "history", "console"]);
 
 export function RightTabPanel() {
   const activeTab = useUiStore((s) => s.activeRightTab);
@@ -61,7 +61,7 @@ export function RightTabPanel() {
   const Wrapper = SELF_SCROLL_TABS.has(activeTab) ? "div" : ScrollArea;
 
   return (
-    <div className="flex flex-col h-full bg-card">
+    <div className="flex flex-col h-full min-w-0 bg-card">
       <div className="flex items-center gap-2 px-3 py-2 border-b border-border shrink-0">
         {tabMeta && <tabMeta.icon className="h-4 w-4 text-muted-foreground" />}
         <span className="text-sm font-medium">
