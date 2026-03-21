@@ -18,6 +18,7 @@ import {
   getSettingsMap,
   metaToSettingDef,
 } from "@/lib/settingsSchema";
+import { useHfSaveSettings } from "@/api/hooks/useHuggingface";
 import { getParamHelpPlain } from "@/data/parameterHelp";
 import { SettingsSection } from "./SettingsSection";
 import { Button } from "@/components/ui/button";
@@ -528,6 +529,7 @@ export function SettingsView({ onDirtyChange }: SettingsViewProps = {}) {
   const { data: options, isLoading } = useOptions();
   const setOptions = useSetOptions();
   const { data: optionsInfo, isLoading: isInfoLoading } = useOptionsInfo();
+  const hfSave = useHfSaveSettings();
   const { data: models } = useModelList();
   const { data: samplers } = useSamplerList();
   const { data: vaes } = useVaeList();
@@ -657,6 +659,11 @@ export function SettingsView({ onDirtyChange }: SettingsViewProps = {}) {
   async function handleApply() {
     if (Object.keys(dirty).length === 0) return;
     try {
+      // Validate HF token first (calls hf.whoami + hf.login) - fails fast on bad token
+      if ("huggingface_token" in dirty) {
+        await hfSave.mutateAsync({ token: String(dirty.huggingface_token ?? "") });
+      }
+      // Persist all settings (including token) via standard options flow → secrets.json
       await setOptions.mutateAsync(dirty);
       toast.success("Settings saved", {
         description: `${Object.keys(dirty).length} setting(s) updated`,

@@ -157,6 +157,8 @@ const metaComponentMap: Record<string, SettingComponent> = {
   separator: "separator",
 };
 
+const SECRET_KEYS = new Set(["huggingface_token", "civitai_token", "google_api_key"]);
+
 export function metaToSettingDef(key: string, info?: OptionInfoMeta): SettingDef {
   if (!info) return { key, label: key, component: "input" };
   return {
@@ -170,6 +172,6 @@ export function metaToSettingDef(key: string, info?: OptionInfoMeta): SettingDef
     precision: info.component_args.precision,
     choices: info.component_args.choices,
     description: getParamHelpPlain(info.label) || undefined,
-    isSecret: info.is_secret || undefined,
+    isSecret: info.is_secret || SECRET_KEYS.has(key) || undefined,
   };
 }

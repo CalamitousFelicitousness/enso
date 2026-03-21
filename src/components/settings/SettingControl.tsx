@@ -11,6 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Check } from "lucide-react";
 import { PathInput } from "./PathInput";
+import { HfTokenControl } from "./HfTokenControl";
 
 function renderSelect(
   choices: string[] | undefined,
@@ -136,6 +137,9 @@ export function SettingControl({
   getSettingValue,
 }: SettingControlProps) {
   if (setting.isSecret) {
+    if (setting.key === "huggingface_token") {
+      return <HfTokenControl value={value} onChange={onChange} />;
+    }
     return <SecretControl value={value} onChange={onChange} />;
   }
 
