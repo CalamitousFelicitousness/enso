@@ -533,7 +533,7 @@ function UnitPanel({
             />
             <DockTab
               active={activeTab === "params"}
-              label="Params"
+              label="Options"
               icon={SlidersHorizontal}
               accent={panelColor}
               onClick={() => setActiveTab("params")}
@@ -787,7 +787,7 @@ function InputFramePanel({
       />
       <DockTab
         active={activeTab === "params"}
-        label="Params"
+        label="Options"
         icon={SlidersHorizontal}
         accent={inputColor}
         onClick={() => setActiveTab("params")}
@@ -958,7 +958,7 @@ function OutputFramePanel({
       />
       <DockTab
         active={activeTab === "params"}
-        label="Params"
+        label="Options"
         icon={SlidersHorizontal}
         accent={OUTPUT_COLOR}
         onClick={() => setActiveTab("params")}
