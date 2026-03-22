@@ -272,7 +272,10 @@ export interface BulkJobResponse {
 
 export type JobWsEvent =
   | { type: "status"; status: JobStatus; progress: number }
-  | { type: "progress"; step: number; steps: number; progress: number; eta: number | null; task?: string; textinfo?: string | null }
+  | { type: "progress"; step: number; steps: number; progress: number; eta: number | null;
+      task?: string; textinfo?: string | null;
+      stage?: number; stage_name?: string; stage_count?: number; phase?: string | null }
+  | { type: "stages"; stages: string[] }
   | { type: "completed"; result: JobResult }
   | { type: "error"; error: string }
   | { type: "cancelled" }

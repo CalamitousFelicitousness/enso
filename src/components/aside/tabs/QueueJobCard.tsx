@@ -15,7 +15,7 @@ import type { TrackedJob, JobDomain } from "@/stores/jobStore";
 import { useCancelJob } from "@/api/hooks/useJobs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+
 
 const DOMAIN_ICONS: Record<JobDomain, typeof Image> = {
   generate: Image,
@@ -219,17 +219,41 @@ export function QueueJobCard({
       {isRunning && (
         <div className="flex items-center gap-1.5">
           <div className="h-1.5 rounded bg-primary/20 overflow-hidden flex-1">
-            <div
-              className={cn("h-full bg-primary rounded transition-all")}
-              style={{ width: `${(job.progress * 100).toFixed(1)}%` }}
-            />
+            {job.step > 0 || job.progress > 0 ? (
+              <div
+                className="h-full bg-primary rounded transition-all"
+                style={{ width: `${(job.progress * 100).toFixed(1)}%` }}
+              />
+            ) : (
+              <div className="h-full bg-primary rounded animate-[indeterminate_1.5s_ease-in-out_infinite] origin-left" />
+            )}
           </div>
           <span className="text-4xs text-muted-foreground font-mono tabular-nums w-8 text-right">
             {job.step > 0
               ? `${job.step}/${job.steps}`
-              : `${Math.round(job.progress * 100)}%`}
+              : job.progress > 0
+                ? `${Math.round(job.progress * 100)}%`
+                : "···"}
           </span>
         </div>
+      )}
+
+      {/* Stage + phase for running multi-stage jobs */}
+      {isRunning && job.stageCount > 1 && (
+        <div className="flex items-center gap-1.5 text-4xs text-muted-foreground">
+          <span className="font-medium">
+            Stage {job.stage + 1}/{job.stageCount} · {job.stageName}
+          </span>
+          {job.phase && (
+            <span className="text-muted-foreground/50 truncate">{job.phase}</span>
+          )}
+        </div>
+      )}
+      {/* Phase hint for single-stage jobs */}
+      {isRunning && job.stageCount <= 1 && job.phase && (
+        <p className="text-4xs text-muted-foreground/50 truncate" title={job.phase}>
+          {job.phase}
+        </p>
       )}
 
       {/* ETA and elapsed for running */}

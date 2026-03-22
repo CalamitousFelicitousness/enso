@@ -35,6 +35,11 @@ function buildTrackedJob(backendJob: Job, local: StoredJobPayload | undefined): 
     snapshot: local?.snapshot ? { controlUnits: local.snapshot.controlUnits } : {},
     request: local?.request ?? null,
     priority: local?.priority ?? 0,
+    stage: 0,
+    stageName: "",
+    stageCount: 0,
+    phase: null,
+    stages: [],
   };
 }
 

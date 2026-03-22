@@ -28,6 +28,11 @@ export interface TrackedJob {
   snapshot: JobSnapshot;
   request: JobRequest | null;
   priority: number;
+  stage: number;
+  stageName: string;
+  stageCount: number;
+  phase: string | null;
+  stages: string[];
 }
 
 const MAX_TRACKED_JOBS = 50;
@@ -43,7 +48,8 @@ interface JobQueueState {
   trackJob: (id: string, domain: JobDomain, snapshot: JobSnapshot, request?: JobRequest, priority?: number) => void;
   rehydrateJob: (job: TrackedJob) => void;
   updateStatus: (id: string, status: JobStatus) => void;
-  updateProgress: (id: string, progress: number, eta: number, step: number, steps: number, task?: string, textinfo?: string | null) => void;
+  updateProgress: (id: string, progress: number, eta: number, step: number, steps: number, task?: string, textinfo?: string | null, stage?: number, stageName?: string, stageCount?: number, phase?: string | null) => void;
+  setStages: (id: string, stages: string[]) => void;
   updatePreview: (id: string, previewUrl: string) => void;
   completeJob: (id: string, result: JobResult) => void;
   failJob: (id: string, error: string) => void;
@@ -90,6 +96,11 @@ export const useJobQueueStore = create<JobQueueState>()((set) => ({
         snapshot,
         request: request ?? null,
         priority: priority ?? 0,
+        stage: 0,
+        stageName: "",
+        stageCount: 0,
+        phase: null,
+        stages: [],
       });
       return { jobs: pruneOldTerminal(next), activeJobId: state.activeJobId ?? id };
     }),
@@ -115,7 +126,7 @@ export const useJobQueueStore = create<JobQueueState>()((set) => ({
       return updates;
     }),
 
-  updateProgress: (id, progress, eta, step, steps, task?, textinfo?) =>
+  updateProgress: (id, progress, eta, step, steps, task?, textinfo?, stage?, stageName?, stageCount?, phase?) =>
     set((state) => {
       const job = state.jobs.get(id);
       if (!job) return state;
@@ -123,6 +134,10 @@ export const useJobQueueStore = create<JobQueueState>()((set) => ({
       const jobUpdates: Partial<TrackedJob> = { progress, eta, step, steps, status: job.status === "pending" ? "running" : job.status };
       if (task !== undefined) jobUpdates.task = task;
       if (textinfo !== undefined) jobUpdates.textinfo = textinfo;
+      if (stage !== undefined) jobUpdates.stage = stage;
+      if (stageName !== undefined) jobUpdates.stageName = stageName;
+      if (stageCount !== undefined) jobUpdates.stageCount = stageCount;
+      if (phase !== undefined) jobUpdates.phase = phase;
       next.set(id, { ...job, ...jobUpdates });
       const stateUpdates: Partial<JobQueueState> = { jobs: next };
       if (state.activeJobId !== id && !isTerminal(job.status)) {
@@ -132,6 +147,15 @@ export const useJobQueueStore = create<JobQueueState>()((set) => ({
         }
       }
       return stateUpdates;
+    }),
+
+  setStages: (id, stages) =>
+    set((state) => {
+      const job = state.jobs.get(id);
+      if (!job) return state;
+      const next = new Map(state.jobs);
+      next.set(id, { ...job, stages, stageCount: stages.length, stageName: stages[0] ?? "", stage: 0 });
+      return { jobs: next };
     }),
 
   updatePreview: (id, previewUrl) =>

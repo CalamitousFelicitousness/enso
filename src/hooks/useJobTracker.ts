@@ -123,8 +123,11 @@ export function useJobTracker() {
           const data = raw as JobWsEvent;
           const s = useJobQueueStore.getState();
           switch (data.type) {
+            case "stages":
+              s.setStages(jobId, data.stages);
+              break;
             case "progress":
-              s.updateProgress(jobId, data.progress, data.eta ?? 0, data.step, data.steps, data.task, data.textinfo);
+              s.updateProgress(jobId, data.progress, data.eta ?? 0, data.step, data.steps, data.task, data.textinfo, data.stage, data.stage_name, data.stage_count, data.phase);
               break;
             case "status":
               s.updateStatus(jobId, data.status);

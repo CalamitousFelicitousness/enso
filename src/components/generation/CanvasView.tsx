@@ -13,6 +13,7 @@ import { fileToBase64 } from "@/lib/image";
 import { CanvasStage } from "@/canvas/CanvasStage";
 import { CanvasToolbar } from "@/canvas/CanvasToolbar";
 import { ControlFramePanels } from "@/canvas/ControlFramePanel";
+import { CanvasProgressOverlay } from "./CanvasProgressOverlay";
 import { useControlFrameLayout } from "@/canvas/useControlFrameLayout";
 import { getOrderedFrames } from "@/canvas/frameList";
 import { ModeToggle } from "./ModeToggle";
@@ -306,6 +307,9 @@ export const CanvasView = memo(function CanvasView() {
 
       {/* Canvas toolbar for mask painting - only in initial mode with images */}
       {hasLayers && inputRole !== "reference" && <CanvasToolbar />}
+
+      {/* Generation progress overlay — not affected by pan/zoom */}
+      <CanvasProgressOverlay />
 
       {/* Floating control panels — delta-transform wrapper for zero-render pan/zoom */}
       <div ref={overlayRef} style={{ position: 'absolute', inset: 0, pointerEvents: 'none', transformOrigin: '0 0' }}>

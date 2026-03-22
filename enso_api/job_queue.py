@@ -7,6 +7,32 @@ import threading
 from enso_api.job_store import JobStore
 
 
+# Maps SD.Next state.job labels → user-facing stage name
+STAGE_MAP: dict[str, str] = {
+    'Base': 'Generate',
+    'Inference': 'Generate',
+    'Process': 'Generate',
+    'Sample': 'Generate',
+    'Hires': 'Hires',
+    'Refine': 'Refiner',
+    'Detailer': 'Detailer',
+}
+
+
+def compute_stages(job_type: str, params: dict) -> list[str] | None:
+    """Predict the generation stage sequence from request params."""
+    if job_type != 'generate':
+        return None
+    stages = ['Generate']
+    if params.get('enable_hr'):
+        stages.append('Hires')
+    if (params.get('refiner_steps') or 0) > 0:
+        stages.append('Refiner')
+    if params.get('detailer_enabled'):
+        stages.append('Detailer')
+    return stages
+
+
 class JobQueue:
     def __init__(self):
         self.store: JobStore | None = None
@@ -136,9 +162,17 @@ class JobQueue:
         self.store.update_status(job_id, 'running', started_at=JobStore.now())
         self._push_progress(job_id, {'type': 'status', 'status': 'running'})
 
+        # Compute and emit stage manifest
+        raw_params = job.get('params', {})
+        if isinstance(raw_params, str):
+            raw_params = json.loads(raw_params)
+        stages = compute_stages(job_type, raw_params)
+        if stages:
+            self._push_progress(job_id, {'type': 'stages', 'stages': stages})
+
         # Start progress poller thread
         poller_stop = threading.Event()
-        poller = threading.Thread(target=self._progress_poller, args=(job_id, poller_stop), daemon=True, name=f"v2-progress-{job_id[:8]}")
+        poller = threading.Thread(target=self._progress_poller, args=(job_id, poller_stop, stages), daemon=True, name=f"v2-progress-{job_id[:8]}")
         poller.start()
 
         try:
@@ -182,12 +216,16 @@ class JobQueue:
             raise ValueError(f"Unknown job type: {job_type}")
         return executor(params, job_id)
 
-    def _progress_poller(self, job_id: str, stop_event: threading.Event) -> None:
+    def _progress_poller(self, job_id: str, stop_event: threading.Event, stages: list[str] | None = None) -> None:
         from modules import shared
         last_step = -1
         last_job = ""
         last_textinfo = None
         last_preview_id = -1
+        # Stage tracking state
+        stage_index = 0
+        stage_name = stages[0] if stages else ''
+        phase = None
         while not stop_event.is_set():
             try:
                 if self._current_job_id != job_id:
@@ -202,6 +240,15 @@ class JobQueue:
                     or current_textinfo != last_textinfo
                 )
                 if changed:
+                    # Classify stage vs phase on job transition
+                    if stages and current_job != last_job:
+                        matched_stage = STAGE_MAP.get(current_job)
+                        if matched_stage and matched_stage in stages:
+                            stage_index = stages.index(matched_stage)
+                            stage_name = matched_stage
+                            phase = None
+                        elif current_job:
+                            phase = current_job
                     last_step = current_step
                     last_job = current_job
                     last_textinfo = current_textinfo
@@ -219,6 +266,11 @@ class JobQueue:
                         'task': current_job,
                         'textinfo': current_textinfo,
                     }
+                    if stages:
+                        progress_data['stage'] = stage_index
+                        progress_data['stage_name'] = stage_name
+                        progress_data['stage_count'] = len(stages)
+                        progress_data['phase'] = phase
                     if self.store is not None:
                         self.store.update_progress(job_id, progress_val, step, steps)
                     self._push_progress(job_id, progress_data)
