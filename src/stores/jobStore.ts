@@ -3,7 +3,7 @@ import type { JobRequest, JobResult, JobStatus } from "@/api/types/v2";
 import type { MaskLine } from "@/stores/img2imgStore";
 import type { ControlUnitSnapshot } from "@/api/types/control";
 
-export type JobDomain = "generate" | "upscale" | "video" | "framepack" | "ltx" | "xyz-grid";
+export type JobDomain = "generate" | "upscale" | "rembg" | "video" | "framepack" | "ltx" | "xyz-grid";
 
 export interface JobSnapshot {
   inputImage?: string;
@@ -312,6 +312,7 @@ export function selectPendingJobsSorted(state: JobQueueState): TrackedJob[] {
 
 export const selectGenerateActive = selectDomainActive("generate");
 export const selectUpscaleActive = selectDomainActive("upscale");
+export const selectRembgActive = selectDomainActive("rembg");
 export const selectVideoActive = selectDomainActive("video");
 export const selectFramepackActive = selectDomainActive("framepack");
 export const selectLtxActive = selectDomainActive("ltx");

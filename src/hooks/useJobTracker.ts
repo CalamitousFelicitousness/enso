@@ -59,10 +59,10 @@ function routeResult(domain: JobDomain, result: JobResult, snapshot: TrackedJob[
         timestamp: Date.now(),
       });
     }
-  } else if (domain === "upscale") {
+  } else if (domain === "upscale" || domain === "rembg") {
     const img = result.images[0];
     if (img) {
-      useProcessStore.getState().setResult(`${api.getBaseUrl()}${img.url}`, img.width, img.height);
+      useProcessStore.getState().setResult(`${api.getBaseUrl()}${img.url}`, img.width, img.height, domain);
     }
   }
 }

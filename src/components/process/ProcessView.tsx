@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 import { useProcessStore } from "@/stores/processStore";
 import { useComparisonStore } from "@/stores/comparisonStore";
-import { useJobQueueStore, selectUpscaleActive } from "@/stores/jobStore";
+import { useJobQueueStore, selectUpscaleActive, selectRembgActive } from "@/stores/jobStore";
 import { useDropTarget } from "@/hooks/useDropTarget";
 import { payloadToFile } from "@/lib/sendTo";
 import type { DragPayload } from "@/stores/dragStore";
@@ -23,13 +23,18 @@ import { SwipeMode } from "@/components/comparison/SwipeMode";
 
 export function ProcessView() {
   const imagePreviewUrl = useProcessStore((s) => s.imagePreviewUrl);
-  const isProcessing = useJobQueueStore(selectUpscaleActive);
+  const isUpscaling = useJobQueueStore(selectUpscaleActive);
+  const isRembg = useJobQueueStore(selectRembgActive);
+  const isProcessing = isUpscaling || isRembg;
   const resultImageUrl = useProcessStore((s) => s.resultImageUrl);
   const resultWidth = useProcessStore((s) => s.resultWidth);
   const resultHeight = useProcessStore((s) => s.resultHeight);
+  const resultSource = useProcessStore((s) => s.resultSource);
   const setImage = useProcessStore((s) => s.setImage);
   const compareMode = useProcessStore((s) => s.compareMode);
   const setCompareMode = useProcessStore((s) => s.setCompareMode);
+
+  const resultLabel = resultSource === "rembg" ? "Processed" : "Upscaled";
 
   const canCompare = !!imagePreviewUrl && !!resultImageUrl;
 
@@ -60,9 +65,9 @@ export function ProcessView() {
       .getState()
       .openComparison(
         { src: imagePreviewUrl, label: "Original" },
-        { src: resultImageUrl, label: "Upscaled" },
+        { src: resultImageUrl, label: resultLabel },
       );
-  }, [imagePreviewUrl, resultImageUrl]);
+  }, [imagePreviewUrl, resultImageUrl, resultLabel]);
 
   useEffect(() => {
     const onPaste = (e: ClipboardEvent) => {
@@ -111,7 +116,7 @@ export function ProcessView() {
         <div className="flex-1 min-h-0">
           <SwipeMode
             imageA={{ src: imagePreviewUrl!, label: "Original" }}
-            imageB={{ src: resultImageUrl!, label: "Upscaled" }}
+            imageB={{ src: resultImageUrl!, label: resultLabel }}
           />
         </div>
       </div>

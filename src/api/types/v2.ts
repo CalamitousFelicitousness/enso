@@ -189,9 +189,23 @@ export interface XyzGridJobParams {
   priority?: number;
 }
 
+export interface RembgJobParams {
+  type: "rembg";
+  image: string;
+  model?: string;
+  return_mask?: boolean;
+  refine?: boolean;
+  alpha_matting?: boolean;
+  alpha_matting_foreground_threshold?: number;
+  alpha_matting_background_threshold?: number;
+  alpha_matting_erode_size?: number;
+  priority?: number;
+}
+
 export type JobRequest =
   | GenerateJobRequest
   | UpscaleJobParams
+  | RembgJobParams
   | CaptionJobParams
   | EnhanceJobParams
   | DetectJobParams

@@ -20,6 +20,7 @@ import { Button } from "@/components/ui/button";
 const DOMAIN_ICONS: Record<JobDomain, typeof Image> = {
   generate: Image,
   upscale: Sparkles,
+  rembg: Sparkles,
   video: Video,
   framepack: Video,
   ltx: Video,
@@ -29,6 +30,7 @@ const DOMAIN_ICONS: Record<JobDomain, typeof Image> = {
 const DOMAIN_LABELS: Record<JobDomain, string> = {
   generate: "Image",
   upscale: "Upscale",
+  rembg: "Bg Removal",
   video: "Video",
   framepack: "FramePack",
   ltx: "LTX",

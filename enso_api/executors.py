@@ -17,6 +17,7 @@ identical results:
     v2 loader-load  -> modules.ui_models_load.load_model()     (v2-only, job-based component loader)
     v2 lora-extract -> modules.lora.lora_extract.make_lora()   (v2-only, job-based LoRA extraction)
     v2 hf-download  -> modules.models_hf.hf_download_model()   (v2-only, job-based HF download)
+    v2 rembg     -> modules.rembg.ben2 / rembg.remove()        (same as v1 /rembg)
 
 Do NOT duplicate processing logic here.  If v1 has a function for it,
 call that function.
@@ -849,6 +850,50 @@ def execute_hf_download(params: dict, job_id: str) -> dict:  # pylint: disable=u
     return {'images': [], 'info': {'status': result}, 'params': {k: v for k, v in params.items() if k != 'type'}}
 
 
+def execute_rembg(params: dict, job_id: str) -> dict:
+    from modules import shared
+    from modules.api import helpers
+
+    image = helpers.decode_base64_to_image(params.get('image', ''))
+    model = params.get('model', 'ben2')
+    return_mask = params.get('return_mask', False)
+    refine = params.get('refine', False)
+
+    jobid = shared.state.begin('API-V2-REMBG', api=True)
+    try:
+        if model == 'ben2':
+            from modules.rembg import ben2
+            result_image = ben2.remove(image, refine=refine)
+        else:
+            from installer import install
+            for pkg in ['dctorch==0.1.2', 'pymatting', 'pooch', 'rembg']:
+                install(pkg, no_deps=True, ignore=False)
+            import rembg
+            result_image = rembg.remove(
+                image,
+                session=rembg.new_session(model),
+                only_mask=return_mask,
+                alpha_matting=params.get('alpha_matting', False),
+                alpha_matting_foreground_threshold=params.get('alpha_matting_foreground_threshold', 240),
+                alpha_matting_background_threshold=params.get('alpha_matting_background_threshold', 10),
+                alpha_matting_erode_size=params.get('alpha_matting_erode_size', 10),
+            )
+        from modules import images as img_module
+        output_dir = shared.opts.outdir_extras_samples if hasattr(shared.opts, 'outdir_extras_samples') else shared.opts.outdir_txt2img_samples
+        path_info = img_module.save_image(result_image, output_dir, "", prompt=f"rembg-{model}")
+    finally:
+        shared.state.end(jobid)
+
+    image_refs = []
+    if path_info:
+        fpath = path_info[0] if isinstance(path_info, (list, tuple)) else str(path_info)
+        if os.path.isfile(str(fpath)):
+            ext = os.path.splitext(str(fpath))[1].lstrip('.').lower()
+            image_refs.append({'index': 0, 'path': str(fpath), 'url': f'/sdapi/v2/jobs/{job_id}/images/0', 'width': result_image.width, 'height': result_image.height, 'format': ext or 'png', 'size': os.path.getsize(str(fpath))})
+
+    return {'images': image_refs, 'info': {'model': model}, 'params': {k: v for k, v in params.items() if k not in ('type', 'image')}}
+
+
 EXECUTORS = {
     'generate': execute_generate,
     'upscale': execute_upscale,
@@ -867,4 +912,5 @@ EXECUTORS = {
     'loader-load': execute_loader_load,
     'lora-extract': execute_lora_extract,
     'hf-download': execute_hf_download,
+    'rembg': execute_rembg,
 }
