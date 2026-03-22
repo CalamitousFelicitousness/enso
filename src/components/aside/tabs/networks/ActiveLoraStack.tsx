@@ -71,7 +71,7 @@ export function ActiveLoraStack({
                           <div className="size-6 rounded bg-muted/30 shrink-0" />
                         )}
                         <span className="text-[0.6875rem] text-foreground truncate min-w-0 flex-shrink">
-                          {lora.name}
+                          {lora.name.split("/").pop()}
                         </span>
                         <Slider
                           value={[lora.weight]}

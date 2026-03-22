@@ -88,7 +88,7 @@ export const MatteCard = forwardRef<
       >
         <div className="flex items-end gap-1.5">
           <span className="text-[0.6875rem] font-medium line-clamp-3 leading-tight text-foreground flex-1 break-words">
-            {item.name}
+            {item.name.split("/").pop()}
           </span>
           <button
             type="button"
