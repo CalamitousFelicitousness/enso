@@ -284,6 +284,7 @@ export const loraWidgetPlugin = ViewPlugin.fromClass(
       if (
         update.docChanged ||
         update.selectionSet ||
+        update.focusChanged ||
         update.startState.facet(embeddingNamesFacet) !==
           update.state.facet(embeddingNamesFacet)
       ) {
@@ -376,9 +377,11 @@ export const loraWidgetPlugin = ViewPlugin.fromClass(
       }
 
       // Sort by position and add to builder, skipping cursor-adjacent chips
+      // only when editor is focused (unfocused = no editing, show all chips)
+      const excludeAtCursor = this.view.hasFocus;
       chips.sort((a, b) => a.from - b.from);
       for (const c of chips) {
-        if (cursorHead > c.from && cursorHead < c.to) continue;
+        if (excludeAtCursor && cursorHead > c.from && cursorHead < c.to) continue;
         builder.add(c.from, c.to, Decoration.replace({ widget: c.widget }));
       }
 
