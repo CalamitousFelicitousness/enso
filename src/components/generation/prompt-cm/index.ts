@@ -15,6 +15,7 @@ export {
   loraNamesFacet,
   styleNamesFacet,
   wildcardNamesFacet,
+  dictTagsFacet,
 } from "./facets";
 
 export function promptExtensions(placeholderText?: string): Extension[] {

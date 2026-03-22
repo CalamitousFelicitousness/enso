@@ -26,7 +26,9 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
 import { SegmentedControl } from "@/components/ui/segmented-control";
+import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
+import { useDictList } from "@/api/hooks/useDicts";
 import {
   Save,
   RotateCcw,
@@ -45,6 +47,7 @@ import { queryClient } from "@/main";
 
 const CONNECTION_SECTION_ID = "__connection";
 const APPEARANCE_SECTION_ID = "__appearance";
+const DICTIONARIES_SECTION_ID = "__dictionaries";
 
 const COLOR_MODES: { value: ColorMode; label: string }[] = [
   { value: "dark", label: "Dark" },
@@ -309,6 +312,52 @@ function AppearancePanel() {
             animated
           />
         </SettingRow>
+      </div>
+    </div>
+  );
+}
+
+function DictionariesPanel() {
+  const { data: dicts } = useDictList();
+  const options = useOptions();
+  const setOptions = useSetOptions();
+  const enabledDicts: string[] =
+    (options.data as Record<string, unknown>)?.dicts_enabled as string[] ?? [];
+
+  const toggle = (name: string) => {
+    const next = enabledDicts.includes(name)
+      ? enabledDicts.filter((d) => d !== name)
+      : [...enabledDicts, name];
+    setOptions.mutate({ dicts_enabled: next });
+  };
+
+  return (
+    <div>
+      <h3 className="text-sm font-medium mb-4">Dictionaries</h3>
+      <p className="text-3xs text-muted-foreground mb-4">
+        Tag autocomplete dictionaries for prompts. Suggestions appear at lowest
+        priority, after LoRA, style, wildcard, and embedding completions.
+      </p>
+      <div className="space-y-4">
+        {dicts && dicts.length > 0 ? (
+          dicts.map((d) => (
+            <SettingRow
+              key={d.name}
+              label={d.name}
+              description={`${d.tag_count.toLocaleString()} tags${d.version ? ` · v${d.version}` : ""}`}
+              inline
+            >
+              <Switch
+                checked={enabledDicts.includes(d.name)}
+                onCheckedChange={() => toggle(d.name)}
+              />
+            </SettingRow>
+          ))
+        ) : (
+          <p className="text-3xs text-muted-foreground">
+            No dictionaries found. Place JSON dict files in the dicts directory.
+          </p>
+        )}
       </div>
     </div>
   );
@@ -626,6 +675,7 @@ export function SettingsView({ onDirtyChange }: SettingsViewProps = {}) {
   const resolvedActive = useMemo(() => {
     if (activeSection === CONNECTION_SECTION_ID) return CONNECTION_SECTION_ID;
     if (activeSection === APPEARANCE_SECTION_ID) return APPEARANCE_SECTION_ID;
+    if (activeSection === DICTIONARIES_SECTION_ID) return DICTIONARIES_SECTION_ID;
     if (activeSection && allSections.some((s) => s.id === activeSection))
       return activeSection;
     // When backend is ready, default to the first backend section;
@@ -826,6 +876,22 @@ export function SettingsView({ onDirtyChange }: SettingsViewProps = {}) {
               >
                 Appearance
               </button>
+              <button
+                onClick={() => {
+                  setActiveSection(DICTIONARIES_SECTION_ID);
+                  setSearchQuery("");
+                }}
+                className={cn(
+                  "w-full text-left text-xs px-2 py-1.5 rounded-md transition-colors",
+                  "hover:bg-accent hover:text-accent-foreground",
+                  resolvedActive === DICTIONARIES_SECTION_ID &&
+                    !searchQuery &&
+                    "bg-accent text-accent-foreground font-medium",
+                  matchingSectionIds && "opacity-30",
+                )}
+              >
+                Dictionaries
+              </button>
             </div>
           </div>
         </ScrollArea>
@@ -871,6 +937,8 @@ export function SettingsView({ onDirtyChange }: SettingsViewProps = {}) {
             <ConnectionPanel />
           ) : resolvedActive === APPEARANCE_SECTION_ID ? (
             <AppearancePanel />
+          ) : resolvedActive === DICTIONARIES_SECTION_ID ? (
+            <DictionariesPanel />
           ) : !backendReady ? (
             <div className="flex items-center justify-center h-32 text-muted-foreground text-sm">
               Loading settings...

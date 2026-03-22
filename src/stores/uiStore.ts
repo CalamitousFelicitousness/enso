@@ -48,6 +48,10 @@ interface UiState {
   canvasLabelScale: number;
   canvasBackground: CanvasBackground;
 
+  // Dict autocomplete
+  dictMinChars: number;
+  dictReplaceUnderscores: boolean;
+
   // Actions
   toggleLeftRail: () => void;
   setNavView: (view: NavView) => void;
@@ -70,6 +74,8 @@ interface UiState {
   addRecentCommand: (id: string) => void;
   setQuickSettingsKeys: (keys: string[] | null) => void;
   setPendingSettingsSearch: (query: string | null) => void;
+  setDictMinChars: (n: number) => void;
+  setDictReplaceUnderscores: (enabled: boolean) => void;
 }
 
 export type { NavView, ImagesSubTab, ColorMode, CanvasBackground };
@@ -97,6 +103,8 @@ export const useUiStore = create<UiState>()(
       uiScale: 18,
       canvasLabelScale: 1,
       canvasBackground: "dots" as CanvasBackground,
+      dictMinChars: 3,
+      dictReplaceUnderscores: true,
 
       toggleLeftRail: () => set((s) => ({ leftRailCollapsed: !s.leftRailCollapsed })),
       setNavView: (view) => set({ activeNavView: view }),
@@ -122,6 +130,8 @@ export const useUiStore = create<UiState>()(
       }),
       setQuickSettingsKeys: (keys) => set({ quickSettingsKeys: keys }),
       setPendingSettingsSearch: (query) => set({ pendingSettingsSearch: query }),
+      setDictMinChars: (n) => set({ dictMinChars: Math.max(2, Math.min(6, n)) }),
+      setDictReplaceUnderscores: (enabled) => set({ dictReplaceUnderscores: enabled }),
     }),
     {
       name: "enso-ui",

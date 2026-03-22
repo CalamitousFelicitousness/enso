@@ -186,6 +186,26 @@ export const promptTheme = EditorView.theme({
     content: '"●"',
     color: "#34d399",
   },
+  ".cm-completionIcon-dictTag::after": {
+    content: '"◉"',
+    color: "#ff6b9d",
+  },
+  ".cm-completionIcon-dictArtist::after": {
+    content: '"◈"',
+    color: "#f59e0b",
+  },
+  ".cm-completionIcon-dictCopyright::after": {
+    content: '"◇"',
+    color: "#8b5cf6",
+  },
+  ".cm-completionIcon-dictCharacter::after": {
+    content: '"◆"',
+    color: "#06b6d4",
+  },
+  ".cm-completionIcon-dictMeta::after": {
+    content: '"○"',
+    color: "#6b7280",
+  },
   ".cm-completionDetail": {
     opacity: "0.5",
     fontStyle: "normal",

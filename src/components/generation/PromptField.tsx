@@ -3,12 +3,16 @@ import { cn } from "@/lib/utils";
 import { EditorView } from "@codemirror/view";
 import { Compartment } from "@codemirror/state";
 import { useExtraNetworks, usePromptStyles } from "@/api/hooks/useNetworks";
+import { useDictTagsMulti } from "@/api/hooks/useDicts";
+import { useOptions } from "@/api/hooks/useSettings";
+import type { DictTag } from "@/api/types/dict";
 import {
   promptExtensions,
   embeddingNamesFacet,
   loraNamesFacet,
   styleNamesFacet,
   wildcardNamesFacet,
+  dictTagsFacet,
 } from "./prompt-cm";
 
 interface PromptFieldProps {
@@ -35,6 +39,7 @@ export function PromptField({
   const loraComp = useRef(new Compartment());
   const styleComp = useRef(new Compartment());
   const wildcardComp = useRef(new Compartment());
+  const dictComp = useRef(new Compartment());
 
   // ── Fetch network data (shared TanStack Query cache) ───────────────
 
@@ -62,6 +67,29 @@ export function PromptField({
     [stylesData],
   );
 
+  // ── Dict tag data (from SD.Next dicts_enabled option) ────────────────
+
+  const { data: optionsData } = useOptions();
+  const enabledDicts = useMemo(
+    () => (optionsData as Record<string, unknown>)?.dicts_enabled as string[] ?? [],
+    [optionsData],
+  );
+  const dictQueries = useDictTagsMulti(enabledDicts);
+  const mergedDictTags = useMemo(() => {
+    const all: DictTag[] = [];
+    for (const q of dictQueries) {
+      if (q.data) all.push(...q.data);
+    }
+    if (all.length === 0) return all;
+    all.sort((a, b) => a.name.localeCompare(b.name));
+    // Deduplicate consecutive entries with the same name
+    const deduped: DictTag[] = [all[0]];
+    for (let i = 1; i < all.length; i++) {
+      if (all[i].name !== all[i - 1].name) deduped.push(all[i]);
+    }
+    return deduped;
+  }, [dictQueries]);
+
   // ── Create editor on mount ─────────────────────────────────────────
 
   useEffect(() => {
@@ -84,6 +112,7 @@ export function PromptField({
         loraComp.current.of(loraNamesFacet.of(loras)),
         styleComp.current.of(styleNamesFacet.of(styles)),
         wildcardComp.current.of(wildcardNamesFacet.of(wildcards)),
+        dictComp.current.of(dictTagsFacet.of(mergedDictTags)),
       ],
       parent: containerRef.current,
     });
@@ -141,6 +170,14 @@ export function PromptField({
       ),
     });
   }, [wildcards]);
+
+  useEffect(() => {
+    viewRef.current?.dispatch({
+      effects: dictComp.current.reconfigure(
+        dictTagsFacet.of(mergedDictTags),
+      ),
+    });
+  }, [mergedDictTags]);
 
   // ── Render ─────────────────────────────────────────────────────────
 
