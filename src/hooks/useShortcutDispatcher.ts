@@ -13,10 +13,12 @@ const SKIP_TAGS = new Set(["INPUT", "TEXTAREA", "SELECT"]);
 export function useShortcutDispatcher() {
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
-      const tag = (e.target as HTMLElement)?.tagName;
+      const target = e.target as HTMLElement;
+      const tag = target?.tagName;
       // Allow modifier-key shortcuts (Ctrl+K, Ctrl+Enter) even inside inputs
       const hasModifier = e.ctrlKey || e.metaKey || e.altKey;
-      if (!hasModifier && SKIP_TAGS.has(tag)) return;
+      const isEditable = SKIP_TAGS.has(tag) || target?.isContentEditable;
+      if (!hasModifier && isEditable) return;
 
       const { scopeStack, handlers } = useShortcutStore.getState();
       const activeScope = scopeStack[scopeStack.length - 1];
