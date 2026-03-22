@@ -4,10 +4,87 @@ import {
   WidgetType,
   type DecorationSet,
   type ViewUpdate,
-  type EditorView,
+  EditorView,
 } from "@codemirror/view";
 import { RangeSetBuilder } from "@codemirror/state";
-import { TOKEN_PATTERN } from "./facets";
+import { TOKEN_PATTERN, embeddingNamesFacet } from "./facets";
+
+const DRAG_MIME = "application/x-cm-chip";
+
+// ── Shared drag helpers ──────────────────────────────────────────────
+
+function setupDrag(
+  chip: HTMLElement,
+  from: number,
+  to: number,
+  raw: string,
+  getView: () => EditorView,
+) {
+  chip.draggable = true;
+  chip.addEventListener("dragstart", (e) => {
+    if (!e.dataTransfer) return;
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData(DRAG_MIME, JSON.stringify({ from, to, raw }));
+    chip.classList.add("cm-chip-source");
+    getView().dom.classList.add("cm-chip-dragging");
+  });
+  chip.addEventListener("dragend", () => {
+    chip.classList.remove("cm-chip-source");
+    getView().dom.classList.remove("cm-chip-dragging");
+  });
+  chip.addEventListener("dblclick", () => {
+    const view = getView();
+    view.dispatch({ selection: { anchor: Math.floor((from + to) / 2) } });
+    view.focus();
+  });
+}
+
+// ── Token chip widget (wildcard, embedding) ──────────────────────────
+
+type TokenKind = "wildcard" | "embedding";
+
+class TokenChipWidget extends WidgetType {
+  displayName: string;
+  kind: TokenKind;
+  fullRaw: string;
+  from: number;
+  to: number;
+  getView: () => EditorView;
+
+  constructor(
+    displayName: string,
+    kind: TokenKind,
+    fullRaw: string,
+    from: number,
+    to: number,
+    getView: () => EditorView,
+  ) {
+    super();
+    this.displayName = displayName;
+    this.kind = kind;
+    this.fullRaw = fullRaw;
+    this.from = from;
+    this.to = to;
+    this.getView = getView;
+  }
+
+  eq(other: TokenChipWidget): boolean {
+    return this.fullRaw === other.fullRaw && this.from === other.from;
+  }
+
+  toDOM(): HTMLElement {
+    const chip = document.createElement("span");
+    chip.className = `cm-token-chip cm-token-chip-${this.kind}`;
+    chip.textContent = this.displayName;
+    setupDrag(chip, this.from, this.to, this.fullRaw, this.getView);
+    return chip;
+  }
+
+  ignoreEvent(e: Event): boolean {
+    const t = e.type;
+    return t === "mousedown" || t.startsWith("drag") || t === "drop";
+  }
+}
 
 // ── LoRA chip widget ─────────────────────────────────────────────────
 
@@ -50,6 +127,8 @@ class LoraChipWidget extends WidgetType {
     weightSpan.textContent = this.weight;
     chip.appendChild(weightSpan);
 
+    setupDrag(chip, this.from, this.to, this.fullRaw, this.getView);
+
     // Scroll wheel on chip adjusts weight
     chip.addEventListener(
       "wheel",
@@ -71,8 +150,9 @@ class LoraChipWidget extends WidgetType {
     return chip;
   }
 
-  ignoreEvent(): boolean {
-    return false;
+  ignoreEvent(e: Event): boolean {
+    const t = e.type;
+    return t === "mousedown" || t.startsWith("drag") || t === "drop";
   }
 
   private updateWeight(delta: number) {
@@ -164,7 +244,13 @@ class LoraChipWidget extends WidgetType {
   }
 }
 
-// ── ViewPlugin: expand-on-cursor pattern ─────────────────────────────
+// ── ViewPlugin: chip rendering for all token types ───────────────────
+
+type ChipMatch = {
+  from: number;
+  to: number;
+  widget: WidgetType;
+};
 
 export const loraWidgetPlugin = ViewPlugin.fromClass(
   class {
@@ -177,7 +263,12 @@ export const loraWidgetPlugin = ViewPlugin.fromClass(
     }
 
     update(update: ViewUpdate) {
-      if (update.docChanged || update.selectionSet) {
+      if (
+        update.docChanged ||
+        update.selectionSet ||
+        update.startState.facet(embeddingNamesFacet) !==
+          update.state.facet(embeddingNamesFacet)
+      ) {
         this.view = update.view;
         this.decorations = this.build();
       }
@@ -187,47 +278,90 @@ export const loraWidgetPlugin = ViewPlugin.fromClass(
       const builder = new RangeSetBuilder<Decoration>();
       const text = this.view.state.doc.toString();
       const cursorHead = this.view.state.selection.main.head;
+      const chips: ChipMatch[] = [];
 
-      const matches: Array<{
-        from: number;
-        to: number;
-        displayName: string;
-        weight: string;
-        raw: string;
-      }> = [];
-
+      // LoRA / LyCo chips
       for (const match of text.matchAll(new RegExp(TOKEN_PATTERN, "g"))) {
         if (match[1] === undefined) continue;
         const tagType = match[1].toLowerCase();
-        if (tagType !== "lora" && tagType !== "lyco") continue;
 
-        const from = match.index!;
-        const to = from + match[0].length;
-        const args = match[2];
-        const lastColon = args.lastIndexOf(":");
-        const name = lastColon > 0 ? args.slice(0, lastColon) : args;
-        const weight = lastColon > 0 ? args.slice(lastColon + 1) : "1";
-        const displayName = name.split("/").pop() || name;
-
-        matches.push({ from, to, displayName, weight, raw: match[0] });
-      }
-
-      for (const m of matches) {
-        if (cursorHead >= m.from && cursorHead <= m.to) continue;
-        builder.add(
-          m.from,
-          m.to,
-          Decoration.replace({
+        if (tagType === "lora" || tagType === "lyco") {
+          const from = match.index!;
+          const to = from + match[0].length;
+          const args = match[2];
+          const lastColon = args.lastIndexOf(":");
+          const name = lastColon > 0 ? args.slice(0, lastColon) : args;
+          const weight = lastColon > 0 ? args.slice(lastColon + 1) : "1";
+          const displayName = name.split("/").pop() || name;
+          chips.push({
+            from,
+            to,
             widget: new LoraChipWidget(
-              m.displayName,
-              m.weight,
-              m.raw,
-              m.from,
-              m.to,
+              displayName,
+              weight,
+              match[0],
+              from,
+              to,
               () => this.view,
             ),
-          }),
+          });
+        }
+      }
+
+      // Wildcard chips: __name__
+      for (const match of text.matchAll(new RegExp(TOKEN_PATTERN, "g"))) {
+        if (match[3] === undefined) continue;
+        const from = match.index!;
+        const to = from + match[0].length;
+        chips.push({
+          from,
+          to,
+          widget: new TokenChipWidget(
+            match[3],
+            "wildcard",
+            match[0],
+            from,
+            to,
+            () => this.view,
+          ),
+        });
+      }
+
+      // Embedding chips: matched by name from facet
+      const embeddings = this.view.state.facet(embeddingNamesFacet);
+      if (embeddings.length > 0) {
+        const sorted = [...embeddings].sort((a, b) => b.length - a.length);
+        const escaped = sorted.map((n) =>
+          n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"),
         );
+        const re = new RegExp(
+          `(?<=^|[\\s,])(?:${escaped.join("|")})(?=[\\s,]|$)`,
+          "g",
+        );
+        for (const m of text.matchAll(re)) {
+          const from = m.index!;
+          const to = from + m[0].length;
+          const displayName = m[0].split("/").pop() || m[0];
+          chips.push({
+            from,
+            to,
+            widget: new TokenChipWidget(
+              displayName,
+              "embedding",
+              m[0],
+              from,
+              to,
+              () => this.view,
+            ),
+          });
+        }
+      }
+
+      // Sort by position and add to builder, skipping cursor-adjacent chips
+      chips.sort((a, b) => a.from - b.from);
+      for (const c of chips) {
+        if (cursorHead > c.from && cursorHead < c.to) continue;
+        builder.add(c.from, c.to, Decoration.replace({ widget: c.widget }));
       }
 
       return builder.finish();
@@ -235,3 +369,56 @@ export const loraWidgetPlugin = ViewPlugin.fromClass(
   },
   { decorations: (v) => v.decorations },
 );
+
+// ── Drag-and-drop handler for chip reordering ────────────────────────
+
+export const loraDragDrop = EditorView.domEventHandlers({
+  dragover(e, view) {
+    if (!e.dataTransfer?.types.includes(DRAG_MIME)) return false;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    const pos = view.posAtCoords({ x: e.clientX, y: e.clientY });
+    if (pos !== null) {
+      view.dispatch({ selection: { anchor: pos } });
+    }
+    return true;
+  },
+  drop(e, view) {
+    if (!e.dataTransfer?.types.includes(DRAG_MIME)) return false;
+    e.preventDefault();
+
+    const data = JSON.parse(e.dataTransfer.getData(DRAG_MIME));
+    const { from, to, raw } = data as { from: number; to: number; raw: string };
+
+    // Verify source text hasn't changed since drag started
+    if (view.state.sliceDoc(from, to) !== raw) return true;
+
+    const dropPos = view.posAtCoords({ x: e.clientX, y: e.clientY });
+    if (dropPos === null) return true;
+
+    // Dropping inside the source range is a no-op
+    if (dropPos >= from && dropPos <= to) return true;
+
+    // Trim surrounding whitespace when removing, add a space at the drop site
+    let delFrom = from;
+    let delTo = to;
+    const doc = view.state.doc.toString();
+    if (delTo < doc.length && doc[delTo] === " ") delTo++;
+    else if (delFrom > 0 && doc[delFrom - 1] === " ") delFrom--;
+
+    const insertText = dropPos === 0 ? `${raw} ` : ` ${raw}`;
+
+    // Adjust drop position if it's after the deletion
+    const adjustedDrop = dropPos > from ? dropPos - (delTo - delFrom) : dropPos;
+
+    view.dispatch({
+      changes: [
+        { from: delFrom, to: delTo },
+        { from: adjustedDrop, insert: insertText },
+      ],
+      sequential: true,
+    });
+
+    return true;
+  },
+});

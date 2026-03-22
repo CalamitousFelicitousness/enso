@@ -111,13 +111,39 @@ export const promptTheme = EditorView.theme({
     fontSize: "inherit",
     lineHeight: "inherit",
     verticalAlign: "baseline",
-    cursor: "text",
+    cursor: "grab",
   },
   ".cm-lora-chip-weight": {
     opacity: "0.5",
     fontFamily: "var(--font-mono)",
     fontSize: "0.85em",
     marginLeft: "2px",
+  },
+  ".cm-chip-source": {
+    opacity: "0.4",
+  },
+  "&.cm-chip-dragging .cm-tooltip": {
+    display: "none !important",
+  },
+
+  // ── Token chip widgets (wildcard, embedding) ──
+  ".cm-token-chip": {
+    display: "inline",
+    padding: "0 5px",
+    borderRadius: "3px",
+    fontWeight: "500",
+    fontSize: "inherit",
+    lineHeight: "inherit",
+    verticalAlign: "baseline",
+    cursor: "grab",
+  },
+  ".cm-token-chip-wildcard": {
+    backgroundColor: "color-mix(in srgb, #f59e0b 12%, transparent)",
+    color: "color-mix(in srgb, #fbbf24 90%, var(--color-foreground))",
+  },
+  ".cm-token-chip-embedding": {
+    backgroundColor: "color-mix(in srgb, #10b981 12%, transparent)",
+    color: "color-mix(in srgb, #34d399 90%, var(--color-foreground))",
   },
 
   // ── Autocomplete dropdown ──

@@ -4,7 +4,7 @@ import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
 import { bracketMatching } from "@codemirror/language";
 import { promptTheme } from "./theme";
 import { promptHighlighter } from "./decorations";
-import { loraWidgetPlugin } from "./loraWidget";
+import { loraWidgetPlugin, loraDragDrop } from "./loraWidget";
 import { promptAutocomplete } from "./autocomplete";
 import { promptTooltips } from "./tooltips";
 import { cursorTracker } from "./cursor";
@@ -26,6 +26,7 @@ export function promptExtensions(placeholderText?: string): Extension[] {
     bracketMatching({ brackets: "()[]{}" }),
     promptHighlighter,
     loraWidgetPlugin,
+    loraDragDrop,
     promptAutocomplete(),
     promptTooltips(),
     cursorTracker,
