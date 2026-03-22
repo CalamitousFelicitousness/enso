@@ -11,6 +11,10 @@ import { TOKEN_PATTERN, embeddingNamesFacet } from "./facets";
 
 const DRAG_MIME = "application/x-cm-chip";
 
+// Suppress widget rebuilds while interacting with a chip. Held for the
+// full drag lifecycle (mousedown → dragend) so the DOM element survives.
+let rebuildLock = false;
+
 // ── Shared drag helpers ──────────────────────────────────────────────
 
 function setupDrag(
@@ -21,6 +25,13 @@ function setupDrag(
   getView: () => EditorView,
 ) {
   chip.draggable = true;
+  chip.addEventListener("mousedown", () => {
+    rebuildLock = true;
+  });
+  // click fires on mouseup when no drag occurred — clears the lock
+  chip.addEventListener("click", () => {
+    rebuildLock = false;
+  });
   chip.addEventListener("dragstart", (e) => {
     if (!e.dataTransfer) return;
     e.dataTransfer.effectAllowed = "move";
@@ -29,10 +40,12 @@ function setupDrag(
     getView().dom.classList.add("cm-chip-dragging");
   });
   chip.addEventListener("dragend", () => {
+    rebuildLock = false;
     chip.classList.remove("cm-chip-source");
     getView().dom.classList.remove("cm-chip-dragging");
   });
   chip.addEventListener("dblclick", () => {
+    rebuildLock = false;
     const view = getView();
     view.dispatch({ selection: { anchor: Math.floor((from + to) / 2) } });
     view.focus();
@@ -114,7 +127,7 @@ class LoraChipWidget extends WidgetType {
   }
 
   eq(other: LoraChipWidget): boolean {
-    return this.fullRaw === other.fullRaw;
+    return this.fullRaw === other.fullRaw && this.from === other.from;
   }
 
   toDOM(): HTMLElement {
@@ -263,6 +276,11 @@ export const loraWidgetPlugin = ViewPlugin.fromClass(
     }
 
     update(update: ViewUpdate) {
+      // Skip rebuild when a chip mousedown is in progress — the chip DOM
+      // must survive for dragstart / dblclick to fire on the same element.
+      if (rebuildLock && update.selectionSet && !update.docChanged) {
+        return;
+      }
       if (
         update.docChanged ||
         update.selectionSet ||
@@ -396,28 +414,24 @@ export const loraDragDrop = EditorView.domEventHandlers({
     const dropPos = view.posAtCoords({ x: e.clientX, y: e.clientY });
     if (dropPos === null) return true;
 
-    // Dropping inside the source range is a no-op
-    if (dropPos >= from && dropPos <= to) return true;
-
-    // Trim surrounding whitespace when removing, add a space at the drop site
+    // Extend deletion range to consume one adjacent space
     let delFrom = from;
     let delTo = to;
     const doc = view.state.doc.toString();
     if (delTo < doc.length && doc[delTo] === " ") delTo++;
     else if (delFrom > 0 && doc[delFrom - 1] === " ") delFrom--;
 
+    // Dropping inside the (whitespace-extended) source range is a no-op
+    if (dropPos >= delFrom && dropPos <= delTo) return true;
+
     const insertText = dropPos === 0 ? `${raw} ` : ` ${raw}`;
 
-    // Adjust drop position if it's after the deletion
-    const adjustedDrop = dropPos > from ? dropPos - (delTo - delFrom) : dropPos;
+    // Changes must be sorted by position for CM
+    const changes = dropPos <= delFrom
+      ? [{ from: dropPos, insert: insertText }, { from: delFrom, to: delTo }]
+      : [{ from: delFrom, to: delTo }, { from: dropPos, insert: insertText }];
 
-    view.dispatch({
-      changes: [
-        { from: delFrom, to: delTo },
-        { from: adjustedDrop, insert: insertText },
-      ],
-      sequential: true,
-    });
+    view.dispatch({ changes });
 
     return true;
   },
