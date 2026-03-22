@@ -10,7 +10,7 @@ from enso_api.models import JobResponse, JobListResponse, JobResult, ImageRef, S
 router = APIRouter(prefix="/sdapi/v2", tags=["v2"])
 
 
-def _job_to_response(job: dict) -> JobResponse:
+def job_to_response(job: dict) -> JobResponse:
     result = job.get('result')
     job_result = None
     if result:
@@ -48,7 +48,7 @@ async def submit_job(request: dict):
         raise HTTPException(status_code=400, detail=f"Invalid job type: {job_type}. Must be one of: {', '.join(sorted(EXECUTORS))}")
     priority = request.pop('priority', 0)
     job = job_queue.submit(job_type=job_type, params=request, priority=priority)
-    return _job_to_response(job)
+    return job_to_response(job)
 
 
 @router.get("/jobs", response_model=JobListResponse, tags=["Jobs"])
@@ -60,7 +60,7 @@ async def list_jobs(
 ):
     from enso_api.job_queue import job_queue
     items, total = job_queue.store.list(status=status, job_type=type, limit=limit, offset=offset)
-    return JobListResponse(items=[_job_to_response(j) for j in items], total=total, offset=offset, limit=limit)
+    return JobListResponse(items=[job_to_response(j) for j in items], total=total, offset=offset, limit=limit)
 
 
 @router.delete("/jobs", response_model=ResPurgeV2, tags=["Jobs"])
@@ -102,12 +102,12 @@ async def get_job(job_id: str):
     job = job_queue.store.get(job_id)
     if job is None:
         raise HTTPException(status_code=404, detail=f"Job not found: {job_id}")
-    resp = _job_to_response(job)
+    resp = job_to_response(job)
     # Optionally include inline base64 images
     try:
         from modules import shared
         if getattr(shared.opts, 'api_v2_base64', False) and resp.result and resp.result.images:
-            _embed_base64(job, resp)
+            embed_base64(job, resp)
     except Exception:
         pass
     return resp
@@ -126,16 +126,16 @@ async def delete_job(job_id: str):
     return {"id": job_id, "status": status}
 
 
-def _embed_base64(job: dict, resp: JobResponse) -> None:
+def embed_base64(job: dict, resp: JobResponse) -> None:
     import base64
     for img_ref in resp.result.images:
-        file_path = _get_ref_path(job, 'images', img_ref.index)
+        file_path = get_ref_path(job, 'images', img_ref.index)
         if file_path and os.path.isfile(file_path):
             with open(file_path, 'rb') as f:
                 img_ref.__dict__['data'] = base64.b64encode(f.read()).decode('ascii')
 
 
-def _get_ref_path(job: dict, key: str, index: int) -> str | None:
+def get_ref_path(job: dict, key: str, index: int) -> str | None:
     result = job.get('result')
     if isinstance(result, str):
         try:
@@ -150,8 +150,8 @@ def _get_ref_path(job: dict, key: str, index: int) -> str | None:
     return items[index].get('path')
 
 
-def _serve_job_file(job: dict, key: str, index: int):
-    file_path = _get_ref_path(job, key, index)
+def serve_job_file(job: dict, key: str, index: int):
+    file_path = get_ref_path(job, key, index)
     if file_path is None:
         raise HTTPException(status_code=404, detail=f"{key} index {index} out of range")
     if not os.path.isfile(file_path):
@@ -178,7 +178,7 @@ def _serve_job_file(job: dict, key: str, index: int):
     return FileResponse(file_path, media_type=media_types.get(ext, 'application/octet-stream'))
 
 
-def _get_completed_job(job_id: str):
+def get_completed_job(job_id: str):
     from enso_api.job_queue import job_queue
     job = job_queue.store.get(job_id)
     if job is None:
@@ -190,15 +190,15 @@ def _get_completed_job(job_id: str):
 
 @router.get("/jobs/{job_id}/images/{index}", tags=["Jobs"])
 async def get_job_image(job_id: str, index: int):
-    return _serve_job_file(_get_completed_job(job_id), 'images', index)
+    return serve_job_file(get_completed_job(job_id), 'images', index)
 
 
 @router.get("/jobs/{job_id}/processed/{index}", tags=["Jobs"])
 async def get_job_processed(job_id: str, index: int):
-    return _serve_job_file(_get_completed_job(job_id), 'processed', index)
+    return serve_job_file(get_completed_job(job_id), 'processed', index)
 
 
-def _parse_video_mode(name: str) -> str:
+def parse_video_mode(name: str) -> str:
     lower = name.lower()
     if 'flf2v' in lower:
         return 'flf2v'
@@ -228,7 +228,7 @@ async def list_video_engines():
                 continue
             cached = is_model_cached(m.repo) if m.repo else False
             loaded = m.name == current_loaded if current_loaded else False
-            mode = _parse_video_mode(m.name)
+            mode = parse_video_mode(m.name)
             details.append(VideoModelEnriched(name=m.name, repo=m.repo or '', url=m.url or '', cached=cached, loaded=loaded, mode=mode))
         result.append({'engine': engine_name, 'models': model_names, 'model_details': details})
     return result

@@ -67,7 +67,7 @@ def get_hf_profile():
 # Extra-networks detail
 # ---------------------------------------------------------------------------
 
-def _format_tags(raw_tags):
+def format_tags(raw_tags):
     if isinstance(raw_tags, dict):
         return '|'.join(raw_tags.keys()) if raw_tags else None
     if isinstance(raw_tags, str) and raw_tags:
@@ -99,7 +99,7 @@ def get_extra_network_detail(page: str, name: str):
                 'size': item.get('size', None),
                 'mtime': mtime,
                 'version': item.get('version', None),
-                'tags': _format_tags(item.get('tags', None)),
+                'tags': format_tags(item.get('tags', None)),
                 'description': item.get('description', None),
                 'info': item.get('info', None) if isinstance(item.get('info'), dict) else None,
             }
@@ -140,7 +140,7 @@ def get_extra_network_details(page: str | None = None, name: str | None = None, 
                 'size': item.get('size', None),
                 'mtime': mtime,
                 'version': item.get('version', None),
-                'tags': _format_tags(item.get('tags', None)),
+                'tags': format_tags(item.get('tags', None)),
                 'description': item.get('description', None),
                 'info': item.get('info', None) if isinstance(item.get('info'), dict) else None,
             })

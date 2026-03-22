@@ -10,7 +10,7 @@ from modules import shared
 from modules.api.models import ItemLoadedModel
 
 
-def _safe_device(model) -> str | None:
+def safe_device(model) -> str | None:
     try:
         if hasattr(model, 'device'):
             return str(model.device)
@@ -22,7 +22,7 @@ def _safe_device(model) -> str | None:
     return None
 
 
-def _safe_compute_dtype(model) -> str | None:
+def safe_compute_dtype(model) -> str | None:
     """Get the compute dtype (e.g. bfloat16) from model.dtype or first parameter."""
     try:
         if hasattr(model, 'dtype') and model.dtype is not None:
@@ -35,7 +35,7 @@ def _safe_compute_dtype(model) -> str | None:
     return None
 
 
-def _safe_quant_dtype(model) -> str | None:
+def safe_quant_dtype(model) -> str | None:
     """Get the quantization weight dtype (e.g. uint4) from quantization_config.weights_dtype."""
     try:
         qcfg = getattr(model, 'quantization_config', None)
@@ -53,7 +53,7 @@ def _safe_quant_dtype(model) -> str | None:
     return None
 
 
-def _safe_quant_method(model) -> str | None:
+def safe_quant_method(model) -> str | None:
     """Get the quantization method name (e.g. SDNQ, BNB, QUANTO)."""
     try:
         q = getattr(model, 'quantization_method', None)
@@ -65,31 +65,31 @@ def _safe_quant_method(model) -> str | None:
     return None
 
 
-def _safe_dtype(model) -> str | None:
+def safe_dtype(model) -> str | None:
     """Return the effective dtype: quant weight dtype if quantized, else compute dtype."""
-    return _safe_quant_dtype(model) or _safe_compute_dtype(model)
+    return safe_quant_dtype(model) or safe_compute_dtype(model)
 
 
-def _safe_size(model) -> int | None:
+def safe_size(model) -> int | None:
     try:
         return sum(p.nelement() * p.element_size() for p in model.parameters())
     except Exception:
         return None
 
 
-def _component_extra(comp, **kwargs) -> dict:
+def component_extra(comp, **kwargs) -> dict:
     extra = dict(kwargs)
-    quant = _safe_quant_method(comp)
+    quant = safe_quant_method(comp)
     if quant:
         extra['quant'] = quant
-    compute_dtype = _safe_compute_dtype(comp)
-    quant_dtype = _safe_quant_dtype(comp)
+    compute_dtype = safe_compute_dtype(comp)
+    quant_dtype = safe_quant_dtype(comp)
     if quant_dtype and compute_dtype and compute_dtype != quant_dtype:
         extra['compute_dtype'] = compute_dtype
     return extra
 
 
-def _enumerate_pipeline(pipe, role: str) -> List[ItemLoadedModel]:
+def enumerate_pipeline(pipe, role: str) -> List[ItemLoadedModel]:
     items = []
     if pipe is None:
         return items
@@ -101,7 +101,7 @@ def _enumerate_pipeline(pipe, role: str) -> List[ItemLoadedModel]:
     items.append(ItemLoadedModel(
         name=name,
         category='pipeline',
-        device=_safe_device(pipe) if isinstance(pipe, torch.nn.Module) else None,
+        device=safe_device(pipe) if isinstance(pipe, torch.nn.Module) else None,
         size_bytes=None,
         dtype=None,
         extra={'role': role, 'class': pipe.__class__.__name__},
@@ -115,15 +115,15 @@ def _enumerate_pipeline(pipe, role: str) -> List[ItemLoadedModel]:
             items.append(ItemLoadedModel(
                 name=comp_name,
                 category='component',
-                device=_safe_device(comp),
-                size_bytes=_safe_size(comp),
-                dtype=_safe_dtype(comp),
-                extra=_component_extra(comp, role=role, **{'class': comp.__class__.__name__}),
+                device=safe_device(comp),
+                size_bytes=safe_size(comp),
+                dtype=safe_dtype(comp),
+                extra=component_extra(comp, role=role, **{'class': comp.__class__.__name__}),
             ))
     return items
 
 
-def _enumerate_control() -> List[ItemLoadedModel]:
+def enumerate_control() -> List[ItemLoadedModel]:
     items = []
     try:
         from modules.control import unit as control_unit
@@ -137,10 +137,10 @@ def _enumerate_control() -> List[ItemLoadedModel]:
                     items.append(ItemLoadedModel(
                         name=model_id,
                         category='controlnet',
-                        device=_safe_device(model),
-                        size_bytes=_safe_size(model),
-                        dtype=_safe_dtype(model),
-                        extra=_component_extra(model, **{'class': model.__class__.__name__}),
+                        device=safe_device(model),
+                        size_bytes=safe_size(model),
+                        dtype=safe_dtype(model),
+                        extra=component_extra(model, **{'class': model.__class__.__name__}),
                     ))
             # T2I Adapter
             adapter = getattr(u, 'adapter', None)
@@ -151,17 +151,17 @@ def _enumerate_control() -> List[ItemLoadedModel]:
                     items.append(ItemLoadedModel(
                         name=model_id,
                         category='t2iadapter',
-                        device=_safe_device(model),
-                        size_bytes=_safe_size(model),
-                        dtype=_safe_dtype(model),
-                        extra=_component_extra(model, **{'class': model.__class__.__name__}),
+                        device=safe_device(model),
+                        size_bytes=safe_size(model),
+                        dtype=safe_dtype(model),
+                        extra=component_extra(model, **{'class': model.__class__.__name__}),
                     ))
     except Exception:
         pass
     return items
 
 
-def _enumerate_lora() -> List[ItemLoadedModel]:
+def enumerate_lora() -> List[ItemLoadedModel]:
     items = []
     try:
         from modules.lora import lora_common, lora_load
@@ -182,7 +182,7 @@ def _enumerate_lora() -> List[ItemLoadedModel]:
     return items
 
 
-def _enumerate_ipadapter() -> List[ItemLoadedModel]:
+def enumerate_ipadapter() -> List[ItemLoadedModel]:
     items = []
     try:
         from modules import ipadapter
@@ -203,7 +203,7 @@ def _enumerate_ipadapter() -> List[ItemLoadedModel]:
     return items
 
 
-def _enumerate_upscalers() -> List[ItemLoadedModel]:
+def enumerate_upscalers() -> List[ItemLoadedModel]:
     items = []
     try:
         for upscaler in shared.sd_upscalers:
@@ -215,9 +215,9 @@ def _enumerate_upscalers() -> List[ItemLoadedModel]:
                         items.append(ItemLoadedModel(
                             name=getattr(upscaler, 'name', 'unknown'),
                             category='upscaler',
-                            device=_safe_device(model),
-                            size_bytes=_safe_size(model),
-                            dtype=_safe_dtype(model),
+                            device=safe_device(model),
+                            size_bytes=safe_size(model),
+                            dtype=safe_dtype(model),
                             extra={'class': model.__class__.__name__, 'path': str(path)},
                         ))
             # Spandrel/SeedVR-style: single .model attribute
@@ -226,9 +226,9 @@ def _enumerate_upscalers() -> List[ItemLoadedModel]:
                 items.append(ItemLoadedModel(
                     name=getattr(upscaler, 'name', 'unknown'),
                     category='upscaler',
-                    device=_safe_device(model),
-                    size_bytes=_safe_size(model),
-                    dtype=_safe_dtype(model),
+                    device=safe_device(model),
+                    size_bytes=safe_size(model),
+                    dtype=safe_dtype(model),
                     extra={'class': model.__class__.__name__},
                 ))
     except Exception:
@@ -236,7 +236,7 @@ def _enumerate_upscalers() -> List[ItemLoadedModel]:
     return items
 
 
-def _enumerate_detailer() -> List[ItemLoadedModel]:
+def enumerate_detailer() -> List[ItemLoadedModel]:
     items = []
     try:
         yolo = getattr(shared, 'yolo', None)
@@ -248,16 +248,16 @@ def _enumerate_detailer() -> List[ItemLoadedModel]:
                         items.append(ItemLoadedModel(
                             name=name,
                             category='detailer',
-                            device=_safe_device(model) if isinstance(model, torch.nn.Module) else None,
-                            size_bytes=_safe_size(model) if isinstance(model, torch.nn.Module) else None,
-                            dtype=_safe_dtype(model) if isinstance(model, torch.nn.Module) else None,
+                            device=safe_device(model) if isinstance(model, torch.nn.Module) else None,
+                            size_bytes=safe_size(model) if isinstance(model, torch.nn.Module) else None,
+                            dtype=safe_dtype(model) if isinstance(model, torch.nn.Module) else None,
                         ))
     except Exception:
         pass
     return items
 
 
-def _enumerate_prompt_enhance() -> List[ItemLoadedModel]:
+def enumerate_prompt_enhance() -> List[ItemLoadedModel]:
     items = []
     try:
         from modules.scripts_manager import scripts_txt2img
@@ -271,17 +271,17 @@ def _enumerate_prompt_enhance() -> List[ItemLoadedModel]:
             items.append(ItemLoadedModel(
                 name=instance.model or 'unknown',
                 category='enhance',
-                device=_safe_device(instance.llm),
-                size_bytes=_safe_size(instance.llm),
-                dtype=_safe_dtype(instance.llm),
-                extra=_component_extra(instance.llm, **{'class': instance.llm.__class__.__name__}),
+                device=safe_device(instance.llm),
+                size_bytes=safe_size(instance.llm),
+                dtype=safe_dtype(instance.llm),
+                extra=component_extra(instance.llm, **{'class': instance.llm.__class__.__name__}),
             ))
     except Exception:
         pass
     return items
 
 
-def _enumerate_caption() -> List[ItemLoadedModel]:
+def enumerate_caption() -> List[ItemLoadedModel]:
     items = []
     # VQA
     try:
@@ -291,9 +291,9 @@ def _enumerate_caption() -> List[ItemLoadedModel]:
             items.append(ItemLoadedModel(
                 name=instance.loaded or 'unknown',
                 category='caption',
-                device=_safe_device(instance.model) if isinstance(instance.model, torch.nn.Module) else None,
-                size_bytes=_safe_size(instance.model) if isinstance(instance.model, torch.nn.Module) else None,
-                dtype=_safe_dtype(instance.model) if isinstance(instance.model, torch.nn.Module) else None,
+                device=safe_device(instance.model) if isinstance(instance.model, torch.nn.Module) else None,
+                size_bytes=safe_size(instance.model) if isinstance(instance.model, torch.nn.Module) else None,
+                dtype=safe_dtype(instance.model) if isinstance(instance.model, torch.nn.Module) else None,
                 extra={'type': 'vqa'},
             ))
     except Exception:
@@ -316,9 +316,9 @@ def _enumerate_caption() -> List[ItemLoadedModel]:
             items.append(ItemLoadedModel(
                 name='DeepDanbooru',
                 category='caption',
-                device=_safe_device(deepbooru.model.model),
-                size_bytes=_safe_size(deepbooru.model.model),
-                dtype=_safe_dtype(deepbooru.model.model),
+                device=safe_device(deepbooru.model.model),
+                size_bytes=safe_size(deepbooru.model.model),
+                dtype=safe_dtype(deepbooru.model.model),
                 extra={'type': 'deepbooru', 'class': deepbooru.model.model.__class__.__name__},
             ))
     except Exception:
@@ -352,17 +352,17 @@ def get_loaded_models() -> List[ItemLoadedModel]:
     # Main pipeline + refiner
     try:
         from modules.modeldata import model_data
-        items.extend(_enumerate_pipeline(model_data.sd_model, 'main'))
-        items.extend(_enumerate_pipeline(model_data.sd_refiner, 'refiner'))
+        items.extend(enumerate_pipeline(model_data.sd_model, 'main'))
+        items.extend(enumerate_pipeline(model_data.sd_refiner, 'refiner'))
     except Exception:
         pass
-    items.extend(_enumerate_control())
-    items.extend(_enumerate_lora())
-    items.extend(_enumerate_ipadapter())
-    items.extend(_enumerate_upscalers())
-    items.extend(_enumerate_detailer())
-    items.extend(_enumerate_caption())
-    items.extend(_enumerate_prompt_enhance())
+    items.extend(enumerate_control())
+    items.extend(enumerate_lora())
+    items.extend(enumerate_ipadapter())
+    items.extend(enumerate_upscalers())
+    items.extend(enumerate_detailer())
+    items.extend(enumerate_caption())
+    items.extend(enumerate_prompt_enhance())
     return items
 
 

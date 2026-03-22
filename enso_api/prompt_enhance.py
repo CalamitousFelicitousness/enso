@@ -48,7 +48,7 @@ ENHANCE_GROUP_RULES = [
 ]
 
 
-def _enhance_group(repo: str) -> str:
+def enhance_group(repo: str) -> str:
     lower = repo.lower()
     for pattern, group in ENHANCE_GROUP_RULES:
         if pattern in lower:
@@ -62,7 +62,7 @@ async def get_prompt_enhance_models_v2():
     from scripts.prompt_enhance import Options, is_vision_model, is_thinking_model  # pylint: disable=no-name-in-module
     from enso_api.util import is_model_cached
     return [
-        ItemPromptEnhanceModelV2(name=repo, group=_enhance_group(repo), vision=is_vision_model(repo), thinking=is_thinking_model(repo), cached=is_model_cached(repo))
+        ItemPromptEnhanceModelV2(name=repo, group=enhance_group(repo), vision=is_vision_model(repo), thinking=is_thinking_model(repo), cached=is_model_cached(repo))
         for repo in Options.models
     ]
 

@@ -9,6 +9,7 @@ as their v1 counterparts.
 """
 
 import asyncio
+import os
 from datetime import datetime
 from typing import Any
 from fastapi import APIRouter, HTTPException, Query
@@ -35,7 +36,7 @@ from enso_api.models import (
 router = APIRouter(prefix="/sdapi/v2")
 
 
-def _format_tags(raw_tags) -> list[str]:
+def format_tags(raw_tags) -> list[str]:
     if isinstance(raw_tags, dict):
         return list(raw_tags.keys()) if raw_tags else []
     if isinstance(raw_tags, str) and raw_tags:
@@ -45,7 +46,7 @@ def _format_tags(raw_tags) -> list[str]:
     return []
 
 
-def _format_mtime(mtime) -> str | None:
+def format_mtime(mtime) -> str | None:
     if isinstance(mtime, datetime):
         return mtime.isoformat()
     if isinstance(mtime, (int, float)):
@@ -72,8 +73,12 @@ async def get_extra_networks_v2(
         if page is not None and pg.name != page.lower():
             continue
         for item in pg.items:
-            tags = _format_tags(item.get('tags', None))
+            tags = format_tags(item.get('tags', None))
             name = item.get('name', '')
+            # LoRA/LyCo: normalize name the same way SD.Next does internally
+            # (basename without extension, dots replaced with underscores)
+            if pg.name in ('lora', 'lyco') and item.get('filename'):
+                name = os.path.splitext(os.path.basename(item['filename']))[0].replace('.', '_')
             title = item.get('title', '') or ''
             filename = item.get('filename', '') or ''
             if lower_search:
@@ -82,7 +87,7 @@ async def get_extra_networks_v2(
                     continue
             if subfolder and subfolder not in filename:
                 continue
-            mtime = _format_mtime(item.get('mtime', None))
+            mtime = format_mtime(item.get('mtime', None))
             matched.append(ItemExtraNetworkV2(
                 name=name,
                 type=pg.name,
@@ -234,7 +239,7 @@ async def get_sd_models_v2(
             continue
         en_item = model_items.get(v.name)
         size = en_item.get('size') if en_item else None
-        mtime = _format_mtime(en_item.get('mtime')) if en_item else None
+        mtime = format_mtime(en_item.get('mtime')) if en_item else None
         version = en_item.get('version') if en_item else None
         matched.append(ItemModelV2(
             title=v.title,
@@ -330,7 +335,7 @@ async def get_history_v2(
 
 # --- Checkpoint ---
 
-def _build_checkpoint_info() -> ResCheckpointV2:
+def build_checkpoint_info() -> ResCheckpointV2:
     if not shared.sd_loaded or shared.sd_model is None:
         return ResCheckpointV2(loaded=False)
     info = ResCheckpointV2(
@@ -352,7 +357,7 @@ def _build_checkpoint_info() -> ResCheckpointV2:
 @router.get("/checkpoint", response_model=ResCheckpointV2, tags=["Models"])
 async def get_checkpoint_v2():
     """Return information about the currently loaded checkpoint."""
-    return _build_checkpoint_info()
+    return build_checkpoint_info()
 
 
 @router.post("/checkpoint", response_model=ResSetCheckpointV2, tags=["Models"])
@@ -383,7 +388,7 @@ async def set_checkpoint_v2(req: ReqSetCheckpointV2):
         shared.opts.sd_model_checkpoint = checkpoint
         return sd_models.reload_model_weights()
     model = await asyncio.to_thread(_load)
-    return ResSetCheckpointV2(ok=model is not None, checkpoint=_build_checkpoint_info())
+    return ResSetCheckpointV2(ok=model is not None, checkpoint=build_checkpoint_info())
 
 
 # --- VAE ---
@@ -418,7 +423,7 @@ async def get_upscalers_v2():
 async def refresh_checkpoints_v2():
     """Rescan checkpoint directories and update the available models list."""
     await asyncio.to_thread(shared.refresh_checkpoints)
-    return ResSetCheckpointV2(ok=True, checkpoint=_build_checkpoint_info())
+    return ResSetCheckpointV2(ok=True, checkpoint=build_checkpoint_info())
 
 
 @router.post("/checkpoint/reload", response_model=ResSetCheckpointV2, tags=["Models"])
@@ -430,7 +435,7 @@ async def reload_checkpoint_v2(force: bool = Query(default=False, description="U
             sd_models.unload_model_weights(op='model')
         sd_models.reload_model_weights()
     await asyncio.to_thread(_reload)
-    return ResSetCheckpointV2(ok=True, checkpoint=_build_checkpoint_info())
+    return ResSetCheckpointV2(ok=True, checkpoint=build_checkpoint_info())
 
 
 @router.post("/checkpoint/unload", response_model=ResSetCheckpointV2, tags=["Models"])
@@ -441,7 +446,7 @@ async def unload_checkpoint_v2():
         sd_models.unload_model_weights(op='model')
         sd_models.unload_model_weights(op='refiner')
     await asyncio.to_thread(_unload)
-    return ResSetCheckpointV2(ok=True, checkpoint=_build_checkpoint_info())
+    return ResSetCheckpointV2(ok=True, checkpoint=build_checkpoint_info())
 
 
 # --- Scripts ---
@@ -531,7 +536,7 @@ async def get_prompt_styles_v2():
             wildcards=getattr(v, 'wildcards', None) or None,
             filename=v.filename or None,
             preview=v.preview or None,
-            mtime=_format_mtime(getattr(v, 'mtime', None)),
+            mtime=format_mtime(getattr(v, 'mtime', None)),
         )
         for v in shared.prompt_styles.styles.values()
     ]

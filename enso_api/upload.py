@@ -136,7 +136,7 @@ IMAGE_SIGNATURES = {
 }
 
 
-def _detect_image_type(data: bytes) -> str | None:
+def detect_image_type(data: bytes) -> str | None:
     for sig, mime in IMAGE_SIGNATURES.items():
         if data[:len(sig)] == sig:
             if sig == b'RIFF' and data[8:12] != b'WEBP':
@@ -164,7 +164,7 @@ async def upload_files(files: list[UploadFile]):
                 raise HTTPException(status_code=400, detail=f"File '{f.filename}' exceeds {MAX_FILE_SIZE // (1024*1024)}MB limit")
             chunks.append(chunk)
         data = b"".join(chunks)
-        content_type = _detect_image_type(data) or f.content_type or "application/octet-stream"
+        content_type = detect_image_type(data) or f.content_type or "application/octet-stream"
         entry = store.store(data, f.filename or "upload.png", content_type)
         refs.append(UploadRef(
             ref=f"upload:{entry.ref_id}",

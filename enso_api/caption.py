@@ -42,7 +42,7 @@ VLM_GROUP_RULES = [
 ]
 
 
-def _vlm_group(name: str) -> str:
+def vlm_group(name: str) -> str:
     lower = name.lower()
     for pattern, group in VLM_GROUP_RULES:
         if pattern in lower:
@@ -75,7 +75,7 @@ async def get_vlm_models_v2():
     from enso_api.util import is_model_cached
     models = get_vqa_models()
     for m in models:
-        m["group"] = _vlm_group(m.get("name", ""))
+        m["group"] = vlm_group(m.get("name", ""))
         m["cached"] = is_model_cached(m.get("repo", ""))
     return models
 

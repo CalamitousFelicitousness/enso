@@ -51,7 +51,7 @@ class ReqDownload(BaseModel):
 
 ### security helpers
 
-def _get_allowed_roots():
+def get_allowed_roots():
     """Collect all resolved gallery root folders."""
     roots = set()
     base_samples = shared.opts.outdir_samples
@@ -78,7 +78,7 @@ def _get_allowed_roots():
 def is_allowed_path(filepath: str) -> bool:
     """Check if a file path is within allowed gallery folders."""
     resolved = os.path.abspath(os.path.realpath(filepath))
-    for root in _get_allowed_roots():
+    for root in get_allowed_roots():
         if resolved.startswith(root + os.sep) or resolved == root:
             return True
     return False

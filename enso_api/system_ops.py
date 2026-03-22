@@ -180,7 +180,7 @@ def get_benchmark_results():
 # Storage
 # ---------------------------------------------------------------------------
 
-def _dir_size(path: str, recursive: bool = False, max_depth: int = 1):
+def dir_size(path: str, recursive: bool = False, max_depth: int = 1):
     """Return total size in bytes of a directory. Non-recursive by default for speed on huge dirs."""
     total = 0
     if not path or not os.path.isdir(path):
@@ -191,7 +191,7 @@ def _dir_size(path: str, recursive: bool = False, max_depth: int = 1):
                 if entry.is_file(follow_symlinks=False):
                     total += entry.stat(follow_symlinks=False).st_size
                 elif recursive and entry.is_dir(follow_symlinks=False) and max_depth > 0:
-                    total += _dir_size(entry.path, recursive=True, max_depth=max_depth - 1)
+                    total += dir_size(entry.path, recursive=True, max_depth=max_depth - 1)
             except OSError:
                 pass
     except OSError:
@@ -199,7 +199,7 @@ def _dir_size(path: str, recursive: bool = False, max_depth: int = 1):
     return total
 
 
-def _file_size(path: str):
+def file_size(path: str):
     try:
         return os.path.getsize(path) if os.path.isfile(path) else 0
     except OSError:
@@ -218,15 +218,15 @@ def get_storage():
         ("extensions.json", os.path.join(data_dir, "data", "extensions.json")),
         ("jobs.db", os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "jobs.db")),
     ]
-    result["caches"] = [{"label": label, "path": p, "size": _file_size(p)} for label, p in cache_files]
+    result["caches"] = [{"label": label, "path": p, "size": file_size(p)} for label, p in cache_files]
 
     # Temp
     temp_dir = getattr(shared.opts, 'temp_dir', '') or os.path.join(data_dir, "tmp")
-    result["temp"] = [{"label": "Temp", "path": temp_dir, "size": _dir_size(temp_dir, recursive=True, max_depth=2)}]
+    result["temp"] = [{"label": "Temp", "path": temp_dir, "size": dir_size(temp_dir, recursive=True, max_depth=2)}]
 
     # HuggingFace cache
     hf_dir = getattr(shared.opts, 'hfcache_dir', '') or os.path.join(paths.models_path, 'huggingface')
-    result["huggingface"] = [{"label": "HuggingFace cache", "path": hf_dir, "size": _dir_size(hf_dir, recursive=False)}]
+    result["huggingface"] = [{"label": "HuggingFace cache", "path": hf_dir, "size": dir_size(hf_dir, recursive=False)}]
 
     # Outputs - resolve via the same base+specific logic the gallery uses
     base_samples = getattr(shared.opts, 'outdir_samples', '')
@@ -259,7 +259,7 @@ def get_storage():
                     break
         else:
             seen_paths[resolved] = label
-            outputs.append({"label": label, "path": p, "size": _dir_size(p, recursive=True, max_depth=3)})
+            outputs.append({"label": label, "path": p, "size": dir_size(p, recursive=True, max_depth=3)})
     result["outputs"] = outputs
 
     # Models
@@ -273,7 +273,7 @@ def get_storage():
         ("Embeddings", getattr(shared.cmd_opts, 'embeddings_dir', os.path.join(paths.models_path, 'embeddings'))),
         ("Control", getattr(shared.opts, 'control_dir', os.path.join(paths.models_path, 'control'))),
     ]
-    result["models"] = [{"label": label, "path": p, "size": _dir_size(p, recursive=False)} for label, p in model_dirs if p]
+    result["models"] = [{"label": label, "path": p, "size": dir_size(p, recursive=False)} for label, p in model_dirs if p]
 
     log.debug('API: storage scan complete')
     return result

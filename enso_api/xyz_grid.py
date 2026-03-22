@@ -66,22 +66,22 @@ class ResXyzPreview(BaseModel):
 re_category = re.compile(r'^\[([^\]]+)\]\s*')
 
 
-def _get_axis_options():
+def get_axis_options():
     from scripts.xyz.xyz_grid_classes import axis_options  # pylint: disable=no-name-in-module
     return axis_options
 
 
-def _find_axis(label: str):
-    for opt in _get_axis_options():
+def find_axis(label: str):
+    for opt in get_axis_options():
         if opt.label == label:
             return opt
     return None
 
 
-def _resolve_axis_values(axis_label: str, values_str: str) -> tuple[list, list[str]]:
+def resolve_axis_values(axis_label: str, values_str: str) -> tuple[list, list[str]]:
     from scripts.xyz.xyz_grid_shared import re_range, re_plain_comma, restore_comma, str_permutations  # pylint: disable=no-name-in-module
 
-    opt = _find_axis(axis_label)
+    opt = find_axis(axis_label)
     if opt is None:
         return [], [f"Unknown axis: {axis_label}"]
 
@@ -139,7 +139,7 @@ def _resolve_axis_values(axis_label: str, values_str: str) -> tuple[list, list[s
 
 @router.get("/axes", response_model=ResXyzAxes)
 async def get_axes(expand: Optional[str] = Query(default=None, description="Axis label to expand choices for")):
-    axis_options = _get_axis_options()
+    axis_options = get_axis_options()
     items = []
     categories = set()
     for opt in axis_options:
@@ -167,7 +167,7 @@ async def get_axes(expand: Optional[str] = Query(default=None, description="Axis
 
 @router.post("/validate", response_model=ResXyzValidate)
 async def validate_axis(req: ReqXyzValidate):
-    resolved, errors = _resolve_axis_values(req.axis_type, req.values)
+    resolved, errors = resolve_axis_values(req.axis_type, req.values)
     return ResXyzValidate(ok=len(errors) == 0, resolved=resolved, count=len(resolved), errors=errors)
 
 
@@ -178,9 +178,9 @@ async def preview_grid(req: ReqXyzPreview):
 
     for axis_name, axis_input in [('x', req.x_axis), ('y', req.y_axis), ('z', req.z_axis)]:
         if axis_input and axis_input.type and axis_input.values.strip():
-            resolved, errs = _resolve_axis_values(axis_input.type, axis_input.values)
+            resolved, errs = resolve_axis_values(axis_input.type, axis_input.values)
             all_errors.extend(errs)
-            opt = _find_axis(axis_input.type)
+            opt = find_axis(axis_input.type)
             cost = opt.cost if opt else 0.0
             axis_data[axis_name] = (resolved, cost)
         else:
@@ -238,7 +238,7 @@ def execute_xyz_grid(params: dict, job_id: str) -> dict:
     from enso_api.executors import execute_generate
 
     # Build the positional script_args array that the xyz_grid script's run() expects
-    axis_options = _get_axis_options()
+    axis_options = get_axis_options()
     label_to_index = {opt.label: i for i, opt in enumerate(axis_options)}
 
     def axis_index(axis_input: Optional[dict]) -> int:

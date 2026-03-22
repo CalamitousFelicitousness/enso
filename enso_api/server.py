@@ -13,7 +13,7 @@ from enso_api.models import (
 router = APIRouter(prefix="/sdapi/v2", tags=["Server"])
 
 
-def _detect_video_capability() -> bool:
+def detect_video_capability() -> bool:
     """Video generation is always available."""
     return True
 
@@ -37,7 +37,7 @@ async def get_server_info_v2():
             supports_strength = 'strength' in sig.parameters
         except Exception:
             supports_strength = True
-    capabilities = ServerCapabilities(video=_detect_video_capability())
+    capabilities = ServerCapabilities(video=detect_video_capability())
     return ResServerInfoV2(
         version=VersionInfoV2(**{k: str(v) for k, v in ver.items() if k in VersionInfoV2.model_fields}),
         backend=shared.backend.name if hasattr(shared.backend, 'name') else str(shared.backend),
@@ -78,14 +78,14 @@ async def get_memory_v2():
     return ResMemoryV2(ram=ram, cuda=cuda)
 
 
-def _safe_float(val) -> float | None:
+def safe_float(val) -> float | None:
     try:
         return float(val)
     except (ValueError, TypeError):
         return None
 
 
-def _parse_metrics(raw: dict[str, str]) -> GpuMetrics:
+def parse_metrics(raw: dict[str, str]) -> GpuMetrics:
     """Parse GPU metrics from raw string values. Format depends on modules/api/gpu.py get_gpu_smi()."""
     metrics = GpuMetrics()
     system_load = raw.get("System load") or raw.get("GPU usage", "")
@@ -133,13 +133,13 @@ async def get_gpu_v2():
     for raw in raw_list:
         data = raw.get('data', {})
         chart = raw.get('chart', [])
-        metrics = _parse_metrics(data)
+        metrics = parse_metrics(data)
         result.append(ResGpuV2(
             name=raw.get('name', ''),
             metrics=metrics,
             details={k: str(v) for k, v in data.items()},
-            chart_vram_pct=_safe_float(chart[0]) if len(chart) > 0 else None,
-            chart_gpu_pct=_safe_float(chart[1]) if len(chart) > 1 else None,
+            chart_vram_pct=safe_float(chart[0]) if len(chart) > 0 else None,
+            chart_gpu_pct=safe_float(chart[1]) if len(chart) > 1 else None,
         ))
     return result
 
