@@ -238,22 +238,18 @@ export function QueueJobCard({
         </div>
       )}
 
-      {/* Stage + phase for running multi-stage jobs */}
-      {isRunning && job.stageCount > 1 && (
+      {/* Stage name + optional counter + phase hint */}
+      {isRunning && (job.stageName || (job.phase && !(job.step > 0))) && (
         <div className="flex items-center gap-1.5 text-4xs text-muted-foreground">
-          <span className="font-medium">
-            Stage {job.stage + 1}/{job.stageCount} · {job.stageName}
-          </span>
-          {job.phase && (
+          {job.stageName && (
+            <span className="font-medium">
+              Stage {job.stage + 1}/{job.stageCount} · {job.stageName}
+            </span>
+          )}
+          {job.phase && !(job.step > 0) && (
             <span className="text-muted-foreground/50 truncate">{job.phase}</span>
           )}
         </div>
-      )}
-      {/* Phase hint for single-stage jobs */}
-      {isRunning && job.stageCount <= 1 && job.phase && (
-        <p className="text-4xs text-muted-foreground/50 truncate" title={job.phase}>
-          {job.phase}
-        </p>
       )}
 
       {/* ETA and elapsed for running */}

@@ -6,13 +6,14 @@ export function CanvasProgressOverlay() {
 
   const pct = Math.round(job.progress * 100);
   const hasSteps = job.step > 0 && job.steps > 0;
+  const showPhase = !!job.phase && !hasSteps;
 
   return (
     <div className="absolute inset-x-0 bottom-0 p-4 pointer-events-none">
       <div className="flex flex-col gap-1 bg-background/80 backdrop-blur-sm rounded-lg px-3 py-2 max-w-md mx-auto">
-        {(job.stageCount > 1 || hasSteps || job.phase) && (
+        {(job.stageName || hasSteps || showPhase) && (
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            {job.stageCount > 1 && (
+            {job.stageName && (
               <span className="font-medium">
                 Stage {job.stage + 1}/{job.stageCount} · {job.stageName}
               </span>
@@ -22,7 +23,7 @@ export function CanvasProgressOverlay() {
                 Step {job.step}/{job.steps}
               </span>
             )}
-            {job.phase && (
+            {showPhase && (
               <>
                 <span className="text-muted-foreground/40">|</span>
                 <span className="text-muted-foreground/50 truncate">{job.phase}</span>

@@ -249,6 +249,9 @@ class JobQueue:
                             phase = None
                         elif current_job:
                             phase = current_job
+                    # Clear stale phase when sampling steps are actively progressing
+                    if phase and current_step > 0 and current_step != last_step:
+                        phase = None
                     last_step = current_step
                     last_job = current_job
                     last_textinfo = current_textinfo
