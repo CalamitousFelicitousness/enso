@@ -142,3 +142,11 @@ export function useIsModelLoading() {
   });
   return pending.length > 0;
 }
+
+export function useModelLoadingTarget(): string | null {
+  const pending = useMutationState({
+    filters: { mutationKey: MODEL_MUTATION_KEY, status: "pending" },
+    select: (m) => (m.state.variables as string) ?? null,
+  });
+  return pending[0] ?? null;
+}

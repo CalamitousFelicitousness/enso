@@ -1,4 +1,4 @@
-import { useCurrentCheckpoint, useIsModelLoading } from "@/api/hooks/useModels";
+import { useCurrentCheckpoint, useIsModelLoading, useModelLoadingTarget } from "@/api/hooks/useModels";
 import { useMemory, useGpuStatus, useLoadedModels } from "@/api/hooks/useServer";
 import { useJobList } from "@/api/hooks/useJobs";
 import { useBackendStatusStore } from "@/stores/backendStatusStore";
@@ -77,10 +77,11 @@ function MemBar({ label, used, total }: { label: string; used: number; total: nu
   );
 }
 
-type DotStatus = "connected" | "loading" | "high-vram" | "disconnected";
+type DotStatus = "connected" | "generating" | "loading" | "high-vram" | "disconnected";
 
 const DOT_STYLES: Record<DotStatus, { dot: string; glow: string; animate: boolean }> = {
   connected:    { dot: "bg-emerald-500", glow: "0 0 6px 2px rgba(16,185,129,0.35)",  animate: false },
+  generating:   { dot: "bg-primary",     glow: "0 0 6px 2px rgba(0,188,212,0.35)",   animate: true },
   loading:      { dot: "bg-amber-500",   glow: "0 0 6px 2px rgba(245,158,11,0.35)",  animate: true },
   "high-vram":  { dot: "bg-amber-500",   glow: "0 0 6px 2px rgba(245,158,11,0.25)",  animate: false },
   disconnected: { dot: "bg-red-500",     glow: "0 0 6px 2px rgba(239,68,68,0.35)",   animate: false },
@@ -113,6 +114,11 @@ export function BottomStatusBar() {
   const { data: gpuList } = useGpuStatus();
   const { data: jobList } = useJobList({ status: "completed", type: "generate", limit: 1 });
   const wsConnected = useBackendStatusStore((s) => s.connected);
+  const globalProgress = useBackendStatusStore((s) => s.progress);
+  const globalStep = useBackendStatusStore((s) => s.step);
+  const globalSteps = useBackendStatusStore((s) => s.steps);
+  const globalTextinfo = useBackendStatusStore((s) => s.textinfo);
+  const loadingTarget = useModelLoadingTarget();
 
   // Derived values
   const gpu = gpuList?.[0]?.metrics;
@@ -130,15 +136,18 @@ export function BottomStatusBar() {
     : 0;
 
   const genCount = jobList?.total ?? 0;
+  const isGenerating = globalStep > 0 || globalProgress > 0;
 
   // Status dot logic
   const status: DotStatus = !wsConnected
     ? "disconnected"
-    : isModelLoading
-      ? "loading"
-      : vramPct >= 90
-        ? "high-vram"
-        : "connected";
+    : isGenerating
+      ? "generating"
+      : isModelLoading
+        ? "loading"
+        : vramPct >= 90
+          ? "high-vram"
+          : "connected";
 
   // Model name
   const modelName = checkpoint?.name ?? null;
@@ -148,24 +157,45 @@ export function BottomStatusBar() {
   const loras = loadedModels?.filter((m) => m.category === "lora").map((m) => m.name) ?? [];
 
   return (
-    <footer className="flex items-center h-6 px-3 gap-2.5 border-t border-border bg-card text-muted-foreground flex-shrink-0">
-      {/* Left: status dot + model + loras */}
+    <footer className="relative flex items-center h-6 px-3 gap-2.5 border-t border-border bg-card text-muted-foreground flex-shrink-0">
+      {/* Indeterminate edge bar during model loading */}
+      {isModelLoading && (
+        <div className="absolute inset-x-0 top-0 h-0.5 bg-primary/20 overflow-hidden">
+          <div className="h-full bg-primary animate-[indeterminate_1.5s_ease-in-out_infinite] origin-left" />
+        </div>
+      )}
+
+      {/* Left: status dot + contextual info */}
       <span className="flex items-center gap-1.5 min-w-0">
         <StatusDot status={status} />
-        {isModelLoading ? (
-          <span className="text-2xs italic text-muted-foreground truncate">Loading model…</span>
+        {isGenerating ? (
+          <>
+            <span className="text-2xs font-mono tabular-nums text-foreground">
+              {globalSteps > 0 ? `${globalStep}/${globalSteps}` : `${Math.round(globalProgress * 100)}%`}
+            </span>
+            {globalTextinfo && (
+              <>
+                <span className="text-3xs text-muted-foreground/50">·</span>
+                <span className="text-2xs text-muted-foreground truncate">{globalTextinfo}</span>
+              </>
+            )}
+          </>
+        ) : isModelLoading ? (
+          <span className="text-2xs italic text-muted-foreground truncate">Loading {loadingTarget ?? "model"}…</span>
         ) : modelName && modelLoaded ? (
-          <span className="text-2xs font-medium text-foreground truncate">{modelName}</span>
+          <>
+            <span className="text-2xs font-medium text-foreground truncate">{modelName}</span>
+            {loras.length > 0 && (
+              <>
+                <span className="text-3xs text-muted-foreground/50">·</span>
+                <span className="text-3xs text-muted-foreground/70 truncate">
+                  {loras.join(", ")}
+                </span>
+              </>
+            )}
+          </>
         ) : (
           <span className="text-2xs text-muted-foreground truncate">No model</span>
-        )}
-        {loras.length > 0 && !isModelLoading && (
-          <>
-            <span className="text-3xs text-muted-foreground/50">·</span>
-            <span className="text-3xs text-muted-foreground/70 truncate">
-              {loras.join(", ")}
-            </span>
-          </>
         )}
       </span>
 
