@@ -14,7 +14,7 @@ import { getParamHelp } from "@/data/parameterHelp";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { NumberInput } from "@/components/ui/number-input";
-import { Textarea } from "@/components/ui/textarea";
+import { PromptField } from "../PromptField";
 import { Combobox } from "@/components/ui/combobox";
 
 export function RefineTab() {
@@ -61,10 +61,8 @@ export function RefineTab() {
       hiresForce: (c: boolean | "indeterminate") => setParam("hiresForce", !!c),
       refinerStart: (v: number) => setParam("refinerStart", v),
       refinerSteps: (v: number) => setParam("refinerSteps", v),
-      refinerPrompt: (e: React.ChangeEvent<HTMLTextAreaElement>) =>
-        setParam("refinerPrompt", e.target.value),
-      refinerNegative: (e: React.ChangeEvent<HTMLTextAreaElement>) =>
-        setParam("refinerNegative", e.target.value),
+      refinerPrompt: (v: string) => setParam("refinerPrompt", v),
+      refinerNegative: (v: string) => setParam("refinerNegative", v),
     }),
     [setParam],
   );
@@ -246,22 +244,22 @@ export function RefineTab() {
           <Label className="text-2xs text-muted-foreground">
             Refiner prompt
           </Label>
-          <Textarea
+          <PromptField
             value={state.refinerPrompt}
             onChange={set.refinerPrompt}
             placeholder="Refiner prompt (optional)"
-            className="min-h-12 text-xs resize-none"
+            className="min-h-12"
           />
         </div>
         <div className="flex flex-col gap-1">
           <Label className="text-2xs text-muted-foreground">
             Refiner negative
           </Label>
-          <Textarea
+          <PromptField
             value={state.refinerNegative}
             onChange={set.refinerNegative}
             placeholder="Refiner negative prompt (optional)"
-            className="min-h-9 text-xs resize-none"
+            className="min-h-9"
           />
         </div>
       </SectionLeader>

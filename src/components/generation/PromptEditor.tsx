@@ -4,9 +4,8 @@ import { usePromptEnhanceStore } from "@/stores/promptEnhanceStore";
 import { usePromptEnhance } from "@/api/hooks/usePromptEnhance";
 import { flattenCanvas } from "@/lib/flattenCanvas";
 import { uploadBlob } from "@/lib/upload";
-import { useState, useCallback, useRef, useEffect } from "react";
-import { Textarea } from "@/components/ui/textarea";
-import { ChipPromptDisplay } from "./ChipPromptDisplay";
+import { useState, useCallback } from "react";
+import { PromptField } from "./PromptField";
 import { Label } from "@/components/ui/label";
 import {
   Popover,
@@ -36,16 +35,6 @@ export function PromptEditor() {
   const setParam = useGenerationStore((s) => s.setParam);
   const [showNegative, setShowNegative] = useState(false);
   const [enhanceOpen, setEnhanceOpen] = useState(false);
-  const [promptFocused, setPromptFocused] = useState(false);
-  const promptRef = useRef<HTMLTextAreaElement>(null);
-  const hasLoRATags = /<lora:[^>]+>/.test(prompt);
-  const showChips = !promptFocused && hasLoRATags;
-
-  useEffect(() => {
-    if (promptFocused && promptRef.current) {
-      promptRef.current.focus();
-    }
-  }, [promptFocused]);
 
   const enhanceStore = usePromptEnhanceStore();
   const pinned = usePromptEnhanceStore((s) => s.pinned);
@@ -157,33 +146,12 @@ export function PromptEditor() {
           </div>
         </div>
         <div data-tour="prompt-editor">
-          {showChips ? (
-            <ChipPromptDisplay
-              value={prompt}
-              placeholder="Describe what you want to generate..."
-              className="min-h-20 max-h-50 text-sm"
-              onClick={() => setPromptFocused(true)}
-            />
-          ) : (
-            <Textarea
-              ref={promptRef}
-              value={prompt}
-              onChange={(e) => setParam("prompt", e.target.value)}
-              placeholder="Describe what you want to generate..."
-              className="min-h-20 max-h-50 resize-y text-sm"
-              onBlur={() => setPromptFocused(false)}
-              onKeyDown={(e) => {
-                if (e.ctrlKey && (e.key === "ArrowUp" || e.key === "ArrowDown")) {
-                  e.preventDefault();
-                  adjustAttentionWeight(
-                    e.currentTarget,
-                    e.key === "ArrowUp" ? 0.1 : -0.1,
-                  );
-                  setParam("prompt", e.currentTarget.value);
-                }
-              }}
-            />
-          )}
+          <PromptField
+            value={prompt}
+            onChange={(v) => setParam("prompt", v)}
+            placeholder="Describe what you want to generate..."
+            className="min-h-20"
+          />
         </div>
       </div>
 
@@ -198,38 +166,14 @@ export function PromptEditor() {
           Negative prompt
         </CollapsibleTrigger>
         <CollapsibleContent>
-          <Textarea
+          <PromptField
             value={negativePrompt}
-            onChange={(e) => setParam("negativePrompt", e.target.value)}
+            onChange={(v) => setParam("negativePrompt", v)}
             placeholder="What to avoid..."
-            className="min-h-[3.125rem] max-h-30 resize-y text-sm mt-1.5"
+            className="min-h-[3.125rem] mt-1.5"
           />
         </CollapsibleContent>
       </Collapsible>
     </div>
   );
-}
-
-function adjustAttentionWeight(textarea: HTMLTextAreaElement, delta: number) {
-  const { selectionStart, selectionEnd, value } = textarea;
-  if (selectionStart === selectionEnd) return;
-
-  const selected = value.slice(selectionStart, selectionEnd);
-
-  const match = selected.match(/^\((.+):([0-9.]+)\)$/);
-  if (match) {
-    const newWeight = Math.max(0, Math.min(2, parseFloat(match[2]) + delta));
-    const replacement = `(${match[1]}:${newWeight.toFixed(1)})`;
-    textarea.value =
-      value.slice(0, selectionStart) + replacement + value.slice(selectionEnd);
-    textarea.selectionStart = selectionStart;
-    textarea.selectionEnd = selectionStart + replacement.length;
-  } else {
-    const weight = Math.max(0, Math.min(2, 1.0 + delta));
-    const replacement = `(${selected}:${weight.toFixed(1)})`;
-    textarea.value =
-      value.slice(0, selectionStart) + replacement + value.slice(selectionEnd);
-    textarea.selectionStart = selectionStart;
-    textarea.selectionEnd = selectionStart + replacement.length;
-  }
 }

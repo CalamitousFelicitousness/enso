@@ -11,7 +11,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { ParamLabel } from "../ParamLabel";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import { PromptField } from "../PromptField";
 import { Combobox } from "@/components/ui/combobox";
 import { X } from "lucide-react";
 
@@ -48,10 +48,8 @@ export function DetailTab() {
     () => ({
       detailerEnabled: (checked: boolean) =>
         setParam("detailerEnabled", checked),
-      detailerPrompt: (e: React.ChangeEvent<HTMLTextAreaElement>) =>
-        setParam("detailerPrompt", e.target.value),
-      detailerNegative: (e: React.ChangeEvent<HTMLTextAreaElement>) =>
-        setParam("detailerNegative", e.target.value),
+      detailerPrompt: (v: string) => setParam("detailerPrompt", v),
+      detailerNegative: (v: string) => setParam("detailerNegative", v),
       detailerSteps: (v: number) => setParam("detailerSteps", v),
       detailerStrength: (v: number) => setParam("detailerStrength", v),
       detailerResolution: (v: number) => setParam("detailerResolution", v),
@@ -136,21 +134,21 @@ export function DetailTab() {
 
             <div className="flex flex-col gap-1">
               <Label className="text-2xs text-muted-foreground">Prompt</Label>
-              <Textarea
+              <PromptField
                 value={state.detailerPrompt}
                 onChange={set.detailerPrompt}
                 placeholder="Detailer prompt (optional)"
-                className="min-h-12 text-xs resize-none"
+                className="min-h-12"
               />
             </div>
 
             <div className="flex flex-col gap-1">
               <Label className="text-2xs text-muted-foreground">Negative</Label>
-              <Textarea
+              <PromptField
                 value={state.detailerNegative}
                 onChange={set.detailerNegative}
                 placeholder="Detailer negative prompt (optional)"
-                className="min-h-9 text-xs resize-none"
+                className="min-h-9"
               />
             </div>
           </div>

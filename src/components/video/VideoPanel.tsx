@@ -17,7 +17,7 @@ import { useCancelJob } from "@/api/hooks/useJobs";
 import { usePromptEnhance } from "@/api/hooks/usePromptEnhance";
 import { uploadFile, uploadBlob } from "@/lib/upload";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
+import { PromptField } from "@/components/generation/PromptField";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Label } from "@/components/ui/label";
 import {
@@ -301,18 +301,18 @@ export function VideoPanel() {
               </Popover>
             </div>
           </div>
-          <Textarea
+          <PromptField
             value={prompt}
-            onChange={(e) => setParam("prompt", e.target.value)}
+            onChange={(v) => setParam("prompt", v)}
             placeholder="Describe the video..."
-            className="text-xs min-h-15 resize-y"
+            className="min-h-15"
           />
 
-          <Textarea
+          <PromptField
             value={negative}
-            onChange={(e) => setParam("negative", e.target.value)}
+            onChange={(v) => setParam("negative", v)}
             placeholder="Negative prompt (optional)"
-            className="text-xs min-h-9 resize-y"
+            className="min-h-9"
           />
         </div>
 
