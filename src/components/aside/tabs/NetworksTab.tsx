@@ -8,6 +8,7 @@ import { useCivitMetadataScan } from "@/api/hooks/useCivitai";
 import { useOptions, useSetOptions } from "@/api/hooks/useSettings";
 import { useLoadModel } from "@/api/hooks/useModels";
 import { useGenerationStore } from "@/stores/generationStore";
+import { insertAtCursor } from "@/lib/promptCursor";
 import type { ExtraNetworkV2 } from "@/api/types/models";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import type { SegmentOption } from "@/components/ui/segmented-control";
@@ -154,16 +155,12 @@ export function NetworksTab() {
         const current = useGenerationStore.getState().prompt;
         useGenerationStore
           .getState()
-          .setParam(
-            "prompt",
-            current ? `${current} ${network.name}` : network.name,
-          );
+          .setParam("prompt", insertAtCursor(current, network.name));
       } else if (t === "wildcards") {
         const current = useGenerationStore.getState().prompt;
-        const tag = `__${network.name}__`;
         useGenerationStore
           .getState()
-          .setParam("prompt", current ? `${current} ${tag}` : tag);
+          .setParam("prompt", insertAtCursor(current, `__${network.name}__`));
       } else if (t === "vae") {
         setOptions.mutate({ sd_vae: network.title ?? network.name });
       }

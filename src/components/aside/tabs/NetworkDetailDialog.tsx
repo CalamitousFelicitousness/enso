@@ -9,6 +9,7 @@ import {
 import { toast } from "sonner";
 import { useNetworkDetail } from "@/api/hooks/useNetworks";
 import { useGenerationStore } from "@/stores/generationStore";
+import { insertAtCursor } from "@/lib/promptCursor";
 import type {
   ExtraNetworkV2,
   NetworkDetail,
@@ -117,8 +118,7 @@ function TriggerWords({ words }: { words: string[] }) {
 
   function handleClick(word: string) {
     const current = useGenerationStore.getState().prompt;
-    const updated = current ? `${current}, ${word}` : word;
-    useGenerationStore.getState().setParam("prompt", updated);
+    useGenerationStore.getState().setParam("prompt", insertAtCursor(current, word));
     toast.success(`Added "${word}" to prompt`);
   }
 
