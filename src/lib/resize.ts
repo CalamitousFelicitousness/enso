@@ -1,3 +1,11 @@
+// WYSIWYG resize - high-quality image scaling for the canvas compositing pipeline.
+//
+// Canvas layers are composited at frame resolution, then resized to generation
+// resolution here. This is part of the WYSIWYG guarantee: the resize quality
+// must be high enough that the generated output matches what the user sees.
+// WASM MKS2021 (Magic Kernel Sharp 2021) in linear RGB avoids the aliasing
+// and gamma artifacts that browser-native Canvas 2D drawImage produces.
+
 import resize from "@jsquash/resize";
 
 export type ResizeMethod = "lanczos3" | "magicKernelSharp2021" | "mitchell" | "catrom" | "triangle";

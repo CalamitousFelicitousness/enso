@@ -1,5 +1,8 @@
 export type SizeMode = "fixed" | "scale" | "megapixel";
 
+// Diffusion models require dimensions that are multiples of 8. Each dimension is
+// rounded independently, which can shift aspect ratio by up to ~1.5%. This is
+// inherent to the constraint and accepted as a WYSIWYG limitation.
 export function snapTo8(value: number): number {
   return Math.round(value / 8) * 8;
 }

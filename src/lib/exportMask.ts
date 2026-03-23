@@ -1,3 +1,11 @@
+// Mask export for the WYSIWYG pipeline.
+//
+// Masks are rendered at frame pixel dimensions (generationStore.width × height).
+// If the generation resolution differs from frame size (scale/megapixel mode),
+// the backend resizes the mask to match. The mask does not go through the WASM
+// MKS2021 resize pipeline - backend-side resize quality may differ slightly at
+// mask boundaries.
+
 import { useCanvasStore, type MaskObjectLayer } from "@/stores/canvasStore";
 import type { MaskLine } from "@/stores/img2imgStore";
 

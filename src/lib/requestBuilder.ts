@@ -1,3 +1,10 @@
+// WYSIWYG request assembly - bridges the canvas UI state and the backend API.
+//
+// For img2img: visible canvas layers are flattened into a single image at frame
+// resolution via flattenCanvas(), then uploaded as the init image. The backend
+// receives exactly what the user sees inside the generation frame.
+// See flattenCanvas.ts and resize.ts for the compositing and resize pipeline.
+
 import { useGenerationStore } from "@/stores/generationStore";
 import type { GenerationResult, GenerationState } from "@/stores/generationStore";
 import { useScriptStore } from "@/stores/scriptStore";

@@ -1,3 +1,10 @@
+// WYSIWYG display rendering - Konva scene graph side.
+//
+// This renders image layers on screen using Konva's GPU-accelerated scene graph.
+// The layer transforms here (x, y, scaleX, scaleY, rotation) must match the
+// Canvas 2D transforms in flattenCanvas.ts. Both codepaths independently produce
+// the same visual result. Changes to transform logic must update both.
+
 import { useEffect, useRef, useCallback } from "react";
 import {
   Layer,
