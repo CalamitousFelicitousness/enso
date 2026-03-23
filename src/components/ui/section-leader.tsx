@@ -1,6 +1,11 @@
-import { memo, useState, useCallback, useEffect } from "react";
+import { memo, useState, useCallback, useEffect, useRef } from "react";
 import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
+import {
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent,
+} from "@/components/ui/tooltip";
 
 interface SectionLeaderProps {
   title: string;
@@ -13,27 +18,29 @@ interface SectionLeaderProps {
   /** Current enabled state (only matters if enableable). */
   enabled?: boolean;
   onToggleEnabled?: (v: boolean) => void;
-  /** Nesting level — 0 (top), 1 (nested), 2 (inline sub-header, no bar). */
+  /** Nesting level - 0 (top), 1 (nested), 2 (inline sub-header, no bar). */
   level?: 0 | 1 | 2;
   /** When true, the entire section is visually disabled (parent is off). */
   parentDisabled?: boolean;
-  /** Action slot — rendered in the header row, right-aligned. */
+  /** Action slot - rendered in the header row, right-aligned. */
   action?: React.ReactNode;
+  /** Tooltip HTML shown on hover over the section title. */
+  tooltip?: string;
   children?: React.ReactNode;
 }
 
 /**
- * Unified section leader — 2×2 collapse × enable matrix.
+ * Unified section leader - 2×2 collapse × enable matrix.
  *
  * Every section gets a left-edge bar for visual cohesion.
  * Bar color communicates enable state; neutral for non-enableable.
  * Indicators (dot, chevron) are left-anchored before the title.
  *
- *   [bar] • TITLE              — enableable
- *   [bar] ▾ TITLE              — collapsible (entire row clickable)
- *   [bar] • TITLE          ▾   — both (dot=enable, chevron=collapse)
- *   [bar]   TITLE              — neither
- *         ▾ TITLE              — level 2 (no bar, inline sub-header)
+ *   [bar] • TITLE              - enableable
+ *   [bar] ▾ TITLE              - collapsible (entire row clickable)
+ *   [bar] • TITLE          ▾   - both (dot=enable, chevron=collapse)
+ *   [bar]   TITLE              - neither
+ *         ▾ TITLE              - level 2 (no bar, inline sub-header)
  */
 const SectionLeader = memo(function SectionLeader({
   title,
@@ -45,6 +52,7 @@ const SectionLeader = memo(function SectionLeader({
   level = 0,
   parentDisabled = false,
   action,
+  tooltip,
   children,
 }: SectionLeaderProps) {
   const [collapsed, setCollapsed] = useState(defaultCollapsed);
@@ -83,6 +91,19 @@ const SectionLeader = memo(function SectionLeader({
   );
 
   const toggleCollapse = useCallback(() => setCollapsed((c) => !c), []);
+
+  // --- Tooltip-wrapped title text ---
+  const titleEl = (titleClass: string) => {
+    const text = (
+      <span className={cn(titleClass, tooltip && "cursor-help")}>
+        {title}
+      </span>
+    );
+    if (!tooltip) return text;
+    return (
+      <SectionTooltip tooltip={tooltip}>{text}</SectionTooltip>
+    );
+  };
 
   // --- Action slot (with propagation isolation) ---
   const actionSlot = action ? (
@@ -140,14 +161,10 @@ const SectionLeader = memo(function SectionLeader({
           <span className="text-muted-foreground/40 group-hover:text-muted-foreground/70 transition-colors shrink-0">
             {chevron}
           </span>
-          <span
-            className={cn(
-              titleSize,
-              "font-medium uppercase tracking-[0.06em] text-muted-foreground group-hover:text-foreground transition-colors",
-            )}
-          >
-            {title}
-          </span>
+          {titleEl(cn(
+            titleSize,
+            "font-medium uppercase tracking-[0.06em] text-muted-foreground group-hover:text-foreground transition-colors",
+          ))}
         </button>
         {actionSlot}
       </div>
@@ -178,17 +195,13 @@ const SectionLeader = memo(function SectionLeader({
                 : "bg-muted-foreground/15",
             )}
           />
-          <span
-            className={cn(
-              titleSize,
-              "font-medium uppercase tracking-[0.06em] transition-colors duration-200",
-              isActive
-                ? "text-foreground/80"
-                : "text-muted-foreground/35",
-            )}
-          >
-            {title}
-          </span>
+          {titleEl(cn(
+            titleSize,
+            "font-medium uppercase tracking-[0.06em] transition-colors duration-200",
+            isActive
+              ? "text-foreground/80"
+              : "text-muted-foreground/35",
+          ))}
         </button>
 
         {actionSlot}
@@ -219,14 +232,10 @@ const SectionLeader = memo(function SectionLeader({
           headerPy,
         )}
       >
-        <span
-          className={cn(
-            titleSize,
-            "font-medium uppercase tracking-[0.06em] text-muted-foreground/60",
-          )}
-        >
-          {title}
-        </span>
+        {titleEl(cn(
+          titleSize,
+          "font-medium uppercase tracking-[0.06em] text-muted-foreground/60",
+        ))}
         {actionSlot}
       </div>
     );
@@ -240,7 +249,7 @@ const SectionLeader = memo(function SectionLeader({
         parentDisabled && "opacity-40 pointer-events-none",
       )}
     >
-      {/* Left edge bar — present at level 0 and 1 for visual cohesion */}
+      {/* Left edge bar - present at level 0 and 1 for visual cohesion */}
       {hasBar && (
         <div
           className={cn(
@@ -255,7 +264,7 @@ const SectionLeader = memo(function SectionLeader({
       <div className="flex-1 flex flex-col min-w-0">
         {header}
 
-        {/* Children — hidden when collapsed, dimmed when disabled */}
+        {/* Children - hidden when collapsed, dimmed when disabled */}
         {!collapsed && children && (
           <div
             className={cn(
@@ -270,6 +279,69 @@ const SectionLeader = memo(function SectionLeader({
     </div>
   );
 });
+
+/** Hover tooltip for section titles - 300ms hover delay, long-press to pin. */
+function SectionTooltip({ tooltip, children }: { tooltip: string; children: React.ReactNode }) {
+  const [hovered, setHovered] = useState(false);
+  const [pinned, setPinned] = useState(false);
+  const hoverTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const pressTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const didLongPress = useRef(false);
+  const triggerRef = useRef<HTMLSpanElement>(null);
+
+  useEffect(() => () => { clearTimeout(hoverTimer.current); clearTimeout(pressTimer.current); }, []);
+
+  // Dismiss pinned tooltip on Escape or outside tap
+  useEffect(() => {
+    if (!pinned) return;
+    const handleKey = (e: KeyboardEvent) => { if (e.key === "Escape") setPinned(false); };
+    const handleClick = (e: PointerEvent) => {
+      if (triggerRef.current?.contains(e.target as Node)) return;
+      const content = document.querySelector("[data-slot='tooltip-content']");
+      if (content?.contains(e.target as Node)) return;
+      setPinned(false);
+    };
+    document.addEventListener("keydown", handleKey);
+    document.addEventListener("pointerdown", handleClick);
+    return () => { document.removeEventListener("keydown", handleKey); document.removeEventListener("pointerdown", handleClick); };
+  }, [pinned]);
+
+  // Content is developer-defined help text from parameterHelp.ts, not user input
+  return (
+    <Tooltip open={hovered || pinned}>
+      <TooltipTrigger asChild>
+        <span
+          ref={triggerRef}
+          onPointerEnter={() => { hoverTimer.current = setTimeout(() => setHovered(true), 300); }}
+          onPointerLeave={() => { clearTimeout(hoverTimer.current); setHovered(false); }}
+          onPointerDown={() => {
+            didLongPress.current = false;
+            pressTimer.current = setTimeout(() => {
+              didLongPress.current = true;
+              setPinned((p) => !p);
+            }, 400);
+          }}
+          onPointerUp={() => clearTimeout(pressTimer.current)}
+          onPointerCancel={() => clearTimeout(pressTimer.current)}
+          onClick={(e) => {
+            // Long press already handled the tooltip - swallow the click so the
+            // parent toggle (collapse/enable) doesn't fire on the same gesture.
+            if (didLongPress.current) {
+              e.preventDefault();
+              e.stopPropagation();
+              didLongPress.current = false;
+            }
+          }}
+        >
+          {children}
+        </span>
+      </TooltipTrigger>
+      <TooltipContent>
+        <span dangerouslySetInnerHTML={{ __html: tooltip }} />
+      </TooltipContent>
+    </Tooltip>
+  );
+}
 
 function SectionDivider({ label }: { label?: string }) {
   if (!label) return <div className="h-px bg-border/40" />;
