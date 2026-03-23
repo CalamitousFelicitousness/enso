@@ -68,10 +68,20 @@ export async function buildControlRequest(): Promise<BuildResult> {
     hr_resize_x: gen.hiresResizeX,
     hr_resize_y: gen.hiresResizeY,
     hr_resize_context: gen.hiresResizeContext,
-    refiner_steps: gen.refinerSteps,
-    refiner_start: gen.refinerStart,
-    refiner_prompt: gen.refinerPrompt || undefined,
-    refiner_negative: gen.refinerNegative || undefined,
+    // Post-generation upscale (pure upscaler, no diffusion - runs after hires fix)
+    ...(gen.upscaleAfterEnabled && gen.upscaleAfterUpscaler !== "None" ? {
+      resize_name_after: gen.upscaleAfterUpscaler,
+      ...(gen.upscaleAfterResizeMode === 0
+        ? { scale_by_after: gen.upscaleAfterScale }
+        : { resize_mode_after: 1, width_after: gen.upscaleAfterWidth, height_after: gen.upscaleAfterHeight }
+      ),
+    } : {}),
+    ...(gen.refinerEnabled ? {
+      refiner_steps: gen.refinerSteps,
+      refiner_start: gen.refinerStart,
+      refiner_prompt: gen.refinerPrompt || undefined,
+      refiner_negative: gen.refinerNegative || undefined,
+    } : {}),
     clip_skip: gen.clipSkip,
     vae_type: gen.vaeType,
     tiling: gen.tiling,
@@ -405,7 +415,16 @@ export function extractParamsFromResult(result: GenerationResult): Partial<Gener
     hiresResizeY: num(p.hr_resize_y, 0),
     hiresResizeContext: str(p.hr_resize_context, "None"),
 
+    // Post-generation upscale
+    upscaleAfterEnabled: p.resize_name_after != null && p.resize_name_after !== "None",
+    upscaleAfterUpscaler: str(p.resize_name_after, "None"),
+    upscaleAfterScale: num(p.scale_by_after, 2),
+    upscaleAfterResizeMode: num(p.width_after, 0) > 0 || num(p.height_after, 0) > 0 ? 1 : 0,
+    upscaleAfterWidth: num(p.width_after, 0),
+    upscaleAfterHeight: num(p.height_after, 0),
+
     // Refiner
+    refinerEnabled: num(p.refiner_start, 0) > 0 || num(p.refiner_steps, 0) > 0,
     refinerSteps: num(p.refiner_steps, 0),
     refinerStart: num(p.refiner_start, 0),
     refinerPrompt: str(p.refiner_prompt, ""),

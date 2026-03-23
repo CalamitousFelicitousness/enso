@@ -80,7 +80,16 @@ export interface GenerationState {
   hiresResizeY: number;
   hiresResizeContext: string;
 
+  // Post-generation upscale (resize_after - pure upscaler, no diffusion)
+  upscaleAfterEnabled: boolean;
+  upscaleAfterUpscaler: string;
+  upscaleAfterScale: number;
+  upscaleAfterResizeMode: number; // 0 = scale, 1 = explicit dims
+  upscaleAfterWidth: number;
+  upscaleAfterHeight: number;
+
   // Refiner
+  refinerEnabled: boolean;
   refinerStart: number;
   refinerSteps: number;
   refinerPrompt: string;
@@ -239,6 +248,13 @@ export const defaultParams = {
   hiresResizeX: 0,
   hiresResizeY: 0,
   hiresResizeContext: "None",
+  upscaleAfterEnabled: false,
+  upscaleAfterUpscaler: "None",
+  upscaleAfterScale: 2,
+  upscaleAfterResizeMode: 0,
+  upscaleAfterWidth: 0,
+  upscaleAfterHeight: 0,
+  refinerEnabled: false,
   refinerStart: 0,
   refinerSteps: 0,
   refinerPrompt: "",
