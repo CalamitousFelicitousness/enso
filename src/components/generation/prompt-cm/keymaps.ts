@@ -1,4 +1,6 @@
 import { type EditorView, keymap } from "@codemirror/view";
+import { Prec } from "@codemirror/state";
+import { loraWidgetPlugin } from "./loraWidget";
 
 /** Find the (text:weight) group enclosing `pos`, if any. */
 function findEnclosingWeight(
@@ -140,7 +142,73 @@ function adjustWeight(view: EditorView, delta: number): boolean {
   return false;
 }
 
-export const promptKeymap = keymap.of([
+/** Find a chip decoration ending at `pos` (for backspace / left arrow). */
+function chipEndingAt(view: EditorView, pos: number): { from: number; to: number } | null {
+  const plugin = view.plugin(loraWidgetPlugin);
+  if (!plugin) return null;
+  const iter = plugin.decorations.iter();
+  while (iter.value) {
+    if (iter.to === pos) return { from: iter.from, to: iter.to };
+    if (iter.from > pos) break;
+    iter.next();
+  }
+  return null;
+}
+
+/** Find a chip decoration starting at `pos` (for delete / right arrow). */
+function chipStartingAt(view: EditorView, pos: number): { from: number; to: number } | null {
+  const plugin = view.plugin(loraWidgetPlugin);
+  if (!plugin) return null;
+  const iter = plugin.decorations.iter();
+  while (iter.value) {
+    if (iter.from === pos) return { from: iter.from, to: iter.to };
+    if (iter.from > pos) break;
+    iter.next();
+  }
+  return null;
+}
+
+function deleteChipBackward(view: EditorView): boolean {
+  const { from, to, head } = view.state.selection.main;
+  if (from !== to) return false;
+  const chip = chipEndingAt(view, head);
+  if (!chip) return false;
+  view.dispatch({ changes: { from: chip.from, to: chip.to } });
+  return true;
+}
+
+function deleteChipForward(view: EditorView): boolean {
+  const { from, to, head } = view.state.selection.main;
+  if (from !== to) return false;
+  const chip = chipStartingAt(view, head);
+  if (!chip) return false;
+  view.dispatch({ changes: { from: chip.from, to: chip.to } });
+  return true;
+}
+
+function skipChipLeft(view: EditorView): boolean {
+  const { from, to, head } = view.state.selection.main;
+  if (from !== to) return false;
+  const chip = chipEndingAt(view, head);
+  if (!chip) return false;
+  view.dispatch({ selection: { anchor: chip.from } });
+  return true;
+}
+
+function skipChipRight(view: EditorView): boolean {
+  const { from, to, head } = view.state.selection.main;
+  if (from !== to) return false;
+  const chip = chipStartingAt(view, head);
+  if (!chip) return false;
+  view.dispatch({ selection: { anchor: chip.to } });
+  return true;
+}
+
+export const promptKeymap = Prec.high(keymap.of([
+  { key: "Backspace", run: deleteChipBackward },
+  { key: "Delete", run: deleteChipForward },
+  { key: "ArrowLeft", run: skipChipLeft },
+  { key: "ArrowRight", run: skipChipRight },
   { key: "Ctrl-ArrowUp", run: (view) => adjustWeight(view, 0.1) },
   { key: "Ctrl-ArrowDown", run: (view) => adjustWeight(view, -0.1) },
-]);
+]));
