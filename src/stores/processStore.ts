@@ -8,6 +8,12 @@ interface ProcessState {
   imagePreviewUrl: string | null;
   upscaler: string;
   scale: number;
+  resizeMode: number; // 0 = scale factor, 1 = explicit dimensions
+  targetWidth: number;
+  targetHeight: number;
+  crop: boolean;
+  upscaler2: string;
+  upscaler2Visibility: number;
   rembgModel: string;
   returnMask: boolean;
   refine: boolean;
@@ -20,6 +26,12 @@ interface ProcessState {
   setImage: (file: File | null) => void;
   setUpscaler: (upscaler: string) => void;
   setScale: (scale: number) => void;
+  setResizeMode: (mode: number) => void;
+  setTargetWidth: (w: number) => void;
+  setTargetHeight: (h: number) => void;
+  setCrop: (enabled: boolean) => void;
+  setUpscaler2: (upscaler: string) => void;
+  setUpscaler2Visibility: (v: number) => void;
   setRembgModel: (model: string) => void;
   setReturnMask: (enabled: boolean) => void;
   setRefine: (enabled: boolean) => void;
@@ -35,6 +47,12 @@ export const useProcessStore = create<ProcessState>()(
       imagePreviewUrl: null,
       upscaler: "None",
       scale: 2,
+      resizeMode: 0,
+      targetWidth: 0,
+      targetHeight: 0,
+      crop: true,
+      upscaler2: "None",
+      upscaler2Visibility: 0,
       rembgModel: "ben2",
       returnMask: false,
       refine: false,
@@ -60,6 +78,12 @@ export const useProcessStore = create<ProcessState>()(
 
       setUpscaler: (upscaler) => set({ upscaler }),
       setScale: (scale) => set({ scale }),
+      setResizeMode: (mode) => set({ resizeMode: mode }),
+      setTargetWidth: (w) => set({ targetWidth: w }),
+      setTargetHeight: (h) => set({ targetHeight: h }),
+      setCrop: (enabled) => set({ crop: enabled }),
+      setUpscaler2: (upscaler) => set({ upscaler2: upscaler }),
+      setUpscaler2Visibility: (v) => set({ upscaler2Visibility: v }),
       setRembgModel: (model) => set({ rembgModel: model }),
       setReturnMask: (enabled) => set({ returnMask: enabled }),
       setRefine: (enabled) => set({ refine: enabled }),
@@ -79,6 +103,12 @@ export const useProcessStore = create<ProcessState>()(
           imagePreviewUrl: null,
           upscaler: "None",
           scale: 2,
+          resizeMode: 0,
+          targetWidth: 0,
+          targetHeight: 0,
+          crop: true,
+          upscaler2: "None",
+          upscaler2Visibility: 0,
           rembgModel: "ben2",
           returnMask: false,
           refine: false,
@@ -91,7 +121,9 @@ export const useProcessStore = create<ProcessState>()(
     }),
     {
       name: "enso-process",
-      partialize: ({ upscaler, scale, rembgModel, returnMask, refine }) => ({ upscaler, scale, rembgModel, returnMask, refine }),
+      partialize: ({ upscaler, scale, resizeMode, targetWidth, targetHeight, crop, upscaler2, upscaler2Visibility, rembgModel, returnMask, refine }) => ({
+        upscaler, scale, resizeMode, targetWidth, targetHeight, crop, upscaler2, upscaler2Visibility, rembgModel, returnMask, refine,
+      }),
     },
   ),
 );
