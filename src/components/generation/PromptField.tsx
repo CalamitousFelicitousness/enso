@@ -2,12 +2,14 @@ import { useRef, useEffect, useMemo } from "react";
 import { cn } from "@/lib/utils";
 import { EditorView } from "@codemirror/view";
 import { Compartment } from "@codemirror/state";
+import { useUiStore } from "@/stores/uiStore";
 import { useExtraNetworks, usePromptStyles } from "@/api/hooks/useNetworks";
 import { useDictTagsMulti } from "@/api/hooks/useDicts";
 import { useOptions } from "@/api/hooks/useSettings";
 import type { DictTag } from "@/api/types/dict";
 import {
   promptExtensions,
+  promptAutocomplete,
   embeddingNamesFacet,
   loraNamesFacet,
   styleNamesFacet,
@@ -40,6 +42,9 @@ export function PromptField({
   const styleComp = useRef(new Compartment());
   const wildcardComp = useRef(new Compartment());
   const dictComp = useRef(new Compartment());
+  const autocompleteComp = useRef(new Compartment());
+
+  const acEnabled = useUiStore((s) => s.promptAutocomplete);
 
   // ── Fetch network data (shared TanStack Query cache) ───────────────
 
@@ -108,6 +113,7 @@ export function PromptField({
       extensions: [
         ...promptExtensions(placeholder),
         onDocChange,
+        autocompleteComp.current.of(acEnabled ? promptAutocomplete() : []),
         embeddingComp.current.of(embeddingNamesFacet.of(embeddingNames)),
         loraComp.current.of(loraNamesFacet.of(loras)),
         styleComp.current.of(styleNamesFacet.of(styles)),
@@ -140,6 +146,16 @@ export function PromptField({
     }
     lastValue.current = value;
   }, [value]);
+
+  // ── Toggle autocompletion extension on/off ───────────────────────────
+
+  useEffect(() => {
+    viewRef.current?.dispatch({
+      effects: autocompleteComp.current.reconfigure(
+        acEnabled ? promptAutocomplete() : [],
+      ),
+    });
+  }, [acEnabled]);
 
   // ── Reconfigure facets when data changes ───────────────────────────
 

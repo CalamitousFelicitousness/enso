@@ -48,7 +48,8 @@ interface UiState {
   canvasLabelScale: number;
   canvasBackground: CanvasBackground;
 
-  // Dict autocomplete
+  // Prompt autocomplete
+  promptAutocomplete: boolean;
   dictMinChars: number;
   dictReplaceUnderscores: boolean;
 
@@ -74,6 +75,7 @@ interface UiState {
   addRecentCommand: (id: string) => void;
   setQuickSettingsKeys: (keys: string[] | null) => void;
   setPendingSettingsSearch: (query: string | null) => void;
+  setPromptAutocomplete: (enabled: boolean) => void;
   setDictMinChars: (n: number) => void;
   setDictReplaceUnderscores: (enabled: boolean) => void;
 }
@@ -103,6 +105,7 @@ export const useUiStore = create<UiState>()(
       uiScale: 18,
       canvasLabelScale: 1,
       canvasBackground: "dots" as CanvasBackground,
+      promptAutocomplete: true,
       dictMinChars: 3,
       dictReplaceUnderscores: true,
 
@@ -130,6 +133,7 @@ export const useUiStore = create<UiState>()(
       }),
       setQuickSettingsKeys: (keys) => set({ quickSettingsKeys: keys }),
       setPendingSettingsSearch: (query) => set({ pendingSettingsSearch: query }),
+      setPromptAutocomplete: (enabled) => set({ promptAutocomplete: enabled }),
       setDictMinChars: (n) => set({ dictMinChars: Math.max(2, Math.min(6, n)) }),
       setDictReplaceUnderscores: (enabled) => set({ dictReplaceUnderscores: enabled }),
     }),

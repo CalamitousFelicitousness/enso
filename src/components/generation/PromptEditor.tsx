@@ -5,8 +5,10 @@ import { usePromptEnhance } from "@/api/hooks/usePromptEnhance";
 import { flattenCanvas } from "@/lib/flattenCanvas";
 import { uploadBlob } from "@/lib/upload";
 import { useState, useCallback } from "react";
+import { useUiStore } from "@/stores/uiStore";
 import { PromptField } from "./PromptField";
 import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
 import {
   Popover,
   PopoverTrigger,
@@ -35,6 +37,9 @@ export function PromptEditor() {
   const setParam = useGenerationStore((s) => s.setParam);
   const [showNegative, setShowNegative] = useState(false);
   const [enhanceOpen, setEnhanceOpen] = useState(false);
+
+  const promptAutocomplete = useUiStore((s) => s.promptAutocomplete);
+  const setPromptAutocomplete = useUiStore((s) => s.setPromptAutocomplete);
 
   const enhanceStore = usePromptEnhanceStore();
   const pinned = usePromptEnhanceStore((s) => s.pinned);
@@ -100,6 +105,15 @@ export function PromptEditor() {
         <div className="flex items-center justify-between mb-1">
           <Label className="text-2xs text-muted-foreground">Prompt</Label>
           <div className="flex items-center gap-0.5">
+            <Button
+              variant={promptAutocomplete ? "default" : "outline"}
+              size="sm"
+              onClick={() => setPromptAutocomplete(!promptAutocomplete)}
+              className="h-5 px-1.5 text-3xs rounded mr-1"
+              title={promptAutocomplete ? "Autocomplete is on" : "Autocomplete is off"}
+            >
+              AC
+            </Button>
             <button
               type="button"
               onClick={handleEnhance}
