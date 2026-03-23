@@ -264,12 +264,23 @@ def execute_upscale(params: dict, job_id: str) -> dict:
     image = helpers.decode_base64_to_image(params.get('image', ''))
     upscaler = params.get('upscaler', 'None')
     scale = params.get('scale', 2.0)
+    resize_mode = params.get('resize_mode', 0)
+    width = params.get('width', 0)
+    height = params.get('height', 0)
+    crop = params.get('crop', True)
+    upscaler_2 = params.get('upscaler_2', 'None')
+    upscaler_2_visibility = params.get('upscaler_2_visibility', 0.0)
 
     jobid = shared.state.begin('API-V2-UP', api=True)
     try:
         result = postprocessing.run_extras(
-            extras_mode=0, image=image, image_folder="", input_dir="", output_dir="",
-            save_output=True, extras_upscaler_1=upscaler, upscaling_resize=scale,
+            extras_mode=0, resize_mode=resize_mode,
+            image=image, image_folder="", input_dir="", output_dir="",
+            show_extras_results=False, save_output=True,
+            extras_upscaler_1=upscaler, upscaling_resize=scale,
+            upscaling_resize_w=width, upscaling_resize_h=height,
+            upscaling_crop=crop,
+            extras_upscaler_2=upscaler_2, extras_upscaler_2_visibility=upscaler_2_visibility,
         )
         saved_paths = list(shared.state.results) if hasattr(shared.state, 'results') and shared.state.results else []
     finally:

@@ -42,6 +42,12 @@ class UpscaleParams(BaseModel):
     image: str = Field(description="Base64 encoded image")
     upscaler: str = "None"
     scale: float = 2.0
+    resize_mode: int = Field(0, description="0 = scale factor, 1 = explicit dimensions")
+    width: int = Field(0, description="Target width when resize_mode=1")
+    height: int = Field(0, description="Target height when resize_mode=1")
+    crop: bool = Field(True, description="Crop to fit target dimensions")
+    upscaler_2: str = Field("None", description="Second upscaler for blending")
+    upscaler_2_visibility: float = Field(0.0, description="Blend ratio for second upscaler (0-1)")
 
 
 class CaptionParams(BaseModel):
