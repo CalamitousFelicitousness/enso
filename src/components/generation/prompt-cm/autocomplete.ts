@@ -8,6 +8,7 @@ import {
   dictTagsFacet,
 } from "./facets";
 import type { DictTag } from "@/api/types/dict";
+import { useUiStore } from "@/stores/uiStore";
 
 function loraSource(ctx: CompletionContext): CompletionResult | null {
   const match = ctx.matchBefore(/<(?:lora|lyco):[\w\s/.+-]*/i);
@@ -104,13 +105,18 @@ function formatCount(count: number): string {
 }
 
 function dictTagSource(ctx: CompletionContext): CompletionResult | null {
-  const match = ctx.matchBefore(/(?<=^|[\s,])\w{3,}/);
+  const { dictMinChars, dictReplaceUnderscores } = useUiStore.getState();
+  const minCharsPattern = new RegExp(`(?<=^|[\\s,])\\w{${dictMinChars},}`);
+  const match = ctx.matchBefore(minCharsPattern);
   if (!match) return null;
   const tags = ctx.state.facet(dictTagsFacet);
   if (tags.length === 0) return null;
 
   const query = match.text.toLowerCase();
   const MAX_RESULTS = 50;
+  const formatName = dictReplaceUnderscores
+    ? (n: string) => n.replace(/_/g, " ")
+    : (n: string) => n;
 
   // Prefix match via binary search (O(log n + k))
   const start = lowerBound(tags, query);
@@ -118,7 +124,7 @@ function dictTagSource(ctx: CompletionContext): CompletionResult | null {
   for (let i = start; i < tags.length && options.length < MAX_RESULTS; i++) {
     if (!tags[i].name.startsWith(query)) break;
     options.push({
-      label: tags[i].name,
+      label: formatName(tags[i].name),
       displayLabel: tags[i].name.replace(/_/g, " "),
       detail: formatCount(tags[i].count),
       type: DICT_CATEGORY_TYPES[tags[i].category] ?? "dictTag",
@@ -131,7 +137,7 @@ function dictTagSource(ctx: CompletionContext): CompletionResult | null {
     for (let i = 0; i < tags.length && options.length < MAX_RESULTS; i++) {
       if (tags[i].name.includes(query)) {
         options.push({
-          label: tags[i].name,
+          label: formatName(tags[i].name),
           displayLabel: tags[i].name.replace(/_/g, " "),
           detail: formatCount(tags[i].count),
           type: DICT_CATEGORY_TYPES[tags[i].category] ?? "dictTag",
@@ -142,7 +148,7 @@ function dictTagSource(ctx: CompletionContext): CompletionResult | null {
   }
 
   if (options.length === 0) return null;
-  return { from: match.from, options, validFor: /^\w+$/ };
+  return { from: match.from, options, validFor: /^[\w ]+$/ };
 }
 
 export function promptAutocomplete(): Extension {
