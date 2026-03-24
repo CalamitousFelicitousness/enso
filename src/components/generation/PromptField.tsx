@@ -81,10 +81,7 @@ export function PromptField({
   );
   const dictQueries = useDictTagsMulti(enabledDicts);
   const mergedDictTags = useMemo(() => {
-    const all: DictTag[] = [];
-    for (const q of dictQueries) {
-      if (q.data) all.push(...q.data);
-    }
+    const all = dictQueries.flatMap((q) => q.data ?? []);
     if (all.length === 0) return all;
     all.sort((a, b) => a.name.localeCompare(b.name));
     // Deduplicate consecutive entries with the same name
