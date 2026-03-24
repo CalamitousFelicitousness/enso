@@ -129,7 +129,7 @@ export function generateImageFilename(info: string, imageIndex: number): string 
   let seed = "unknown";
   let model = "image";
   try {
-    const parsed = JSON.parse(info);
+    const parsed = JSON.parse(info) as Record<string, unknown>;
     if (parsed.seed) seed = String(parsed.seed);
     if (parsed.model) model = String(parsed.model).split("/").pop()?.split(".")[0] ?? "image";
   } catch { /* fallback */ }

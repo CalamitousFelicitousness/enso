@@ -26,7 +26,7 @@ const LEVEL_ORDER = ["TRACE", "DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"];
 
 function parseLine(raw: string): ParsedLine {
   try {
-    const obj = JSON.parse(raw);
+    const obj = JSON.parse(raw) as Record<string, string>;
     const asctime = obj.asctime ?? "";
     const timePart = asctime.includes(" ") ? asctime.split(" ")[1] ?? asctime : asctime;
     const time = timePart.replace(",", ".");

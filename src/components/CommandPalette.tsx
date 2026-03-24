@@ -39,7 +39,7 @@ export function CommandPalette() {
     if (!open) return [];
     return recentIds
       .map((id) => actions.find((a) => a.id === id))
-      .filter(Boolean) as typeof actions;
+      .filter(Boolean);
   }, [open, recentIds, actions]);
 
   const filteredActions = useMemo(() => {

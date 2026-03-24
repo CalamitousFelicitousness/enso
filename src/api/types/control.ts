@@ -6,7 +6,7 @@ export type ControlUnitType = "controlnet" | "t2i" | "xs" | "lite" | "style_tran
 export type InputRole = "initial" | "reference" | "control";
 
 /** Control sub-types that are mutually exclusive (all except IP-Adapter). */
-export const EXCLUSIVE_CONTROL_TYPES: ReadonlySet<ControlUnitType> = new Set([
+export const EXCLUSIVE_CONTROL_TYPES: ReadonlySet<ControlUnitType> = new Set<ControlUnitType>([
   "controlnet", "t2i", "xs", "lite", "style_transfer",
 ]);
 

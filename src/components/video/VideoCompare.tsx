@@ -43,7 +43,7 @@ export function VideoCompare({
 
   const bothVideos = useCallback(
     () =>
-      [leftRef.current, rightRef.current].filter(Boolean) as HTMLVideoElement[],
+      [leftRef.current, rightRef.current].filter(Boolean),
     [],
   );
 

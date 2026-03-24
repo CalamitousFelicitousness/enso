@@ -40,7 +40,7 @@ function parseParams(text: string, params: Record<string, string>) {
     const key = match[1].trim();
     let value = match[2].trim();
     if (value.startsWith('"') && value.endsWith('"')) {
-      try { value = JSON.parse(value); } catch { value = value.slice(1, -1); }
+      try { value = JSON.parse(value) as string; } catch { value = value.slice(1, -1); }
     }
     if (!key || !value) continue;
 

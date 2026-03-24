@@ -11,11 +11,11 @@ interface ResultThumbPreviewProps {
 
 function parseInfoMeta(info: string): Record<string, string> {
   try {
-    const parsed = JSON.parse(info);
+    const parsed = JSON.parse(info) as Record<string, unknown>;
     const meta: Record<string, string> = {};
     if (parsed.seed != null) meta.Seed = String(parsed.seed);
     if (parsed.steps != null) meta.Steps = String(parsed.steps);
-    if (parsed.sampler_name) meta.Sampler = parsed.sampler_name;
+    if (parsed.sampler_name) meta.Sampler = String(parsed.sampler_name);
     if (parsed.width && parsed.height)
       meta.Size = `${parsed.width}x${parsed.height}`;
     return meta;

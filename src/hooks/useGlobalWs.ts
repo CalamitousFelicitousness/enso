@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { ws, ensureWs } from "@/api/wsManager";
 import { useBackendStatusStore } from "@/stores/backendStatusStore";
-import { useDownloadStore } from "@/stores/downloadStore";
+import { useDownloadStore, type DownloadProgress } from "@/stores/downloadStore";
 import { queryClient } from "@/main";
 
 /** Query keys to invalidate when the backend reconnects (e.g. after restart). */
@@ -37,7 +37,7 @@ export function useGlobalWs() {
       } else if (msg.type === "status" && msg.data) {
         store.setStatus(msg.data as Record<string, unknown>);
       } else if (msg.type === "download" && Array.isArray(msg.data)) {
-        useDownloadStore.getState().updateFromWs(msg.data);
+        useDownloadStore.getState().updateFromWs(msg.data as DownloadProgress[]);
       }
     });
 

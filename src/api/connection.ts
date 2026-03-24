@@ -11,7 +11,7 @@ const STORAGE_KEY = "enso-connections";
 export function loadConnections(): BackendConnection[] {
   try {
     const data = localStorage.getItem(STORAGE_KEY);
-    return data ? JSON.parse(data) : [];
+    return data ? (JSON.parse(data) as BackendConnection[]) : [];
   } catch {
     return [];
   }
