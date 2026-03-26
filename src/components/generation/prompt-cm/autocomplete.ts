@@ -79,11 +79,20 @@ function embeddingSource(ctx: CompletionContext): CompletionResult | null {
 // ── Dict tag category → completion type mapping ──
 
 const DICT_CATEGORY_TYPES: Record<number, string> = {
-  0: "dictTag",
+  0: "dictGeneral",
   1: "dictArtist",
+  2: "dictStudio",
   3: "dictCopyright",
   4: "dictCharacter",
-  5: "dictMeta",
+  5: "dictSpecies",
+  6: "dictGenre",
+  7: "dictMedium",
+  8: "dictMeta",
+  9: "dictLore",
+  10: "dictLens",
+  11: "dictLighting",
+  12: "dictComposition",
+  13: "dictColor",
 };
 
 /** Binary search for the first tag with the given prefix. */
@@ -127,24 +136,30 @@ function dictTagSource(ctx: CompletionContext): CompletionResult | null {
       label: formatName(tags[i].name),
       displayLabel: tags[i].name.replace(/_/g, " "),
       detail: formatCount(tags[i].count),
-      type: DICT_CATEGORY_TYPES[tags[i].category] ?? "dictTag",
+      type: DICT_CATEGORY_TYPES[tags[i].category] ?? "dictGeneral",
       boost: -10,
     });
   }
 
-  // Substring fallback for 4+ chars if prefix found nothing
+  // Substring fallback for 4+ chars if prefix found nothing, sorted by post count
   if (options.length === 0 && query.length >= 4) {
-    for (let i = 0; i < tags.length && options.length < MAX_RESULTS; i++) {
+    const hits: { opt: typeof options[0]; count: number }[] = [];
+    for (let i = 0; i < tags.length && hits.length < MAX_RESULTS; i++) {
       if (tags[i].name.includes(query)) {
-        options.push({
-          label: formatName(tags[i].name),
-          displayLabel: tags[i].name.replace(/_/g, " "),
-          detail: formatCount(tags[i].count),
-          type: DICT_CATEGORY_TYPES[tags[i].category] ?? "dictTag",
-          boost: -10,
+        hits.push({
+          opt: {
+            label: formatName(tags[i].name),
+            displayLabel: tags[i].name.replace(/_/g, " "),
+            detail: formatCount(tags[i].count),
+            type: DICT_CATEGORY_TYPES[tags[i].category] ?? "dictGeneral",
+            boost: -10,
+          },
+          count: tags[i].count,
         });
       }
     }
+    hits.sort((a, b) => b.count - a.count);
+    for (const h of hits) options.push(h.opt);
   }
 
   if (options.length === 0) return null;

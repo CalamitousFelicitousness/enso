@@ -1,18 +1,53 @@
-import { useQuery, useQueries } from "@tanstack/react-query";
+import { useQuery, useQueries, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "../client";
-import type { DictInfo, DictContent, DictTag } from "../types/dict";
-import { getCachedDict, setCachedDict } from "@/lib/dictCache";
+import type { DictInfo, DictContent, DictTag, DictRemote } from "../types/dict";
+import { getCachedDict, setCachedDict, clearDictCache } from "@/lib/dictCache";
 
-/** List available tag dictionaries. */
+/** List locally available tag dictionaries. */
 export function useDictList() {
   return useQuery({
     queryKey: ["dicts"],
-    queryFn: () => api.get<DictInfo[]>("/sdapi/v1/dicts"),
+    queryFn: () => api.get<DictInfo[]>("/sdapi/v1/autocomplete"),
     staleTime: 60_000,
   });
 }
 
-/** Fetch a single dict's tags — IDB cache first, API fallback. */
+/** List dicts available for download from HuggingFace. */
+export function useRemoteDicts() {
+  return useQuery({
+    queryKey: ["dicts-remote"],
+    queryFn: () => api.get<DictRemote[]>("/sdapi/v1/autocomplete/remote"),
+    staleTime: 300_000, // 5 minutes, matches backend manifest cache
+  });
+}
+
+/** Download a dict from HuggingFace. */
+export function useDownloadDict() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (name: string) => api.post<DictInfo>(`/sdapi/v1/autocomplete/${name}/download`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["dicts"] });
+      qc.invalidateQueries({ queryKey: ["dicts-remote"] });
+    },
+  });
+}
+
+/** Delete a locally downloaded dict. */
+export function useDeleteDict() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (name: string) => api.delete(`/sdapi/v1/autocomplete/${name}`),
+    onSuccess: (_data, name) => {
+      clearDictCache(name);
+      qc.invalidateQueries({ queryKey: ["dicts"] });
+      qc.invalidateQueries({ queryKey: ["dicts-remote"] });
+      qc.invalidateQueries({ queryKey: ["dict-tags", name] });
+    },
+  });
+}
+
+/** Fetch a single dict's tags - IDB cache first, API fallback. */
 export function useDictTags(name: string | null) {
   return useQuery({
     queryKey: ["dict-tags", name],
@@ -22,7 +57,7 @@ export function useDictTags(name: string | null) {
       const cached = await getCachedDict(name);
       if (cached) return cached;
       // Fetch from backend
-      const content = await api.get<DictContent>(`/sdapi/v1/dicts/${name}`);
+      const content = await api.get<DictContent>(`/sdapi/v1/autocomplete/${name}`);
       const tags: DictTag[] = content.tags.map(([n, cat, count]) => ({
         name: n,
         category: cat,
@@ -48,7 +83,7 @@ export function useDictTagsMulti(names: string[]) {
       queryFn: async (): Promise<DictTag[]> => {
         const cached = await getCachedDict(name);
         if (cached) return cached;
-        const content = await api.get<DictContent>(`/sdapi/v1/dicts/${name}`);
+        const content = await api.get<DictContent>(`/sdapi/v1/autocomplete/${name}`);
         const tags: DictTag[] = content.tags.map(([n, cat, count]) => ({
           name: n,
           category: cat,

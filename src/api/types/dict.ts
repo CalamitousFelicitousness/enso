@@ -23,3 +23,13 @@ export interface DictTag {
   category: number;
   count: number;
 }
+
+export interface DictRemote {
+  name: string;
+  description: string;
+  version: string;
+  tag_count: number;
+  size_mb: number;
+  downloaded: boolean;
+  update_available: boolean;
+}

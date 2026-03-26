@@ -141,7 +141,7 @@ export const useUiStore = create<UiState>()(
       name: "enso-ui",
       version: 2,
       partialize: (state) => {
-        const { pendingSettingsSearch: _pending, ...rest } = state;
+        const { pendingSettingsSearch: _pending, dictMinChars: _mc, dictReplaceUnderscores: _ru, ...rest } = state;
         return rest;
       },
     },

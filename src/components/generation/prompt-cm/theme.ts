@@ -186,25 +186,61 @@ export const promptTheme = EditorView.theme({
     content: '"●"',
     color: "#34d399",
   },
-  ".cm-completionIcon-dictTag::after": {
-    content: '"◉"',
-    color: "#ff6b9d",
+  ".cm-completionIcon-dictGeneral::after": {
+    content: '"●"',
+    color: "#0075f8",
   },
   ".cm-completionIcon-dictArtist::after": {
-    content: '"◈"',
-    color: "#f59e0b",
+    content: '"●"',
+    color: "#cc0000",
+  },
+  ".cm-completionIcon-dictStudio::after": {
+    content: '"●"',
+    color: "#ff4500",
   },
   ".cm-completionIcon-dictCopyright::after": {
-    content: '"◇"',
-    color: "#8b5cf6",
+    content: '"●"',
+    color: "#9900ff",
   },
   ".cm-completionIcon-dictCharacter::after": {
-    content: '"◆"',
-    color: "#06b6d4",
+    content: '"●"',
+    color: "#00ab2c",
+  },
+  ".cm-completionIcon-dictSpecies::after": {
+    content: '"●"',
+    color: "#ed5d1f",
+  },
+  ".cm-completionIcon-dictGenre::after": {
+    content: '"●"',
+    color: "#8a66ff",
+  },
+  ".cm-completionIcon-dictMedium::after": {
+    content: '"●"',
+    color: "#00cccc",
   },
   ".cm-completionIcon-dictMeta::after": {
-    content: '"○"',
+    content: '"●"',
     color: "#6b7280",
+  },
+  ".cm-completionIcon-dictLore::after": {
+    content: '"●"',
+    color: "#228b22",
+  },
+  ".cm-completionIcon-dictLens::after": {
+    content: '"●"',
+    color: "#e67e22",
+  },
+  ".cm-completionIcon-dictLighting::after": {
+    content: '"●"',
+    color: "#f1c40f",
+  },
+  ".cm-completionIcon-dictComposition::after": {
+    content: '"●"',
+    color: "#1abc9c",
+  },
+  ".cm-completionIcon-dictColor::after": {
+    content: '"●"',
+    color: "#e84393",
   },
   ".cm-completionDetail": {
     opacity: "0.5",

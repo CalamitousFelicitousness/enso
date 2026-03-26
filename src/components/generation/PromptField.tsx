@@ -72,11 +72,22 @@ export function PromptField({
     [stylesData],
   );
 
-  // ── Dict tag data (from SD.Next dicts_enabled option) ────────────────
+  // ── Dict tag data (from SD.Next autocomplete_enabled option) ────────────────
 
   const { data: optionsData } = useOptions();
+
+  // Sync backend autocomplete settings → uiStore (synchronous cache for CodeMirror)
+  useEffect(() => {
+    if (!optionsData) return;
+    const opts = optionsData as Record<string, unknown>;
+    const minChars = opts.autocomplete_min_chars;
+    const replaceUnderscores = opts.autocomplete_replace_underscores;
+    if (typeof minChars === "number") useUiStore.getState().setDictMinChars(minChars);
+    if (typeof replaceUnderscores === "boolean") useUiStore.getState().setDictReplaceUnderscores(replaceUnderscores);
+  }, [optionsData]);
+
   const enabledDicts = useMemo(
-    () => (optionsData as Record<string, unknown>)?.dicts_enabled as string[] ?? [],
+    () => (optionsData as Record<string, unknown>)?.autocomplete_enabled as string[] ?? [],
     [optionsData],
   );
   const dictQueries = useDictTagsMulti(enabledDicts);
@@ -84,10 +95,14 @@ export function PromptField({
     const all = dictQueries.flatMap((q) => q.data ?? []);
     if (all.length === 0) return all;
     all.sort((a, b) => a.name.localeCompare(b.name));
-    // Deduplicate consecutive entries with the same name
+    // Deduplicate consecutive entries, keeping the highest post count
     const deduped: DictTag[] = [all[0]];
     for (let i = 1; i < all.length; i++) {
-      if (all[i].name !== all[i - 1].name) deduped.push(all[i]);
+      if (all[i].name !== all[i - 1].name) {
+        deduped.push(all[i]);
+      } else if (all[i].count > deduped[deduped.length - 1].count) {
+        deduped[deduped.length - 1] = all[i];
+      }
     }
     return deduped;
   }, [dictQueries]);

@@ -28,7 +28,8 @@ import { Slider } from "@/components/ui/slider";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
-import { useDictList } from "@/api/hooks/useDicts";
+import { useDictList, useRemoteDicts, useDownloadDict, useDeleteDict } from "@/api/hooks/useDicts";
+import type { DictInfo, DictRemote } from "@/api/types/dict";
 import {
   Save,
   RotateCcw,
@@ -37,6 +38,10 @@ import {
   Plug,
   Unplug,
   Check,
+  Download,
+  Loader2,
+  Trash2,
+  RefreshCw,
 } from "lucide-react";
 import { useUiStore } from "@/stores/uiStore";
 import type { ColorMode, CanvasBackground as CanvasBg } from "@/stores/uiStore";
@@ -189,7 +194,7 @@ function SettingRow({
 
   if (inline) {
     return (
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex items-center justify-between gap-3 group">
         {labelBlock}
         {children}
       </div>
@@ -319,17 +324,57 @@ function AppearancePanel() {
 
 function DictionariesPanel() {
   const { data: dicts } = useDictList();
+  const { data: remote } = useRemoteDicts();
+  const downloadDict = useDownloadDict();
+  const deleteDict = useDeleteDict();
   const options = useOptions();
   const setOptions = useSetOptions();
-  const enabledDicts: string[] =
-    (options.data as Record<string, unknown>)?.dicts_enabled as string[] ?? [];
+  const enabledDicts = useMemo<string[]>(
+    () => (options.data as Record<string, unknown>)?.autocomplete_enabled as string[] ?? [],
+    [options.data],
+  );
+
+  const localNames = useMemo(() => new Set(dicts?.map((d) => d.name) ?? []), [dicts]);
+  const [downloading, setDownloading] = useState<Set<string>>(new Set());
 
   const toggle = (name: string) => {
     const next = enabledDicts.includes(name)
       ? enabledDicts.filter((d) => d !== name)
       : [...enabledDicts, name];
-    setOptions.mutate({ dicts_enabled: next });
+    setOptions.mutate({ autocomplete_enabled: next });
   };
+
+  const handleDownload = useCallback((name: string) => {
+    setDownloading((prev) => new Set(prev).add(name));
+    downloadDict.mutate(name, {
+      onSuccess: () => toast.success(`Downloaded ${name}`),
+      onError: (err) => toast.error(`Failed to download ${name}`, { description: err instanceof Error ? err.message : String(err) }),
+      onSettled: () => setDownloading((prev) => { const next = new Set(prev); next.delete(name); return next; }),
+    });
+  }, [downloadDict]);
+
+  const handleDelete = useCallback((name: string) => {
+    if (enabledDicts.includes(name)) {
+      setOptions.mutate({ autocomplete_enabled: enabledDicts.filter((d) => d !== name) });
+    }
+    deleteDict.mutate(name, {
+      onSuccess: () => toast.success(`Deleted ${name}`),
+    });
+  }, [deleteDict, enabledDicts, setOptions]);
+
+  const toEntry = (d: DictInfo): DictRemote => ({
+    name: d.name, description: "", version: d.version,
+    tag_count: d.tag_count, size_mb: d.size / 1024 / 1024,
+    downloaded: true, update_available: false,
+  });
+
+  // Merge remote manifest with any locally-sideloaded dicts not in manifest
+  const entries = useMemo(() => {
+    const local = (dicts ?? []).map(toEntry);
+    if (!remote) return local;
+    const remoteNames = new Set(remote.map((r) => r.name));
+    return [...remote, ...local.filter((d) => !remoteNames.has(d.name))];
+  }, [remote, dicts]);
 
   return (
     <div>
@@ -338,26 +383,102 @@ function DictionariesPanel() {
         Tag autocomplete dictionaries for prompts. Suggestions appear at lowest
         priority, after LoRA, style, wildcard, and embedding completions.
       </p>
-      <div className="space-y-4">
-        {dicts && dicts.length > 0 ? (
-          dicts.map((d) => (
+      <div className="space-y-3">
+        {entries.map((d) => {
+          const isLocal = d.downloaded || localNames.has(d.name);
+          const isEnabled = enabledDicts.includes(d.name);
+          const isDownloading = downloading.has(d.name);
+          return (
             <SettingRow
               key={d.name}
               label={d.name}
-              description={`${d.tag_count.toLocaleString()} tags${d.version ? ` · v${d.version}` : ""}`}
+              description={[
+                d.description,
+                d.tag_count > 0 ? `${d.tag_count.toLocaleString()} tags` : "",
+                d.size_mb > 0 ? `${d.size_mb.toFixed(1)} MB` : "",
+                d.version ? `v${d.version}` : "",
+              ].filter(Boolean).join(" · ")}
               inline
             >
-              <Switch
-                checked={enabledDicts.includes(d.name)}
-                onCheckedChange={() => toggle(d.name)}
-              />
+              <div className="flex items-center gap-1.5">
+                {isLocal ? (
+                  <>
+                    {d.update_available && (
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        onClick={() => handleDownload(d.name)}
+                        disabled={isDownloading}
+                        title="Update available"
+                        className="text-primary"
+                      >
+                        {isDownloading ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />}
+                      </Button>
+                    )}
+                    <Switch
+                      checked={isEnabled}
+                      onCheckedChange={() => toggle(d.name)}
+                    />
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      onClick={() => handleDelete(d.name)}
+                      title="Delete local copy"
+                      className="opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      <Trash2 size={12} />
+                    </Button>
+                  </>
+                ) : (
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => handleDownload(d.name)}
+                    disabled={isDownloading}
+                  >
+                    {isDownloading ? (
+                      <Loader2 size={12} className="animate-spin" />
+                    ) : (
+                      <Download size={12} />
+                    )}
+                    {isDownloading ? "Downloading..." : "Download"}
+                  </Button>
+                )}
+              </div>
             </SettingRow>
-          ))
-        ) : (
+          );
+        })}
+        {entries.length === 0 && (
           <p className="text-3xs text-muted-foreground">
-            No dictionaries found. Place JSON dict files in the dicts directory.
+            No dictionaries available.
           </p>
         )}
+      </div>
+      <div className="mt-6 space-y-4">
+        <SettingRow
+          label="Minimum characters"
+          description="Characters typed before dictionary suggestions appear"
+          inline
+        >
+          <Slider
+            className="w-28"
+            min={2}
+            max={6}
+            step={1}
+            value={[(options.data as Record<string, unknown>)?.autocomplete_min_chars as number ?? 3]}
+            onValueChange={([v]) => setOptions.mutate({ autocomplete_min_chars: v })}
+          />
+        </SettingRow>
+        <SettingRow
+          label="Replace underscores"
+          description="Insert tags with spaces instead of underscores"
+          inline
+        >
+          <Switch
+            checked={(options.data as Record<string, unknown>)?.autocomplete_replace_underscores as boolean ?? true}
+            onCheckedChange={(v) => setOptions.mutate({ autocomplete_replace_underscores: v })}
+          />
+        </SettingRow>
       </div>
     </div>
   );
