@@ -93,10 +93,12 @@ export function PromptField({
     [optionsData],
   );
   const dictQueries = useDictTagsMulti(enabledDicts);
+  // Stable key: only recalculate when actual query data changes, not on every render
+  const dictDataKey = dictQueries.map((q) => q.dataUpdatedAt).join();
   const mergedDictTags = useMemo(() => {
     const all = dictQueries.flatMap((q) => q.data ?? []);
     if (all.length === 0) return all;
-    all.sort((a, b) => a.name.localeCompare(b.name));
+    all.sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
     // Deduplicate consecutive entries, keeping the highest post count
     const deduped: DictTag[] = [all[0]];
     for (let i = 1; i < all.length; i++) {
@@ -107,7 +109,8 @@ export function PromptField({
       }
     }
     return deduped;
-  }, [dictQueries]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dictDataKey]);
 
   // ── Create editor on mount ─────────────────────────────────────────
 
