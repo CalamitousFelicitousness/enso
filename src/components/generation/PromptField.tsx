@@ -82,8 +82,10 @@ export function PromptField({
     const opts = optionsData as Record<string, unknown>;
     const minChars = opts.autocomplete_min_chars;
     const replaceUnderscores = opts.autocomplete_replace_underscores;
+    const appendComma = opts.autocomplete_append_comma;
     if (typeof minChars === "number") useUiStore.getState().setDictMinChars(minChars);
     if (typeof replaceUnderscores === "boolean") useUiStore.getState().setDictReplaceUnderscores(replaceUnderscores);
+    if (typeof appendComma === "boolean") useUiStore.getState().setDictAppendComma(appendComma);
   }, [optionsData]);
 
   const enabledDicts = useMemo(

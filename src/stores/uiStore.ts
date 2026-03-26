@@ -52,6 +52,7 @@ interface UiState {
   promptAutocomplete: boolean;
   dictMinChars: number;
   dictReplaceUnderscores: boolean;
+  dictAppendComma: boolean;
 
   // Actions
   toggleLeftRail: () => void;
@@ -78,6 +79,7 @@ interface UiState {
   setPromptAutocomplete: (enabled: boolean) => void;
   setDictMinChars: (n: number) => void;
   setDictReplaceUnderscores: (enabled: boolean) => void;
+  setDictAppendComma: (enabled: boolean) => void;
 }
 
 export type { NavView, ImagesSubTab, ColorMode, CanvasBackground };
@@ -108,6 +110,7 @@ export const useUiStore = create<UiState>()(
       promptAutocomplete: true,
       dictMinChars: 3,
       dictReplaceUnderscores: true,
+      dictAppendComma: true,
 
       toggleLeftRail: () => set((s) => ({ leftRailCollapsed: !s.leftRailCollapsed })),
       setNavView: (view) => set({ activeNavView: view }),
@@ -136,12 +139,13 @@ export const useUiStore = create<UiState>()(
       setPromptAutocomplete: (enabled) => set({ promptAutocomplete: enabled }),
       setDictMinChars: (n) => set({ dictMinChars: Math.max(2, Math.min(6, n)) }),
       setDictReplaceUnderscores: (enabled) => set({ dictReplaceUnderscores: enabled }),
+      setDictAppendComma: (enabled) => set({ dictAppendComma: enabled }),
     }),
     {
       name: "enso-ui",
       version: 2,
       partialize: (state) => {
-        const { pendingSettingsSearch: _pending, dictMinChars: _mc, dictReplaceUnderscores: _ru, ...rest } = state;
+        const { pendingSettingsSearch: _pending, dictMinChars: _mc, dictReplaceUnderscores: _ru, dictAppendComma: _ac, ...rest } = state;
         return rest;
       },
     },

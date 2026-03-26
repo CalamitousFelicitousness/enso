@@ -114,7 +114,7 @@ function formatCount(count: number): string {
 }
 
 function dictTagSource(ctx: CompletionContext): CompletionResult | null {
-  const { dictMinChars, dictReplaceUnderscores } = useUiStore.getState();
+  const { dictMinChars, dictReplaceUnderscores, dictAppendComma } = useUiStore.getState();
   const minCharsPattern = new RegExp(`(?<=^|[\\s,])\\w{${dictMinChars},}`);
   const match = ctx.matchBefore(minCharsPattern);
   if (!match) return null;
@@ -126,18 +126,21 @@ function dictTagSource(ctx: CompletionContext): CompletionResult | null {
   const formatName = dictReplaceUnderscores
     ? (n: string) => n.replace(/_/g, " ")
     : (n: string) => n;
+  const suffix = dictAppendComma ? ", " : " ";
 
   // Prefix match via binary search (O(log n + k))
   const start = lowerBound(tags, query);
-  const options: { label: string; displayLabel: string; detail: string; type: string; boost: number }[] = [];
+  const options: { label: string; displayLabel: string; detail: string; type: string; boost: number; apply: string }[] = [];
   for (let i = start; i < tags.length && options.length < MAX_RESULTS; i++) {
     if (!tags[i].name.startsWith(query)) break;
+    const name = formatName(tags[i].name);
     options.push({
-      label: formatName(tags[i].name),
+      label: name,
       displayLabel: tags[i].name.replace(/_/g, " "),
       detail: formatCount(tags[i].count),
       type: DICT_CATEGORY_TYPES[tags[i].category] ?? "dictGeneral",
       boost: -10,
+      apply: name + suffix,
     });
   }
 
@@ -146,13 +149,15 @@ function dictTagSource(ctx: CompletionContext): CompletionResult | null {
     const hits: { opt: typeof options[0]; count: number }[] = [];
     for (let i = 0; i < tags.length && hits.length < MAX_RESULTS; i++) {
       if (tags[i].name.includes(query)) {
+        const name = formatName(tags[i].name);
         hits.push({
           opt: {
-            label: formatName(tags[i].name),
+            label: name,
             displayLabel: tags[i].name.replace(/_/g, " "),
             detail: formatCount(tags[i].count),
             type: DICT_CATEGORY_TYPES[tags[i].category] ?? "dictGeneral",
             boost: -10,
+            apply: name + suffix,
           },
           count: tags[i].count,
         });
