@@ -75,9 +75,12 @@ async def get_extra_networks_v2(
         for item in pg.items:
             tags = format_tags(item.get('tags', None))
             name = item.get('name', '')
+            fullname = item.get('fullname', None)
             # LoRA/LyCo: normalize name the same way SD.Next does internally
             # (basename without extension, dots replaced with underscores)
             if pg.name in ('lora', 'lyco') and item.get('filename'):
+                if fullname is None:
+                    fullname = name
                 name = os.path.splitext(os.path.basename(item['filename']))[0].replace('.', '_')
             title = item.get('title', '') or ''
             filename = item.get('filename', '') or ''
@@ -92,7 +95,7 @@ async def get_extra_networks_v2(
                 name=name,
                 type=pg.name,
                 title=item.get('title', None),
-                fullname=item.get('fullname', None),
+                fullname=fullname,
                 filename=item.get('filename', None),
                 hash=item.get('shorthash', None) or item.get('hash'),
                 preview=item.get('preview', None),
