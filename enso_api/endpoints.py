@@ -14,6 +14,42 @@ from datetime import datetime
 from typing import Any
 from fastapi import APIRouter, HTTPException, Query
 from modules import shared
+
+
+# Shared version normalization - unifies CivitAI baseModel values and sdnext
+# internal class names into a consistent set across all network types.
+# Only collapses truly redundant variants; preserves useful distinctions
+# like model size (4B/9B) and variant (base/dev/schnell).
+version_normalize = {
+    # sdnext diffusers class names -> CivitAI-style names
+    "StableDiffusion": "SD 1.5",
+    "StableDiffusionXL": "SD XL",
+    "StableDiffusion3": "SD 3",
+    "AnimaTextTo": "Anima",
+    "Cosmos2TextTo": "Cosmos",
+    "Kandinsky5T2I": "Kandinsky",
+    "StableVideoDiffusion": "SVD",
+    "Flux2Klein": "Flux.2 Klein",
+    "Flux2": "Flux.2",
+    "QwenLayered": "Qwen Layered",
+    # CivitAI variants -> consistent names
+    "SDXL 1.0": "SD XL",
+    "SDXL Hyper": "SD XL Hyper",
+    "SDXL Lightning": "SD XL Lightning",
+    "SDXL Turbo": "SD XL Turbo",
+    "SD 1.5 LCM": "SD 1.5 LCM",
+    "SD 1.5 Hyper": "SD 1.5 Hyper",
+    "Flux.1 D": "Flux.1 Dev",
+    "Flux.1 S": "Flux.1 Schnell",
+    "FluxKontext": "Flux Kontext",
+    "QwenEdit": "Qwen Edit",
+    "QwenEditPlus": "Qwen Edit",
+    "WanToVideo": "Wan",
+    "WanVACE": "Wan VACE",
+    "Z": "Z-Image",
+    "Glm": "GLM-Image",
+    "zImage": "Z-Image",
+}
 from enso_api.models import (
     ItemExtraNetworkV2, ResExtraNetworksV2,
     ItemModelV2, ResModelsV2,
@@ -54,6 +90,39 @@ def format_mtime(mtime) -> str | None:
     if mtime is not None:
         return str(mtime)
     return None
+
+
+def resolve_version(item, page_name: str) -> str | None:
+    """Resolve a consistent version string for an extra-network item.
+
+    For checkpoints, sdnext's version_map flattens informative CivitAI
+    baseModel values (e.g. "Flux.2 Klein 4B-base" -> "Flux2Klein").
+    We recover the original baseModel from the item's CivitAI info dict
+    when available, then apply version_normalize for unified naming.
+    """
+    version = item.get('version', None)
+    # For checkpoints, try to recover the raw CivitAI baseModel
+    if page_name == 'model':
+        info = item.get('info')
+        if isinstance(info, dict):
+            # Match the same logic as sdnext's find_version: look for
+            # a modelVersions entry whose file hash matches this item
+            all_versions = info.get('modelVersions', [])
+            if all_versions:
+                item_hash = (item.get('shorthash') or item.get('hash') or '')[:8].upper()
+                matched = all_versions[0]  # fallback to first
+                if item_hash:
+                    for v in all_versions:
+                        for f in v.get('files', []):
+                            if any(h.upper().startswith(item_hash) for h in f.get('hashes', {}).values()):
+                                matched = v
+                                break
+                raw_base = matched.get('baseModel')
+                if raw_base:
+                    version = raw_base
+    if not version:
+        return version
+    return version_normalize.get(version, version)
 
 
 # --- Extra Networks ---
@@ -99,7 +168,7 @@ async def get_extra_networks_v2(
                 filename=item.get('filename', None),
                 hash=item.get('shorthash', None) or item.get('hash'),
                 preview=item.get('preview', None),
-                version=item.get('version', None),
+                version=resolve_version(item, pg.name),
                 tags=tags,
                 size=item.get('size', None),
                 mtime=mtime,
