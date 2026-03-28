@@ -75,7 +75,6 @@ export function useCivitDownload() {
     mutationFn: (req: CivitDownloadRequest) => api.post<CivitDownloadItem>("/sdapi/v2/civitai/download", req),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["civitai-download-status"] });
-      qc.invalidateQueries({ queryKey: ["civitai-check-local"] });
     },
   });
 }

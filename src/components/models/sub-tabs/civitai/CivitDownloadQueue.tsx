@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { ChevronDown, ChevronRight, X } from "lucide-react";
 import { useDownloadStore } from "@/stores/downloadStore";
 import {
@@ -31,6 +32,7 @@ export function CivitDownloadQueue() {
   const wsItems = useDownloadStore((s) => s.items);
   const { data: statusData } = useCivitDownloadStatus();
   const cancelDownload = useCivitDownloadCancel();
+  const qc = useQueryClient();
 
   // Merge WS real-time items with REST status for completed/queued
   const activeItems = wsItems.length > 0 ? wsItems : (statusData?.active ?? []);
@@ -38,6 +40,15 @@ export function CivitDownloadQueue() {
   const completedItems = statusData?.completed ?? [];
   const totalCount =
     activeItems.length + queuedItems.length + completedItems.length;
+
+  // Invalidate check-local when new downloads complete
+  const prevCompletedCount = useRef(completedItems.length);
+  useEffect(() => {
+    if (completedItems.length > prevCompletedCount.current) {
+      qc.invalidateQueries({ queryKey: ["civitai-check-local"] });
+    }
+    prevCompletedCount.current = completedItems.length;
+  }, [completedItems.length, qc]);
 
   if (totalCount === 0) return null;
 
