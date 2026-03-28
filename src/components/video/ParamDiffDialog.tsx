@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogFooter,
@@ -219,6 +220,7 @@ export function ParamDiffDialog({
       <DialogContent className="max-w-xl">
         <DialogHeader>
           <DialogTitle>Compare Settings ({changedCount} changed)</DialogTitle>
+          <DialogDescription className="sr-only">Side-by-side comparison of video parameters</DialogDescription>
         </DialogHeader>
         <ScrollArea className="max-h-[60vh]">
           <table className="w-full text-2xs">

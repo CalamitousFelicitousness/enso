@@ -4,6 +4,7 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -179,7 +180,7 @@ export function QuickInterrogateDialog({
 
         {/* Title bar */}
         <div className="flex items-center justify-between px-4 py-2.5 border-b">
-          <h2 className="text-sm font-semibold">Quick Interrogate</h2>
+          <DialogTitle className="text-sm font-semibold">Quick Interrogate</DialogTitle>
           <span className="text-3xs text-muted-foreground uppercase tracking-wider">
             {defaultType}
           </span>

@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogFooter,
@@ -266,6 +267,7 @@ export function GenerationDiffDialog({
       <DialogContent className="max-w-xl">
         <DialogHeader>
           <DialogTitle>Compare Settings ({totalChanged} changed)</DialogTitle>
+          <DialogDescription className="sr-only">Side-by-side comparison of generation parameters</DialogDescription>
         </DialogHeader>
         <ScrollArea className="max-h-[60vh]">
           <table className="w-full text-2xs">

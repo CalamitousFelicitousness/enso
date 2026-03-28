@@ -11,6 +11,7 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -406,7 +407,7 @@ export function PngInfoDialog({ open, onOpenChange }: PngInfoDialogProps) {
 
         {/* Title bar */}
         <div className="flex items-center px-4 py-2.5 border-b">
-          <h2 className="text-sm font-semibold">PNG Info</h2>
+          <DialogTitle className="text-sm font-semibold">PNG Info</DialogTitle>
         </div>
 
         {/* No image - full-body drop zone */}

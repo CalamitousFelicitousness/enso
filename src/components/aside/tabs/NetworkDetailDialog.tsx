@@ -353,6 +353,7 @@ export function NetworkDetailDialog({
         className="sm:max-w-3xl max-h-[80vh] flex flex-col p-0 gap-0 overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
+        {!item && <DialogTitle className="sr-only">Network details</DialogTitle>}
         {item && (
           <>
             {/* Header - pr-10 reserves space for the absolute-positioned close button */}

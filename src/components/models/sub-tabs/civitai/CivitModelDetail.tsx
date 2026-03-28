@@ -819,6 +819,8 @@ export function CivitModelDetail({ modelId, onClose }: CivitModelDetailProps) {
         <div ref={capturePortal} className="hidden" />
         {isLoading ? (
           <div className="flex items-center justify-center py-16">
+            <DialogTitle className="sr-only">Loading model</DialogTitle>
+            <DialogDescription className="sr-only">Loading model details</DialogDescription>
             <Loader2 className="h-6 w-6 animate-spin" />
           </div>
         ) : model ? (
@@ -942,9 +944,13 @@ export function CivitModelDetail({ modelId, onClose }: CivitModelDetailProps) {
             </div>
           </>
         ) : (
-          <p className="text-sm text-muted-foreground py-8 text-center">
-            Model not found
-          </p>
+          <>
+            <DialogTitle className="sr-only">Model not found</DialogTitle>
+            <DialogDescription className="sr-only">The requested model could not be loaded</DialogDescription>
+            <p className="text-sm text-muted-foreground py-8 text-center">
+              Model not found
+            </p>
+          </>
         )}
       </DialogContent>
 
