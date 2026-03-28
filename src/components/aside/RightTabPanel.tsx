@@ -1,4 +1,4 @@
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useState, useCallback } from "react";
 import { RIGHT_TABS } from "@/lib/constants";
 import { useUiStore } from "@/stores/uiStore";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -57,8 +57,38 @@ const SELF_SCROLL_TABS = new Set<string>(["settings", "networks", "history", "co
 export function RightTabPanel() {
   const activeTab = useUiStore((s) => s.activeRightTab);
   const tabMeta = RIGHT_TABS.find((t) => t.id === activeTab);
-  const TabComponent = TAB_COMPONENTS[activeTab];
-  const Wrapper = SELF_SCROLL_TABS.has(activeTab) ? "div" : ScrollArea;
+
+  // Lazy-mount: tabs mount on first visit, then stay alive (hidden via CSS).
+  const [visited, setVisited] = useState<Set<string>>(() => new Set([activeTab]));
+  if (!visited.has(activeTab)) {
+    setVisited(new Set(visited).add(activeTab));
+  }
+
+  const renderTab = useCallback(
+    (id: string) => {
+      const Comp = TAB_COMPONENTS[id];
+      if (!Comp || !visited.has(id)) return null;
+      const active = id === activeTab;
+      const Wrapper = SELF_SCROLL_TABS.has(id) ? "div" : ScrollArea;
+      return (
+        <Wrapper
+          key={id}
+          className={active ? "flex-1 overflow-hidden" : "hidden"}
+        >
+          <Suspense
+            fallback={
+              <div className="p-3 text-xs text-muted-foreground">
+                Loading...
+              </div>
+            }
+          >
+            <Comp />
+          </Suspense>
+        </Wrapper>
+      );
+    },
+    [activeTab, visited],
+  );
 
   return (
     <div className="flex flex-col h-full min-w-0 bg-card">
@@ -68,15 +98,7 @@ export function RightTabPanel() {
           {tabMeta?.label ?? activeTab}
         </span>
       </div>
-      <Wrapper className="flex-1 overflow-hidden">
-        <Suspense
-          fallback={
-            <div className="p-3 text-xs text-muted-foreground">Loading...</div>
-          }
-        >
-          {TabComponent && <TabComponent />}
-        </Suspense>
-      </Wrapper>
+      {Object.keys(TAB_COMPONENTS).map(renderTab)}
     </div>
   );
 }
