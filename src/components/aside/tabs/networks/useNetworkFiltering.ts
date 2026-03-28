@@ -137,7 +137,14 @@ export function useNetworkFiltering(
   const displayItems = useMemo(() => {
     let items: NetworkItem[];
 
-    if (selectedSubfolder === "All") {
+    if (selectedSubfolder.startsWith("folder:")) {
+      const prefix = selectedSubfolder.slice(7) + "/";
+      const altPrefix = "models/" + prefix;
+      items = filtered.filter((item) => {
+        const p = itemPath(item);
+        return p.startsWith(prefix) || p.startsWith(altPrefix);
+      });
+    } else if (selectedSubfolder === "All") {
       items = filtered;
     } else if (filter === "Model") {
       if (selectedSubfolder === "Local") {
@@ -214,15 +221,32 @@ export function useNetworkFiltering(
     return items;
   }, [filtered, selectedSubfolder, filter, versionSet, sortMode]);
 
-  const folderTree = useMemo((): FolderNode[] => {
-    if (filter === "Style") return [];
+  const { folderTree, classFolders } = useMemo(() => {
+    if (filter === "Style") return { folderTree: [] as FolderNode[], classFolders: new Map<string, FolderNode[]>() };
     const stripPrefix = filter === "Model" ? "models/" : undefined;
     const relevantItems = filter === "Model"
       ? filtered.filter((item) => isExtraNetwork(item) && !isReferenceName(item.name) && !item.name.startsWith("Diffusers/"))
       : filtered;
     const paths = collectFolderPaths(relevantItems, stripPrefix);
-    return buildFolderTree(paths);
-  }, [filtered, filter]);
+    const tree = buildFolderTree(paths);
 
-  return { sidebarGroups, folderTree, displayItems, versionSet };
+    // Split: top-level folders matching a class name go into classFolders, rest stay in folderTree
+    const cf = new Map<string, FolderNode[]>();
+    const remaining: FolderNode[] = [];
+    const versionLower = new Map<string, string>();
+    for (const v of versionSet) versionLower.set(v.toLowerCase(), v);
+    for (const node of tree) {
+      const match = versionLower.get(node.name.toLowerCase());
+      if (match && node.children.length > 0) {
+        cf.set(match, node.children);
+      } else if (match) {
+        // Folder matches class but has no subfolders - no tree needed
+      } else {
+        remaining.push(node);
+      }
+    }
+    return { folderTree: remaining, classFolders: cf };
+  }, [filtered, filter, versionSet]);
+
+  return { sidebarGroups, folderTree, classFolders, displayItems, versionSet };
 }

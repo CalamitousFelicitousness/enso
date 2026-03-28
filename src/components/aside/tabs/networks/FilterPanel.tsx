@@ -9,6 +9,7 @@ interface FilterPanelProps {
   open: boolean;
   sidebarGroups: SidebarGroup[];
   folderTree: FolderNode[];
+  classFolders: Map<string, FolderNode[]>;
   selectedSubfolder: string;
   onSubfolderSelect: (subfolder: string) => void;
   anchorRef: React.RefObject<HTMLDivElement | null>;
@@ -31,10 +32,9 @@ function FolderTreeRow({
 }) {
   const hasChildren = node.children.length > 0;
   const isExpanded = expanded.has(node.path);
-  const isActive = selected === node.path;
-  // Active if the selected path starts with this folder
-  const isAncestor =
-    !isActive && selected.startsWith(node.path + "/");
+  const selectedPath = selected.startsWith("folder:") ? selected.slice(7) : "";
+  const isActive = selectedPath === node.path;
+  const isAncestor = !isActive && selectedPath.startsWith(node.path + "/");
 
   return (
     <>
@@ -91,6 +91,7 @@ export function FilterPanel({
   open,
   sidebarGroups,
   folderTree,
+  classFolders,
   selectedSubfolder,
   onSubfolderSelect,
   anchorRef,
@@ -132,7 +133,7 @@ export function FilterPanel({
   // Auto-expand ancestors of the selected folder so it's always visible
   const handleSelect = useCallback(
     (path: string) => {
-      onSubfolderSelect(path);
+      onSubfolderSelect("folder:" + path);
       // Expand all ancestors
       const segments = path.split("/");
       if (segments.length > 1) {
@@ -175,21 +176,55 @@ export function FilterPanel({
                         {group.header}
                       </div>
                     )}
-                    {group.items.map((dir) => (
-                      <button
-                        key={dir}
-                        type="button"
-                        onClick={() => onSubfolderSelect(dir)}
-                        className={cn(
-                          "w-full text-left px-3 py-[5px] text-[0.6875rem] truncate transition-colors",
-                          selectedSubfolder === dir
-                            ? "bg-primary/15 text-primary font-medium"
-                            : "text-muted-foreground hover:text-foreground hover:bg-muted/50",
-                        )}
-                      >
-                        {dir}
-                      </button>
-                    ))}
+                    {group.items.map((dir) => {
+                      const children = classFolders.get(dir);
+                      const hasChildren = children && children.length > 0;
+                      const isExpanded = expanded.has(dir);
+                      return (
+                        <div key={dir}>
+                          <button
+                            type="button"
+                            onClick={() => onSubfolderSelect(dir)}
+                            className={cn(
+                              "w-full text-left px-3 py-[5px] text-[0.6875rem] truncate transition-colors flex items-center gap-1",
+                              selectedSubfolder === dir
+                                ? "bg-primary/15 text-primary font-medium"
+                                : "text-muted-foreground hover:text-foreground hover:bg-muted/50",
+                            )}
+                          >
+                            {hasChildren ? (
+                              <span
+                                role="button"
+                                className="shrink-0 p-0.5 -ml-0.5 rounded hover:bg-muted/80"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  toggleExpand(dir);
+                                }}
+                              >
+                                {isExpanded ? (
+                                  <ChevronDown className="h-3 w-3" />
+                                ) : (
+                                  <ChevronRight className="h-3 w-3" />
+                                )}
+                              </span>
+                            ) : null}
+                            <span className="truncate">{dir}</span>
+                          </button>
+                          {hasChildren && isExpanded &&
+                            children.map((node) => (
+                              <FolderTreeRow
+                                key={node.path}
+                                node={node}
+                                depth={1}
+                                selected={selectedSubfolder}
+                                expanded={expanded}
+                                onSelect={handleSelect}
+                                onToggle={toggleExpand}
+                              />
+                            ))}
+                        </div>
+                      );
+                    })}
                   </div>
                 ))}
                 {folderTree.length > 0 && (
