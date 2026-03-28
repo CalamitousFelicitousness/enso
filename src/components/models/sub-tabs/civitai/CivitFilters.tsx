@@ -44,19 +44,22 @@ export function CivitFilters({
   onNsfwChange,
   onFavoritesChange,
 }: CivitFiltersProps) {
-  const types = ["", ...(options?.types ?? [])];
-  const sorts = ["", ...(options?.sort ?? [])];
-  const periods = ["", ...(options?.period ?? [])];
-  const baseModels = ["", ...(options?.base_models ?? [])];
+  const types = options?.types ?? [];
+  const sorts = options?.sort ?? [];
+  const periods = options?.period ?? [];
+  const baseModels = options?.base_models ?? [];
 
   return (
     <div className="grid grid-cols-2 gap-2">
       <div>
         <Label className="text-2xs">Type</Label>
         <Combobox
-          value={type}
-          onValueChange={onTypeChange}
-          options={types}
+          value={type || "All types"}
+          onValueChange={(v) => onTypeChange(v === "All types" ? "" : v)}
+          groups={[
+            { options: ["All types"] },
+            { options: types },
+          ]}
           placeholder="All types"
           className="h-6 text-2xs"
         />
@@ -64,9 +67,12 @@ export function CivitFilters({
       <div>
         <Label className="text-2xs">Sort</Label>
         <Combobox
-          value={sort}
-          onValueChange={onSortChange}
-          options={sorts}
+          value={sort || "Default"}
+          onValueChange={(v) => onSortChange(v === "Default" ? "" : v)}
+          groups={[
+            { options: ["Default"] },
+            { options: sorts },
+          ]}
           placeholder="Default"
           className="h-6 text-2xs"
         />
@@ -74,9 +80,12 @@ export function CivitFilters({
       <div>
         <Label className="text-2xs">Period</Label>
         <Combobox
-          value={period}
-          onValueChange={onPeriodChange}
-          options={periods}
+          value={period || "All time"}
+          onValueChange={(v) => onPeriodChange(v === "All time" ? "" : v)}
+          groups={[
+            { options: ["All time"] },
+            { options: periods },
+          ]}
           placeholder="All time"
           className="h-6 text-2xs"
         />
@@ -84,9 +93,12 @@ export function CivitFilters({
       <div>
         <Label className="text-2xs">Base model</Label>
         <Combobox
-          value={baseModel}
-          onValueChange={onBaseModelChange}
-          options={baseModels}
+          value={baseModel || "Any"}
+          onValueChange={(v) => onBaseModelChange(v === "Any" ? "" : v)}
+          groups={[
+            { options: ["Any"] },
+            { options: baseModels },
+          ]}
           placeholder="Any"
           className="h-6 text-2xs"
         />

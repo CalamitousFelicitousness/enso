@@ -22,6 +22,7 @@ import { toast } from "sonner";
 import {
   useCivitModel,
   useCivitDownload,
+  useCivitDownloadStatus,
   useCivitResolvePath,
   useCivitBookmarks,
   useCivitAddBookmark,
@@ -32,6 +33,7 @@ import {
   useCivitCheckLocal,
   useCivitVersionImages,
 } from "@/api/hooks/useCivitai";
+import { useDownloadStore } from "@/stores/downloadStore";
 import type {
   CivitVersion,
   CivitFile,
@@ -173,6 +175,7 @@ interface VersionSectionProps {
   modelId: number;
   modelNsfw: boolean;
   localFiles: Record<string, { filename: string; type: string }>;
+  activeDownloads: Set<string>;
   onImageClick?: (image: CivitImage) => void;
 }
 
@@ -184,6 +187,7 @@ function VersionSection({
   modelId,
   modelNsfw,
   localFiles,
+  activeDownloads,
   onImageClick,
 }: VersionSectionProps) {
   const [open, setOpen] = useState(false);
@@ -368,6 +372,8 @@ function VersionSection({
                         <span title={`Downloaded: ${localMatch.filename}`}>
                           <Check className="h-4 w-4 text-green-500" />
                         </span>
+                      ) : activeDownloads.has(f.name) ? (
+                        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
                       ) : (
                         <Button
                           size="icon"
@@ -376,11 +382,7 @@ function VersionSection({
                           onClick={() => handleDownload(f)}
                           disabled={download.isPending}
                         >
-                          {download.isPending ? (
-                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                          ) : (
-                            <Download className="h-3.5 w-3.5" />
-                          )}
+                          <Download className="h-3.5 w-3.5" />
                         </Button>
                       )}
                     </span>
@@ -719,6 +721,17 @@ export function CivitModelDetail({ modelId, onClose }: CivitModelDetailProps) {
   const { data: localCheck } = useCivitCheckLocal(allHashes);
   const localFiles = localCheck?.found ?? {};
 
+  // Track filenames of active/queued downloads for spinner display
+  const wsItems = useDownloadStore((s) => s.items);
+  const { data: dlStatus } = useCivitDownloadStatus();
+  const activeDownloads = useMemo(() => {
+    const names = new Set<string>();
+    for (const item of wsItems) names.add(item.filename);
+    for (const item of dlStatus?.active ?? []) names.add(item.filename);
+    for (const item of dlStatus?.queued ?? []) names.add(item.filename);
+    return names;
+  }, [wsItems, dlStatus]);
+
   const isBookmarked = model
     ? (bookmarks?.some((b) => b.name === model.name) ?? false)
     : false;
@@ -931,6 +944,7 @@ export function CivitModelDetail({ modelId, onClose }: CivitModelDetailProps) {
                       modelId={model.id}
                       modelNsfw={model.nsfw}
                       localFiles={localFiles}
+                      activeDownloads={activeDownloads}
                       onImageClick={(img) => {
                         const idx = allImages.findIndex(
                           (a) => a.url === img.url,

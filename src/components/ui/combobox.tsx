@@ -9,6 +9,7 @@ import {
   CommandInput,
   CommandItem,
   CommandList,
+  CommandSeparator,
 } from "./command";
 
 export type ComboboxOption =
@@ -16,7 +17,7 @@ export type ComboboxOption =
   | { value: string; label: string; disabled?: boolean };
 
 export interface ComboboxGroup {
-  heading: string;
+  heading?: string;
   options: readonly ComboboxOption[];
 }
 
@@ -132,13 +133,14 @@ export function Combobox({
           <CommandList>
             <CommandEmpty>{emptyText}</CommandEmpty>
             {groups ? (
-              groups.map((g) => (
+              groups.map((g, i) => (
                 <CommandGroup
-                  key={g.heading}
+                  key={g.heading ?? `group-${i}`}
                   heading={g.heading}
-                  className="overflow-visible [&_[cmdk-group-heading]]:bg-popover [&_[cmdk-group-heading]]:sticky [&_[cmdk-group-heading]]:top-0 [&_[cmdk-group-heading]]:z-10"
+                  className={g.heading ? "overflow-visible [&_[cmdk-group-heading]]:bg-popover [&_[cmdk-group-heading]]:sticky [&_[cmdk-group-heading]]:top-0 [&_[cmdk-group-heading]]:z-10" : undefined}
                 >
                   {g.options.map(renderItem)}
+                  {i < groups.length - 1 && <CommandSeparator />}
                 </CommandGroup>
               ))
             ) : (
