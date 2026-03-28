@@ -98,7 +98,7 @@ def format_mtime(mtime) -> str | None:
 # Config keys are read from transformer/config.json or unet/config.json.
 _ARCH_FINGERPRINTS: dict[str, dict[str, dict[int, str]]] = {
     # Flux2KleinPipeline: joint_attention_dim distinguishes 4B (7680) from 9B (12288)
-    "Flux2Klein": {
+    "Flux.2 Klein": {
         "joint_attention_dim": {
             7680: "4B",
             12288: "9B",
