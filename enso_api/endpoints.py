@@ -10,7 +10,6 @@ as their v1 counterparts.
 
 import asyncio
 import os
-import re
 from datetime import datetime
 from typing import Any
 from fastapi import APIRouter, HTTPException, Query
@@ -93,15 +92,44 @@ def format_mtime(mtime) -> str | None:
     return None
 
 
-# Patterns to extract model variant details from filenames/names when
-# the version came from a diffusers class name (which lacks size info).
-_VARIANT_PATTERNS = [
-    # Flux.2 Klein variants: "klein-9B", "klein-base-4B", etc.
-    (re.compile(r'klein[_-]base[_-](\d+B)', re.IGNORECASE),
-     lambda m: f"Flux.2 Klein {m.group(1)}-base"),
-    (re.compile(r'klein[_-](\d+B)', re.IGNORECASE),
-     lambda m: f"Flux.2 Klein {m.group(1)}"),
-]
+# Architecture fingerprints: map (pipeline_class, config_key, config_value)
+# to a version suffix. Only needed for pipelines where multiple model sizes
+# share the same _class_name (e.g. Flux2KleinPipeline covers 4B and 9B).
+# Config keys are read from transformer/config.json or unet/config.json.
+_ARCH_FINGERPRINTS: dict[str, dict[str, dict[int, str]]] = {
+    # Flux2KleinPipeline: joint_attention_dim distinguishes 4B (7680) from 9B (12288)
+    "Flux2Klein": {
+        "joint_attention_dim": {
+            7680: "4B",
+            12288: "9B",
+        },
+    },
+}
+
+# Directories to check for architecture config (in priority order)
+_CONFIG_SUBDIRS = ["transformer", "unet"]
+
+
+def _read_arch_config(model_dir: str) -> dict | None:
+    """Read the transformer/unet config.json from a diffusers model directory.
+
+    Handles HF cache deduplication where the Diffusers/ symlink dir may have
+    a partial snapshot, while the full files are in the huggingface/ cache.
+    """
+    search_dirs = [model_dir]
+    # If the model is in a Diffusers/ directory, also check the huggingface/ cache
+    if '/Diffusers/' in model_dir:
+        search_dirs.append(model_dir.replace('/Diffusers/', '/huggingface/'))
+    for base in search_dirs:
+        for subdir in _CONFIG_SUBDIRS:
+            config_path = os.path.join(base, subdir, 'config.json')
+            if os.path.isfile(config_path):
+                try:
+                    from modules.json_helpers import readfile
+                    return readfile(config_path, silent=True)
+                except Exception:
+                    pass
+    return None
 
 
 def resolve_version(item, page_name: str) -> str | None:
@@ -111,8 +139,8 @@ def resolve_version(item, page_name: str) -> str | None:
     baseModel values (e.g. "Flux.2 Klein 4B-base" -> "Flux2Klein").
     We recover the original baseModel from the item's CivitAI info dict
     when available, then apply version_normalize for unified naming.
-    For diffusers models without CivitAI info, we try to infer a more
-    specific version from the model name/filename.
+    For diffusers models without CivitAI info, we fingerprint the
+    transformer/unet config.json to identify the exact model variant.
     """
     version = item.get('version', None)
     recovered_from_civitai = False
@@ -137,14 +165,23 @@ def resolve_version(item, page_name: str) -> str | None:
     if not version:
         return version
     normalized = version_normalize.get(version, version)
-    # For diffusers models where version came from the pipeline class name,
-    # try to infer a more specific variant from the filename
+    # For diffusers models, fingerprint the architecture config to get
+    # a more specific version (e.g. "Flux.2 Klein" -> "Flux.2 Klein 9B")
     if not recovered_from_civitai and page_name == 'model':
-        name = item.get('name', '') or item.get('filename', '') or ''
-        for pattern, formatter in _VARIANT_PATTERNS:
-            m = pattern.search(name)
-            if m:
-                return formatter(m)
+        fingerprints = _ARCH_FINGERPRINTS.get(normalized)
+        if fingerprints:
+            filename = item.get('filename', '')
+            if filename and os.path.isdir(filename):
+                arch_config = _read_arch_config(filename)
+                if arch_config:
+                    for key, value_map in fingerprints.items():
+                        val = arch_config.get(key)
+                        size_label = value_map.get(val)
+                        if size_label:
+                            info = item.get('info') or {}
+                            is_base = not info.get('is_distilled', False)
+                            suffix = f"{size_label}-base" if is_base else size_label
+                            return f"{normalized} {suffix}"
     return normalized
 
 
