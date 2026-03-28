@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import type { ExtraNetworkV2 } from "@/api/types/models";
 import type { TypeFilter, SortMode, SidebarGroup, NetworkItem, FolderNode } from "./types";
 import { TAG_CATEGORIES, EXCLUDED_VERSIONS } from "./constants";
-import { isExtraNetwork, isReferenceName, itemHasTag } from "./utils";
+import { isExtraNetwork, isReferenceName, itemHasTag, itemPath } from "./utils";
 
 /** Build a nested folder tree from a set of folder paths. */
 function buildFolderTree(paths: Iterable<string>): FolderNode[] {
@@ -29,14 +29,14 @@ function buildFolderTree(paths: Iterable<string>): FolderNode[] {
   return root;
 }
 
-/** Collect all folder paths (including intermediate) from item names. */
+/** Collect all folder paths (including intermediate) from item paths. */
 function collectFolderPaths(
   items: NetworkItem[],
   stripPrefix?: string,
 ): Set<string> {
   const dirs = new Set<string>();
   for (const item of items) {
-    let name = item.name;
+    let name = itemPath(item);
     if (stripPrefix && name.startsWith(stripPrefix)) name = name.substring(stripPrefix.length);
     const lastSlash = name.lastIndexOf("/");
     if (lastSlash <= 0) continue;
@@ -173,10 +173,10 @@ export function useNetworkFiltering(
         } else {
           const prefix = selectedSubfolder + "/";
           const altPrefix = "models/" + prefix;
-          items = filtered.filter(
-            (item) =>
-              item.name.startsWith(prefix) || item.name.startsWith(altPrefix),
-          );
+          items = filtered.filter((item) => {
+            const p = itemPath(item);
+            return p.startsWith(prefix) || p.startsWith(altPrefix);
+          });
         }
       }
     } else if (filter === "Style") {
@@ -191,7 +191,7 @@ export function useNetworkFiltering(
       );
     } else {
       const prefix = selectedSubfolder + "/";
-      items = filtered.filter((item) => item.name.startsWith(prefix));
+      items = filtered.filter((item) => itemPath(item).startsWith(prefix));
     }
 
     // Client-side sort

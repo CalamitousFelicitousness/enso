@@ -35,6 +35,12 @@ export function isItemActive(
   return false;
 }
 
+/** Get the path used for folder grouping - fullname has the relative path, name may be just a basename. */
+export function itemPath(item: NetworkItem): string {
+  if (isExtraNetwork(item)) return item.fullname ?? item.name;
+  return item.name;
+}
+
 export function itemHasTag(item: ExtraNetworkV2, tag: string): boolean {
   return item.tags.some((t) => t.toLowerCase() === tag.toLowerCase());
 }
