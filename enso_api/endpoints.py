@@ -10,6 +10,7 @@ as their v1 counterparts.
 
 import asyncio
 import os
+import re
 from datetime import datetime
 from typing import Any
 from fastapi import APIRouter, HTTPException, Query
@@ -92,6 +93,17 @@ def format_mtime(mtime) -> str | None:
     return None
 
 
+# Patterns to extract model variant details from filenames/names when
+# the version came from a diffusers class name (which lacks size info).
+_VARIANT_PATTERNS = [
+    # Flux.2 Klein variants: "klein-9B", "klein-base-4B", etc.
+    (re.compile(r'klein[_-]base[_-](\d+B)', re.IGNORECASE),
+     lambda m: f"Flux.2 Klein {m.group(1)}-base"),
+    (re.compile(r'klein[_-](\d+B)', re.IGNORECASE),
+     lambda m: f"Flux.2 Klein {m.group(1)}"),
+]
+
+
 def resolve_version(item, page_name: str) -> str | None:
     """Resolve a consistent version string for an extra-network item.
 
@@ -99,18 +111,19 @@ def resolve_version(item, page_name: str) -> str | None:
     baseModel values (e.g. "Flux.2 Klein 4B-base" -> "Flux2Klein").
     We recover the original baseModel from the item's CivitAI info dict
     when available, then apply version_normalize for unified naming.
+    For diffusers models without CivitAI info, we try to infer a more
+    specific version from the model name/filename.
     """
     version = item.get('version', None)
+    recovered_from_civitai = False
     # For checkpoints, try to recover the raw CivitAI baseModel
     if page_name == 'model':
         info = item.get('info')
         if isinstance(info, dict):
-            # Match the same logic as sdnext's find_version: look for
-            # a modelVersions entry whose file hash matches this item
             all_versions = info.get('modelVersions', [])
             if all_versions:
                 item_hash = (item.get('shorthash') or item.get('hash') or '')[:8].upper()
-                matched = all_versions[0]  # fallback to first
+                matched = all_versions[0]
                 if item_hash:
                     for v in all_versions:
                         for f in v.get('files', []):
@@ -120,9 +133,19 @@ def resolve_version(item, page_name: str) -> str | None:
                 raw_base = matched.get('baseModel')
                 if raw_base:
                     version = raw_base
+                    recovered_from_civitai = True
     if not version:
         return version
-    return version_normalize.get(version, version)
+    normalized = version_normalize.get(version, version)
+    # For diffusers models where version came from the pipeline class name,
+    # try to infer a more specific variant from the filename
+    if not recovered_from_civitai and page_name == 'model':
+        name = item.get('name', '') or item.get('filename', '') or ''
+        for pattern, formatter in _VARIANT_PATTERNS:
+            m = pattern.search(name)
+            if m:
+                return formatter(m)
+    return normalized
 
 
 # --- Extra Networks ---
