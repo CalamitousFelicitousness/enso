@@ -1,8 +1,56 @@
 import { useMemo } from "react";
 import type { ExtraNetworkV2 } from "@/api/types/models";
-import type { TypeFilter, SortMode, SidebarGroup, NetworkItem } from "./types";
+import type { TypeFilter, SortMode, SidebarGroup, NetworkItem, FolderNode } from "./types";
 import { TAG_CATEGORIES, EXCLUDED_VERSIONS } from "./constants";
 import { isExtraNetwork, isReferenceName, itemHasTag } from "./utils";
+
+/** Build a nested folder tree from a set of folder paths. */
+function buildFolderTree(paths: Iterable<string>): FolderNode[] {
+  const root: FolderNode[] = [];
+  const nodeMap = new Map<string, FolderNode>();
+  const sorted = Array.from(paths).sort((a, b) =>
+    a.localeCompare(b, undefined, { sensitivity: "base" }),
+  );
+  for (const p of sorted) {
+    const segments = p.split("/");
+    let parent: FolderNode[] = root;
+    let current = "";
+    for (const seg of segments) {
+      current = current ? `${current}/${seg}` : seg;
+      let node = nodeMap.get(current);
+      if (!node) {
+        node = { name: seg, path: current, children: [] };
+        nodeMap.set(current, node);
+        parent.push(node);
+      }
+      parent = node.children;
+    }
+  }
+  return root;
+}
+
+/** Collect all folder paths (including intermediate) from item names. */
+function collectFolderPaths(
+  items: NetworkItem[],
+  stripPrefix?: string,
+): Set<string> {
+  const dirs = new Set<string>();
+  for (const item of items) {
+    let name = item.name;
+    if (stripPrefix && name.startsWith(stripPrefix)) name = name.substring(stripPrefix.length);
+    const lastSlash = name.lastIndexOf("/");
+    if (lastSlash <= 0) continue;
+    // Add every intermediate folder path
+    const folder = name.substring(0, lastSlash);
+    const segments = folder.split("/");
+    let path = "";
+    for (const seg of segments) {
+      path = path ? `${path}/${seg}` : seg;
+      dirs.add(path);
+    }
+  }
+  return dirs;
+}
 
 export function useNetworkFiltering(
   filtered: NetworkItem[],
@@ -30,12 +78,12 @@ export function useNetworkFiltering(
     );
 
     if (filter === "Model") {
-      const realDirs = new Set<string>();
       let hasLocal = false;
       let hasDiffusers = false;
       let hasReference = false;
       const tagHits = new Map<string, boolean>();
       for (const cat of TAG_CATEGORIES) tagHits.set(cat.toLowerCase(), false);
+      const localItems: NetworkItem[] = [];
 
       for (const item of filtered) {
         if (!isExtraNetwork(item)) continue;
@@ -43,11 +91,7 @@ export function useNetworkFiltering(
         const isDiff = item.name.startsWith("Diffusers/");
         if (!isRef && !isDiff) {
           hasLocal = true;
-          const name = item.name.startsWith("models/")
-            ? item.name.substring(7)
-            : item.name;
-          const slash = name.indexOf("/");
-          if (slash > 0) realDirs.add(name.substring(0, slash));
+          localItems.push(item);
         }
         if (isDiff) hasDiffusers = true;
         if (isRef && item.tags.length === 0) hasReference = true;
@@ -64,14 +108,10 @@ export function useNetworkFiltering(
       for (const cat of TAG_CATEGORIES) {
         if (tagHits.get(cat.toLowerCase())) categories.push(cat);
       }
-      const dirs = Array.from(realDirs).sort((a, b) =>
-        a.localeCompare(b, undefined, { sensitivity: "base" }),
-      );
 
       const groups: SidebarGroup[] = [{ items: ["All", ...categories] }];
       if (sortedVersions.length > 0)
         groups.push({ header: "Class", items: sortedVersions });
-      if (dirs.length > 0) groups.push({ header: "Folders", items: dirs });
       return groups;
     }
 
@@ -88,16 +128,7 @@ export function useNetworkFiltering(
     }
 
     // LoRA, Wildcards, Embedding, VAE
-    const dirs = new Set<string>();
-    for (const item of filtered) {
-      const slash = item.name.indexOf("/");
-      if (slash > 0) dirs.add(item.name.substring(0, slash));
-    }
-    const sortedDirs = Array.from(dirs).sort((a, b) =>
-      a.localeCompare(b, undefined, { sensitivity: "base" }),
-    );
-
-    const groups: SidebarGroup[] = [{ items: ["All", ...sortedDirs] }];
+    const groups: SidebarGroup[] = [{ items: ["All"] }];
     if (sortedVersions.length > 0)
       groups.push({ header: "Class", items: sortedVersions });
     return groups;
@@ -183,5 +214,15 @@ export function useNetworkFiltering(
     return items;
   }, [filtered, selectedSubfolder, filter, versionSet, sortMode]);
 
-  return { sidebarGroups, displayItems, versionSet };
+  const folderTree = useMemo((): FolderNode[] => {
+    if (filter === "Style") return [];
+    const stripPrefix = filter === "Model" ? "models/" : undefined;
+    const relevantItems = filter === "Model"
+      ? filtered.filter((item) => isExtraNetwork(item) && !isReferenceName(item.name) && !item.name.startsWith("Diffusers/"))
+      : filtered;
+    const paths = collectFolderPaths(relevantItems, stripPrefix);
+    return buildFolderTree(paths);
+  }, [filtered, filter]);
+
+  return { sidebarGroups, folderTree, displayItems, versionSet };
 }

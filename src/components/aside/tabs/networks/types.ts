@@ -22,4 +22,10 @@ export interface SidebarGroup {
   items: string[];
 }
 
+export interface FolderNode {
+  name: string;
+  path: string;
+  children: FolderNode[];
+}
+
 export type NetworkItem = ExtraNetworkV2 | PromptStyleV2;
