@@ -5,7 +5,10 @@ import { TAG_CATEGORIES, EXCLUDED_VERSIONS } from "./constants";
 import { isExtraNetwork, isReferenceName, itemHasTag, itemPath } from "./utils";
 
 /** Build a nested folder tree from a set of folder paths. */
-function buildFolderTree(paths: Iterable<string>): FolderNode[] {
+function buildFolderTree(
+  paths: Iterable<string>,
+  counts?: Map<string, number>,
+): FolderNode[] {
   const root: FolderNode[] = [];
   const nodeMap = new Map<string, FolderNode>();
   const sorted = Array.from(paths).sort((a, b) =>
@@ -19,7 +22,7 @@ function buildFolderTree(paths: Iterable<string>): FolderNode[] {
       current = current ? `${current}/${seg}` : seg;
       let node = nodeMap.get(current);
       if (!node) {
-        node = { name: seg, path: current, children: [] };
+        node = { name: seg, path: current, children: [], count: counts?.get(current) ?? 0 };
         nodeMap.set(current, node);
         parent.push(node);
       }
@@ -29,27 +32,28 @@ function buildFolderTree(paths: Iterable<string>): FolderNode[] {
   return root;
 }
 
-/** Collect all folder paths (including intermediate) from item paths. */
+/** Collect all folder paths (including intermediate) from item paths, with item counts per folder. */
 function collectFolderPaths(
   items: NetworkItem[],
   stripPrefix?: string,
-): Set<string> {
+): { dirs: Set<string>; folderCounts: Map<string, number> } {
   const dirs = new Set<string>();
+  const folderCounts = new Map<string, number>();
   for (const item of items) {
     let name = itemPath(item);
     if (stripPrefix && name.startsWith(stripPrefix)) name = name.substring(stripPrefix.length);
     const lastSlash = name.lastIndexOf("/");
     if (lastSlash <= 0) continue;
-    // Add every intermediate folder path
     const folder = name.substring(0, lastSlash);
     const segments = folder.split("/");
     let path = "";
     for (const seg of segments) {
       path = path ? `${path}/${seg}` : seg;
       dirs.add(path);
+      folderCounts.set(path, (folderCounts.get(path) ?? 0) + 1);
     }
   }
-  return dirs;
+  return { dirs, folderCounts };
 }
 
 export function useNetworkFiltering(
@@ -227,8 +231,8 @@ export function useNetworkFiltering(
     const relevantItems = filter === "Model"
       ? filtered.filter((item) => isExtraNetwork(item) && !isReferenceName(item.name) && !item.name.startsWith("Diffusers/"))
       : filtered;
-    const paths = collectFolderPaths(relevantItems, stripPrefix);
-    const tree = buildFolderTree(paths);
+    const { dirs, folderCounts } = collectFolderPaths(relevantItems, stripPrefix);
+    const tree = buildFolderTree(dirs, folderCounts);
 
     // Split: top-level folders matching a class name go into classFolders, rest stay in folderTree
     const cf = new Map<string, FolderNode[]>();
@@ -248,5 +252,60 @@ export function useNetworkFiltering(
     return { folderTree: remaining, classFolders: cf };
   }, [filtered, filter, versionSet]);
 
-  return { sidebarGroups, folderTree, classFolders, displayItems, versionSet };
+  const itemCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    counts.set("All", filtered.length);
+
+    if (filter === "Model") {
+      let localCount = 0;
+      let diffusersCount = 0;
+      let referenceCount = 0;
+      const tagCounts = new Map<string, number>();
+      const verCounts = new Map<string, number>();
+
+      for (const item of filtered) {
+        if (!isExtraNetwork(item)) continue;
+        const isRef = isReferenceName(item.name);
+        const isDiff = item.name.startsWith("Diffusers/");
+        if (!isRef && !isDiff) localCount++;
+        if (isDiff) diffusersCount++;
+        if (isRef && item.tags.length === 0) referenceCount++;
+        for (const cat of TAG_CATEGORIES) {
+          if (itemHasTag(item, cat.toLowerCase()))
+            tagCounts.set(cat, (tagCounts.get(cat) ?? 0) + 1);
+        }
+        if (item.version && !EXCLUDED_VERSIONS.has(item.version.toLowerCase()))
+          verCounts.set(item.version, (verCounts.get(item.version) ?? 0) + 1);
+      }
+
+      if (localCount > 0) counts.set("Local", localCount);
+      if (diffusersCount > 0) counts.set("Diffusers", diffusersCount);
+      if (referenceCount > 0) counts.set("Reference", referenceCount);
+      for (const [cat, c] of tagCounts) counts.set(cat, c);
+      for (const [ver, c] of verCounts) counts.set(ver, c);
+    } else if (filter === "Style") {
+      let localCount = 0;
+      let refCount = 0;
+      for (const item of filtered) {
+        if (isReferenceName(item.name)) refCount++;
+        else localCount++;
+      }
+      if (localCount > 0) counts.set("Local", localCount);
+      if (refCount > 0) counts.set("Reference", refCount);
+    } else {
+      for (const item of filtered) {
+        if (
+          isExtraNetwork(item) &&
+          item.version &&
+          !EXCLUDED_VERSIONS.has(item.version.toLowerCase())
+        ) {
+          counts.set(item.version, (counts.get(item.version) ?? 0) + 1);
+        }
+      }
+    }
+
+    return counts;
+  }, [filtered, filter]);
+
+  return { sidebarGroups, folderTree, classFolders, displayItems, versionSet, itemCounts };
 }

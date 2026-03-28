@@ -1,7 +1,7 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "motion/react";
-import { ChevronRight, ChevronDown } from "lucide-react";
+import { ChevronRight, Folder, FolderOpen } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { SidebarGroup, FolderNode } from "./types";
 
@@ -13,6 +13,7 @@ interface FilterPanelProps {
   selectedSubfolder: string;
   onSubfolderSelect: (subfolder: string) => void;
   anchorRef: React.RefObject<HTMLDivElement | null>;
+  itemCounts: Map<string, number>;
 }
 
 function FolderTreeRow({
@@ -35,6 +36,7 @@ function FolderTreeRow({
   const selectedPath = selected.startsWith("folder:") ? selected.slice(7) : "";
   const isActive = selectedPath === node.path;
   const isAncestor = !isActive && selectedPath.startsWith(node.path + "/");
+  const FolderIcon = isActive ? FolderOpen : Folder;
 
   return (
     <>
@@ -42,7 +44,7 @@ function FolderTreeRow({
         type="button"
         onClick={() => onSelect(node.path)}
         className={cn(
-          "w-full text-left py-[5px] pr-3 text-[0.6875rem] truncate transition-colors flex items-center gap-1",
+          "w-full text-left py-[5px] pr-3 text-2xs transition-colors flex items-center gap-1",
           isActive
             ? "bg-primary/15 text-primary font-medium"
             : isAncestor
@@ -54,22 +56,35 @@ function FolderTreeRow({
         {hasChildren ? (
           <span
             role="button"
-            className="shrink-0 p-0.5 -ml-0.5 rounded hover:bg-muted/80"
+            className="shrink-0 p-1 -ml-1 rounded cursor-pointer hover:bg-muted/80 hover:text-foreground"
             onClick={(e) => {
               e.stopPropagation();
               onToggle(node.path);
             }}
           >
-            {isExpanded ? (
-              <ChevronDown className="h-3 w-3" />
-            ) : (
-              <ChevronRight className="h-3 w-3" />
-            )}
+            <motion.span
+              className="block"
+              animate={{ rotate: isExpanded ? 90 : 0 }}
+              transition={{ duration: 0.15 }}
+            >
+              <ChevronRight className="h-3.5 w-3.5" />
+            </motion.span>
           </span>
         ) : (
-          <span className="w-4 shrink-0" />
+          <span className="w-5 shrink-0" />
         )}
+        <FolderIcon
+          className={cn(
+            "h-3 w-3 shrink-0",
+            isActive ? "text-primary" : "text-muted-foreground/60",
+          )}
+        />
         <span className="truncate">{node.name}</span>
+        {node.count > 0 && (
+          <span className="ml-auto text-3xs font-mono tabular-nums text-muted-foreground/60">
+            {node.count}
+          </span>
+        )}
       </button>
       {hasChildren && isExpanded &&
         node.children.map((child) => (
@@ -95,9 +110,15 @@ export function FilterPanel({
   selectedSubfolder,
   onSubfolderSelect,
   anchorRef,
+  itemCounts,
 }: FilterPanelProps) {
   const [rect, setRect] = useState<DOMRect | null>(null);
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
+
+  const panelWidth = useMemo(() => {
+    if (!rect) return 176;
+    return Math.round(Math.min(220, Math.max(144, rect.width * 0.5)));
+  }, [rect]);
 
   const measure = useCallback(() => {
     if (anchorRef.current) {
@@ -157,7 +178,7 @@ export function FilterPanel({
         <>
           <motion.div
             initial={{ width: 0, opacity: 0 }}
-            animate={{ width: 176, opacity: 1 }}
+            animate={{ width: panelWidth, opacity: 1 }}
             exit={{ width: 0, opacity: 0 }}
             transition={{ duration: 0.2, ease: "easeInOut" }}
             className="fixed z-50 overflow-hidden"
@@ -167,7 +188,10 @@ export function FilterPanel({
               height: rect.height,
             }}
           >
-            <div className="flex flex-col h-full w-44 overflow-y-auto overflow-x-hidden bg-card border border-r-0 border-border/50 shadow-lg dark:shadow-black/30 ring-1 dark:ring-white/[0.05] ring-black/[0.05] rounded-l-lg">
+            <div
+              className="flex flex-col h-full overflow-y-auto overflow-x-hidden bg-card border border-r-0 border-border/50 shadow-lg dark:shadow-black/30 ring-1 dark:ring-white/[0.05] ring-black/[0.05] rounded-l-lg"
+              style={{ width: panelWidth }}
+            >
               <div className="py-2">
                 {sidebarGroups.map((group, gi) => (
                   <div key={group.header ?? gi}>
@@ -180,13 +204,14 @@ export function FilterPanel({
                       const children = classFolders.get(dir);
                       const hasChildren = children && children.length > 0;
                       const isExpanded = expanded.has(dir);
+                      const count = itemCounts.get(dir);
                       return (
                         <div key={dir}>
                           <button
                             type="button"
                             onClick={() => onSubfolderSelect(dir)}
                             className={cn(
-                              "w-full text-left px-3 py-[5px] text-[0.6875rem] truncate transition-colors flex items-center gap-1",
+                              "w-full text-left px-3 py-[5px] text-2xs transition-colors flex items-center gap-1",
                               selectedSubfolder === dir
                                 ? "bg-primary/15 text-primary font-medium"
                                 : "text-muted-foreground hover:text-foreground hover:bg-muted/50",
@@ -195,20 +220,27 @@ export function FilterPanel({
                             {hasChildren ? (
                               <span
                                 role="button"
-                                className="shrink-0 p-0.5 -ml-0.5 rounded hover:bg-muted/80"
+                                className="shrink-0 p-1 -ml-1 rounded cursor-pointer hover:bg-muted/80 hover:text-foreground"
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   toggleExpand(dir);
                                 }}
                               >
-                                {isExpanded ? (
-                                  <ChevronDown className="h-3 w-3" />
-                                ) : (
-                                  <ChevronRight className="h-3 w-3" />
-                                )}
+                                <motion.span
+                                  className="block"
+                                  animate={{ rotate: isExpanded ? 90 : 0 }}
+                                  transition={{ duration: 0.15 }}
+                                >
+                                  <ChevronRight className="h-3.5 w-3.5" />
+                                </motion.span>
                               </span>
                             ) : null}
                             <span className="truncate">{dir}</span>
+                            {count != null && (
+                              <span className="ml-auto text-3xs font-mono tabular-nums text-muted-foreground/60">
+                                {count}
+                              </span>
+                            )}
                           </button>
                           {hasChildren && isExpanded &&
                             children.map((node) => (

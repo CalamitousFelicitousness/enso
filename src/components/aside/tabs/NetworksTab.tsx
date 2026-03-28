@@ -78,7 +78,7 @@ export function NetworksTab() {
   }, [networksResp?.items, styles, filter, search]);
 
   // Filtering + sorting
-  const { sidebarGroups, folderTree, classFolders, displayItems } = useNetworkFiltering(
+  const { sidebarGroups, folderTree, classFolders, displayItems, itemCounts } = useNetworkFiltering(
     filtered,
     filter,
     selectedSubfolder,
@@ -289,6 +289,7 @@ export function NetworksTab() {
         selectedSubfolder={selectedSubfolder}
         onSubfolderSelect={setSelectedSubfolder}
         anchorRef={panelRef}
+        itemCounts={itemCounts}
       />
 
       <NetworkDetailDialog

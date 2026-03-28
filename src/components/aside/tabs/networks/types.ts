@@ -26,6 +26,7 @@ export interface FolderNode {
   name: string;
   path: string;
   children: FolderNode[];
+  count: number;
 }
 
 export type NetworkItem = ExtraNetworkV2 | PromptStyleV2;
