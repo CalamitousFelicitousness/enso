@@ -81,8 +81,35 @@ export function GalleryGrid({
     [],
   );
 
+  // One-shot re-sort triggers: thumb-dependent sort fields (mtime/size/width)
+  // read from thumbsRef which is empty/partial during folder open. Gate on
+  // !isLoadingFiles so transient mid-stream matches (IDB batch landing before
+  // stream finishes) don't cascade. Fires at most twice per folder: once when
+  // the file stream completes, once more when background-preloaded thumbs
+  // catch up on cold folders.
+  const [thumbTick, setThumbTick] = useState(0);
+  useEffect(() => {
+    return useGalleryStore.subscribe((state, prev) => {
+      if (state.files.length === 0) return;
+      if (prev.isLoadingFiles && !state.isLoadingFiles) {
+        setThumbTick((t) => t + 1);
+        return;
+      }
+      if (
+        !state.isLoadingFiles &&
+        state.thumbs.size >= state.files.length &&
+        prev.thumbs.size < state.files.length
+      ) {
+        setThumbTick((t) => t + 1);
+      }
+    });
+  }, []);
+
   // Filter + sort - only recompute when files/search/sort change, NOT on every thumb load
   const sorted = useMemo(() => {
+    // thumbTick is the one-shot re-sort signal; referenced here so the deps
+    // array entry isn't flagged as unused by exhaustive-deps.
+    void thumbTick;
     let result = files;
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
@@ -110,7 +137,7 @@ export function GalleryGrid({
       return sort.dir === "asc" ? cmp : -cmp;
     });
     return result;
-  }, [files, searchQuery, sort]);
+  }, [files, searchQuery, sort, thumbTick]);
 
   // Sync sorted list to store so lightbox can use it
   useEffect(() => {
