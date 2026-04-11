@@ -1,6 +1,45 @@
 import { create } from "zustand";
-import type { BrowserFolder, GalleryFile, GallerySort, CachedThumb } from "@/api/types/gallery";
+import type {
+  BrowserFolder,
+  GalleryFile,
+  GallerySort,
+  GallerySortField,
+  GallerySortDir,
+  CachedThumb,
+} from "@/api/types/gallery";
 import { getCachedFolder } from "@/lib/folderCache";
+
+const SORT_STORAGE_KEY = "enso-gallery-sort";
+const DEFAULT_SORT: GallerySort = { field: "name", dir: "asc" };
+
+const loadPersistedSort = (): GallerySort => {
+  try {
+    const raw = localStorage.getItem(SORT_STORAGE_KEY);
+    if (!raw) return DEFAULT_SORT;
+    const parsed = JSON.parse(raw) as Partial<GallerySort>;
+    const fields: GallerySortField[] = ["name", "mtime", "size", "width"];
+    const dirs: GallerySortDir[] = ["asc", "desc"];
+    if (
+      parsed &&
+      typeof parsed === "object" &&
+      fields.includes(parsed.field as GallerySortField) &&
+      dirs.includes(parsed.dir as GallerySortDir)
+    ) {
+      return { field: parsed.field!, dir: parsed.dir! };
+    }
+  } catch {
+    // quota, privacy mode, malformed JSON — fall through to default
+  }
+  return DEFAULT_SORT;
+};
+
+const savePersistedSort = (sort: GallerySort): void => {
+  try {
+    localStorage.setItem(SORT_STORAGE_KEY, JSON.stringify(sort));
+  } catch {
+    // ignore quota/privacy errors
+  }
+};
 
 interface GalleryState {
   folders: BrowserFolder[];
@@ -65,7 +104,7 @@ export const useGalleryStore = create<GalleryState>()((set) => ({
   lightboxIndex: null,
   selectedIds: new Set<string>(),
   selectionAnchor: null,
-  sort: { field: "name", dir: "asc" },
+  sort: loadPersistedSort(),
   searchQuery: "",
   thumbSize: 180,
   layoutMode: "grid",
@@ -103,7 +142,10 @@ export const useGalleryStore = create<GalleryState>()((set) => ({
     if (next < 0 || next > maxIndex) return {};
     return { lightboxIndex: next };
   }),
-  setSort: (sort) => set({ sort }),
+  setSort: (sort) => {
+    savePersistedSort(sort);
+    set({ sort });
+  },
   setSearchQuery: (q) => set({ searchQuery: q }),
   setThumbSize: (size) => set({ thumbSize: Math.max(120, Math.min(320, size)) }),
   setLayoutMode: (layoutMode) => set({ layoutMode }),
@@ -142,5 +184,5 @@ export const useGalleryStore = create<GalleryState>()((set) => ({
     const selectedThumb = selectedFile ? s.selectedThumb : null;
     return { files, sortedFiles, thumbs, selectedIds, selectedFile, selectedThumb, loadProgress: { loaded: files.length, total: files.length } };
   }),
-  reset: () => set({ folders: [], activeFolder: null, files: [], isLoadingFiles: false, loadProgress: { loaded: 0, total: null }, thumbs: new Map(), sortedFiles: [], selectedFile: null, selectedThumb: null, lightboxIndex: null, selectedIds: new Set<string>(), selectionAnchor: null, sort: { field: "name", dir: "asc" }, searchQuery: "", thumbSize: 180, layoutMode: "grid", metadataPanelOpen: true }),
+  reset: () => set({ folders: [], activeFolder: null, files: [], isLoadingFiles: false, loadProgress: { loaded: 0, total: null }, thumbs: new Map(), sortedFiles: [], selectedFile: null, selectedThumb: null, lightboxIndex: null, selectedIds: new Set<string>(), selectionAnchor: null, searchQuery: "", thumbSize: 180, layoutMode: "grid", metadataPanelOpen: true }),
 }));
