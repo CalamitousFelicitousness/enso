@@ -221,8 +221,16 @@ export function useNetworkFiltering(
         );
       });
     }
-    // "recent" — preserve server order (mtime descending from API)
-    return items;
+    // "recent" - newest first by mtime, then name as tiebreaker. ISO 8601 is
+    // lexicographically sortable; null mtime sorts to the end.
+    return [...items].sort((a, b) => {
+      const ma = a.mtime ?? "";
+      const mb = b.mtime ?? "";
+      return (
+        mb.localeCompare(ma, undefined, { sensitivity: "base" }) ||
+        a.name.localeCompare(b.name, undefined, { sensitivity: "base" })
+      );
+    });
   }, [filtered, selectedSubfolder, filter, versionSet, sortMode]);
 
   const { folderTree, classFolders } = useMemo(() => {
