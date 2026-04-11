@@ -111,11 +111,45 @@ export function GalleryGrid({
     // array entry isn't flagged as unused by exhaustive-deps.
     void thumbTick;
     let result = files;
-    if (searchQuery) {
-      const q = searchQuery.toLowerCase();
-      result = result.filter((f) => f.relativePath.toLowerCase().includes(q));
-    }
     const currentThumbs = thumbsRef.current;
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase().trim();
+      // Mini DSL: key=val / key>val / key<val for numeric fields on the thumb.
+      // Unknown keys and malformed queries fall through to substring matching
+      // against relativePath + exif (parity with SDNext gallery search).
+      const opMatch = q.match(/^([a-z]+)([=<>])(.*)$/);
+      const numericKeys = ["width", "height", "size", "mtime"] as const;
+      type NumericKey = (typeof numericKeys)[number];
+      const substringMatch = (f: GalleryFile): boolean =>
+        f.relativePath.toLowerCase().includes(q);
+      if (opMatch) {
+        const key = opMatch[1];
+        const op = opMatch[2];
+        const rawVal = opMatch[3].trim();
+        if ((numericKeys as readonly string[]).includes(key)) {
+          const targetVal =
+            key === "mtime" ? Date.parse(rawVal) : Number(rawVal);
+          if (Number.isFinite(targetVal)) {
+            const numericKey = key as NumericKey;
+            result = result.filter((f) => {
+              const thumb = currentThumbs.get(f.id);
+              if (!thumb) return false;
+              const fieldVal = thumb[numericKey];
+              if (op === "=") return fieldVal === targetVal;
+              if (op === ">") return fieldVal > targetVal;
+              if (op === "<") return fieldVal < targetVal;
+              return false;
+            });
+          } else {
+            result = result.filter(substringMatch);
+          }
+        } else {
+          result = result.filter(substringMatch);
+        }
+      } else {
+        result = result.filter(substringMatch);
+      }
+    }
     result = [...result].sort((a, b) => {
       const ta = currentThumbs.get(a.id);
       const tb = currentThumbs.get(b.id);
