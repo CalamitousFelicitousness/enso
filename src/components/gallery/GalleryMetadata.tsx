@@ -144,7 +144,7 @@ export function GalleryMetadata() {
     await sendImageToCanvas(file);
   };
 
-  const handleSendToImg2Img = () => {
+  const handleSendPromptOnly = () => {
     sendPromptToGeneration(genInfo.prompt, genInfo.negativePrompt || undefined);
   };
 
@@ -303,7 +303,7 @@ export function GalleryMetadata() {
               variant="outline"
               size="sm"
               className="w-full h-6 text-2xs justify-start gap-2"
-              onClick={handleSendToImg2Img}
+              onClick={handleSendPromptOnly}
             >
               <ImageIcon size={12} /> Send prompt to generation
             </Button>
