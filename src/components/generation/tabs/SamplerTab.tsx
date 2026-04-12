@@ -168,7 +168,7 @@ export function SamplerTab() {
             <Combobox
               value={state.sigmaMethod}
               onValueChange={set.sigmaMethod}
-              options={["default", "karras", "exponential", "polyexponential"]}
+              options={["default", "karras", "betas", "exponential", "flowmatch", "lambdas"]}
               className="h-6 text-2xs"
             />
           </ParamRow>
@@ -187,9 +187,10 @@ export function SamplerTab() {
               options={[
                 "default",
                 "linear",
-                "scaled_linear",
-                "squaredcos_cap_v2",
+                "scaled",
+                "cosine",
                 "sigmoid",
+                "laplace",
               ]}
               className="h-6 text-2xs"
             />
