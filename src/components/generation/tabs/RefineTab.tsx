@@ -90,19 +90,13 @@ export function RefineTab() {
   const handleSizeMode = useCallback(
     (v: string) => {
       if (v === "scale") {
-        // Zero out fixed dims so backend uses scale multiplier
         setParam("hiresResizeX", 0);
         setParam("hiresResizeY", 0);
-        setParam("hiresResizeMode", 0);
       } else {
-        // Switch to fixed: seed dims from base resolution × scale
         const s = useGenerationStore.getState();
         const scale = s.hiresScale > 1 ? s.hiresScale : 2;
         setParam("hiresResizeX", Math.round((s.width * scale) / 8) * 8);
         setParam("hiresResizeY", Math.round((s.height * scale) / 8) * 8);
-        if (s.hiresResizeMode === 0) {
-          setParam("hiresResizeMode", 2); // default to Crop
-        }
       }
     },
     [setParam],

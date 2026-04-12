@@ -64,7 +64,9 @@ export async function buildControlRequest(): Promise<BuildResult> {
     hr_second_pass_steps: gen.hiresSteps,
     hr_denoising_strength: gen.hiresDenoising,
     hr_force: gen.hiresForce,
-    hr_resize_mode: gen.hiresResizeMode,
+    // Scale mode (resize_x/y == 0): pure direct resize via mode 1. Fixed mode: user's fit choice.
+    // Mode 0 is SD.Next's "disabled" sentinel and would skip the upscale step entirely.
+    hr_resize_mode: gen.hiresResizeX === 0 && gen.hiresResizeY === 0 ? 1 : gen.hiresResizeMode,
     hr_resize_x: gen.hiresResizeX,
     hr_resize_y: gen.hiresResizeY,
     hr_resize_context: gen.hiresResizeContext,
@@ -410,7 +412,7 @@ export function extractParamsFromResult(result: GenerationResult): Partial<Gener
     hiresDenoising: num(p.hr_denoising_strength, 0.5),
     hiresSampler: str(p.hr_sampler_name, ""),
     hiresForce: bool(p.hr_force, false),
-    hiresResizeMode: num(p.hr_resize_mode, 0),
+    hiresResizeMode: num(p.hr_resize_mode, 2),
     hiresResizeX: num(p.hr_resize_x, 0),
     hiresResizeY: num(p.hr_resize_y, 0),
     hiresResizeContext: str(p.hr_resize_context, "None"),

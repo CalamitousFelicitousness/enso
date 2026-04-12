@@ -242,7 +242,7 @@ export const defaultParams = {
   hiresScale: 2,
   hiresSteps: 0,
   hiresDenoising: 0.5,
-  hiresResizeMode: 0,
+  hiresResizeMode: 2,
   hiresSampler: "",
   hiresForce: false,
   hiresResizeX: 0,
