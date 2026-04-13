@@ -92,11 +92,22 @@ export interface CivitSearchResponse {
   requestUrl: string | null;
 }
 
+export interface CivitBaseModelInfo {
+  name: string;
+  type: string;
+  group: string;
+  hidden: boolean;
+  ecosystem?: string;
+  engine?: string;
+  family?: string;
+}
+
 export interface CivitOptions {
   types: string[];
   sort: string[];
   period: string[];
   base_models: string[];
+  base_models_info: CivitBaseModelInfo[];
 }
 
 export interface CivitDownloadItem {
