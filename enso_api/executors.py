@@ -259,7 +259,9 @@ def execute_generate(params: dict, job_id: str) -> dict:
 
 def execute_upscale(params: dict, job_id: str) -> dict:
     from modules import shared, postprocessing
+    from modules import images as img_module
     from modules.api import helpers
+    from modules.paths import resolve_output_path
 
     image = helpers.decode_base64_to_image(params.get('image', ''))
     upscaler = params.get('upscaler', 'None')
@@ -271,28 +273,44 @@ def execute_upscale(params: dict, job_id: str) -> dict:
     upscaler_2 = params.get('upscaler_2', 'None')
     upscaler_2_visibility = params.get('upscaler_2_visibility', 0.0)
 
+    # save_output=False: sdnext's async save thread clears shared.state.results
+    # during its own begin/end cycle, so we can't reliably read the saved path
+    # from state. Save the returned PIL image explicitly instead.
     jobid = shared.state.begin('API-V2-UP', api=True)
     try:
         result = postprocessing.run_extras(
             extras_mode=0, resize_mode=resize_mode,
             image=image, image_folder="", input_dir="", output_dir="",
-            show_extras_results=False, save_output=True,
+            show_extras_results=False, save_output=False,
             extras_upscaler_1=upscaler, upscaling_resize=scale,
             upscaling_resize_w=width, upscaling_resize_h=height,
             upscaling_crop=crop,
             extras_upscaler_2=upscaler_2, extras_upscaler_2_visibility=upscaler_2_visibility,
         )
-        saved_paths = list(shared.state.results) if hasattr(shared.state, 'results') and shared.state.results else []
     finally:
         shared.state.end(jobid)
 
     output_image = result[0][0] if result and result[0] else None
     image_refs = []
     if output_image is not None:
-        if saved_paths and os.path.isfile(str(saved_paths[0])):
-            path = str(saved_paths[0])
-            ext = os.path.splitext(path)[1].lstrip('.').lower()
-            image_refs.append({'index': 0, 'path': path, 'url': f'/sdapi/v2/jobs/{job_id}/images/0', 'width': output_image.width, 'height': output_image.height, 'format': ext or 'png', 'size': os.path.getsize(path)})
+        try:
+            output_dir = resolve_output_path(shared.opts.outdir_samples, shared.opts.outdir_extras_samples)
+            path_info = img_module.save_image(output_image, output_dir, "", grid=False, pnginfo_section_name="extras")
+            fpath = path_info[0] if isinstance(path_info, (list, tuple)) else path_info
+            if fpath and os.path.isfile(str(fpath)):
+                fpath = str(fpath)
+                ext = os.path.splitext(fpath)[1].lstrip('.').lower()
+                image_refs.append({
+                    'index': 0,
+                    'path': fpath,
+                    'url': f'/sdapi/v2/jobs/{job_id}/images/0',
+                    'width': output_image.width,
+                    'height': output_image.height,
+                    'format': ext or 'png',
+                    'size': os.path.getsize(fpath),
+                })
+        except Exception as e:
+            log.warning(f'Job {job_id}: failed to save upscale result: {e}')
 
     return {'images': image_refs, 'info': {}, 'params': {k: v for k, v in params.items() if k not in ('type', 'image')}}
 
