@@ -197,7 +197,7 @@ export function GalleryPanel() {
         <span className="text-xs font-medium">Gallery</span>
       </div>
 
-      <ScrollArea className="flex-1">
+      <ScrollArea className="flex-1 min-h-0">
         <div className="p-2 space-y-0.5">
           {isLoading && (
             <div className="flex items-center justify-center py-8 text-muted-foreground gap-2">
