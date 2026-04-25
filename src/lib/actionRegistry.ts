@@ -6,7 +6,7 @@ import {
   Settings,
 } from "lucide-react";
 import { NAV_ITEMS, IMAGES_SUB_TABS, RIGHT_TABS } from "@/lib/constants";
-import { PARAM_MAP } from "@/lib/paramMap";
+import { PARAM_MAP } from "@/lib/paramMap.generated";
 import type { NavigateTarget } from "@/lib/navigateToParam";
 import type { ImagesSubTab } from "@/stores/uiStore";
 import type { RightTab } from "@/lib/constants";

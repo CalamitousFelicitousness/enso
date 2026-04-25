@@ -5,6 +5,7 @@ import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import { VitePWA } from "vite-plugin-pwa";
+import { paletteCodegenPlugin } from "./vite/palette-codegen-plugin.ts";
 
 const portFilePaths = [
   path.resolve(__dirname, ".sdnext.port"),
@@ -75,6 +76,7 @@ export default defineConfig(({ mode }) => {
   return {
   base: mode === "production" && !isVercel ? "/enso/" : "/",
   plugins: [
+    paletteCodegenPlugin(),
     react(),
     tailwindcss(),
     VitePWA({

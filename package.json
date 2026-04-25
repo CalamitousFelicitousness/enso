@@ -7,7 +7,8 @@
     "node": "^20.19.0 || >=22.12.0"
   },
   "scripts": {
-    "dev": "vite",
+    "dev": "tsx vite/codegen-paramMap.ts && vite",
+    "prebuild": "tsx vite/codegen-paramMap.ts",
     "build": "tsc -b && vite build",
     "lint": "eslint . && venv/bin/ruff check && venv/bin/pylint .",
     "lint:py": "venv/bin/ruff check && venv/bin/pylint .",
@@ -58,6 +59,8 @@
     "eslint-plugin-react-refresh": "^0.4.24",
     "globals": "^16.5.0",
     "prettier": "^3.8.1",
+    "ts-morph": "^28.0.0",
+    "tsx": "^4.20.6",
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.46.4",
     "vite": "^7.2.4",
