@@ -5,6 +5,7 @@ import {
   useShutdownServer,
   useToggleProfiling,
 } from "@/api/hooks/useSystem";
+import { useRegisterCommand } from "@/lib/commandRegistry";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -62,6 +63,31 @@ export function SystemTab() {
       },
     });
   }
+
+  useRegisterCommand({
+    id: "system:restart",
+    label: "Restart server",
+    group: "System",
+    keywords: ["reboot", "reload server", "apply changes"],
+    icon: RotateCcw,
+    run: () => setConfirmAction("restart"),
+  });
+  useRegisterCommand({
+    id: "system:shutdown",
+    label: "Shutdown server",
+    group: "System",
+    keywords: ["stop", "power off", "quit", "exit"],
+    icon: PowerOff,
+    run: () => setConfirmAction("shutdown"),
+  });
+  useRegisterCommand({
+    id: "system:toggle-profiling",
+    label: "Toggle profiling",
+    group: "System",
+    keywords: ["profile", "performance", "trace", "diagnostics", "start", "stop"],
+    icon: Activity,
+    run: handleProfiling,
+  });
 
   return (
     <div>

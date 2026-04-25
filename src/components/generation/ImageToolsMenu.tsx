@@ -10,6 +10,7 @@ import {
 import { PngInfoDialog } from "@/components/generation/PngInfoDialog";
 import { QuickInterrogateDialog } from "@/components/generation/QuickInterrogateDialog";
 import { sendImageToCanvas } from "@/lib/sendTo";
+import { useRegisterCommand } from "@/lib/commandRegistry";
 import { toast } from "sonner";
 
 export function ImageToolsMenu() {
@@ -39,6 +40,31 @@ export function ImageToolsMenu() {
     fileActionRef.current = action;
     fileInputRef.current?.click();
   }, []);
+
+  useRegisterCommand({
+    id: "image:open-png-info",
+    label: "Extract PNG Info",
+    group: "Image Tools",
+    keywords: ["metadata", "exif", "parameters", "info", "png"],
+    icon: FileSearch,
+    run: () => setPngInfoOpen(true),
+  });
+  useRegisterCommand({
+    id: "image:quick-interrogate",
+    label: "Quick Interrogate",
+    group: "Image Tools",
+    keywords: ["caption", "describe", "blip", "clip", "interrogate"],
+    icon: ScanSearch,
+    run: () => openFilePicker("interrogate"),
+  });
+  useRegisterCommand({
+    id: "image:send-to-canvas",
+    label: "Send Image to Canvas",
+    group: "Image Tools",
+    keywords: ["upload", "import", "load", "img2img"],
+    icon: ImagePlus,
+    run: () => openFilePicker("canvas"),
+  });
 
   return (
     <>

@@ -26,6 +26,7 @@ import { ProgressRing } from "@/components/ui/progress-ring";
 import { useState, useCallback, useMemo, memo } from "react";
 import { toast } from "sonner";
 import { useShortcut } from "@/hooks/useShortcut";
+import { useRegisterCommand } from "@/lib/commandRegistry";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -112,6 +113,75 @@ export const ActionBar = memo(function ActionBar() {
     if (!isSubmitting) submit();
   });
   useShortcut("skip", handleSkip);
+
+  // Command Palette entries — captured at mount, dispatched via current closure refs
+  useRegisterCommand({
+    id: "actions:generate",
+    label: "Generate",
+    group: "Actions",
+    keywords: ["run", "create", "start"],
+    icon: Play,
+    shortcutId: "generate",
+    run: () => {
+      if (!isSubmitting) submit();
+    },
+  });
+  useRegisterCommand({
+    id: "actions:interrupt",
+    label: "Interrupt generation",
+    group: "Actions",
+    keywords: ["stop", "cancel", "abort"],
+    icon: Square,
+    run: handleInterrupt,
+  });
+  useRegisterCommand({
+    id: "actions:skip",
+    label: "Skip current step",
+    group: "Actions",
+    keywords: ["next", "advance"],
+    icon: SkipForward,
+    shortcutId: "skip",
+    run: handleSkip,
+  });
+  useRegisterCommand({
+    id: "actions:restore-last",
+    label: "Restore last settings",
+    group: "Actions",
+    keywords: ["undo", "previous", "history"],
+    icon: History,
+    run: () => {
+      if (!lastResult) return;
+      restoreFromResult(lastResult);
+      toast.success("Settings restored from last generation");
+    },
+  });
+  useRegisterCommand({
+    id: "actions:compare-last",
+    label: "Compare with last generation",
+    group: "Actions",
+    keywords: ["diff", "compare", "history", "params"],
+    icon: History,
+    run: () => {
+      if (!lastResult) return;
+      setDiffOpen(true);
+    },
+  });
+  useRegisterCommand({
+    id: "actions:batch-generation",
+    label: "Open Batch Generation",
+    group: "Actions",
+    keywords: ["batch", "queue", "multiple", "loop"],
+    icon: Layers,
+    run: () => setBatchOpen(true),
+  });
+  useRegisterCommand({
+    id: "actions:xyz-grid",
+    label: "Open XYZ Grid",
+    group: "Actions",
+    keywords: ["xyz", "grid", "matrix", "comparison", "sweep"],
+    icon: Grid3X3,
+    run: () => setXyzOpen(true),
+  });
 
   return (
     <div className="flex items-center gap-2">

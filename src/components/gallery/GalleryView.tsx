@@ -8,6 +8,8 @@ import {
 import { useGalleryStore } from "@/stores/galleryStore";
 import { useShortcut } from "@/hooks/useShortcut";
 import { useShortcutScope } from "@/hooks/useShortcutScope";
+import { useRegisterCommand } from "@/lib/commandRegistry";
+import { Trash2, FolderInput, Download, CheckSquare, Square as SquareIcon, Eye } from "lucide-react";
 import {
   ResizablePanelGroup,
   ResizablePanel,
@@ -101,6 +103,59 @@ export function GalleryView() {
     if (paths.length === 0) return;
     downloadMutation.mutate(paths);
   }, [getSelectedPaths, downloadMutation]);
+
+  useRegisterCommand({
+    id: "gallery:select-all",
+    label: "Select all in folder",
+    group: "Gallery",
+    keywords: ["select", "all", "highlight"],
+    icon: CheckSquare,
+    shortcutId: "gallery-select-all",
+    run: () => useGalleryStore.getState().selectAll(),
+  });
+  useRegisterCommand({
+    id: "gallery:deselect-all",
+    label: "Deselect all",
+    group: "Gallery",
+    keywords: ["clear selection", "unselect"],
+    icon: SquareIcon,
+    shortcutId: "gallery-deselect",
+    run: () => useGalleryStore.getState().deselectAll(),
+  });
+  useRegisterCommand({
+    id: "gallery:delete-selected",
+    label: "Delete selected images",
+    group: "Gallery",
+    keywords: ["remove", "trash", "rm"],
+    icon: Trash2,
+    shortcutId: "gallery-delete",
+    run: handleDeleteRequest,
+  });
+  useRegisterCommand({
+    id: "gallery:move-selected",
+    label: "Move selected to folder",
+    group: "Gallery",
+    keywords: ["relocate", "organize", "transfer"],
+    icon: FolderInput,
+    run: handleMoveRequest,
+  });
+  useRegisterCommand({
+    id: "gallery:download-selected",
+    label: "Download selected as zip",
+    group: "Gallery",
+    keywords: ["save", "export", "archive"],
+    icon: Download,
+    run: handleDownloadRequest,
+  });
+  useRegisterCommand({
+    id: "gallery:toggle-metadata",
+    label: "Toggle metadata panel",
+    group: "Gallery",
+    keywords: ["info", "details", "exif", "panel"],
+    icon: Eye,
+    shortcutId: "gallery-toggle-info",
+    run: () => useGalleryStore.getState().toggleMetadataPanel(),
+  });
 
   const filteredCount = useGalleryStore((s) => {
     if (!s.searchQuery) return s.files.length;

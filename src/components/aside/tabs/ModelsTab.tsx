@@ -1,5 +1,7 @@
 import { useState } from "react";
+import { Combine, Replace, Scissors, CloudDownload, Globe } from "lucide-react";
 import { useLoadedModels } from "@/api/hooks/useServer";
+import { useRegisterCommand } from "@/lib/commandRegistry";
 import { cn } from "@/lib/utils";
 
 import { CurrentSubTab } from "@/components/models/sub-tabs/CurrentSubTab";
@@ -30,6 +32,47 @@ export function ModelsTab() {
   const [active, setActive] = useState<SubTab>("Current");
   const { data: loaded } = useLoadedModels();
   const loadedCount = loaded?.length ?? 0;
+
+  useRegisterCommand({
+    id: "models:open-merge",
+    label: "Open Model Merge",
+    group: "Models",
+    keywords: ["merge", "combine", "blend", "checkpoint"],
+    icon: Combine,
+    run: () => setActive("Merge"),
+  });
+  useRegisterCommand({
+    id: "models:open-replace",
+    label: "Open Model Replace",
+    group: "Models",
+    keywords: ["replace", "swap", "substitute", "checkpoint"],
+    icon: Replace,
+    run: () => setActive("Replace"),
+  });
+  useRegisterCommand({
+    id: "models:open-extract-lora",
+    label: "Open LoRA Extract",
+    group: "Models",
+    keywords: ["lora", "extract", "distill", "low rank"],
+    icon: Scissors,
+    run: () => setActive("Extract LoRA"),
+  });
+  useRegisterCommand({
+    id: "models:open-civitai",
+    label: "Browse CivitAI models",
+    group: "Models",
+    keywords: ["civitai", "download", "browse", "search"],
+    icon: CloudDownload,
+    run: () => setActive("CivitAI"),
+  });
+  useRegisterCommand({
+    id: "models:open-huggingface",
+    label: "Browse Hugging Face models",
+    group: "Models",
+    keywords: ["huggingface", "hf", "download", "browse"],
+    icon: Globe,
+    run: () => setActive("Huggingface"),
+  });
 
   return (
     <div>
