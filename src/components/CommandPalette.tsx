@@ -3,6 +3,7 @@ import { matchSorter } from "match-sorter";
 import { useShortcut } from "@/hooks/useShortcut";
 import { useUiStore } from "@/stores/uiStore";
 import { buildActions } from "@/lib/actionRegistry";
+import { useCommands, runCommand } from "@/lib/commandRegistry";
 import { navigateToParam } from "@/lib/navigateToParam";
 import { SHORTCUTS, formatShortcut } from "@/lib/shortcuts";
 import {
@@ -25,6 +26,7 @@ export function CommandPalette() {
   }, [search]);
   const recentIds = useUiStore((s) => s.recentCommandIds);
   const addRecentCommand = useUiStore((s) => s.addRecentCommand);
+  const commands = useCommands();
 
   useShortcut("command-palette", () => setOpen((o) => !o));
 
@@ -33,7 +35,10 @@ export function CommandPalette() {
     if (!next) setSearch("");
   }, []);
 
-  const actions = useMemo(() => (open ? buildActions() : []), [open]);
+  const actions = useMemo(
+    () => (open ? buildActions(commands) : []),
+    [open, commands],
+  );
 
   const recentActions = useMemo(() => {
     if (!open) return [];
@@ -48,13 +53,26 @@ export function CommandPalette() {
       ? actions
       : actions.filter((a) => !a.showOnlyInSearch);
     if (!isSearching) return base;
-    return matchSorter(base, search, { keys: ["label", "keywords", "id"] });
+    return matchSorter(base, search, {
+      keys: [
+        "label",
+        "keywords",
+        "id",
+        // Cap help excerpt matches at CONTAINS so they never outrank label/keyword hits.
+        { key: "helpExcerpt", maxRanking: matchSorter.rankings.CONTAINS },
+      ],
+    });
   }, [actions, search]);
 
   const filteredRecent = useMemo(() => {
     if (!search.trim()) return recentActions;
     return matchSorter(recentActions, search, {
-      keys: ["label", "keywords", "id"],
+      keys: [
+        "label",
+        "keywords",
+        "id",
+        { key: "helpExcerpt", maxRanking: matchSorter.rankings.CONTAINS },
+      ],
     });
   }, [recentActions, search]);
 
@@ -65,7 +83,13 @@ export function CommandPalette() {
       setOpen(false);
       setSearch("");
       addRecentCommand(actionId);
-      requestAnimationFrame(() => navigateToParam(action.target));
+      requestAnimationFrame(() => {
+        if (action.kind === "command") {
+          runCommand(action.commandId);
+        } else {
+          navigateToParam(action.target);
+        }
+      });
     },
     [actions, addRecentCommand],
   );
