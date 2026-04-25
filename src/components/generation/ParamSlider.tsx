@@ -52,6 +52,8 @@ interface ParamSliderProps {
   notches?: number[];
   snapRadius?: number;
   defaultValue?: number;
+  /** Search keywords for the Command Palette. Extracted at build time by vite/extract-params.ts. */
+  keywords?: string[];
 }
 
 // ── Component ──────────────────────────────────────────────────────

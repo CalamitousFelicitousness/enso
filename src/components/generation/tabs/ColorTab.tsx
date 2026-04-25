@@ -167,32 +167,35 @@ export function ColorTab() {
         <ParamGrid>
           <ParamSlider
             label="Brightness"
+            keywords={["latent", "hdr", "luminance"]}
             value={state.hdrBrightness}
             onChange={set.hdrBrightness}
             min={-1}
             max={1}
             step={0.05}
-            tooltip={getParamHelp("latent brightness")}
+            tooltip="Additive offset to channel 0 (luminance) during late denoising (timestep &lt; 200).<br><br><b>Relative mode:</b> adds the value directly - e.g. 0.1 shifts the luminance mean up by ~0.1 in latent space (typical range ±3).<br><b>Absolute mode:</b> first subtracts the channel mean, then adds the offset - centering luminance before shifting.<br><br>The total offset is spread evenly across all active steps in the range, so the slider value represents the cumulative shift."
           />
 
           <ParamSlider
             label="Sharpen"
+            keywords={["latent", "hdr", "sharpen"]}
             value={state.hdrSharpen}
             onChange={set.hdrSharpen}
             min={-1}
             max={1}
             step={0.05}
-            tooltip={getParamHelp("latent sharpen")}
+            tooltip="Sharpens or softens the latent during late denoising (timestep &lt; 350) using a 3×3 convolution kernel.<br><br>The per-step strength scales with the timestep: stronger early, weaker late. Positive values sharpen edges, negative values blur. Output is soft-clamped to prevent artifacts."
           />
         </ParamGrid>
         <ParamSlider
           label="Color"
+          keywords={["latent", "saturation", "hdr"]}
           value={state.hdrColor}
           onChange={set.hdrColor}
           min={0}
           max={4}
           step={0.1}
-          tooltip={getParamHelp("latent color")}
+          tooltip="Centers chrominance channels (1-3) during mid-stage denoising (timestep 600-900).<br><br>Each channel's spatial mean is subtracted, scaled by this value. At 1.0, the mean is fully removed (zero-centering). At 4.0 (max), it over-corrects - useful for desaturating color casts.<br><br>The total correction is spread evenly across all active steps in the range."
         />
 
         <div className="flex items-center gap-2">
@@ -207,24 +210,26 @@ export function ColorTab() {
         <ParamGrid>
           <ParamSlider
             label="Range"
+            keywords={["latent", "clamp", "hdr"]}
             value={state.hdrBoundary}
             onChange={set.hdrBoundary}
             min={0}
             max={10}
             step={0.1}
             disabled={!state.hdrClamp}
-            tooltip={getParamHelp("latent clamp range")}
+            tooltip="The boundary defining the &quot;normal&quot; range for latent values. Clamping targets values beyond <b>Threshold × Range</b>.<br><br>Default 4.0 covers most of the typical latent distribution. Lower values clamp more of the distribution; higher values only affect extreme outliers."
           />
 
           <ParamSlider
             label="Threshold"
+            keywords={["latent", "clamp"]}
             value={state.hdrThreshold}
             onChange={set.hdrThreshold}
             min={0}
             max={1}
             step={0.01}
             disabled={!state.hdrClamp}
-            tooltip={getParamHelp("latent clamp threshold")}
+            tooltip="Fraction of the Range at which soft clamping begins. At 0.95 (default), values beyond 95% of the boundary are smoothly compressed.<br><br>Lower = more aggressive clamping. Higher = only extreme outliers affected."
           />
         </ParamGrid>
 
@@ -243,24 +248,26 @@ export function ColorTab() {
         <ParamGrid>
           <ParamSlider
             label="Center"
+            keywords={["hdr", "maximize", "centering"]}
             value={state.hdrMaxCenter}
             onChange={set.hdrMaxCenter}
             min={0}
             max={2}
             step={0.1}
             disabled={!state.hdrMaximize}
-            tooltip={getParamHelp("hdr maximize center")}
+            tooltip="How strongly each channel is centered before maximizing.<br><br>At 0 = no centering. At 1.0 = each channel's mean is fully subtracted. Higher values over-center, which can invert subtle color biases."
           />
 
           <ParamSlider
             label="Max range"
+            keywords={["hdr", "maximize", "dynamic range"]}
             value={state.hdrMaxBoundary}
             onChange={set.hdrMaxBoundary}
             min={0.5}
             max={2}
             step={0.1}
             disabled={!state.hdrMaximize}
-            tooltip={getParamHelp("hdr maximize range")}
+            tooltip="Target dynamic range after normalization, as a multiplier of the default boundary (4.0).<br><br>At 1.0 = peak latent value reaches ±4. Below 1.0 = compressed range (lower contrast). Above 1.0 = expanded range (higher contrast)."
           />
         </ParamGrid>
 
@@ -272,6 +279,8 @@ export function ColorTab() {
 
         <ParamSlider
           label="Tint strength"
+          tooltip="Strength of the tint color applied to the latent during HDR correction. Negative values invert toward the complementary color."
+          keywords={["tint", "color", "latent", "hdr"]}
           value={state.hdrTintRatio}
           onChange={set.hdrTintRatio}
           min={-1}
@@ -299,66 +308,74 @@ export function ColorTab() {
         <ParamGrid>
           <ParamSlider
             label="Brightness"
+            keywords={["grading", "exposure", "luminance"]}
             value={state.gradingBrightness}
             onChange={set.gradingBrightness}
             min={-1}
             max={1}
             step={0.05}
-            tooltip={getParamHelp("grading brightness")}
+            tooltip="Adjusts overall image brightness after generation. Positive values lighten, negative values darken. Applied as a pixel-level adjustment on the decoded image."
           />
 
           <ParamSlider
             label="Contrast"
+            keywords={["grading"]}
             value={state.gradingContrast}
             onChange={set.gradingContrast}
             min={-1}
             max={1}
             step={0.05}
-            tooltip={getParamHelp("grading contrast")}
+            tooltip="Adjusts the difference between light and dark areas. Positive values increase contrast, negative values flatten the tonal range. 0 leaves the image unchanged."
           />
 
           <ParamSlider
             label="Saturation"
+            keywords={["grading", "vibrance"]}
             value={state.gradingSaturation}
             onChange={set.gradingSaturation}
             min={-1}
             max={1}
             step={0.05}
-            tooltip={getParamHelp("grading saturation")}
+            tooltip="Adjusts color intensity. Positive values make colors more vivid, negative values desaturate toward grayscale. 0 leaves the image unchanged."
           />
 
           <ParamSlider
             label="Hue"
+            keywords={["grading", "color shift"]}
             value={state.gradingHue}
             onChange={set.gradingHue}
             min={0}
             max={1}
             step={0.05}
-            tooltip={getParamHelp("grading hue")}
+            tooltip="Rotates the entire color spectrum. 0 and 1 leave colors unchanged, 0.5 shifts all hues by 180 degrees (complementary colors). Useful for creative color shifts."
           />
 
           <ParamSlider
             label="Gamma"
+            keywords={["grading", "midtones"]}
             value={state.gradingGamma}
             onChange={set.gradingGamma}
             min={0.1}
             max={10}
             step={0.1}
-            tooltip={getParamHelp("grading gamma")}
+            tooltip="Applies a non-linear brightness curve. Values below 1.0 brighten midtones and shadows, values above 1.0 darken them. Default is 1.0 (no change)."
           />
 
           <ParamSlider
             label="Sharpness"
+            keywords={["grading", "sharpen", "detail"]}
             value={state.gradingSharpness}
             onChange={set.gradingSharpness}
             min={0}
             max={2}
             step={0.05}
-            tooltip={getParamHelp("grading sharpness")}
+            tooltip="Enhances edge definition in the final image using an unsharp mask filter. Higher values produce crisper detail. 0 disables sharpening."
           />
         </ParamGrid>
         <ParamSlider
           label="Color temp (K)"
+          tooltip="Shifts the color temperature of the image in Kelvin. Lower values (2000K) produce warm, golden tones. Higher values (12000K) produce cool, blue tones. 6500K is neutral daylight."
+          keywords={["grading", "temperature", "kelvin", "warmth", "white balance"]}
           value={state.gradingColorTemp}
           onChange={set.gradingColorTemp}
           min={2000}
@@ -373,26 +390,30 @@ export function ColorTab() {
         <ParamGrid>
           <ParamSlider
             label="Shadows"
+            keywords={["grading", "dark", "lab"]}
             value={state.gradingShadows}
             onChange={set.gradingShadows}
             min={-1}
             max={1}
             step={0.05}
-            tooltip={getParamHelp("grading shadows")}
+            tooltip="Lightens or darkens the shadow regions of the image. Positive values lift shadows to reveal detail, negative values deepen them. Operates in Lab color space."
           />
 
           <ParamSlider
             label="Midtones"
+            keywords={["grading", "tone", "exposure"]}
             value={state.gradingMidtones}
             onChange={set.gradingMidtones}
             min={-1}
             max={1}
             step={0.05}
-            tooltip={getParamHelp("grading midtones")}
+            tooltip="Adjusts the brightness of midtone values without affecting deep shadows or bright highlights. Useful for fine-tuning overall image exposure."
           />
 
           <ParamSlider
             label="CLAHE clip"
+            tooltip="Clip limit for Contrast Limited Adaptive Histogram Equalization (CLAHE). Higher values allow more local contrast enhancement. 0 disables CLAHE entirely."
+            keywords={["clahe", "adaptive", "histogram", "contrast"]}
             value={state.gradingClaheClip}
             onChange={set.gradingClaheClip}
             min={0}
@@ -402,6 +423,8 @@ export function ColorTab() {
 
           <ParamSlider
             label="CLAHE grid"
+            tooltip="Grid size for CLAHE tile regions. Smaller grids (2-4) produce more localized contrast enhancement, larger grids (8-16) produce a more global effect."
+            keywords={["clahe", "grid", "tiles"]}
             value={state.gradingClaheGrid}
             onChange={set.gradingClaheGrid}
             min={2}
@@ -411,12 +434,13 @@ export function ColorTab() {
         </ParamGrid>
         <ParamSlider
           label="Highlights"
+          keywords={["grading", "bright", "lab"]}
           value={state.gradingHighlights}
           onChange={set.gradingHighlights}
           min={-1}
           max={1}
           step={0.05}
-          tooltip={getParamHelp("grading highlights")}
+          tooltip="Adjusts the brightness of highlight regions. Positive values brighten highlights, negative values pull them back to recover blown-out detail. Operates in Lab color space."
         />
       </SectionLeader>
 
@@ -437,12 +461,13 @@ export function ColorTab() {
 
         <ParamSlider
           label="Balance"
+          keywords={["split", "toning", "crossover"]}
           value={state.gradingSplitToneBalance}
           onChange={set.gradingSplitToneBalance}
           min={0}
           max={1}
           step={0.05}
-          tooltip={getParamHelp("split tone balance")}
+          tooltip="Controls the crossover point between shadow and highlight tinting. 0 shifts the effect entirely toward shadows, 1 shifts it entirely toward highlights. 0.5 is an even split."
         />
       </SectionLeader>
 
@@ -452,22 +477,24 @@ export function ColorTab() {
         <ParamGrid>
           <ParamSlider
             label="Vignette"
+            keywords={["grading", "edges", "border"]}
             value={state.gradingVignette}
             onChange={set.gradingVignette}
             min={0}
             max={1}
             step={0.05}
-            tooltip={getParamHelp("grading vignette")}
+            tooltip="Adds radial edge darkening that draws the eye toward the center of the image. Higher values produce a more pronounced dark border. 0 disables the effect."
           />
 
           <ParamSlider
             label="Grain"
+            keywords={["grading", "noise", "film"]}
             value={state.gradingGrain}
             onChange={set.gradingGrain}
             min={0}
             max={1}
             step={0.05}
-            tooltip={getParamHelp("grading grain")}
+            tooltip="Adds random film grain noise to the final image. Higher values produce more visible texture. 0 disables the effect."
           />
         </ParamGrid>
       </SectionLeader>
@@ -515,13 +542,14 @@ export function ColorTab() {
         </div>
         <ParamSlider
           label="Strength"
+          keywords={["lut", "lookup", "color grading"]}
           value={state.gradingLutStrength}
           onChange={set.gradingLutStrength}
           min={0}
           max={2}
           step={0.05}
           disabled={!hasLut}
-          tooltip={getParamHelp("lut strength")}
+          tooltip="Controls the intensity of the LUT color grading. 1.0 applies the LUT at full strength. Values below 1.0 blend with the original colors, values above 1.0 amplify the effect."
         />
       </SectionLeader>
     </div>

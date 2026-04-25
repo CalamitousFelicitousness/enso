@@ -60,6 +60,8 @@ export function AdvancedTab() {
       <SectionLeader title="Advanced" collapsible>
         <ParamSlider
           label="CLIP skip"
+          tooltip="Early stopping parameter for CLIP model; 1 is stop at last layer as usual, 2 is stop at penultimate layer, etc"
+          keywords={["clip", "skip", "layers", "text encoder"]}
           value={state.clipSkip}
           onChange={set.clipSkip}
           min={0}

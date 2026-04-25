@@ -166,6 +166,8 @@ export function DetailTab() {
             <ParamGrid>
               <ParamSlider
                 label="Steps"
+                tooltip="Number of steps to run for detailer process"
+                keywords={["detailer", "inpaint"]}
                 value={state.detailerSteps}
                 onChange={set.detailerSteps}
                 min={0}
@@ -175,6 +177,8 @@ export function DetailTab() {
 
               <ParamSlider
                 label="Strength"
+                tooltip="Denoising strength of detailer process"
+                keywords={["detailer", "denoising"]}
                 value={state.detailerStrength}
                 onChange={set.detailerStrength}
                 min={0}
@@ -185,7 +189,8 @@ export function DetailTab() {
             </ParamGrid>
             <ParamSlider
               label="Resolution"
-              tooltip={getParamHelp("detailer resolution")}
+              tooltip="Resolution at which each detected region is re-generated. Higher values capture more detail but take longer."
+              keywords={["detailer", "size"]}
               value={state.detailerResolution}
               onChange={set.detailerResolution}
               min={256}
@@ -201,7 +206,8 @@ export function DetailTab() {
             <ParamGrid>
               <ParamSlider
                 label="Confidence"
-                tooltip={getParamHelp("min confidence")}
+                tooltip="Minimum confidence in detected item"
+                keywords={["detailer", "threshold", "min confidence"]}
                 value={state.detailerConfidence}
                 onChange={set.detailerConfidence}
                 min={0}
@@ -212,7 +218,8 @@ export function DetailTab() {
 
               <ParamSlider
                 label="IoU"
-                tooltip={getParamHelp("max overlap")}
+                tooltip="Maximum overlap between two detected items before one is discarded"
+                keywords={["detailer", "overlap", "max overlap"]}
                 value={state.detailerIou}
                 onChange={set.detailerIou}
                 min={0}
@@ -223,6 +230,8 @@ export function DetailTab() {
 
               <ParamSlider
                 label="Min size"
+                tooltip="Minimum size of detected object as percentage of overal image"
+                keywords={["detailer", "minimum"]}
                 value={state.detailerMinSize}
                 onChange={set.detailerMinSize}
                 min={0}
@@ -233,6 +242,8 @@ export function DetailTab() {
 
               <ParamSlider
                 label="Max size"
+                tooltip="Maximum size of detected object as percentage of overal image"
+                keywords={["detailer", "maximum"]}
                 value={state.detailerMaxSize}
                 onChange={set.detailerMaxSize}
                 min={0}
@@ -243,7 +254,8 @@ export function DetailTab() {
 
               <ParamSlider
                 label="Padding"
-                tooltip={getParamHelp("detailer padding")}
+                tooltip="Extra pixels added around each detected region before processing. Gives the model more context for seamless blending."
+                keywords={["detailer", "margin"]}
                 value={state.detailerPadding}
                 onChange={set.detailerPadding}
                 min={0}
@@ -253,7 +265,8 @@ export function DetailTab() {
 
               <ParamSlider
                 label="Blur"
-                tooltip={getParamHelp("detailer blur")}
+                tooltip="Blur applied to the edges of each detected region's mask. Softens transitions between the re-generated area and the surrounding image."
+                keywords={["detailer", "mask", "soften"]}
                 value={state.detailerBlur}
                 onChange={set.detailerBlur}
                 min={0}
@@ -263,7 +276,8 @@ export function DetailTab() {
             </ParamGrid>
             <ParamSlider
               label="Max detect"
-              tooltip={getParamHelp("max detected")}
+              tooltip="Maximum number of detected objects to run detailer on"
+              keywords={["detailer", "limit", "count", "max detected"]}
               value={state.detailerMaxDetected}
               onChange={set.detailerMaxDetected}
               min={1}
@@ -273,7 +287,8 @@ export function DetailTab() {
 
             <ParamRow
               label="Classes"
-              tooltip={getParamHelp("detailer classes")}
+              tooltip="Specify specific classes to use if selected detailer model is a multi-class model"
+              keywords={["detailer", "person", "face"]}
             >
               <Input
                 value={state.detailerClasses}
@@ -351,6 +366,8 @@ export function DetailTab() {
             <ParamGrid>
               <ParamSlider
                 label="Renoise"
+                tooltip="Apply additional noise during detailing"
+                keywords={["detailer", "noise"]}
                 value={state.detailerRenoise}
                 onChange={set.detailerRenoise}
                 min={0.5}
@@ -361,7 +378,8 @@ export function DetailTab() {
 
               <ParamSlider
                 label="End"
-                tooltip={getParamHelp("renoise end")}
+                tooltip="Final step when renoise is applied"
+                keywords={["detailer", "renoise", "end"]}
                 value={state.detailerRenoiseEnd}
                 onChange={set.detailerRenoiseEnd}
                 min={0}

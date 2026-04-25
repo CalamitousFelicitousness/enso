@@ -5,6 +5,8 @@ interface ParamRowProps {
   children: React.ReactNode;
   disabled?: boolean;
   tooltip?: string;
+  /** Search keywords for the Command Palette. Extracted at build time by vite/extract-params.ts. */
+  keywords?: string[];
 }
 
 /** Label stacked above its control. Use inside ParamGrid for 2-column pairs. */

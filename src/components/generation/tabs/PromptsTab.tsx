@@ -352,6 +352,8 @@ export function PromptsTab() {
         {effectiveSizeMode === "scale" && (
           <ParamSlider
             label="Scale"
+            tooltip="Multiplier applied to the input image size to compute the generation resolution."
+            keywords={["resize", "factor", "multiplier", "img2img"]}
             value={scaleFactor}
             onChange={setScaleFactor}
             min={0.25}
@@ -364,6 +366,8 @@ export function PromptsTab() {
         {effectiveSizeMode === "megapixel" && (
           <ParamSlider
             label="Target"
+            tooltip="Target output size in megapixels. Aspect ratio is preserved from the input image."
+            keywords={["megapixel", "size", "resolution", "img2img"]}
             value={megapixelTarget}
             onChange={setMegapixelTarget}
             min={0.25}
@@ -405,6 +409,8 @@ export function PromptsTab() {
         <ParamGrid>
           <ParamSlider
             label="Count"
+            tooltip="How many batches of images to create (has no impact on generation performance or VRAM usage)"
+            keywords={["batch count", "repeat", "iterations"]}
             value={state.batchCount}
             onChange={set.batchCount}
             min={1}
@@ -413,6 +419,8 @@ export function PromptsTab() {
 
           <ParamSlider
             label="Size"
+            tooltip="How many image to create in a single batch (increases generation performance at cost of higher VRAM usage)"
+            keywords={["batch size", "parallel", "simultaneous"]}
             value={state.batchSize}
             onChange={set.batchSize}
             min={1}
