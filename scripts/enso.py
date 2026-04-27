@@ -20,6 +20,7 @@ def on_app_started(blocks, app):  # pylint: disable=unused-argument
     if ext_root not in sys.path:
         sys.path.insert(0, ext_root)
 
+    from fastapi import Depends
     from modules import shared
     from enso_api import register_api
 
@@ -32,8 +33,17 @@ def on_app_started(blocks, app):  # pylint: disable=unused-argument
         except Exception:
             pass
 
-    # Register all v2 API routes
-    register_api(app)
+    # Mirror SD.Next's v1 auth wiring on v2 routers. shared.api.add_api_route
+    # auto-injects this dependency for routes added through it (gallery,
+    # system_ops, models_ops, etc.), but routers mounted via include_router
+    # (jobs, upload, endpoints, server, caption, prompt_enhance, xyz_grid)
+    # need it threaded in explicitly or they bypass --auth entirely.
+    deps = []
+    api_inst = getattr(shared, 'api', None)
+    if api_inst is not None and getattr(api_inst, 'credentials', None):
+        deps.append(Depends(api_inst.auth))
+
+    register_api(app, dependencies=deps)
 
     # Mount built frontend
     dist_dir = os.path.join(ext_root, "dist")
