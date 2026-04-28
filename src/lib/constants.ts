@@ -5,7 +5,7 @@ import {
   Settings2, Layers, FileCode, Palette,
   BookOpen, Github, MessageCircle, Users,
   Gauge, LayoutGrid, Box, Puzzle, Settings, Monitor, Clock, Info, Terminal,
-  ListOrdered,
+  ListOrdered, CloudCog,
 } from "lucide-react";
 
 export interface NavItem {
@@ -27,7 +27,7 @@ export interface ExternalLink {
   url: string;
 }
 
-export type RightTab = "quick-settings" | "networks" | "models" | "queue" | "extensions" | "settings" | "system" | "history" | "info" | "console";
+export type RightTab = "quick-settings" | "networks" | "models" | "providers" | "queue" | "extensions" | "settings" | "system" | "history" | "info" | "console";
 
 export interface RightTabItem {
   id: RightTab;
@@ -40,6 +40,7 @@ export const RIGHT_TABS: RightTabItem[] = [
   { id: "quick-settings", label: "Quick Settings", icon: Gauge },
   { id: "networks", label: "Networks", icon: LayoutGrid },
   { id: "models", label: "Models", icon: Box },
+  { id: "providers", label: "Providers", icon: CloudCog },
   { id: "queue", label: "Queue", icon: ListOrdered, hasSeparatorAfter: true },
   { id: "extensions", label: "Extensions", icon: Puzzle },
   { id: "settings", label: "Settings", icon: Settings },

@@ -14,6 +14,9 @@ const NetworksTab = lazy(() =>
 const ModelsTab = lazy(() =>
   import("./tabs/ModelsTab").then((m) => ({ default: m.ModelsTab })),
 );
+const ProvidersTab = lazy(() =>
+  import("./tabs/ProvidersTab").then((m) => ({ default: m.ProvidersTab })),
+);
 const QueueTab = lazy(() =>
   import("./tabs/QueueTab").then((m) => ({ default: m.QueueTab })),
 );
@@ -43,6 +46,7 @@ const TAB_COMPONENTS: Record<
   "quick-settings": QuickSettingsTab,
   networks: NetworksTab,
   models: ModelsTab,
+  providers: ProvidersTab,
   queue: QueueTab,
   extensions: ExtensionsTab,
   settings: SettingsTab,
