@@ -1,6 +1,7 @@
 // --- Job request types (discriminated union) ---
 
 import type { ControlRequest } from "./generation";
+import type { CloudImageJobParams, CloudChatJobParams, CloudTtsJobParams, CloudSttJobParams, CloudVideoJobParams, CloudJobPhase } from "./cloud";
 
 export type GenerateJobRequest = ControlRequest & { type: "generate"; priority?: number };
 
@@ -213,7 +214,12 @@ export type JobRequest =
   | VideoGenerateParams
   | FramePackJobParams
   | LtxJobParams
-  | XyzGridJobParams;
+  | XyzGridJobParams
+  | CloudImageJobParams
+  | CloudChatJobParams
+  | CloudTtsJobParams
+  | CloudSttJobParams
+  | CloudVideoJobParams;
 
 // --- Job response types ---
 
@@ -289,6 +295,7 @@ export type JobWsEvent =
   | { type: "progress"; step: number; steps: number; progress: number; eta: number | null;
       task?: string; textinfo?: string | null;
       stage?: number; stage_name?: string; stage_count?: number; phase?: string | null }
+  | { type: "cloud_progress"; phase: CloudJobPhase; detail?: string; progress?: number; position?: number; elapsed?: number }
   | { type: "stages"; stages: string[] }
   | { type: "completed"; result: JobResult }
   | { type: "error"; error: string }

@@ -17,6 +17,7 @@ import { useGlobalWs } from "@/hooks/useGlobalWs";
 import { useShortcutDispatcher } from "@/hooks/useShortcutDispatcher";
 import { useShortcut } from "@/hooks/useShortcut";
 import { useModelDefaultsSuggester } from "@/hooks/useModelDefaultsSuggester";
+import { useModelSync } from "@/hooks/useModelSync";
 import { ShortcutOverlay } from "@/components/ShortcutOverlay";
 import { CommandPalette } from "@/components/CommandPalette";
 import { ComparisonDialog } from "@/components/comparison/ComparisonDialog";
@@ -29,6 +30,7 @@ export function AppShell() {
   useGlobalWs();
   useShortcutDispatcher();
   useModelDefaultsSuggester();
+  useModelSync();
 
   useShortcut("toggle-left-rail", () => useUiStore.getState().toggleLeftRail());
   useShortcut("toggle-left-panel", () =>

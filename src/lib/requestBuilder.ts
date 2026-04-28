@@ -580,3 +580,31 @@ export function restoreFromResult(result: GenerationResult): void {
     useControlStore.getState().restoreUnits(result.controlUnits);
   }
 }
+
+// --- Cloud image request builder ---
+
+import { useModelSelectionStore } from "@/stores/modelSelectionStore";
+import type { CloudImageJobParams, CloudModel } from "@/api/types/cloud";
+
+export async function buildCloudImageRequest(): Promise<CloudImageJobParams> {
+  const { activeModel } = useModelSelectionStore.getState();
+  const gen = useGenerationStore.getState();
+  const model = activeModel as CloudModel;
+
+  const request: CloudImageJobParams = {
+    type: "cloud_image",
+    provider: model.provider,
+    model: model.id,
+    prompt: gen.prompt,
+    size: `${gen.width}x${gen.height}`,
+  };
+
+  if (gen.negativePrompt) request.negative_prompt = gen.negativePrompt;
+  if (gen.seed >= 0) request.seed = gen.seed;
+  if (gen.batchSize > 1) request.n = gen.batchSize;
+  if (gen.cfgScale !== 7) request.guidance = gen.cfgScale;
+  if (gen.steps !== 20) request.steps = gen.steps;
+  if (gen.denoisingStrength < 1) request.strength = gen.denoisingStrength;
+
+  return request;
+}

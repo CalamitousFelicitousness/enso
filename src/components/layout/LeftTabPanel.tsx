@@ -1,4 +1,5 @@
 import { useUiStore } from "@/stores/uiStore";
+import { useCloudModelGating } from "@/hooks/useCloudModelGating";
 import { ActionBar } from "@/components/generation/ActionBar";
 import { ResultGallery } from "@/components/generation/ResultGallery";
 import { PromptsTab } from "@/components/generation/tabs/PromptsTab";
@@ -67,7 +68,9 @@ export function LeftTabPanel() {
 }
 
 function ImagesSubTabContent({ activeSubTab }: { activeSubTab: string }) {
-  switch (activeSubTab) {
+  const { showTab } = useCloudModelGating();
+  const tab = showTab(activeSubTab) ? activeSubTab : "prompts";
+  switch (tab) {
     case "prompts":
       return <PromptsTab />;
     case "sampler":

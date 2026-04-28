@@ -129,6 +129,9 @@ export function useJobTracker() {
             case "progress":
               s.updateProgress(jobId, data.progress, data.eta ?? 0, data.step, data.steps, data.task, data.textinfo, data.stage, data.stage_name, data.stage_count, data.phase);
               break;
+            case "cloud_progress":
+              s.updateProgress(jobId, data.progress ?? 0, 0, 0, 0, undefined, data.detail, undefined, undefined, undefined, data.phase);
+              break;
             case "status":
               s.updateStatus(jobId, data.status);
               break;

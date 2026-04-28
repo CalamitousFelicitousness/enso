@@ -10,7 +10,7 @@ from datetime import datetime, timezone
 
 class JobStore:
     def __init__(self, db_path: str):
-        self._db_path = db_path
+        self.db_path = db_path
         self._write_lock = threading.Lock()
         os.makedirs(os.path.dirname(db_path), exist_ok=True)
         self._conn = sqlite3.connect(db_path, check_same_thread=False)

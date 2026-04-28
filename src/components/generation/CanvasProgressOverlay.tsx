@@ -1,5 +1,12 @@
 import { useJobQueueStore, selectViewedJob } from "@/stores/jobStore";
 
+const CLOUD_PHASE_LABELS: Record<string, string> = {
+  submitted: "Submitting...",
+  queued_remote: "In queue",
+  processing: "Generating...",
+  downloading: "Downloading...",
+};
+
 export function CanvasProgressOverlay() {
   const job = useJobQueueStore(selectViewedJob);
   if (!job || job.status !== "running") return null;
@@ -26,7 +33,9 @@ export function CanvasProgressOverlay() {
             {showPhase && (
               <>
                 <span className="text-muted-foreground/40">|</span>
-                <span className="text-muted-foreground/50 truncate">{job.phase}</span>
+                <span className="text-muted-foreground/50 truncate">
+                  {CLOUD_PHASE_LABELS[job.phase!] ?? job.phase}
+                </span>
               </>
             )}
           </div>

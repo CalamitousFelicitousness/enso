@@ -1,8 +1,10 @@
+import { useMemo } from "react";
 import { NAV_ITEMS, IMAGES_SUB_TABS, EXTERNAL_LINKS } from "@/lib/constants";
 import { useUiStore } from "@/stores/uiStore";
 import { useTutorialStore } from "@/stores/tutorialStore";
 import type { NavView, ImagesSubTab } from "@/stores/uiStore";
 import { useCapabilities } from "@/api/hooks/useServer";
+import { useCloudModelGating } from "@/hooks/useCloudModelGating";
 import { cn } from "@/lib/utils";
 import { PanelLeftClose, PanelLeftOpen, HelpCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -34,8 +36,13 @@ export function LeftTabRail() {
   const startTutorial = useTutorialStore((s) => s.start);
 
   const capabilities = useCapabilities();
+  const { showTab } = useCloudModelGating();
 
   const hasSubTabs = activeView === "images" && !viewCollapsed;
+  const filteredSubTabs = useMemo(
+    () => SUBTAB_OPTIONS.filter((opt) => showTab(opt.value)),
+    [showTab],
+  );
 
   return (
     <div
@@ -152,7 +159,7 @@ export function LeftTabRail() {
           className="border-l border-rail-border py-2 overflow-y-auto"
         >
           <SegmentedControl
-            options={SUBTAB_OPTIONS}
+            options={filteredSubTabs}
             value={activeSubTab}
             onValueChange={(v) => {
               setImagesSubTab(v as ImagesSubTab);

@@ -3,6 +3,7 @@ import io
 import json
 import os
 import threading
+from concurrent.futures import ThreadPoolExecutor
 
 from enso_api.job_store import JobStore
 
@@ -37,6 +38,7 @@ class JobQueue:
     def __init__(self):
         self.store: JobStore | None = None
         self._worker_thread: threading.Thread | None = None
+        self._cloud_pool: ThreadPoolExecutor | None = None
         self._job_event = threading.Event()
         self._cancel_ids: set[str] = set()
         self._subscribers: dict[str, list[asyncio.Queue]] = {}
@@ -49,10 +51,10 @@ class JobQueue:
             return
         db_path = os.path.join(data_path, 'jobs.db')
         self.store = JobStore(db_path)
-        # Mark any jobs left running from a previous session as failed
         self._recover_stale_jobs()
         self._worker_thread = threading.Thread(target=self._worker_loop, daemon=True, name="v2-job-worker")
         self._worker_thread.start()
+        self._cloud_pool = ThreadPoolExecutor(max_workers=8, thread_name_prefix="cloud-worker")
         self._initialized = True
 
     def _recover_stale_jobs(self):
@@ -72,16 +74,21 @@ class JobQueue:
         if job is None:
             return False
         if job['status'] == 'running':
-            self._cancel_ids.add(job_id)
-            try:
-                from modules import shared
-                shared.state.interrupt()
-            except Exception:
-                pass
+            from enso_api.executors import EXECUTORS
+            entry = EXECUTORS.get(job['type'])
+            if entry and entry['lock']:
+                self._cancel_ids.add(job_id)
+                try:
+                    from modules import shared
+                    shared.state.interrupt()
+                except Exception:
+                    pass
+            else:
+                self.store.update_status(job_id, 'cancelled', completed_at=JobStore.now())
+                self.push_progress(job_id, {'type': 'status', 'status': 'cancelled'})
             return True
         if job['status'] == 'pending':
             return self.store.cancel(job_id)
-        # Terminal job — delete row + staging
         return self.store.delete(job_id)
 
     def subscribe(self, job_id: str) -> asyncio.Queue:
@@ -100,7 +107,7 @@ class JobQueue:
                 if not subs:
                     del self._subscribers[job_id]
 
-    def _push_progress(self, job_id: str, data: dict) -> None:
+    def push_progress(self, job_id: str, data: dict) -> None:
         with self._sub_lock:
             subs = self._subscribers.get(job_id, [])
             for q in subs:
@@ -155,22 +162,37 @@ class JobQueue:
 
     def _execute_job(self, job: dict) -> None:
         from modules.logger import log
+        from enso_api.executors import EXECUTORS
         job_id = job['id']
         job_type = job['type']
+        entry = EXECUTORS.get(job_type)
+        if entry is None:
+            log.error(f'Job queue: unknown type={job_type} id={job_id}')
+            self.store.update_status(job_id, 'failed', error=f"Unknown job type: {job_type}", completed_at=JobStore.now())
+            return
+
+        if entry['lock']:
+            self._run_local_job(job, entry['fn'], job_type)
+        else:
+            self._cloud_pool.submit(self._run_cloud_job, job, entry['fn'], job_type)
+            if self.store.next_pending():
+                self._job_event.set()
+
+    def _run_local_job(self, job: dict, executor_fn, job_type: str) -> None:
+        from modules.logger import log
+        job_id = job['id']
         self._current_job_id = job_id
         log.info(f'Job queue: executing id={job_id} type={job_type}')
         self.store.update_status(job_id, 'running', started_at=JobStore.now())
-        self._push_progress(job_id, {'type': 'status', 'status': 'running'})
+        self.push_progress(job_id, {'type': 'status', 'status': 'running'})
 
-        # Compute and emit stage manifest
         raw_params = job.get('params', {})
         if isinstance(raw_params, str):
             raw_params = json.loads(raw_params)
         stages = compute_stages(job_type, raw_params)
         if stages:
-            self._push_progress(job_id, {'type': 'stages', 'stages': stages})
+            self.push_progress(job_id, {'type': 'stages', 'stages': stages})
 
-        # Start progress poller thread
         poller_stop = threading.Event()
         poller = threading.Thread(target=self._progress_poller, args=(job_id, poller_stop, stages), daemon=True, name=f"v2-progress-{job_id[:8]}")
         poller.start()
@@ -181,40 +203,55 @@ class JobQueue:
                 if job_id in self._cancel_ids:
                     self._cancel_ids.discard(job_id)
                     self.store.update_status(job_id, 'cancelled', completed_at=JobStore.now())
-                    self._push_progress(job_id, {'type': 'status', 'status': 'cancelled'})
+                    self.push_progress(job_id, {'type': 'status', 'status': 'cancelled'})
                     return
-                result = self._dispatch(job_type, job.get('params', {}), job_id)
+                params = job.get('params', {})
+                if isinstance(params, str):
+                    params = json.loads(params)
+                result = executor_fn(params, job_id)
             result_json = json.dumps(result, default=str)
             self.store.update_status(job_id, 'completed', completed_at=JobStore.now(), result=result_json)
-            self._push_progress(job_id, {'type': 'completed', 'result': result})
+            self.push_progress(job_id, {'type': 'completed', 'result': result})
             log.info(f'Job queue: completed id={job_id}')
         except Exception as e:
             from modules import errors
             errors.display(e, f'Job queue: {job_type}')
             error_msg = f'{type(e).__name__}: {e}'
             self.store.update_status(job_id, 'failed', completed_at=JobStore.now(), error=error_msg)
-            self._push_progress(job_id, {'type': 'error', 'error': error_msg})
-            # Handle cancellation via interrupt
+            self.push_progress(job_id, {'type': 'error', 'error': error_msg})
             if job_id in self._cancel_ids:
                 self._cancel_ids.discard(job_id)
                 self.store.update_status(job_id, 'cancelled', completed_at=JobStore.now())
-                self._push_progress(job_id, {'type': 'status', 'status': 'cancelled'})
+                self.push_progress(job_id, {'type': 'status', 'status': 'cancelled'})
         finally:
             poller_stop.set()
             poller.join(timeout=2.0)
             self._current_job_id = None
-            # Signal in case more jobs are pending
             if self.store.next_pending():
                 self._job_event.set()
 
-    def _dispatch(self, job_type: str, params, job_id: str) -> dict:
-        if isinstance(params, str):
-            params = json.loads(params)
-        from enso_api.executors import EXECUTORS
-        executor = EXECUTORS.get(job_type)
-        if executor is None:
-            raise ValueError(f"Unknown job type: {job_type}")
-        return executor(params, job_id)
+    def _run_cloud_job(self, job: dict, executor_fn, job_type: str) -> None:
+        from modules.logger import log
+        job_id = job['id']
+        log.info(f'Job queue: cloud executing id={job_id} type={job_type}')
+        self.store.update_status(job_id, 'running', started_at=JobStore.now())
+        self.push_progress(job_id, {'type': 'status', 'status': 'running'})
+
+        try:
+            params = job.get('params', {})
+            if isinstance(params, str):
+                params = json.loads(params)
+            result = executor_fn(params, job_id)
+            result_json = json.dumps(result, default=str)
+            self.store.update_status(job_id, 'completed', completed_at=JobStore.now(), result=result_json)
+            self.push_progress(job_id, {'type': 'completed', 'result': result})
+            log.info(f'Job queue: cloud completed id={job_id}')
+        except Exception as e:
+            log.error(f'Job queue: cloud failed id={job_id} {type(e).__name__}: {e}')
+            error_msg = f'{type(e).__name__}: {e}'
+            self.store.update_status(job_id, 'failed', completed_at=JobStore.now(), error=error_msg)
+            self.push_progress(job_id, {'type': 'error', 'error': error_msg})
+
 
     def _progress_poller(self, job_id: str, stop_event: threading.Event, stages: list[str] | None = None) -> None:
         from modules import shared
@@ -276,7 +313,7 @@ class JobQueue:
                         progress_data['phase'] = phase
                     if self.store is not None:
                         self.store.update_progress(job_id, progress_val, step, steps)
-                    self._push_progress(job_id, progress_data)
+                    self.push_progress(job_id, progress_data)
                     # Decode current latent into a preview image (bypasses the api guard in set_current_image)
                     state.do_set_current_image()
                     # Send preview image as binary if available

@@ -20,6 +20,9 @@ def register_api(app, dependencies=None):
     enso_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     job_queue.init(enso_root)
 
+    from enso_api.cloud import init_providers
+    init_providers(enso_root)
+
     staging_dir = os.path.join(shared.opts.temp_dir or tempfile.gettempdir(), 'uploads')
     init_upload_store(staging_dir, ttl=1800)
 
@@ -30,6 +33,9 @@ def register_api(app, dependencies=None):
     app.include_router(router, dependencies=deps)
     app.include_router(upload_router, dependencies=deps)
     app.add_api_websocket_route("/sdapi/v2/jobs/{job_id}/ws", ws_job_endpoint)
+
+    from enso_api.cloud.routes import router as cloud_router
+    app.include_router(cloud_router, dependencies=deps)
 
     from enso_api.endpoints import router as endpoints_router
     app.include_router(endpoints_router, dependencies=deps)

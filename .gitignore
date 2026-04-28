@@ -21,6 +21,7 @@ __pycache__
 *.pyo
 enso_api/__pycache__
 jobs.db*
+cloud-providers.local.json
 
 # Editor directories and files
 .vscode/*

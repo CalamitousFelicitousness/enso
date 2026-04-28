@@ -10,3 +10,4 @@ export * from "./caption";
 export * from "./gallery";
 export * from "./civitai";
 export * from "./dict";
+export * from "./cloud";

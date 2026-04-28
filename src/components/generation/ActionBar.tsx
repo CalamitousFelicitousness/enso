@@ -7,9 +7,10 @@ import {
 } from "@/stores/jobStore";
 import { useCanvasStore } from "@/stores/canvasStore";
 import { useImg2ImgStore } from "@/stores/img2imgStore";
-import { buildControlRequest, restoreFromResult } from "@/lib/requestBuilder";
+import { buildControlRequest, buildCloudImageRequest, restoreFromResult } from "@/lib/requestBuilder";
 import { blobToBase64 } from "@/lib/image";
 import { snapshotUnits } from "@/stores/controlStore";
+import { useModelSelectionStore } from "@/stores/modelSelectionStore";
 import { useSubmitToQueue } from "@/hooks/useSubmitToQueue";
 import { sendToJob } from "@/hooks/useJobTracker";
 import { useCancelJob } from "@/api/hooks/useJobs";
@@ -52,6 +53,17 @@ export const ActionBar = memo(function ActionBar() {
   const cancelJob = useCancelJob();
 
   const buildRequest = useCallback(async () => {
+    const { isCloud } = useModelSelectionStore.getState();
+
+    if (isCloud) {
+      const cloudRequest = await buildCloudImageRequest();
+      clearSelection();
+      return {
+        payload: cloudRequest,
+        snapshot: { controlUnits: [] },
+      };
+    }
+
     const isImg2Img = useCanvasStore.getState().layers.length > 0;
     const { request, inputBlob } = await buildControlRequest();
     const inputImage =
