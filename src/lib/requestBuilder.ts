@@ -584,19 +584,31 @@ export function restoreFromResult(result: GenerationResult): void {
 // --- Cloud image request builder ---
 
 import { useModelSelectionStore } from "@/stores/modelSelectionStore";
+import { resizeBlob } from "@/lib/resize";
 import type { CloudImageJobParams, CloudModel } from "@/api/types/cloud";
 
 export async function buildCloudImageRequest(): Promise<CloudImageJobParams> {
   const { activeModel } = useModelSelectionStore.getState();
   const gen = useGenerationStore.getState();
+  const canvas = useCanvasStore.getState();
+  const img2img = useImg2ImgStore.getState();
   const model = activeModel as CloudModel;
+
+  const frameW = gen.width;
+  const frameH = gen.height;
+
+  const imageLayers = canvas.layers.filter((l): l is ImageLayer => l.type === "image" && l.visible);
+  const isImg2Img = imageLayers.length > 0;
+
+  const effectiveSizeMode: SizeMode = isImg2Img ? img2img.sizeMode : "fixed";
+  const targetSize = resolveGenerationSize(effectiveSizeMode, frameW, frameH, img2img.scaleFactor, img2img.megapixelTarget);
 
   const request: CloudImageJobParams = {
     type: "cloud_image",
     provider: model.provider,
     model: model.id,
     prompt: gen.prompt,
-    size: `${gen.width}x${gen.height}`,
+    size: `${targetSize.width}x${targetSize.height}`,
   };
 
   if (gen.negativePrompt) request.negative_prompt = gen.negativePrompt;
@@ -604,7 +616,33 @@ export async function buildCloudImageRequest(): Promise<CloudImageJobParams> {
   if (gen.batchSize > 1) request.n = gen.batchSize;
   if (gen.cfgScale !== 7) request.guidance = gen.cfgScale;
   if (gen.steps !== 20) request.steps = gen.steps;
-  if (gen.denoisingStrength < 1) request.strength = gen.denoisingStrength;
+
+  if (isImg2Img) {
+    request.strength = gen.denoisingStrength;
+
+    let imageBlob = await flattenCanvas(imageLayers, frameW, frameH);
+    if (!imageBlob) return request;
+
+    const needsResize = targetSize.width !== frameW || targetSize.height !== frameH;
+    if (needsResize) {
+      imageBlob = await resizeBlob(imageBlob, targetSize.width, targetSize.height);
+    }
+
+    const imageRef = await uploadBlob(imageBlob, "cloud-input.png");
+    request.image = imageRef;
+
+    const maskLines = img2img.maskLines;
+    if (maskLines.length > 0) {
+      let maskBlob = await exportMask(maskLines, frameW, frameH);
+      if (maskBlob && needsResize) {
+        maskBlob = await resizeBlob(maskBlob, targetSize.width, targetSize.height);
+      }
+      if (maskBlob) {
+        const maskRef = await uploadBlob(maskBlob, "cloud-mask.png");
+        request.mask = maskRef;
+      }
+    }
+  }
 
   return request;
 }

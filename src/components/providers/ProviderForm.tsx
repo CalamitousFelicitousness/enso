@@ -3,7 +3,7 @@ import { useAddProvider } from "@/api/hooks/useCloudModels";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { X, Eye, EyeOff, Check, Loader2 } from "lucide-react";
+import { X, Check, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import type { ProviderPreset } from "@/api/types/cloud";
 
@@ -35,7 +35,6 @@ export function ProviderForm({ initialPreset, onClose }: ProviderFormProps) {
   const [name, setName] = useState(initialPreset ? PRESET_LABELS[initialPreset] : "");
   const [baseUrl, setBaseUrl] = useState(initialPreset ? (PRESET_URLS[initialPreset] ?? "") : "");
   const [key, setKey] = useState("");
-  const [showKey, setShowKey] = useState(false);
 
   const addProvider = useAddProvider();
 
@@ -122,22 +121,13 @@ export function ProviderForm({ initialPreset, onClose }: ProviderFormProps) {
         {preset !== "ollama" && (
           <div>
             <Label className="text-3xs">API Key</Label>
-            <div className="relative">
-              <Input
-                type={showKey ? "text" : "password"}
-                value={key}
-                onChange={(e) => setKey(e.target.value)}
-                placeholder="sk-..."
-                className="h-7 text-xs font-mono pr-8"
-              />
-              <button
-                type="button"
-                onClick={() => setShowKey(!showKey)}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-              >
-                {showKey ? <EyeOff size={12} /> : <Eye size={12} />}
-              </button>
-            </div>
+            <Input
+              value={key}
+              onChange={(e) => setKey(e.target.value)}
+              placeholder="sk-..."
+              autoComplete="off"
+              className="h-7 text-xs font-mono"
+            />
           </div>
         )}
       </div>

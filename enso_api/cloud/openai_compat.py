@@ -57,7 +57,11 @@ class OpenAICompatAdapter:
     async def generate_image(self, params: dict, on_progress: ProgressCallback) -> ImageResult:
         on_progress({"type": "cloud_progress", "phase": "submitted"})
 
+        has_image = bool(params.get("image"))
         image_via = self.preset.get("image_via", "images")
+
+        if has_image and image_via == "images":
+            return await self._generate_image_edit(params, on_progress)
         if image_via == "chat":
             return await self._generate_image_via_chat(params, on_progress)
         return await self._generate_image_via_endpoint(params, on_progress)
@@ -235,6 +239,71 @@ class OpenAICompatAdapter:
             format="png",
             usage=self._parse_usage(usage_data),
         )
+
+    async def _generate_image_edit(self, params: dict, on_progress: ProgressCallback) -> ImageResult:
+        """Multipart image edit via /v1/images/edits (OpenAI pattern)."""
+        on_progress({"type": "cloud_progress", "phase": "processing"})
+
+        image_data = await self._resolve_upload_ref(params["image"])
+        files: dict = {"image": ("input.png", image_data, "image/png")}
+        data_fields: dict = {
+            "model": params["model"],
+            "prompt": params.get("prompt", ""),
+        }
+
+        if params.get("size"):
+            data_fields["size"] = params["size"]
+        if params.get("n"):
+            data_fields["n"] = str(params["n"])
+
+        if params.get("mask"):
+            mask_data = await self._resolve_upload_ref(params["mask"])
+            mask_data = self._invert_mask_for_openai(mask_data)
+            files["mask"] = ("mask.png", mask_data, "image/png")
+
+        response = await self.http.client.post(
+            "/v1/images/edits",
+            files=files,
+            data=data_fields,
+            headers={k: v for k, v in self.http.client.headers.items() if k.lower() != "content-type"},
+        )
+        if response.status_code >= 400:
+            self.http.raise_for_status(response)
+
+        result_data = response.json()
+        on_progress({"type": "cloud_progress", "phase": "downloading"})
+        images = await self._extract_images(result_data)
+
+        return ImageResult(
+            images=images,
+            revised_prompt=result_data.get("data", [{}])[0].get("revised_prompt") if result_data.get("data") else None,
+            format="png",
+            usage=self._parse_usage(result_data.get("usage")),
+        )
+
+    async def _resolve_upload_ref(self, ref: str) -> bytes:
+        """Resolve an upload reference (URL path or base64) to raw bytes."""
+        if ref.startswith("/sdapi/v2/uploads/") or ref.startswith("http"):
+            url = ref if ref.startswith("http") else f"{self.http.client.base_url}{ref}"
+            async with httpx.AsyncClient(timeout=30) as client:
+                response = await client.get(url)
+                return response.content
+        return base64.b64decode(ref)
+
+    def _invert_mask_for_openai(self, mask_bytes: bytes) -> bytes:
+        """Invert mask: Enso uses white=editable, OpenAI uses alpha=0 for editable.
+
+        Converts white-on-black mask to RGBA where white regions become transparent.
+        """
+        from PIL import Image
+        import io
+        img = Image.open(io.BytesIO(mask_bytes)).convert("L")
+        rgba = Image.new("RGBA", img.size, (0, 0, 0, 255))
+        alpha = img.point(lambda p: 0 if p > 128 else 255)
+        rgba.putalpha(alpha)
+        buf = io.BytesIO()
+        rgba.save(buf, format="PNG")
+        return buf.getvalue()
 
     async def _generate_image_via_chat(self, params: dict, on_progress: ProgressCallback) -> ImageResult:
         body = {
