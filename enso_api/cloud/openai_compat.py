@@ -546,14 +546,19 @@ class OpenAICompatAdapter:
             pricing = self._extract_pricing(m)
             supported_params = self._extract_supported_params(m) or []
 
-            size_options = self._get_size_constraints(model_id)
-            if size_options:
-                supported_params.append({
-                    "name": "size",
-                    "type": "enum",
-                    "options": size_options,
-                    "default": size_options[0],
-                })
+            has_size_enum = any(p.get("name") == "size" for p in supported_params)
+            if not has_size_enum:
+                size_options = (
+                    self._get_size_constraints(model_id)
+                    or self._extract_resolutions_from_pricing(m)
+                )
+                if size_options:
+                    supported_params.append({
+                        "name": "size",
+                        "type": "enum",
+                        "options": size_options,
+                        "default": size_options[0],
+                    })
 
             normalized.append({
                 "source": "cloud",
@@ -606,6 +611,9 @@ class OpenAICompatAdapter:
     def _infer_capabilities(self, m: dict) -> list[str]:
         caps = []
         supported = m.get("supported_parameters", [])
+        if isinstance(supported, dict):
+            caps.append("streaming")
+            return caps
         if "tools" in supported:
             caps.append("tools")
         if "structured_outputs" in supported or "response_format" in supported:
@@ -638,8 +646,30 @@ class OpenAICompatAdapter:
 
     def _extract_supported_params(self, m: dict) -> list[dict] | None:
         supported = m.get("supported_parameters")
-        if not supported or not isinstance(supported, list):
+        if not supported:
             return None
+        if isinstance(supported, dict):
+            return self._extract_supported_params_dict(supported)
+        if isinstance(supported, list):
+            return self._extract_supported_params_list(supported)
+        return None
+
+    def _extract_supported_params_dict(self, supported: dict) -> list[dict] | None:
+        """Handle NanoGPT format: {"resolutions": [...], "max_images": 4, ...}."""
+        descriptors = []
+        resolutions = supported.get("resolutions")
+        if resolutions and isinstance(resolutions, list):
+            options = [r.replace("*", "x") for r in resolutions]
+            descriptors.append({
+                "name": "size",
+                "type": "enum",
+                "options": options,
+                "default": options[0],
+            })
+        return descriptors or None
+
+    def _extract_supported_params_list(self, supported: list) -> list[dict] | None:
+        """Handle OpenRouter format: ["temperature", "top_p", ...]."""
         descriptors = []
         param_schemas = {
             "temperature": {"type": "float", "min": 0.0, "max": 2.0, "step": 0.1, "default": 1.0},
@@ -659,6 +689,22 @@ class OpenAICompatAdapter:
             else:
                 descriptors.append({"name": param_name, "type": "string"})
         return descriptors or None
+
+    def _extract_resolutions_from_pricing(self, m: dict) -> list[str] | None:
+        """Fallback: infer supported sizes from pricing keys like {"1024*1024": 0.017}."""
+        pricing = m.get("pricing")
+        if not pricing or not isinstance(pricing, dict):
+            return None
+        per_image = pricing.get("per_image")
+        if not isinstance(per_image, dict):
+            return None
+        resolutions = []
+        for key in per_image:
+            normalized = key.replace("*", "x")
+            parts = normalized.split("x")
+            if len(parts) == 2 and parts[0].isdigit() and parts[1].isdigit():
+                resolutions.append(normalized)
+        return resolutions or None
 
     def _parse_usage(self, usage_data: dict | None) -> CloudUsage | None:
         if not usage_data:

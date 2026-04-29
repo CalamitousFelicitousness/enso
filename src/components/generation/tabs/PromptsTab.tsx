@@ -40,6 +40,15 @@ interface AbsoluteSizePreset {
   h: number;
 }
 
+const GENERIC_CLOUD_PRESETS: AbsoluteSizePreset[] = [
+  { label: "1024x1024", w: 1024, h: 1024 },
+  { label: "1536x1024", w: 1536, h: 1024 },
+  { label: "1024x1536", w: 1024, h: 1536 },
+  { label: "1024x768", w: 1024, h: 768 },
+  { label: "768x1024", w: 768, h: 1024 },
+  { label: "1280x720", w: 1280, h: 720 },
+];
+
 function parseSizeOptions(params: ParamDescriptor[] | null): AbsoluteSizePreset[] | null {
   if (!params) return null;
   const sizeParam = params.find((p) => p.name === "size" && p.type === "enum" && p.options);
@@ -93,7 +102,10 @@ export function PromptsTab() {
     useShallow((s) => ({ isCloud: s.isCloud, activeModel: s.activeModel })),
   );
   const cloudSizePresets = useMemo(
-    () => isCloud ? parseSizeOptions((activeModel as CloudModel)?.supported_params ?? null) : null,
+    () => {
+      if (!isCloud) return null;
+      return parseSizeOptions((activeModel as CloudModel)?.supported_params ?? null) ?? GENERIC_CLOUD_PRESETS;
+    },
     [isCloud, activeModel],
   );
   const aspectPresets = useMemo(
