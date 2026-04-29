@@ -195,7 +195,7 @@ def _save_image_result(result, job_id: str, params: dict) -> dict:
             "cloud_cost": result.usage.cost if result.usage else None,
             "revised_prompt": result.revised_prompt,
             "prompt": params.get("prompt"),
-            "negative_prompt": params.get("negative_prompt") or params.get("negativePrompt"),
+            "negative_prompt": params.get("negative_prompt"),
             "seed": params.get("seed"),
             "width": params.get("width"),
             "height": params.get("height"),

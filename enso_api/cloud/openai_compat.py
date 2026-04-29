@@ -6,9 +6,12 @@ subclassed per provider.
 """
 
 import base64
+import logging
 import struct
 
 import httpx
+
+log = logging.getLogger("enso_api.cloud")
 
 from enso_api.cloud.config import ProviderConfig
 from enso_api.cloud.errors import ProviderError
@@ -64,6 +67,8 @@ class OpenAICompatAdapter:
 
         if has_image and image_via == "images":
             return await self._generate_image_edit(params, on_progress)
+        if has_image and image_via == "dataurl":
+            return await self._generate_image_via_dataurl(params, on_progress)
         if image_via == "chat":
             return await self._generate_image_via_chat(params, on_progress)
         return await self._generate_image_via_endpoint(params, on_progress)
@@ -131,7 +136,7 @@ class OpenAICompatAdapter:
         if response.status_code >= 400:
             self.http.raise_for_status(response)
 
-        fmt = params.get("responseFormat", "mp3")
+        fmt = params.get("response_format", "mp3")
         return AudioResult(data=response.content, format=fmt)
 
     async def transcribe(self, params: dict) -> TranscribeResult:
@@ -228,6 +233,8 @@ class OpenAICompatAdapter:
         body = self._build_image_params(params)
         body["model"] = params["model"]
 
+        log.debug("Cloud image request: %s", body)
+
         on_progress({"type": "cloud_progress", "phase": "processing"})
         data = await self.http.post("/v1/images/generations", json=body)
 
@@ -282,6 +289,42 @@ class OpenAICompatAdapter:
             revised_prompt=result_data.get("data", [{}])[0].get("revised_prompt") if result_data.get("data") else None,
             format="png",
             usage=self._parse_usage(result_data.get("usage")),
+        )
+
+    async def _generate_image_via_dataurl(self, params: dict, on_progress: ProgressCallback) -> ImageResult:
+        """Img2img via imageDataUrl in JSON body (NanoGPT pattern)."""
+        on_progress({"type": "cloud_progress", "phase": "processing"})
+
+        image_data = await self._resolve_upload_ref(params["image"])
+        self._validate_input_image(image_data, params["model"])
+
+        fmt = "png"
+        if image_data[:2] == b"\xff\xd8":
+            fmt = "jpeg"
+        elif image_data[:4] == b"RIFF" and image_data[8:12] == b"WEBP":
+            fmt = "webp"
+        b64 = base64.b64encode(image_data).decode()
+
+        body = self._build_image_params(params)
+        body["model"] = params["model"]
+        body["imageDataUrl"] = f"data:image/{fmt};base64,{b64}"
+
+        if params.get("mask"):
+            mask_data = await self._resolve_upload_ref(params["mask"])
+            mask_b64 = base64.b64encode(mask_data).decode()
+            body["maskDataUrl"] = f"data:image/png;base64,{mask_b64}"
+
+        on_progress({"type": "cloud_progress", "phase": "processing"})
+        data = await self.http.post("/v1/images/generations", json=body)
+
+        on_progress({"type": "cloud_progress", "phase": "downloading"})
+        images = await self._extract_images(data)
+
+        return ImageResult(
+            images=images,
+            revised_prompt=data.get("data", [{}])[0].get("revised_prompt") if data.get("data") else None,
+            format="png",
+            usage=self._parse_usage(data.get("usage")),
         )
 
     async def _resolve_upload_ref(self, ref: str) -> bytes:
