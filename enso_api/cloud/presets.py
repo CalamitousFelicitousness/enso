@@ -54,6 +54,12 @@ PRESETS: dict[str, dict] = {
             "chat": DEFAULT_CHAT_PARAMS,
             "tts": DEFAULT_TTS_PARAMS,
         },
+        "input_limits": {
+            "max_image_bytes": 20_000_000,
+            "max_longest_side": 2048,
+            "formats": ["webp", "jpeg", "png"],
+            "transport": "base64",
+        },
         "timeouts": {
             "cloud_image": 120,
             "cloud_chat": 120,
@@ -79,6 +85,19 @@ PRESETS: dict[str, dict] = {
             "chat": DEFAULT_CHAT_PARAMS,
             "tts": DEFAULT_TTS_PARAMS,
         },
+        "input_limits": {
+            "max_image_bytes": 50_000_000,
+            "max_longest_side": None,
+            "formats": ["png", "jpeg", "webp"],
+            "transport": "multipart",
+        },
+        "input_limits_overrides": {
+            "dall-e-2": {
+                "max_image_bytes": 4_000_000,
+                "max_longest_side": 1024,
+                "formats": ["png"],
+            },
+        },
         "timeouts": {
             "cloud_image": 120,
             "cloud_chat": 120,
@@ -100,6 +119,12 @@ PRESETS: dict[str, dict] = {
             "chat": DEFAULT_CHAT_PARAMS,
             "tts": DEFAULT_TTS_PARAMS,
         },
+        "input_limits": {
+            "max_image_bytes": 4_000_000,
+            "max_longest_side": None,
+            "formats": ["webp", "jpeg", "png"],
+            "transport": "multipart",
+        },
         "timeouts": {
             "cloud_image": 120,
             "cloud_chat": 120,
@@ -120,6 +145,12 @@ PRESETS: dict[str, dict] = {
             "image_size_transform": _size_transform_wxh,
             "chat": DEFAULT_CHAT_PARAMS,
             "tts": DEFAULT_TTS_PARAMS,
+        },
+        "input_limits": {
+            "max_image_bytes": 50_000_000,
+            "max_longest_side": None,
+            "formats": ["png", "jpeg", "webp"],
+            "transport": "multipart",
         },
         "timeouts": {
             "cloud_image": 120,
@@ -152,6 +183,12 @@ PRESETS: dict[str, dict] = {
             },
             "tts": DEFAULT_TTS_PARAMS,
         },
+        "input_limits": {
+            "max_image_bytes": 25_000_000,
+            "max_longest_side": 1120,
+            "formats": ["jpeg", "png", "webp"],
+            "transport": "base64",
+        },
         "timeouts": {
             "cloud_image": 300,
             "cloud_chat": 300,
@@ -173,6 +210,12 @@ PRESETS: dict[str, dict] = {
             "chat": DEFAULT_CHAT_PARAMS,
             "tts": DEFAULT_TTS_PARAMS,
         },
+        "input_limits": {
+            "max_image_bytes": 20_000_000,
+            "max_longest_side": None,
+            "formats": ["webp", "jpeg", "png"],
+            "transport": "multipart",
+        },
         "timeouts": {
             "cloud_image": 120,
             "cloud_chat": 120,
@@ -182,3 +225,16 @@ PRESETS: dict[str, dict] = {
         },
     },
 }
+
+
+def resolve_input_limits(preset: dict, model_id: str) -> dict:
+    """Merge preset input_limits with model-specific overrides."""
+    base = preset.get("input_limits", {})
+    overrides = preset.get("input_limits_overrides", {})
+    if not overrides:
+        return base
+    bare_id = model_id.split("/")[-1] if "/" in model_id else model_id
+    for family, override in overrides.items():
+        if bare_id == family or bare_id.startswith(f"{family}:"):
+            return {**base, **override}
+    return base

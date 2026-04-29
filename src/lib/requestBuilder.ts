@@ -585,6 +585,8 @@ export function restoreFromResult(result: GenerationResult): void {
 
 import { useModelSelectionStore } from "@/stores/modelSelectionStore";
 import { resizeBlob } from "@/lib/resize";
+import { getInputLimits } from "@/lib/cloudLimits";
+import { optimizeImageForProvider } from "@/lib/imageOptimize";
 import type { CloudImageJobParams, CloudModel } from "@/api/types/cloud";
 
 export async function buildCloudImageRequest(): Promise<CloudImageJobParams> {
@@ -628,14 +630,25 @@ export async function buildCloudImageRequest(): Promise<CloudImageJobParams> {
       imageBlob = await resizeBlob(imageBlob, targetSize.width, targetSize.height);
     }
 
-    const imageRef = await uploadBlob(imageBlob, "cloud-input.png");
+    const limits = getInputLimits(model.provider, model.id);
+    const optimized = await optimizeImageForProvider(imageBlob, limits, model.provider);
+
+    const filename = `cloud-input.${optimized.format}`;
+    const imageRef = await uploadBlob(optimized.blob, filename);
     request.image = imageRef;
+
+    if (optimized.dimensions.width !== targetSize.width || optimized.dimensions.height !== targetSize.height) {
+      request.size = `${optimized.dimensions.width}x${optimized.dimensions.height}`;
+    }
 
     const maskLines = img2img.maskLines;
     if (maskLines.length > 0) {
       let maskBlob = await exportMask(maskLines, frameW, frameH);
       if (maskBlob && needsResize) {
         maskBlob = await resizeBlob(maskBlob, targetSize.width, targetSize.height);
+      }
+      if (maskBlob && (optimized.dimensions.width !== targetSize.width || optimized.dimensions.height !== targetSize.height)) {
+        maskBlob = await resizeBlob(maskBlob, optimized.dimensions.width, optimized.dimensions.height);
       }
       if (maskBlob) {
         const maskRef = await uploadBlob(maskBlob, "cloud-mask.png");

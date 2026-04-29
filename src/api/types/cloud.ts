@@ -37,6 +37,16 @@ export interface ParamDescriptor {
   options?: string[];
 }
 
+export type ImageFormat = "png" | "jpeg" | "webp";
+export type InputTransport = "multipart" | "base64";
+
+export interface InputLimits {
+  maxImageBytes: number;
+  maxLongestSide: number | null;
+  formats: ImageFormat[];
+  transport: InputTransport;
+}
+
 export interface CloudModel {
   source: "cloud";
   id: string;

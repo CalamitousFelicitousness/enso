@@ -6,11 +6,13 @@ subclassed per provider.
 """
 
 import base64
+import struct
 
 import httpx
 
 from enso_api.cloud.config import ProviderConfig
 from enso_api.cloud.errors import ProviderError
+from enso_api.cloud.presets import resolve_input_limits
 from enso_api.cloud.protocol import (
     AudioResult,
     ChatResult,
@@ -245,6 +247,7 @@ class OpenAICompatAdapter:
         on_progress({"type": "cloud_progress", "phase": "processing"})
 
         image_data = await self._resolve_upload_ref(params["image"])
+        self._validate_input_image(image_data, params["model"])
         files: dict = {"image": ("input.png", image_data, "image/png")}
         data_fields: dict = {
             "model": params["model"],
@@ -305,15 +308,75 @@ class OpenAICompatAdapter:
         rgba.save(buf, format="PNG")
         return buf.getvalue()
 
+    def _validate_input_image(self, image_data: bytes, model_id: str) -> None:
+        """Validate image size and dimensions against provider limits."""
+        limits = resolve_input_limits(self.preset, model_id)
+        max_bytes = limits.get("max_image_bytes")
+        if max_bytes and len(image_data) > max_bytes:
+            size_mb = len(image_data) / 1_000_000
+            limit_mb = max_bytes / 1_000_000
+            raise ProviderError(
+                f"Image too large ({size_mb:.1f} MB). "
+                f"Provider limit is {limit_mb:.1f} MB. "
+                f"Reduce canvas resolution or image count.",
+                provider=self.config.id,
+            )
+        max_side = limits.get("max_longest_side")
+        if max_side:
+            dims = self._read_image_dimensions(image_data)
+            if dims and max(dims) > max_side:
+                raise ProviderError(
+                    f"Image dimensions {dims[0]}x{dims[1]} exceed provider limit "
+                    f"of {max_side}px on longest side.",
+                    provider=self.config.id,
+                )
+
+    @staticmethod
+    def _read_image_dimensions(data: bytes) -> tuple[int, int] | None:
+        """Read width/height from PNG or JPEG header without full decode."""
+        if data[:8] == b"\x89PNG\r\n\x1a\n" and len(data) >= 24:
+            w, h = struct.unpack(">II", data[16:24])
+            return (w, h)
+        if data[:2] == b"\xff\xd8":
+            offset = 2
+            while offset < len(data) - 8:
+                if data[offset] != 0xFF:
+                    break
+                marker = data[offset + 1]
+                length = struct.unpack(">H", data[offset + 2:offset + 4])[0]
+                if marker in (0xC0, 0xC2):
+                    h = struct.unpack(">H", data[offset + 5:offset + 7])[0]
+                    w = struct.unpack(">H", data[offset + 7:offset + 9])[0]
+                    return (w, h)
+                offset += 2 + length
+        return None
+
     async def _generate_image_via_chat(self, params: dict, on_progress: ProgressCallback) -> ImageResult:
-        body = {
+        prompt = params.get("prompt", "")
+        content: list[dict] | str = prompt
+
+        if params.get("image"):
+            image_data = await self._resolve_upload_ref(params["image"])
+            self._validate_input_image(image_data, params["model"])
+            fmt = "png"
+            if image_data[:2] == b"\xff\xd8":
+                fmt = "jpeg"
+            elif image_data[:4] == b"RIFF" and image_data[8:12] == b"WEBP":
+                fmt = "webp"
+            b64 = base64.b64encode(image_data).decode()
+            content = [
+                {"type": "text", "text": prompt},
+                {"type": "image_url", "image_url": {"url": f"data:image/{fmt};base64,{b64}"}},
+            ]
+
+        body: dict = {
             "model": params["model"],
-            "messages": [{"role": "user", "content": params.get("prompt", "")}],
+            "messages": [{"role": "user", "content": content}],
             "modalities": ["image"],
         }
         image_map = self.preset.get("param_maps", {}).get("image", {})
         for enso_name, value in params.items():
-            if enso_name in ("model", "prompt", "provider", "type", "priority", "extra_params", "width", "height"):
+            if enso_name in ("model", "prompt", "provider", "type", "priority", "extra_params", "width", "height", "image", "mask"):
                 continue
             mapping = image_map.get(enso_name)
             if mapping is None:
