@@ -464,6 +464,13 @@ class OpenAICompatAdapter:
 
         raise ProviderError("Failed to download video content", provider=self.config.id)
 
+    IMAGE_SIZE_CONSTRAINTS: dict[str, list[str]] = {
+        "dall-e-2": ["256x256", "512x512", "1024x1024"],
+        "dall-e-3": ["1024x1024", "1024x1792", "1792x1024"],
+        "gpt-image-1": ["1024x1024", "1536x1024", "1024x1536", "auto"],
+        "gpt-image-1-mini": ["1024x1024", "1536x1024", "1024x1536", "auto"],
+    }
+
     def _normalize_models(self, raw_models: list[dict]) -> list[dict]:
         normalized = []
         for m in raw_models:
@@ -474,6 +481,16 @@ class OpenAICompatAdapter:
             modalities = self._infer_modalities(m)
             capabilities = self._infer_capabilities(m)
             pricing = self._extract_pricing(m)
+            supported_params = self._extract_supported_params(m) or []
+
+            size_options = self._get_size_constraints(model_id)
+            if size_options:
+                supported_params.append({
+                    "name": "size",
+                    "type": "enum",
+                    "options": size_options,
+                    "default": size_options[0],
+                })
 
             normalized.append({
                 "source": "cloud",
@@ -484,11 +501,18 @@ class OpenAICompatAdapter:
                 "capabilities": capabilities,
                 "pricing": pricing,
                 "context_length": m.get("context_length") or m.get("max_model_len"),
-                "supported_params": self._extract_supported_params(m),
+                "supported_params": supported_params or None,
                 "description": m.get("description"),
                 "default_params": m.get("default_parameters"),
             })
         return normalized
+
+    def _get_size_constraints(self, model_id: str) -> list[str] | None:
+        bare_id = model_id.split("/")[-1] if "/" in model_id else model_id
+        for family, sizes in self.IMAGE_SIZE_CONSTRAINTS.items():
+            if bare_id == family or bare_id.startswith(f"{family}:"):
+                return sizes
+        return None
 
     def _infer_modalities(self, m: dict) -> list[str]:
         modalities = []

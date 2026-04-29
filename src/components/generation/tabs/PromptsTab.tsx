@@ -3,6 +3,7 @@ import { useGenerationStore } from "@/stores/generationStore";
 import { useUiStore } from "@/stores/uiStore";
 import { useImg2ImgStore } from "@/stores/img2imgStore";
 import { useIsImg2Img } from "@/hooks/useIsImg2Img";
+import { useModelSelectionStore } from "@/stores/modelSelectionStore";
 import { useShallow } from "zustand/react/shallow";
 import { usePromptStyles } from "@/api/hooks/useNetworks";
 import { useOptionsSubset } from "@/api/hooks/useSettings";
@@ -11,6 +12,7 @@ import { Link2Off, ArrowLeftRight, ChevronDown, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { resolveGenerationSize, formatMegapixels } from "@/lib/sizeCompute";
 import type { SizeMode } from "@/lib/sizeCompute";
+import type { CloudModel, ParamDescriptor } from "@/api/types/cloud";
 import { PromptEditor } from "../PromptEditor";
 import { ParamSlider } from "../ParamSlider";
 import { SectionLeader, SectionDivider } from "@/components/ui/section-leader";
@@ -30,6 +32,25 @@ interface AspectPreset {
   label: string;
   w: number;
   h: number;
+}
+
+interface AbsoluteSizePreset {
+  label: string;
+  w: number;
+  h: number;
+}
+
+function parseSizeOptions(params: ParamDescriptor[] | null): AbsoluteSizePreset[] | null {
+  if (!params) return null;
+  const sizeParam = params.find((p) => p.name === "size" && p.type === "enum" && p.options);
+  if (!sizeParam?.options) return null;
+  const presets: AbsoluteSizePreset[] = [];
+  for (const opt of sizeParam.options) {
+    if (opt === "auto") continue;
+    const [w, h] = opt.split("x").map(Number);
+    if (w > 0 && h > 0) presets.push({ label: opt, w, h });
+  }
+  return presets.length > 0 ? presets : null;
 }
 
 function parseAspectRatios(raw: string): AspectPreset[] {
@@ -68,6 +89,13 @@ export function PromptsTab() {
   const setResizeMethod = useImg2ImgStore((s) => s.setResizeMethod);
   const upscalerGroups = useUpscalerGroups({ excludeLatent: true });
   const { data: aspectOpts } = useOptionsSubset(["aspect_ratios"]);
+  const { isCloud, activeModel } = useModelSelectionStore(
+    useShallow((s) => ({ isCloud: s.isCloud, activeModel: s.activeModel })),
+  );
+  const cloudSizePresets = useMemo(
+    () => isCloud ? parseSizeOptions((activeModel as CloudModel)?.supported_params ?? null) : null,
+    [isCloud, activeModel],
+  );
   const aspectPresets = useMemo(
     () =>
       parseAspectRatios(
@@ -157,6 +185,16 @@ export function PromptsTab() {
       setAspectOpen(false);
     },
     [state.width, state.height, setParam],
+  );
+
+  const selectCloudSize = useCallback(
+    (preset: AbsoluteSizePreset) => {
+      setActivePreset(preset.label);
+      setParam("width", preset.w);
+      setParam("height", preset.h);
+      setAspectOpen(false);
+    },
+    [setParam],
   );
 
   const set = useMemo(
@@ -271,55 +309,82 @@ export function PromptsTab() {
                 type="button"
                 disabled={!isFixed}
                 className={cn(
-                  "inline-flex items-center justify-center gap-0 h-6 w-9 shrink-0 rounded-md transition-colors",
+                  "inline-flex items-center justify-center gap-0 h-6 shrink-0 rounded-md transition-colors",
                   "hover:bg-accent hover:text-accent-foreground",
                   "disabled:pointer-events-none disabled:opacity-50",
                   aspectLocked
                     ? "text-primary px-1"
                     : "text-muted-foreground px-1",
+                  cloudSizePresets ? "w-auto min-w-9" : "w-9",
                 )}
                 title={
-                  aspectLocked
-                    ? `Aspect ratio locked to ${activePreset}`
-                    : "Select aspect ratio preset"
+                  cloudSizePresets
+                    ? (aspectLocked ? `Size: ${activePreset}` : "Select output size")
+                    : (aspectLocked ? `Aspect ratio locked to ${activePreset}` : "Select aspect ratio preset")
                 }
               >
                 {aspectLocked ? (
-                  <span className="text-3xs font-medium leading-none">
+                  <span className="text-3xs font-medium leading-none font-mono">
                     {activePreset}
                   </span>
                 ) : (
-                  <Link2Off size={12} />
+                  cloudSizePresets
+                    ? <span className="text-3xs font-medium leading-none font-mono">
+                        {state.width}x{state.height}
+                      </span>
+                    : <Link2Off size={12} />
                 )}
                 <ChevronDown size={8} className="ml-0.5 opacity-60" />
               </button>
             </PopoverTrigger>
-            <PopoverContent className="w-32 p-1" align="center" sideOffset={6}>
-              <button
-                type="button"
-                onClick={() => selectPreset(null)}
-                className={cn(
-                  "w-full text-left text-2xs px-2 py-1 rounded-sm transition-colors",
-                  "hover:bg-accent hover:text-accent-foreground",
-                  !aspectLocked && "text-primary font-medium",
-                )}
-              >
-                Custom
-              </button>
-              {aspectPresets.map((p) => (
-                <button
-                  key={p.label}
-                  type="button"
-                  onClick={() => selectPreset(p)}
-                  className={cn(
-                    "w-full text-left text-2xs px-2 py-1 rounded-sm transition-colors",
-                    "hover:bg-accent hover:text-accent-foreground",
-                    activePreset === p.label && "text-primary font-medium",
-                  )}
-                >
-                  {p.label}
-                </button>
-              ))}
+            <PopoverContent className={cn("p-1", cloudSizePresets ? "w-36" : "w-32")} align="center" sideOffset={6}>
+              {cloudSizePresets ? (
+                <>
+                  {cloudSizePresets.map((p) => (
+                    <button
+                      key={p.label}
+                      type="button"
+                      onClick={() => selectCloudSize(p)}
+                      className={cn(
+                        "w-full text-left text-2xs px-2 py-1 rounded-sm transition-colors font-mono",
+                        "hover:bg-accent hover:text-accent-foreground",
+                        (activePreset === p.label || (!activePreset && state.width === p.w && state.height === p.h))
+                          && "text-primary font-medium",
+                      )}
+                    >
+                      {p.label}
+                    </button>
+                  ))}
+                </>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => selectPreset(null)}
+                    className={cn(
+                      "w-full text-left text-2xs px-2 py-1 rounded-sm transition-colors",
+                      "hover:bg-accent hover:text-accent-foreground",
+                      !aspectLocked && "text-primary font-medium",
+                    )}
+                  >
+                    Custom
+                  </button>
+                  {aspectPresets.map((p) => (
+                    <button
+                      key={p.label}
+                      type="button"
+                      onClick={() => selectPreset(p)}
+                      className={cn(
+                        "w-full text-left text-2xs px-2 py-1 rounded-sm transition-colors",
+                        "hover:bg-accent hover:text-accent-foreground",
+                        activePreset === p.label && "text-primary font-medium",
+                      )}
+                    >
+                      {p.label}
+                    </button>
+                  ))}
+                </>
+              )}
             </PopoverContent>
           </Popover>
           <Button
