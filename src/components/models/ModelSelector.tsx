@@ -144,9 +144,14 @@ export function ModelSelector() {
                 ))}
               </CommandGroup>
 
-              {cloudData?.map(({ provider, models: cloudModels }) => (
+              {cloudData?.map(({ provider, models: cloudModels }) => {
+                const imageModels = cloudModels.filter((m) =>
+                  m.modalities.some((mod) => mod === "text-to-image" || mod === "image-to-image" || mod === "inpaint"),
+                );
+                if (imageModels.length === 0) return null;
+                return (
                 <CommandGroup key={provider.id} heading={provider.name}>
-                  {cloudModels.map((model) => (
+                  {imageModels.map((model) => (
                     <CommandItem
                       key={`${provider.id}:${model.id}`}
                       value={`${provider.name} ${model.name} ${model.id}`}
@@ -167,7 +172,8 @@ export function ModelSelector() {
                     </CommandItem>
                   ))}
                 </CommandGroup>
-              ))}
+                );
+              })}
             </CommandList>
           </Command>
         </PopoverContent>
