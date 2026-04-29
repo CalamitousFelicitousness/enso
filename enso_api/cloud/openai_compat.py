@@ -285,7 +285,15 @@ class OpenAICompatAdapter:
         )
 
     async def _resolve_upload_ref(self, ref: str) -> bytes:
-        """Resolve an upload reference (URL path or base64) to raw bytes."""
+        """Resolve an upload reference (upload:<id>, URL path, http URL, or base64) to raw bytes."""
+        if ref.startswith("upload:"):
+            from enso_api.upload import get_upload_store
+            ref_id = ref.split(":", 1)[1]
+            entry = get_upload_store().get(ref_id)
+            if entry is None:
+                raise ProviderError(f"Upload {ref} not found or expired", provider=self.config.id)
+            with open(entry.path, "rb") as f:
+                return f.read()
         if ref.startswith("/sdapi/v2/uploads/") or ref.startswith("http"):
             url = ref if ref.startswith("http") else f"{self.http.client.base_url}{ref}"
             async with httpx.AsyncClient(timeout=30) as client:

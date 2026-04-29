@@ -174,6 +174,10 @@ class JobQueue:
         if entry['lock']:
             self._run_local_job(job, entry['fn'], job_type)
         else:
+            # Flip to 'running' synchronously before pool dispatch so the worker
+            # loop can't see this row as pending and double-dispatch it.
+            self.store.update_status(job['id'], 'running', started_at=JobStore.now())
+            job['status'] = 'running'
             self._cloud_pool.submit(self._run_cloud_job, job, entry['fn'], job_type)
             if self.store.next_pending():
                 self._job_event.set()
@@ -234,7 +238,6 @@ class JobQueue:
         from modules.logger import log
         job_id = job['id']
         log.info(f'Job queue: cloud executing id={job_id} type={job_type}')
-        self.store.update_status(job_id, 'running', started_at=JobStore.now())
         self.push_progress(job_id, {'type': 'status', 'status': 'running'})
 
         try:
