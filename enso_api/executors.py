@@ -104,6 +104,13 @@ def install_detailer_per_model_patch(model_entries):
     def patched(sample, p_inner):
         if not entries:
             return sample
+        # YoloRestorer.restore always returns a list -- [image_array] or
+        # [image_array, annotation_overlay] when include_detections is set
+        # (yolo.py:478-481). The next iteration must receive the bare image
+        # array, so we unwrap between calls. Annotations from later
+        # iterations supersede earlier ones (process_samples only inspects
+        # sample[1], so we can only surface one).
+        last_extras: list = []
         for entry in entries:
             saved = {k: getattr(p_inner, f'detailer_{k}', None) for k in DETAILER_OVERRIDE_FIELDS}
             saved_models = list(getattr(p_inner, 'detailer_models', []) or [])
@@ -114,12 +121,24 @@ def install_detailer_per_model_patch(model_entries):
                         setattr(p_inner, f'detailer_{k}', entry[k])
                 p_inner.detailer_models = [entry['name']]
                 p_inner.detailer_active = 0
-                sample = original_detail(sample, p_inner)
+                result = original_detail(sample, p_inner)
             finally:
                 for k, v in saved.items():
                     setattr(p_inner, f'detailer_{k}', v)
                 p_inner.detailer_models = saved_models
                 p_inner.detailer_active = saved_active
+            if isinstance(result, list):
+                if len(result) > 0:
+                    sample = result[0]
+                if len(result) > 1:
+                    last_extras = list(result[1:])
+            elif result is not None:
+                sample = result
+                last_extras = []
+        # Mirror YoloRestorer's list-shaped return so process_samples'
+        # isinstance(sample, list) branch still picks up annotations.
+        if last_extras:
+            return [sample, *last_extras]
         return sample
 
     detailer.detail = patched
