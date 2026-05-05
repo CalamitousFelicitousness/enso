@@ -4,7 +4,9 @@ import os
 from typing import Optional
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import FileResponse
-from enso_api.models import JobResponse, JobListResponse, JobResult, ImageRef, StatusResponse, ResPurgeV2, ResJobStatsV2, ReqBulkJobV2, ResBulkJobV2, VideoEngine, VideoModel, VideoModelEnriched, VideoLoadResponse, MessageResponse, FramePackLoadResponse
+from modules.logger import log
+from enso_api.job_models import JobRequest
+from enso_api.models import JobResponse, JobListResponse, JobResult, ImageRef, StatusResponse, ResPurgeV2, ResJobStatsV2, ReqBulkJobV2, ResBulkJobV2, ReqFramePackLoadV2, ReqVideoLoadV2, VideoEngine, VideoModel, VideoModelEnriched, VideoLoadResponse, MessageResponse, FramePackLoadResponse
 
 
 router = APIRouter(prefix="/sdapi/v2", tags=["v2"])
@@ -38,16 +40,24 @@ def job_to_response(job: dict) -> JobResponse:
 
 
 @router.post("/jobs", response_model=JobResponse, status_code=202, tags=["Jobs"])
-async def submit_job(request: dict):
+async def submit_job(request: JobRequest):
+    """Submit a job. Pydantic validates the body against JobRequest and rejects
+    unknown fields with a 422 carrying field-level errors. The discriminator on
+    `type` selects the matching parameter class. `priority` is honored across
+    every job type and stripped before the params dict reaches the executor."""
     from enso_api.job_queue import job_queue
     from enso_api.executors import EXECUTORS
-    job_type = request.get('type')
-    if not job_type:
-        raise HTTPException(status_code=400, detail="Missing 'type' field")
+    payload = request.model_dump(exclude_unset=True)
+    job_type = payload["type"]
     if job_type not in EXECUTORS:
-        raise HTTPException(status_code=400, detail=f"Invalid job type: {job_type}. Must be one of: {', '.join(sorted(EXECUTORS))}")
-    priority = request.pop('priority', 0)
-    job = job_queue.submit(job_type=job_type, params=request, priority=priority)
+        # Unreachable in normal flow: the discriminator already rejected unknown
+        # types. Kept as a defensive guard for the case where JobRequest and
+        # EXECUTORS drift during a refactor (a new model is added but its
+        # executor entry is missing, or vice versa).
+        log.warning(f"submit_job: type {job_type!r} accepted by JobRequest but absent from EXECUTORS")
+        raise HTTPException(status_code=500, detail=f"Job type {job_type!r} has no registered executor")
+    priority = payload.pop("priority", 0)
+    job = job_queue.submit(job_type=job_type, params=payload, priority=priority)
     return job_to_response(job)
 
 
@@ -244,16 +254,12 @@ async def list_video_engine_models(engine: str):
 
 
 @router.post("/video/load", response_model=VideoLoadResponse, tags=["Video"])
-async def load_video_model(request: dict):
-    engine = request.get('engine', '')
-    model = request.get('model', '')
-    if not engine or not model:
-        raise HTTPException(status_code=400, detail="Both 'engine' and 'model' fields are required")
-    def _load():
+async def load_video_model(request: ReqVideoLoadV2):
+    def load():
         from modules.video_models import video_ui
-        return list(video_ui.model_load(engine, model))
-    messages = await asyncio.to_thread(_load)
-    return {"engine": engine, "model": model, "messages": messages}
+        return list(video_ui.model_load(request.engine, request.model))
+    messages = await asyncio.to_thread(load)
+    return {"engine": request.engine, "model": request.model, "messages": messages}
 
 
 @router.get("/framepack/variants", response_model=list[str], tags=["Video"])
@@ -263,18 +269,16 @@ async def list_framepack_variants():
 
 
 @router.post("/framepack/load", response_model=FramePackLoadResponse, tags=["Video"])
-async def load_framepack_model(request: dict):
-    variant = request.get('variant', 'bi-directional')
-    attention = request.get('attention', 'Default')
-    def _load():
+async def load_framepack_model(request: ReqFramePackLoadV2):
+    def load():
         from modules.framepack import framepack_wrappers
         messages = []
-        for item in framepack_wrappers.load_model(variant, attention):
+        for item in framepack_wrappers.load_model(request.variant, request.attention):
             if isinstance(item, tuple) and len(item) > 2 and isinstance(item[2], str):
                 messages.append(item[2])
         return messages
-    messages = await asyncio.to_thread(_load)
-    return {"variant": variant, "messages": messages}
+    messages = await asyncio.to_thread(load)
+    return {"variant": request.variant, "messages": messages}
 
 
 @router.post("/framepack/unload", response_model=MessageResponse, tags=["Video"])

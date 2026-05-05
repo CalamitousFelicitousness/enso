@@ -6,6 +6,7 @@ Contains HuggingFace settings, extra-networks detail, and WS-ticket endpoints.
 from datetime import datetime
 from modules import shared
 from modules.logger import log
+from enso_api.models import ReqHuggingFaceSettingsV2
 
 
 # ---------------------------------------------------------------------------
@@ -17,11 +18,11 @@ def get_hf_settings():
     return {"token_configured": bool(shared.opts.huggingface_token)}
 
 
-def post_hf_settings(request: dict):
-    """Validate and store a HuggingFace token."""
+def post_hf_settings(request: ReqHuggingFaceSettingsV2):
+    """Validate and store a HuggingFace token. Pass an empty string to clear."""
     import os
     from starlette.responses import JSONResponse
-    token = request.get('token')
+    token = request.token
     if token is not None:
         token = token.strip()
         if token:

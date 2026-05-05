@@ -1,157 +1,22 @@
-from typing import Any, Optional, Annotated, Union
-from pydantic import BaseModel, Field
+from typing import Any, Optional, Union
+from pydantic import BaseModel, ConfigDict, Field
 
 
-# --- Job request types (discriminated union) ---
+# --- Strict base for request bodies ---
 
-class GenerateParams(BaseModel):
-    type: str = Field("generate", pattern="^generate$")
-    prompt: str = ""
-    negative_prompt: str = ""
-    steps: int = 20
-    width: int = 512
-    height: int = 512
-    cfg_scale: float = 7.0
-    seed: int = -1
-    batch_size: int = 1
-    batch_count: int = 1
-    sampler_name: str = "Default"
-    denoising_strength: float = 0.5
-    inputs: Optional[list[str]] = None
-    inits: Optional[list[str]] = None
-    mask: Optional[str] = None
-    mask_blur: int = 0
-    inpaint_full_res: bool = False
-    inpaint_full_res_padding: int = 32
-    inpainting_mask_invert: int = 0
-    control: Optional[list[dict]] = None
-    ip_adapter: Optional[list[dict]] = None
-    extra: Optional[dict] = None
-    save_images: bool = True
-    # Generation parameters forwarded as-is to the control pipeline
-    clip_skip: int = 1
-    cfg_end: float = 1.0
-    script_name: Optional[str] = None
-    script_args: list = Field(default_factory=list)
-    alwayson_scripts: dict = Field(default_factory=dict)
-    override_settings: dict = Field(default_factory=dict)
+class StrictBaseModel(BaseModel):
+    """Base model that rejects unknown fields.
+
+    Apply to request bodies so typos and stale fields produce a 422 with a
+    field-level error instead of being silently dropped. Response models
+    keep the default permissive behavior so adding new output fields stays
+    a backwards-compatible change for clients.
+    """
+
+    model_config = ConfigDict(extra="forbid")
 
 
-class UpscaleParams(BaseModel):
-    type: str = Field("upscale", pattern="^upscale$")
-    image: str = Field(description="Base64 encoded image")
-    upscaler: str = "None"
-    scale: float = 2.0
-    resize_mode: int = Field(0, description="0 = scale factor, 1 = explicit dimensions")
-    width: int = Field(0, description="Target width when resize_mode=1")
-    height: int = Field(0, description="Target height when resize_mode=1")
-    crop: bool = Field(True, description="Crop to fit target dimensions")
-    upscaler_2: str = Field("None", description="Second upscaler for blending")
-    upscaler_2_visibility: float = Field(0.0, description="Blend ratio for second upscaler (0-1)")
-
-
-class CaptionParams(BaseModel):
-    type: str = Field("caption", pattern="^caption$")
-    image: str = Field(description="Base64 encoded image")
-    backend: str = "vlm"
-    model: Optional[str] = None
-
-
-class EnhanceParams(BaseModel):
-    type: str = Field("enhance", pattern="^enhance$")
-    prompt: str = ""
-    model: Optional[str] = None
-
-
-class DetectParams(BaseModel):
-    type: str = Field("detect", pattern="^detect$")
-    image: str = ""
-    model: Optional[str] = None
-
-
-class PreprocessParams(BaseModel):
-    type: str = Field("preprocess", pattern="^preprocess$")
-    image: str = ""
-    model: str = ""
-    params: Optional[dict] = None
-
-
-class DetailParams(BaseModel):
-    """Run only the detailer pass on an input image, skipping encode/base/hires.
-    Equivalent to SD.Next's denoise=0 + detailer workflow."""
-    type: str = Field("detail", pattern="^detail$")
-    inputs: list[str] = Field(default_factory=list, description="Upload refs (upload:<id>) or base64-encoded input images. First entry is used.")
-    width: int = 512
-    height: int = 512
-    prompt: str = ""
-    negative_prompt: str = ""
-    seed: int = -1
-    sampler_name: str = "Default"
-    detailer_models: list[str] = Field(default_factory=list)
-    detailer_prompt: str = ""
-    detailer_negative: str = ""
-    detailer_steps: int = 10
-    detailer_strength: float = 0.3
-    detailer_resolution: int = 1024
-    detailer_padding: int = 20
-    detailer_blur: int = 10
-    detailer_conf: float = 0.6
-    detailer_iou: float = 0.5
-    detailer_min_size: float = 0.0
-    detailer_max_size: float = 1.0
-    detailer_max: int = 2
-    detailer_segmentation: bool = False
-    detailer_include_detections: bool = False
-    detailer_merge: bool = False
-    detailer_sort: bool = False
-    detailer_classes: Optional[str] = None
-    save_images: bool = True
-    override_settings: dict = Field(default_factory=dict)
-
-
-class XyzAxisInputModel(BaseModel):
-    type: str = Field(description="Axis label, e.g. '[Param] Steps'")
-    values: str = Field(description="Comma-separated values or range syntax")
-
-
-class XyzGridParams(BaseModel):
-    type: str = Field("xyz-grid", pattern="^xyz-grid$")
-    prompt: str = ""
-    negative_prompt: str = ""
-    steps: int = 20
-    width: int = 512
-    height: int = 512
-    cfg_scale: float = 7.0
-    seed: int = -1
-    batch_size: int = 1
-    sampler_name: str = "Default"
-    denoising_strength: float = 0.5
-    inputs: Optional[list[str]] = None
-    inits: Optional[list[str]] = None
-    mask: Optional[str] = None
-    control: Optional[list[dict]] = None
-    ip_adapter: Optional[list[dict]] = None
-    save_images: bool = True
-    clip_skip: int = 1
-    cfg_end: float = 1.0
-    override_settings: dict = Field(default_factory=dict)
-    x_axis: Optional[XyzAxisInputModel] = None
-    y_axis: Optional[XyzAxisInputModel] = None
-    z_axis: Optional[XyzAxisInputModel] = None
-    draw_legend: bool = True
-    include_grid: bool = True
-    include_subgrids: bool = False
-    include_images: bool = True
-    include_time: bool = False
-    include_text: bool = False
-    margin_size: int = 0
-    random_seeds: bool = False
-
-
-JobRequest = Annotated[
-    Union[GenerateParams, UpscaleParams, CaptionParams, EnhanceParams, DetectParams, PreprocessParams, DetailParams, XyzGridParams],
-    Field(discriminator="type"),
-]
+# --- Job request types live in enso_api/job_models.py and enso_api/cloud/models.py ---
 
 
 # --- Job response types ---
@@ -252,6 +117,23 @@ class VideoModel(BaseModel):
     name: str
     repo: str
     url: str
+
+
+class ReqVideoLoadV2(StrictBaseModel):
+    """Load a video model into the engine."""
+    engine: str = Field(title="Engine", description="Video engine name (e.g. wan, hunyuan)")
+    model: str = Field(title="Model", description="Model name within the engine")
+
+
+class ReqFramePackLoadV2(StrictBaseModel):
+    """Load a FramePack model variant."""
+    variant: str = Field(default="bi-directional", title="Variant", description="FramePack variant (e.g. bi-directional)")
+    attention: str = Field(default="Default", title="Attention", description="Attention implementation")
+
+
+class ReqHuggingFaceSettingsV2(StrictBaseModel):
+    """Set or clear the HuggingFace Hub access token."""
+    token: Optional[str] = Field(default=None, title="Token", description="HF token; pass empty string or null to clear")
 
 
 class VideoLoadResponse(MessageResponse):

@@ -431,6 +431,7 @@ def execute_detail(params: dict, job_id: str) -> dict:
         do_not_save_grid=not save_images,
         do_not_save_samples=not save_images,
         detailer_enabled=True,
+        override_settings=params.get('override_settings') or None,
         **detailer_kwargs,
     )
     # Skip the diffusion path; detailer still runs in process_samples
