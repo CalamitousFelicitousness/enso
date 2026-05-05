@@ -20,7 +20,7 @@ Cloud-specific parameter classes live in ``enso_api/cloud/models.py``.
 
 from typing import Annotated, Any, Literal, Optional, Union
 
-from pydantic import Field
+from pydantic import ConfigDict, Field
 
 from enso_api.cloud.models import (
     CloudChatParams,
@@ -170,36 +170,100 @@ class DetailerOverrides(StrictBaseModel):
     not None, leaving the rest untouched.
     """
 
-    strength: Optional[float] = None
-    steps: Optional[int] = None
-    resolution: Optional[int] = None
-    padding: Optional[int] = None
-    blur: Optional[int] = None
-    conf: Optional[float] = None
-    iou: Optional[float] = None
-    min_size: Optional[float] = None
-    max_size: Optional[float] = None
-    max: Optional[int] = None
-    sigma_adjust: Optional[float] = None
-    sigma_adjust_max: Optional[float] = None
-    segmentation: Optional[bool] = None
-    include_detections: Optional[bool] = None
-    merge: Optional[bool] = None
-    sort: Optional[bool] = None
-    prompt: Optional[str] = None
-    negative: Optional[str] = None
-    classes: Optional[str] = None
-    augment: Optional[bool] = None
+    strength: Optional[float] = Field(
+        default=None, ge=0.0, le=1.0, title="Strength", examples=[0.3],
+        description="Denoise strength applied to each detected region. Lower = lighter touch, preserves more of the original.",
+    )
+    steps: Optional[int] = Field(
+        default=None, ge=0, le=99, title="Steps", examples=[10],
+        description="Number of diffusion steps for the detailer pass on each detected region.",
+    )
+    resolution: Optional[int] = Field(
+        default=None, ge=256, le=4096, title="Resolution", examples=[1024],
+        description="Working resolution for the detailer pass per region. Larger = more detail, slower.",
+    )
+    padding: Optional[int] = Field(
+        default=None, ge=0, le=256, title="Padding", examples=[20],
+        description="Pixels of padding around each detected region before inpainting.",
+    )
+    blur: Optional[int] = Field(
+        default=None, ge=0, le=64, title="Blur", examples=[10],
+        description="Mask edge blur. Softens the seam between inpainted region and surrounding image.",
+    )
+    conf: Optional[float] = Field(
+        default=None, ge=0.0, le=1.0, title="Confidence", examples=[0.6],
+        description="Minimum detection confidence (0-1) for a region to be processed.",
+    )
+    iou: Optional[float] = Field(
+        default=None, ge=0.0, le=1.0, title="IoU", examples=[0.5],
+        description="Intersection-over-union threshold for non-max suppression of overlapping detections.",
+    )
+    min_size: Optional[float] = Field(
+        default=None, ge=0.0, le=1.0, title="Min size", examples=[0.0],
+        description="Minimum region size (fraction of image area) to detect.",
+    )
+    max_size: Optional[float] = Field(
+        default=None, ge=0.0, le=1.0, title="Max size", examples=[1.0],
+        description="Maximum region size (fraction of image area) to detect.",
+    )
+    max: Optional[int] = Field(
+        default=None, ge=1, le=20, title="Max detect", examples=[2],
+        description="Maximum number of detected regions to process per pass.",
+    )
+    sigma_adjust: Optional[float] = Field(
+        default=None, ge=0.0, le=2.0, title="Renoise", examples=[1.0],
+        description="Sigma adjust at start. Multiplier on noise schedule for the detailer pass.",
+    )
+    sigma_adjust_max: Optional[float] = Field(
+        default=None, ge=0.0, le=2.0, title="Renoise end", examples=[1.0],
+        description="Sigma adjust at end. Multiplier on noise schedule terminus for the detailer pass.",
+    )
+    segmentation: Optional[bool] = Field(
+        default=None, title="Segmentation", examples=[False],
+        description="Use segmentation masks (if model supports them) instead of bounding boxes.",
+    )
+    include_detections: Optional[bool] = Field(
+        default=None, title="Include detections", examples=[False],
+        description="Append the annotated detection-overlay image to the output set.",
+    )
+    merge: Optional[bool] = Field(
+        default=None, title="Merge", examples=[False],
+        description="Merge multiple detections from this model before inpainting.",
+    )
+    sort: Optional[bool] = Field(
+        default=None, title="Sort", examples=[False],
+        description="Sort detections by score before applying max-detect cap.",
+    )
+    prompt: Optional[str] = Field(
+        default=None, title="Prompt", examples=["highly detailed face"],
+        description="Per-detector prompt override. Use [PROMPT] to inject the main prompt; leave empty to inherit.",
+    )
+    negative: Optional[str] = Field(
+        default=None, title="Negative", examples=["blurry, low quality"],
+        description="Per-detector negative prompt override. Use [PROMPT] to inject the main negative; leave empty to inherit.",
+    )
+    classes: Optional[str] = Field(
+        default=None, title="Classes", examples=["person, face"],
+        description="Comma-separated class filter for multi-class detector models. Empty = all classes.",
+    )
+    augment: Optional[bool] = Field(
+        default=None, title="Augment", examples=[False],
+        description="Apply test-time augmentation during detection (slower, may catch more).",
+    )
 
 
 class DetailerModelEntry(DetailerOverrides):
     """A detailer model with optional per-model overrides.
 
-    ``name`` is required. Any other field, when set, overrides the
-    matching value from ``detailer_defaults`` for this model only.
+    ``name`` is required and is the discriminator the executor uses to
+    look up the loaded detector. Any other field, when set, overrides
+    the matching value from ``detailer_defaults`` for this model only.
     """
 
-    name: str
+    name: str = Field(
+        title="Model name", examples=["face-yolo8n"],
+        description="Detector model identifier. Must match a model loaded by SD.Next (see GET /sdapi/v2/detailers).",
+    )
 
 
 DetailerModelRef = Union[str, DetailerModelEntry]
@@ -209,7 +273,7 @@ DetailerModelRef = Union[str, DetailerModelEntry]
 class DetailerMixin(StrictBaseModel):
     """Detailer / ADetailer parameters (V2 per-model override schema).
 
-    Each entry in ``detailer_models`` is either a model name string
+    Each entry in ``detailer_models`` is either a bare model-name string
     (= apply ``detailer_defaults`` straight) or a ``{name, ...overrides}``
     object that sets specific fields per model. ``detailer_defaults``
     holds the inherited base values. The executor loops ``detailer_models``
@@ -219,11 +283,58 @@ class DetailerMixin(StrictBaseModel):
 
     Shared between :class:`GenerateParams` (where the detailer runs as a
     post-pass) and :class:`DetailParams` (where it is the only pass).
+
+    Example payload::
+
+        {
+            "detailer_enabled": true,
+            "detailer_defaults": {"strength": 0.3, "steps": 10, "padding": 20},
+            "detailer_models": [
+                "face-yolo8n",
+                {"name": "hand-yolo8n", "strength": 0.2, "padding": 32},
+                {"name": "Anzhc Face seg 640 v4 y11n", "segmentation": true, "strength": 0.25}
+            ]
+        }
+
+    The first entry uses the defaults verbatim; the second and third
+    override only the named fields and inherit the rest. Replaces V1's
+    fragile ``detailer_args`` colon-string format.
     """
 
-    detailer_enabled: bool = False
-    detailer_defaults: DetailerOverrides = Field(default_factory=DetailerOverrides)
-    detailer_models: list[DetailerModelRef] = Field(default_factory=list)
+    model_config = ConfigDict(
+        extra="forbid",
+        json_schema_extra={
+            "examples": [
+                {
+                    "detailer_enabled": True,
+                    "detailer_defaults": {"strength": 0.3, "steps": 10, "padding": 20, "blur": 10},
+                    "detailer_models": [
+                        "face-yolo8n",
+                        {"name": "hand-yolo8n", "strength": 0.2, "padding": 32},
+                    ],
+                },
+            ],
+        },
+    )
+
+    detailer_enabled: bool = Field(
+        default=False, title="Detailer enabled", examples=[True],
+        description="Master switch. When false, ``detailer_models`` is ignored and no detailer pass runs.",
+    )
+    detailer_defaults: DetailerOverrides = Field(
+        default_factory=DetailerOverrides, title="Detailer defaults",
+        description="Base values inherited by every model in ``detailer_models``. Per-model entries can override individual fields.",
+    )
+    detailer_models: list[DetailerModelRef] = Field(
+        default_factory=list, title="Detailer models",
+        description="Ordered list of detector models to run. Each entry is a bare model name (uses defaults) or {name, ...overrides} object.",
+        examples=[
+            [
+                "face-yolo8n",
+                {"name": "hand-yolo8n", "strength": 0.2, "padding": 32},
+            ],
+        ],
+    )
 
 
 class HdrMixin(StrictBaseModel):
