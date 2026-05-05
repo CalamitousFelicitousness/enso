@@ -527,12 +527,13 @@ def execute_enhance(params: dict, job_id: str) -> dict:  # pylint: disable=unuse
 
 
 def execute_detail(params: dict, job_id: str) -> dict:
-    """Run only the detailer pass on an input image, skipping encode/base/hires.
+    """Run only the detailer pass on an input image.
 
-    Mirrors SD.Next's denoise=0 + detailer workflow: the input image passes
-    through unchanged to the detailer, which detects regions (faces, hands, etc.)
-    and inpaints them. Avoids encode/base/hires by setting p.skip directly,
-    sidestepping control_run entirely.
+    Mirrors SD.Next's denoise=0 + detailer workflow: the input image goes
+    through img2img as a near-identity passthrough (strength=0, 1 step,
+    VAE roundtrip), then the detailer operates on the output to detect
+    regions (faces, hands, etc.) and inpaint them. Sidesteps control_run
+    entirely.
     """
     from modules import shared, processing, processing_helpers
     from modules.processing_class import StableDiffusionProcessingImg2Img
@@ -562,6 +563,7 @@ def execute_detail(params: dict, job_id: str) -> dict:
         negative_prompt=params.get('negative_prompt', ''),
         seed=params.get('seed', -1),
         sampler_index=sampler_index,
+        steps=1,
         width=params.get('width', image.width),
         height=params.get('height', image.height),
         init_images=[image],
@@ -571,8 +573,10 @@ def execute_detail(params: dict, job_id: str) -> dict:
         detailer_enabled=True,
         override_settings=params.get('override_settings') or None,
     )
-    # Skip the diffusion path; detailer still runs in process_samples
-    p.skip = ['encode', 'base', 'hires']
+    # Near-passthrough img2img: strength=0 + 1 step preserves the input
+    # through a VAE roundtrip; the detailer then operates on the output.
+    # Avoids p.skip=['base'], which requires shared.history.last_latent
+    # to be pre-populated -- not the case for a fresh job.
     # Apply V2 defaults block to p.detailer_* attributes
     apply_detailer_defaults(p, defaults)
     # Set the model list so process_samples sees a non-empty list and runs
