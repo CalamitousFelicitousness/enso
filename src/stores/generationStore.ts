@@ -123,6 +123,7 @@ export interface GenerationState {
 
   // Detailer
   detailerEnabled: boolean;
+  detailerOnly: boolean;
   detailerModels: string[];
   detailerPrompt: string;
   detailerNegative: string;
@@ -284,6 +285,7 @@ export const defaultParams = {
   todoRatio: 0.0,
   overrideSettings: {},
   detailerEnabled: false,
+  detailerOnly: false,
   detailerModels: ["face-yolo8n"],
   detailerPrompt: "",
   detailerNegative: "",

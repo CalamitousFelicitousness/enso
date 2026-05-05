@@ -76,6 +76,39 @@ class PreprocessParams(BaseModel):
     params: Optional[dict] = None
 
 
+class DetailParams(BaseModel):
+    """Run only the detailer pass on an input image, skipping encode/base/hires.
+    Equivalent to SD.Next's denoise=0 + detailer workflow."""
+    type: str = Field("detail", pattern="^detail$")
+    inputs: list[str] = Field(default_factory=list, description="Upload refs (upload:<id>) or base64-encoded input images. First entry is used.")
+    width: int = 512
+    height: int = 512
+    prompt: str = ""
+    negative_prompt: str = ""
+    seed: int = -1
+    sampler_name: str = "Default"
+    detailer_models: list[str] = Field(default_factory=list)
+    detailer_prompt: str = ""
+    detailer_negative: str = ""
+    detailer_steps: int = 10
+    detailer_strength: float = 0.3
+    detailer_resolution: int = 1024
+    detailer_padding: int = 20
+    detailer_blur: int = 10
+    detailer_conf: float = 0.6
+    detailer_iou: float = 0.5
+    detailer_min_size: float = 0.0
+    detailer_max_size: float = 1.0
+    detailer_max: int = 2
+    detailer_segmentation: bool = False
+    detailer_include_detections: bool = False
+    detailer_merge: bool = False
+    detailer_sort: bool = False
+    detailer_classes: Optional[str] = None
+    save_images: bool = True
+    override_settings: dict = Field(default_factory=dict)
+
+
 class XyzAxisInputModel(BaseModel):
     type: str = Field(description="Axis label, e.g. '[Param] Steps'")
     values: str = Field(description="Comma-separated values or range syntax")
@@ -116,7 +149,7 @@ class XyzGridParams(BaseModel):
 
 
 JobRequest = Annotated[
-    Union[GenerateParams, UpscaleParams, CaptionParams, EnhanceParams, DetectParams, PreprocessParams, XyzGridParams],
+    Union[GenerateParams, UpscaleParams, CaptionParams, EnhanceParams, DetectParams, PreprocessParams, DetailParams, XyzGridParams],
     Field(discriminator="type"),
 ]
 

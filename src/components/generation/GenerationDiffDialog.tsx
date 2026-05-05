@@ -123,6 +123,7 @@ const DIFF_GROUPS: DiffGroup[] = [
     label: "Detailer",
     keys: [
       "detailerEnabled",
+      "detailerOnly",
       "detailerModels",
       "detailerPrompt",
       "detailerNegative",

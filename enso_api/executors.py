@@ -385,6 +385,129 @@ def execute_enhance(params: dict, job_id: str) -> dict:  # pylint: disable=unuse
     return {'images': [], 'info': {'prompt': result_prompt, 'seed': seed}, 'params': {k: v for k, v in params.items() if k not in ('type', 'image')}}
 
 
+def execute_detail(params: dict, job_id: str) -> dict:
+    """Run only the detailer pass on an input image, skipping encode/base/hires.
+
+    Mirrors SD.Next's denoise=0 + detailer workflow: the input image passes
+    through unchanged to the detailer, which detects regions (faces, hands, etc.)
+    and inpaints them. Avoids encode/base/hires by setting p.skip directly,
+    sidestepping control_run entirely.
+    """
+    from modules import shared, processing, processing_helpers
+    from modules.processing_class import StableDiffusionProcessingImg2Img
+    from modules.api import helpers
+
+    inputs = params.get('inputs') or []
+    if not inputs:
+        raise ValueError("execute_detail: 'inputs' must contain at least one image ref")
+    image = helpers.decode_base64_to_image(inputs[0])
+    if image is None:
+        raise ValueError("execute_detail: failed to resolve input image ref")
+
+    save_images = params.get('save_images', True)
+    sampler_name = params.get('sampler_name', 'Default')
+    sampler_index = processing_helpers.get_sampler_index(sampler_name)
+
+    detailer_keys = (
+        'detailer_models', 'detailer_prompt', 'detailer_negative',
+        'detailer_steps', 'detailer_strength', 'detailer_resolution',
+        'detailer_padding', 'detailer_blur', 'detailer_conf', 'detailer_iou',
+        'detailer_min_size', 'detailer_max_size', 'detailer_max',
+        'detailer_segmentation', 'detailer_include_detections',
+        'detailer_merge', 'detailer_sort', 'detailer_classes',
+    )
+    detailer_kwargs = {k: params[k] for k in detailer_keys if k in params}
+
+    p = StableDiffusionProcessingImg2Img(
+        sd_model=shared.sd_model,
+        prompt=params.get('prompt', ''),
+        negative_prompt=params.get('negative_prompt', ''),
+        seed=params.get('seed', -1),
+        sampler_index=sampler_index,
+        width=params.get('width', image.width),
+        height=params.get('height', image.height),
+        init_images=[image],
+        denoising_strength=0.0,
+        do_not_save_grid=not save_images,
+        do_not_save_samples=not save_images,
+        detailer_enabled=True,
+        **detailer_kwargs,
+    )
+    # Skip the diffusion path; detailer still runs in process_samples
+    p.skip = ['encode', 'base', 'hires']
+
+    jobid = shared.state.begin('API-V2-DTL', api=True)
+    try:
+        processed = processing.process_images_inner(p)
+        output_images = list(processed.images) if processed and getattr(processed, 'images', None) else []
+        saved_paths = list(shared.state.results) if hasattr(shared.state, 'results') and shared.state.results else []
+    finally:
+        shared.state.end(jobid)
+
+    image_refs = []
+    for i, img in enumerate(output_images):
+        path = saved_paths[i] if i < len(saved_paths) else None
+        if path and os.path.isfile(str(path)):
+            path = str(path)
+            ext = os.path.splitext(path)[1].lstrip('.').lower()
+            image_refs.append({
+                'index': i,
+                'path': path,
+                'url': f'/sdapi/v2/jobs/{job_id}/images/{i}',
+                'width': img.width if hasattr(img, 'width') else 0,
+                'height': img.height if hasattr(img, 'height') else 0,
+                'format': ext if ext else 'png',
+                'size': os.path.getsize(path),
+            })
+        elif img is not None:
+            if save_images:
+                from modules import images as img_module
+                from modules.paths import resolve_output_path
+                try:
+                    output_dir = resolve_output_path(shared.opts.outdir_samples, shared.opts.outdir_img2img_samples)
+                    path_info = img_module.save_image(img, output_dir, "", seed=params.get('seed', -1), prompt=params.get('prompt', ''))
+                    if path_info and len(path_info) > 0:
+                        fpath = path_info[0] if isinstance(path_info, (list, tuple)) else str(path_info)
+                        if os.path.isfile(str(fpath)):
+                            ext = os.path.splitext(str(fpath))[1].lstrip('.').lower()
+                            image_refs.append({
+                                'index': i,
+                                'path': str(fpath),
+                                'url': f'/sdapi/v2/jobs/{job_id}/images/{i}',
+                                'width': img.width if hasattr(img, 'width') else 0,
+                                'height': img.height if hasattr(img, 'height') else 0,
+                                'format': ext if ext else 'png',
+                                'size': os.path.getsize(str(fpath)),
+                            })
+                except Exception as e:
+                    log.warning(f'Job {job_id}: failed to save fallback image {i}: {e}')
+            else:
+                from enso_api.temp_store import stage_image
+                try:
+                    staged = stage_image(job_id, i, img)
+                    if staged:
+                        image_refs.append({
+                            'index': i,
+                            'path': staged['path'],
+                            'url': f'/sdapi/v2/jobs/{job_id}/images/{i}',
+                            'width': staged['width'],
+                            'height': staged['height'],
+                            'format': staged['format'],
+                            'size': staged['size'],
+                            'temp': True,
+                        })
+                except Exception as e:
+                    log.warning(f'Job {job_id}: failed to stage temp image {i}: {e}')
+
+    result = {'images': image_refs, 'info': {}, 'params': {k: v for k, v in params.items() if k != 'type'}}
+    if not save_images and image_refs:
+        from enso_api.temp_store import get_staging_dir
+        root = get_staging_dir()
+        if root:
+            result['_staging_dir'] = os.path.join(root, job_id)
+    return result
+
+
 def execute_detect(params: dict, job_id: str) -> dict:  # pylint: disable=unused-argument
     from modules import shared
     from modules.api import helpers
@@ -938,6 +1061,7 @@ EXECUTORS = {
     'enhance': {'fn': execute_enhance, 'lock': True},
     'detect': {'fn': execute_detect, 'lock': True},
     'preprocess': {'fn': execute_preprocess, 'lock': True},
+    'detail': {'fn': execute_detail, 'lock': True},
     'video': {'fn': execute_video, 'lock': True},
     'framepack': {'fn': execute_framepack, 'lock': True},
     'ltx': {'fn': execute_ltx, 'lock': True},

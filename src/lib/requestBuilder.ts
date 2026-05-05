@@ -359,6 +359,65 @@ export async function buildControlRequest(): Promise<BuildResult> {
   return { request, inputBlob };
 }
 
+export interface BuildDetailResult {
+  request: import("@/api/types/v2").DetailJobParams;
+  inputBlob?: Blob;
+}
+
+/** Build a "Detail only" job: flatten canvas, upload, request detailer-only pass.
+ * The backend will skip encode/base/hires entirely and run only the detailer on the input. */
+export async function buildDetailRequest(): Promise<BuildDetailResult> {
+  const gen = useGenerationStore.getState();
+  const canvas = useCanvasStore.getState();
+
+  const imageLayers = canvas.layers.filter((l) => l.type === "image") as ImageLayer[];
+  if (imageLayers.length === 0) {
+    throw new Error("Detail only requires an image on the canvas");
+  }
+
+  const flattenedBlob = await flattenCanvas(imageLayers, gen.width, gen.height);
+  if (!flattenedBlob) {
+    throw new Error("Failed to flatten canvas for detail job");
+  }
+  const ref = await uploadBlob(flattenedBlob, "input.png");
+
+  const request: import("@/api/types/v2").DetailJobParams = {
+    type: "detail",
+    inputs: [ref],
+    width: gen.width,
+    height: gen.height,
+    prompt: gen.prompt,
+    negative_prompt: gen.negativePrompt,
+    seed: gen.seed,
+    sampler_name: gen.sampler,
+    detailer_models: gen.detailerModels,
+    detailer_prompt: gen.detailerPrompt,
+    detailer_negative: gen.detailerNegative,
+    detailer_steps: gen.detailerSteps,
+    detailer_strength: gen.detailerStrength,
+    detailer_resolution: gen.detailerResolution,
+    detailer_padding: gen.detailerPadding,
+    detailer_blur: gen.detailerBlur,
+    detailer_conf: gen.detailerConfidence,
+    detailer_iou: gen.detailerIou,
+    detailer_min_size: gen.detailerMinSize,
+    detailer_max_size: gen.detailerMaxSize,
+    detailer_max: gen.detailerMaxDetected,
+    detailer_segmentation: gen.detailerSegmentation,
+    detailer_include_detections: gen.detailerIncludeDetections,
+    detailer_merge: gen.detailerMerge,
+    detailer_sort: gen.detailerSort,
+    detailer_classes: gen.detailerClasses || undefined,
+    save_images: true,
+  };
+
+  if (gen.overrideSettings && Object.keys(gen.overrideSettings).length > 0) {
+    request.override_settings = { ...gen.overrideSettings };
+  }
+
+  return { request, inputBlob: flattenedBlob };
+}
+
 /** Extract generation store params from a result without applying them. */
 export function extractParamsFromResult(result: GenerationResult): Partial<GenerationState> {
   const p = result.parameters;

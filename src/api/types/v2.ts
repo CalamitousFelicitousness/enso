@@ -49,6 +49,38 @@ export interface PreprocessJobParams {
   priority?: number;
 }
 
+export interface DetailJobParams {
+  type: "detail";
+  inputs: string[];
+  width: number;
+  height: number;
+  prompt?: string;
+  negative_prompt?: string;
+  seed?: number;
+  sampler_name?: string;
+  detailer_models?: string[];
+  detailer_prompt?: string;
+  detailer_negative?: string;
+  detailer_steps?: number;
+  detailer_strength?: number;
+  detailer_resolution?: number;
+  detailer_padding?: number;
+  detailer_blur?: number;
+  detailer_conf?: number;
+  detailer_iou?: number;
+  detailer_min_size?: number;
+  detailer_max_size?: number;
+  detailer_max?: number;
+  detailer_segmentation?: boolean;
+  detailer_include_detections?: boolean;
+  detailer_merge?: boolean;
+  detailer_sort?: boolean;
+  detailer_classes?: string;
+  save_images?: boolean;
+  override_settings?: Record<string, unknown>;
+  priority?: number;
+}
+
 export interface VideoGenerateParams {
   type: "video";
   engine: string;
@@ -211,6 +243,7 @@ export type JobRequest =
   | EnhanceJobParams
   | DetectJobParams
   | PreprocessJobParams
+  | DetailJobParams
   | VideoGenerateParams
   | FramePackJobParams
   | LtxJobParams

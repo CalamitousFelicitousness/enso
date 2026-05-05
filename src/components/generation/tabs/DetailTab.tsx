@@ -19,6 +19,7 @@ export function DetailTab() {
   const state = useGenerationStore(
     useShallow((s) => ({
       detailerEnabled: s.detailerEnabled,
+      detailerOnly: s.detailerOnly,
       detailerModels: s.detailerModels,
       detailerPrompt: s.detailerPrompt,
       detailerNegative: s.detailerNegative,
@@ -48,6 +49,8 @@ export function DetailTab() {
     () => ({
       detailerEnabled: (checked: boolean) =>
         setParam("detailerEnabled", checked),
+      detailerOnly: (c: boolean | "indeterminate") =>
+        setParam("detailerOnly", !!c),
       detailerPrompt: (v: string) => setParam("detailerPrompt", v),
       detailerNegative: (v: string) => setParam("detailerNegative", v),
       detailerSteps: (v: number) => setParam("detailerSteps", v),
@@ -101,6 +104,23 @@ export function DetailTab() {
     <div className="flex flex-col gap-3 text-sm">
       <SectionLeader title="Detailer" enableable enabled={state.detailerEnabled} onToggleEnabled={set.detailerEnabled}>
           <div className="flex flex-col gap-2">
+            <label
+              data-param="detail only"
+              className="flex items-center gap-1.5 text-2xs text-muted-foreground cursor-pointer"
+            >
+              <Checkbox
+                checked={state.detailerOnly}
+                onCheckedChange={set.detailerOnly}
+                disabled={!state.detailerEnabled}
+              />
+              <ParamLabel
+                className="text-2xs text-muted-foreground"
+                tooltip="Skip the main generation step and run only the detailer on the input image. Requires an image on the canvas. Equivalent to denoise=0 + detailer in SD.Next."
+              >
+                Detail only
+              </ParamLabel>
+            </label>
+
             <div data-param="models" className="flex flex-col gap-1">
               <Label className="text-2xs text-muted-foreground">Models</Label>
               <div className="flex flex-wrap gap-1 mb-1">

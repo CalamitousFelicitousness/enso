@@ -7,7 +7,7 @@ import {
 } from "@/stores/jobStore";
 import { useCanvasStore } from "@/stores/canvasStore";
 import { useImg2ImgStore } from "@/stores/img2imgStore";
-import { buildControlRequest, buildCloudImageRequest, restoreFromResult } from "@/lib/requestBuilder";
+import { buildControlRequest, buildCloudImageRequest, buildDetailRequest, restoreFromResult } from "@/lib/requestBuilder";
 import { blobToBase64 } from "@/lib/image";
 import { snapshotUnits } from "@/stores/controlStore";
 import { useModelSelectionStore } from "@/stores/modelSelectionStore";
@@ -42,10 +42,24 @@ import { GenerationDiffDialog } from "@/components/generation/GenerationDiffDial
 export const ActionBar = memo(function ActionBar() {
   const clearSelection = useGenerationStore((s) => s.clearSelection);
   const lastResult = useGenerationStore((s) => s.results[0]);
+  const detailerEnabled = useGenerationStore((s) => s.detailerEnabled);
+  const detailerOnly = useGenerationStore((s) => s.detailerOnly);
+  const detailerModelCount = useGenerationStore((s) => s.detailerModels.length);
+  const hasInputImage = useCanvasStore(
+    (s) => s.layers.some((l) => l.type === "image"),
+  );
 
   const isActive = useJobQueueStore(selectGenerateActive);
   const runningJob = useJobQueueStore(selectRunningJob);
   const pendingCount = useJobQueueStore(selectPendingCount);
+
+  const detailOnlyBlockReason = useMemo(() => {
+    if (!detailerOnly) return null;
+    if (!detailerEnabled) return "Enable detailer first";
+    if (!hasInputImage) return "Detail only requires an image on the canvas";
+    if (detailerModelCount === 0) return "Select at least one detailer model";
+    return null;
+  }, [detailerEnabled, detailerOnly, hasInputImage, detailerModelCount]);
 
   const [batchOpen, setBatchOpen] = useState(false);
   const [xyzOpen, setXyzOpen] = useState(false);
@@ -61,6 +75,17 @@ export const ActionBar = memo(function ActionBar() {
       return {
         payload: cloudRequest,
         snapshot: { controlUnits: [] },
+      };
+    }
+
+    const gen = useGenerationStore.getState();
+    if (gen.detailerEnabled && gen.detailerOnly) {
+      const { request: detailRequest, inputBlob } = await buildDetailRequest();
+      const inputImage = inputBlob ? await blobToBase64(inputBlob) : undefined;
+      clearSelection();
+      return {
+        payload: detailRequest,
+        snapshot: { inputImage, controlUnits: [] },
       };
     }
 
@@ -122,7 +147,7 @@ export const ActionBar = memo(function ActionBar() {
 
   // Global keyboard shortcuts for generation
   useShortcut("generate", () => {
-    if (!isSubmitting) submit();
+    if (!isSubmitting && !detailOnlyBlockReason) submit();
   });
   useShortcut("skip", handleSkip);
 
@@ -135,7 +160,7 @@ export const ActionBar = memo(function ActionBar() {
     icon: Play,
     shortcutId: "generate",
     run: () => {
-      if (!isSubmitting) submit();
+      if (!isSubmitting && !detailOnlyBlockReason) submit();
     },
   });
   useRegisterCommand({
@@ -203,7 +228,8 @@ export const ActionBar = memo(function ActionBar() {
           type="button"
           data-param="generate"
           onClick={submit}
-          disabled={isSubmitting}
+          disabled={isSubmitting || !!detailOnlyBlockReason}
+          title={detailOnlyBlockReason ?? undefined}
           variant="default"
           size="sm"
           className="flex-1 rounded-r-none"
@@ -215,7 +241,9 @@ export const ActionBar = memo(function ActionBar() {
           )}
           {isGenerating
             ? `${phaseLabel}${progressPct > 0 ? ` ${progressPct}%` : ""}${pendingCount > 0 ? ` [+${pendingCount}]` : ""}`
-            : `Generate${pendingCount > 0 ? ` [${pendingCount}]` : ""}`}
+            : detailerOnly
+              ? `Detail${pendingCount > 0 ? ` [${pendingCount}]` : ""}`
+              : `Generate${pendingCount > 0 ? ` [${pendingCount}]` : ""}`}
         </Button>
         {!isGenerating && (
           <DropdownMenu>
