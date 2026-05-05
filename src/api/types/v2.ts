@@ -49,6 +49,39 @@ export interface PreprocessJobParams {
   priority?: number;
 }
 
+/** Per-model or default detailer overrides. Mirrors DetailerOverrides
+ * in enso_api/job_models.py. All fields optional; unset = inherit. */
+export interface DetailerOverrides {
+  strength?: number;
+  steps?: number;
+  resolution?: number;
+  padding?: number;
+  blur?: number;
+  conf?: number;
+  iou?: number;
+  min_size?: number;
+  max_size?: number;
+  max?: number;
+  sigma_adjust?: number;
+  sigma_adjust_max?: number;
+  segmentation?: boolean;
+  include_detections?: boolean;
+  merge?: boolean;
+  sort?: boolean;
+  prompt?: string;
+  negative?: string;
+  classes?: string;
+  augment?: boolean;
+}
+
+/** A detailer model with optional per-model overrides. */
+export interface DetailerModelEntry extends DetailerOverrides {
+  name: string;
+}
+
+/** Detailer model reference: bare string (= use defaults) or full entry. */
+export type DetailerModelRef = string | DetailerModelEntry;
+
 export interface DetailJobParams {
   type: "detail";
   inputs: string[];
@@ -58,24 +91,9 @@ export interface DetailJobParams {
   negative_prompt?: string;
   seed?: number;
   sampler_name?: string;
-  detailer_models?: string[];
-  detailer_prompt?: string;
-  detailer_negative?: string;
-  detailer_steps?: number;
-  detailer_strength?: number;
-  detailer_resolution?: number;
-  detailer_padding?: number;
-  detailer_blur?: number;
-  detailer_conf?: number;
-  detailer_iou?: number;
-  detailer_min_size?: number;
-  detailer_max_size?: number;
-  detailer_max?: number;
-  detailer_segmentation?: boolean;
-  detailer_include_detections?: boolean;
-  detailer_merge?: boolean;
-  detailer_sort?: boolean;
-  detailer_classes?: string;
+  detailer_enabled?: boolean;
+  detailer_defaults?: DetailerOverrides;
+  detailer_models?: DetailerModelRef[];
   save_images?: boolean;
   override_settings?: Record<string, unknown>;
   priority?: number;

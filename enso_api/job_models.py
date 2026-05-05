@@ -160,35 +160,70 @@ class RefinerMixin(StrictBaseModel):
     refiner_negative: str = ""
 
 
+class DetailerOverrides(StrictBaseModel):
+    """Per-model or default detailer settings.
+
+    All fields are optional. In a per-model entry, an unset field means
+    "inherit from ``detailer_defaults``"; in ``detailer_defaults`` itself,
+    an unset field means SD.Next's built-in default applies. The executor
+    walks this dict and only sets ``p.detailer_*`` for fields that are
+    not None, leaving the rest untouched.
+    """
+
+    strength: Optional[float] = None
+    steps: Optional[int] = None
+    resolution: Optional[int] = None
+    padding: Optional[int] = None
+    blur: Optional[int] = None
+    conf: Optional[float] = None
+    iou: Optional[float] = None
+    min_size: Optional[float] = None
+    max_size: Optional[float] = None
+    max: Optional[int] = None
+    sigma_adjust: Optional[float] = None
+    sigma_adjust_max: Optional[float] = None
+    segmentation: Optional[bool] = None
+    include_detections: Optional[bool] = None
+    merge: Optional[bool] = None
+    sort: Optional[bool] = None
+    prompt: Optional[str] = None
+    negative: Optional[str] = None
+    classes: Optional[str] = None
+    augment: Optional[bool] = None
+
+
+class DetailerModelEntry(DetailerOverrides):
+    """A detailer model with optional per-model overrides.
+
+    ``name`` is required. Any other field, when set, overrides the
+    matching value from ``detailer_defaults`` for this model only.
+    """
+
+    name: str
+
+
+DetailerModelRef = Union[str, DetailerModelEntry]
+"""A detailer model reference: bare string (= use defaults) or full entry."""
+
+
 class DetailerMixin(StrictBaseModel):
-    """Detailer / ADetailer parameters.
+    """Detailer / ADetailer parameters (V2 per-model override schema).
+
+    Each entry in ``detailer_models`` is either a model name string
+    (= apply ``detailer_defaults`` straight) or a ``{name, ...overrides}``
+    object that sets specific fields per model. ``detailer_defaults``
+    holds the inherited base values. The executor loops ``detailer_models``
+    and patches ``p.detailer_*`` per-iteration via a temporary
+    ``modules.detailer.detail`` wrapper, so SD.Next's pipeline is
+    unmodified and per-model overrides come for free.
 
     Shared between :class:`GenerateParams` (where the detailer runs as a
     post-pass) and :class:`DetailParams` (where it is the only pass).
     """
 
     detailer_enabled: bool = False
-    detailer_models: list[str] = Field(default_factory=list)
-    detailer_prompt: str = ""
-    detailer_negative: str = ""
-    detailer_steps: int = 10
-    detailer_strength: float = 0.3
-    detailer_resolution: int = 1024
-    detailer_padding: int = 20
-    detailer_blur: int = 10
-    detailer_conf: float = 0.6
-    detailer_iou: float = 0.5
-    detailer_min_size: float = 0.0
-    detailer_max_size: float = 1.0
-    detailer_max: int = 2
-    detailer_segmentation: bool = False
-    detailer_include_detections: bool = False
-    detailer_merge: bool = False
-    detailer_sort: bool = False
-    detailer_classes: Optional[str] = None
-    detailer_sigma_adjust: float = 1.0
-    detailer_sigma_adjust_max: float = 1.0
-    detailer_augment: bool = False
+    detailer_defaults: DetailerOverrides = Field(default_factory=DetailerOverrides)
+    detailer_models: list[DetailerModelRef] = Field(default_factory=list)
 
 
 class HdrMixin(StrictBaseModel):

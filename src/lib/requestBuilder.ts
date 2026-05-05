@@ -19,11 +19,34 @@ import { REFERENCE_HEIGHT } from "@/canvas/useControlFrameLayout";
 import { resolveGenerationSize } from "@/lib/sizeCompute";
 import type { SizeMode } from "@/lib/sizeCompute";
 import type { ControlRequest, GenerationInfo } from "@/api/types/generation";
+import type { DetailerModelEntry, DetailerModelRef, DetailerOverrides } from "@/api/types/v2";
 import { BACKEND_UNIT_TYPE } from "@/api/types/control";
 
 export interface BuildResult {
   request: ControlRequest;
   inputBlob?: Blob;
+}
+
+/** Strip undefined-valued keys so the wire payload stays minimal.
+ * Empty-string text fields are treated as "inherit" too — the V2 schema
+ * uses absence to mean inheritance, and an empty override is meaningless. */
+function stripUndefined<T extends object>(obj: T): Partial<T> {
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(obj)) {
+    if (v === undefined) continue;
+    if (typeof v === "string" && v === "") continue;
+    out[k] = v;
+  }
+  return out as Partial<T>;
+}
+
+/** Serialize a DetailerModelEntry. If only `name` is set, returns the
+ * bare string shorthand so the backend doesn't need to unwrap an object. */
+function serializeDetailerEntry(entry: DetailerModelEntry): DetailerModelRef {
+  const stripped = stripUndefined(entry);
+  const keys = Object.keys(stripped);
+  if (keys.length === 1 && keys[0] === "name" && stripped.name) return stripped.name;
+  return stripped as DetailerModelEntry;
 }
 
 export async function buildControlRequest(): Promise<BuildResult> {
@@ -168,29 +191,11 @@ export async function buildControlRequest(): Promise<BuildResult> {
     } : {}),
   };
 
-  // Detailer
+  // Detailer (V2 schema: defaults block + per-model entries)
   if (gen.detailerEnabled) {
     request.detailer_enabled = true;
-    request.detailer_prompt = gen.detailerPrompt;
-    request.detailer_negative = gen.detailerNegative;
-    request.detailer_steps = gen.detailerSteps;
-    request.detailer_strength = gen.detailerStrength;
-    request.detailer_resolution = gen.detailerResolution;
-    request.detailer_segmentation = gen.detailerSegmentation;
-    request.detailer_include_detections = gen.detailerIncludeDetections;
-    request.detailer_merge = gen.detailerMerge;
-    request.detailer_sort = gen.detailerSort;
-    request.detailer_classes = gen.detailerClasses || undefined;
-    request.detailer_models = gen.detailerModels;
-    request.detailer_max = gen.detailerMaxDetected;
-    request.detailer_padding = gen.detailerPadding;
-    request.detailer_blur = gen.detailerBlur;
-    request.detailer_conf = gen.detailerConfidence;
-    request.detailer_iou = gen.detailerIou;
-    request.detailer_min_size = gen.detailerMinSize;
-    request.detailer_max_size = gen.detailerMaxSize;
-    request.detailer_sigma_adjust = gen.detailerRenoise;
-    request.detailer_sigma_adjust_max = gen.detailerRenoiseEnd;
+    request.detailer_defaults = stripUndefined(gen.detailerDefaults) as DetailerOverrides;
+    request.detailer_models = gen.detailerModels.map(serializeDetailerEntry);
   }
 
   // Scripts
@@ -390,24 +395,9 @@ export async function buildDetailRequest(): Promise<BuildDetailResult> {
     negative_prompt: gen.negativePrompt,
     seed: gen.seed,
     sampler_name: gen.sampler,
-    detailer_models: gen.detailerModels,
-    detailer_prompt: gen.detailerPrompt,
-    detailer_negative: gen.detailerNegative,
-    detailer_steps: gen.detailerSteps,
-    detailer_strength: gen.detailerStrength,
-    detailer_resolution: gen.detailerResolution,
-    detailer_padding: gen.detailerPadding,
-    detailer_blur: gen.detailerBlur,
-    detailer_conf: gen.detailerConfidence,
-    detailer_iou: gen.detailerIou,
-    detailer_min_size: gen.detailerMinSize,
-    detailer_max_size: gen.detailerMaxSize,
-    detailer_max: gen.detailerMaxDetected,
-    detailer_segmentation: gen.detailerSegmentation,
-    detailer_include_detections: gen.detailerIncludeDetections,
-    detailer_merge: gen.detailerMerge,
-    detailer_sort: gen.detailerSort,
-    detailer_classes: gen.detailerClasses || undefined,
+    detailer_enabled: true,
+    detailer_defaults: stripUndefined(gen.detailerDefaults) as DetailerOverrides,
+    detailer_models: gen.detailerModels.map(serializeDetailerEntry),
     save_images: true,
   };
 
@@ -558,18 +548,8 @@ export function extractParamsFromResult(result: GenerationResult): Partial<Gener
     gradingLutFile: str(p.grading_lut_file, ""),
     gradingLutStrength: num(p.grading_lut_strength, 1.0),
 
-    // Detailer
+    // Detailer enable flag (V2 + legacy share this one)
     detailerEnabled: bool(p.detailer_enabled, false),
-    detailerPrompt: str(p.detailer_prompt, ""),
-    detailerNegative: str(p.detailer_negative, ""),
-    detailerSteps: num(p.detailer_steps, 10),
-    detailerStrength: num(p.detailer_strength, 0.3),
-    detailerResolution: num(p.detailer_resolution, 1024),
-    detailerSegmentation: bool(p.detailer_segmentation, false),
-    detailerIncludeDetections: bool(p.detailer_include_detections, false),
-    detailerMerge: bool(p.detailer_merge, false),
-    detailerSort: bool(p.detailer_sort, false),
-    detailerClasses: str(p.detailer_classes, ""),
 
     // Scheduler overrides (top-level in new API, overrides dict in legacy)
     sigmaMethod: str(p.schedulers_sigma ?? overrides.schedulers_sigma, "default"),
@@ -589,20 +569,63 @@ export function extractParamsFromResult(result: GenerationResult): Partial<Gener
     timestepsOverride: str(p.schedulers_timesteps ?? overrides.schedulers_timesteps, ""),
     timestepsPreset: "None",
 
-    // Detailer overrides
-    ...(p.detailer_enabled ? {
-      detailerModels: (Array.isArray(p.detailer_models) ? p.detailer_models : Array.isArray(overrides.detailer_models) ? overrides.detailer_models : ["face-yolo8n"]) as string[],
-      detailerMaxDetected: num(p.detailer_max ?? overrides.detailer_max, 2),
-      detailerPadding: num(p.detailer_padding ?? overrides.detailer_padding, 20),
-      detailerBlur: num(p.detailer_blur ?? overrides.detailer_blur, 10),
-      detailerConfidence: num(p.detailer_conf ?? overrides.detailer_conf, 0.6),
-      detailerIou: num(p.detailer_iou ?? overrides.detailer_iou, 0.5),
-      detailerMinSize: num(p.detailer_min_size ?? overrides.detailer_min_size, 0.0),
-      detailerMaxSize: num(p.detailer_max_size ?? overrides.detailer_max_size, 1.0),
-      detailerRenoise: num(p.detailer_sigma_adjust ?? overrides.detailer_sigma_adjust, 1.0),
-      detailerRenoiseEnd: num(p.detailer_sigma_adjust_max ?? overrides.detailer_sigma_adjust_max, 1.0),
-    } : {}),
+    // Detailer V2: defaults block + per-model entries.
+    // Reads V2 shape directly; falls back to legacy flat fields when restoring
+    // a result generated before the V2 cutover (PNG-info on disk, etc.).
+    ...(p.detailer_enabled ? extractDetailerV2(p, overrides) : {}),
   };
+}
+
+/** Build the V2 detailerDefaults + detailerModels from a result's parameters.
+ * Accepts both V2-shaped and legacy-flat inputs. */
+function extractDetailerV2(
+  p: Record<string, unknown>,
+  overrides: Record<string, unknown>,
+): Pick<GenerationState, "detailerDefaults" | "detailerModels"> {
+  const num = (v: unknown): number | undefined => typeof v === "number" ? v : undefined;
+  const str = (v: unknown): string | undefined => typeof v === "string" && v ? v : undefined;
+  const bool = (v: unknown): boolean | undefined => typeof v === "boolean" ? v : undefined;
+
+  // Prefer V2 defaults block if present
+  const v2Defaults = (p.detailer_defaults ?? overrides.detailer_defaults) as Record<string, unknown> | undefined;
+  const defaults: DetailerOverrides = v2Defaults && typeof v2Defaults === "object"
+    ? (v2Defaults as DetailerOverrides)
+    : {
+        // Legacy: hoist flat detailer_* fields into the defaults block
+        strength: num(p.detailer_strength ?? overrides.detailer_strength),
+        steps: num(p.detailer_steps ?? overrides.detailer_steps),
+        resolution: num(p.detailer_resolution ?? overrides.detailer_resolution),
+        padding: num(p.detailer_padding ?? overrides.detailer_padding),
+        blur: num(p.detailer_blur ?? overrides.detailer_blur),
+        conf: num(p.detailer_conf ?? overrides.detailer_conf),
+        iou: num(p.detailer_iou ?? overrides.detailer_iou),
+        min_size: num(p.detailer_min_size ?? overrides.detailer_min_size),
+        max_size: num(p.detailer_max_size ?? overrides.detailer_max_size),
+        max: num(p.detailer_max ?? overrides.detailer_max),
+        sigma_adjust: num(p.detailer_sigma_adjust ?? overrides.detailer_sigma_adjust),
+        sigma_adjust_max: num(p.detailer_sigma_adjust_max ?? overrides.detailer_sigma_adjust_max),
+        segmentation: bool(p.detailer_segmentation ?? overrides.detailer_segmentation),
+        include_detections: bool(p.detailer_include_detections ?? overrides.detailer_include_detections),
+        merge: bool(p.detailer_merge ?? overrides.detailer_merge),
+        sort: bool(p.detailer_sort ?? overrides.detailer_sort),
+        prompt: str(p.detailer_prompt ?? overrides.detailer_prompt),
+        negative: str(p.detailer_negative ?? overrides.detailer_negative),
+        classes: str(p.detailer_classes ?? overrides.detailer_classes),
+      };
+
+  // detailer_models entries can be bare strings or objects on the wire
+  const rawModels = p.detailer_models ?? overrides.detailer_models;
+  const models: DetailerModelEntry[] = Array.isArray(rawModels)
+    ? rawModels.flatMap((m): DetailerModelEntry[] => {
+        if (typeof m === "string") return [{ name: m }];
+        if (m && typeof m === "object" && typeof (m as Record<string, unknown>).name === "string") {
+          return [m as DetailerModelEntry];
+        }
+        return [];
+      })
+    : [{ name: "face-yolo8n" }];
+
+  return { detailerDefaults: defaults, detailerModels: models };
 }
 
 /** Restore generation store state from a previous result. */

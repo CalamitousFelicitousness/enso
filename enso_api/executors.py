@@ -28,6 +28,109 @@ import inspect
 from modules.logger import log
 
 
+# --- Detailer V2 per-model override helpers ---------------------------------
+# The V2 detailer schema (DetailerMixin in job_models.py) replaces the V1 flat
+# detailer_* fields with detailer_defaults + detailer_models, where each model
+# entry can override any default. SD.Next's detailer.detail() iterates models
+# off p.detailer_models with one shared set of p.detailer_* attrs, so we
+# temporarily monkey-patch detailer.detail to drive that loop ourselves with
+# per-iteration p attribute swapping.
+
+DETAILER_OVERRIDE_FIELDS = (
+    # Mirrors p.detailer_* attributes that YoloRestorer reads via either
+    # direct p.detailer_X access or detailer_opt(p, 'detailer_X'). Patching
+    # any of these between iterations sticks for that iteration's detect/
+    # inpaint pass. Note: cfg_scale is intentionally excluded — there is no
+    # p.detailer_cfg_scale; YoloRestorer only injects it via the colon-string
+    # args.update path which V2 escapes by design.
+    'strength', 'steps', 'resolution', 'padding', 'blur',
+    'conf', 'iou', 'min_size', 'max_size', 'max',
+    'sigma_adjust', 'sigma_adjust_max',
+    'segmentation', 'include_detections', 'merge', 'sort',
+    'prompt', 'negative', 'classes', 'augment',
+)
+
+
+def normalize_detailer_models(entries):
+    """Coerce mixed string|dict entries from the wire into list[dict]."""
+    out = []
+    for entry in entries or []:
+        if isinstance(entry, str):
+            out.append({'name': entry})
+        elif isinstance(entry, dict) and entry.get('name'):
+            out.append(entry)
+    return out
+
+
+def apply_detailer_defaults(p, defaults):
+    """Set base p.detailer_* attributes from the V2 defaults block.
+
+    Only fields actually present (not None) are set; the rest keep
+    SD.Next's built-in default. Mutates p in place.
+    """
+    if not defaults:
+        return
+    for k, v in defaults.items():
+        if v is not None and k in DETAILER_OVERRIDE_FIELDS:
+            setattr(p, f'detailer_{k}', v)
+
+
+def install_detailer_per_model_patch(model_entries):
+    """Replace modules.detailer.detail with a per-model loop wrapper.
+
+    The wrapper iterates ``model_entries``, snapshots p.detailer_*,
+    patches with this entry's overrides (or restores defaults for unset
+    fields), sets p.detailer_models to a single-element list, resets
+    p.detailer_active so the per-model cap doesn't saturate, calls the
+    real detailer.detail, then restores. Returns a ``restore()``
+    callable to undo the monkey-patch and restore shared.opts state.
+
+    Also temporarily blanks shared.opts.data['detailer_args'] because
+    YoloRestorer reads it before falling through to p.detailer_models
+    (yolo.py:302-308); leaving it set would override our per-model
+    intent. This is the exact failure mode that prompted V2.
+
+    Caller is responsible for invoking ``restore()`` in a finally block.
+    Safe under serialized execution (the job queue holds
+    modules.call_queue.queue_lock).
+    """
+    from modules import detailer, shared
+
+    original_detail = detailer.detail
+    saved_args = shared.opts.data.get('detailer_args', '')
+    shared.opts.data['detailer_args'] = ''
+    entries = list(model_entries or [])
+
+    def patched(sample, p_inner):
+        if not entries:
+            return sample
+        for entry in entries:
+            saved = {k: getattr(p_inner, f'detailer_{k}', None) for k in DETAILER_OVERRIDE_FIELDS}
+            saved_models = list(getattr(p_inner, 'detailer_models', []) or [])
+            saved_active = getattr(p_inner, 'detailer_active', 0)
+            try:
+                for k in DETAILER_OVERRIDE_FIELDS:
+                    if entry.get(k) is not None:
+                        setattr(p_inner, f'detailer_{k}', entry[k])
+                p_inner.detailer_models = [entry['name']]
+                p_inner.detailer_active = 0
+                sample = original_detail(sample, p_inner)
+            finally:
+                for k, v in saved.items():
+                    setattr(p_inner, f'detailer_{k}', v)
+                p_inner.detailer_models = saved_models
+                p_inner.detailer_active = saved_active
+        return sample
+
+    detailer.detail = patched
+
+    def restore():
+        detailer.detail = original_detail
+        shared.opts.data['detailer_args'] = saved_args
+
+    return restore
+
+
 def execute_generate(params: dict, job_id: str) -> dict:
     from modules import shared, processing_helpers
     from modules.api import helpers
@@ -145,7 +248,24 @@ def execute_generate(params: dict, job_id: str) -> dict:
         masking.opts.mask_dilate = 0
         extra_p_args['inpaint_full_res_padding'] = params.get('inpaint_full_res_padding', 32)
 
+    # V2 detailer: translate detailer_defaults + detailer_models entries into
+    # the flat detailer_* kwargs control_run expects, then install the per-model
+    # patch around the call. control_run builds p itself and forwards detailer_*
+    # to the StableDiffusionProcessing constructor; the patch then reroutes the
+    # detailer.detail invocation inside process_samples to iterate our entries.
+    detailer_defaults = params.get('detailer_defaults') or {}
+    detailer_entries = normalize_detailer_models(params.get('detailer_models'))
+    for k, v in detailer_defaults.items():
+        if v is not None and k in DETAILER_OVERRIDE_FIELDS:
+            run_args[f'detailer_{k}'] = v
+    run_args['detailer_models'] = [entry['name'] for entry in detailer_entries]
+    run_args['detailer_enabled'] = bool(detailer_entries) and bool(params.get('detailer_enabled', False))
+    # detailer_defaults is V2-only; control_run's signature filter at line 202
+    # already rejects it via the in-set check, but be explicit.
+    run_args.pop('detailer_defaults', None)
+
     # Run generation
+    detailer_restore = install_detailer_per_model_patch(detailer_entries) if run_args['detailer_enabled'] else None
     jobid = shared.state.begin('API-V2', api=True)
     try:
         control_run_module.control_set(extra_p_args)
@@ -163,6 +283,8 @@ def execute_generate(params: dict, job_id: str) -> dict:
         saved_paths = list(shared.state.results) if hasattr(shared.state, 'results') and shared.state.results else []
     finally:
         shared.state.end(jobid)
+        if detailer_restore is not None:
+            detailer_restore()
 
     # Collect saved file paths
     image_refs = []
@@ -408,15 +530,12 @@ def execute_detail(params: dict, job_id: str) -> dict:
     sampler_name = params.get('sampler_name', 'Default')
     sampler_index = processing_helpers.get_sampler_index(sampler_name)
 
-    detailer_keys = (
-        'detailer_models', 'detailer_prompt', 'detailer_negative',
-        'detailer_steps', 'detailer_strength', 'detailer_resolution',
-        'detailer_padding', 'detailer_blur', 'detailer_conf', 'detailer_iou',
-        'detailer_min_size', 'detailer_max_size', 'detailer_max',
-        'detailer_segmentation', 'detailer_include_detections',
-        'detailer_merge', 'detailer_sort', 'detailer_classes',
-    )
-    detailer_kwargs = {k: params[k] for k in detailer_keys if k in params}
+    # V2 detailer schema: parse defaults + per-model entries (see DetailerMixin)
+    defaults = params.get('detailer_defaults') or {}
+    model_entries = normalize_detailer_models(params.get('detailer_models'))
+    if not model_entries:
+        raise ValueError("execute_detail: detailer_models must contain at least one entry")
+    model_names = [entry['name'] for entry in model_entries]
 
     p = StableDiffusionProcessingImg2Img(
         sd_model=shared.sd_model,
@@ -432,11 +551,17 @@ def execute_detail(params: dict, job_id: str) -> dict:
         do_not_save_samples=not save_images,
         detailer_enabled=True,
         override_settings=params.get('override_settings') or None,
-        **detailer_kwargs,
     )
     # Skip the diffusion path; detailer still runs in process_samples
     p.skip = ['encode', 'base', 'hires']
+    # Apply V2 defaults block to p.detailer_* attributes
+    apply_detailer_defaults(p, defaults)
+    # Set the model list so process_samples sees a non-empty list and runs
+    # the detailer block. The monkey-patch then iterates model_entries with
+    # per-model overrides; SD.Next never sees more than one name at a time.
+    p.detailer_models = model_names
 
+    restore = install_detailer_per_model_patch(model_entries)
     jobid = shared.state.begin('API-V2-DTL', api=True)
     try:
         processed = processing.process_images_inner(p)
@@ -444,6 +569,7 @@ def execute_detail(params: dict, job_id: str) -> dict:
         saved_paths = list(shared.state.results) if hasattr(shared.state, 'results') and shared.state.results else []
     finally:
         shared.state.end(jobid)
+        restore()
 
     image_refs = []
     for i, img in enumerate(output_images):

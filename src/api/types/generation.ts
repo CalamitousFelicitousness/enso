@@ -1,3 +1,5 @@
+import type { DetailerOverrides, DetailerModelRef } from "./v2";
+
 export interface ControlRequestUnit {
   process: string;
   model: string;
@@ -86,28 +88,12 @@ export interface ControlRequest {
   grading_grain?: number;
   grading_lut_file?: string;
   grading_lut_strength?: number;
+  // V2 detailer schema (mirrors DetailerMixin in enso_api/job_models.py).
+  // detailer_models entries are bare strings (= use defaults) or full
+  // DetailerModelEntry objects with per-model overrides.
   detailer_enabled?: boolean;
-  detailer_prompt?: string;
-  detailer_negative?: string;
-  detailer_steps?: number;
-  detailer_strength?: number;
-  detailer_resolution?: number;
-  detailer_segmentation?: boolean;
-  detailer_include_detections?: boolean;
-  detailer_merge?: boolean;
-  detailer_sort?: boolean;
-  detailer_classes?: string;
-  detailer_conf?: number;
-  detailer_iou?: number;
-  detailer_max?: number;
-  detailer_min_size?: number;
-  detailer_max_size?: number;
-  detailer_blur?: number;
-  detailer_padding?: number;
-  detailer_sigma_adjust?: number;
-  detailer_sigma_adjust_max?: number;
-  detailer_models?: string[];
-  detailer_augment?: boolean;
+  detailer_defaults?: DetailerOverrides;
+  detailer_models?: DetailerModelRef[];
   img2img_color_correction?: boolean;
   color_correction_method?: string;
   img2img_background_color?: string;

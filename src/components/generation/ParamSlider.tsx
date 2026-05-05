@@ -38,7 +38,7 @@ function applySnap(
 
 // ── Props ──────────────────────────────────────────────────────────
 
-interface ParamSliderProps {
+export interface ParamSliderProps {
   label: string;
   value: number;
   onChange: (v: number) => void;

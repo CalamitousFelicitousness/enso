@@ -3,6 +3,7 @@ import { persist } from "zustand/middleware";
 import { putResult, trimResults, clearAllResults, getAllResults } from "@/lib/historyDb";
 import type { MaskLine } from "@/stores/img2imgStore";
 import type { ControlUnitSnapshot } from "@/api/types/control";
+import type { DetailerOverrides, DetailerModelEntry } from "@/api/types/v2";
 
 export interface GenerationResult {
   id: string;
@@ -121,29 +122,11 @@ export interface GenerationState {
   todoRatio: number;
   overrideSettings: Record<string, unknown>;
 
-  // Detailer
+  // Detailer (V2 schema: defaults block + per-model entries)
   detailerEnabled: boolean;
   detailerOnly: boolean;
-  detailerModels: string[];
-  detailerPrompt: string;
-  detailerNegative: string;
-  detailerSteps: number;
-  detailerStrength: number;
-  detailerResolution: number;
-  detailerMaxDetected: number;
-  detailerPadding: number;
-  detailerBlur: number;
-  detailerConfidence: number;
-  detailerIou: number;
-  detailerMinSize: number;
-  detailerMaxSize: number;
-  detailerRenoise: number;
-  detailerRenoiseEnd: number;
-  detailerSegmentation: boolean;
-  detailerIncludeDetections: boolean;
-  detailerMerge: boolean;
-  detailerSort: boolean;
-  detailerClasses: string;
+  detailerDefaults: DetailerOverrides;
+  detailerModels: DetailerModelEntry[];
 
   // Color Correction
   colorCorrectionEnabled: boolean;
@@ -286,26 +269,29 @@ export const defaultParams = {
   overrideSettings: {},
   detailerEnabled: false,
   detailerOnly: false,
-  detailerModels: ["face-yolo8n"],
-  detailerPrompt: "",
-  detailerNegative: "",
-  detailerSteps: 10,
-  detailerStrength: 0.3,
-  detailerResolution: 1024,
-  detailerMaxDetected: 2,
-  detailerPadding: 20,
-  detailerBlur: 10,
-  detailerConfidence: 0.6,
-  detailerIou: 0.5,
-  detailerMinSize: 0.0,
-  detailerMaxSize: 1.0,
-  detailerRenoise: 1.0,
-  detailerRenoiseEnd: 1.0,
-  detailerSegmentation: false,
-  detailerIncludeDetections: false,
-  detailerMerge: false,
-  detailerSort: false,
-  detailerClasses: "",
+  detailerDefaults: {
+    strength: 0.3,
+    steps: 10,
+    resolution: 1024,
+    padding: 20,
+    blur: 10,
+    conf: 0.6,
+    iou: 0.5,
+    min_size: 0.0,
+    max_size: 1.0,
+    max: 2,
+    sigma_adjust: 1.0,
+    sigma_adjust_max: 1.0,
+    segmentation: false,
+    include_detections: false,
+    merge: false,
+    sort: false,
+    prompt: "",
+    negative: "",
+    classes: "",
+    augment: false,
+  },
+  detailerModels: [{ name: "face-yolo8n" }],
   colorCorrectionEnabled: false,
   colorCorrectionMethod: "histogram",
   hdrMode: 0,
@@ -397,6 +383,52 @@ export const useGenerationStore = create<GenerationState>()(
     }),
     {
       name: "enso-generation",
+      version: 1,
+      // v0 → v1: detailer schema flattened into 22 fields → defaults block + model entries
+      migrate: (persisted, version) => {
+        if (!persisted || typeof persisted !== "object") return persisted;
+        const p = persisted as Record<string, unknown>;
+        if (version < 1) {
+          // Coerce detailerModels: string[] → DetailerModelEntry[]
+          const oldModels = p.detailerModels;
+          if (Array.isArray(oldModels) && oldModels.length > 0 && typeof oldModels[0] === "string") {
+            p.detailerModels = oldModels.map((name) => ({ name: name as string }));
+          }
+          // Fold flat detailer* fields into a defaults block
+          p.detailerDefaults = {
+            strength: p.detailerStrength,
+            steps: p.detailerSteps,
+            resolution: p.detailerResolution,
+            padding: p.detailerPadding,
+            blur: p.detailerBlur,
+            conf: p.detailerConfidence,
+            iou: p.detailerIou,
+            min_size: p.detailerMinSize,
+            max_size: p.detailerMaxSize,
+            max: p.detailerMaxDetected,
+            sigma_adjust: p.detailerRenoise,
+            sigma_adjust_max: p.detailerRenoiseEnd,
+            segmentation: p.detailerSegmentation,
+            include_detections: p.detailerIncludeDetections,
+            merge: p.detailerMerge,
+            sort: p.detailerSort,
+            classes: p.detailerClasses,
+            prompt: p.detailerPrompt,
+            negative: p.detailerNegative,
+          };
+          for (const k of [
+            "detailerStrength", "detailerSteps", "detailerResolution",
+            "detailerPadding", "detailerBlur", "detailerConfidence", "detailerIou",
+            "detailerMinSize", "detailerMaxSize", "detailerMaxDetected",
+            "detailerRenoise", "detailerRenoiseEnd",
+            "detailerSegmentation", "detailerIncludeDetections", "detailerMerge", "detailerSort",
+            "detailerClasses", "detailerPrompt", "detailerNegative",
+          ]) {
+            delete p[k];
+          }
+        }
+        return p;
+      },
       partialize: (state) => {
         const p: Record<string, unknown> = {};
         for (const key of defaultParamKeys) p[key] = state[key];

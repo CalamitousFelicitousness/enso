@@ -124,26 +124,8 @@ const DIFF_GROUPS: DiffGroup[] = [
     keys: [
       "detailerEnabled",
       "detailerOnly",
+      "detailerDefaults",
       "detailerModels",
-      "detailerPrompt",
-      "detailerNegative",
-      "detailerSteps",
-      "detailerStrength",
-      "detailerResolution",
-      "detailerMaxDetected",
-      "detailerPadding",
-      "detailerBlur",
-      "detailerConfidence",
-      "detailerIou",
-      "detailerMinSize",
-      "detailerMaxSize",
-      "detailerRenoise",
-      "detailerRenoiseEnd",
-      "detailerSegmentation",
-      "detailerIncludeDetections",
-      "detailerMerge",
-      "detailerSort",
-      "detailerClasses",
     ],
   },
   {
@@ -200,7 +182,13 @@ function formatValue(v: unknown): string {
   if (v === undefined || v === null) return "-";
   if (typeof v === "boolean") return v ? "Yes" : "No";
   if (typeof v === "string") return v || '""';
-  if (Array.isArray(v)) return v.join(", ");
+  if (Array.isArray(v)) {
+    if (v.every((x) => typeof x === "string" || typeof x === "number")) {
+      return v.join(", ");
+    }
+    return JSON.stringify(v);
+  }
+  if (typeof v === "object") return JSON.stringify(v);
   return String(v);
 }
 
