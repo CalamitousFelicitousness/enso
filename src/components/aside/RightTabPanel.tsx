@@ -59,7 +59,7 @@ const TAB_COMPONENTS: Record<
 
 // Tabs that manage their own scrolling internally - render them without an
 // outer ScrollArea so the inner one isn't double-wrapped.
-const SELF_SCROLL_TABS = new Set<string>(["settings", "networks", "history", "console", "models"]);
+const SELF_SCROLL_TABS = new Set<string>(["settings", "networks", "history", "console", "models", "system"]);
 
 const FALLBACK = (
   <div className="p-3 text-xs text-muted-foreground">Loading...</div>

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { RotateCcw, PowerOff, Activity } from "lucide-react";
 import {
   useRestartServer,
@@ -15,6 +15,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { KeepAlivePanel, KeepAliveSwitch } from "@/components/ui/keep-alive";
 import { cn } from "@/lib/utils";
 
 import { OverviewSubTab } from "@/components/system/sub-tabs/OverviewSubTab";
@@ -36,6 +38,29 @@ const SUB_TABS = [
 ] as const;
 
 type SubTab = (typeof SUB_TABS)[number];
+
+// Hoist panel JSX to module scope so React element references are stable
+// across re-renders. Without this, every parent render rebuilds every panel,
+// forcing the reconciler to walk every kept-alive subtree on every click.
+function subPanel(id: SubTab, content: ReactNode) {
+  return (
+    <KeepAlivePanel key={id} id={id} activeClassName="flex-1 overflow-hidden">
+      <ScrollArea className="size-full">
+        <div className="p-3 min-w-0">{content}</div>
+      </ScrollArea>
+    </KeepAlivePanel>
+  );
+}
+
+const SUB_PANELS = [
+  subPanel("Overview", <OverviewSubTab />),
+  subPanel("Storage", <StorageSubTab />),
+  subPanel("Update", <UpdateSubTab />),
+  subPanel("History", <HistorySubTab />),
+  subPanel("GPU Monitor", <GpuMonitorSubTab />),
+  subPanel("System Info", <SystemInfoSubTab />),
+  subPanel("Benchmark", <BenchmarkSubTab />),
+];
 
 export function SystemTab() {
   const [active, setActive] = useState<SubTab>("Overview");
@@ -90,8 +115,8 @@ export function SystemTab() {
   });
 
   return (
-    <div>
-      <div className="sticky top-0 z-10 bg-card p-2 space-y-2 border-b border-border">
+    <div className="flex flex-col h-full min-w-0">
+      <div className="bg-card p-2 space-y-2 border-b border-border shrink-0">
         <div className="flex items-center gap-1 flex-wrap">
           <Button
             size="sm"
@@ -140,15 +165,7 @@ export function SystemTab() {
         </div>
       </div>
 
-      <div className="p-3">
-        {active === "Overview" && <OverviewSubTab />}
-        {active === "Storage" && <StorageSubTab />}
-        {active === "Update" && <UpdateSubTab />}
-        {active === "History" && <HistorySubTab />}
-        {active === "GPU Monitor" && <GpuMonitorSubTab />}
-        {active === "System Info" && <SystemInfoSubTab />}
-        {active === "Benchmark" && <BenchmarkSubTab />}
-      </div>
+      <KeepAliveSwitch active={active}>{SUB_PANELS}</KeepAliveSwitch>
 
       <Dialog
         open={confirmAction !== null}
