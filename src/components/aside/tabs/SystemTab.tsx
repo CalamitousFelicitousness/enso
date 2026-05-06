@@ -21,7 +21,7 @@ import { cn } from "@/lib/utils";
 
 import { OverviewSubTab } from "@/components/system/sub-tabs/OverviewSubTab";
 import { UpdateSubTab } from "@/components/system/sub-tabs/UpdateSubTab";
-import { HistorySubTab } from "@/components/system/sub-tabs/HistorySubTab";
+import { ActivityLogSubTab } from "@/components/system/sub-tabs/ActivityLogSubTab";
 import { GpuMonitorSubTab } from "@/components/system/sub-tabs/GpuMonitorSubTab";
 import { SystemInfoSubTab } from "@/components/system/sub-tabs/SystemInfoSubTab";
 import { BenchmarkSubTab } from "@/components/system/sub-tabs/BenchmarkSubTab";
@@ -31,7 +31,7 @@ const SUB_TABS = [
   "Overview",
   "Storage",
   "Update",
-  "History",
+  "Activity",
   "GPU Monitor",
   "System Info",
   "Benchmark",
@@ -56,7 +56,7 @@ const SUB_PANELS = [
   subPanel("Overview", <OverviewSubTab />),
   subPanel("Storage", <StorageSubTab />),
   subPanel("Update", <UpdateSubTab />),
-  subPanel("History", <HistorySubTab />),
+  subPanel("Activity", <ActivityLogSubTab />),
   subPanel("GPU Monitor", <GpuMonitorSubTab />),
   subPanel("System Info", <SystemInfoSubTab />),
   subPanel("Benchmark", <BenchmarkSubTab />),
