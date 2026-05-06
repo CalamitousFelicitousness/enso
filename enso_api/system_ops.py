@@ -51,6 +51,16 @@ def post_profiling():
     return {"enabled": shared.cmd_opts.profile}
 
 
+def get_profiling():
+    """
+    Return the current profiling state without mutating it.
+
+    Lets clients display an honest indicator after a reload or when another
+    client toggled the flag.
+    """
+    return {"enabled": bool(getattr(shared.cmd_opts, "profile", False))}
+
+
 # ---------------------------------------------------------------------------
 # Update check / apply
 # ---------------------------------------------------------------------------
@@ -288,6 +298,7 @@ def register_api():
     api.add_api_route("/sdapi/v2/server/restart", post_restart, methods=["POST"], tags=["System"])
     api.add_api_route("/sdapi/v2/server/shutdown", post_shutdown, methods=["POST"], tags=["System"])
     api.add_api_route("/sdapi/v2/server/profiling", post_profiling, methods=["POST"], tags=["System"])
+    api.add_api_route("/sdapi/v2/server/profiling", get_profiling, methods=["GET"], tags=["System"])
     api.add_api_route("/sdapi/v2/update/check", get_update_check, methods=["GET"], tags=["System"])
     api.add_api_route("/sdapi/v2/update/apply", post_update_apply, methods=["POST"], tags=["System"])
     api.add_api_route("/sdapi/v2/benchmark/run", post_benchmark_run, methods=["POST"], tags=["System"])

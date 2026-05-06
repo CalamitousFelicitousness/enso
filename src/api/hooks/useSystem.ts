@@ -66,10 +66,23 @@ export function useShutdownServer() {
   });
 }
 
+export function useProfilingState(enabled = true) {
+  return useQuery({
+    queryKey: ["server-profiling"],
+    queryFn: () => api.get<{ enabled: boolean }>("/sdapi/v2/server/profiling"),
+    enabled,
+    staleTime: 30_000,
+  });
+}
+
 export function useToggleProfiling() {
+  const queryClient = useQueryClient();
   return useMutation({
     mutationKey: ["server-profiling"],
     mutationFn: () => api.post<{ enabled: boolean }>("/sdapi/v2/server/profiling"),
+    onSuccess: (data) => {
+      queryClient.setQueryData(["server-profiling"], data);
+    },
   });
 }
 

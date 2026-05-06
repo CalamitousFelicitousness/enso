@@ -1,6 +1,7 @@
 import { useCallback, useState, type ReactNode } from "react";
 import { RotateCcw, PowerOff, Activity } from "lucide-react";
 import {
+  useProfilingState,
   useRestartServer,
   useShutdownServer,
   useToggleProfiling,
@@ -17,7 +18,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { KeepAlivePanel, KeepAliveSwitch } from "@/components/ui/keep-alive";
+import { KeepAlivePanel, KeepAliveSwitch, useKeepAliveVisible } from "@/components/ui/keep-alive";
 import { cn } from "@/lib/utils";
 
 import { OverviewSubTab } from "@/components/system/sub-tabs/OverviewSubTab";
@@ -64,15 +65,17 @@ const SUB_PANELS = [
 ];
 
 export function SystemTab() {
+  const visible = useKeepAliveVisible();
   const [active, setActive] = useState<SubTab>("Overview");
   const [confirmAction, setConfirmAction] = useState<
     "restart" | "shutdown" | null
   >(null);
-  const [profiling, setProfiling] = useState(false);
 
   const restartServer = useRestartServer();
   const shutdownServer = useShutdownServer();
   const toggleProfiling = useToggleProfiling();
+  const { data: profilingState } = useProfilingState(visible);
+  const profiling = profilingState?.enabled ?? false;
 
   const reportError = useCallback(
     (verb: string) => (err: unknown) => {
@@ -94,11 +97,6 @@ export function SystemTab() {
 
   function handleProfiling() {
     toggleProfiling.mutate(undefined, {
-      onSuccess: (data) => {
-        if (data && typeof data === "object" && "enabled" in data) {
-          setProfiling(data.enabled as boolean);
-        }
-      },
       onError: reportError("toggle profiling"),
     });
   }
