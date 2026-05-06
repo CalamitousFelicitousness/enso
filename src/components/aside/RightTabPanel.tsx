@@ -57,13 +57,37 @@ const TAB_COMPONENTS: Record<
   console: ConsoleTab,
 };
 
-// Tabs that manage their own scrolling internally — render them without an
+// Tabs that manage their own scrolling internally - render them without an
 // outer ScrollArea so the inner one isn't double-wrapped.
 const SELF_SCROLL_TABS = new Set<string>(["settings", "networks", "history", "console"]);
 
 const FALLBACK = (
   <div className="p-3 text-xs text-muted-foreground">Loading...</div>
 );
+
+// Hoist panel JSX to module scope so React element references are stable
+// across re-renders. Without this, every parent render rebuilds every panel,
+// forcing the reconciler to walk every kept-alive subtree on every click.
+const TAB_PANELS = Object.entries(TAB_COMPONENTS).map(([id, Comp]) => {
+  const inner = (
+    <Suspense fallback={FALLBACK}>
+      <Comp />
+    </Suspense>
+  );
+  return (
+    <KeepAlivePanel
+      key={id}
+      id={id}
+      activeClassName="flex-1 overflow-hidden"
+    >
+      {SELF_SCROLL_TABS.has(id) ? (
+        inner
+      ) : (
+        <ScrollArea className="size-full">{inner}</ScrollArea>
+      )}
+    </KeepAlivePanel>
+  );
+});
 
 export function RightTabPanel() {
   const activeTab = useUiStore((s) => s.activeRightTab);
@@ -77,28 +101,7 @@ export function RightTabPanel() {
           {tabMeta?.label ?? activeTab}
         </span>
       </div>
-      <KeepAliveSwitch active={activeTab}>
-        {Object.entries(TAB_COMPONENTS).map(([id, Comp]) => {
-          const inner = (
-            <Suspense fallback={FALLBACK}>
-              <Comp />
-            </Suspense>
-          );
-          return (
-            <KeepAlivePanel
-              key={id}
-              id={id}
-              activeClassName="flex-1 overflow-hidden"
-            >
-              {SELF_SCROLL_TABS.has(id) ? (
-                inner
-              ) : (
-                <ScrollArea className="size-full">{inner}</ScrollArea>
-              )}
-            </KeepAlivePanel>
-          );
-        })}
-      </KeepAliveSwitch>
+      <KeepAliveSwitch active={activeTab}>{TAB_PANELS}</KeepAliveSwitch>
     </div>
   );
 }

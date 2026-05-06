@@ -19,29 +19,33 @@ import { VideoPanel } from "@/components/video/VideoPanel";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { KeepAlivePanel, KeepAliveSwitch } from "@/components/ui/keep-alive";
 
-export function LeftTabPanel() {
-  const activeView = useUiStore((s) => s.activeNavView);
+// Hoist panel JSX to module scope so the React element references are stable
+// across re-renders. Without this, every parent render creates fresh elements
+// for every panel, which forces the reconciler to walk every kept-alive
+// subtree on every click. With stable references, React's reconciler skips
+// re-rendering panels whose element didn't change.
 
+function subPanel(id: string, content: ReactNode) {
   return (
-    <KeepAliveSwitch active={activeView}>
-      <KeepAlivePanel id="caption">
-        <CaptionPanel />
-      </KeepAlivePanel>
-      <KeepAlivePanel id="gallery">
-        <GalleryPanel />
-      </KeepAlivePanel>
-      <KeepAlivePanel id="process">
-        <ProcessPanel />
-      </KeepAlivePanel>
-      <KeepAlivePanel id="video">
-        <VideoPanel />
-      </KeepAlivePanel>
-      <KeepAlivePanel id="images">
-        <ImagesView />
-      </KeepAlivePanel>
-    </KeepAliveSwitch>
+    <KeepAlivePanel key={id} id={id} activeClassName="flex-1 overflow-hidden">
+      <ScrollArea className="size-full">
+        <div className="p-3 min-w-0">{content}</div>
+      </ScrollArea>
+    </KeepAlivePanel>
   );
 }
+
+const SUB_PANELS = [
+  subPanel("prompts", <PromptsTab />),
+  subPanel("sampler", <SamplerTab />),
+  subPanel("guidance", <GuidanceTab />),
+  subPanel("refine", <RefineTab />),
+  subPanel("detail", <DetailTab />),
+  subPanel("advanced", <AdvancedTab />),
+  subPanel("color", <ColorTab />),
+  subPanel("control", <ControlTab />),
+  subPanel("scripts", <ScriptsTab />),
+];
 
 function ImagesView() {
   const activeSubTab = useUiStore((s) => s.activeImagesSubTab);
@@ -53,17 +57,7 @@ function ImagesView() {
       <div className="px-3 py-2 border-b border-border">
         <ActionBar />
       </div>
-      <KeepAliveSwitch active={resolvedSubTab}>
-        {subPanel("prompts", <PromptsTab />)}
-        {subPanel("sampler", <SamplerTab />)}
-        {subPanel("guidance", <GuidanceTab />)}
-        {subPanel("refine", <RefineTab />)}
-        {subPanel("detail", <DetailTab />)}
-        {subPanel("advanced", <AdvancedTab />)}
-        {subPanel("color", <ColorTab />)}
-        {subPanel("control", <ControlTab />)}
-        {subPanel("scripts", <ScriptsTab />)}
-      </KeepAliveSwitch>
+      <KeepAliveSwitch active={resolvedSubTab}>{SUB_PANELS}</KeepAliveSwitch>
       <div className="border-t border-border px-2 py-1.5">
         <ResultGallery />
       </div>
@@ -71,12 +65,25 @@ function ImagesView() {
   );
 }
 
-function subPanel(id: string, content: ReactNode) {
-  return (
-    <KeepAlivePanel key={id} id={id} activeClassName="flex-1 overflow-hidden">
-      <ScrollArea className="size-full">
-        <div className="p-3 min-w-0">{content}</div>
-      </ScrollArea>
-    </KeepAlivePanel>
-  );
+const VIEW_PANELS = [
+  <KeepAlivePanel key="caption" id="caption">
+    <CaptionPanel />
+  </KeepAlivePanel>,
+  <KeepAlivePanel key="gallery" id="gallery">
+    <GalleryPanel />
+  </KeepAlivePanel>,
+  <KeepAlivePanel key="process" id="process">
+    <ProcessPanel />
+  </KeepAlivePanel>,
+  <KeepAlivePanel key="video" id="video">
+    <VideoPanel />
+  </KeepAlivePanel>,
+  <KeepAlivePanel key="images" id="images">
+    <ImagesView />
+  </KeepAlivePanel>,
+];
+
+export function LeftTabPanel() {
+  const activeView = useUiStore((s) => s.activeNavView);
+  return <KeepAliveSwitch active={activeView}>{VIEW_PANELS}</KeepAliveSwitch>;
 }
