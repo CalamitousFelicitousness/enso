@@ -7,6 +7,7 @@ import {
   useToggleProfiling,
 } from "@/api/hooks/useSystem";
 import { useRegisterCommand } from "@/lib/commandRegistry";
+import { useUiStore, type SystemSubTab } from "@/stores/uiStore";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -29,7 +30,7 @@ import { SystemInfoSubTab } from "@/components/system/sub-tabs/SystemInfoSubTab"
 import { BenchmarkSubTab } from "@/components/system/sub-tabs/BenchmarkSubTab";
 import { StorageSubTab } from "@/components/system/sub-tabs/StorageSubTab";
 
-const SUB_TABS = [
+const SUB_TABS: readonly SystemSubTab[] = [
   "Overview",
   "Storage",
   "Update",
@@ -39,12 +40,10 @@ const SUB_TABS = [
   "Benchmark",
 ] as const;
 
-type SubTab = (typeof SUB_TABS)[number];
-
 // Hoist panel JSX to module scope so React element references are stable
 // across re-renders. Without this, every parent render rebuilds every panel,
 // forcing the reconciler to walk every kept-alive subtree on every click.
-function subPanel(id: SubTab, content: ReactNode) {
+function subPanel(id: SystemSubTab, content: ReactNode) {
   return (
     <KeepAlivePanel key={id} id={id} activeClassName="flex-1 overflow-hidden">
       <ScrollArea className="size-full">
@@ -66,7 +65,12 @@ const SUB_PANELS = [
 
 export function SystemTab() {
   const visible = useKeepAliveVisible();
-  const [active, setActive] = useState<SubTab>("Overview");
+  const active = useUiStore((s) => s.panelSelections.systemSubTab);
+  const setPanelSelection = useUiStore((s) => s.setPanelSelection);
+  const setActive = useCallback(
+    (tab: SystemSubTab) => setPanelSelection("systemSubTab", tab),
+    [setPanelSelection],
+  );
   const [confirmAction, setConfirmAction] = useState<
     "restart" | "shutdown" | null
   >(null);

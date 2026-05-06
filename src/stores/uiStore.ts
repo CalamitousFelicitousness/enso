@@ -7,6 +7,40 @@ type ImagesSubTab = "prompts" | "sampler" | "guidance" | "refine" | "detail" | "
 type ColorMode = "dark" | "light" | "system";
 type CanvasBackground = "dots" | "noise" | "iso";
 
+type ModelsSubTab =
+  | "Current"
+  | "List"
+  | "Metadata"
+  | "Loader"
+  | "Merge"
+  | "Replace"
+  | "CivitAI"
+  | "Huggingface"
+  | "Extract LoRA";
+
+type SystemSubTab =
+  | "Overview"
+  | "Storage"
+  | "Update"
+  | "Activity"
+  | "GPU Monitor"
+  | "System Info"
+  | "Benchmark";
+
+type CaptionSubTab = "vlm" | "openclip" | "tagger" | "default";
+type VideoSubTab = "models" | "framepack" | "ltx";
+
+interface PanelSelections {
+  modelsSubTab: ModelsSubTab;
+  systemSubTab: SystemSubTab;
+  captionSubTab: CaptionSubTab;
+  videoSubTab: VideoSubTab;
+  /** Free-form because backend Settings sections are dynamic. The synthetic
+   * Connection / Appearance ids and any backend section id are valid; null
+   * falls back to whichever section SettingsView resolves first. */
+  settingsSection: string | null;
+}
+
 interface UiState {
   // Left Rail
   leftRailCollapsed: boolean;
@@ -21,6 +55,9 @@ interface UiState {
 
   // Right tabs
   activeRightTab: RightTab;
+
+  // Sub-tab routing for parent panels
+  panelSelections: PanelSelections;
 
   // Result gallery
   resultThumbSize: number;
@@ -68,6 +105,7 @@ interface UiState {
   toggleRightPanel: () => void;
   setRightTab: (tab: RightTab) => void;
   openRightTab: (tab: RightTab) => void;
+  setPanelSelection: <K extends keyof PanelSelections>(key: K, value: PanelSelections[K]) => void;
   setColorMode: (mode: ColorMode) => void;
   setAccentColor: (color: string) => void;
   setUiScale: (scale: number) => void;
@@ -82,7 +120,15 @@ interface UiState {
   setDictAppendComma: (enabled: boolean) => void;
 }
 
-export type { NavView, ImagesSubTab, ColorMode, CanvasBackground };
+export type { NavView, ImagesSubTab, ColorMode, CanvasBackground, ModelsSubTab, SystemSubTab, CaptionSubTab, VideoSubTab, PanelSelections };
+
+const DEFAULT_PANEL_SELECTIONS: PanelSelections = {
+  modelsSubTab: "Current",
+  systemSubTab: "Overview",
+  captionSubTab: "vlm",
+  videoSubTab: "models",
+  settingsSection: null,
+};
 
 export const useUiStore = create<UiState>()(
   persist(
@@ -95,6 +141,7 @@ export const useUiStore = create<UiState>()(
       leftPanelWidth: 380,
       rightPanelCollapsed: true,
       activeRightTab: "networks" as RightTab,
+      panelSelections: { ...DEFAULT_PANEL_SELECTIONS },
       resultThumbSize: 56,
       autoFitFrame: true,
       reprocessOnGenerate: true,
@@ -125,6 +172,10 @@ export const useUiStore = create<UiState>()(
       toggleRightPanel: () => set((s) => ({ rightPanelCollapsed: !s.rightPanelCollapsed })),
       setRightTab: (tab) => set({ activeRightTab: tab }),
       openRightTab: (tab) => set({ activeRightTab: tab, rightPanelCollapsed: false }),
+      setPanelSelection: (key, value) =>
+        set((s) => ({
+          panelSelections: { ...s.panelSelections, [key]: value },
+        })),
       setColorMode: (mode) => set({ colorMode: mode }),
       setAccentColor: (color) => set({ accentColor: color }),
       setUiScale: (scale) => set({ uiScale: Math.max(8, Math.min(28, scale)) }),
@@ -143,7 +194,15 @@ export const useUiStore = create<UiState>()(
     }),
     {
       name: "enso-ui",
-      version: 2,
+      version: 3,
+      migrate: (persisted, version) => {
+        if (!persisted || typeof persisted !== "object") return persisted;
+        const p = persisted as Record<string, unknown>;
+        if (version < 3 && !("panelSelections" in p)) {
+          p.panelSelections = { ...DEFAULT_PANEL_SELECTIONS };
+        }
+        return p;
+      },
       partialize: (state) => {
         const { pendingSettingsSearch: _pending, dictMinChars: _mc, dictReplaceUnderscores: _ru, dictAppendComma: _ac, ...rest } = state;
         return rest;

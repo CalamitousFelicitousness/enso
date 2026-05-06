@@ -563,7 +563,12 @@ export function SettingsView({ onDirtyChange }: SettingsViewProps = {}) {
   const { data: upscalers } = useUpscalerList();
 
   const [dirty, setDirty] = useState<Record<string, unknown>>({});
-  const [activeSection, setActiveSection] = useState<string | null>(null);
+  const activeSection = useUiStore((s) => s.panelSelections.settingsSection);
+  const setPanelSelection = useUiStore((s) => s.setPanelSelection);
+  const setActiveSection = useCallback(
+    (id: string | null) => setPanelSelection("settingsSection", id),
+    [setPanelSelection],
+  );
   const [searchQuery, setSearchQuery] = useState("");
   const searchInputRef = useRef<HTMLInputElement>(null);
 
@@ -760,7 +765,7 @@ export function SettingsView({ onDirtyChange }: SettingsViewProps = {}) {
   const handleNavigateToSection = useCallback((id: string) => {
     setActiveSection(id);
     setSearchQuery("");
-  }, []);
+  }, [setActiveSection]);
 
   return (
     <div className="flex h-full">

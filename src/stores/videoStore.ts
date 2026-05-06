@@ -4,8 +4,6 @@ import type { VideoResult } from "@/api/types/video";
 import { putVideoResult, trimVideoResults, clearAllVideoResults, getAllVideoResults } from "@/lib/videoHistoryDb";
 
 interface VideoState {
-  activeVideoTab: string;
-
   // Shared
   engine: string;
   model: string;
@@ -89,8 +87,6 @@ interface VideoState {
 }
 
 const defaultParams = {
-  activeVideoTab: "models",
-
   engine: "",
   model: "",
   prompt: "",
@@ -202,7 +198,7 @@ export const useVideoStore = create<VideoState>()(
     }),
     {
       name: "enso-video",
-      version: 1,
+      version: 2,
       migrate: (persisted, version) => {
         if (!persisted || typeof persisted !== "object") return persisted;
         const p = persisted as Record<string, unknown>;
@@ -211,6 +207,10 @@ export const useVideoStore = create<VideoState>()(
             p.historyLimit = p._historyLimit;
             delete p._historyLimit;
           }
+        }
+        if (version < 2) {
+          // activeVideoTab moved to uiStore.panelSelections.videoSubTab in v2
+          delete p.activeVideoTab;
         }
         return p;
       },

@@ -1,7 +1,8 @@
-import { useState, type ReactNode } from "react";
+import { useCallback, type ReactNode } from "react";
 import { Combine, Replace, Scissors, CloudDownload, Globe } from "lucide-react";
 import { useLoadedModels } from "@/api/hooks/useServer";
 import { useRegisterCommand } from "@/lib/commandRegistry";
+import { useUiStore, type ModelsSubTab } from "@/stores/uiStore";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { KeepAlivePanel, KeepAliveSwitch, useKeepAliveVisible } from "@/components/ui/keep-alive";
@@ -16,7 +17,7 @@ import { CivitaiSubTab } from "@/components/models/sub-tabs/CivitaiSubTab";
 import { HuggingfaceSubTab } from "@/components/models/sub-tabs/HuggingfaceSubTab";
 import { ExtractLoraSubTab } from "@/components/models/sub-tabs/ExtractLoraSubTab";
 
-const SUB_TABS = [
+const SUB_TABS: readonly ModelsSubTab[] = [
   "Current",
   "List",
   "Metadata",
@@ -28,12 +29,10 @@ const SUB_TABS = [
   "Extract LoRA",
 ] as const;
 
-type SubTab = (typeof SUB_TABS)[number];
-
 // Hoist panel JSX to module scope so React element references are stable
 // across re-renders. Without this, every parent render rebuilds every panel,
 // forcing the reconciler to walk every kept-alive subtree on every click.
-function subPanel(id: SubTab, content: ReactNode) {
+function subPanel(id: ModelsSubTab, content: ReactNode) {
   return (
     <KeepAlivePanel key={id} id={id} activeClassName="flex-1 overflow-hidden">
       <ScrollArea className="size-full">
@@ -56,7 +55,12 @@ const SUB_PANELS = [
 ];
 
 export function ModelsTab() {
-  const [active, setActive] = useState<SubTab>("Current");
+  const active = useUiStore((s) => s.panelSelections.modelsSubTab);
+  const setPanelSelection = useUiStore((s) => s.setPanelSelection);
+  const setActive = useCallback(
+    (tab: ModelsSubTab) => setPanelSelection("modelsSubTab", tab),
+    [setPanelSelection],
+  );
   const visible = useKeepAliveVisible();
   const { data: loaded } = useLoadedModels(visible);
   const loadedCount = loaded?.length ?? 0;

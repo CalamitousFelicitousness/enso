@@ -1,4 +1,4 @@
-import { useCallback, useState, type ReactNode } from "react";
+import { useCallback, type ReactNode } from "react";
 import { Play, Loader2, Eye, Aperture, Tags, Settings } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -7,6 +7,7 @@ import { SegmentedControl } from "@/components/ui/segmented-control";
 import { KeepAlivePanel, KeepAliveSwitch } from "@/components/ui/keep-alive";
 import { useCaptionStore } from "@/stores/captionStore";
 import { useCaptionSettingsStore } from "@/stores/captionSettingsStore";
+import { useUiStore } from "@/stores/uiStore";
 import {
   useOptionsSubset,
   useSetOptions,
@@ -96,14 +97,15 @@ export function CaptionPanel() {
   const setProcessing = useCaptionStore((s) => s.setProcessing);
   const setMethod = useCaptionStore((s) => s.setMethod);
 
-  const [activeTab, setActiveTab] = useState<CaptionMethod | "default">(method);
+  const activeTab = useUiStore((s) => s.panelSelections.captionSubTab);
+  const setPanelSelection = useUiStore((s) => s.setPanelSelection);
 
   const handleTabChange = useCallback(
     (v: CaptionMethod | "default") => {
-      setActiveTab(v);
+      setPanelSelection("captionSubTab", v);
       if (v !== "default") setMethod(v);
     },
-    [setMethod],
+    [setPanelSelection, setMethod],
   );
 
   const openclipMut = useOpenClipCaption();

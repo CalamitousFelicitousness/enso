@@ -2,6 +2,7 @@ import { useCallback, useMemo, useState, type ReactNode } from "react";
 import { Play, Square, Sparkles, Settings2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useVideoStore } from "@/stores/videoStore";
+import { useUiStore, type VideoSubTab } from "@/stores/uiStore";
 import { usePromptEnhanceStore } from "@/stores/promptEnhanceStore";
 import {
   useJobQueueStore,
@@ -39,12 +40,10 @@ const tabs = [
   { id: "ltx", label: "LTX" },
 ] as const;
 
-type VideoTab = (typeof tabs)[number]["id"];
-
 // Hoist panel JSX to module scope so React element references stay stable
 // across re-renders. Without this, every parent render rebuilds every panel,
 // forcing the reconciler to walk every kept-alive subtree on every state change.
-function subPanel(id: VideoTab, content: ReactNode) {
+function subPanel(id: VideoSubTab, content: ReactNode) {
   return (
     <KeepAlivePanel key={id} id={id} activeClassName="flex-1 overflow-hidden">
       <ScrollArea className="size-full">
@@ -172,7 +171,8 @@ function canGenerate(tab: string) {
 }
 
 export function VideoPanel() {
-  const activeVideoTab = useVideoStore((s) => s.activeVideoTab);
+  const activeVideoTab = useUiStore((s) => s.panelSelections.videoSubTab);
+  const setPanelSelection = useUiStore((s) => s.setPanelSelection);
   const prompt = useVideoStore((s) => s.prompt);
   const negative = useVideoStore((s) => s.negative);
   const setParam = useVideoStore((s) => s.setParam);
@@ -387,7 +387,7 @@ export function VideoPanel() {
             <button
               key={tab.id}
               type="button"
-              onClick={() => setParam("activeVideoTab", tab.id)}
+              onClick={() => setPanelSelection("videoSubTab", tab.id)}
               className={`px-3 py-1.5 text-xs font-medium transition-colors relative ${
                 activeVideoTab === tab.id
                   ? "text-foreground"
