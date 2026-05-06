@@ -3,6 +3,7 @@ import {
   useRemoveProvider,
   useRefreshProvider,
   useValidateProvider,
+  useUpdateProvider,
   useCloudModels,
 } from "@/api/hooks/useCloudModels";
 import { ModelBrowser } from "./ModelBrowser";
@@ -17,7 +18,6 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import type { Provider } from "@/api/types/cloud";
-import { useAddProvider } from "@/api/hooks/useCloudModels";
 
 interface ProviderCardProps {
   provider: Provider;
@@ -28,16 +28,19 @@ export function ProviderCard({ provider }: ProviderCardProps) {
   const removeProvider = useRemoveProvider();
   const refreshProvider = useRefreshProvider();
   const validateProvider = useValidateProvider();
+  const updateProvider = useUpdateProvider();
   const { data: models } = useCloudModels(expanded ? provider.id : "");
 
-  const addProvider = useAddProvider();
-
-  function handleToggleEnabled() {
-    addProvider.mutate({
-      name: provider.name,
-      preset: provider.preset,
-      base_url: provider.base_url,
-    });
+  function handleToggleEnabled(checked: boolean) {
+    updateProvider.mutate(
+      { id: provider.id, enabled: checked },
+      {
+        onError: (err) =>
+          toast.error(`Failed to ${checked ? "enable" : "disable"} ${provider.name}`, {
+            description: err instanceof Error ? err.message : String(err),
+          }),
+      },
+    );
   }
 
   async function handleValidate() {
@@ -142,6 +145,7 @@ export function ProviderCard({ provider }: ProviderCardProps) {
               <Switch
                 checked={provider.enabled}
                 onCheckedChange={handleToggleEnabled}
+                disabled={updateProvider.isPending}
                 className="scale-75"
               />
             </div>

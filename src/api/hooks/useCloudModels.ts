@@ -73,6 +73,26 @@ export function useRemoveProvider() {
   });
 }
 
+export function useUpdateProvider() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      id,
+      ...updates
+    }: {
+      id: string;
+      name?: string;
+      base_url?: string;
+      key?: string;
+      enabled?: boolean;
+    }) => api.put(`/sdapi/v2/cloud/providers/${id}`, updates),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["cloud-providers"] });
+      queryClient.invalidateQueries({ queryKey: ["cloud-models-all"] });
+    },
+  });
+}
+
 export function useRefreshProvider() {
   const queryClient = useQueryClient();
   return useMutation({
