@@ -14,6 +14,7 @@ def register_api(app, dependencies=None):
     from enso_api.routes import router
     from enso_api.upload import upload_router, init_upload_store
     from enso_api.ws import ws_job_endpoint
+    from enso_api.job_types import validate_registries
 
     deps = dependencies or []
 
@@ -22,6 +23,11 @@ def register_api(app, dependencies=None):
 
     from enso_api.cloud import init_providers
     init_providers(enso_root)
+
+    # Fail fast if JobRequest union, EXECUTORS dict, and JOB_TYPE_META diverge
+    # so a missing executor or meta entry aborts boot rather than surfacing
+    # as a 500 on the first client submit.
+    validate_registries()
 
     staging_dir = os.path.join(shared.opts.temp_dir or tempfile.gettempdir(), 'uploads')
     init_upload_store(staging_dir, ttl=1800)

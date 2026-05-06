@@ -272,6 +272,30 @@ export type JobRequest =
   | CloudSttJobParams
   | CloudVideoJobParams;
 
+// --- Job-type discovery ---
+
+export type JobTypeCategory = "core" | "video" | "model-management" | "cloud";
+export type JobTypeRuntime = "local" | "cloud";
+
+/** One entry of GET /sdapi/v2/job-types. Mirrors ItemJobTypeV2 in
+ * enso_api/models.py. */
+export interface JobTypeV2 {
+  type: string;
+  title: string;
+  description: string;
+  category: JobTypeCategory;
+  runtime: JobTypeRuntime;
+  /** True if DELETE /sdapi/v2/jobs/{id} can interrupt mid-run. False for
+   * cloud: DELETE marks the row cancelled but the in-flight HTTP call
+   * continues and its result is discarded. */
+  interruptible: boolean;
+  /** Discriminator value of a parent type whose schema is fully inherited
+   * (only "generate" for "xyz-grid" today). */
+  extends: string | null;
+  /** JSON Pointer into /openapi.json #/components/schemas for the request body. */
+  schema_ref: string;
+}
+
 // --- Job response types ---
 
 export interface ImageRef {

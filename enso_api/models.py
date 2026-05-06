@@ -1,4 +1,4 @@
-from typing import Any, Optional, Union
+from typing import Any, Literal, Optional, Union
 from pydantic import BaseModel, ConfigDict, Field
 
 
@@ -555,6 +555,34 @@ class ItemExtensionV2(BaseModel):
 class ItemDetailerV2(BaseModel):
     name: str = Field(title="Name")
     path: Optional[str] = Field(default=None, title="Path")
+
+
+# --- Job Type models (v2) ---
+
+class ItemJobTypeV2(BaseModel):
+    """One entry of GET /sdapi/v2/job-types: a job type accepted by POST /sdapi/v2/jobs."""
+    type: str = Field(title="Type", description="Discriminator value used in the POST /sdapi/v2/jobs body")
+    title: str = Field(title="Title", description="Human-friendly display name")
+    description: str = Field(title="Description", description="What this job type does (cleaned class docstring)")
+    category: Literal["core", "video", "model-management", "cloud"] = Field(title="Category", description="Logical grouping")
+    runtime: Literal["local", "cloud"] = Field(title="Runtime", description="Where the job executes")
+    interruptible: bool = Field(
+        title="Interruptible",
+        description=(
+            "True if DELETE /sdapi/v2/jobs/{id} can interrupt mid-run via "
+            "shared.state.interrupt(). False for cloud jobs: DELETE marks "
+            "the row cancelled but the in-flight HTTP call continues and "
+            "its result is discarded."
+        ),
+    )
+    extends: Optional[str] = Field(
+        default=None, title="Extends",
+        description="Discriminator value of a parent type whose schema is fully inherited (e.g. xyz-grid extends generate)",
+    )
+    schema_ref: str = Field(
+        title="Schema Ref",
+        description="JSON Pointer into /openapi.json #/components/schemas for the request body",
+    )
 
 
 # --- Prompt Enhance models (v2) ---

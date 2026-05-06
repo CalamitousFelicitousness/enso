@@ -11,7 +11,7 @@ as their v1 counterparts.
 import asyncio
 import os
 from datetime import datetime
-from typing import Any
+from typing import Any, Literal, Optional
 from fastapi import APIRouter, HTTPException, Query
 from modules import shared
 
@@ -67,6 +67,7 @@ from enso_api.models import (
     ReqPngInfoV2, ResPngInfoV2,
     ItemExtensionV2,
     ItemDetailerV2,
+    ItemJobTypeV2,
 )
 
 router = APIRouter(prefix="/sdapi/v2")
@@ -761,3 +762,26 @@ async def get_detailers_v2():
     """List available detailer (YOLO) models for face/object detection and inpainting."""
     shared.yolo.enumerate()
     return [ItemDetailerV2(name=k, path=v) for k, v in shared.yolo.list.items()]
+
+
+# --- Job Types ---
+
+@router.get("/job-types", response_model=list[ItemJobTypeV2], tags=["Enumerators"])
+async def get_job_types_v2(
+    runtime: Optional[Literal["local", "cloud"]] = Query(
+        default=None,
+        description="Filter to local-only or cloud-only job types",
+    ),
+):
+    """List every job type accepted by POST /sdapi/v2/jobs.
+
+    Each item carries the discriminator value, a display title, the cleaned
+    class docstring, a category, runtime, interrupt semantics, the parent
+    type if any (xyz-grid extends generate), and a JSON Pointer into
+    /openapi.json where the request body schema is published.
+    """
+    from enso_api.job_types import discover_job_types
+    items = discover_job_types()
+    if runtime is not None:
+        items = [i for i in items if i.runtime == runtime]
+    return items
