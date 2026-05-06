@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useSyncExternalStore } from "react";
 import { useGpuStatus } from "@/api/hooks/useServer";
 import { useKeepAliveVisible } from "@/components/ui/keep-alive";
-import { Section, Row } from "./OverviewSubTab";
+import { Section, Row } from "../shared";
 
 const MAX_POINTS = 60;
 

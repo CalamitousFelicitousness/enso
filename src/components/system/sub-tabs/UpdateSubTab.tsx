@@ -4,7 +4,7 @@ import { useUpdateCheck, useApplyUpdate } from "@/api/hooks/useSystem";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import { Section, Row } from "./OverviewSubTab";
+import { Section, Row } from "../shared";
 
 export function UpdateSubTab() {
   const { data: info, isFetching, refetch } = useUpdateCheck();

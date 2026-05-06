@@ -1,6 +1,6 @@
 import { useStorage } from "@/api/hooks/useSystem";
 import { formatBytes } from "@/lib/utils";
-import { Section, BarRow, Row } from "./OverviewSubTab";
+import { Section, BarRow, Row } from "../shared";
 import { Button } from "@/components/ui/button";
 import { AlertCircle, HardDrive, Loader2 } from "lucide-react";
 

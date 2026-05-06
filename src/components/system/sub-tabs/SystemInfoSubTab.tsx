@@ -2,7 +2,7 @@ import { Loader2, RefreshCw } from "lucide-react";
 import { useSystemInfoFull } from "@/api/hooks/useSystem";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Section, Row } from "./OverviewSubTab";
+import { Section, Row } from "../shared";
 
 export function SystemInfoSubTab() {
   const { data, isFetching, refetch } = useSystemInfoFull();

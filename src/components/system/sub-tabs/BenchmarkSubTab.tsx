@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Combobox } from "@/components/ui/combobox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Section, Row } from "./OverviewSubTab";
+import { Section, Row } from "../shared";
 
 const LEVELS = [
   { value: "quick", label: "Quick (batch 1)" },
