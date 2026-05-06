@@ -15,6 +15,7 @@ import { getOrderedFrames, computeFocusViewport } from "./frameList";
 import type { CanvasLayout } from "./useControlFrameLayout";
 import { CanvasBackground } from "./CanvasBackground";
 import { mainViewportBus } from "./viewportBus";
+import { useKeepAliveVisible } from "@/components/ui/keep-alive";
 import Konva from "konva";
 
 // Only allow left mouse button to initiate Konva node drags.
@@ -75,6 +76,21 @@ export function CanvasStage({ layout, onPickImage }: CanvasStageProps) {
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
+
+  // Defensive remeasure on KeepAlive reveal. Modern browsers fire the
+  // ResizeObserver naturally on display:none -> visible transitions, but the
+  // explicit read closes any race where the observer is late and the auto-fit
+  // effect would otherwise skip with 0x0 dimensions.
+  const visible = useKeepAliveVisible();
+  useEffect(() => {
+    if (!visible) return;
+    const el = containerRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    if (rect.width > 0 && rect.height > 0) {
+      setContainerSize({ width: rect.width, height: rect.height });
+    }
+  }, [visible]);
 
   // Canvas-mode auto-fit: show all frames. Runs on initial render and whenever
   // the generation size changes (e.g. autoFitFrame resizing to match image).

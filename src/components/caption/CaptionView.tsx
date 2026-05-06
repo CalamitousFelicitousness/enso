@@ -15,6 +15,7 @@ import { useGenerationStore } from "@/stores/generationStore";
 import { useDropTarget } from "@/hooks/useDropTarget";
 import { payloadToFile } from "@/lib/sendTo";
 import type { DragPayload } from "@/stores/dragStore";
+import { useKeepAliveVisible } from "@/components/ui/keep-alive";
 
 export function CaptionView() {
   const image = useCaptionStore((s) => s.image);
@@ -45,8 +46,14 @@ export function CaptionView() {
     [setImage],
   );
 
-  // Global paste listener
+  // Pause the global paste listener while this view is hidden inside its
+  // KeepAlive panel. `inert` does not block window-level events, so without
+  // the visibility gate a paste meant for the active view would silently land
+  // here. Rebind on visibility change rather than gating inside the handler -
+  // simpler and stays clean of the no-ref-during-render rule.
+  const visible = useKeepAliveVisible();
   useEffect(() => {
+    if (!visible) return;
     const onPaste = (e: ClipboardEvent) => {
       const target = e.target as HTMLElement;
       if (
@@ -67,7 +74,7 @@ export function CaptionView() {
     };
     window.addEventListener("paste", onPaste);
     return () => window.removeEventListener("paste", onPaste);
-  }, [setImage]);
+  }, [visible, setImage]);
 
   const answerText =
     result?.type === "vqa"

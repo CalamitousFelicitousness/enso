@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useGalleryStore } from "@/stores/galleryStore";
 import { useShortcut } from "@/hooks/useShortcut";
 import { useShortcutScope } from "@/hooks/useShortcutScope";
+import { useKeepAliveVisible } from "@/components/ui/keep-alive";
 import { useDragSource } from "@/hooks/useDragSource";
 import { useImageZoomPan } from "@/hooks/useImageZoomPan";
 import { isVideoFile } from "@/lib/mediaType";
@@ -88,23 +89,27 @@ export function GalleryLightbox() {
       );
   }, [fullUrl, lightboxIndex, maxIndex, file]);
 
-  // Keyboard shortcuts (scoped to "lightbox", only active when open)
-  useShortcutScope("lightbox", isOpen);
-  useShortcut("lightbox-close", () => closeLightbox(), isOpen);
-  useShortcut("lightbox-prev", () => navigate(-1), isOpen);
-  useShortcut("lightbox-next", () => navigate(1), isOpen);
-  useShortcut("lightbox-zoom-in", () => zoom.setScale((s) => s * 1.25), isOpen);
+  // Keyboard shortcuts (scoped to "lightbox", only active when open AND the
+  // GalleryView panel is visible — without the visibility AND, switching to
+  // a different MainCanvas view would leave lightbox shortcuts active).
+  const parentVisible = useKeepAliveVisible();
+  const active = isOpen && parentVisible;
+  useShortcutScope("lightbox", active);
+  useShortcut("lightbox-close", () => closeLightbox(), active);
+  useShortcut("lightbox-prev", () => navigate(-1), active);
+  useShortcut("lightbox-next", () => navigate(1), active);
+  useShortcut("lightbox-zoom-in", () => zoom.setScale((s) => s * 1.25), active);
   useShortcut(
     "lightbox-zoom-in-eq",
     () => zoom.setScale((s) => s * 1.25),
-    isOpen,
+    active,
   );
   useShortcut(
     "lightbox-zoom-out",
     () => zoom.setScale((s) => s / 1.25),
-    isOpen,
+    active,
   );
-  useShortcut("lightbox-zoom-reset", () => zoom.resetTransform(), isOpen);
+  useShortcut("lightbox-zoom-reset", () => zoom.resetTransform(), active);
 
   if (!isOpen || !file) return null;
 

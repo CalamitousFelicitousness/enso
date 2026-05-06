@@ -6,6 +6,7 @@ import { useImg2ImgStore } from "@/stores/img2imgStore";
 import { useUiStore } from "@/stores/uiStore";
 import { useShortcutScope } from "@/hooks/useShortcutScope";
 import { useShortcut } from "@/hooks/useShortcut";
+import { useKeepAliveVisible } from "@/components/ui/keep-alive";
 import { useDropTarget } from "@/hooks/useDropTarget";
 import { payloadToFile } from "@/lib/sendTo";
 import type { DragPayload } from "@/stores/dragStore";
@@ -21,7 +22,8 @@ import { RotateCcw, X, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export const CanvasView = memo(function CanvasView() {
-  useShortcutScope("canvas");
+  const visible = useKeepAliveVisible();
+  useShortcutScope("canvas", visible);
   const setViewport = useCanvasStore((s) => s.setViewport);
   const addImageLayer = useCanvasStore((s) => s.addImageLayer);
   const clearLayers = useCanvasStore((s) => s.clearLayers);

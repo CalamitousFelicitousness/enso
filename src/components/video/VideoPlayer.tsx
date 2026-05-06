@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Film } from "lucide-react";
 import { PlayerControls } from "@/components/video/PlayerControls";
+import { useKeepAliveVisible } from "@/components/ui/keep-alive";
 
 const SPEEDS = [0.25, 0.5, 1, 2, 4] as const;
 const IDLE_TIMEOUT_MS = 2500;
@@ -133,6 +134,17 @@ function VideoPlayerInner({ src }: { src: string }) {
     return () =>
       document.removeEventListener("fullscreenchange", handleFsChange);
   }, []);
+
+  // Pause playback when the host KeepAlive panel becomes hidden. `inert` does
+  // not stop a <video> from decoding, so without this an off-screen video
+  // would keep producing audio + frame updates. No auto-resume on reveal -
+  // the user controls resume.
+  const visible = useKeepAliveVisible();
+  useEffect(() => {
+    if (visible) return;
+    const v = videoRef.current;
+    if (v && !v.paused) v.pause();
+  }, [visible]);
 
   // Keyboard shortcuts
   useEffect(() => {

@@ -8,6 +8,7 @@ import {
 import { useGalleryStore } from "@/stores/galleryStore";
 import { useShortcut } from "@/hooks/useShortcut";
 import { useShortcutScope } from "@/hooks/useShortcutScope";
+import { useKeepAliveVisible } from "@/components/ui/keep-alive";
 import { useRegisterCommand } from "@/lib/commandRegistry";
 import { Trash2, FolderInput, Download, CheckSquare, Square as SquareIcon, Eye } from "lucide-react";
 import {
@@ -39,7 +40,8 @@ export function GalleryView() {
   const downloadMutation = useDownloadFiles();
 
   useBrowserFiles(activeFolder);
-  useShortcutScope("gallery");
+  const visible = useKeepAliveVisible();
+  useShortcutScope("gallery", visible);
   useShortcut("gallery-toggle-info", () =>
     useGalleryStore.getState().toggleMetadataPanel(),
   );
