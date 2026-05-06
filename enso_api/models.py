@@ -92,6 +92,7 @@ class ReqBulkJobV2(BaseModel):
     type: str | None = None
     ids: list[str] | None = None
     before: str | None = None  # ISO timestamp
+    confirm: bool = False    # explicit opt-in for no-filter requests
 
 class ResBulkJobV2(BaseModel):
     action: str

@@ -332,6 +332,7 @@ export interface BulkJobRequest {
   type?: string;
   ids?: string[];
   before?: string;
+  confirm?: boolean;
 }
 
 export interface BulkJobResponse {

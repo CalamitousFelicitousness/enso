@@ -90,8 +90,8 @@ async def job_stats():
 async def bulk_job_action(request: ReqBulkJobV2):
     if request.action not in ("cancel", "delete"):
         raise HTTPException(status_code=400, detail="action must be 'cancel' or 'delete'")
-    if not any([request.status, request.type, request.ids, request.before]):
-        raise HTTPException(status_code=400, detail="At least one filter (status, type, ids, before) is required")
+    if not any([request.status, request.type, request.ids, request.before]) and not request.confirm:
+        raise HTTPException(status_code=400, detail="At least one filter (status, type, ids, before) is required, or set confirm=true")
     from enso_api.job_queue import job_queue
     if request.action == "cancel":
         affected = await asyncio.to_thread(

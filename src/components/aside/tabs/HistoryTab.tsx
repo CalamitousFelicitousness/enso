@@ -23,6 +23,7 @@ import {
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
 import { HistoryJobCard } from "./HistoryJobCard";
+import { HistoryBulkDeleteDialog } from "./HistoryBulkDeleteDialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 const PAGE_SIZE = 20;
@@ -54,6 +55,7 @@ export function HistoryTab() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [typeFilter, setTypeFilter] = useState("");
   const [page, setPage] = useState(0);
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
   const queryStatus = statusFilter === "all" ? undefined : statusFilter;
   const queryType = typeFilter || undefined;
@@ -79,24 +81,29 @@ export function HistoryTab() {
     setPage(0);
   }, []);
 
-  const handleBulkDelete = useCallback(() => {
-    const filters: Record<string, string> = {};
-    if (queryStatus) filters.status = queryStatus;
-    if (queryType) filters.type = queryType;
-    // Need at least one filter — use status "completed" + "failed" + "cancelled" via individual calls
-    // or if no filter is set, default to targeting all terminal statuses
-    const status = queryStatus ?? "completed";
-    bulkAction.mutate({
-      action: "delete",
-      status,
-      type: queryType,
-    });
-  }, [queryStatus, queryType, bulkAction]);
-
   const activeTypeLabel =
     TYPE_FILTERS.find((t) => t.value === typeFilter)?.label ?? "All types";
 
   const hasFilters = statusFilter !== "all" || typeFilter !== "";
+
+  const deleteScope = (() => {
+    const parts: string[] = ["all"];
+    if (queryStatus) parts.push(queryStatus);
+    parts.push(queryType ? `${activeTypeLabel.toLowerCase()} jobs` : "jobs");
+    return parts.join(" ");
+  })();
+
+  const handleConfirmDelete = useCallback(() => {
+    bulkAction.mutate(
+      {
+        action: "delete",
+        status: queryStatus,
+        type: queryType,
+        confirm: !queryStatus && !queryType,
+      },
+      { onSuccess: () => setConfirmOpen(false) },
+    );
+  }, [queryStatus, queryType, bulkAction]);
 
   return (
     <div className="flex flex-col h-full">
@@ -194,16 +201,23 @@ export function HistoryTab() {
             variant="outline"
             size="sm"
             className="w-full text-2xs h-6 text-destructive hover:text-destructive"
-            onClick={handleBulkDelete}
+            onClick={() => setConfirmOpen(true)}
             disabled={bulkAction.isPending}
           >
             <Trash2 className="h-3 w-3 mr-1.5" />
-            {bulkAction.isPending
-              ? "Deleting..."
-              : `Delete ${hasFilters ? "filtered" : "all"} (${data.total})`}
+            {`Delete ${hasFilters ? "filtered" : "all"} (${data.total})`}
           </Button>
         </div>
       )}
+
+      <HistoryBulkDeleteDialog
+        open={confirmOpen}
+        count={data?.total ?? 0}
+        scope={deleteScope}
+        isPending={bulkAction.isPending}
+        onConfirm={handleConfirmDelete}
+        onCancel={() => setConfirmOpen(false)}
+      />
     </div>
   );
 }
