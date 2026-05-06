@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { useRunBenchmark, useBenchmarkResults } from "@/api/hooks/useSystem";
 import { Button } from "@/components/ui/button";
 import { Combobox } from "@/components/ui/combobox";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { NumberInput } from "@/components/ui/number-input";
+import { toast } from "sonner";
 import { Section, Row } from "../shared";
 
 const LEVELS = [
@@ -29,16 +30,29 @@ export function BenchmarkSubTab() {
 
   const [level, setLevel] = useState("quick");
   const [steps, setSteps] = useState("normal");
-  const [width, setWidth] = useState("512");
-  const [height, setHeight] = useState("512");
+  const [width, setWidth] = useState(512);
+  const [height, setHeight] = useState(512);
+
+  const historyCols = useMemo(() => {
+    const headers = history?.headers ?? [];
+    return {
+      timestamp: headers.indexOf("timestamp"),
+      its: headers.indexOf("it/s"),
+      gpu: headers.indexOf("gpu"),
+    };
+  }, [history?.headers]);
 
   function handleRun() {
-    runBenchmark.mutate({
-      level,
-      steps,
-      width: parseInt(width) || 512,
-      height: parseInt(height) || 512,
-    });
+    runBenchmark.mutate(
+      { level, steps, width, height },
+      {
+        onError: (err) => {
+          toast.error("Benchmark failed", {
+            description: err instanceof Error ? err.message : String(err),
+          });
+        },
+      },
+    );
   }
 
   return (
@@ -66,17 +80,25 @@ export function BenchmarkSubTab() {
           <div className="grid grid-cols-2 gap-2">
             <div>
               <Label className="text-xs mb-1 block">Width</Label>
-              <Input
+              <NumberInput
                 value={width}
-                onChange={(e) => setWidth(e.target.value)}
+                onChange={setWidth}
+                min={64}
+                max={4096}
+                step={64}
+                fallback={512}
                 className="h-6 text-2xs"
               />
             </div>
             <div>
               <Label className="text-xs mb-1 block">Height</Label>
-              <Input
+              <NumberInput
                 value={height}
-                onChange={(e) => setHeight(e.target.value)}
+                onChange={setHeight}
+                min={64}
+                max={4096}
+                step={64}
+                fallback={512}
                 className="h-6 text-2xs"
               />
             </div>
@@ -143,15 +165,20 @@ export function BenchmarkSubTab() {
               History
             </h4>
             {history.data.map((row, i) => {
-              if (!row[0]) return null;
+              const ts = historyCols.timestamp >= 0 ? row[historyCols.timestamp] : null;
+              if (!ts) return null;
               return (
                 <div
-                  key={i}
+                  key={`${ts}-${i}`}
                   className="text-3xs p-1.5 rounded bg-muted space-y-0.5"
                 >
-                  <Row label="Timestamp" value={row[0]} />
-                  <Row label="Performance" value={row[1]} />
-                  <Row label="GPU" value={row[5]} />
+                  <Row label="Timestamp" value={ts} />
+                  {historyCols.its >= 0 && (
+                    <Row label="Performance" value={row[historyCols.its]} />
+                  )}
+                  {historyCols.gpu >= 0 && (
+                    <Row label="GPU" value={row[historyCols.gpu]} />
+                  )}
                 </div>
               );
             })}
