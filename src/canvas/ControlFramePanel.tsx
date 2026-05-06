@@ -26,6 +26,7 @@ import {
 import type { FitMode } from "@/lib/image";
 import { Button } from "@/components/ui/button";
 import { ParamSlider } from "@/components/generation/ParamSlider";
+import { KeepAlivePanel } from "@/components/ui/keep-alive";
 import {
   downloadImage,
   generateImageFilename,
@@ -543,11 +544,29 @@ function UnitPanel({
             className="p-3 overflow-y-auto flex flex-col gap-2"
             style={{ maxHeight: DRAWER_MAX_HEIGHT }}
           >
-            {activeTab === "info" ? (
-              infoContent
-            ) : (
+            {/* Both panels stay mounted across info/params toggles so any
+                draft state inside <ControlUnitControls compact /> survives.
+                `lazy` defers the heavier params panel until first reveal.
+                activeClassName="" because the drawer uses overflow-auto, not
+                a stretched flex column - we want the panel to take its
+                content height, not flex-grow. */}
+            <KeepAlivePanel
+              id="info"
+              active={activeTab === "info"}
+              activeClassName=""
+              hiddenClassName="hidden"
+            >
+              {infoContent}
+            </KeepAlivePanel>
+            <KeepAlivePanel
+              id="params"
+              active={activeTab === "params"}
+              lazy
+              activeClassName=""
+              hiddenClassName="hidden"
+            >
               <ControlUnitControls index={unitIndex} compact />
-            )}
+            </KeepAlivePanel>
           </div>
         </div>
       )}
@@ -795,21 +814,37 @@ function InputFramePanel({
     </>
   );
 
-  const drawer =
-    activeTab === "info" ? (
-      <div className="flex flex-col gap-2">
-        {roleToggle}
-        <InfoRow label="Resolution" value={sizeText} mono />
-        {firstImage && (
-          <InfoRow
-            label="Source"
-            value={`${firstImage.naturalWidth}\u00d7${firstImage.naturalHeight}`}
-            mono
-          />
-        )}
-      </div>
-    ) : (
-      <>
+  // Both panels stay mounted across info/params toggles so LayerPanel and
+  // MaskParams retain their internal state. `lazy` defers the heavier params
+  // panel until first reveal. activeClassName="" so the panel takes its
+  // content height inside the drawer's overflow-auto wrapper.
+  const drawer = (
+    <>
+      <KeepAlivePanel
+        id="info"
+        active={activeTab === "info"}
+        activeClassName=""
+        hiddenClassName="hidden"
+      >
+        <div className="flex flex-col gap-2">
+          {roleToggle}
+          <InfoRow label="Resolution" value={sizeText} mono />
+          {firstImage && (
+            <InfoRow
+              label="Source"
+              value={`${firstImage.naturalWidth}\u00d7${firstImage.naturalHeight}`}
+              mono
+            />
+          )}
+        </div>
+      </KeepAlivePanel>
+      <KeepAlivePanel
+        id="params"
+        active={activeTab === "params"}
+        lazy
+        activeClassName=""
+        hiddenClassName="hidden"
+      >
         {!isReference && (
           <ParamSlider
             label="Denoise"
@@ -823,8 +858,9 @@ function InputFramePanel({
         )}
         <LayerPanel />
         {!isReference && <MaskParams />}
-      </>
-    );
+      </KeepAlivePanel>
+    </>
+  );
 
   return (
     <FrameHeader
