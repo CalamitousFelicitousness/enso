@@ -1,8 +1,10 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { Combine, Replace, Scissors, CloudDownload, Globe } from "lucide-react";
 import { useLoadedModels } from "@/api/hooks/useServer";
 import { useRegisterCommand } from "@/lib/commandRegistry";
 import { cn } from "@/lib/utils";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { KeepAlivePanel, KeepAliveSwitch } from "@/components/ui/keep-alive";
 
 import { CurrentSubTab } from "@/components/models/sub-tabs/CurrentSubTab";
 import { ListSubTab } from "@/components/models/sub-tabs/ListSubTab";
@@ -27,6 +29,31 @@ const SUB_TABS = [
 ] as const;
 
 type SubTab = (typeof SUB_TABS)[number];
+
+// Hoist panel JSX to module scope so React element references are stable
+// across re-renders. Without this, every parent render rebuilds every panel,
+// forcing the reconciler to walk every kept-alive subtree on every click.
+function subPanel(id: SubTab, content: ReactNode) {
+  return (
+    <KeepAlivePanel key={id} id={id} activeClassName="flex-1 overflow-hidden">
+      <ScrollArea className="size-full">
+        <div className="p-3 min-w-0">{content}</div>
+      </ScrollArea>
+    </KeepAlivePanel>
+  );
+}
+
+const SUB_PANELS = [
+  subPanel("Current", <CurrentSubTab />),
+  subPanel("List", <ListSubTab />),
+  subPanel("Metadata", <MetadataSubTab />),
+  subPanel("Loader", <LoaderSubTab />),
+  subPanel("Merge", <MergeSubTab />),
+  subPanel("Replace", <ReplaceSubTab />),
+  subPanel("CivitAI", <CivitaiSubTab />),
+  subPanel("Huggingface", <HuggingfaceSubTab />),
+  subPanel("Extract LoRA", <ExtractLoraSubTab />),
+];
 
 export function ModelsTab() {
   const [active, setActive] = useState<SubTab>("Current");
@@ -75,8 +102,8 @@ export function ModelsTab() {
   });
 
   return (
-    <div>
-      <div className="sticky top-0 z-10 bg-card p-2 space-y-2 border-b border-border">
+    <div className="flex flex-col h-full min-w-0">
+      <div className="bg-card p-2 space-y-2 border-b border-border shrink-0">
         <p className="text-2xs text-muted-foreground">
           {loadedCount} model{loadedCount !== 1 ? "s" : ""} loaded
         </p>
@@ -98,17 +125,7 @@ export function ModelsTab() {
           ))}
         </div>
       </div>
-      <div className="p-3">
-        {active === "Current" && <CurrentSubTab />}
-        {active === "List" && <ListSubTab />}
-        {active === "Metadata" && <MetadataSubTab />}
-        {active === "Loader" && <LoaderSubTab />}
-        {active === "Merge" && <MergeSubTab />}
-        {active === "Replace" && <ReplaceSubTab />}
-        {active === "CivitAI" && <CivitaiSubTab />}
-        {active === "Huggingface" && <HuggingfaceSubTab />}
-        {active === "Extract LoRA" && <ExtractLoraSubTab />}
-      </div>
+      <KeepAliveSwitch active={active}>{SUB_PANELS}</KeepAliveSwitch>
     </div>
   );
 }
