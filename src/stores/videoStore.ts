@@ -76,7 +76,7 @@ interface VideoState {
   // Result history
   results: VideoResult[];
   selectedResultId: string | null;
-  _historyLimit: number;
+  historyLimit: number;
 
   setParam: <K extends keyof VideoState>(key: K, value: VideoState[K]) => void;
   setParams: (params: Partial<VideoState>) => void;
@@ -164,14 +164,14 @@ export const useVideoStore = create<VideoState>()(
 
       results: [],
       selectedResultId: null,
-      _historyLimit: 50,
+      historyLimit: 50,
 
       setParam: (key, value) => set({ [key]: value }),
       setParams: (params) => set(params),
 
       addResult: (result) =>
         set((state) => {
-          putVideoResult(result).then(() => trimVideoResults(state._historyLimit));
+          putVideoResult(result).then(() => trimVideoResults(state.historyLimit));
           return {
             results: [result, ...state.results].slice(0, 100),
             selectedResultId: result.id,
@@ -185,7 +185,7 @@ export const useVideoStore = create<VideoState>()(
         set({ results: [], selectedResultId: null });
       },
 
-      setHistoryLimit: (limit) => set({ _historyLimit: limit }),
+      setHistoryLimit: (limit) => set({ historyLimit: limit }),
 
       hydrateFromDb: () => {
         getAllVideoResults().then((dbResults) => {
@@ -202,13 +202,25 @@ export const useVideoStore = create<VideoState>()(
     }),
     {
       name: "enso-video",
+      version: 1,
+      migrate: (persisted, version) => {
+        if (!persisted || typeof persisted !== "object") return persisted;
+        const p = persisted as Record<string, unknown>;
+        if (version < 1) {
+          if ("_historyLimit" in p) {
+            p.historyLimit = p._historyLimit;
+            delete p._historyLimit;
+          }
+        }
+        return p;
+      },
       partialize: (state) => {
         const p: Record<string, unknown> = {};
         for (const key of defaultParamKeys) {
           if (key === "initImage" || key === "lastImage") continue;
           p[key] = state[key];
         }
-        p._historyLimit = state._historyLimit;
+        p.historyLimit = state.historyLimit;
         return p as Partial<VideoState>;
       },
     },

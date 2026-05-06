@@ -172,7 +172,7 @@ export interface GenerationState {
   results: GenerationResult[];
   selectedResultId: string | null;
   selectedImageIndex: number | null;
-  _historyLimit: number;
+  historyLimit: number;
 
   // Actions
   setParam: <K extends keyof GenerationState>(key: K, value: GenerationState[K]) => void;
@@ -338,7 +338,7 @@ export const useGenerationStore = create<GenerationState>()(
       results: [],
       selectedResultId: null,
       selectedImageIndex: null,
-      _historyLimit: 16,
+      historyLimit: 16,
 
       setParam: (key, value) => set({ [key]: value }),
 
@@ -346,7 +346,7 @@ export const useGenerationStore = create<GenerationState>()(
 
       addResult: (result) =>
         set((state) => {
-          putResult(result).then(() => trimResults(state._historyLimit));
+          putResult(result).then(() => trimResults(state.historyLimit));
           return {
             results: [result, ...state.results].slice(0, 100),
             selectedResultId: result.id,
@@ -365,7 +365,7 @@ export const useGenerationStore = create<GenerationState>()(
       clearSelection: () =>
         set({ selectedResultId: null, selectedImageIndex: null }),
 
-      setHistoryLimit: (limit) => set({ _historyLimit: limit }),
+      setHistoryLimit: (limit) => set({ historyLimit: limit }),
 
       hydrateFromDb: () => {
         getAllResults().then((dbResults) => {
@@ -383,8 +383,7 @@ export const useGenerationStore = create<GenerationState>()(
     }),
     {
       name: "enso-generation",
-      version: 1,
-      // v0 → v1: detailer schema flattened into 22 fields → defaults block + model entries
+      version: 2,
       migrate: (persisted, version) => {
         if (!persisted || typeof persisted !== "object") return persisted;
         const p = persisted as Record<string, unknown>;
@@ -427,12 +426,18 @@ export const useGenerationStore = create<GenerationState>()(
             delete p[k];
           }
         }
+        if (version < 2) {
+          if ("_historyLimit" in p) {
+            p.historyLimit = p._historyLimit;
+            delete p._historyLimit;
+          }
+        }
         return p;
       },
       partialize: (state) => {
         const p: Record<string, unknown> = {};
         for (const key of defaultParamKeys) p[key] = state[key];
-        p._historyLimit = state._historyLimit;
+        p.historyLimit = state.historyLimit;
         return p as Partial<GenerationState>;
       },
     },
