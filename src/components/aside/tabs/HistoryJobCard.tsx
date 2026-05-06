@@ -6,9 +6,7 @@ import {
   ScanSearch,
   SlidersHorizontal,
   LayoutGrid,
-  Eye,
   Trash2,
-  RotateCcw,
 } from "lucide-react";
 import type { Job } from "@/api/types/v2";
 import { useDeleteJob } from "@/api/hooks/useJobs";
@@ -68,11 +66,9 @@ function formatRelativeTime(iso: string): string {
 
 interface HistoryJobCardProps {
   job: Job;
-  onView?: (job: Job) => void;
-  onRetry?: (job: Job) => void;
 }
 
-export function HistoryJobCard({ job, onView, onRetry }: HistoryJobCardProps) {
+export function HistoryJobCard({ job }: HistoryJobCardProps) {
   const deleteJob = useDeleteJob();
   const TypeIcon = TYPE_ICONS[job.type] ?? Image;
   const hasImages = job.result && job.result.images.length > 0;
@@ -119,28 +115,6 @@ export function HistoryJobCard({ job, onView, onRetry }: HistoryJobCardProps) {
 
       {/* Actions — visible on hover */}
       <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-        {hasImages && onView && (
-          <Button
-            size="icon"
-            variant="ghost"
-            className="h-5 w-5"
-            onClick={() => onView(job)}
-            title="View"
-          >
-            <Eye className="h-2.5 w-2.5" />
-          </Button>
-        )}
-        {job.status === "failed" && onRetry && (
-          <Button
-            size="icon"
-            variant="ghost"
-            className="h-5 w-5"
-            onClick={() => onRetry(job)}
-            title="Retry"
-          >
-            <RotateCcw className="h-2.5 w-2.5" />
-          </Button>
-        )}
         <Button
           size="icon"
           variant="ghost"
