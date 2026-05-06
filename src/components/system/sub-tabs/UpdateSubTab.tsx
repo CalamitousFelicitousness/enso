@@ -4,6 +4,15 @@ import { useUpdateCheck, useApplyUpdate } from "@/api/hooks/useSystem";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { toast } from "sonner";
 import { Section, Row } from "../shared";
 
 export function UpdateSubTab() {
@@ -12,6 +21,33 @@ export function UpdateSubTab() {
   const [rebase, setRebase] = useState(true);
   const [submodules, setSubmodules] = useState(true);
   const [extensions, setExtensions] = useState(true);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+
+  const checkRan = !!info && !info.error;
+  const upToDate = checkRan && info.up_to_date;
+  const applyDisabled = !checkRan || upToDate || applyUpdate.isPending;
+  const applyTitle = !checkRan
+    ? "Run a check first"
+    : upToDate
+      ? "Already up to date"
+      : "Apply available updates";
+
+  function handleApply() {
+    applyUpdate.mutate(
+      { rebase, submodules, extensions },
+      {
+        onSuccess: (data) => {
+          setConfirmOpen(false);
+          toast.success(data.changed ? "Update applied" : "No changes");
+        },
+        onError: (err) => {
+          toast.error("Update failed", {
+            description: err instanceof Error ? err.message : String(err),
+          });
+        },
+      },
+    );
+  }
 
   return (
     <div className="space-y-4">
@@ -111,13 +147,11 @@ export function UpdateSubTab() {
 
       <Button
         size="sm"
-        onClick={() => applyUpdate.mutate({ rebase, submodules, extensions })}
-        disabled={applyUpdate.isPending}
+        onClick={() => setConfirmOpen(true)}
+        disabled={applyDisabled}
+        title={applyTitle}
         className="w-full"
       >
-        {applyUpdate.isPending ? (
-          <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
-        ) : null}
         Download updates
       </Button>
 
@@ -131,6 +165,64 @@ export function UpdateSubTab() {
           </pre>
         </div>
       )}
+
+      <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <DialogContent showCloseButton={false} className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Apply update</DialogTitle>
+            {info && (
+              <DialogDescription>
+                Update from <span className="font-mono">{info.current_hash}</span>{" "}
+                to <span className="font-mono">{info.latest_hash}</span> on
+                branch <span className="font-mono">{info.branch}</span>.
+              </DialogDescription>
+            )}
+          </DialogHeader>
+          <div className="space-y-2 text-xs">
+            <p className="text-muted-foreground">
+              The following actions will run:
+            </p>
+            <ul className="list-disc pl-5 space-y-1">
+              {rebase && (
+                <li>
+                  <span className="font-medium">Rebase</span> — local changes
+                  will be stashed before pulling.
+                </li>
+              )}
+              <li>
+                Pull latest commits from{" "}
+                <code>origin/{info?.branch ?? "?"}</code>.
+              </li>
+              {submodules && <li>Reinstall submodules.</li>}
+              {extensions && <li>Reinstall extensions.</li>}
+            </ul>
+            <p className="text-muted-foreground">
+              A server restart will be required after the update completes.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setConfirmOpen(false)}
+              disabled={applyUpdate.isPending}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="default"
+              size="sm"
+              onClick={handleApply}
+              disabled={applyUpdate.isPending}
+            >
+              {applyUpdate.isPending && (
+                <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" />
+              )}
+              Apply update
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
