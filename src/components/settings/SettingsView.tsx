@@ -23,6 +23,7 @@ import { getParamHelpPlain } from "@/data/parameterHelp";
 import { SettingsSection } from "./SettingsSection";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { KeepAlivePanel, KeepAliveSwitch } from "@/components/ui/keep-alive";
 import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
 import { SegmentedControl } from "@/components/ui/segmented-control";
@@ -45,6 +46,31 @@ import { queryClient } from "@/main";
 
 const CONNECTION_SECTION_ID = "__connection";
 const APPEARANCE_SECTION_ID = "__appearance";
+
+// Hoist panel JSX to module scope so React element references stay stable
+// across re-renders. `lazy` on the Connection panel defers its mount-time
+// /sdapi/v2/server-info ping (line ~358) until the user first navigates to
+// Connection. The panel pre-flight grep confirmed nothing else depends on
+// the eager ping.
+const STATIC_PANELS = [
+  <KeepAlivePanel
+    key={CONNECTION_SECTION_ID}
+    id={CONNECTION_SECTION_ID}
+    lazy
+    activeClassName=""
+    hiddenClassName="hidden"
+  >
+    <ConnectionPanel />
+  </KeepAlivePanel>,
+  <KeepAlivePanel
+    key={APPEARANCE_SECTION_ID}
+    id={APPEARANCE_SECTION_ID}
+    activeClassName=""
+    hiddenClassName="hidden"
+  >
+    <AppearancePanel />
+  </KeepAlivePanel>,
+];
 
 const COLOR_MODES: { value: ColorMode; label: string }[] = [
   { value: "dark", label: "Dark" },
@@ -868,50 +894,55 @@ export function SettingsView({ onDirtyChange }: SettingsViewProps = {}) {
       {/* Settings content */}
       <ScrollArea className="flex-1">
         <div className="p-4 max-w-2xl">
-          {resolvedActive === CONNECTION_SECTION_ID ? (
-            <ConnectionPanel />
-          ) : resolvedActive === APPEARANCE_SECTION_ID ? (
-            <AppearancePanel />
-          ) : !backendReady ? (
-            <div className="flex items-center justify-center h-32 text-muted-foreground text-sm">
-              Loading settings...
-            </div>
-          ) : searchQuery ? (
-            // Search results across all sections
-            <div className="space-y-6">
-              {filteredSections.map((section) => (
-                <SettingsSection
-                  key={section.id}
-                  section={section}
-                  values={mergedOptions}
-                  dirty={dirty}
-                  onSettingChange={handleSettingChange}
-                  dynamicChoices={dynamicChoices}
-                  searchQuery={searchQuery}
-                  onNavigateToSection={handleNavigateToSection}
-                />
-              ))}
-              {filteredSections.length === 0 && (
-                <p className="text-sm text-muted-foreground text-center py-8">
-                  No settings match your search
-                </p>
-              )}
-            </div>
-          ) : (
-            // Single section view
-            (() => {
-              const section = allSections.find((s) => s.id === resolvedActive);
-              if (!section) return null;
-              return (
-                <SettingsSection
-                  section={section}
-                  values={mergedOptions}
-                  dirty={dirty}
-                  onSettingChange={handleSettingChange}
-                  dynamicChoices={dynamicChoices}
-                />
-              );
-            })()
+          {/* Static panels stay mounted across navigation to other sections so
+              ConnectionPanel drafts (urlInput, userDraft, passDraft) and
+              AppearancePanel state survive section switches. KeepAliveSwitch
+              tolerates an unknown active id by rendering nothing, so when the
+              user is on a backend section both panels are hidden. */}
+          <KeepAliveSwitch active={resolvedActive}>{STATIC_PANELS}</KeepAliveSwitch>
+
+          {resolvedActive !== CONNECTION_SECTION_ID && resolvedActive !== APPEARANCE_SECTION_ID && (
+            !backendReady ? (
+              <div className="flex items-center justify-center h-32 text-muted-foreground text-sm">
+                Loading settings...
+              </div>
+            ) : searchQuery ? (
+              // Search results across all sections
+              <div className="space-y-6">
+                {filteredSections.map((section) => (
+                  <SettingsSection
+                    key={section.id}
+                    section={section}
+                    values={mergedOptions}
+                    dirty={dirty}
+                    onSettingChange={handleSettingChange}
+                    dynamicChoices={dynamicChoices}
+                    searchQuery={searchQuery}
+                    onNavigateToSection={handleNavigateToSection}
+                  />
+                ))}
+                {filteredSections.length === 0 && (
+                  <p className="text-sm text-muted-foreground text-center py-8">
+                    No settings match your search
+                  </p>
+                )}
+              </div>
+            ) : (
+              // Single section view
+              (() => {
+                const section = allSections.find((s) => s.id === resolvedActive);
+                if (!section) return null;
+                return (
+                  <SettingsSection
+                    section={section}
+                    values={mergedOptions}
+                    dirty={dirty}
+                    onSettingChange={handleSettingChange}
+                    dynamicChoices={dynamicChoices}
+                  />
+                );
+              })()
+            )
           )}
         </div>
       </ScrollArea>

@@ -1,9 +1,10 @@
-import { useCallback, useState } from "react";
+import { useCallback, useState, type ReactNode } from "react";
 import { Play, Loader2, Eye, Aperture, Tags, Settings } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { SegmentedControl } from "@/components/ui/segmented-control";
+import { KeepAlivePanel, KeepAliveSwitch } from "@/components/ui/keep-alive";
 import { useCaptionStore } from "@/stores/captionStore";
 import { useCaptionSettingsStore } from "@/stores/captionSettingsStore";
 import {
@@ -39,6 +40,54 @@ const CAPTION_DEFAULT_OPTIONS: { value: CaptionDefaultType; label: string }[] = 
   { value: "Tagger", label: "Tagger" },
 ];
 
+function DefaultCaptionSettings() {
+  const { data: captionOpts } = useOptionsSubset(["caption_default_type"]);
+  const setOptions = useSetOptions();
+  const defaultType = (captionOpts?.caption_default_type as CaptionDefaultType) ?? "VLM";
+  const handleDefaultTypeChange = useCallback(
+    (v: CaptionDefaultType) => {
+      setOptions.mutate({ caption_default_type: v });
+    },
+    [setOptions],
+  );
+  return (
+    <div className="space-y-3">
+      <div className="space-y-1">
+        <span className="text-2xs font-medium uppercase tracking-wider text-muted-foreground">
+          Default Caption Type
+        </span>
+        <p className="text-3xs text-muted-foreground leading-tight">
+          Caption method used for quick interrogate actions
+        </p>
+      </div>
+      <SegmentedControl
+        options={CAPTION_DEFAULT_OPTIONS}
+        value={defaultType}
+        onValueChange={handleDefaultTypeChange}
+        animated
+      />
+    </div>
+  );
+}
+
+// Hoist panel JSX to module scope so React element references stay stable
+// across re-renders. Without this, every parent render rebuilds every panel,
+// forcing the reconciler to walk every kept-alive subtree on every state change.
+function methodPanel(id: CaptionTab, content: ReactNode) {
+  return (
+    <KeepAlivePanel key={id} id={id} activeClassName="" hiddenClassName="hidden">
+      {content}
+    </KeepAlivePanel>
+  );
+}
+
+const METHOD_PANELS = [
+  methodPanel("vlm", <VlmSettings />),
+  methodPanel("openclip", <OpenClipSettings />),
+  methodPanel("tagger", <TaggerSettings />),
+  methodPanel("default", <DefaultCaptionSettings />),
+];
+
 export function CaptionPanel() {
   const image = useCaptionStore((s) => s.image);
   const isProcessing = useCaptionStore((s) => s.isProcessing);
@@ -48,9 +97,6 @@ export function CaptionPanel() {
   const setMethod = useCaptionStore((s) => s.setMethod);
 
   const [activeTab, setActiveTab] = useState<CaptionMethod | "default">(method);
-  const { data: captionOpts } = useOptionsSubset(["caption_default_type"]);
-  const setOptions = useSetOptions();
-  const defaultType = (captionOpts?.caption_default_type as CaptionDefaultType) ?? "VLM";
 
   const handleTabChange = useCallback(
     (v: CaptionMethod | "default") => {
@@ -58,13 +104,6 @@ export function CaptionPanel() {
       if (v !== "default") setMethod(v);
     },
     [setMethod],
-  );
-
-  const handleDefaultTypeChange = useCallback(
-    (v: CaptionDefaultType) => {
-      setOptions.mutate({ caption_default_type: v });
-    },
-    [setOptions],
   );
 
   const openclipMut = useOpenClipCaption();
@@ -190,27 +229,7 @@ export function CaptionPanel() {
           />
 
           <div className="mt-3">
-            {activeTab === "vlm" && <VlmSettings />}
-            {activeTab === "openclip" && <OpenClipSettings />}
-            {activeTab === "tagger" && <TaggerSettings />}
-            {activeTab === "default" && (
-              <div className="space-y-3">
-                <div className="space-y-1">
-                  <span className="text-2xs font-medium uppercase tracking-wider text-muted-foreground">
-                    Default Caption Type
-                  </span>
-                  <p className="text-3xs text-muted-foreground leading-tight">
-                    Caption method used for quick interrogate actions
-                  </p>
-                </div>
-                <SegmentedControl
-                  options={CAPTION_DEFAULT_OPTIONS}
-                  value={defaultType}
-                  onValueChange={handleDefaultTypeChange}
-                  animated
-                />
-              </div>
-            )}
+            <KeepAliveSwitch active={activeTab}>{METHOD_PANELS}</KeepAliveSwitch>
           </div>
         </div>
       </ScrollArea>
