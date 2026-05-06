@@ -52,6 +52,15 @@ interface KeepAlivePanelProps {
   activeClassName?: string;
   /** Class applied when hidden. Defaults to Tailwind `hidden` (display:none). */
   hiddenClassName?: string;
+  /**
+   * When true, children are not rendered until the first time this panel
+   * becomes visible. Once mounted, they stay mounted across visibility
+   * toggles. Mirrors KeepAliveSwitch's lazy-on-first-visit semantics for
+   * standalone use (Collapsible content, collapsible sections, etc.).
+   *
+   * Default false: children render immediately, even while hidden.
+   */
+  lazy?: boolean;
   children: ReactNode;
 }
 
@@ -70,6 +79,7 @@ export function KeepAlivePanel({
   active: explicitActive,
   activeClassName = "flex-1 min-h-0",
   hiddenClassName = "hidden",
+  lazy = false,
   children,
 }: KeepAlivePanelProps) {
   const parentVisible = useKeepAliveVisible();
@@ -77,6 +87,15 @@ export function KeepAlivePanel({
   const localActive =
     explicitActive ?? (id != null && switchActiveId === id);
   const visible = parentVisible && localActive;
+
+  // Lazy first mount: flip true on first visible, never back to false.
+  // Idempotent setState + the !hasBeenVisible guard makes this StrictMode-safe.
+  const [hasBeenVisible, setHasBeenVisible] = useState(visible);
+  if (lazy && visible && !hasBeenVisible) {
+    setHasBeenVisible(true);
+  }
+  const shouldRender = !lazy || hasBeenVisible;
+
   return (
     <KeepAliveVisibleContext.Provider value={visible}>
       <div
@@ -86,7 +105,7 @@ export function KeepAlivePanel({
         inert={!visible}
         className={cn(visible ? activeClassName : hiddenClassName)}
       >
-        {children}
+        {shouldRender ? children : null}
       </div>
     </KeepAliveVisibleContext.Provider>
   );

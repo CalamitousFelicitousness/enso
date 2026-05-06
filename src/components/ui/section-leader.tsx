@@ -6,6 +6,7 @@ import {
   TooltipTrigger,
   TooltipContent,
 } from "@/components/ui/tooltip";
+import { KeepAlivePanel } from "./keep-alive";
 
 interface SectionLeaderProps {
   title: string;
@@ -264,16 +265,23 @@ const SectionLeader = memo(function SectionLeader({
       <div className="flex-1 flex flex-col min-w-0">
         {header}
 
-        {/* Children - hidden when collapsed, dimmed when disabled */}
-        {!collapsed && children && (
-          <div
-            className={cn(
+        {/* Children - hidden when collapsed, dimmed when disabled.
+            KeepAlivePanel keeps state (CodeMirror cursor, draft inputs, etc.)
+            across collapse/expand instead of unmounting on collapse.
+            `lazy` preserves the perf characteristic of `defaultCollapsed`
+            sections - children mount on first expand, not at app start. */}
+        {children && (
+          <KeepAlivePanel
+            lazy
+            active={!collapsed}
+            activeClassName={cn(
               "flex flex-col gap-1.5",
               enableable && !enabled && !parentDisabled && "opacity-35 pointer-events-none",
             )}
+            hiddenClassName="hidden"
           >
             {children}
-          </div>
+          </KeepAlivePanel>
         )}
       </div>
     </div>

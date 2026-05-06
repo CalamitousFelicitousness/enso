@@ -20,6 +20,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+import { KeepAlivePanel } from "@/components/ui/keep-alive";
 import {
   ChevronDown,
   ChevronRight,
@@ -179,13 +180,20 @@ export function PromptEditor() {
           )}
           Negative prompt
         </CollapsibleTrigger>
-        <CollapsibleContent>
-          <PromptField
-            value={negativePrompt}
-            onChange={(v) => setParam("negativePrompt", v)}
-            placeholder="What to avoid..."
-            className="min-h-[3.125rem] mt-1.5"
-          />
+        <CollapsibleContent forceMount>
+          <KeepAlivePanel
+            lazy
+            active={showNegative}
+            activeClassName=""
+            hiddenClassName="hidden"
+          >
+            <PromptField
+              value={negativePrompt}
+              onChange={(v) => setParam("negativePrompt", v)}
+              placeholder="What to avoid..."
+              className="min-h-[3.125rem] mt-1.5"
+            />
+          </KeepAlivePanel>
         </CollapsibleContent>
       </Collapsible>
     </div>
