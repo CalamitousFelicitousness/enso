@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useState, type ReactNode } from "react";
 import { Play, Square, Sparkles, Settings2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useVideoStore } from "@/stores/videoStore";
@@ -19,6 +19,7 @@ import { uploadFile, uploadBlob } from "@/lib/upload";
 import { Button } from "@/components/ui/button";
 import { PromptField } from "@/components/generation/PromptField";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { KeepAlivePanel, KeepAliveSwitch } from "@/components/ui/keep-alive";
 import { Label } from "@/components/ui/label";
 import {
   Popover,
@@ -37,6 +38,27 @@ const tabs = [
   { id: "framepack", label: "FramePack" },
   { id: "ltx", label: "LTX" },
 ] as const;
+
+type VideoTab = (typeof tabs)[number]["id"];
+
+// Hoist panel JSX to module scope so React element references stay stable
+// across re-renders. Without this, every parent render rebuilds every panel,
+// forcing the reconciler to walk every kept-alive subtree on every state change.
+function subPanel(id: VideoTab, content: ReactNode) {
+  return (
+    <KeepAlivePanel key={id} id={id} activeClassName="flex-1 overflow-hidden">
+      <ScrollArea className="size-full">
+        <div className="p-3 min-w-0">{content}</div>
+      </ScrollArea>
+    </KeepAlivePanel>
+  );
+}
+
+const SUB_PANELS = [
+  subPanel("models", <ModelsVideoTab />),
+  subPanel("framepack", <FramePackTab />),
+  subPanel("ltx", <LtxVideoTab />),
+];
 
 function tabToDomain(tab: string): JobDomain {
   if (tab === "framepack") return "framepack";
@@ -247,8 +269,10 @@ export function VideoPanel() {
   const progressPct = Math.round(progress * 100);
 
   return (
-    <ScrollArea className="h-full">
-      <div className="p-3 space-y-1">
+    <div className="flex flex-col h-full min-w-0">
+      {/* Sticky header: prompt + Generate + sub-tab bar stay visible while
+          sub-tab content scrolls independently inside its KeepAlivePanel. */}
+      <div className="shrink-0 p-3 pb-0 space-y-1 border-b border-border">
         {/* Prompt - always visible */}
         <div className="space-y-1.5 mb-3">
           <div className="flex items-center justify-between mb-1">
@@ -358,7 +382,7 @@ export function VideoPanel() {
         </div>
 
         {/* Sub-tab bar */}
-        <div className="flex border-b border-border mb-3">
+        <div className="flex">
           {tabs.map((tab) => (
             <button
               key={tab.id}
@@ -377,12 +401,9 @@ export function VideoPanel() {
             </button>
           ))}
         </div>
-
-        {/* Tab content */}
-        {activeVideoTab === "models" && <ModelsVideoTab />}
-        {activeVideoTab === "framepack" && <FramePackTab />}
-        {activeVideoTab === "ltx" && <LtxVideoTab />}
       </div>
-    </ScrollArea>
+
+      <KeepAliveSwitch active={activeVideoTab}>{SUB_PANELS}</KeepAliveSwitch>
+    </div>
   );
 }
