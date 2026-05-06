@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useCallback, useState, type ReactNode } from "react";
 import { RotateCcw, PowerOff, Activity } from "lucide-react";
 import {
   useRestartServer,
@@ -6,6 +6,7 @@ import {
   useToggleProfiling,
 } from "@/api/hooks/useSystem";
 import { useRegisterCommand } from "@/lib/commandRegistry";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -73,9 +74,21 @@ export function SystemTab() {
   const shutdownServer = useShutdownServer();
   const toggleProfiling = useToggleProfiling();
 
+  const reportError = useCallback(
+    (verb: string) => (err: unknown) => {
+      toast.error(`Failed to ${verb}`, {
+        description: err instanceof Error ? err.message : String(err),
+      });
+    },
+    [],
+  );
+
   function handleConfirm() {
-    if (confirmAction === "restart") restartServer.mutate();
-    else if (confirmAction === "shutdown") shutdownServer.mutate();
+    if (confirmAction === "restart") {
+      restartServer.mutate(undefined, { onError: reportError("restart server") });
+    } else if (confirmAction === "shutdown") {
+      shutdownServer.mutate(undefined, { onError: reportError("shutdown server") });
+    }
     setConfirmAction(null);
   }
 
@@ -86,6 +99,7 @@ export function SystemTab() {
           setProfiling(data.enabled as boolean);
         }
       },
+      onError: reportError("toggle profiling"),
     });
   }
 
@@ -192,7 +206,12 @@ export function SystemTab() {
             >
               Cancel
             </Button>
-            <Button variant="destructive" size="sm" onClick={handleConfirm}>
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={handleConfirm}
+              disabled={restartServer.isPending || shutdownServer.isPending}
+            >
               {confirmAction === "restart" ? "Restart" : "Shutdown"}
             </Button>
           </DialogFooter>
