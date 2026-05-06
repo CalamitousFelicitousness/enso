@@ -85,5 +85,15 @@ const VIEW_PANELS = [
 
 export function LeftTabPanel() {
   const activeView = useUiStore((s) => s.activeNavView);
-  return <KeepAliveSwitch active={activeView}>{VIEW_PANELS}</KeepAliveSwitch>;
+  // Flex chassis is required: each VIEW_PANEL uses the default
+  // activeClassName="flex-1 min-h-0", which only sizes correctly inside a
+  // flex container with a defined height. The hosting <aside> in AppShell is
+  // a block element, so without this wrapper the kept-alive panel div is
+  // auto-height and any inner h-full child (GalleryPanel, ImagesView) ends
+  // up un-bounded, breaking nested ScrollArea behavior.
+  return (
+    <div className="flex flex-col h-full min-w-0">
+      <KeepAliveSwitch active={activeView}>{VIEW_PANELS}</KeepAliveSwitch>
+    </div>
+  );
 }
