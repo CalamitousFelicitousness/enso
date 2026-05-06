@@ -3,6 +3,7 @@ import { cn } from "@/lib/utils";
 import { EditorView } from "@codemirror/view";
 import { Compartment } from "@codemirror/state";
 import { useUiStore } from "@/stores/uiStore";
+import { useKeepAliveVisible } from "@/components/ui/keep-alive";
 import { useExtraNetworks, usePromptStyles } from "@/api/hooks/useNetworks";
 import { useDictTagsMulti } from "@/api/hooks/useDicts";
 import { useOptions } from "@/api/hooks/useSettings";
@@ -163,6 +164,17 @@ export function PromptField({
     }
     lastValue.current = value;
   }, [value]);
+
+  // ── Re-measure on reveal when hosted inside a KeepAlive panel ────────
+  // CodeMirror constructed under display:none measures 0 width and renders
+  // unwrapped lines for one frame on first reveal until ResizeObserver fires.
+  // Asking for an explicit measure on the hidden→visible transition removes
+  // the flash. No-op (already measured) outside a KeepAlive boundary.
+
+  const visible = useKeepAliveVisible();
+  useEffect(() => {
+    if (visible) viewRef.current?.requestMeasure();
+  }, [visible]);
 
   // ── Toggle autocompletion extension on/off ───────────────────────────
 
