@@ -1,11 +1,13 @@
 import { useState } from "react";
 import { useHistory } from "@/api/hooks/useSystem";
+import { useKeepAliveVisible } from "@/components/ui/keep-alive";
 import { formatDuration } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { ChevronDown, ChevronRight } from "lucide-react";
 
 export function HistorySubTab() {
-  const { data: history } = useHistory();
+  const visible = useKeepAliveVisible();
+  const { data: history } = useHistory({}, visible);
   const [filter, setFilter] = useState("");
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
 

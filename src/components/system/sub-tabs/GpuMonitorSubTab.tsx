@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useSyncExternalStore } from "react";
 import { useGpuStatus } from "@/api/hooks/useServer";
+import { useKeepAliveVisible } from "@/components/ui/keep-alive";
 import { Section, Row } from "./OverviewSubTab";
 
 const MAX_POINTS = 60;
@@ -64,7 +65,8 @@ function Sparkline({
 }
 
 export function GpuMonitorSubTab() {
-  const { data: gpus, dataUpdatedAt } = useGpuStatus();
+  const visible = useKeepAliveVisible();
+  const { data: gpus, dataUpdatedAt } = useGpuStatus(visible);
   const gpu = gpus?.[0];
 
   useEffect(() => {

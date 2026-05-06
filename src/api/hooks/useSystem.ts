@@ -12,7 +12,7 @@ import type {
   StorageInfo,
 } from "../types/system";
 
-export function useHistory(params: { since?: number; job?: string; op?: string; offset?: number; limit?: number } = {}) {
+export function useHistory(params: { since?: number; job?: string; op?: string; offset?: number; limit?: number } = {}, enabled = true) {
   const queryParams: Record<string, string> = {};
   if (params.since != null) queryParams.since = String(params.since);
   if (params.job) queryParams.job = params.job;
@@ -22,7 +22,8 @@ export function useHistory(params: { since?: number; job?: string; op?: string; 
   return useQuery({
     queryKey: ["history", params],
     queryFn: () => api.get<HistoryResponse>("/sdapi/v2/history", queryParams),
-    refetchInterval: 10_000,
+    enabled,
+    refetchInterval: enabled ? 10_000 : false,
   });
 }
 

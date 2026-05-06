@@ -4,7 +4,7 @@ import { useLoadedModels } from "@/api/hooks/useServer";
 import { useRegisterCommand } from "@/lib/commandRegistry";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { KeepAlivePanel, KeepAliveSwitch } from "@/components/ui/keep-alive";
+import { KeepAlivePanel, KeepAliveSwitch, useKeepAliveVisible } from "@/components/ui/keep-alive";
 
 import { CurrentSubTab } from "@/components/models/sub-tabs/CurrentSubTab";
 import { ListSubTab } from "@/components/models/sub-tabs/ListSubTab";
@@ -57,7 +57,8 @@ const SUB_PANELS = [
 
 export function ModelsTab() {
   const [active, setActive] = useState<SubTab>("Current");
-  const { data: loaded } = useLoadedModels();
+  const visible = useKeepAliveVisible();
+  const { data: loaded } = useLoadedModels(visible);
   const loadedCount = loaded?.length ?? 0;
 
   useRegisterCommand({

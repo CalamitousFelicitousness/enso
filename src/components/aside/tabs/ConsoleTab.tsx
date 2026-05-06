@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useMemo, type ReactNode } from "react";
 import { Copy, Trash2, WrapText, Filter } from "lucide-react";
 import { useServerLog, useClearLog } from "@/api/hooks/useLog";
+import { useKeepAliveVisible } from "@/components/ui/keep-alive";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -110,7 +111,8 @@ function highlightMsg(msg: string): ReactNode {
 }
 
 export function ConsoleTab() {
-  const { data: lines } = useServerLog(200);
+  const visible = useKeepAliveVisible();
+  const { data: lines } = useServerLog(200, visible);
   const clearLog = useClearLog();
   const [wrap, setWrap] = useState(false);
   const [minLevel, setMinLevel] = useState(0);

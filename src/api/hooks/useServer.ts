@@ -11,20 +11,22 @@ export function useServerInfo() {
   });
 }
 
-export function useMemory() {
+export function useMemory(enabled = true) {
   return useQuery({
     queryKey: ["memory"],
     queryFn: () => api.get<ResMemory>("/sdapi/v2/memory"),
-    refetchInterval: 5000,
+    enabled,
+    refetchInterval: enabled ? 5000 : false,
     staleTime: 5000,
   });
 }
 
-export function useGpuStatus() {
+export function useGpuStatus(enabled = true) {
   return useQuery({
     queryKey: ["gpu"],
     queryFn: () => api.get<ResGPU[]>("/sdapi/v2/gpu"),
-    refetchInterval: 3000,
+    enabled,
+    refetchInterval: enabled ? 3000 : false,
     staleTime: 3000,
   });
 }
@@ -34,11 +36,12 @@ export function useCapabilities() {
   return data?.capabilities ?? null;
 }
 
-export function useLoadedModels() {
+export function useLoadedModels(enabled = true) {
   return useQuery({
     queryKey: ["loaded-models"],
     queryFn: () => api.get<LoadedModel[]>("/sdapi/v2/loaded-models"),
-    refetchInterval: 10_000,
+    enabled,
+    refetchInterval: enabled ? 10_000 : false,
     staleTime: 5_000,
   });
 }

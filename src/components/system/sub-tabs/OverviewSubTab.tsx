@@ -4,13 +4,15 @@ import {
   useLoadedModels,
   useServerInfo,
 } from "@/api/hooks/useServer";
+import { useKeepAliveVisible } from "@/components/ui/keep-alive";
 import { GroupedModels } from "@/components/layout/LoadedModelsPanel";
 import { formatBytes } from "@/lib/utils";
 
 export function OverviewSubTab() {
-  const { data: gpus } = useGpuStatus();
-  const { data: memory } = useMemory();
-  const { data: models } = useLoadedModels();
+  const visible = useKeepAliveVisible();
+  const { data: gpus } = useGpuStatus(visible);
+  const { data: memory } = useMemory(visible);
+  const { data: models } = useLoadedModels(visible);
   const { data: serverInfo } = useServerInfo();
 
   const gpu = gpus?.[0];
