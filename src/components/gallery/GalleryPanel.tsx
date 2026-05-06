@@ -99,9 +99,13 @@ export function GalleryPanel() {
   const [loadingSubdirs, setLoadingSubdirs] = useState<Set<string>>(new Set());
   const [leafPaths, setLeafPaths] = useState<Set<string>>(new Set());
 
-  // Ref to avoid stale closures in async callbacks
+  // Refs to avoid stale closures in async callbacks. Letting fetchSubdirs
+  // read these via ref keeps it as a stable callback, which matters now that
+  // each FolderTreeNode invokes it from a useEffect on mount.
   const discoveredRef = useRef(discoveredSubdirs);
   discoveredRef.current = discoveredSubdirs;
+  const loadingRef = useRef(loadingSubdirs);
+  loadingRef.current = loadingSubdirs;
 
   useEffect(() => {
     if (folders) setFolders(folders);
@@ -126,41 +130,39 @@ export function GalleryPanel() {
     return toExpand;
   }, [userExpanded, folders, tree]);
 
-  const fetchSubdirs = useCallback(
-    async (path: string) => {
-      const normPath = path.replace(/\/+$/, "");
+  const fetchSubdirs = useCallback(async (path: string) => {
+    const normPath = path.replace(/\/+$/, "");
 
-      // Already discovered or currently loading
-      if (discoveredRef.current.has(normPath) || loadingSubdirs.has(normPath))
-        return;
+    // Already discovered or currently loading - guards via ref so the
+    // callback identity stays stable across renders.
+    if (discoveredRef.current.has(normPath) || loadingRef.current.has(normPath))
+      return;
 
-      setLoadingSubdirs((prev) => new Set(prev).add(normPath));
-      try {
-        const subdirs = await api.get<BrowserSubdir[]>(
-          "/sdapi/v2/browser/subdirs",
-          { folder: path },
-        );
-        setDiscoveredSubdirs((prev) => {
-          const next = new Map(prev);
-          next.set(normPath, subdirs);
-          return next;
-        });
-        if (subdirs.length === 0) {
-          setLeafPaths((prev) => new Set(prev).add(normPath));
-        }
-      } catch {
-        // On error, mark as leaf to suppress chevron
+    setLoadingSubdirs((prev) => new Set(prev).add(normPath));
+    try {
+      const subdirs = await api.get<BrowserSubdir[]>(
+        "/sdapi/v2/browser/subdirs",
+        { folder: path },
+      );
+      setDiscoveredSubdirs((prev) => {
+        const next = new Map(prev);
+        next.set(normPath, subdirs);
+        return next;
+      });
+      if (subdirs.length === 0) {
         setLeafPaths((prev) => new Set(prev).add(normPath));
-      } finally {
-        setLoadingSubdirs((prev) => {
-          const next = new Set(prev);
-          next.delete(normPath);
-          return next;
-        });
       }
-    },
-    [loadingSubdirs],
-  );
+    } catch {
+      // On error, mark as leaf to suppress chevron
+      setLeafPaths((prev) => new Set(prev).add(normPath));
+    } finally {
+      setLoadingSubdirs((prev) => {
+        const next = new Set(prev);
+        next.delete(normPath);
+        return next;
+      });
+    }
+  }, []);
 
   const toggleExpand = useCallback(
     (path: string) => {
@@ -217,6 +219,7 @@ export function GalleryPanel() {
               discoveredSubdirs={discoveredSubdirs}
               onSelect={handleSelect}
               onToggle={toggleExpand}
+              onFetchSubdirs={fetchSubdirs}
             />
           ))}
           {folders && folders.length === 0 && (
@@ -240,6 +243,7 @@ function FolderTreeNode({
   discoveredSubdirs,
   onSelect,
   onToggle,
+  onFetchSubdirs,
 }: {
   node: FolderNode;
   indent: number;
@@ -250,17 +254,37 @@ function FolderTreeNode({
   discoveredSubdirs: Map<string, BrowserSubdir[]>;
   onSelect: (path: string) => void;
   onToggle: (path: string) => void;
+  onFetchSubdirs: (path: string) => void;
 }) {
   const normPath = node.folder.path.replace(/\/+$/, "");
   const isExpanded = expanded.has(node.folder.path);
   const isLoading = loadingSubdirs.has(normPath);
   const isLeaf = leafPaths.has(normPath);
+  const isDiscovered = discoveredSubdirs.has(normPath);
 
-  // A node has children if it has static children, discovered subdirs, or hasn't been explored yet
+  // Eagerly discover subdirs on mount (and whenever knowledge state changes)
+  // so the chevron reflects ground truth instead of being optimistically
+  // shown for every folder. Skip when we already know the answer: static
+  // children present, discovery complete, known leaf, or in-flight.
   const hasStaticChildren = node.children.length > 0;
+  useEffect(() => {
+    if (!hasStaticChildren && !isLeaf && !isDiscovered && !isLoading) {
+      onFetchSubdirs(node.folder.path);
+    }
+  }, [
+    hasStaticChildren,
+    isLeaf,
+    isDiscovered,
+    isLoading,
+    node.folder.path,
+    onFetchSubdirs,
+  ]);
+
+  // Show chevron only when children are confirmed - either via static
+  // tree relations or via completed discovery. Folders with discovery
+  // pending render without a chevron (the eager fetch resolves quickly).
   const hasChildren =
     hasStaticChildren ||
-    (!isLeaf && !discoveredSubdirs.has(normPath)) ||
     (discoveredSubdirs.get(normPath)?.length ?? 0) > 0;
 
   return (
@@ -290,6 +314,7 @@ function FolderTreeNode({
             discoveredSubdirs={discoveredSubdirs}
             onSelect={onSelect}
             onToggle={onToggle}
+            onFetchSubdirs={onFetchSubdirs}
           />
         ))}
     </>
