@@ -180,11 +180,11 @@ export interface LoaderLoadRequest {
   repo: string;
   components?: Array<{
     id: number;
-    local?: string;
-    remote?: string;
-    dtype?: string;
-    quant?: boolean;
-  }>;
+    local?: string | undefined;
+    remote?: string | undefined;
+    dtype?: string | undefined;
+    quant?: boolean | undefined;
+  }> | undefined;
 }
 
 export interface LoraExtractRequest {

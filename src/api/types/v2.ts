@@ -52,26 +52,26 @@ export interface PreprocessJobParams {
 /** Per-model or default detailer overrides. Mirrors DetailerOverrides
  * in enso_api/job_models.py. All fields optional; unset = inherit. */
 export interface DetailerOverrides {
-  strength?: number;
-  steps?: number;
-  resolution?: number;
-  padding?: number;
-  blur?: number;
-  conf?: number;
-  iou?: number;
-  min_size?: number;
-  max_size?: number;
-  max?: number;
-  sigma_adjust?: number;
-  sigma_adjust_max?: number;
-  segmentation?: boolean;
-  include_detections?: boolean;
-  merge?: boolean;
-  sort?: boolean;
-  prompt?: string;
-  negative?: string;
-  classes?: string;
-  augment?: boolean;
+  strength?: number | undefined;
+  steps?: number | undefined;
+  resolution?: number | undefined;
+  padding?: number | undefined;
+  blur?: number | undefined;
+  conf?: number | undefined;
+  iou?: number | undefined;
+  min_size?: number | undefined;
+  max_size?: number | undefined;
+  max?: number | undefined;
+  sigma_adjust?: number | undefined;
+  sigma_adjust_max?: number | undefined;
+  segmentation?: boolean | undefined;
+  include_detections?: boolean | undefined;
+  merge?: boolean | undefined;
+  sort?: boolean | undefined;
+  prompt?: string | undefined;
+  negative?: string | undefined;
+  classes?: string | undefined;
+  augment?: boolean | undefined;
 }
 
 /** A detailer model with optional per-model overrides. */

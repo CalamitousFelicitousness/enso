@@ -35,12 +35,15 @@ function styleSource(ctx: CompletionContext): CompletionResult | null {
   const styles = ctx.state.facet(styleNamesFacet);
   return {
     from: match.from + colonIdx + 1,
-    options: styles.map((s) => ({
-      label: s.name,
-      detail: s.description?.slice(0, 40) ?? undefined,
-      type: "style",
-      apply: `${s.name}>`,
-    })),
+    options: styles.map((s) => {
+      const detail = s.description?.slice(0, 40);
+      return {
+        label: s.name,
+        ...(detail !== undefined && { detail }),
+        type: "style",
+        apply: `${s.name}>`,
+      };
+    }),
     validFor: /^[\w\s-]*$/,
   };
 }

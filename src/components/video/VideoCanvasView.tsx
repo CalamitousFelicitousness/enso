@@ -218,7 +218,7 @@ export function VideoCanvasView() {
       },
       [hitTestTarget, handleFileSelected],
     ),
-    onFileDrop: (f) => void handleDropFile(f),
+    onFileDrop: (f, e) => void handleDropFile(f, e),
   });
 
   // Paste handler

@@ -295,7 +295,7 @@ export async function buildControlRequest(): Promise<BuildResult> {
   // Reference mode: flatten layers → upload → init_control (no denoising, no mask)
   let inputBlob: Blob | undefined;
   if (hasInputImage && inputRole === "reference") {
-    const imageLayers = canvas.layers.filter((l) => l.type === "image") as ImageLayer[];
+    const imageLayers = canvas.layers.filter((l): l is ImageLayer => l.type === "image");
     const flattenedBlob = await flattenCanvas(imageLayers, gen.width, gen.height);
     if (flattenedBlob) {
       inputBlob = flattenedBlob;
@@ -317,7 +317,7 @@ export async function buildControlRequest(): Promise<BuildResult> {
     request.input_type = 1;
 
     // Flatten all image layers at full frame size
-    const imageLayers = canvas.layers.filter((l) => l.type === "image") as ImageLayer[];
+    const imageLayers = canvas.layers.filter((l): l is ImageLayer => l.type === "image");
     const flattenedBlob = await flattenCanvas(imageLayers, frameW, frameH);
     if (flattenedBlob) {
       inputBlob = flattenedBlob;
@@ -376,7 +376,7 @@ export async function buildDetailRequest(): Promise<BuildDetailResult> {
   const gen = useGenerationStore.getState();
   const canvas = useCanvasStore.getState();
 
-  const imageLayers = canvas.layers.filter((l) => l.type === "image") as ImageLayer[];
+  const imageLayers = canvas.layers.filter((l): l is ImageLayer => l.type === "image");
   if (imageLayers.length === 0) {
     throw new Error("Detail only requires an image on the canvas");
   }
@@ -619,7 +619,7 @@ function extractDetailerV2(
   const models: DetailerModelEntry[] = Array.isArray(rawModels)
     ? rawModels.flatMap((m): DetailerModelEntry[] => {
         if (typeof m === "string") return [{ name: m }];
-        if (m && typeof m === "object" && typeof (m as Record<string, unknown>)["name"] === "string") {
+        if (m && typeof m === "object" && typeof m.name === "string") {
           return [m];
         }
         return [];
