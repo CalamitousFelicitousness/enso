@@ -91,17 +91,32 @@ function ImageStrip({
   if (filtered.length === 0) return null;
   return (
     <div className={`flex gap-2 overflow-x-auto pb-1 ${className ?? ""}`}>
-      {filtered.slice(0, 8).map((img, i) => (
-        // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- thumbnail used as button-like preview opener
-        <img
-          key={img.url}
-          src={civitThumbnail(img.url)}
-          alt=""
-          className={`h-28 w-auto rounded object-cover shrink-0 ${onImageClick ? "cursor-pointer hover:ring-2 hover:ring-primary/60 transition-shadow" : ""}`}
-          loading="lazy"
-          onClick={onImageClick ? () => onImageClick(i) : undefined}
-        />
-      ))}
+      {filtered.slice(0, 8).map((img, i) =>
+        onImageClick ? (
+          <button
+            key={img.url}
+            type="button"
+            aria-label={`Open preview image ${i + 1}`}
+            className="rounded outline-none focus-visible:ring-ring/50 focus-visible:ring-[3px] shrink-0"
+            onClick={() => onImageClick(i)}
+          >
+            <img
+              src={civitThumbnail(img.url)}
+              alt=""
+              className="h-28 w-auto rounded object-cover cursor-pointer hover:ring-2 hover:ring-primary/60 transition-shadow"
+              loading="lazy"
+            />
+          </button>
+        ) : (
+          <img
+            key={img.url}
+            src={civitThumbnail(img.url)}
+            alt=""
+            className="h-28 w-auto rounded object-cover shrink-0"
+            loading="lazy"
+          />
+        ),
+      )}
     </div>
   );
 }

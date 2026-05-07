@@ -104,8 +104,9 @@ export function ImageUpload({
 
   return (
     <>
-      <div
-        className={`${size} rounded-md border-2 border-dashed flex flex-col items-center justify-center cursor-pointer text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors ${dragOver ? "border-primary bg-primary/5" : "border-border"}`}
+      <button
+        type="button"
+        className={`${size} w-full rounded-md border-2 border-dashed flex flex-col items-center justify-center cursor-pointer text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors outline-none focus-visible:ring-ring/50 focus-visible:ring-[3px] ${dragOver ? "border-primary bg-primary/5" : "border-border"}`}
         onDrop={onDrop}
         onDragOver={onDragOver}
         onDragLeave={onDragLeave}
@@ -113,7 +114,7 @@ export function ImageUpload({
       >
         <Upload size={compact ? 14 : 16} className="mb-1" />
         <span className="text-3xs">{label}</span>
-      </div>
+      </button>
       <input
         ref={inputRef}
         type="file"

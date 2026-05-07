@@ -86,13 +86,23 @@ export function LayerPanel() {
         return (
           <div
             key={layer.id}
+            role="button"
+            tabIndex={0}
+            aria-label={`Select layer ${layer.name}`}
+            aria-pressed={isActive}
             className={cn(
-              "flex items-center gap-1.5 px-1.5 py-1 rounded cursor-pointer transition-colors",
+              "flex items-center gap-1.5 px-1.5 py-1 rounded cursor-pointer transition-colors outline-none focus-visible:ring-ring/50 focus-visible:ring-[3px]",
               isActive
                 ? "bg-primary/15 border border-primary/30"
                 : "hover:bg-muted/60 border border-transparent",
             )}
             onClick={() => setActiveLayer(layer.id)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                setActiveLayer(layer.id);
+              }
+            }}
           >
             {/* Thumbnail */}
             <img
@@ -177,13 +187,23 @@ export function LayerPanel() {
             return (
               <div
                 key={layer.id}
+                role="button"
+                tabIndex={0}
+                aria-label={`Select mask ${layer.name}`}
+                aria-pressed={isActive}
                 className={cn(
-                  "flex items-center gap-1.5 px-1.5 py-1 rounded cursor-pointer transition-colors",
+                  "flex items-center gap-1.5 px-1.5 py-1 rounded cursor-pointer transition-colors outline-none focus-visible:ring-ring/50 focus-visible:ring-[3px]",
                   isActive
                     ? "bg-primary/15 border border-primary/30"
                     : "hover:bg-muted/60 border border-transparent",
                 )}
                 onClick={() => setActiveLayer(layer.id)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    setActiveLayer(layer.id);
+                  }
+                }}
               >
                 <img
                   src={layer.imageData}
