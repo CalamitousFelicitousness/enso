@@ -1,5 +1,4 @@
 import { useMemo } from "react";
-import type { ExtraNetworkV2 } from "@/api/types/models";
 import type { TypeFilter, SortMode, SidebarGroup, NetworkItem, FolderNode } from "./types";
 import { TAG_CATEGORIES, EXCLUDED_VERSIONS } from "./constants";
 import { isExtraNetwork, isReferenceName, itemHasTag, itemPath } from "./utils";
@@ -213,8 +212,8 @@ export function useNetworkFiltering(
     }
     if (sortMode === "base-model") {
       return [...items].sort((a, b) => {
-        const va = isExtraNetwork(a) ? (a as ExtraNetworkV2).version ?? "" : "";
-        const vb = isExtraNetwork(b) ? (b as ExtraNetworkV2).version ?? "" : "";
+        const va = isExtraNetwork(a) ? (a).version ?? "" : "";
+        const vb = isExtraNetwork(b) ? (b).version ?? "" : "";
         return (
           va.localeCompare(vb, undefined, { sensitivity: "base" }) ||
           a.name.localeCompare(b.name, undefined, { sensitivity: "base" })

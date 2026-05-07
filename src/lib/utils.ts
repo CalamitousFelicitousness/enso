@@ -87,7 +87,7 @@ export async function downloadImage(image: string, filename: string): Promise<vo
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
   } else {
-    const raw = image.startsWith("data:") ? image.split(",")[1]! : image;
+    const raw = image.startsWith("data:") ? image.split(",")[1] : image;
     downloadBase64Image(raw, filename);
   }
 }
@@ -106,7 +106,7 @@ export async function downloadAllAsZip(results: { images: string[]; info: string
         const resp = await fetch(image);
         blob = await resp.blob();
       } else {
-        const raw = image.startsWith("data:") ? image.split(",")[1]! : image;
+        const raw = image.startsWith("data:") ? image.split(",")[1] : image;
         blob = base64ToBlob(raw);
       }
       zip.file(`${String(fileIndex).padStart(4, "0")}_${filename}`, blob);

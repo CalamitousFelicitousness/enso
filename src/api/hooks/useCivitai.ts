@@ -41,7 +41,7 @@ export function useCivitSearchInfinite(params: CivitSearchParams, enabled = fals
     queryKey: ["civitai-search-infinite", params],
     queryFn: ({ pageParam }) => {
       const p = { ...params };
-      if (pageParam) p.cursor = pageParam as string;
+      if (pageParam) p.cursor = pageParam;
       return api.get<CivitSearchResponse>("/sdapi/v2/civitai/search", buildSearchParams(p));
     },
     initialPageParam: undefined as string | undefined,

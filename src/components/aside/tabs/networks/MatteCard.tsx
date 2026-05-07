@@ -6,7 +6,6 @@ import { api } from "@/api/client";
 import { SmartCardImage } from "./SmartCardImage";
 import { isExtraNetwork } from "./utils";
 import type { NetworkItem } from "./types";
-import type { ExtraNetworkV2 } from "@/api/types/models";
 
 const neonDotStyle = {
   boxShadow: "0 0 6px oklch(from var(--primary) l c h / 0.6)",
@@ -22,7 +21,7 @@ export const MatteCard = forwardRef<
     onInfo: () => void;
   }
 >(function MatteCard({ item, active, isActiveLora, onClick, onInfo }, ref) {
-  const network = isExtraNetwork(item) ? (item as ExtraNetworkV2) : null;
+  const network = isExtraNetwork(item) ? (item) : null;
   const badgeText = network ? (network.version || network.type) : "Style";
 
   const preview = item.preview;

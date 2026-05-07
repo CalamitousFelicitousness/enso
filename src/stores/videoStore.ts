@@ -221,7 +221,7 @@ export const useVideoStore = create<VideoState>()(
           p[key] = state[key];
         }
         p.historyLimit = state.historyLimit;
-        return p as Partial<VideoState>;
+        return p;
       },
     },
   ),

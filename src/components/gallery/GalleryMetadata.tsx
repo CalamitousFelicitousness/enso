@@ -136,7 +136,7 @@ export function GalleryMetadata() {
       }
     }
     if (Object.keys(updates).length > 0)
-      gen.setParams(updates as Partial<typeof gen>);
+      gen.setParams(updates);
   };
 
   const handleSendToCanvas = async () => {

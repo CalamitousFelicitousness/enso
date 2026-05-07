@@ -1,4 +1,4 @@
-import type { ExtraNetworkV2, PromptStyleV2 } from "@/api/types/models";
+import type { ExtraNetworkV2 } from "@/api/types/models";
 import type { ActiveLora, NetworkItem } from "./types";
 
 export function isExtraNetwork(
@@ -17,7 +17,7 @@ export function isItemActive(
   options: Record<string, unknown> | undefined,
 ): boolean {
   if (!isExtraNetwork(item)) {
-    const style = item as PromptStyleV2;
+    const style = item;
     return !!style.prompt && prompt.includes(style.prompt);
   }
   const t = item.type?.toLowerCase() ?? "";

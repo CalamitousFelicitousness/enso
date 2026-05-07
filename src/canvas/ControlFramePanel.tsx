@@ -262,7 +262,7 @@ export function FrameHeader({
                 size="icon-xs"
                 onClick={(e) => {
                   e.stopPropagation();
-                  onToggleCollapsed!();
+                  onToggleCollapsed();
                 }}
                 title={collapsed ? "Expand settings" : "Collapse settings"}
                 className="text-muted-foreground hover:bg-white/5"

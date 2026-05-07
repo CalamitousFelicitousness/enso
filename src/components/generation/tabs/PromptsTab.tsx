@@ -294,7 +294,7 @@ export function PromptsTab() {
               { value: "megapixel", label: "Megapixel" },
             ]}
             value={sizeMode}
-            onValueChange={(v) => setSizeMode(v as SizeMode)}
+            onValueChange={(v) => setSizeMode(v)}
             animated
           />
         )}

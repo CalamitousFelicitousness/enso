@@ -55,7 +55,7 @@ function routeResult(domain: JobDomain, result: JobResult, snapshot: TrackedJob[
         format: vid.format,
         size: vid.size,
         params: result.params,
-        domain: domain as "video" | "framepack" | "ltx",
+        domain: domain,
         timestamp: Date.now(),
       });
     }

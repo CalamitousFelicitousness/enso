@@ -305,7 +305,7 @@ export const loraWidgetPlugin = ViewPlugin.fromClass(
         const tagType = match[1].toLowerCase();
 
         if (tagType === "lora" || tagType === "lyco") {
-          const from = match.index!;
+          const from = match.index;
           const to = from + match[0].length;
           const args = match[2];
           const lastColon = args.lastIndexOf(":");
@@ -330,7 +330,7 @@ export const loraWidgetPlugin = ViewPlugin.fromClass(
       // Wildcard chips: __name__
       for (const match of text.matchAll(new RegExp(TOKEN_PATTERN, "g"))) {
         if (match[3] === undefined) continue;
-        const from = match.index!;
+        const from = match.index;
         const to = from + match[0].length;
         chips.push({
           from,
@@ -358,7 +358,7 @@ export const loraWidgetPlugin = ViewPlugin.fromClass(
           "g",
         );
         for (const m of text.matchAll(re)) {
-          const from = m.index!;
+          const from = m.index;
           const to = from + m[0].length;
           const displayName = m[0].split("/").pop() || m[0];
           chips.push({

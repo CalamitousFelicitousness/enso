@@ -400,8 +400,8 @@ export const ParamSlider = memo(function ParamSlider({
       <ContextMenuTrigger asChild>{trackContent}</ContextMenuTrigger>
       <ContextMenuContent>
         {hasReset && (
-          <ContextMenuItem disabled={isAtDefault} onSelect={() => onChange(defaultValue!)}>
-            Reset to default ({formatValue(defaultValue!, decimals)})
+          <ContextMenuItem disabled={isAtDefault} onSelect={() => onChange(defaultValue)}>
+            Reset to default ({formatValue(defaultValue, decimals)})
           </ContextMenuItem>
         )}
         {hasReset && helpText && <ContextMenuSeparator />}

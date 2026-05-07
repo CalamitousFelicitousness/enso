@@ -438,7 +438,7 @@ export const useGenerationStore = create<GenerationState>()(
         const p: Record<string, unknown> = {};
         for (const key of defaultParamKeys) p[key] = state[key];
         p.historyLimit = state.historyLimit;
-        return p as Partial<GenerationState>;
+        return p;
       },
     },
   ),

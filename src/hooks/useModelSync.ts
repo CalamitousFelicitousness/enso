@@ -1,7 +1,6 @@
 import { useEffect, useRef } from "react";
 import { useCurrentCheckpoint, useModelList } from "@/api/hooks/useModels";
 import { useModelSelectionStore } from "@/stores/modelSelectionStore";
-import type { LocalModel } from "@/api/types/cloud";
 
 export function useModelSync() {
   const { data: checkpoint } = useCurrentCheckpoint();
@@ -19,7 +18,7 @@ export function useModelSync() {
 
     const match = models.find((m) => m.title === checkpoint.title);
     if (match) {
-      selectLocal({ ...match, source: "local" } as LocalModel);
+      selectLocal({ ...match, source: "local" });
     }
     initialized.current = true;
   }, [checkpoint?.title, models, activeModel, selectLocal]);

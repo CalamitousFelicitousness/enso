@@ -22,7 +22,7 @@ function buildDecorations(view: EditorView): DecorationSet {
   const decos: Deco[] = [];
 
   for (const match of text.matchAll(new RegExp(TOKEN_PATTERN, "g"))) {
-    const from = match.index!;
+    const from = match.index;
     const to = from + match[0].length;
 
     if (match[1] !== undefined) {

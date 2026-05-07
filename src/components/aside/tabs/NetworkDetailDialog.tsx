@@ -61,7 +61,7 @@ function getCivitInfo(info: Record<string, unknown> | null | undefined) {
   const baseModel =
     typeof firstVersion?.baseModel === "string" ? firstVersion.baseModel : null;
   return {
-    id: info.id as number,
+    id: info.id,
     name: typeof info.name === "string" ? info.name : null,
     trainedWords,
     baseModel,
@@ -331,7 +331,7 @@ export function NetworkDetailDialog({
   onOpenChange: (open: boolean) => void;
 }) {
   const isNetwork = item && "type" in item && item.type;
-  const network = isNetwork ? (item as ExtraNetworkV2) : null;
+  const network = isNetwork ? (item) : null;
   const { data: detail, isLoading } = useNetworkDetail(
     network?.type ?? "",
     item?.name ?? "",

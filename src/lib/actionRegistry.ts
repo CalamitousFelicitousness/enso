@@ -10,7 +10,6 @@ import { getAllCommands } from "@/lib/commandRegistry";
 import type { PaletteCommand } from "@/lib/commandRegistry";
 import type { NavigateTarget } from "@/lib/navigateToParam";
 import type { ImagesSubTab } from "@/stores/uiStore";
-import type { RightTab } from "@/lib/constants";
 
 interface PaletteActionBase {
   id: string;
@@ -138,7 +137,7 @@ export function buildActions(commands?: PaletteCommand[]): PaletteAction[] {
       icon: tab.icon,
       group: "Navigation",
       keywords: ["panel", "right panel", tab.label.toLowerCase()],
-      target: { rightTab: tab.id as RightTab },
+      target: { rightTab: tab.id },
     });
   }
 

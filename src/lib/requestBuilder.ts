@@ -194,7 +194,7 @@ export async function buildControlRequest(): Promise<BuildResult> {
   // Detailer (V2 schema: defaults block + per-model entries)
   if (gen.detailerEnabled) {
     request.detailer_enabled = true;
-    request.detailer_defaults = stripUndefined(gen.detailerDefaults) as DetailerOverrides;
+    request.detailer_defaults = stripUndefined(gen.detailerDefaults);
     request.detailer_models = gen.detailerModels.map(serializeDetailerEntry);
   }
 
@@ -396,7 +396,7 @@ export async function buildDetailRequest(): Promise<BuildDetailResult> {
     seed: gen.seed,
     sampler_name: gen.sampler,
     detailer_enabled: true,
-    detailer_defaults: stripUndefined(gen.detailerDefaults) as DetailerOverrides,
+    detailer_defaults: stripUndefined(gen.detailerDefaults),
     detailer_models: gen.detailerModels.map(serializeDetailerEntry),
     save_images: true,
   };
@@ -589,7 +589,7 @@ function extractDetailerV2(
   // Prefer V2 defaults block if present
   const v2Defaults = (p.detailer_defaults ?? overrides.detailer_defaults) as Record<string, unknown> | undefined;
   const defaults: DetailerOverrides = v2Defaults && typeof v2Defaults === "object"
-    ? (v2Defaults as DetailerOverrides)
+    ? (v2Defaults)
     : {
         // Legacy: hoist flat detailer_* fields into the defaults block
         strength: num(p.detailer_strength ?? overrides.detailer_strength),

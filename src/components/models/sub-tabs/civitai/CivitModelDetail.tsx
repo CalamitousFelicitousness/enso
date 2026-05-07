@@ -781,7 +781,7 @@ export function CivitModelDetail({ modelId, onClose }: CivitModelDetailProps) {
     for (const img of versionImages) {
       if (img.meta && typeof img.meta === "object") {
         const m = uuidRe.exec(img.url);
-        if (m) metaByUuid.set(m[1], img.meta as Record<string, unknown>);
+        if (m) metaByUuid.set(m[1], img.meta);
       }
     }
     if (metaByUuid.size === 0) return baseImages;

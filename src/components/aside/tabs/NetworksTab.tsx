@@ -9,7 +9,6 @@ import { useOptions, useSetOptions } from "@/api/hooks/useSettings";
 import { useLoadModel } from "@/api/hooks/useModels";
 import { useGenerationStore } from "@/stores/generationStore";
 import { insertAtCursor } from "@/lib/promptCursor";
-import type { ExtraNetworkV2 } from "@/api/types/models";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import type { SegmentOption } from "@/components/ui/segmented-control";
 import { NetworkDetailDialog } from "./NetworkDetailDialog";
@@ -139,7 +138,7 @@ export function NetworksTab() {
 
   function handleClick(item: NetworkItem) {
     if (isExtraNetwork(item)) {
-      const network = item as ExtraNetworkV2;
+      const network = item;
       const t = network.type.toLowerCase();
       if (t === "lora" || t === "lycoris") {
         loraManager.toggleLora(network.name);

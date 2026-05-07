@@ -48,7 +48,7 @@ export function usePlaygroundTheme() {
       "--rail-primary-foreground": fg,
       "--rail-ring": accentColor,
       "--chart-1": accentColor,
-    } as Record<string, string>;
+    };
   }, [accentColor]);
 
   useEffect(() => {

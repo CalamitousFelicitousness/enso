@@ -23,7 +23,7 @@ function getCivitInfo(info: Record<string, unknown> | null | undefined) {
       ? firstVersion.baseModel
       : null;
   return {
-    id: info.id as number,
+    id: info.id,
     name: typeof info.name === "string" ? info.name : null,
     trainedWords,
     baseModel,
@@ -183,7 +183,7 @@ export function promptTooltips(): Extension {
 
       // Check syntax-based tokens
       for (const match of doc.matchAll(new RegExp(TOKEN_PATTERN, "g"))) {
-        const from = match.index!;
+        const from = match.index;
         const to = from + match[0].length;
         if (pos < from || pos >= to) continue;
 
@@ -219,7 +219,7 @@ export function promptTooltips(): Extension {
           "g",
         );
         for (const m of doc.matchAll(re)) {
-          const from = m.index!;
+          const from = m.index;
           const to = from + m[0].length;
           if (pos >= from && pos < to) {
             return embeddingTooltip(m[0], from, to);
