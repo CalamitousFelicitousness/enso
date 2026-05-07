@@ -25,7 +25,7 @@ export function useControlModes() {
 
 export function usePreprocessImage() {
   return useMutation({
-    mutationFn: (req: { image: string; model: string; params?: Record<string, unknown> }) =>
+    mutationFn: (req: { image: string; model: string; params?: Record<string, unknown> | undefined }) =>
       api.post<PreprocessResponse>("/sdapi/v2/preprocess", req),
   });
 }

@@ -6,11 +6,11 @@ export type CaptionMethod = "vlm" | "openclip" | "tagger";
 
 export interface OpenClipRequest {
   image: string;
-  model?: string;
-  clip_model?: string;
-  blip_model?: string;
-  mode?: string;
-  analyze?: boolean;
+  model?: string | undefined;
+  clip_model?: string | undefined;
+  blip_model?: string | undefined;
+  mode?: string | undefined;
+  analyze?: boolean | undefined;
   max_length?: number | null;
   chunk_size?: number | null;
   min_flavors?: number | null;
@@ -35,16 +35,16 @@ export interface OpenClipResponse {
 
 export interface TaggerRequest {
   image: string;
-  model?: string;
-  threshold?: number;
-  character_threshold?: number;
-  max_tags?: number;
-  include_rating?: boolean;
-  sort_alpha?: boolean;
-  use_spaces?: boolean;
-  escape_brackets?: boolean;
-  exclude_tags?: string;
-  show_scores?: boolean;
+  model?: string | undefined;
+  threshold?: number | undefined;
+  character_threshold?: number | undefined;
+  max_tags?: number | undefined;
+  include_rating?: boolean | undefined;
+  sort_alpha?: boolean | undefined;
+  use_spaces?: boolean | undefined;
+  escape_brackets?: boolean | undefined;
+  exclude_tags?: string | undefined;
+  show_scores?: boolean | undefined;
 }
 
 export interface TaggerResponse {
@@ -64,11 +64,11 @@ export interface TaggerModel {
 
 export interface VqaRequest {
   image: string;
-  model?: string;
-  question?: string;
-  prompt?: string | null;
-  system?: string;
-  include_annotated?: boolean;
+  model?: string | undefined;
+  question?: string | undefined;
+  prompt?: string | null | undefined;
+  system?: string | undefined;
+  include_annotated?: boolean | undefined;
   max_tokens?: number | null;
   temperature?: number | null;
   top_k?: number | null;

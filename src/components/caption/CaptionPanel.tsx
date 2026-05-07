@@ -138,7 +138,7 @@ export function CaptionPanel() {
           num_beams: s.numBeams,
           do_sample: s.doSample,
           thinking_mode: s.thinkingMode,
-          prefill: s.prefill || undefined,
+          prefill: s.prefill || null,
           keep_thinking: s.keepThinking,
           keep_prefill: s.keepPrefill,
         });

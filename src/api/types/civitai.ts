@@ -122,18 +122,18 @@ export interface CivitDownloadStatus {
 
 export interface CivitDownloadRequest {
   url: string;
-  filename?: string;
-  folder?: string;
-  model_type?: string;
-  expected_hash?: string;
-  token?: string;
-  model_name?: string;
-  base_model?: string;
-  creator?: string;
-  model_id?: number;
-  version_id?: number;
-  version_name?: string;
-  nsfw?: boolean;
+  filename?: string | undefined;
+  folder?: string | undefined;
+  model_type?: string | undefined;
+  expected_hash?: string | undefined;
+  token?: string | undefined;
+  model_name?: string | undefined;
+  base_model?: string | undefined;
+  creator?: string | undefined;
+  model_id?: number | undefined;
+  version_id?: number | undefined;
+  version_name?: string | undefined;
+  nsfw?: boolean | undefined;
 }
 
 export interface CivitSettings {
@@ -146,10 +146,10 @@ export interface CivitSettings {
 }
 
 export interface CivitSettingsUpdate {
-  token?: string;
-  save_subfolder_enabled?: boolean;
-  save_subfolder?: string;
-  discard_hash_mismatch?: boolean;
+  token?: string | undefined;
+  save_subfolder_enabled?: boolean | undefined;
+  save_subfolder?: string | undefined;
+  discard_hash_mismatch?: boolean | undefined;
 }
 
 export interface CivitHistoryEntry {
@@ -220,15 +220,15 @@ export interface CivitImagesResponse {
 }
 
 export interface CivitSearchParams {
-  query?: string;
-  tag?: string;
-  types?: string;
-  sort?: string;
-  period?: string;
-  base_models?: string;
-  nsfw?: boolean;
-  limit?: number;
-  cursor?: string;
-  username?: string;
-  favorites?: boolean;
+  query?: string | undefined;
+  tag?: string | undefined;
+  types?: string | undefined;
+  sort?: string | undefined;
+  period?: string | undefined;
+  base_models?: string | undefined;
+  nsfw?: boolean | undefined;
+  limit?: number | undefined;
+  cursor?: string | undefined;
+  username?: string | undefined;
+  favorites?: boolean | undefined;
 }

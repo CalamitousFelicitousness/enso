@@ -24,9 +24,9 @@ export interface ModelAnalysis {
 
 export interface ModelSaveRequest {
   name: string;
-  path?: string;
-  shard?: string;
-  overwrite?: boolean;
+  path?: string | undefined;
+  shard?: string | undefined;
+  overwrite?: boolean | undefined;
 }
 
 export interface ModelListDetail {
@@ -53,19 +53,19 @@ export interface HfModelResult {
 
 export interface HfDownloadRequest {
   hub_id: string;
-  token?: string;
-  variant?: string;
-  revision?: string;
-  mirror?: string;
-  custom_pipeline?: string;
+  token?: string | undefined;
+  variant?: string | undefined;
+  revision?: string | undefined;
+  mirror?: string | undefined;
+  custom_pipeline?: string | undefined;
 }
 
 export interface CivitaiDownloadRequest {
   url: string;
-  name?: string;
-  path?: string;
-  model_type?: string;
-  token?: string;
+  name?: string | undefined;
+  path?: string | undefined;
+  model_type?: string | undefined;
+  token?: string | undefined;
 }
 
 export interface CivitMetadataScanResult {
@@ -104,55 +104,55 @@ export interface MergeRequest {
   primary_model_name: string;
   secondary_model_name: string;
   merge_mode: string;
-  tertiary_model_name?: string;
-  alpha?: number;
-  beta?: number;
-  alpha_preset?: string;
-  alpha_preset_lambda?: number;
-  alpha_base?: string;
-  alpha_in_blocks?: string;
-  alpha_mid_block?: string;
-  alpha_out_blocks?: string;
-  beta_preset?: string;
-  beta_preset_lambda?: number;
-  beta_base?: string;
-  beta_in_blocks?: string;
-  beta_mid_block?: string;
-  beta_out_blocks?: string;
-  precision?: string;
-  checkpoint_format?: string;
-  save_metadata?: boolean;
-  weights_clip?: boolean;
-  prune?: boolean;
-  re_basin?: boolean;
-  re_basin_iterations?: number;
-  device?: string;
-  unload?: boolean;
-  overwrite?: boolean;
-  bake_in_vae?: string;
+  tertiary_model_name?: string | undefined;
+  alpha?: number | undefined;
+  beta?: number | undefined;
+  alpha_preset?: string | undefined;
+  alpha_preset_lambda?: number | undefined;
+  alpha_base?: string | undefined;
+  alpha_in_blocks?: string | undefined;
+  alpha_mid_block?: string | undefined;
+  alpha_out_blocks?: string | undefined;
+  beta_preset?: string | undefined;
+  beta_preset_lambda?: number | undefined;
+  beta_base?: string | undefined;
+  beta_in_blocks?: string | undefined;
+  beta_mid_block?: string | undefined;
+  beta_out_blocks?: string | undefined;
+  precision?: string | undefined;
+  checkpoint_format?: string | undefined;
+  save_metadata?: boolean | undefined;
+  weights_clip?: boolean | undefined;
+  prune?: boolean | undefined;
+  re_basin?: boolean | undefined;
+  re_basin_iterations?: number | undefined;
+  device?: string | undefined;
+  unload?: boolean | undefined;
+  overwrite?: boolean | undefined;
+  bake_in_vae?: string | undefined;
 }
 
 export interface ReplaceRequest {
   model_type: string;
   model_name: string;
   custom_name: string;
-  comp_unet?: string;
-  comp_vae?: string;
-  comp_te1?: string;
-  comp_te2?: string;
-  precision?: string;
-  comp_scheduler?: string;
-  comp_prediction?: string;
-  comp_lora?: string;
-  comp_fuse?: number;
-  meta_author?: string;
-  meta_version?: string;
-  meta_license?: string;
-  meta_desc?: string;
-  meta_hint?: string;
-  create_diffusers?: boolean;
-  create_safetensors?: boolean;
-  debug?: boolean;
+  comp_unet?: string | undefined;
+  comp_vae?: string | undefined;
+  comp_te1?: string | undefined;
+  comp_te2?: string | undefined;
+  precision?: string | undefined;
+  comp_scheduler?: string | undefined;
+  comp_prediction?: string | undefined;
+  comp_lora?: string | undefined;
+  comp_fuse?: number | undefined;
+  meta_author?: string | undefined;
+  meta_version?: string | undefined;
+  meta_license?: string | undefined;
+  meta_desc?: string | undefined;
+  meta_hint?: string | undefined;
+  create_diffusers?: boolean | undefined;
+  create_safetensors?: boolean | undefined;
+  debug?: boolean | undefined;
 }
 
 // Phase 4
@@ -189,9 +189,9 @@ export interface LoaderLoadRequest {
 
 export interface LoraExtractRequest {
   filename: string;
-  max_rank?: number;
-  auto_rank?: boolean;
-  rank_ratio?: number;
-  modules?: string[];
-  overwrite?: boolean;
+  max_rank?: number | undefined;
+  auto_rank?: boolean | undefined;
+  rank_ratio?: number | undefined;
+  modules?: string[] | undefined;
+  overwrite?: boolean | undefined;
 }

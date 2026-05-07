@@ -8,45 +8,45 @@ export type GenerateJobRequest = ControlRequest & { type: "generate"; priority?:
 export interface UpscaleJobParams {
   type: "upscale";
   image: string;
-  upscaler?: string;
-  scale?: number;
-  priority?: number;
+  upscaler?: string | undefined;
+  scale?: number | undefined;
+  priority?: number | undefined;
 }
 
 export interface CaptionJobParams {
   type: "caption";
   image: string;
-  backend?: "vlm" | "openclip" | "tagger";
-  model?: string;
-  priority?: number;
+  backend?: "vlm" | "openclip" | "tagger" | undefined;
+  model?: string | undefined;
+  priority?: number | undefined;
 }
 
 export interface EnhanceJobParams {
   type: "enhance";
-  prompt?: string;
-  model?: string;
-  enhance_type?: "text" | "image" | "video";
-  seed?: number;
-  image?: string;
-  system_prompt?: string;
-  prefix?: string;
-  suffix?: string;
-  priority?: number;
+  prompt?: string | undefined;
+  model?: string | undefined;
+  enhance_type?: "text" | "image" | "video" | undefined;
+  seed?: number | undefined;
+  image?: string | undefined;
+  system_prompt?: string | undefined;
+  prefix?: string | undefined;
+  suffix?: string | undefined;
+  priority?: number | undefined;
 }
 
 export interface DetectJobParams {
   type: "detect";
   image: string;
-  model?: string;
-  priority?: number;
+  model?: string | undefined;
+  priority?: number | undefined;
 }
 
 export interface PreprocessJobParams {
   type: "preprocess";
   image: string;
   model: string;
-  params?: Record<string, unknown>;
-  priority?: number;
+  params?: Record<string, unknown> | undefined;
+  priority?: number | undefined;
 }
 
 /** Per-model or default detailer overrides. Mirrors DetailerOverrides
@@ -87,16 +87,16 @@ export interface DetailJobParams {
   inputs: string[];
   width: number;
   height: number;
-  prompt?: string;
-  negative_prompt?: string;
-  seed?: number;
-  sampler_name?: string;
-  detailer_enabled?: boolean;
-  detailer_defaults?: DetailerOverrides;
-  detailer_models?: DetailerModelRef[];
-  save_images?: boolean;
-  override_settings?: Record<string, unknown>;
-  priority?: number;
+  prompt?: string | undefined;
+  negative_prompt?: string | undefined;
+  seed?: number | undefined;
+  sampler_name?: string | undefined;
+  detailer_enabled?: boolean | undefined;
+  detailer_defaults?: DetailerOverrides | undefined;
+  detailer_models?: DetailerModelRef[] | undefined;
+  save_images?: boolean | undefined;
+  override_settings?: Record<string, unknown> | undefined;
+  priority?: number | undefined;
 }
 
 export interface VideoGenerateParams {
@@ -207,37 +207,37 @@ export interface XyzAxisInput {
 
 export interface XyzGridJobParams {
   type: "xyz-grid";
-  prompt?: string;
-  negative_prompt?: string;
-  steps?: number;
-  width?: number;
-  height?: number;
-  cfg_scale?: number;
-  seed?: number;
-  batch_size?: number;
-  sampler_name?: string;
-  denoising_strength?: number;
-  inputs?: string[];
-  inits?: string[];
-  mask?: string;
-  control?: Record<string, unknown>[];
-  ip_adapter?: Record<string, unknown>[];
-  save_images?: boolean;
-  clip_skip?: number;
-  cfg_end?: number;
-  override_settings?: Record<string, unknown>;
-  x_axis?: XyzAxisInput | null;
-  y_axis?: XyzAxisInput | null;
-  z_axis?: XyzAxisInput | null;
-  draw_legend?: boolean;
-  include_grid?: boolean;
-  include_subgrids?: boolean;
-  include_images?: boolean;
-  include_time?: boolean;
-  include_text?: boolean;
-  margin_size?: number;
-  random_seeds?: boolean;
-  priority?: number;
+  prompt?: string | undefined;
+  negative_prompt?: string | undefined;
+  steps?: number | undefined;
+  width?: number | undefined;
+  height?: number | undefined;
+  cfg_scale?: number | undefined;
+  seed?: number | undefined;
+  batch_size?: number | undefined;
+  sampler_name?: string | undefined;
+  denoising_strength?: number | undefined;
+  inputs?: string[] | undefined;
+  inits?: string[] | undefined;
+  mask?: string | undefined;
+  control?: Record<string, unknown>[] | undefined;
+  ip_adapter?: Record<string, unknown>[] | undefined;
+  save_images?: boolean | undefined;
+  clip_skip?: number | undefined;
+  cfg_end?: number | undefined;
+  override_settings?: Record<string, unknown> | undefined;
+  x_axis?: XyzAxisInput | null | undefined;
+  y_axis?: XyzAxisInput | null | undefined;
+  z_axis?: XyzAxisInput | null | undefined;
+  draw_legend?: boolean | undefined;
+  include_grid?: boolean | undefined;
+  include_subgrids?: boolean | undefined;
+  include_images?: boolean | undefined;
+  include_time?: boolean | undefined;
+  include_text?: boolean | undefined;
+  margin_size?: number | undefined;
+  random_seeds?: boolean | undefined;
+  priority?: number | undefined;
 }
 
 export interface RembgJobParams {
