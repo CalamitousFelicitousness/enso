@@ -19,7 +19,7 @@ export class InputTooLargeError extends Error {
     const limitMB = (limit / 1_000_000).toFixed(1);
     super(
       `Image ${sizeMB} MB exceeds ${providerLabel} limit of ${limitMB} MB ` +
-      `after maximum compression. Reduce canvas size or remove layers.`,
+        `after maximum compression. Reduce canvas size or remove layers.`,
     );
     this.imageBytes = imageBytes;
     this.limit = limit;
@@ -90,13 +90,12 @@ export async function optimizeImageForProvider(
 
   if (limits.maxLongestSide && Math.max(width, height) > limits.maxLongestSide) {
     const scale = limits.maxLongestSide / Math.max(width, height);
-    const newW = Math.round(width * scale / 8) * 8 || 8;
-    const newH = Math.round(height * scale / 8) * 8 || 8;
-    warnings.push(`Resized from ${width}×${height} to ${newW}×${newH} (provider max ${limits.maxLongestSide}px)`);
-    const resized = await resizeBlob(
-      await canvasToFormat(canvas, "png") as Blob,
-      newW, newH,
+    const newW = Math.round((width * scale) / 8) * 8 || 8;
+    const newH = Math.round((height * scale) / 8) * 8 || 8;
+    warnings.push(
+      `Resized from ${width}×${height} to ${newW}×${newH} (provider max ${limits.maxLongestSide}px)`,
     );
+    const resized = await resizeBlob((await canvasToFormat(canvas, "png")) as Blob, newW, newH);
     const bm2 = await createImageBitmap(resized);
     canvas.width = newW;
     canvas.height = newH;
@@ -116,7 +115,13 @@ export async function optimizeImageForProvider(
   if (source.size <= budget && source.size === (await canvasToFormat(canvas, "png"))?.size) {
     const sourceFormat = detectFormat(source);
     if (sourceFormat && formats.includes(sourceFormat)) {
-      return { blob: source, format: sourceFormat, quality: null, dimensions: { width, height }, warnings };
+      return {
+        blob: source,
+        format: sourceFormat,
+        quality: null,
+        dimensions: { width, height },
+        warnings,
+      };
     }
   }
 
@@ -128,7 +133,13 @@ export async function optimizeImageForProvider(
     }
   }
 
-  const downscaled = await dimensionReduction(canvas, width, height, lossyFormats[0] ?? "jpeg", budget);
+  const downscaled = await dimensionReduction(
+    canvas,
+    width,
+    height,
+    lossyFormats[0] ?? "jpeg",
+    budget,
+  );
   if (downscaled) {
     warnings.push(
       `Reduced from ${width}×${height} to ${downscaled.dimensions.width}×${downscaled.dimensions.height} to fit ${providerLabel} size limit`,
@@ -181,17 +192,22 @@ async function dimensionReduction(
   height: number,
   format: "jpeg" | "webp",
   budget: number,
-): Promise<{ blob: Blob; format: ImageFormat; quality: number; dimensions: { width: number; height: number } } | null> {
+): Promise<{
+  blob: Blob;
+  format: ImageFormat;
+  quality: number;
+  dimensions: { width: number; height: number };
+} | null> {
   const probe = await canvasToFormat(canvas, format, 0.7);
   if (!probe) return null;
 
   const scale = Math.sqrt(budget / probe.size) * 0.9;
   if (scale >= 1) return null;
 
-  const newW = Math.round(width * scale / 8) * 8 || 8;
-  const newH = Math.round(height * scale / 8) * 8 || 8;
+  const newW = Math.round((width * scale) / 8) * 8 || 8;
+  const newH = Math.round((height * scale) / 8) * 8 || 8;
 
-  const pngBlob = await canvasToFormat(canvas, "png") as Blob;
+  const pngBlob = (await canvasToFormat(canvas, "png")) as Blob;
   const resized = await resizeBlob(pngBlob, newW, newH);
   const bm = await createImageBitmap(resized);
   const outCanvas = document.createElement("canvas");

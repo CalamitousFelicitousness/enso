@@ -3,11 +3,7 @@ import { RIGHT_TABS } from "@/lib/constants";
 import { useUiStore } from "@/stores/uiStore";
 import { useJobQueueStore, selectHasActiveJobs } from "@/stores/jobStore";
 import { cn } from "@/lib/utils";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 export function RightTabRail() {
   const activeTab = useUiStore((s) => s.activeRightTab);

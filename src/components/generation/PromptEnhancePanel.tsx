@@ -2,11 +2,7 @@ import { useCallback, useEffect, useMemo } from "react";
 import { Lightbulb, Eye } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import {
-  Combobox,
-  type ComboboxGroup,
-  type ComboboxOption,
-} from "@/components/ui/combobox";
+import { Combobox, type ComboboxGroup, type ComboboxOption } from "@/components/ui/combobox";
 import { Input } from "@/components/ui/input";
 import { NumberInput } from "@/components/ui/number-input";
 import { Textarea } from "@/components/ui/textarea";
@@ -29,16 +25,9 @@ function SwitchRow({
   disabled?: boolean;
 }) {
   return (
-    <div
-      className={`flex items-center justify-between${disabled ? " opacity-40" : ""}`}
-    >
+    <div className={`flex items-center justify-between${disabled ? " opacity-40" : ""}`}>
       <Label className="text-2xs text-muted-foreground">{label}</Label>
-      <Switch
-        size="sm"
-        checked={checked}
-        onCheckedChange={onCheckedChange}
-        disabled={disabled}
-      />
+      <Switch size="sm" checked={checked} onCheckedChange={onCheckedChange} disabled={disabled} />
     </div>
   );
 }
@@ -122,9 +111,7 @@ export function PromptEnhancePanel() {
       const model = modelsByName.get(value);
       return (
         <span className="inline-flex items-center gap-1">
-          {model?.cached && (
-            <span className="shrink-0 size-1.5 rounded-full bg-green-500" />
-          )}
+          {model?.cached && <span className="shrink-0 size-1.5 rounded-full bg-green-500" />}
           {stripPua(label)}
           {model?.thinking && <Lightbulb className="shrink-0 size-[1em]" />}
           {model?.vision && <Eye className="shrink-0 size-[1em]" />}
@@ -206,11 +193,7 @@ export function PromptEnhancePanel() {
         disabled={!selectedModel?.thinking || !store.thinking}
       />
 
-      <SwitchRow
-        label="NSFW"
-        checked={store.nsfw}
-        onCheckedChange={store.setNsfw}
-      />
+      <SwitchRow label="NSFW" checked={store.nsfw} onCheckedChange={store.setNsfw} />
 
       <div className="flex flex-col gap-0.5">
         <Label className="text-3xs text-muted-foreground">Prefill</Label>
@@ -230,11 +213,7 @@ export function PromptEnhancePanel() {
 
       {/* ── Sampling ── */}
       <SectionLabel>Sampling</SectionLabel>
-      <SwitchRow
-        label="Do sample"
-        checked={store.doSample}
-        onCheckedChange={store.setDoSample}
-      />
+      <SwitchRow label="Do sample" checked={store.doSample} onCheckedChange={store.setDoSample} />
 
       <div className={store.doSample ? "" : "opacity-40 pointer-events-none"}>
         <div className="flex flex-col gap-2.5">
@@ -259,9 +238,7 @@ export function PromptEnhancePanel() {
           </ParamGrid>
           <div className="grid grid-cols-3 gap-2">
             <div className="flex flex-col gap-0.5">
-              <Label className="text-3xs text-muted-foreground">
-                Max tokens
-              </Label>
+              <Label className="text-3xs text-muted-foreground">Max tokens</Label>
               <NumberInput
                 value={store.maxTokens}
                 onChange={store.setMaxTokens}
@@ -302,9 +279,7 @@ export function PromptEnhancePanel() {
 
       {/* Seed (always active) */}
       <div className="flex items-center gap-2">
-        <Label className="text-2xs text-muted-foreground w-16 flex-shrink-0">
-          Seed
-        </Label>
+        <Label className="text-2xs text-muted-foreground w-16 flex-shrink-0">Seed</Label>
         <NumberInput
           value={store.seed}
           onChange={store.setSeed}

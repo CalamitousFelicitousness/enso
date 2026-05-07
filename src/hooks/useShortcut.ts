@@ -7,7 +7,9 @@ import { useShortcutStore } from "@/stores/shortcutStore";
  */
 export function useShortcut(id: string, handler: (e: KeyboardEvent) => void, enabled = true) {
   const handlerRef = useRef(handler);
-  useEffect(() => { handlerRef.current = handler; });
+  useEffect(() => {
+    handlerRef.current = handler;
+  });
 
   const stableHandler = useCallback((e: KeyboardEvent) => handlerRef.current(e), []);
 

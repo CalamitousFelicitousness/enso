@@ -35,18 +35,8 @@ import {
   useCivitVersionImages,
 } from "@/api/hooks/useCivitai";
 import { useDownloadStore } from "@/stores/downloadStore";
-import type {
-  CivitVersion,
-  CivitFile,
-  CivitImage,
-  CivitStats,
-} from "@/api/types/civitai";
-import {
-  Dialog,
-  DialogContent,
-  DialogTitle,
-  DialogDescription,
-} from "@/components/ui/dialog";
+import type { CivitVersion, CivitFile, CivitImage, CivitStats } from "@/api/types/civitai";
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -97,9 +87,7 @@ function ImageStrip({
   className?: string | undefined;
   onImageClick?: ((index: number) => void) | undefined;
 }) {
-  const filtered = images.filter(
-    (img) => !img.url.toLowerCase().endsWith(".mp4"),
-  );
+  const filtered = images.filter((img) => !img.url.toLowerCase().endsWith(".mp4"));
   if (filtered.length === 0) return null;
   return (
     <div className={`flex gap-2 overflow-x-auto pb-1 ${className ?? ""}`}>
@@ -118,17 +106,9 @@ function ImageStrip({
   );
 }
 
-function StatsRow({
-  stats,
-  className,
-}: {
-  stats: CivitStats;
-  className?: string;
-}) {
+function StatsRow({ stats, className }: { stats: CivitStats; className?: string }) {
   return (
-    <div
-      className={`flex items-center gap-3 text-xs text-muted-foreground ${className ?? ""}`}
-    >
+    <div className={`flex items-center gap-3 text-xs text-muted-foreground ${className ?? ""}`}>
       <span className="flex items-center gap-1">
         <ArrowDownToLine className="h-3 w-3" />
         {formatCount(stats.downloadCount)}
@@ -261,16 +241,12 @@ function VersionSection({
         ) : (
           <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
         )}
-        <span className="text-sm font-medium truncate min-w-0">
-          {version.name}
-        </span>
+        <span className="text-sm font-medium truncate min-w-0">{version.name}</span>
         <Badge variant="outline" className="text-3xs px-1.5 py-0.5 shrink-0">
           {version.baseModel}
         </Badge>
         {hasAll && (
-          <span
-            title={`All ${totalFiles} file${totalFiles > 1 ? "s" : ""} downloaded`}
-          >
+          <span title={`All ${totalFiles} file${totalFiles > 1 ? "s" : ""} downloaded`}>
             <Check className="h-4 w-4 shrink-0 text-green-500" />
           </span>
         )}
@@ -281,10 +257,7 @@ function VersionSection({
             <Check className="h-4 w-4 shrink-0 text-yellow-500" />
           </span>
         )}
-        <StatsRow
-          stats={version.stats}
-          className="ml-auto shrink-0 !text-3xs !gap-2"
-        />
+        <StatsRow stats={version.stats} className="ml-auto shrink-0 !text-3xs !gap-2" />
       </button>
 
       {open && (
@@ -308,9 +281,7 @@ function VersionSection({
           />
 
           {/* Version description */}
-          {version.description && (
-            <HtmlDescription html={version.description} />
-          )}
+          {version.description && <HtmlDescription html={version.description} />}
 
           {/* Trigger words - collapsible */}
           {version.trainedWords.length > 0 && (
@@ -355,9 +326,7 @@ function VersionSection({
           {version.files.length > 0 && (
             <div className="rounded-md border border-border/30 overflow-hidden">
               {version.files.map((f, i) => {
-                const localMatch = f.hashes.SHA256
-                  ? localFiles[f.hashes.SHA256]
-                  : undefined;
+                const localMatch = f.hashes.SHA256 ? localFiles[f.hashes.SHA256] : undefined;
                 return (
                   <div
                     key={f.id}
@@ -366,9 +335,7 @@ function VersionSection({
                     <span className="truncate min-w-0" title={f.name}>
                       {f.name}
                     </span>
-                    <span className="text-muted-foreground text-right">
-                      {formatSize(f.sizeKB)}
-                    </span>
+                    <span className="text-muted-foreground text-right">{formatSize(f.sizeKB)}</span>
                     <span className="flex justify-center">
                       {localMatch ? (
                         <span title={`Downloaded: ${localMatch.filename}`}>
@@ -396,10 +363,7 @@ function VersionSection({
 
           {/* Download path */}
           {resolved?.path && (
-            <p
-              className="text-xs text-muted-foreground truncate"
-              title={resolved.path}
-            >
+            <p className="text-xs text-muted-foreground truncate" title={resolved.path}>
               &rarr; {resolved.path}
             </p>
           )}
@@ -520,19 +484,13 @@ function ImageLightbox({
           <div className="flex items-center gap-1">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="h-7 px-2 text-xs gap-1"
-                >
+                <Button size="sm" variant="ghost" className="h-7 px-2 text-xs gap-1">
                   <Send size={12} />
                   Use
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-48">
-                <DropdownMenuLabel className="text-3xs">
-                  Image
-                </DropdownMenuLabel>
+                <DropdownMenuLabel className="text-3xs">Image</DropdownMenuLabel>
                 <DropdownMenuItem
                   onClick={() => {
                     void (async () => {
@@ -573,16 +531,12 @@ function ImageLightbox({
                 {hasPrompt && (
                   <>
                     <DropdownMenuSeparator />
-                    <DropdownMenuLabel className="text-3xs">
-                      Prompt
-                    </DropdownMenuLabel>
+                    <DropdownMenuLabel className="text-3xs">Prompt</DropdownMenuLabel>
                     <DropdownMenuItem
                       onClick={() => {
                         sendPromptToGeneration(
                           meta["prompt"] as string,
-                          hasNegative
-                            ? (meta["negativePrompt"] as string)
-                            : undefined,
+                          hasNegative ? (meta["negativePrompt"] as string) : undefined,
                         );
                         toast.success("Prompt sent to Generation");
                       }}
@@ -594,9 +548,7 @@ function ImageLightbox({
                       onClick={() => {
                         sendPromptToVideo(
                           meta["prompt"] as string,
-                          hasNegative
-                            ? (meta["negativePrompt"] as string)
-                            : undefined,
+                          hasNegative ? (meta["negativePrompt"] as string) : undefined,
                         );
                         toast.success("Prompt sent to Video");
                       }}
@@ -613,9 +565,7 @@ function ImageLightbox({
                             await sendImageToCanvas(file);
                             sendPromptToGeneration(
                               meta["prompt"] as string,
-                              hasNegative
-                                ? (meta["negativePrompt"] as string)
-                                : undefined,
+                              hasNegative ? (meta["negativePrompt"] as string) : undefined,
                             );
                             onCloseAll();
                             toast.success("Image + Prompt sent to Canvas");
@@ -646,21 +596,15 @@ function ImageLightbox({
               const val = meta[key];
               if (val === undefined || val === null || val === "") return null;
               const isLong = typeof val === "string" && val.length > 60;
-              const isPromptField =
-                key === "prompt" || key === "negativePrompt";
+              const isPromptField = key === "prompt" || key === "negativePrompt";
               return (
                 <div key={key}>
                   <div className="flex items-center justify-between mb-0.5">
-                    <p className="text-3xs font-medium text-muted-foreground">
-                      {label}
-                    </p>
+                    <p className="text-3xs font-medium text-muted-foreground">{label}</p>
                     {isPromptField && (
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <button
-                            type="button"
-                            className="text-3xs text-primary hover:underline"
-                          >
+                          <button type="button" className="text-3xs text-primary hover:underline">
                             Use
                           </button>
                         </DropdownMenuTrigger>
@@ -740,12 +684,8 @@ export function CivitModelDetail({ modelId, onClose }: CivitModelDetailProps) {
     return names;
   }, [wsItems, dlStatus]);
 
-  const isBookmarked = model
-    ? (bookmarks?.some((b) => b.name === model.name) ?? false)
-    : false;
-  const isBanned = model
-    ? (banned?.some((b) => b.name === model.name) ?? false)
-    : false;
+  const isBookmarked = model ? (bookmarks?.some((b) => b.name === model.name) ?? false) : false;
+  const isBanned = model ? (banned?.some((b) => b.name === model.name) ?? false) : false;
 
   // Collect all non-video images from all versions for the hero strip
   // Limit to 10 per version - the version API only returns ~10 images with metadata,
@@ -769,22 +709,16 @@ export function CivitModelDetail({ modelId, onClose }: CivitModelDetailProps) {
   // Collect version IDs that have images so we can fetch metadata per-version
   const versionIds = useMemo(() => {
     if (!model) return [];
-    return model.modelVersions
-      .filter((v) => v.images.length > 0)
-      .map((v) => v.id);
+    return model.modelVersions.filter((v) => v.images.length > 0).map((v) => v.id);
   }, [model]);
 
   // Fetch version details (which include images WITH meta) for all versions
-  const { data: versionImages } = useCivitVersionImages(
-    versionIds,
-    versionIds.length > 0,
-  );
+  const { data: versionImages } = useCivitVersionImages(versionIds, versionIds.length > 0);
 
   // Merge metadata from version images into base images by UUID in URL
   const allImages = useMemo(() => {
     if (!versionImages?.length) return baseImages;
-    const uuidRe =
-      /\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\//;
+    const uuidRe = /\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\//;
     const metaByUuid = new Map<string, Record<string, unknown>>();
     for (const img of versionImages) {
       if (img.meta && typeof img.meta === "object") {
@@ -806,9 +740,7 @@ export function CivitModelDetail({ modelId, onClose }: CivitModelDetailProps) {
 
   // State to hold the dialog portal container so the lightbox can be portalled inside it
   // (avoids Radix focus-trap/inert issues while escaping DialogContent CSS transforms)
-  const [portalContainer, setPortalContainer] = useState<HTMLElement | null>(
-    null,
-  );
+  const [portalContainer, setPortalContainer] = useState<HTMLElement | null>(null);
   const capturePortal = useCallback((node: HTMLDivElement | null) => {
     if (node) {
       let el: HTMLElement | null = node;
@@ -851,10 +783,7 @@ export function CivitModelDetail({ modelId, onClose }: CivitModelDetailProps) {
               <DialogTitle className="text-base font-semibold line-clamp-2 min-w-0 flex-1">
                 {model.name}
               </DialogTitle>
-              <Badge
-                variant="outline"
-                className="text-3xs px-1.5 py-0.5 shrink-0"
-              >
+              <Badge variant="outline" className="text-3xs px-1.5 py-0.5 shrink-0">
                 {model.type}
               </Badge>
               <div className="flex items-center gap-1 shrink-0 ml-2">
@@ -878,9 +807,7 @@ export function CivitModelDetail({ modelId, onClose }: CivitModelDetailProps) {
                   variant="ghost"
                   className="h-7 w-7"
                   onClick={() =>
-                    isBanned
-                      ? removeBan.mutate(model.name)
-                      : addBan.mutate(model.name)
+                    isBanned ? removeBan.mutate(model.name) : addBan.mutate(model.name)
                   }
                   title={isBanned ? "Remove from banned" : "Ban this model"}
                 >
@@ -908,9 +835,7 @@ export function CivitModelDetail({ modelId, onClose }: CivitModelDetailProps) {
               <div className="p-5 space-y-5">
                 {/* Creator + stats */}
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-sm text-muted-foreground">
-                    by {model.creator.username}
-                  </span>
+                  <span className="text-sm text-muted-foreground">by {model.creator.username}</span>
                   <span className="text-muted-foreground/40">·</span>
                   <StatsRow stats={model.stats} />
                 </div>
@@ -934,9 +859,7 @@ export function CivitModelDetail({ modelId, onClose }: CivitModelDetailProps) {
                 <ImageStrip images={allImages} onImageClick={openLightbox} />
 
                 {/* Model description */}
-                {model.description && (
-                  <HtmlDescription html={model.description} />
-                )}
+                {model.description && <HtmlDescription html={model.description} />}
 
                 <Separator />
 
@@ -954,9 +877,7 @@ export function CivitModelDetail({ modelId, onClose }: CivitModelDetailProps) {
                       localFiles={localFiles}
                       activeDownloads={activeDownloads}
                       onImageClick={(img) => {
-                        const idx = allImages.findIndex(
-                          (a) => a.url === img.url,
-                        );
+                        const idx = allImages.findIndex((a) => a.url === img.url);
                         if (idx >= 0) setLightboxIndex(idx);
                       }}
                     />
@@ -968,10 +889,10 @@ export function CivitModelDetail({ modelId, onClose }: CivitModelDetailProps) {
         ) : (
           <>
             <DialogTitle className="sr-only">Model not found</DialogTitle>
-            <DialogDescription className="sr-only">The requested model could not be loaded</DialogDescription>
-            <p className="text-sm text-muted-foreground py-8 text-center">
-              Model not found
-            </p>
+            <DialogDescription className="sr-only">
+              The requested model could not be loaded
+            </DialogDescription>
+            <p className="text-sm text-muted-foreground py-8 text-center">Model not found</p>
           </>
         )}
       </DialogContent>

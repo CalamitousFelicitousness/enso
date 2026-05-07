@@ -22,11 +22,7 @@ const STEPS = [
 
 export function BenchmarkSubTab() {
   const runBenchmark = useRunBenchmark();
-  const {
-    data: history,
-    refetch: loadHistory,
-    isFetching: historyLoading,
-  } = useBenchmarkResults();
+  const { data: history, refetch: loadHistory, isFetching: historyLoading } = useBenchmarkResults();
 
   const [level, setLevel] = useState("quick");
   const [steps, setSteps] = useState("normal");
@@ -106,24 +102,15 @@ export function BenchmarkSubTab() {
         </div>
       </Section>
 
-      <Button
-        size="sm"
-        onClick={handleRun}
-        disabled={runBenchmark.isPending}
-        className="w-full"
-      >
-        {runBenchmark.isPending ? (
-          <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
-        ) : null}
+      <Button size="sm" onClick={handleRun} disabled={runBenchmark.isPending} className="w-full">
+        {runBenchmark.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : null}
         Run benchmark
       </Button>
 
       {runBenchmark.data && (
         <Section title="Results">
           {runBenchmark.data.error && (
-            <p className="text-xs text-destructive">
-              {runBenchmark.data.error}
-            </p>
+            <p className="text-xs text-destructive">{runBenchmark.data.error}</p>
           )}
           <div className="space-y-0.5">
             <div className="grid grid-cols-2 gap-2 text-3xs font-medium text-muted-foreground px-2 pb-1 border-b border-border">
@@ -131,10 +118,7 @@ export function BenchmarkSubTab() {
               <span className="text-right">it/s</span>
             </div>
             {runBenchmark.data.results.map((r) => (
-              <div
-                key={r.batch}
-                className="grid grid-cols-2 gap-2 text-xs px-2 py-0.5"
-              >
+              <div key={r.batch} className="grid grid-cols-2 gap-2 text-xs px-2 py-0.5">
                 <span>{r.batch}</span>
                 <span className="text-right font-mono tabular-nums font-medium">
                   {typeof r.its === "number" ? r.its.toFixed(2) : r.its}
@@ -153,32 +137,21 @@ export function BenchmarkSubTab() {
           disabled={historyLoading}
           className="w-full"
         >
-          {historyLoading ? (
-            <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
-          ) : null}
+          {historyLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : null}
           Load previous results
         </Button>
 
         {history && history.data.length > 0 && (
           <div className="mt-3 space-y-1">
-            <h4 className="text-xs font-medium text-muted-foreground">
-              History
-            </h4>
+            <h4 className="text-xs font-medium text-muted-foreground">History</h4>
             {history.data.map((row, i) => {
               const ts = historyCols.timestamp >= 0 ? row[historyCols.timestamp] : null;
               if (!ts) return null;
               return (
-                <div
-                  key={`${ts}-${i}`}
-                  className="text-3xs p-1.5 rounded bg-muted space-y-0.5"
-                >
+                <div key={`${ts}-${i}`} className="text-3xs p-1.5 rounded bg-muted space-y-0.5">
                   <Row label="Timestamp" value={ts} />
-                  {historyCols.its >= 0 && (
-                    <Row label="Performance" value={row[historyCols.its]} />
-                  )}
-                  {historyCols.gpu >= 0 && (
-                    <Row label="GPU" value={row[historyCols.gpu]} />
-                  )}
+                  {historyCols.its >= 0 && <Row label="Performance" value={row[historyCols.its]} />}
+                  {historyCols.gpu >= 0 && <Row label="GPU" value={row[historyCols.gpu]} />}
                 </div>
               );
             })}

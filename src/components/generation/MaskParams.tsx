@@ -9,9 +9,7 @@ import { ParamLabel } from "./ParamLabel";
 
 export function MaskParams() {
   const maskLineCount = useImg2ImgStore((s) => s.maskLines.length);
-  const maskObjectCount = useCanvasStore(
-    (s) => s.layers.filter((l) => l.type === "mask").length,
-  );
+  const maskObjectCount = useCanvasStore((s) => s.layers.filter((l) => l.type === "mask").length);
   const maskBlur = useImg2ImgStore((s) => s.maskBlur);
   const inpaintFullRes = useImg2ImgStore((s) => s.inpaintFullRes);
   const inpaintFullResPadding = useImg2ImgStore((s) => s.inpaintFullResPadding);
@@ -20,16 +18,10 @@ export function MaskParams() {
   const inpaintingMaskWeight = useImg2ImgStore((s) => s.inpaintingMaskWeight);
   const setMaskBlur = useImg2ImgStore((s) => s.setMaskBlur);
   const setInpaintFullRes = useImg2ImgStore((s) => s.setInpaintFullRes);
-  const setInpaintFullResPadding = useImg2ImgStore(
-    (s) => s.setInpaintFullResPadding,
-  );
-  const setInpaintingMaskInvert = useImg2ImgStore(
-    (s) => s.setInpaintingMaskInvert,
-  );
+  const setInpaintFullResPadding = useImg2ImgStore((s) => s.setInpaintFullResPadding);
+  const setInpaintingMaskInvert = useImg2ImgStore((s) => s.setInpaintingMaskInvert);
   const setMaskApplyOverlay = useImg2ImgStore((s) => s.setMaskApplyOverlay);
-  const setInpaintingMaskWeight = useImg2ImgStore(
-    (s) => s.setInpaintingMaskWeight,
-  );
+  const setInpaintingMaskWeight = useImg2ImgStore((s) => s.setInpaintingMaskWeight);
 
   const handleFullResToggle = useCallback(
     (checked: boolean) => setInpaintFullRes(checked),
@@ -59,13 +51,8 @@ export function MaskParams() {
       />
 
       <div className="flex items-center justify-between">
-        <ParamLabel className="text-2xs text-muted-foreground">
-          Inpaint full res
-        </ParamLabel>
-        <Switch
-          checked={inpaintFullRes}
-          onCheckedChange={handleFullResToggle}
-        />
+        <ParamLabel className="text-2xs text-muted-foreground">Inpaint full res</ParamLabel>
+        <Switch checked={inpaintFullRes} onCheckedChange={handleFullResToggle} />
       </div>
 
       <ParamSlider
@@ -80,23 +67,13 @@ export function MaskParams() {
       />
 
       <div className="flex items-center justify-between">
-        <ParamLabel className="text-2xs text-muted-foreground">
-          Invert mask
-        </ParamLabel>
-        <Switch
-          checked={inpaintingMaskInvert}
-          onCheckedChange={handleInvertToggle}
-        />
+        <ParamLabel className="text-2xs text-muted-foreground">Invert mask</ParamLabel>
+        <Switch checked={inpaintingMaskInvert} onCheckedChange={handleInvertToggle} />
       </div>
 
       <div className="flex items-center justify-between">
-        <ParamLabel className="text-2xs text-muted-foreground">
-          Mask overlay
-        </ParamLabel>
-        <Switch
-          checked={maskApplyOverlay}
-          onCheckedChange={handleOverlayToggle}
-        />
+        <ParamLabel className="text-2xs text-muted-foreground">Mask overlay</ParamLabel>
+        <Switch checked={maskApplyOverlay} onCheckedChange={handleOverlayToggle} />
       </div>
 
       <ParamSlider

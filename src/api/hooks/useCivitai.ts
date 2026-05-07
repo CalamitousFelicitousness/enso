@@ -1,6 +1,24 @@
 import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "../client";
-import type { CivitOptions, CivitSearchResponse, CivitModel, CivitSearchParams, CivitDownloadRequest, CivitDownloadItem, CivitDownloadStatus, CivitHistoryEntry, CivitSettings, CivitSettingsUpdate, CivitBookmarkEntry, CivitBannedEntry, CivitVersion, CivitTagResponse, CivitCreatorResponse, CivitUserProfile, CivitCheckLocalResponse } from "../types/civitai";
+import type {
+  CivitOptions,
+  CivitSearchResponse,
+  CivitModel,
+  CivitSearchParams,
+  CivitDownloadRequest,
+  CivitDownloadItem,
+  CivitDownloadStatus,
+  CivitHistoryEntry,
+  CivitSettings,
+  CivitSettingsUpdate,
+  CivitBookmarkEntry,
+  CivitBannedEntry,
+  CivitVersion,
+  CivitTagResponse,
+  CivitCreatorResponse,
+  CivitUserProfile,
+  CivitCheckLocalResponse,
+} from "../types/civitai";
 import type { CivitMetadataScanResult } from "../types/modelOps";
 
 function buildSearchParams(p: CivitSearchParams): Record<string, string> {
@@ -30,7 +48,8 @@ export function useCivitOptions() {
 export function useCivitSearch(params: CivitSearchParams, enabled = false) {
   return useQuery({
     queryKey: ["civitai-search", params],
-    queryFn: () => api.get<CivitSearchResponse>("/sdapi/v2/civitai/search", buildSearchParams(params)),
+    queryFn: () =>
+      api.get<CivitSearchResponse>("/sdapi/v2/civitai/search", buildSearchParams(params)),
     enabled,
     staleTime: 30_000,
   });
@@ -72,7 +91,8 @@ export function useCivitCheckLocal(hashes: string[]) {
 export function useCivitDownload() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (req: CivitDownloadRequest) => api.post<CivitDownloadItem>("/sdapi/v2/civitai/download", req),
+    mutationFn: (req: CivitDownloadRequest) =>
+      api.post<CivitDownloadItem>("/sdapi/v2/civitai/download", req),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["civitai-download-status"] });
     },
@@ -82,7 +102,8 @@ export function useCivitDownload() {
 export function useCivitDownloadCancel() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (downloadId: string) => api.post<{ success: boolean; id: string }>(`/sdapi/v2/civitai/download/${downloadId}/cancel`),
+    mutationFn: (downloadId: string) =>
+      api.post<{ success: boolean; id: string }>(`/sdapi/v2/civitai/download/${downloadId}/cancel`),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["civitai-download-status"] }),
   });
 }
@@ -127,7 +148,8 @@ export function useCivitSettings() {
 export function useCivitSaveSettings() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (req: CivitSettingsUpdate) => api.post<CivitSettings>("/sdapi/v2/civitai/settings", req),
+    mutationFn: (req: CivitSettingsUpdate) =>
+      api.post<CivitSettings>("/sdapi/v2/civitai/settings", req),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["civitai-settings"] }),
   });
 }
@@ -155,7 +177,8 @@ export function useCivitBookmarks() {
 export function useCivitAddBookmark() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (name: string) => api.post<CivitBookmarkEntry>("/sdapi/v2/civitai/bookmarks", { name }),
+    mutationFn: (name: string) =>
+      api.post<CivitBookmarkEntry>("/sdapi/v2/civitai/bookmarks", { name }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["civitai-bookmarks"] }),
   });
 }
@@ -163,7 +186,8 @@ export function useCivitAddBookmark() {
 export function useCivitRemoveBookmark() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (name: string) => api.delete<{ success: boolean }>(`/sdapi/v2/civitai/bookmarks/${encodeURIComponent(name)}`),
+    mutationFn: (name: string) =>
+      api.delete<{ success: boolean }>(`/sdapi/v2/civitai/bookmarks/${encodeURIComponent(name)}`),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["civitai-bookmarks"] }),
   });
 }
@@ -190,7 +214,8 @@ export function useCivitAddBanned() {
 export function useCivitRemoveBanned() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (name: string) => api.delete<{ success: boolean }>(`/sdapi/v2/civitai/banned/${encodeURIComponent(name)}`),
+    mutationFn: (name: string) =>
+      api.delete<{ success: boolean }>(`/sdapi/v2/civitai/banned/${encodeURIComponent(name)}`),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["civitai-banned"] }),
   });
 }
@@ -225,7 +250,8 @@ export function useCivitTags(query: string, enabled = false) {
 export function useCivitCreators(query: string, enabled = false) {
   return useQuery({
     queryKey: ["civitai-creators", query],
-    queryFn: () => api.get<CivitCreatorResponse>("/sdapi/v2/civitai/creators", { query, limit: "20" }),
+    queryFn: () =>
+      api.get<CivitCreatorResponse>("/sdapi/v2/civitai/creators", { query, limit: "20" }),
     enabled,
     staleTime: 60_000,
   });
@@ -245,7 +271,10 @@ export function useCivitMetadataScan() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (page?: string) =>
-      api.post<{ results: CivitMetadataScanResult[] }>("/sdapi/v2/civitai/metadata/scan", page ? { page } : {}),
+      api.post<{ results: CivitMetadataScanResult[] }>(
+        "/sdapi/v2/civitai/metadata/scan",
+        page ? { page } : {},
+      ),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["extra-networks"] });
       void qc.invalidateQueries({ queryKey: ["network-detail"] });

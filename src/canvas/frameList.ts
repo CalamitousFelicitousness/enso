@@ -81,7 +81,6 @@ export function computeFocusViewport(
   const totalFrameH = LABEL_HEIGHT + frame.height;
   const scale = Math.min(availW / frame.width, availH / totalFrameH, 2);
   const x = (containerW - frame.width * scale) / 2 - frame.x * scale;
-  const y =
-    PADDING + (availH - totalFrameH * scale) / 2 + LABEL_HEIGHT * scale;
+  const y = PADDING + (availH - totalFrameH * scale) / 2 + LABEL_HEIGHT * scale;
   return { x, y, scale };
 }

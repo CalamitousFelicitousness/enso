@@ -25,10 +25,7 @@ export function CanvasToolbar() {
     setActiveTool(activeTool === "maskEraser" ? "move" : "maskEraser");
   }, [activeTool, setActiveTool]);
 
-  const handleSizeChange = useCallback(
-    ([v]: number[]) => setBrushSize(v),
-    [setBrushSize],
-  );
+  const handleSizeChange = useCallback(([v]: number[]) => setBrushSize(v), [setBrushSize]);
 
   // Keyboard shortcuts (dispatched via the global shortcut system, scoped to "canvas")
   useShortcut("canvas-move", () => setActiveTool("move"));
@@ -87,9 +84,7 @@ export function CanvasToolbar() {
       <div className="w-px h-5 bg-border" />
 
       {/* Brush size */}
-      <Label className="text-3xs text-muted-foreground whitespace-nowrap">
-        {brushSize}px
-      </Label>
+      <Label className="text-3xs text-muted-foreground whitespace-nowrap">{brushSize}px</Label>
       <Slider
         min={1}
         max={200}

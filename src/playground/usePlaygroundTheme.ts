@@ -34,7 +34,9 @@ export function usePlaygroundTheme() {
     } else {
       delete document.documentElement.dataset["theme"];
     }
-    return () => { delete document.documentElement.dataset["theme"]; };
+    return () => {
+      delete document.documentElement.dataset["theme"];
+    };
   }, [resolvedTheme]);
 
   // Accent color — set CSS custom properties
@@ -66,13 +68,18 @@ export function usePlaygroundTheme() {
   // UI scale — set root font size
   useEffect(() => {
     document.documentElement.style.fontSize = `${uiScale}px`;
-    return () => { document.documentElement.style.fontSize = ""; };
+    return () => {
+      document.documentElement.style.fontSize = "";
+    };
   }, [uiScale]);
 
   return {
-    colorMode, setColorMode,
-    accentColor, setAccentColor,
-    uiScale, setUiScale,
+    colorMode,
+    setColorMode,
+    accentColor,
+    setAccentColor,
+    uiScale,
+    setUiScale,
     resolvedTheme,
   };
 }

@@ -1,6 +1,19 @@
-export type ShortcutScope = "global" | "canvas" | "gallery" | "lightbox" | "comparison" | "tutorial";
+export type ShortcutScope =
+  | "global"
+  | "canvas"
+  | "gallery"
+  | "lightbox"
+  | "comparison"
+  | "tutorial";
 
-export type ShortcutCategory = "Global" | "Canvas" | "Gallery" | "Lightbox" | "Comparison" | "Navigation" | "Tutorial";
+export type ShortcutCategory =
+  | "Global"
+  | "Canvas"
+  | "Gallery"
+  | "Lightbox"
+  | "Comparison"
+  | "Navigation"
+  | "Tutorial";
 
 export interface ShortcutDef {
   id: string;
@@ -16,56 +29,305 @@ export interface ShortcutDef {
 
 export const SHORTCUTS: Record<string, ShortcutDef> = {
   // Global
-  "command-palette": { id: "command-palette", key: "k", ctrl: true, scope: "global", category: "Global", label: "Command palette" },
-  "cheatsheet": { id: "cheatsheet", key: "?", scope: "global", category: "Global", label: "Keyboard shortcuts" },
-  "generate": { id: "generate", key: "Enter", ctrl: true, scope: "global", category: "Global", label: "Generate" },
-  "skip": { id: "skip", key: "Enter", ctrl: true, shift: true, scope: "global", category: "Global", label: "Skip current step" },
-  "toggle-left-rail": { id: "toggle-left-rail", key: "b", ctrl: true, scope: "global", category: "Global", label: "Toggle Left Rail" },
-  "toggle-left-panel": { id: "toggle-left-panel", key: "\\", ctrl: true, scope: "global", category: "Global", label: "Toggle left panel" },
-  "toggle-right-panel": { id: "toggle-right-panel", key: "\\", ctrl: true, shift: true, scope: "global", category: "Global", label: "Toggle right panel" },
+  "command-palette": {
+    id: "command-palette",
+    key: "k",
+    ctrl: true,
+    scope: "global",
+    category: "Global",
+    label: "Command palette",
+  },
+  cheatsheet: {
+    id: "cheatsheet",
+    key: "?",
+    scope: "global",
+    category: "Global",
+    label: "Keyboard shortcuts",
+  },
+  generate: {
+    id: "generate",
+    key: "Enter",
+    ctrl: true,
+    scope: "global",
+    category: "Global",
+    label: "Generate",
+  },
+  skip: {
+    id: "skip",
+    key: "Enter",
+    ctrl: true,
+    shift: true,
+    scope: "global",
+    category: "Global",
+    label: "Skip current step",
+  },
+  "toggle-left-rail": {
+    id: "toggle-left-rail",
+    key: "b",
+    ctrl: true,
+    scope: "global",
+    category: "Global",
+    label: "Toggle Left Rail",
+  },
+  "toggle-left-panel": {
+    id: "toggle-left-panel",
+    key: "\\",
+    ctrl: true,
+    scope: "global",
+    category: "Global",
+    label: "Toggle left panel",
+  },
+  "toggle-right-panel": {
+    id: "toggle-right-panel",
+    key: "\\",
+    ctrl: true,
+    shift: true,
+    scope: "global",
+    category: "Global",
+    label: "Toggle right panel",
+  },
 
   // Canvas
-  "canvas-move": { id: "canvas-move", key: "v", scope: "canvas", category: "Canvas", label: "Move tool" },
-  "canvas-brush": { id: "canvas-brush", key: "b", scope: "canvas", category: "Canvas", label: "Brush tool" },
-  "canvas-eraser": { id: "canvas-eraser", key: "e", scope: "canvas", category: "Canvas", label: "Eraser tool" },
-  "canvas-deselect": { id: "canvas-deselect", key: "Escape", scope: "canvas", category: "Canvas", label: "Deselect / move" },
-  "canvas-brush-smaller": { id: "canvas-brush-smaller", key: "[", scope: "canvas", category: "Canvas", label: "Smaller brush" },
-  "canvas-brush-larger": { id: "canvas-brush-larger", key: "]", scope: "canvas", category: "Canvas", label: "Larger brush" },
-  "canvas-delete": { id: "canvas-delete", key: "Delete", scope: "canvas", category: "Canvas", label: "Remove layer" },
-  "canvas-delete-backspace": { id: "canvas-delete-backspace", key: "Backspace", scope: "canvas", category: "Canvas", label: "Remove layer" },
-  "canvas-toggle-mode": { id: "canvas-toggle-mode", key: "f", scope: "canvas", category: "Canvas", label: "Toggle Focus / Canvas mode" },
-  "canvas-focus-prev": { id: "canvas-focus-prev", key: "ArrowLeft", scope: "canvas", category: "Canvas", label: "Previous frame" },
-  "canvas-focus-next": { id: "canvas-focus-next", key: "ArrowRight", scope: "canvas", category: "Canvas", label: "Next frame" },
+  "canvas-move": {
+    id: "canvas-move",
+    key: "v",
+    scope: "canvas",
+    category: "Canvas",
+    label: "Move tool",
+  },
+  "canvas-brush": {
+    id: "canvas-brush",
+    key: "b",
+    scope: "canvas",
+    category: "Canvas",
+    label: "Brush tool",
+  },
+  "canvas-eraser": {
+    id: "canvas-eraser",
+    key: "e",
+    scope: "canvas",
+    category: "Canvas",
+    label: "Eraser tool",
+  },
+  "canvas-deselect": {
+    id: "canvas-deselect",
+    key: "Escape",
+    scope: "canvas",
+    category: "Canvas",
+    label: "Deselect / move",
+  },
+  "canvas-brush-smaller": {
+    id: "canvas-brush-smaller",
+    key: "[",
+    scope: "canvas",
+    category: "Canvas",
+    label: "Smaller brush",
+  },
+  "canvas-brush-larger": {
+    id: "canvas-brush-larger",
+    key: "]",
+    scope: "canvas",
+    category: "Canvas",
+    label: "Larger brush",
+  },
+  "canvas-delete": {
+    id: "canvas-delete",
+    key: "Delete",
+    scope: "canvas",
+    category: "Canvas",
+    label: "Remove layer",
+  },
+  "canvas-delete-backspace": {
+    id: "canvas-delete-backspace",
+    key: "Backspace",
+    scope: "canvas",
+    category: "Canvas",
+    label: "Remove layer",
+  },
+  "canvas-toggle-mode": {
+    id: "canvas-toggle-mode",
+    key: "f",
+    scope: "canvas",
+    category: "Canvas",
+    label: "Toggle Focus / Canvas mode",
+  },
+  "canvas-focus-prev": {
+    id: "canvas-focus-prev",
+    key: "ArrowLeft",
+    scope: "canvas",
+    category: "Canvas",
+    label: "Previous frame",
+  },
+  "canvas-focus-next": {
+    id: "canvas-focus-next",
+    key: "ArrowRight",
+    scope: "canvas",
+    category: "Canvas",
+    label: "Next frame",
+  },
 
   // Gallery
-  "gallery-toggle-info": { id: "gallery-toggle-info", key: "i", scope: "gallery", category: "Gallery", label: "Toggle metadata panel" },
-  "gallery-select-all": { id: "gallery-select-all", key: "a", ctrl: true, scope: "gallery", category: "Gallery", label: "Select all" },
-  "gallery-deselect": { id: "gallery-deselect", key: "Escape", scope: "gallery", category: "Gallery", label: "Deselect all" },
-  "gallery-delete": { id: "gallery-delete", key: "Delete", scope: "gallery", category: "Gallery", label: "Delete selected" },
+  "gallery-toggle-info": {
+    id: "gallery-toggle-info",
+    key: "i",
+    scope: "gallery",
+    category: "Gallery",
+    label: "Toggle metadata panel",
+  },
+  "gallery-select-all": {
+    id: "gallery-select-all",
+    key: "a",
+    ctrl: true,
+    scope: "gallery",
+    category: "Gallery",
+    label: "Select all",
+  },
+  "gallery-deselect": {
+    id: "gallery-deselect",
+    key: "Escape",
+    scope: "gallery",
+    category: "Gallery",
+    label: "Deselect all",
+  },
+  "gallery-delete": {
+    id: "gallery-delete",
+    key: "Delete",
+    scope: "gallery",
+    category: "Gallery",
+    label: "Delete selected",
+  },
 
   // Lightbox
-  "lightbox-close": { id: "lightbox-close", key: "Escape", scope: "lightbox", category: "Lightbox", label: "Close lightbox" },
-  "lightbox-prev": { id: "lightbox-prev", key: "ArrowLeft", scope: "lightbox", category: "Lightbox", label: "Previous image" },
-  "lightbox-next": { id: "lightbox-next", key: "ArrowRight", scope: "lightbox", category: "Lightbox", label: "Next image" },
-  "lightbox-zoom-in": { id: "lightbox-zoom-in", key: "+", scope: "lightbox", category: "Lightbox", label: "Zoom in" },
-  "lightbox-zoom-in-eq": { id: "lightbox-zoom-in-eq", key: "=", scope: "lightbox", category: "Lightbox", label: "Zoom in" },
-  "lightbox-zoom-out": { id: "lightbox-zoom-out", key: "-", scope: "lightbox", category: "Lightbox", label: "Zoom out" },
-  "lightbox-zoom-reset": { id: "lightbox-zoom-reset", key: "0", scope: "lightbox", category: "Lightbox", label: "Reset zoom" },
+  "lightbox-close": {
+    id: "lightbox-close",
+    key: "Escape",
+    scope: "lightbox",
+    category: "Lightbox",
+    label: "Close lightbox",
+  },
+  "lightbox-prev": {
+    id: "lightbox-prev",
+    key: "ArrowLeft",
+    scope: "lightbox",
+    category: "Lightbox",
+    label: "Previous image",
+  },
+  "lightbox-next": {
+    id: "lightbox-next",
+    key: "ArrowRight",
+    scope: "lightbox",
+    category: "Lightbox",
+    label: "Next image",
+  },
+  "lightbox-zoom-in": {
+    id: "lightbox-zoom-in",
+    key: "+",
+    scope: "lightbox",
+    category: "Lightbox",
+    label: "Zoom in",
+  },
+  "lightbox-zoom-in-eq": {
+    id: "lightbox-zoom-in-eq",
+    key: "=",
+    scope: "lightbox",
+    category: "Lightbox",
+    label: "Zoom in",
+  },
+  "lightbox-zoom-out": {
+    id: "lightbox-zoom-out",
+    key: "-",
+    scope: "lightbox",
+    category: "Lightbox",
+    label: "Zoom out",
+  },
+  "lightbox-zoom-reset": {
+    id: "lightbox-zoom-reset",
+    key: "0",
+    scope: "lightbox",
+    category: "Lightbox",
+    label: "Reset zoom",
+  },
 
   // Comparison
-  "comparison-close": { id: "comparison-close", key: "Escape", scope: "comparison", category: "Comparison", label: "Close comparison" },
-  "comparison-side-by-side": { id: "comparison-side-by-side", key: "1", scope: "comparison", category: "Comparison", label: "Side-by-side mode" },
-  "comparison-swipe": { id: "comparison-swipe", key: "2", scope: "comparison", category: "Comparison", label: "Swipe mode" },
-  "comparison-overlay": { id: "comparison-overlay", key: "3", scope: "comparison", category: "Comparison", label: "Overlay mode" },
-  "comparison-diff": { id: "comparison-diff", key: "4", scope: "comparison", category: "Comparison", label: "Diff mode" },
-  "comparison-toggle": { id: "comparison-toggle", key: " ", scope: "comparison", category: "Comparison", label: "Toggle A/B (overlay)" },
-  "comparison-swap": { id: "comparison-swap", key: "s", scope: "comparison", category: "Comparison", label: "Swap images" },
-  "comparison-zoom-in": { id: "comparison-zoom-in", key: "=", scope: "comparison", category: "Comparison", label: "Zoom in" },
-  "comparison-zoom-out": { id: "comparison-zoom-out", key: "-", scope: "comparison", category: "Comparison", label: "Zoom out" },
-  "comparison-zoom-reset": { id: "comparison-zoom-reset", key: "0", scope: "comparison", category: "Comparison", label: "Reset zoom" },
+  "comparison-close": {
+    id: "comparison-close",
+    key: "Escape",
+    scope: "comparison",
+    category: "Comparison",
+    label: "Close comparison",
+  },
+  "comparison-side-by-side": {
+    id: "comparison-side-by-side",
+    key: "1",
+    scope: "comparison",
+    category: "Comparison",
+    label: "Side-by-side mode",
+  },
+  "comparison-swipe": {
+    id: "comparison-swipe",
+    key: "2",
+    scope: "comparison",
+    category: "Comparison",
+    label: "Swipe mode",
+  },
+  "comparison-overlay": {
+    id: "comparison-overlay",
+    key: "3",
+    scope: "comparison",
+    category: "Comparison",
+    label: "Overlay mode",
+  },
+  "comparison-diff": {
+    id: "comparison-diff",
+    key: "4",
+    scope: "comparison",
+    category: "Comparison",
+    label: "Diff mode",
+  },
+  "comparison-toggle": {
+    id: "comparison-toggle",
+    key: " ",
+    scope: "comparison",
+    category: "Comparison",
+    label: "Toggle A/B (overlay)",
+  },
+  "comparison-swap": {
+    id: "comparison-swap",
+    key: "s",
+    scope: "comparison",
+    category: "Comparison",
+    label: "Swap images",
+  },
+  "comparison-zoom-in": {
+    id: "comparison-zoom-in",
+    key: "=",
+    scope: "comparison",
+    category: "Comparison",
+    label: "Zoom in",
+  },
+  "comparison-zoom-out": {
+    id: "comparison-zoom-out",
+    key: "-",
+    scope: "comparison",
+    category: "Comparison",
+    label: "Zoom out",
+  },
+  "comparison-zoom-reset": {
+    id: "comparison-zoom-reset",
+    key: "0",
+    scope: "comparison",
+    category: "Comparison",
+    label: "Reset zoom",
+  },
 
   // Tutorial
-  "tutorial-close": { id: "tutorial-close", key: "Escape", scope: "tutorial", category: "Tutorial", label: "Close tutorial" },
+  "tutorial-close": {
+    id: "tutorial-close",
+    key: "Escape",
+    scope: "tutorial",
+    category: "Tutorial",
+    label: "Close tutorial",
+  },
 };
 
 export function matchesEvent(def: ShortcutDef, e: KeyboardEvent): boolean {
@@ -81,7 +343,14 @@ export function matchesEvent(def: ShortcutDef, e: KeyboardEvent): boolean {
   // For "?" the key is literally "?" but KeyboardEvent.key reports "?" when Shift+/ is pressed
   if (e.key === def.key) return true;
   // Case-insensitive letter match (e.key is "B" when shift is held, but we compare lowercase for unmodified keys)
-  if (def.key.length === 1 && e.key.toLowerCase() === def.key.toLowerCase() && !ctrl && !alt && !meta) return true;
+  if (
+    def.key.length === 1 &&
+    e.key.toLowerCase() === def.key.toLowerCase() &&
+    !ctrl &&
+    !alt &&
+    !meta
+  )
+    return true;
 
   return false;
 }

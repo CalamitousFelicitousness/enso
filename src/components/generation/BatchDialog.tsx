@@ -24,11 +24,7 @@ interface BatchDialogProps {
   buildRequest: () => Promise<{ payload: JobRequest; snapshot: JobSnapshot }>;
 }
 
-export function BatchDialog({
-  open,
-  onOpenChange,
-  buildRequest,
-}: BatchDialogProps) {
+export function BatchDialog({ open, onOpenChange, buildRequest }: BatchDialogProps) {
   const [count, setCount] = useState(4);
   const [baseSeed, setBaseSeed] = useState(-1);
   const [autoSeed, setAutoSeed] = useState(true);
@@ -41,9 +37,7 @@ export function BatchDialog({
     setIsSubmitting(true);
     try {
       const { payload, snapshot } = await buildRequest();
-      const resolvedBase = autoSeed
-        ? Math.floor(Math.random() * 999999999)
-        : baseSeed;
+      const resolvedBase = autoSeed ? Math.floor(Math.random() * 999999999) : baseSeed;
       for (let i = 0; i < count; i++) {
         const seedPayload = {
           ...payload,
@@ -72,24 +66,14 @@ export function BatchDialog({
     } finally {
       setIsSubmitting(false);
     }
-  }, [
-    buildRequest,
-    count,
-    baseSeed,
-    autoSeed,
-    submitJob,
-    trackJob,
-    onOpenChange,
-  ]);
+  }, [buildRequest, count, baseSeed, autoSeed, submitJob, trackJob, onOpenChange]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-sm">
         <DialogHeader>
           <DialogTitle>Batch Generation</DialogTitle>
-          <DialogDescription>
-            Submit multiple jobs with sequential seeds.
-          </DialogDescription>
+          <DialogDescription>Submit multiple jobs with sequential seeds.</DialogDescription>
         </DialogHeader>
         <div className="space-y-4 py-2">
           <div className="space-y-1.5">
@@ -102,11 +86,7 @@ export function BatchDialog({
               min={1}
               max={100}
               value={count}
-              onChange={(e) =>
-                setCount(
-                  Math.max(1, Math.min(100, Number(e.target.value) || 1)),
-                )
-              }
+              onChange={(e) => setCount(Math.max(1, Math.min(100, Number(e.target.value) || 1)))}
               className="h-8"
             />
           </div>
@@ -114,11 +94,7 @@ export function BatchDialog({
             <Label htmlFor="auto-seed" className="text-xs">
               Random base seed
             </Label>
-            <Switch
-              id="auto-seed"
-              checked={autoSeed}
-              onCheckedChange={setAutoSeed}
-            />
+            <Switch id="auto-seed" checked={autoSeed} onCheckedChange={setAutoSeed} />
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="base-seed" className="text-xs">
@@ -137,17 +113,11 @@ export function BatchDialog({
           </div>
         </div>
         <DialogFooter>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => onOpenChange(false)}
-          >
+          <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
           <Button size="sm" onClick={() => void handleSubmit()} disabled={isSubmitting}>
-            {isSubmitting && (
-              <Loader2 size={14} className="animate-spin mr-1" />
-            )}
+            {isSubmitting && <Loader2 size={14} className="animate-spin mr-1" />}
             Submit {count} Jobs
           </Button>
         </DialogFooter>

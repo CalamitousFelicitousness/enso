@@ -4,11 +4,7 @@ import { toast } from "sonner";
 import { Combobox } from "@/components/ui/combobox";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useGenerationStore } from "@/stores/generationStore";
 import { usePresetStore, snapshotParams } from "@/stores/presetStore";
 import { useCurrentCheckpoint } from "@/api/hooks/useModels";
@@ -21,9 +17,7 @@ export function PresetSelector() {
   const { data: checkpoint } = useCurrentCheckpoint();
   const modelType = checkpoint?.type ?? null;
 
-  const getPresetsForModelType = usePresetStore(
-    (s) => s.getPresetsForModelType,
-  );
+  const getPresetsForModelType = usePresetStore((s) => s.getPresetsForModelType);
   const addPreset = usePresetStore((s) => s.addPreset);
   const removePreset = usePresetStore((s) => s.removePreset);
   const importPresets = usePresetStore((s) => s.importPresets);
@@ -89,8 +83,7 @@ export function PresetSelector() {
       const reader = new FileReader();
       reader.onload = () => {
         const count = importPresets(reader.result as string);
-        if (count > 0)
-          toast.success(`Imported ${count} preset${count > 1 ? "s" : ""}`);
+        if (count > 0) toast.success(`Imported ${count} preset${count > 1 ? "s" : ""}`);
         else toast.error("No valid presets found in file");
       };
       reader.readAsText(file);
@@ -137,11 +130,7 @@ export function PresetSelector() {
 
       <Popover open={saveOpen} onOpenChange={setSaveOpen}>
         <PopoverTrigger asChild>
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            title="Save current settings as preset"
-          >
+          <Button variant="ghost" size="icon-sm" title="Save current settings as preset">
             <Save size={14} />
           </Button>
         </PopoverTrigger>

@@ -1,13 +1,6 @@
 import type { ExtraNetworkV2, PromptStyleV2 } from "@/api/types/models";
 
-export const TYPE_FILTERS = [
-  "Model",
-  "LoRA",
-  "Style",
-  "Wildcards",
-  "Embedding",
-  "VAE",
-] as const;
+export const TYPE_FILTERS = ["Model", "LoRA", "Style", "Wildcards", "Embedding", "VAE"] as const;
 export type TypeFilter = (typeof TYPE_FILTERS)[number];
 
 export type SortMode = "name" | "base-model" | "recent";

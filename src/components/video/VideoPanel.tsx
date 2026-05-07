@@ -22,11 +22,7 @@ import { PromptField } from "@/components/generation/PromptField";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { KeepAlivePanel, KeepAliveSwitch } from "@/components/ui/keep-alive";
 import { Label } from "@/components/ui/label";
-import {
-  Popover,
-  PopoverTrigger,
-  PopoverContent,
-} from "@/components/ui/popover";
+import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { PromptEnhanceWorkspace } from "@/components/generation/PromptEnhanceWorkspace";
 import { ModelsVideoTab } from "./tabs/ModelsVideoTab";
 import { FramePackTab } from "./tabs/FramePackTab";
@@ -238,17 +234,12 @@ export function VideoPanel() {
         toast.success(`Prompt enhanced (seed: ${res.seed})`);
       },
       onError: (err) => {
-        toast.error(
-          `Enhance failed: ${err instanceof Error ? err.message : "Unknown error"}`,
-        );
+        toast.error(`Enhance failed: ${err instanceof Error ? err.message : "Unknown error"}`);
       },
     });
   }, [prompt, enhanceStore, enhanceMutation, setPendingResult]);
 
-  const handleAcceptEnhanced = useCallback(
-    (p: string) => setParam("prompt", p),
-    [setParam],
-  );
+  const handleAcceptEnhanced = useCallback((p: string) => setParam("prompt", p), [setParam]);
 
   const buildRequest = useCallback(async () => {
     const payload = await buildJobPayload(activeVideoTab);
@@ -355,12 +346,7 @@ export function VideoPanel() {
               Generate
             </Button>
             {isGenerating && (
-              <Button
-                type="button"
-                onClick={handleCancel}
-                variant="destructive"
-                size="sm"
-              >
+              <Button type="button" onClick={handleCancel} variant="destructive" size="sm">
                 <Square size={14} />
                 Stop
               </Button>

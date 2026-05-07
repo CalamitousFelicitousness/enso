@@ -1,4 +1,8 @@
-import { useCurrentCheckpoint, useIsModelLoading, useModelLoadingTarget } from "@/api/hooks/useModels";
+import {
+  useCurrentCheckpoint,
+  useIsModelLoading,
+  useModelLoadingTarget,
+} from "@/api/hooks/useModels";
 import { useMemory, useGpuStatus, useLoadedModels } from "@/api/hooks/useServer";
 import { useJobList } from "@/api/hooks/useJobs";
 import { useBackendStatusStore } from "@/stores/backendStatusStore";
@@ -13,7 +17,9 @@ import { LoadedModelsPanel } from "@/components/layout/LoadedModelsPanel";
 function MonoSlot({ value, phantom }: { value: string; phantom: string }) {
   return (
     <span className="relative inline-flex font-mono tabular-nums text-3xs">
-      <span className="invisible" aria-hidden>{phantom}</span>
+      <span className="invisible" aria-hidden>
+        {phantom}
+      </span>
       <span className="absolute inset-0 text-right">{value}</span>
     </span>
   );
@@ -27,9 +33,7 @@ function GhostCounter({ value, digits = 4 }: { value: number; digits?: number })
   const significant = firstSig === -1 ? "" : str.slice(firstSig);
   return (
     <span className="font-mono tabular-nums text-3xs">
-      {leadingZeros && (
-        <span className="text-muted-foreground opacity-20">{leadingZeros}</span>
-      )}
+      {leadingZeros && <span className="text-muted-foreground opacity-20">{leadingZeros}</span>}
       <span className="text-foreground">{significant}</span>
     </span>
   );
@@ -80,11 +84,11 @@ function MemBar({ label, used, total }: { label: string; used: number; total: nu
 type DotStatus = "connected" | "generating" | "loading" | "high-vram" | "disconnected";
 
 const DOT_STYLES: Record<DotStatus, { dot: string; glow: string; animate: boolean }> = {
-  connected:    { dot: "bg-emerald-500", glow: "0 0 6px 2px rgba(16,185,129,0.35)",  animate: false },
-  generating:   { dot: "bg-primary",     glow: "0 0 6px 2px rgba(0,188,212,0.35)",   animate: true },
-  loading:      { dot: "bg-amber-500",   glow: "0 0 6px 2px rgba(245,158,11,0.35)",  animate: true },
-  "high-vram":  { dot: "bg-amber-500",   glow: "0 0 6px 2px rgba(245,158,11,0.25)",  animate: false },
-  disconnected: { dot: "bg-red-500",     glow: "0 0 6px 2px rgba(239,68,68,0.35)",   animate: false },
+  connected: { dot: "bg-emerald-500", glow: "0 0 6px 2px rgba(16,185,129,0.35)", animate: false },
+  generating: { dot: "bg-primary", glow: "0 0 6px 2px rgba(0,188,212,0.35)", animate: true },
+  loading: { dot: "bg-amber-500", glow: "0 0 6px 2px rgba(245,158,11,0.35)", animate: true },
+  "high-vram": { dot: "bg-amber-500", glow: "0 0 6px 2px rgba(245,158,11,0.25)", animate: false },
+  disconnected: { dot: "bg-red-500", glow: "0 0 6px 2px rgba(239,68,68,0.35)", animate: false },
 };
 
 function StatusDot({ status }: { status: DotStatus }) {
@@ -131,9 +135,8 @@ export function BottomStatusBar() {
   const ramTotal = memory?.ram?.total ?? null;
   const ramError = memory?.ram?.error;
 
-  const vramPct = vramUsed != null && vramTotal != null && vramTotal > 0
-    ? (vramUsed / vramTotal) * 100
-    : 0;
+  const vramPct =
+    vramUsed != null && vramTotal != null && vramTotal > 0 ? (vramUsed / vramTotal) * 100 : 0;
 
   const genCount = jobList?.total ?? 0;
   const isGenerating = globalStep > 0 || globalProgress > 0;
@@ -171,7 +174,9 @@ export function BottomStatusBar() {
         {isGenerating ? (
           <>
             <span className="text-2xs font-mono tabular-nums text-foreground">
-              {globalSteps > 0 ? `${globalStep}/${globalSteps}` : `${Math.round(globalProgress * 100)}%`}
+              {globalSteps > 0
+                ? `${globalStep}/${globalSteps}`
+                : `${Math.round(globalProgress * 100)}%`}
             </span>
             {globalTextinfo && (
               <>
@@ -181,7 +186,9 @@ export function BottomStatusBar() {
             )}
           </>
         ) : isModelLoading ? (
-          <span className="text-2xs italic text-muted-foreground truncate">Loading {loadingTarget ?? "model"}…</span>
+          <span className="text-2xs italic text-muted-foreground truncate">
+            Loading {loadingTarget ?? "model"}…
+          </span>
         ) : modelName && modelLoaded ? (
           <>
             <span className="text-2xs font-medium text-foreground truncate">{modelName}</span>
@@ -212,7 +219,9 @@ export function BottomStatusBar() {
                 <MonoSlot value={`${Math.round(gpuPct)}%`} phantom="100%" />
               </span>
               {gpuTemp != null && (
-                <span className={`font-mono tabular-nums text-3xs ${gpuTemp >= 80 ? "text-amber-500" : "text-muted-foreground"}`}>
+                <span
+                  className={`font-mono tabular-nums text-3xs ${gpuTemp >= 80 ? "text-amber-500" : "text-muted-foreground"}`}
+                >
                   <MonoSlot value={`${Math.round(gpuTemp)}°C`} phantom="100°C" />
                 </span>
               )}

@@ -13,25 +13,29 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
   {
     target: "prompt-editor",
     title: "Enter a prompt here",
-    description: "Describe what you want to generate. Use natural language or keywords - the more detail, the better the result.",
+    description:
+      "Describe what you want to generate. Use natural language or keywords - the more detail, the better the result.",
     placement: "right",
   },
   {
     target: "generate-button",
     title: "Click Generate",
-    description: "Once your prompt is ready, hit Generate to create images. You can also press Ctrl+Enter from anywhere.",
+    description:
+      "Once your prompt is ready, hit Generate to create images. You can also press Ctrl+Enter from anywhere.",
     placement: "right",
   },
   {
     target: "result-gallery",
     title: "Your results appear here",
-    description: "Generated images show up in this gallery. Click a thumbnail to select it, double-click to restore its settings.",
+    description:
+      "Generated images show up in this gallery. Click a thumbnail to select it, double-click to restore its settings.",
     placement: "top",
   },
   {
     target: "left-rail-subtabs",
     title: "Explore more options",
-    description: "These tabs let you fine-tune sampler settings, guidance, refinement, control networks, and more.",
+    description:
+      "These tabs let you fine-tune sampler settings, guidance, refinement, control networks, and more.",
     placement: "right",
   },
 ];
@@ -65,17 +69,19 @@ export const useTutorialStore = create<TutorialState>()(
         set({ active: true, currentStep: 0 });
       },
 
-      next: () => set((s) => {
-        if (s.currentStep >= TUTORIAL_STEPS.length - 1) {
-          return { active: false, completed: true };
-        }
-        return { currentStep: s.currentStep + 1 };
-      }),
+      next: () =>
+        set((s) => {
+          if (s.currentStep >= TUTORIAL_STEPS.length - 1) {
+            return { active: false, completed: true };
+          }
+          return { currentStep: s.currentStep + 1 };
+        }),
 
-      back: () => set((s) => {
-        if (s.currentStep <= 0) return s;
-        return { currentStep: s.currentStep - 1 };
-      }),
+      back: () =>
+        set((s) => {
+          if (s.currentStep <= 0) return s;
+          return { currentStep: s.currentStep - 1 };
+        }),
 
       skip: () => set({ active: false, completed: true }),
 

@@ -3,16 +3,29 @@ import type { SdModelV2 } from "./models";
 // --- Modality & Capability ---
 
 export type Modality =
-  | "text-to-image" | "image-to-image" | "inpaint"
-  | "chat" | "vision"
-  | "audio-in" | "audio-out"
-  | "text-to-video" | "image-to-video";
+  | "text-to-image"
+  | "image-to-image"
+  | "inpaint"
+  | "chat"
+  | "vision"
+  | "audio-in"
+  | "audio-out"
+  | "text-to-video"
+  | "image-to-video";
 
 export type Capability =
-  | "streaming" | "tools" | "structured-output"
-  | "controlnet" | "ip-adapter" | "lora"
-  | "negative-prompt" | "seed" | "guidance"
-  | "style" | "quality" | "reasoning";
+  | "streaming"
+  | "tools"
+  | "structured-output"
+  | "controlnet"
+  | "ip-adapter"
+  | "lora"
+  | "negative-prompt"
+  | "seed"
+  | "guidance"
+  | "style"
+  | "quality"
+  | "reasoning";
 
 // --- Model Types ---
 
@@ -67,9 +80,7 @@ export type UnifiedModel = LocalModel | CloudModel;
 
 // --- Provider Types ---
 
-export type ProviderPreset =
-  | "openrouter" | "openai" | "nanogpt"
-  | "aihubmix" | "ollama" | "custom";
+export type ProviderPreset = "openrouter" | "openai" | "nanogpt" | "aihubmix" | "ollama" | "custom";
 
 export interface ProviderConfig {
   id: string;

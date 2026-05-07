@@ -28,8 +28,7 @@ export const promptTheme = EditorView.theme({
     borderLeftWidth: "1.5px",
   },
   ".cm-selectionBackground": {
-    backgroundColor:
-      "color-mix(in srgb, var(--color-primary) 20%, transparent) !important",
+    backgroundColor: "color-mix(in srgb, var(--color-primary) 20%, transparent) !important",
   },
   ".cm-activeLine": {
     backgroundColor: "transparent",
@@ -40,24 +39,19 @@ export const promptTheme = EditorView.theme({
 
   // ── Bracket matching ──
   ".cm-matchingBracket": {
-    backgroundColor:
-      "color-mix(in srgb, var(--color-primary) 15%, transparent)",
-    outline:
-      "1px solid color-mix(in srgb, var(--color-primary) 30%, transparent)",
+    backgroundColor: "color-mix(in srgb, var(--color-primary) 15%, transparent)",
+    outline: "1px solid color-mix(in srgb, var(--color-primary) 30%, transparent)",
     borderRadius: "1px",
   },
   ".cm-nonmatchingBracket": {
-    backgroundColor:
-      "color-mix(in srgb, var(--color-destructive) 15%, transparent)",
+    backgroundColor: "color-mix(in srgb, var(--color-destructive) 15%, transparent)",
     color: "var(--color-destructive)",
   },
 
   // ── Token styles ──
   ".cm-tok-lora": {
-    backgroundColor:
-      "color-mix(in srgb, var(--color-primary) 10%, transparent)",
-    color:
-      "color-mix(in srgb, var(--color-primary) 90%, var(--color-foreground))",
+    backgroundColor: "color-mix(in srgb, var(--color-primary) 10%, transparent)",
+    color: "color-mix(in srgb, var(--color-primary) 90%, var(--color-foreground))",
     borderRadius: "2px",
     fontWeight: "500",
     padding: "0 3px",
@@ -80,8 +74,7 @@ export const promptTheme = EditorView.theme({
     margin: "0 1px",
   },
   ".cm-tok-attention": {
-    backgroundColor:
-      "color-mix(in srgb, var(--color-foreground) 4%, transparent)",
+    backgroundColor: "color-mix(in srgb, var(--color-foreground) 4%, transparent)",
     borderRadius: "2px",
     padding: "0 3px",
     margin: "0 1px",
@@ -103,10 +96,8 @@ export const promptTheme = EditorView.theme({
     display: "inline",
     padding: "0 5px",
     borderRadius: "3px",
-    backgroundColor:
-      "color-mix(in srgb, var(--color-primary) 12%, transparent)",
-    color:
-      "color-mix(in srgb, var(--color-primary) 90%, var(--color-foreground))",
+    backgroundColor: "color-mix(in srgb, var(--color-primary) 12%, transparent)",
+    color: "color-mix(in srgb, var(--color-primary) 90%, var(--color-foreground))",
     fontWeight: "500",
     fontSize: "inherit",
     lineHeight: "inherit",
@@ -149,14 +140,11 @@ export const promptTheme = EditorView.theme({
   // ── Autocomplete dropdown ──
   ".cm-tooltip-autocomplete": {
     backdropFilter: "blur(16px)",
-    backgroundColor:
-      "color-mix(in srgb, var(--color-popover) 80%, transparent)",
-    border:
-      "1px solid color-mix(in srgb, var(--color-border) 50%, transparent)",
+    backgroundColor: "color-mix(in srgb, var(--color-popover) 80%, transparent)",
+    border: "1px solid color-mix(in srgb, var(--color-border) 50%, transparent)",
     borderRadius: "6px",
     boxShadow: "0 8px 32px rgba(0,0,0,0.3)",
-    outline:
-      "1px solid color-mix(in srgb, white 5%, transparent)",
+    outline: "1px solid color-mix(in srgb, white 5%, transparent)",
   },
   ".cm-tooltip-autocomplete ul": {
     fontFamily: "var(--font-sans)",
@@ -166,8 +154,7 @@ export const promptTheme = EditorView.theme({
     padding: "3px 8px",
   },
   ".cm-tooltip-autocomplete ul li[aria-selected]": {
-    backgroundColor:
-      "color-mix(in srgb, var(--color-primary) 15%, transparent)",
+    backgroundColor: "color-mix(in srgb, var(--color-primary) 15%, transparent)",
     color: "var(--color-foreground)",
   },
   ".cm-completionIcon-lora::after": {
@@ -251,18 +238,15 @@ export const promptTheme = EditorView.theme({
   // ── Hover tooltip ──
   ".cm-tooltip-token": {
     backdropFilter: "blur(16px)",
-    backgroundColor:
-      "color-mix(in srgb, var(--color-popover) 80%, transparent)",
-    border:
-      "1px solid color-mix(in srgb, var(--color-border) 50%, transparent)",
+    backgroundColor: "color-mix(in srgb, var(--color-popover) 80%, transparent)",
+    border: "1px solid color-mix(in srgb, var(--color-border) 50%, transparent)",
     borderRadius: "6px",
     padding: "8px 10px",
     maxWidth: "280px",
     fontSize: "var(--text-3xs)",
     fontFamily: "var(--font-sans)",
     boxShadow: "0 8px 32px rgba(0,0,0,0.3)",
-    outline:
-      "1px solid color-mix(in srgb, white 5%, transparent)",
+    outline: "1px solid color-mix(in srgb, white 5%, transparent)",
     color: "var(--color-foreground)",
   },
   ".cm-tooltip-token img": {
@@ -289,18 +273,15 @@ export const promptTheme = EditorView.theme({
   // ── Weight slider popover ──
   ".cm-weight-slider": {
     backdropFilter: "blur(16px)",
-    backgroundColor:
-      "color-mix(in srgb, var(--color-popover) 85%, transparent)",
-    border:
-      "1px solid color-mix(in srgb, var(--color-border) 50%, transparent)",
+    backgroundColor: "color-mix(in srgb, var(--color-popover) 85%, transparent)",
+    border: "1px solid color-mix(in srgb, var(--color-border) 50%, transparent)",
     borderRadius: "6px",
     padding: "6px 10px",
     display: "flex",
     alignItems: "center",
     gap: "8px",
     boxShadow: "0 4px 16px rgba(0,0,0,0.3)",
-    outline:
-      "1px solid color-mix(in srgb, white 5%, transparent)",
+    outline: "1px solid color-mix(in srgb, white 5%, transparent)",
   },
   ".cm-weight-slider input[type=range]": {
     width: "100px",

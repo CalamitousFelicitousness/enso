@@ -1,12 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import {
-  Play,
-  Pause,
-  Maximize,
-  Minimize,
-  SkipBack,
-  SkipForward,
-} from "lucide-react";
+import { Play, Pause, Maximize, Minimize, SkipBack, SkipForward } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const SPEEDS = [0.25, 0.5, 1, 2, 4] as const;
@@ -41,11 +34,7 @@ export function VideoCompare({
   const [isFullscreen, setIsFullscreen] = useState(false);
   const syncingRef = useRef(false);
 
-  const bothVideos = useCallback(
-    () =>
-      [leftRef.current, rightRef.current].filter(Boolean),
-    [],
-  );
+  const bothVideos = useCallback(() => [leftRef.current, rightRef.current].filter(Boolean), []);
 
   const togglePlay = useCallback(() => {
     const videos = bothVideos();
@@ -70,10 +59,7 @@ export function VideoCompare({
     (delta: number) => {
       bothVideos().forEach((v) => {
         v.pause();
-        v.currentTime = Math.max(
-          0,
-          Math.min(v.duration, v.currentTime + delta / 24),
-        );
+        v.currentTime = Math.max(0, Math.min(v.duration, v.currentTime + delta / 24));
       });
     },
     [bothVideos],
@@ -102,10 +88,7 @@ export function VideoCompare({
 
     const onTimeUpdate = () => {
       setCurrentTime(left.currentTime);
-      if (
-        !syncingRef.current &&
-        Math.abs(left.currentTime - right.currentTime) > 0.1
-      ) {
+      if (!syncingRef.current && Math.abs(left.currentTime - right.currentTime) > 0.1) {
         syncingRef.current = true;
         right.currentTime = left.currentTime;
         syncingRef.current = false;
@@ -136,8 +119,7 @@ export function VideoCompare({
   useEffect(() => {
     const handleFsChange = () => setIsFullscreen(!!document.fullscreenElement);
     document.addEventListener("fullscreenchange", handleFsChange);
-    return () =>
-      document.removeEventListener("fullscreenchange", handleFsChange);
+    return () => document.removeEventListener("fullscreenchange", handleFsChange);
   }, []);
 
   // Keyboard
@@ -194,13 +176,7 @@ export function VideoCompare({
       {/* Videos side by side */}
       <div className="flex-1 flex min-h-0">
         <div className="flex-1 relative">
-          <video
-            ref={leftRef}
-            src={leftSrc}
-            loop
-            muted
-            className="w-full h-full object-contain"
-          />
+          <video ref={leftRef} src={leftSrc} loop muted className="w-full h-full object-contain" />
 
           <div className="absolute top-2 left-2 px-2 py-0.5 rounded bg-black/60 text-white text-3xs">
             {leftLabel}
@@ -229,10 +205,7 @@ export function VideoCompare({
           className="relative h-4 flex items-center cursor-pointer group"
           onMouseDown={(e) => {
             const rect = e.currentTarget.getBoundingClientRect();
-            const frac = Math.max(
-              0,
-              Math.min(1, (e.clientX - rect.left) / rect.width),
-            );
+            const frac = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
             seek(frac * duration);
           }}
         >
@@ -246,22 +219,13 @@ export function VideoCompare({
 
         {/* Controls */}
         <div className="flex items-center gap-2 text-white text-xs">
-          <button
-            onClick={() => stepFrame(-1)}
-            className="hover:text-primary transition-colors"
-          >
+          <button onClick={() => stepFrame(-1)} className="hover:text-primary transition-colors">
             <SkipBack size={14} />
           </button>
-          <button
-            onClick={togglePlay}
-            className="hover:text-primary transition-colors"
-          >
+          <button onClick={togglePlay} className="hover:text-primary transition-colors">
             {playing ? <Pause size={16} /> : <Play size={16} />}
           </button>
-          <button
-            onClick={() => stepFrame(1)}
-            className="hover:text-primary transition-colors"
-          >
+          <button onClick={() => stepFrame(1)} className="hover:text-primary transition-colors">
             <SkipForward size={14} />
           </button>
           <span className="font-mono tabular-nums text-white/80 text-3xs">
@@ -279,10 +243,7 @@ export function VideoCompare({
           >
             {speed}x
           </button>
-          <button
-            onClick={toggleFullscreen}
-            className="hover:text-primary transition-colors"
-          >
+          <button onClick={toggleFullscreen} className="hover:text-primary transition-colors">
             {isFullscreen ? <Minimize size={14} /> : <Maximize size={14} />}
           </button>
         </div>

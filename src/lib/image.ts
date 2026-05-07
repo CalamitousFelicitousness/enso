@@ -46,14 +46,28 @@ export interface FitResult {
 }
 
 /** Compute position, size, and optional source crop for fitting an image into a frame. */
-export function computeFit(imgW: number, imgH: number, frameX: number, frameY: number, frameW: number, frameH: number, mode: FitMode): FitResult {
+export function computeFit(
+  imgW: number,
+  imgH: number,
+  frameX: number,
+  frameY: number,
+  frameW: number,
+  frameH: number,
+  mode: FitMode,
+): FitResult {
   if (mode === "free") {
     // Free mode: caller handles positioning via freeTransform props.
     // Return contain-style placement as a fallback / initial value.
     const scale = Math.min(frameW / imgW, frameH / imgH);
     const w = imgW * scale;
     const h = imgH * scale;
-    return { x: frameX + (frameW - w) / 2, y: frameY + (frameH - h) / 2, width: w, height: h, crop: null };
+    return {
+      x: frameX + (frameW - w) / 2,
+      y: frameY + (frameH - h) / 2,
+      width: w,
+      height: h,
+      crop: null,
+    };
   }
   if (mode === "fill") {
     return { x: frameX, y: frameY, width: frameW, height: frameH, crop: null };
@@ -62,14 +76,23 @@ export function computeFit(imgW: number, imgH: number, frameX: number, frameY: n
     const scale = Math.min(frameW / imgW, frameH / imgH);
     const w = imgW * scale;
     const h = imgH * scale;
-    return { x: frameX + (frameW - w) / 2, y: frameY + (frameH - h) / 2, width: w, height: h, crop: null };
+    return {
+      x: frameX + (frameW - w) / 2,
+      y: frameY + (frameH - h) / 2,
+      width: w,
+      height: h,
+      crop: null,
+    };
   }
   // cover: scale up so image fills frame, crop the overflow in source space
   const scale = Math.max(frameW / imgW, frameH / imgH);
   const visibleW = frameW / scale;
   const visibleH = frameH / scale;
   return {
-    x: frameX, y: frameY, width: frameW, height: frameH,
+    x: frameX,
+    y: frameY,
+    width: frameW,
+    height: frameH,
     crop: { x: (imgW - visibleW) / 2, y: (imgH - visibleH) / 2, width: visibleW, height: visibleH },
   };
 }

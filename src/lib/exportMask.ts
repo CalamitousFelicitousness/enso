@@ -14,16 +14,24 @@ import type { MaskLine } from "@/stores/img2imgStore";
  * Each mask object's colored pixels are converted to white, preserving alpha
  * and respecting position/scale/rotation transforms.
  */
-async function renderMaskObjects(ctx: CanvasRenderingContext2D, masks: MaskObjectLayer[]): Promise<void> {
+async function renderMaskObjects(
+  ctx: CanvasRenderingContext2D,
+  masks: MaskObjectLayer[],
+): Promise<void> {
   if (masks.length === 0) return;
 
   const loaded = await Promise.all(
-    masks.filter((m) => m.visible).map((m) => new Promise<{ mask: MaskObjectLayer; img: HTMLImageElement }>((resolve) => {
-      const img = new Image();
-      img.onload = () => resolve({ mask: m, img });
-      img.onerror = () => resolve({ mask: m, img });
-      img.src = m.imageData;
-    })),
+    masks
+      .filter((m) => m.visible)
+      .map(
+        (m) =>
+          new Promise<{ mask: MaskObjectLayer; img: HTMLImageElement }>((resolve) => {
+            const img = new Image();
+            img.onload = () => resolve({ mask: m, img });
+            img.onerror = () => resolve({ mask: m, img });
+            img.src = m.imageData;
+          }),
+      ),
   );
 
   // Draw each mask then convert non-transparent pixels to white
@@ -90,10 +98,17 @@ function renderStrokes(ctx: CanvasRenderingContext2D, lines: MaskLine[]) {
  * Export the complete mask (objects + any pending strokes) as a PNG Blob.
  * White = inpaint, black = keep.
  */
-export async function exportMask(lines: MaskLine[], width: number, height: number): Promise<Blob | null> {
+export async function exportMask(
+  lines: MaskLine[],
+  width: number,
+  height: number,
+): Promise<Blob | null> {
   if (width <= 0 || height <= 0) return null;
 
-  const maskObjects = useCanvasStore.getState().getMaskLayers().filter((m) => m.visible);
+  const maskObjects = useCanvasStore
+    .getState()
+    .getMaskLayers()
+    .filter((m) => m.visible);
   if (maskObjects.length === 0 && lines.length === 0) return null;
 
   const canvas = document.createElement("canvas");

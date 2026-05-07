@@ -9,25 +9,11 @@ import { useUiStore } from "@/stores/uiStore";
 import { PromptField } from "./PromptField";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import {
-  Popover,
-  PopoverTrigger,
-  PopoverContent,
-} from "@/components/ui/popover";
+import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { KeepAlivePanel } from "@/components/ui/keep-alive";
-import {
-  ChevronDown,
-  ChevronRight,
-  Sparkles,
-  Loader2,
-  Settings2,
-} from "lucide-react";
+import { ChevronDown, ChevronRight, Sparkles, Loader2, Settings2 } from "lucide-react";
 import { toast } from "sonner";
 import { PromptEnhanceWorkspace } from "./PromptEnhanceWorkspace";
 import type { PromptEnhanceRequest } from "@/api/types/promptEnhance";
@@ -92,9 +78,7 @@ export function PromptEditor() {
         toast.success(`Prompt enhanced (seed: ${res.seed})`);
       },
       onError: (err) => {
-        toast.error(
-          `Enhance failed: ${err instanceof Error ? err.message : "Unknown error"}`,
-        );
+        toast.error(`Enhance failed: ${err instanceof Error ? err.message : "Unknown error"}`);
       },
     });
   }, [prompt, enhanceStore, enhanceMutation, setPendingResult]);
@@ -173,20 +157,11 @@ export function PromptEditor() {
       {/* Negative prompt */}
       <Collapsible open={showNegative} onOpenChange={setShowNegative}>
         <CollapsibleTrigger className="flex items-center gap-1 text-2xs text-muted-foreground hover:text-foreground transition-colors">
-          {showNegative ? (
-            <ChevronDown size={12} />
-          ) : (
-            <ChevronRight size={12} />
-          )}
+          {showNegative ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
           Negative prompt
         </CollapsibleTrigger>
         <CollapsibleContent forceMount>
-          <KeepAlivePanel
-            lazy
-            active={showNegative}
-            activeClassName=""
-            hiddenClassName="hidden"
-          >
+          <KeepAlivePanel lazy active={showNegative} activeClassName="" hiddenClassName="hidden">
             <PromptField
               value={negativePrompt}
               onChange={(v) => setParam("negativePrompt", v)}

@@ -21,8 +21,8 @@ export const MatteCard = forwardRef<
     onInfo: () => void;
   }
 >(function MatteCard({ item, active, isActiveLora, onClick, onInfo }, ref) {
-  const network = isExtraNetwork(item) ? (item) : null;
-  const badgeText = network ? (network.version || network.type) : "Style";
+  const network = isExtraNetwork(item) ? item : null;
+  const badgeText = network ? network.version || network.type : "Style";
 
   const preview = item.preview;
   const previewUrl = preview
@@ -69,22 +69,15 @@ export const MatteCard = forwardRef<
       {/* Family pill + active dot — top-right */}
       <div className="absolute top-2 right-2 flex items-center gap-1.5 z-10">
         {isActiveLora && (
-          <div
-            className="size-2 rounded-full bg-primary shrink-0"
-            style={neonDotStyle}
-          />
+          <div className="size-2 rounded-full bg-primary shrink-0" style={neonDotStyle} />
         )}
-        <Badge
-          className="border-transparent text-primary px-1.5 py-0 text-4xs uppercase tracking-wider font-medium dark:bg-[rgb(17,17,24)]/65 bg-white/65 backdrop-blur-[12px] ring-1 ring-primary/40"
-        >
+        <Badge className="border-transparent text-primary px-1.5 py-0 text-4xs uppercase tracking-wider font-medium dark:bg-[rgb(17,17,24)]/65 bg-white/65 backdrop-blur-[12px] ring-1 ring-primary/40">
           {badgeText}
         </Badge>
       </div>
 
       {/* Frosted glass info strip */}
-      <div
-        className="absolute -bottom-px -inset-x-px px-3 py-2.5 backdrop-blur-xl border-t dark:border-white/[0.05] border-black/[0.05] rounded-b-lg dark:bg-[rgb(17,17,24)]/2.5 bg-white/2.5"
-      >
+      <div className="absolute -bottom-px -inset-x-px px-3 py-2.5 backdrop-blur-xl border-t dark:border-white/[0.05] border-black/[0.05] rounded-b-lg dark:bg-[rgb(17,17,24)]/2.5 bg-white/2.5">
         <div className="flex items-end gap-1.5">
           <span className="text-[0.6875rem] font-medium line-clamp-3 leading-tight text-foreground flex-1 break-words">
             {item.name.split("/").pop()}

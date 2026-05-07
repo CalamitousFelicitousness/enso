@@ -11,22 +11,12 @@ import { useAllCloudModels } from "@/api/hooks/useCloudModels";
 import { useModelSelectionStore } from "@/stores/modelSelectionStore";
 import { useOptionsSubset } from "@/api/hooks/useSettings";
 import type { LocalModel, CloudModel } from "@/api/types/cloud";
-import {
-  RefreshCw,
-  ChevronsUpDown,
-  ArrowBigDownDash,
-  FolderSync,
-  Cloud,
-} from "lucide-react";
+import { RefreshCw, ChevronsUpDown, ArrowBigDownDash, FolderSync, Cloud } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Command,
   CommandEmpty,
@@ -67,12 +57,14 @@ export function ModelSelector() {
   const [open, setOpen] = useState(false);
 
   const displayName = isCloud
-    ? (activeModel as CloudModel)?.name ?? "Cloud model"
-    : (options?.["sd_model_checkpoint"] as string) ?? "No model loaded";
+    ? ((activeModel as CloudModel)?.name ?? "Cloud model")
+    : ((options?.["sd_model_checkpoint"] as string) ?? "No model loaded");
 
   const pipelineClass = !isCloud ? formatPipelineClass(checkpoint?.class_name) : null;
 
-  async function handleSelectLocal(model: typeof models extends (infer T)[] | undefined ? T : never) {
+  async function handleSelectLocal(
+    model: typeof models extends (infer T)[] | undefined ? T : never,
+  ) {
     if (!model) return;
     setOpen(false);
     const localModel: LocalModel = { ...model, source: "local" };
@@ -107,9 +99,7 @@ export function ModelSelector() {
             )}
           >
             <span className="flex items-center gap-2 truncate">
-              {isModelLoading && (
-                <RefreshCw size={12} className="animate-spin flex-shrink-0" />
-              )}
+              {isModelLoading && <RefreshCw size={12} className="animate-spin flex-shrink-0" />}
               {isCloud && <Cloud size={12} className="flex-shrink-0 text-sky-400" />}
               <span className="truncate">{displayName}</span>
             </span>
@@ -130,7 +120,8 @@ export function ModelSelector() {
                     onSelect={() => void handleSelectLocal(model)}
                     className={cn(
                       "text-xs",
-                      !isCloud && model.title === (options?.["sd_model_checkpoint"] as string) &&
+                      !isCloud &&
+                        model.title === (options?.["sd_model_checkpoint"] as string) &&
                         "font-semibold !text-primary",
                     )}
                   >
@@ -146,32 +137,36 @@ export function ModelSelector() {
 
               {cloudData?.map(({ provider, models: cloudModels }) => {
                 const imageModels = cloudModels.filter((m) =>
-                  m.modalities.some((mod) => mod === "text-to-image" || mod === "image-to-image" || mod === "inpaint"),
+                  m.modalities.some(
+                    (mod) =>
+                      mod === "text-to-image" || mod === "image-to-image" || mod === "inpaint",
+                  ),
                 );
                 if (imageModels.length === 0) return null;
                 return (
-                <CommandGroup key={provider.id} heading={provider.name}>
-                  {imageModels.map((model) => (
-                    <CommandItem
-                      key={`${provider.id}:${model.id}`}
-                      value={`${provider.name} ${model.name} ${model.id}`}
-                      onSelect={() => handleSelectCloud(model)}
-                      className={cn(
-                        "text-xs",
-                        isCloud && (activeModel as CloudModel)?.id === model.id &&
-                          "font-semibold !text-primary",
-                      )}
-                    >
-                      <Cloud size={12} className="flex-shrink-0 text-sky-400 mr-1.5" />
-                      <span className="truncate flex-1">{model.name}</span>
-                      {model.pricing && (
-                        <span className="text-3xs text-muted-foreground font-mono pl-2">
-                          {formatPricing(model.pricing)}
-                        </span>
-                      )}
-                    </CommandItem>
-                  ))}
-                </CommandGroup>
+                  <CommandGroup key={provider.id} heading={provider.name}>
+                    {imageModels.map((model) => (
+                      <CommandItem
+                        key={`${provider.id}:${model.id}`}
+                        value={`${provider.name} ${model.name} ${model.id}`}
+                        onSelect={() => handleSelectCloud(model)}
+                        className={cn(
+                          "text-xs",
+                          isCloud &&
+                            (activeModel as CloudModel)?.id === model.id &&
+                            "font-semibold !text-primary",
+                        )}
+                      >
+                        <Cloud size={12} className="flex-shrink-0 text-sky-400 mr-1.5" />
+                        <span className="truncate flex-1">{model.name}</span>
+                        {model.pricing && (
+                          <span className="text-3xs text-muted-foreground font-mono pl-2">
+                            {formatPricing(model.pricing)}
+                          </span>
+                        )}
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
                 );
               })}
             </CommandList>
@@ -180,13 +175,9 @@ export function ModelSelector() {
       </Popover>
 
       {pipelineClass && (
-        <span className="text-3xs text-muted-foreground whitespace-nowrap">
-          {pipelineClass}
-        </span>
+        <span className="text-3xs text-muted-foreground whitespace-nowrap">{pipelineClass}</span>
       )}
-      {isCloud && (
-        <span className="text-3xs text-sky-400 whitespace-nowrap">Cloud</span>
-      )}
+      {isCloud && <span className="text-3xs text-sky-400 whitespace-nowrap">Cloud</span>}
 
       {!isCloud && (
         <>

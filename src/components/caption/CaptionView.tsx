@@ -5,11 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import {
-  ResizablePanelGroup,
-  ResizablePanel,
-  ResizableHandle,
-} from "@/components/ui/resizable";
+import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
 import { useCaptionStore } from "@/stores/captionStore";
 import { useGenerationStore } from "@/stores/generationStore";
 import { useDropTarget } from "@/hooks/useDropTarget";
@@ -56,11 +52,7 @@ export function CaptionView() {
     if (!visible) return;
     const onPaste = (e: ClipboardEvent) => {
       const target = e.target as HTMLElement;
-      if (
-        target.tagName === "INPUT" ||
-        target.tagName === "TEXTAREA" ||
-        target.isContentEditable
-      )
+      if (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable)
         return;
       const items = e.clipboardData?.items;
       if (!items) return;
@@ -87,11 +79,7 @@ export function CaptionView() {
 
   const hasAnalysis =
     result?.type === "openclip" &&
-    (result.medium ||
-      result.artist ||
-      result.movement ||
-      result.trending ||
-      result.flavor);
+    (result.medium || result.artist || result.movement || result.trending || result.flavor);
   const hasAnnotatedImage = result?.type === "vqa" && result.annotated_image;
   const hasScores = result?.type === "tagger" && result.scores;
 
@@ -116,10 +104,7 @@ export function CaptionView() {
     const current = useGenerationStore.getState().negativePrompt;
     useGenerationStore
       .getState()
-      .setParam(
-        "negativePrompt",
-        current ? `${current}, ${answerText}` : answerText,
-      );
+      .setParam("negativePrompt", current ? `${current}, ${answerText}` : answerText);
     toast.success("Appended to negative prompt");
   }, [answerText]);
 
@@ -143,12 +128,7 @@ export function CaptionView() {
                 <p className="text-xs mt-1 opacity-60">
                   or click to browse, or paste from clipboard
                 </p>
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={handleFileInput}
-                />
+                <input type="file" accept="image/*" className="hidden" onChange={handleFileInput} />
               </label>
             ) : (
               <div className="relative flex items-center justify-center h-full p-4 group">
@@ -186,10 +166,7 @@ export function CaptionView() {
             <h3 className="text-sm font-medium">Output</h3>
           </div>
           <div className="flex-1 min-h-0">
-            <ResizablePanelGroup
-              orientation="vertical"
-              id="caption-output-rows"
-            >
+            <ResizablePanelGroup orientation="vertical" id="caption-output-rows">
               {/* Answer */}
               <ResizablePanel defaultSize="50%" minSize="15%">
                 <div className="flex flex-col h-full p-4 gap-1.5 min-h-0">
@@ -246,9 +223,7 @@ export function CaptionView() {
                     {/* VLM: Annotated Image */}
                     {method === "vlm" && (
                       <div className="flex flex-col gap-1.5">
-                        <Label className="text-xs text-muted-foreground">
-                          Annotated Image
-                        </Label>
+                        <Label className="text-xs text-muted-foreground">Annotated Image</Label>
                         {hasAnnotatedImage ? (
                           <div className="rounded-md border border-border overflow-hidden">
                             <img
@@ -275,40 +250,23 @@ export function CaptionView() {
                     {/* OpenCLiP: CLIP Analysis */}
                     {method === "openclip" && (
                       <div className="flex flex-col gap-1.5">
-                        <Label className="text-xs text-muted-foreground">
-                          CLIP Analysis
-                        </Label>
+                        <Label className="text-xs text-muted-foreground">CLIP Analysis</Label>
                         {hasAnalysis ? (
                           <div className="rounded-md border border-border p-3 flex flex-col gap-2 text-sm">
                             {result.medium && (
-                              <AnalysisField
-                                label="Medium"
-                                value={result.medium}
-                              />
+                              <AnalysisField label="Medium" value={result.medium} />
                             )}
                             {result.artist && (
-                              <AnalysisField
-                                label="Artist"
-                                value={result.artist}
-                              />
+                              <AnalysisField label="Artist" value={result.artist} />
                             )}
                             {result.movement && (
-                              <AnalysisField
-                                label="Movement"
-                                value={result.movement}
-                              />
+                              <AnalysisField label="Movement" value={result.movement} />
                             )}
                             {result.trending && (
-                              <AnalysisField
-                                label="Trending"
-                                value={result.trending}
-                              />
+                              <AnalysisField label="Trending" value={result.trending} />
                             )}
                             {result.flavor && (
-                              <AnalysisField
-                                label="Flavor"
-                                value={result.flavor}
-                              />
+                              <AnalysisField label="Flavor" value={result.flavor} />
                             )}
                           </div>
                         ) : (
@@ -326,24 +284,17 @@ export function CaptionView() {
                     {/* Tagger: Confidence Scores */}
                     {method === "tagger" && (
                       <div className="flex flex-col gap-1.5">
-                        <Label className="text-xs text-muted-foreground">
-                          Confidence Scores
-                        </Label>
+                        <Label className="text-xs text-muted-foreground">Confidence Scores</Label>
                         {hasScores ? (
                           <div className="rounded-md border border-border p-3 flex flex-col gap-1 text-sm">
-                            {Object.entries(result.scores!).map(
-                              ([tag, score]) => (
-                                <div
-                                  key={tag}
-                                  className="flex items-center justify-between"
-                                >
-                                  <span className="text-foreground">{tag}</span>
-                                  <span className="text-muted-foreground text-xs font-mono tabular-nums">
-                                    {score.toFixed(3)}
-                                  </span>
-                                </div>
-                              ),
-                            )}
+                            {Object.entries(result.scores!).map(([tag, score]) => (
+                              <div key={tag} className="flex items-center justify-between">
+                                <span className="text-foreground">{tag}</span>
+                                <span className="text-muted-foreground text-xs font-mono tabular-nums">
+                                  {score.toFixed(3)}
+                                </span>
+                              </div>
+                            ))}
                           </div>
                         ) : (
                           <div className="rounded-md border border-border p-6 flex items-center justify-center min-h-30">

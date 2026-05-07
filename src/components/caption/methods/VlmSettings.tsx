@@ -17,18 +17,10 @@ export function VlmSettings() {
   const set = useCaptionSettingsStore((st) => st.setVlm);
 
   const { data: models } = useVlmModels();
-  const selectedModel = useMemo(
-    () => models?.find((m) => m.name === s.model),
-    [models, s.model],
-  );
+  const selectedModel = useMemo(() => models?.find((m) => m.name === s.model), [models, s.model]);
   const prompts = useMemo(
     () =>
-      selectedModel?.prompts ?? [
-        "Use Prompt",
-        "Short Caption",
-        "Normal Caption",
-        "Long Caption",
-      ],
+      selectedModel?.prompts ?? ["Use Prompt", "Short Caption", "Normal Caption", "Long Caption"],
 
     [selectedModel],
   );
@@ -80,13 +72,9 @@ export function VlmSettings() {
       const caps = model?.capabilities ?? [];
       return (
         <span className="inline-flex items-center gap-1">
-          {model?.cached && (
-            <span className="shrink-0 size-1.5 rounded-full bg-green-500" />
-          )}
+          {model?.cached && <span className="shrink-0 size-1.5 rounded-full bg-green-500" />}
           {stripPua(label)}
-          {caps.includes("thinking") && (
-            <Lightbulb className="shrink-0 size-[1em]" />
-          )}
+          {caps.includes("thinking") && <Lightbulb className="shrink-0 size-[1em]" />}
         </span>
       );
     },
@@ -113,11 +101,7 @@ export function VlmSettings() {
         <Combobox
           value={s.model}
           onValueChange={handleModelChange}
-          groups={
-            vlmGroups.length > 0
-              ? vlmGroups
-              : [{ heading: "", options: [VLM_DEFAULT] }]
-          }
+          groups={vlmGroups.length > 0 ? vlmGroups : [{ heading: "", options: [VLM_DEFAULT] }]}
           placeholder={vlmGroups.length === 0 ? "Loading..." : "Select model"}
           className="w-full text-xs"
           renderLabel={renderModelLabel}
@@ -265,9 +249,7 @@ function SliderField({
     <div className="flex flex-col gap-1.5">
       <div className="flex items-center justify-between">
         <Label className="text-xs">{label}</Label>
-        <span className="text-3xs text-muted-foreground font-mono tabular-nums">
-          {value}
-        </span>
+        <span className="text-3xs text-muted-foreground font-mono tabular-nums">{value}</span>
       </div>
       <Slider
         value={[value]}

@@ -32,36 +32,51 @@ export function useImageZoomPan(options: UseImageZoomPanOptions = {}): UseImageZ
   const [isDragging, setIsDragging] = useState(false);
   const dragStart = useRef({ x: 0, y: 0 });
 
-  const clamp = useCallback((v: number) => Math.max(minScale, Math.min(maxScale, v)), [minScale, maxScale]);
+  const clamp = useCallback(
+    (v: number) => Math.max(minScale, Math.min(maxScale, v)),
+    [minScale, maxScale],
+  );
 
-  const setScale = useCallback((fn: number | ((s: number) => number)) => {
-    setScaleRaw((prev) => {
-      const next = typeof fn === "function" ? fn(prev) : fn;
-      return clamp(next);
-    });
-  }, [clamp]);
+  const setScale = useCallback(
+    (fn: number | ((s: number) => number)) => {
+      setScaleRaw((prev) => {
+        const next = typeof fn === "function" ? fn(prev) : fn;
+        return clamp(next);
+      });
+    },
+    [clamp],
+  );
 
   const resetTransform = useCallback(() => {
     setScaleRaw(1);
     setTranslate({ x: 0, y: 0 });
   }, []);
 
-  const onWheel = useCallback((e: React.WheelEvent) => {
-    e.preventDefault();
-    const factor = e.deltaY < 0 ? wheelFactor : 1 / wheelFactor;
-    setScaleRaw((s) => clamp(s * factor));
-  }, [wheelFactor, clamp]);
+  const onWheel = useCallback(
+    (e: React.WheelEvent) => {
+      e.preventDefault();
+      const factor = e.deltaY < 0 ? wheelFactor : 1 / wheelFactor;
+      setScaleRaw((s) => clamp(s * factor));
+    },
+    [wheelFactor, clamp],
+  );
 
-  const onMouseDown = useCallback((e: React.MouseEvent) => {
-    if (scale <= 1) return;
-    setIsDragging(true);
-    dragStart.current = { x: e.clientX - translate.x, y: e.clientY - translate.y };
-  }, [scale, translate]);
+  const onMouseDown = useCallback(
+    (e: React.MouseEvent) => {
+      if (scale <= 1) return;
+      setIsDragging(true);
+      dragStart.current = { x: e.clientX - translate.x, y: e.clientY - translate.y };
+    },
+    [scale, translate],
+  );
 
-  const onMouseMove = useCallback((e: React.MouseEvent) => {
-    if (!isDragging) return;
-    setTranslate({ x: e.clientX - dragStart.current.x, y: e.clientY - dragStart.current.y });
-  }, [isDragging]);
+  const onMouseMove = useCallback(
+    (e: React.MouseEvent) => {
+      if (!isDragging) return;
+      setTranslate({ x: e.clientX - dragStart.current.x, y: e.clientY - dragStart.current.y });
+    },
+    [isDragging],
+  );
 
   const onMouseUp = useCallback(() => {
     setIsDragging(false);

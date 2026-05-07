@@ -30,22 +30,12 @@ export function HfTokenControl({
       <div className="flex items-center gap-2">
         <Check className="h-3 w-3 text-green-500 shrink-0" />
         {profile?.avatar ? (
-          <img
-            src={profile.avatar}
-            alt=""
-            className="h-5 w-5 rounded-full shrink-0 object-cover"
-          />
+          <img src={profile.avatar} alt="" className="h-5 w-5 rounded-full shrink-0 object-cover" />
         ) : null}
         <span className="text-2xs text-muted-foreground">
-          {profile?.username
-            ? `Signed in as ${profile.username}`
-            : "Token configured"}
+          {profile?.username ? `Signed in as ${profile.username}` : "Token configured"}
         </span>
-        <Button
-          size="xs"
-          variant="ghost"
-          onClick={() => setEditing(true)}
-        >
+        <Button size="xs" variant="ghost" onClick={() => setEditing(true)}>
           Change
         </Button>
         <Button

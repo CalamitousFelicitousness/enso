@@ -35,19 +35,15 @@ export function HistoryBulkDeleteDialog({
             Delete {count} {count === 1 ? "job" : "jobs"}
           </DialogTitle>
           <DialogDescription>
-            This will permanently remove {scope} from job history along with any
-            associated output files. This cannot be undone.
+            This will permanently remove {scope} from job history along with any associated output
+            files. This cannot be undone.
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>
           <Button variant="outline" onClick={onCancel} disabled={isPending}>
             Cancel
           </Button>
-          <Button
-            variant="destructive"
-            onClick={onConfirm}
-            disabled={isPending}
-          >
+          <Button variant="destructive" onClick={onConfirm} disabled={isPending}>
             {isPending ? "Deleting..." : "Delete"}
           </Button>
         </DialogFooter>

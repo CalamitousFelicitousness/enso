@@ -35,15 +35,24 @@ export function DetailerModelRow({
   // Ensures the per-key handlers reference the latest entry without
   // forcing the parent to memoize a giant map of callbacks.
   const set = useMemo(() => {
-    function setField<K extends keyof DetailerOverrides>(key: K, value: DetailerOverrides[K] | undefined) {
+    function setField<K extends keyof DetailerOverrides>(
+      key: K,
+      value: DetailerOverrides[K] | undefined,
+    ) {
       const next: DetailerModelEntry = { ...entry };
       if (value === undefined) delete next[key];
       else (next[key] as DetailerOverrides[K]) = value;
       onUpdate(next);
     }
     return {
-      override: <K extends keyof DetailerOverrides>(key: K) => (v: DetailerOverrides[K]) => setField(key, v),
-      clear: <K extends keyof DetailerOverrides>(key: K) => () => setField(key, undefined),
+      override:
+        <K extends keyof DetailerOverrides>(key: K) =>
+        (v: DetailerOverrides[K]) =>
+          setField(key, v),
+      clear:
+        <K extends keyof DetailerOverrides>(key: K) =>
+        () =>
+          setField(key, undefined),
     };
   }, [entry, onUpdate]);
 
@@ -53,7 +62,10 @@ export function DetailerModelRow({
       variant="ghost"
       size="icon-xs"
       title="Remove this detector"
-      onClick={(e) => { e.stopPropagation(); onRemove(); }}
+      onClick={(e) => {
+        e.stopPropagation();
+        onRemove();
+      }}
     >
       <X size={11} />
     </Button>
@@ -77,7 +89,10 @@ export function DetailerModelRow({
             overrideValue={entry.strength}
             onOverride={set.override("strength")}
             onClear={set.clear("strength")}
-            min={0} max={1} step={0.01} decimals={2}
+            min={0}
+            max={1}
+            step={0.01}
+            decimals={2}
           />
           <InheritableSlider
             label="Steps"
@@ -86,7 +101,9 @@ export function DetailerModelRow({
             overrideValue={entry.steps}
             onOverride={set.override("steps")}
             onClear={set.clear("steps")}
-            min={0} max={99} step={1}
+            min={0}
+            max={99}
+            step={1}
           />
           <InheritableSlider
             label="Resolution"
@@ -95,7 +112,9 @@ export function DetailerModelRow({
             overrideValue={entry.resolution}
             onOverride={set.override("resolution")}
             onClear={set.clear("resolution")}
-            min={256} max={4096} step={8}
+            min={256}
+            max={4096}
+            step={8}
           />
           <InheritableSlider
             label="Padding"
@@ -104,7 +123,9 @@ export function DetailerModelRow({
             overrideValue={entry.padding}
             onOverride={set.override("padding")}
             onClear={set.clear("padding")}
-            min={0} max={256} step={1}
+            min={0}
+            max={256}
+            step={1}
           />
           <InheritableSlider
             label="Blur"
@@ -113,7 +134,9 @@ export function DetailerModelRow({
             overrideValue={entry.blur}
             onOverride={set.override("blur")}
             onClear={set.clear("blur")}
-            min={0} max={64} step={1}
+            min={0}
+            max={64}
+            step={1}
           />
           <InheritableSlider
             label="Confidence"
@@ -122,7 +145,10 @@ export function DetailerModelRow({
             overrideValue={entry.conf}
             onOverride={set.override("conf")}
             onClear={set.clear("conf")}
-            min={0} max={1} step={0.01} decimals={2}
+            min={0}
+            max={1}
+            step={0.01}
+            decimals={2}
           />
           <InheritableSlider
             label="IoU"
@@ -131,7 +157,10 @@ export function DetailerModelRow({
             overrideValue={entry.iou}
             onOverride={set.override("iou")}
             onClear={set.clear("iou")}
-            min={0} max={1} step={0.01} decimals={2}
+            min={0}
+            max={1}
+            step={0.01}
+            decimals={2}
           />
           <InheritableSlider
             label="Min size"
@@ -140,7 +169,10 @@ export function DetailerModelRow({
             overrideValue={entry.min_size}
             onOverride={set.override("min_size")}
             onClear={set.clear("min_size")}
-            min={0} max={1} step={0.01} decimals={2}
+            min={0}
+            max={1}
+            step={0.01}
+            decimals={2}
           />
           <InheritableSlider
             label="Max size"
@@ -149,7 +181,10 @@ export function DetailerModelRow({
             overrideValue={entry.max_size}
             onOverride={set.override("max_size")}
             onClear={set.clear("max_size")}
-            min={0} max={1} step={0.01} decimals={2}
+            min={0}
+            max={1}
+            step={0.01}
+            decimals={2}
           />
           <InheritableSlider
             label="Max detect"
@@ -158,7 +193,9 @@ export function DetailerModelRow({
             overrideValue={entry.max}
             onOverride={set.override("max")}
             onClear={set.clear("max")}
-            min={1} max={20} step={1}
+            min={1}
+            max={20}
+            step={1}
           />
           <InheritableSlider
             label="Renoise"
@@ -167,7 +204,10 @@ export function DetailerModelRow({
             overrideValue={entry.sigma_adjust}
             onOverride={set.override("sigma_adjust")}
             onClear={set.clear("sigma_adjust")}
-            min={0} max={2} step={0.01} decimals={2}
+            min={0}
+            max={2}
+            step={0.01}
+            decimals={2}
           />
           <InheritableSlider
             label="Renoise end"
@@ -176,7 +216,10 @@ export function DetailerModelRow({
             overrideValue={entry.sigma_adjust_max}
             onOverride={set.override("sigma_adjust_max")}
             onClear={set.clear("sigma_adjust_max")}
-            min={0} max={2} step={0.01} decimals={2}
+            min={0}
+            max={2}
+            step={0.01}
+            decimals={2}
           />
         </ParamGrid>
 

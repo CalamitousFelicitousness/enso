@@ -2,11 +2,7 @@ import { useMemo, useCallback } from "react";
 import { useGenerationStore } from "@/stores/generationStore";
 import { useShallow } from "zustand/react/shallow";
 import { useSamplerList, useUpscalerGroups } from "@/api/hooks/useModels";
-import {
-  HIRES_SIZE_MODES,
-  HIRES_FIT_MODES,
-  HIRES_CONTEXT_MODES,
-} from "@/lib/constants";
+import { HIRES_SIZE_MODES, HIRES_FIT_MODES, HIRES_CONTEXT_MODES } from "@/lib/constants";
 import { ParamSlider } from "../ParamSlider";
 import { SectionLeader, SectionDivider } from "@/components/ui/section-leader";
 import { ParamRow, ParamGrid } from "../ParamRow";
@@ -54,8 +50,7 @@ export function RefineTab() {
   const { data: samplers } = useSamplerList();
 
   // Derive size mode from store: fixed dims set = "fixed", otherwise "scale"
-  const sizeMode =
-    state.hiresResizeX > 0 || state.hiresResizeY > 0 ? "fixed" : "scale";
+  const sizeMode = state.hiresResizeX > 0 || state.hiresResizeY > 0 ? "fixed" : "scale";
 
   const set = useMemo(
     () => ({
@@ -71,8 +66,7 @@ export function RefineTab() {
       hiresResizeY: (v: number) => setParam("hiresResizeY", v),
       hiresResizeContext: (v: string) => setParam("hiresResizeContext", v),
       hiresUpscaler: (v: string) => setParam("hiresUpscaler", v),
-      hiresSampler: (v: string) =>
-        setParam("hiresSampler", v === "_same_" ? "" : v),
+      hiresSampler: (v: string) => setParam("hiresSampler", v === "_same_" ? "" : v),
       hiresDenoising: (v: number) => setParam("hiresDenoising", v),
       hiresSteps: (v: number) => setParam("hiresSteps", v),
       hiresForce: (c: boolean | "indeterminate") => setParam("hiresForce", !!c),
@@ -105,7 +99,6 @@ export function RefineTab() {
 
   return (
     <div className="flex flex-col gap-3 text-sm">
-
       <SectionLeader
         title="Refiner"
         enableable

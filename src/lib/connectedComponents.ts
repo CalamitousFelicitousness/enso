@@ -46,7 +46,11 @@ export function findConnectedComponents(imageData: ImageData, alphaThreshold = 1
         labels[curr - width] = label;
         stack.push(curr - width);
       }
-      if (cy < height - 1 && labels[curr + width] === 0 && data[(curr + width) * 4 + 3] >= alphaThreshold) {
+      if (
+        cy < height - 1 &&
+        labels[curr + width] === 0 &&
+        data[(curr + width) * 4 + 3] >= alphaThreshold
+      ) {
         labels[curr + width] = label;
         stack.push(curr + width);
       }

@@ -12,11 +12,29 @@ export interface GenerationPreset {
 }
 
 const PRESET_PARAM_KEYS = [
-  "sampler", "steps", "width", "height", "cfgScale", "cfgEnd", "denoisingStrength",
-  "clipSkip", "vaeType", "flowShift", "baseShift", "maxShift",
-  "sigmaMethod", "timestepSpacing", "betaSchedule", "predictionMethod",
-  "hiresEnabled", "hiresUpscaler", "hiresScale", "hiresSteps", "hiresDenoising",
-  "hiresResizeMode", "hiresSampler",
+  "sampler",
+  "steps",
+  "width",
+  "height",
+  "cfgScale",
+  "cfgEnd",
+  "denoisingStrength",
+  "clipSkip",
+  "vaeType",
+  "flowShift",
+  "baseShift",
+  "maxShift",
+  "sigmaMethod",
+  "timestepSpacing",
+  "betaSchedule",
+  "predictionMethod",
+  "hiresEnabled",
+  "hiresUpscaler",
+  "hiresScale",
+  "hiresSteps",
+  "hiresDenoising",
+  "hiresResizeMode",
+  "hiresSampler",
 ] as const;
 
 export function snapshotParams(): Record<string, unknown> {
@@ -32,7 +50,18 @@ function makeId(): string {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
-const ALL_TYPES = ["sd", "sdxl", "sd3", "f1", "f2", "sc", "auraflow", "hunyuandit", "pixart", "kandinsky"];
+const ALL_TYPES = [
+  "sd",
+  "sdxl",
+  "sd3",
+  "f1",
+  "f2",
+  "sc",
+  "auraflow",
+  "hunyuandit",
+  "pixart",
+  "kandinsky",
+];
 
 const BUILT_IN_PRESETS: GenerationPreset[] = [
   {
@@ -97,7 +126,13 @@ const BUILT_IN_PRESETS: GenerationPreset[] = [
     compatibleTypes: ["sd", "sdxl"],
     builtIn: true,
     createdAt: 0,
-    params: { sampler: "DPM++ 3M SDE", steps: 30, cfgScale: 4.5, hiresEnabled: true, hiresScale: 2 },
+    params: {
+      sampler: "DPM++ 3M SDE",
+      steps: 30,
+      cfgScale: 4.5,
+      hiresEnabled: true,
+      hiresScale: 2,
+    },
   },
   {
     id: "builtin-fast-draft",

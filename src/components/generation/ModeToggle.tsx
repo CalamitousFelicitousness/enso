@@ -42,9 +42,7 @@ export function ModeToggle({ mode, onModeChange, locked, onLockedChange }: ModeT
           "text-2xs font-medium uppercase tracking-wider",
           "transition-colors duration-150 cursor-pointer select-none",
           "min-w-[60px]",
-          isFocus
-            ? "text-primary"
-            : "text-muted-foreground hover:text-foreground/70",
+          isFocus ? "text-primary" : "text-muted-foreground hover:text-foreground/70",
         )}
       >
         <Focus size={10} />
@@ -59,9 +57,7 @@ export function ModeToggle({ mode, onModeChange, locked, onLockedChange }: ModeT
         className={cn(
           "relative z-10 flex items-center justify-center w-5 h-full ml-[1px]",
           "transition-colors duration-150 cursor-pointer",
-          locked
-            ? "text-primary"
-            : "text-muted-foreground/50 hover:text-muted-foreground",
+          locked ? "text-primary" : "text-muted-foreground/50 hover:text-muted-foreground",
         )}
       >
         {locked ? <Lock size={10} /> : <Unlock size={10} />}
@@ -76,9 +72,7 @@ export function ModeToggle({ mode, onModeChange, locked, onLockedChange }: ModeT
           "text-2xs font-medium uppercase tracking-wider",
           "transition-colors duration-150 cursor-pointer select-none",
           "min-w-[60px]",
-          !isFocus
-            ? "text-primary"
-            : "text-muted-foreground hover:text-foreground/70",
+          !isFocus ? "text-primary" : "text-muted-foreground hover:text-foreground/70",
         )}
       >
         <Maximize size={10} />

@@ -37,14 +37,7 @@ export function SectionTimeline({
   const [activeSection, setActiveSection] = useState<number | null>(null);
 
   const sectionCount = useMemo(
-    () =>
-      computeSectionCount(
-        fps,
-        duration,
-        latentWindowSize,
-        variant,
-        interpolate,
-      ),
+    () => computeSectionCount(fps, duration, latentWindowSize, variant, interpolate),
     [fps, duration, latentWindowSize, variant, interpolate],
   );
 
@@ -169,9 +162,7 @@ export function SectionTimeline({
       ) : (
         /* Per-section prompt */
         <div className="space-y-1">
-          <label className="text-2xs text-muted-foreground">
-            Section {activeSection + 1}
-          </label>
+          <label className="text-2xs text-muted-foreground">Section {activeSection + 1}</label>
           <Input
             value={prompts[activeSection]}
             onChange={(e) => handleSectionChange(activeSection, e.target.value)}

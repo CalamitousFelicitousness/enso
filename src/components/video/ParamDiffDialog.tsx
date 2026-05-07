@@ -133,9 +133,7 @@ const API_TO_STORE: Record<string, string> = {
   ltx_audio_enable: "ltxAudioEnable",
 };
 
-function normalizeResultParams(
-  raw: VideoWireParams,
-): Record<string, unknown> {
+function normalizeResultParams(raw: VideoWireParams): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(raw)) {
     const storeKey = API_TO_STORE[k] ?? k;
@@ -174,10 +172,7 @@ export function ParamDiffDialog({
   const storeState = useVideoStore();
   const setParams = useVideoStore((s) => s.setParams);
 
-  const normalized = useMemo(
-    () => normalizeResultParams(resultParams),
-    [resultParams],
-  );
+  const normalized = useMemo(() => normalizeResultParams(resultParams), [resultParams]);
 
   const rows = useMemo<DiffRow[]>(() => {
     const keys = keysForDomain(domain);
@@ -203,9 +198,7 @@ export function ParamDiffDialog({
       if (row.changed) updates[row.key] = row.result;
     }
     setParams(updates);
-    toast.success(
-      `Applied ${changedCount} changed parameter${changedCount !== 1 ? "s" : ""}`,
-    );
+    toast.success(`Applied ${changedCount} changed parameter${changedCount !== 1 ? "s" : ""}`);
     onOpenChange(false);
   }, [rows, changedCount, setParams, onOpenChange]);
 
@@ -222,7 +215,9 @@ export function ParamDiffDialog({
       <DialogContent className="max-w-xl">
         <DialogHeader>
           <DialogTitle>Compare Settings ({changedCount} changed)</DialogTitle>
-          <DialogDescription className="sr-only">Side-by-side comparison of video parameters</DialogDescription>
+          <DialogDescription className="sr-only">
+            Side-by-side comparison of video parameters
+          </DialogDescription>
         </DialogHeader>
         <ScrollArea className="max-h-[60vh]">
           <table className="w-full text-2xs">
@@ -238,14 +233,10 @@ export function ParamDiffDialog({
               {rows.map((row) => (
                 <tr
                   key={row.key}
-                  className={
-                    row.changed ? "bg-amber-500/10" : "text-muted-foreground/60"
-                  }
+                  className={row.changed ? "bg-amber-500/10" : "text-muted-foreground/60"}
                 >
                   <td className="py-0.5 px-2 font-mono">{row.key}</td>
-                  <td className="py-0.5 px-2 max-w-32 truncate">
-                    {formatValue(row.current)}
-                  </td>
+                  <td className="py-0.5 px-2 max-w-32 truncate">{formatValue(row.current)}</td>
                   <td className="py-0.5 px-2 max-w-32 truncate font-medium">
                     {formatValue(row.result)}
                   </td>

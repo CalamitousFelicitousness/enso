@@ -34,14 +34,10 @@ export function ScriptsTab() {
     <div className="flex flex-col gap-3 text-sm">
       <SectionLeader title="Script" collapsible>
         <div className="flex items-center gap-2">
-          <Label className="text-2xs text-muted-foreground w-16 flex-shrink-0">
-            Script
-          </Label>
+          <Label className="text-2xs text-muted-foreground w-16 flex-shrink-0">Script</Label>
           <Combobox
             value={store.selectedScript || "__none__"}
-            onValueChange={(v) =>
-              store.setSelectedScript(v === "__none__" ? "" : v)
-            }
+            onValueChange={(v) => store.setSelectedScript(v === "__none__" ? "" : v)}
             options={[
               { value: "__none__", label: "None" },
               ...selectableScripts.map((name) => ({
@@ -81,24 +77,17 @@ export function ScriptsTab() {
 function AlwaysOnSection({ script }: { script: ScriptInfoV2 }) {
   const store = useScriptStore();
   const getArgValue = useCallback(
-    (index: number) =>
-      store.alwaysOnOverrides[script.name]?.[index] ??
-      script.args[index]?.value,
+    (index: number) => store.alwaysOnOverrides[script.name]?.[index] ?? script.args[index]?.value,
     [store.alwaysOnOverrides, script.name, script.args],
   );
   const setArgValue = useCallback(
-    (index: number, value: unknown) =>
-      store.setAlwaysOnArg(script.name, index, value),
+    (index: number, value: unknown) => store.setAlwaysOnArg(script.name, index, value),
     [store, script.name],
   );
 
   return (
     <SectionLeader title={script.name} collapsible defaultCollapsed>
-      <ScriptSection
-        script={script}
-        getArgValue={getArgValue}
-        setArgValue={setArgValue}
-      />
+      <ScriptSection script={script} getArgValue={getArgValue} setArgValue={setArgValue} />
     </SectionLeader>
   );
 }

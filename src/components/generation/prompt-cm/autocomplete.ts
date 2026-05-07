@@ -1,5 +1,9 @@
 import type { Extension } from "@codemirror/state";
-import { autocompletion, type CompletionContext, type CompletionResult } from "@codemirror/autocomplete";
+import {
+  autocompletion,
+  type CompletionContext,
+  type CompletionResult,
+} from "@codemirror/autocomplete";
 import {
   embeddingNamesFacet,
   loraNamesFacet,
@@ -68,9 +72,7 @@ function embeddingSource(ctx: CompletionContext): CompletionResult | null {
   if (!match) return null;
   const embeddings = ctx.state.facet(embeddingNamesFacet);
   const query = match.text.toLowerCase();
-  const filtered = embeddings.filter((n) =>
-    n.toLowerCase().includes(query),
-  );
+  const filtered = embeddings.filter((n) => n.toLowerCase().includes(query));
   if (filtered.length === 0) return null;
   return {
     from: match.from,
@@ -133,7 +135,14 @@ function dictTagSource(ctx: CompletionContext): CompletionResult | null {
 
   // Prefix match via binary search (O(log n + k))
   const start = lowerBound(tags, query);
-  const options: { label: string; displayLabel: string; detail: string; type: string; boost: number; apply: string }[] = [];
+  const options: {
+    label: string;
+    displayLabel: string;
+    detail: string;
+    type: string;
+    boost: number;
+    apply: string;
+  }[] = [];
   for (let i = start; i < tags.length && options.length < MAX_RESULTS; i++) {
     if (!tags[i].name.startsWith(query)) break;
     const name = formatName(tags[i].name);
@@ -149,7 +158,7 @@ function dictTagSource(ctx: CompletionContext): CompletionResult | null {
 
   // Substring fallback for 4+ chars if prefix found nothing, sorted by post count
   if (options.length === 0 && query.length >= 4) {
-    const hits: { opt: typeof options[0]; count: number }[] = [];
+    const hits: { opt: (typeof options)[0]; count: number }[] = [];
     for (let i = 0; i < tags.length && hits.length < MAX_RESULTS; i++) {
       if (tags[i].name.includes(query)) {
         const name = formatName(tags[i].name);

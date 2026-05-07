@@ -65,17 +65,36 @@ const KEY_MAP: Record<string, string> = {
 };
 
 const NUM_KEYS = new Set([
-  "steps", "cfgScale", "seed", "width", "height", "denoisingStrength", "clipSkip",
-  "batchSize", "batchCount", "cfgEnd", "guidanceRescale", "imageCfgScale",
-  "pagScale", "pagAdaptive", "subseed", "subseedStrength",
-  "hiresScale", "hiresSteps", "hiresDenoising", "hiresResizeX", "hiresResizeY", "hiresResizeMode",
-  "refinerStart", "refinerSteps",
-  "flowShift", "tomeRatio", "todoRatio",
+  "steps",
+  "cfgScale",
+  "seed",
+  "width",
+  "height",
+  "denoisingStrength",
+  "clipSkip",
+  "batchSize",
+  "batchCount",
+  "cfgEnd",
+  "guidanceRescale",
+  "imageCfgScale",
+  "pagScale",
+  "pagAdaptive",
+  "subseed",
+  "subseedStrength",
+  "hiresScale",
+  "hiresSteps",
+  "hiresDenoising",
+  "hiresResizeX",
+  "hiresResizeY",
+  "hiresResizeMode",
+  "refinerStart",
+  "refinerSteps",
+  "flowShift",
+  "tomeRatio",
+  "todoRatio",
 ]);
 
-const BOOL_KEYS = new Set([
-  "tiling", "hiresForce", "lowOrder", "thresholding", "rescale",
-]);
+const BOOL_KEYS = new Set(["tiling", "hiresForce", "lowOrder", "thresholding", "rescale"]);
 
 export function restoreFromPngInfo(parameters: Record<string, unknown>) {
   const update: Record<string, unknown> = {};
@@ -93,7 +112,14 @@ export function restoreFromPngInfo(parameters: Record<string, unknown>) {
   }
 
   // Auto-enable hires when any hires param is present
-  if (update["hiresUpscaler"] || update["hiresScale"] || update["hiresSteps"] || update["hiresDenoising"] || update["hiresResizeX"] || update["hiresResizeY"]) {
+  if (
+    update["hiresUpscaler"] ||
+    update["hiresScale"] ||
+    update["hiresSteps"] ||
+    update["hiresDenoising"] ||
+    update["hiresResizeX"] ||
+    update["hiresResizeY"]
+  ) {
     update["hiresEnabled"] = true;
   }
 

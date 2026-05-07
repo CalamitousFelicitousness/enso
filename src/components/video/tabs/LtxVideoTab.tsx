@@ -44,8 +44,7 @@ export function LtxVideoTab() {
       { engine: "LTX Video", model: ltxModel },
       {
         onSuccess: () => toast.success(`Loaded ${ltxModel}`),
-        onError: (err) =>
-          toast.error("Failed to load LTX model", { description: err.message }),
+        onError: (err) => toast.error("Failed to load LTX model", { description: err.message }),
       },
     );
   }, [ltxModel, loadModel]);
@@ -56,9 +55,7 @@ export function LtxVideoTab() {
       <SectionLeader title="Model" collapsible>
         <div className="space-y-1.5">
           <div className="flex items-center gap-2">
-            <Label className="text-2xs text-muted-foreground w-16 shrink-0">
-              Model
-            </Label>
+            <Label className="text-2xs text-muted-foreground w-16 shrink-0">Model</Label>
             <Combobox
               value={ltxModel}
               onValueChange={(v) => setParam("ltxModel", v)}
@@ -74,9 +71,7 @@ export function LtxVideoTab() {
             disabled={!ltxModel || loadModel.isPending}
             className="w-full"
           >
-            {loadModel.isPending ? (
-              <Loader2 size={14} className="animate-spin" />
-            ) : null}
+            {loadModel.isPending ? <Loader2 size={14} className="animate-spin" /> : null}
             Load Model
           </Button>
         </div>
@@ -145,7 +140,12 @@ export function LtxVideoTab() {
         />
       </SectionLeader>
 
-      <SectionLeader title="Upsample" enableable enabled={ltxUpsampleEnable} onToggleEnabled={(v) => setParam("ltxUpsampleEnable", v)}>
+      <SectionLeader
+        title="Upsample"
+        enableable
+        enabled={ltxUpsampleEnable}
+        onToggleEnabled={(v) => setParam("ltxUpsampleEnable", v)}
+      >
         <ParamSlider
           label="Ratio"
           value={ltxUpsampleRatio}
@@ -156,7 +156,12 @@ export function LtxVideoTab() {
         />
       </SectionLeader>
 
-      <SectionLeader title="Refine" enableable enabled={ltxRefineEnable} onToggleEnabled={(v) => setParam("ltxRefineEnable", v)}>
+      <SectionLeader
+        title="Refine"
+        enableable
+        enabled={ltxRefineEnable}
+        onToggleEnabled={(v) => setParam("ltxRefineEnable", v)}
+      >
         <ParamSlider
           label="Strength"
           value={ltxRefineStrength}
@@ -189,7 +194,12 @@ export function LtxVideoTab() {
         </ParamGrid>
       </SectionLeader>
 
-      <SectionLeader title="Audio" enableable enabled={ltxAudioEnable} onToggleEnabled={(v) => setParam("ltxAudioEnable", v)} />
+      <SectionLeader
+        title="Audio"
+        enableable
+        enabled={ltxAudioEnable}
+        onToggleEnabled={(v) => setParam("ltxAudioEnable", v)}
+      />
 
       <VideoOutputSection />
     </div>

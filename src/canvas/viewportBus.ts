@@ -17,7 +17,9 @@ export function createViewportBus(): ViewportBus {
     emit: (vp) => listeners.forEach((cb) => cb(vp)),
     subscribe: (cb) => {
       listeners.add(cb);
-      return () => { listeners.delete(cb); };
+      return () => {
+        listeners.delete(cb);
+      };
     },
   };
 }

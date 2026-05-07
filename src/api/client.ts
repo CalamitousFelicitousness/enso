@@ -41,7 +41,11 @@ export class ApiClient {
   }
 
   private getHeaders(): HeadersInit {
-    return { "Content-Type": "application/json", "Accept": "application/json", ...this.getAuthHeaders() };
+    return {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+      ...this.getAuthHeaders(),
+    };
   }
 
   private async request<T>(path: string, options: RequestInit = {}): Promise<T> {

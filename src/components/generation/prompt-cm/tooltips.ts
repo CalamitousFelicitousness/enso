@@ -2,12 +2,7 @@ import { hoverTooltip, type Tooltip, type EditorView } from "@codemirror/view";
 import type { Extension } from "@codemirror/state";
 import { api } from "@/api/client";
 import type { NetworkDetail } from "@/api/types/models";
-import {
-  TOKEN_PATTERN,
-  embeddingNamesFacet,
-  loraNamesFacet,
-  styleNamesFacet,
-} from "./facets";
+import { TOKEN_PATTERN, embeddingNamesFacet, loraNamesFacet, styleNamesFacet } from "./facets";
 
 function getCivitInfo(info: Record<string, unknown> | null | undefined) {
   if (!info || typeof info["id"] !== "number" || info["id"] <= 0) return null;
@@ -19,9 +14,7 @@ function getCivitInfo(info: Record<string, unknown> | null | undefined) {
     ? (firstVersion["trainedWords"] as string[]).filter(Boolean)
     : [];
   const baseModel =
-    typeof firstVersion?.["baseModel"] === "string"
-      ? firstVersion["baseModel"]
-      : null;
+    typeof firstVersion?.["baseModel"] === "string" ? firstVersion["baseModel"] : null;
   return {
     id: info["id"],
     name: typeof info["name"] === "string" ? info["name"] : null,
@@ -109,7 +102,12 @@ function loraTooltip(
   };
 }
 
-function styleTooltip(name: string, from: number, to: number, styles: import("@/api/types/models").PromptStyleV2[]): Tooltip {
+function styleTooltip(
+  name: string,
+  from: number,
+  to: number,
+  styles: import("@/api/types/models").PromptStyleV2[],
+): Tooltip {
   const style = styles.find((s) => s.name === name);
   return {
     pos: from,
@@ -128,9 +126,7 @@ function styleTooltip(name: string, from: number, to: number, styles: import("@/
         const preview = document.createElement("div");
         preview.className = "cm-tooltip-token-detail";
         preview.textContent =
-          style.prompt.length > 120
-            ? style.prompt.slice(0, 120) + "…"
-            : style.prompt;
+          style.prompt.length > 120 ? style.prompt.slice(0, 120) + "…" : style.prompt;
         dom.appendChild(preview);
       }
       if (style?.description) {
@@ -211,13 +207,8 @@ export function promptTooltips(): Extension {
       const embeddings = view.state.facet(embeddingNamesFacet);
       if (embeddings.length > 0) {
         const sorted = [...embeddings].sort((a, b) => b.length - a.length);
-        const escaped = sorted.map((n) =>
-          n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"),
-        );
-        const re = new RegExp(
-          `(?<=^|[\\s,])(?:${escaped.join("|")})(?=[\\s,]|$)`,
-          "g",
-        );
+        const escaped = sorted.map((n) => n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+        const re = new RegExp(`(?<=^|[\\s,])(?:${escaped.join("|")})(?=[\\s,]|$)`, "g");
         for (const m of doc.matchAll(re)) {
           const from = m.index;
           const to = from + m[0].length;

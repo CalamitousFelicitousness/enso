@@ -1,7 +1,15 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../client";
 import { deleteJobPayload } from "@/lib/jobPayloadDb";
-import type { Job, JobListResponse, JobRequest, PurgeResponse, JobStats, BulkJobRequest, BulkJobResponse } from "../types/v2";
+import type {
+  Job,
+  JobListResponse,
+  JobRequest,
+  PurgeResponse,
+  JobStats,
+  BulkJobRequest,
+  BulkJobResponse,
+} from "../types/v2";
 
 export function useSubmitJob() {
   const queryClient = useQueryClient();
@@ -72,7 +80,8 @@ export function usePurgeJobs() {
 export function useBulkJobAction() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (params: BulkJobRequest) => api.post<BulkJobResponse>("/sdapi/v2/jobs/bulk", params),
+    mutationFn: (params: BulkJobRequest) =>
+      api.post<BulkJobResponse>("/sdapi/v2/jobs/bulk", params),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["v2-jobs"] }),
   });
 }

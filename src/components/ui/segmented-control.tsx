@@ -18,14 +18,7 @@ export interface SegmentedControlProps<T extends string = string> {
   value: T;
   onValueChange: (value: T) => void;
   onActiveClick?: (value: T) => void;
-  variant?:
-    | "default"
-    | "icon-label"
-    | "icon-only"
-    | "dense"
-    | "tabs"
-    | "stacked"
-    | "neon-wire";
+  variant?: "default" | "icon-label" | "icon-only" | "dense" | "tabs" | "stacked" | "neon-wire";
   orientation?: "horizontal" | "vertical";
   animated?: boolean;
   className?: string;
@@ -37,19 +30,13 @@ const itemVariants = cva(
   {
     variants: {
       variant: {
-        default:
-          "h-6 px-3 text-2xs font-medium uppercase tracking-wider",
-        "icon-label":
-          "h-6 px-3 gap-1.5 text-2xs font-medium uppercase tracking-wider",
+        default: "h-6 px-3 text-2xs font-medium uppercase tracking-wider",
+        "icon-label": "h-6 px-3 gap-1.5 text-2xs font-medium uppercase tracking-wider",
         "icon-only": "h-6 px-2",
-        dense:
-          "h-5 px-1.5 text-3xs font-medium tracking-wide",
-        tabs:
-          "h-8 px-3 text-xs font-medium",
-        stacked:
-          "flex-col gap-0.5 py-2 px-3 text-3xs font-medium uppercase tracking-wider",
-        "neon-wire":
-          "h-7 px-2.5 text-[0.6875rem] font-medium whitespace-nowrap",
+        dense: "h-5 px-1.5 text-3xs font-medium tracking-wide",
+        tabs: "h-8 px-3 text-xs font-medium",
+        stacked: "flex-col gap-0.5 py-2 px-3 text-3xs font-medium uppercase tracking-wider",
+        "neon-wire": "h-7 px-2.5 text-[0.6875rem] font-medium whitespace-nowrap",
       },
       animated: {
         true: "",
@@ -166,8 +153,7 @@ function SegmentedControlInner<T extends string = string>(
         {options.map((option, index) => {
           const isActive = option.value === value;
           const Icon = option.icon;
-          const nextIsActive =
-            index < options.length - 1 && options[index + 1].value === value;
+          const nextIsActive = index < options.length - 1 && options[index + 1].value === value;
 
           return (
             <React.Fragment key={option.value}>
@@ -182,9 +168,7 @@ function SegmentedControlInner<T extends string = string>(
                     ? "text-muted-foreground/60 hover:text-muted-foreground flex-1"
                     : "text-muted-foreground hover:text-foreground/70",
                 )}
-                style={
-                  isNeonWire ? undefined : { borderRadius: "var(--control-inner-radius)" }
-                }
+                style={isNeonWire ? undefined : { borderRadius: "var(--control-inner-radius)" }}
               >
                 {/* Neon-wire underline indicator */}
                 {isNeonWire && effectiveAnimated && isActive && (
@@ -221,17 +205,12 @@ function SegmentedControlInner<T extends string = string>(
                       className="relative z-10 shrink-0"
                     />
                   )}
-                {variant !== "icon-only" && (
-                  <span className="relative z-[1]">{option.label}</span>
-                )}
+                {variant !== "icon-only" && <span className="relative z-[1]">{option.label}</span>}
               </ToggleGroupPrimitive.Item>
               {/* Neon-wire separator between items */}
-              {isNeonWire &&
-                index < options.length - 1 &&
-                !isActive &&
-                !nextIsActive && (
-                  <div className="self-center w-px h-3.5 dark:bg-white/[0.04] bg-black/[0.04] shrink-0" />
-                )}
+              {isNeonWire && index < options.length - 1 && !isActive && !nextIsActive && (
+                <div className="self-center w-px h-3.5 dark:bg-white/[0.04] bg-black/[0.04] shrink-0" />
+              )}
             </React.Fragment>
           );
         })}
@@ -240,9 +219,7 @@ function SegmentedControlInner<T extends string = string>(
   );
 }
 
-const SegmentedControl = React.forwardRef(SegmentedControlInner) as <
-  T extends string = string,
->(
+const SegmentedControl = React.forwardRef(SegmentedControlInner) as <T extends string = string>(
   props: SegmentedControlProps<T> & React.RefAttributes<HTMLDivElement>,
 ) => React.ReactElement;
 

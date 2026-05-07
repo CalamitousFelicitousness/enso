@@ -12,7 +12,10 @@ import type {
   StorageInfo,
 } from "../types/system";
 
-export function useHistory(params: { since?: number; job?: string; op?: string; offset?: number; limit?: number } = {}, enabled = true) {
+export function useHistory(
+  params: { since?: number; job?: string; op?: string; offset?: number; limit?: number } = {},
+  enabled = true,
+) {
   const queryParams: Record<string, string> = {};
   if (params.since != null) queryParams["since"] = String(params.since);
   if (params.job) queryParams["job"] = params.job;
@@ -90,7 +93,8 @@ export function useApplyUpdate() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationKey: ["update-apply"],
-    mutationFn: (req: UpdateApplyRequest) => api.post<UpdateApplyResult>("/sdapi/v2/update/apply", req),
+    mutationFn: (req: UpdateApplyRequest) =>
+      api.post<UpdateApplyResult>("/sdapi/v2/update/apply", req),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["update-check"] });
       void queryClient.invalidateQueries({ queryKey: ["server-info"] });
@@ -111,7 +115,8 @@ export function useRunBenchmark() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationKey: ["benchmark-run"],
-    mutationFn: (req: BenchmarkRunRequest) => api.post<BenchmarkRunResult>("/sdapi/v2/benchmark/run", req),
+    mutationFn: (req: BenchmarkRunRequest) =>
+      api.post<BenchmarkRunResult>("/sdapi/v2/benchmark/run", req),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["benchmark-results"] });
     },

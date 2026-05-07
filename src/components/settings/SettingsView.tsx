@@ -1,23 +1,10 @@
 import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { toast } from "sonner";
-import {
-  useOptions,
-  useSetOptions,
-  useOptionsInfo,
-} from "@/api/hooks/useSettings";
-import {
-  useModelList,
-  useSamplerList,
-  useVaeList,
-  useUpscalerList,
-} from "@/api/hooks/useModels";
+import { useOptions, useSetOptions, useOptionsInfo } from "@/api/hooks/useSettings";
+import { useModelList, useSamplerList, useVaeList, useUpscalerList } from "@/api/hooks/useModels";
 import type { OptionInfoMeta } from "@/api/types/settings";
 import type { SettingSectionDef, SettingDef } from "@/lib/settingsSchema";
-import {
-  settingsSchema,
-  getSettingsMap,
-  metaToSettingDef,
-} from "@/lib/settingsSchema";
+import { settingsSchema, getSettingsMap, metaToSettingDef } from "@/lib/settingsSchema";
 import { useHfSaveSettings } from "@/api/hooks/useHuggingface";
 import { getParamHelpPlain } from "@/data/parameterHelp";
 import { SettingsSection } from "./SettingsSection";
@@ -28,15 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { cn, toDisplayString } from "@/lib/utils";
-import {
-  Save,
-  RotateCcw,
-  Search,
-  ListRestart,
-  Plug,
-  Unplug,
-  Check,
-} from "lucide-react";
+import { Save, RotateCcw, Search, ListRestart, Plug, Unplug, Check } from "lucide-react";
 import { useUiStore } from "@/stores/uiStore";
 import type { ColorMode, CanvasBackground as CanvasBg } from "@/stores/uiStore";
 import { useConnectionStore } from "@/stores/connectionStore";
@@ -203,9 +182,7 @@ function SettingRow({
     <div className="flex flex-col gap-0.5">
       <span className="text-xs font-medium">{label}</span>
       {description && (
-        <span className="text-3xs text-muted-foreground leading-tight">
-          {description}
-        </span>
+        <span className="text-3xs text-muted-foreground leading-tight">{description}</span>
       )}
     </div>
   );
@@ -248,10 +225,7 @@ function AppearancePanel() {
     <div>
       <h3 className="text-sm font-medium mb-4">Appearance</h3>
       <div className="space-y-4">
-        <SettingRow
-          label="Color mode"
-          description="Overall color scheme of the interface"
-        >
+        <SettingRow label="Color mode" description="Overall color scheme of the interface">
           <SegmentedControl
             options={COLOR_MODES}
             value={colorMode}
@@ -277,8 +251,7 @@ function AppearancePanel() {
               value={hexInput}
               onChange={(e) => {
                 setHexInput(e.target.value);
-                if (HEX_REGEX.test(e.target.value))
-                  setAccentColor(e.target.value);
+                if (HEX_REGEX.test(e.target.value)) setAccentColor(e.target.value);
               }}
               className="h-7 w-20 text-xs font-mono"
             />
@@ -341,7 +314,6 @@ function AppearancePanel() {
   );
 }
 
-
 function maskValue(v: string) {
   if (v.length <= 4) return "\u2022".repeat(v.length);
   return `${v.slice(0, 2)}${"•".repeat(Math.min(v.length - 4, 6))}${v.slice(-2)}`;
@@ -356,9 +328,7 @@ function ConnectionPanel() {
   const storeReset = useConnectionStore((s) => s.reset);
 
   const [urlInput, setUrlInput] = useState(backendUrl);
-  const [status, setStatus] = useState<
-    "idle" | "checking" | "connected" | "unreachable"
-  >("idle");
+  const [status, setStatus] = useState<"idle" | "checking" | "connected" | "unreachable">("idle");
 
   const authConfigured = username.length > 0 || password.length > 0;
   const [editingAuth, setEditingAuth] = useState(false);
@@ -426,10 +396,7 @@ function ConnectionPanel() {
     <div>
       <h3 className="text-sm font-medium mb-4">Connection</h3>
       <div className="space-y-4">
-        <SettingRow
-          label="Backend URL"
-          description="Leave empty to use the current origin"
-        >
+        <SettingRow label="Backend URL" description="Leave empty to use the current origin">
           <div className="flex items-center gap-2">
             <Input
               value={urlInput}
@@ -441,30 +408,21 @@ function ConnectionPanel() {
             {status === "checking" && (
               <span className="text-xs text-muted-foreground">Checking...</span>
             )}
-            {status === "connected" && (
-              <span className="text-xs text-emerald-500">Connected</span>
-            )}
+            {status === "connected" && <span className="text-xs text-emerald-500">Connected</span>}
             {status === "unreachable" && (
               <span className="text-xs text-destructive">Unreachable</span>
             )}
           </div>
         </SettingRow>
 
-        <SettingRow
-          label="Credentials"
-          description="Basic auth username and password (optional)"
-        >
+        <SettingRow label="Credentials" description="Basic auth username and password (optional)">
           {authConfigured && !editingAuth ? (
             <div className="flex items-center gap-2">
               <Check className="h-3 w-3 text-green-500 shrink-0" />
 
-              <span className="text-xs text-muted-foreground font-mono">
-                {maskValue(username)}
-              </span>
+              <span className="text-xs text-muted-foreground font-mono">{maskValue(username)}</span>
               <span className="text-xs text-muted-foreground">/</span>
-              <span className="text-xs text-muted-foreground font-mono">
-                {maskValue(password)}
-              </span>
+              <span className="text-xs text-muted-foreground font-mono">{maskValue(password)}</span>
               <Button
                 size="xs"
                 variant="ghost"
@@ -537,12 +495,7 @@ function ConnectionPanel() {
             <Plug size={14} />
             Connect
           </Button>
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={handleReset}
-            className="text-xs"
-          >
+          <Button variant="secondary" size="sm" onClick={handleReset} className="text-xs">
             <Unplug size={14} />
             Reset to default
           </Button>
@@ -595,22 +548,12 @@ export function SettingsView({ onDirtyChange }: SettingsViewProps = {}) {
   const dynamicChoices = useMemo(() => {
     const choices: Record<string, string[]> = {};
     if (models) choices["sd_model_checkpoint"] = models.map((m) => m.title);
-    if (models)
-      choices["sd_model_refiner"] = [
-        SENTINEL_NONE,
-        ...models.map((m) => m.title),
-      ];
+    if (models) choices["sd_model_refiner"] = [SENTINEL_NONE, ...models.map((m) => m.title)];
 
-    if (vaes)
-      choices["sd_vae"] = [
-        SENTINEL_AUTOMATIC,
-        SENTINEL_NONE,
-        ...vaes.map((v) => v.name),
-      ];
+    if (vaes) choices["sd_vae"] = [SENTINEL_AUTOMATIC, SENTINEL_NONE, ...vaes.map((v) => v.name)];
 
     if (samplers) choices["sampler_name"] = samplers.map((s) => s.name);
-    if (upscalers)
-      choices["upscaler_for_img2img"] = upscalers.map((u) => u.name);
+    if (upscalers) choices["upscaler_for_img2img"] = upscalers.map((u) => u.name);
     return choices;
   }, [models, samplers, vaes, upscalers]);
 
@@ -655,15 +598,13 @@ export function SettingsView({ onDirtyChange }: SettingsViewProps = {}) {
     return result;
   }, [optionsInfo, mergedOptions, curatedMap]);
 
-  const backendReady =
-    !isLoading && !isInfoLoading && !!options && !!optionsInfo;
+  const backendReady = !isLoading && !isInfoLoading && !!options && !!optionsInfo;
 
   // Resolve active section: use first section if none selected or selection is stale
   const resolvedActive = useMemo(() => {
     if (activeSection === CONNECTION_SECTION_ID) return CONNECTION_SECTION_ID;
     if (activeSection === APPEARANCE_SECTION_ID) return APPEARANCE_SECTION_ID;
-    if (activeSection && allSections.some((s) => s.id === activeSection))
-      return activeSection;
+    if (activeSection && allSections.some((s) => s.id === activeSection)) return activeSection;
     // When backend is ready, default to the first backend section;
     // otherwise show Connection so users can fix the URL
     if (backendReady && allSections.length > 0) return allSections[0].id;
@@ -766,10 +707,13 @@ export function SettingsView({ onDirtyChange }: SettingsViewProps = {}) {
     });
   }, [pendingSearch, clearPendingSearch]);
 
-  const handleNavigateToSection = useCallback((id: string) => {
-    setActiveSection(id);
-    setSearchQuery("");
-  }, [setActiveSection]);
+  const handleNavigateToSection = useCallback(
+    (id: string) => {
+      setActiveSection(id);
+      setSearchQuery("");
+    },
+    [setActiveSection],
+  );
 
   return (
     <div className="flex h-full">
@@ -797,8 +741,7 @@ export function SettingsView({ onDirtyChange }: SettingsViewProps = {}) {
             {allSections.map((section) => {
               const isMatch = matchingSectionIds?.has(section.id);
               const matchCount = searchQuery
-                ? filteredSections.find((s) => s.id === section.id)?.settings
-                    .length
+                ? filteredSections.find((s) => s.id === section.id)?.settings.length
                 : undefined;
               return (
                 <button
@@ -910,8 +853,9 @@ export function SettingsView({ onDirtyChange }: SettingsViewProps = {}) {
               user is on a backend section both panels are hidden. */}
           <KeepAliveSwitch active={resolvedActive}>{STATIC_PANELS}</KeepAliveSwitch>
 
-          {resolvedActive !== CONNECTION_SECTION_ID && resolvedActive !== APPEARANCE_SECTION_ID && (
-            !backendReady ? (
+          {resolvedActive !== CONNECTION_SECTION_ID &&
+            resolvedActive !== APPEARANCE_SECTION_ID &&
+            (!backendReady ? (
               <div className="flex items-center justify-center h-32 text-muted-foreground text-sm">
                 Loading settings...
               </div>
@@ -951,8 +895,7 @@ export function SettingsView({ onDirtyChange }: SettingsViewProps = {}) {
                   />
                 );
               })()
-            )
-          )}
+            ))}
         </div>
       </ScrollArea>
     </div>

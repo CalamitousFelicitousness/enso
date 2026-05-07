@@ -1,13 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from "react";
-import {
-  Layer,
-  Rect,
-  Text,
-  Image as KonvaImage,
-  Group,
-  Transformer,
-  Line,
-} from "react-konva";
+import { Layer, Rect, Text, Image as KonvaImage, Group, Transformer, Line } from "react-konva";
 import { useControlStore } from "@/stores/controlStore";
 import type { ControlUnitType } from "@/api/types/control";
 import { useCanvasStore } from "@/stores/canvasStore";
@@ -59,27 +51,11 @@ export function CornerBrackets({
   };
   return (
     <>
+      <Line points={[x - o, y - o + s, x - o, y - o, x - o + s, y - o]} {...shared} />
+      <Line points={[x + w + o - s, y - o, x + w + o, y - o, x + w + o, y - o + s]} {...shared} />
+      <Line points={[x - o, y + h + o - s, x - o, y + h + o, x - o + s, y + h + o]} {...shared} />
       <Line
-        points={[x - o, y - o + s, x - o, y - o, x - o + s, y - o]}
-        {...shared}
-      />
-      <Line
-        points={[x + w + o - s, y - o, x + w + o, y - o, x + w + o, y - o + s]}
-        {...shared}
-      />
-      <Line
-        points={[x - o, y + h + o - s, x - o, y + h + o, x - o + s, y + h + o]}
-        {...shared}
-      />
-      <Line
-        points={[
-          x + w + o - s,
-          y + h + o,
-          x + w + o,
-          y + h + o,
-          x + w + o,
-          y + h + o - s,
-        ]}
+        points={[x + w + o - s, y + h + o, x + w + o, y + h + o, x + w + o, y + h + o - s]}
         {...shared}
       />
     </>
@@ -101,22 +77,13 @@ interface ProcessedImageState {
   htmlImage: HTMLImageElement;
 }
 
-export function ControlFrameLayer({
-  frames,
-  onPickImage,
-}: ControlFrameLayerProps) {
+export function ControlFrameLayer({ frames, onPickImage }: ControlFrameLayerProps) {
   const units = useControlStore((s) => s.units);
-  const setSelectedControlFrame = useCanvasStore(
-    (s) => s.setSelectedControlFrame,
-  );
+  const setSelectedControlFrame = useCanvasStore((s) => s.setSelectedControlFrame);
 
   // Track loaded images per unit index
-  const [imageMap, setImageMap] = useState<Map<number, FrameImageState>>(
-    new Map(),
-  );
-  const [processedMap, setProcessedMap] = useState<
-    Map<number, ProcessedImageState>
-  >(new Map());
+  const [imageMap, setImageMap] = useState<Map<number, FrameImageState>>(new Map());
+  const [processedMap, setProcessedMap] = useState<Map<number, ProcessedImageState>>(new Map());
   const prevUrlsRef = useRef<Map<number, string>>(new Map());
   const prevProcessedUrlsRef = useRef<Map<number, string>>(new Map());
 
@@ -270,8 +237,7 @@ export function ControlFrameLayer({
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-      for (const entry of imageMap.values())
-        URL.revokeObjectURL(entry.objectUrl);
+      for (const entry of imageMap.values()) URL.revokeObjectURL(entry.objectUrl);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -296,10 +262,7 @@ export function ControlFrameLayer({
         const imgState = imageMap.get(frame.unitIndex);
         const hasImage = !!imgState;
         const unit = units[frame.unitIndex];
-        const fitMode =
-          unit?.unitType === "reference"
-            ? "contain"
-            : (unit?.fitMode ?? "contain");
+        const fitMode = unit?.unitType === "reference" ? "contain" : (unit?.fitMode ?? "contain");
         const freeTransform = unit?.freeTransform ?? null;
 
         // Collect processed images for all slots
@@ -374,8 +337,7 @@ function ControlFrame({
   freeTransform,
   onClick,
 }: ControlFrameProps) {
-  const borderColor =
-    unitType === "reference" ? INPUT_COLOR_REFERENCE : BORDER_COLOR;
+  const borderColor = unitType === "reference" ? INPUT_COLOR_REFERENCE : BORDER_COLOR;
   const activeTool = useCanvasStore((s) => s.activeTool);
   const selectedControlFrame = useCanvasStore((s) => s.selectedControlFrame);
   const setFreeTransform = useControlStore((s) => s.setFreeTransform);
@@ -456,12 +418,7 @@ function ControlFrame({
   const resolvedFree =
     isFree && image
       ? (freeTransform ??
-        computeAutoCenter(
-          image.naturalWidth,
-          image.naturalHeight,
-          frame.width,
-          frame.height,
-        ))
+        computeAutoCenter(image.naturalWidth, image.naturalHeight, frame.width, frame.height))
       : null;
 
   return (
@@ -482,12 +439,7 @@ function ControlFrame({
       {/* Image rendering */}
       {isFree && image && resolvedFree ? (
         // Free mode: draggable image clipped to frame bounds
-        <Group
-          clipX={frame.x}
-          clipY={frame.y}
-          clipWidth={frame.width}
-          clipHeight={frame.height}
-        >
+        <Group clipX={frame.x} clipY={frame.y} clipWidth={frame.width} clipHeight={frame.height}>
           <KonvaImage
             ref={freeImageRef}
             image={image}
@@ -526,9 +478,7 @@ function ControlFrame({
             <Line
               key={i}
               points={
-                g.orientation === "v"
-                  ? [g.pos, -5000, g.pos, 5000]
-                  : [-5000, g.pos, 5000, g.pos]
+                g.orientation === "v" ? [g.pos, -5000, g.pos, 5000] : [-5000, g.pos, 5000, g.pos]
               }
               stroke="#22d3ee"
               strokeWidth={1}
@@ -630,14 +580,7 @@ interface ProcessedSlotRenderProps {
   fit: ReturnType<typeof computeFit>;
 }
 
-function ProcessedSlotRender({
-  frameX,
-  y,
-  width,
-  height,
-  image,
-  fit,
-}: ProcessedSlotRenderProps) {
+function ProcessedSlotRender({ frameX, y, width, height, image, fit }: ProcessedSlotRenderProps) {
   return (
     <>
       <KonvaImage
@@ -659,13 +602,7 @@ function ProcessedSlotRender({
         strokeWidth={1}
         listening={false}
       />
-      <CornerBrackets
-        x={frameX}
-        y={y}
-        w={width}
-        h={height}
-        color={PROCESSED_COLOR}
-      />
+      <CornerBrackets x={frameX} y={y} w={width} h={height} color={PROCESSED_COLOR} />
     </>
   );
 }

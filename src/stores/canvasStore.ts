@@ -6,7 +6,17 @@ import { base64ToBlob } from "@/lib/utils";
 import { createIdbStorage } from "@/lib/idbStorage";
 import type { FrameId } from "@/canvas/frameList";
 
-export type ToolType = "move" | "brush" | "eraser" | "maskBrush" | "maskEraser" | "rectSelect" | "lassoSelect" | "colorPicker" | "zoom" | "pan";
+export type ToolType =
+  | "move"
+  | "brush"
+  | "eraser"
+  | "maskBrush"
+  | "maskEraser"
+  | "rectSelect"
+  | "lassoSelect"
+  | "colorPicker"
+  | "zoom"
+  | "pan";
 
 export interface CanvasLayer {
   id: string;
@@ -19,15 +29,15 @@ export interface CanvasLayer {
 
 export interface ImageLayer extends CanvasLayer {
   type: "image";
-  imageData: string;       // object URL for Konva display
-  base64: string;          // raw base64 for flattening / API
-  file: File;              // original File object
-  naturalWidth: number;    // original image pixel width
-  naturalHeight: number;   // original image pixel height
+  imageData: string; // object URL for Konva display
+  base64: string; // raw base64 for flattening / API
+  file: File; // original File object
+  naturalWidth: number; // original image pixel width
+  naturalHeight: number; // original image pixel height
   x: number;
   y: number;
-  width: number;           // = naturalWidth (display reference)
-  height: number;          // = naturalHeight (display reference)
+  width: number; // = naturalWidth (display reference)
+  height: number; // = naturalHeight (display reference)
   rotation: number;
   scaleX: number;
   scaleY: number;
@@ -35,8 +45,8 @@ export interface ImageLayer extends CanvasLayer {
 
 export interface MaskObjectLayer extends CanvasLayer {
   type: "mask";
-  imageData: string;       // object URL of colored display image
-  base64: string;          // colored PNG base64 for persistence
+  imageData: string; // object URL of colored display image
+  base64: string; // colored PNG base64 for persistence
   x: number;
   y: number;
   width: number;
@@ -66,7 +76,7 @@ interface CanvasState {
   maskColor: string;
   inputRole: "initial" | "reference";
   selectedControlFrame: number | null;
-  panelCollapsedOverrides: Map<number, boolean>;  // explicit user overrides
+  panelCollapsedOverrides: Map<number, boolean>; // explicit user overrides
   canvasMode: "focus" | "canvas";
   focusedFrameId: FrameId | null;
   focusFitTrigger: number;
@@ -165,19 +175,19 @@ export const useCanvasStore = create<CanvasState>()(
       modeLocked: false,
 
       setInputRole: (role) => set({ inputRole: role }),
-      setCanvasMode: (mode) => set((s) => ({
-        canvasMode: mode,
-        focusedFrameId: mode === "focus" && !s.focusedFrameId ? "output" : s.focusedFrameId,
-      })),
+      setCanvasMode: (mode) =>
+        set((s) => ({
+          canvasMode: mode,
+          focusedFrameId: mode === "focus" && !s.focusedFrameId ? "output" : s.focusedFrameId,
+        })),
       setFocusedFrame: (id) => set({ focusedFrameId: id }),
-      switchToCanvasMode: () => set((s) => s.canvasMode === "canvas" ? s : { canvasMode: "canvas" }),
+      switchToCanvasMode: () =>
+        set((s) => (s.canvasMode === "canvas" ? s : { canvasMode: "canvas" })),
       bumpFocusFitTrigger: () => set((s) => ({ focusFitTrigger: s.focusFitTrigger + 1 })),
       setModeLocked: (locked) => set({ modeLocked: locked }),
-      setViewport: (viewport) =>
-        set((s) => ({ viewport: { ...s.viewport, ...viewport } })),
+      setViewport: (viewport) => set((s) => ({ viewport: { ...s.viewport, ...viewport } })),
 
-      addLayer: (layer) =>
-        set((s) => ({ layers: [...s.layers, layer] })),
+      addLayer: (layer) => set((s) => ({ layers: [...s.layers, layer] })),
 
       addImageLayer: (file, base64, objectUrl, w, h) => {
         const gen = useGenerationStore.getState();
@@ -247,11 +257,12 @@ export const useCanvasStore = create<CanvasState>()(
       setMaskColor: (color) => set({ maskColor: color }),
       setSelectedControlFrame: (index) => set({ selectedControlFrame: index }),
 
-      togglePanelCollapsed: (index, currentCollapsed: boolean) => set((s) => {
-        const newMap = new Map(s.panelCollapsedOverrides);
-        newMap.set(index, !currentCollapsed);
-        return { panelCollapsedOverrides: newMap };
-      }),
+      togglePanelCollapsed: (index, currentCollapsed: boolean) =>
+        set((s) => {
+          const newMap = new Map(s.panelCollapsedOverrides);
+          newMap.set(index, !currentCollapsed);
+          return { panelCollapsedOverrides: newMap };
+        }),
 
       clearLayers: () => {
         const { layers } = get();
@@ -318,7 +329,10 @@ export const useCanvasStore = create<CanvasState>()(
         }
         set((s) => ({
           layers: s.layers.filter((l) => l.type !== "mask"),
-          activeLayerId: s.activeLayerId && s.layers.find((l) => l.id === s.activeLayerId)?.type === "mask" ? null : s.activeLayerId,
+          activeLayerId:
+            s.activeLayerId && s.layers.find((l) => l.id === s.activeLayerId)?.type === "mask"
+              ? null
+              : s.activeLayerId,
         }));
       },
     }),

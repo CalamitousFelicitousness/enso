@@ -71,9 +71,7 @@ export function getAllCommands(): PaletteCommand[] {
  * commands are registered or unregistered. Use this in CommandPalette.
  */
 export function useCommands(): PaletteCommand[] {
-  return useCommandRegistry(
-    useShallow((s) => Array.from(s.commands.values())),
-  );
+  return useCommandRegistry(useShallow((s) => Array.from(s.commands.values())));
 }
 
 /**

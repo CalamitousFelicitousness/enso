@@ -13,12 +13,7 @@ interface ScriptArgControlProps {
   disabled?: boolean;
 }
 
-export function ScriptArgControl({
-  arg,
-  value,
-  onChange,
-  disabled,
-}: ScriptArgControlProps) {
+export function ScriptArgControl({ arg, value, onChange, disabled }: ScriptArgControlProps) {
   if (arg.choices && arg.choices.length > 0) {
     return (
       <div
@@ -37,11 +32,7 @@ export function ScriptArgControl({
     );
   }
 
-  if (
-    arg.minimum != null &&
-    arg.maximum != null &&
-    typeof (value ?? arg.value) === "number"
-  ) {
+  if (arg.minimum != null && arg.maximum != null && typeof (value ?? arg.value) === "number") {
     return (
       <ParamSlider
         label={arg.label}
@@ -73,12 +64,8 @@ export function ScriptArgControl({
   }
 
   return (
-    <div
-      className={`flex items-center gap-2${disabled ? " opacity-50 pointer-events-none" : ""}`}
-    >
-      <ParamLabel className="text-2xs text-muted-foreground flex-shrink-0">
-        {arg.label}
-      </ParamLabel>
+    <div className={`flex items-center gap-2${disabled ? " opacity-50 pointer-events-none" : ""}`}>
+      <ParamLabel className="text-2xs text-muted-foreground flex-shrink-0">{arg.label}</ParamLabel>
       <Input
         value={toDisplayString(value ?? arg.value)}
         onChange={(e) => onChange(e.target.value)}

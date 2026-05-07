@@ -77,9 +77,7 @@ export function MergeSubTab() {
   }
 
   if (methodsLoading)
-    return (
-      <p className="text-xs text-muted-foreground">Loading merge methods...</p>
-    );
+    return <p className="text-xs text-muted-foreground">Loading merge methods...</p>;
 
   return (
     <div className="space-y-3">
@@ -103,9 +101,7 @@ export function MergeSubTab() {
         />
 
         {methodDoc && (
-          <p className="text-3xs text-muted-foreground mt-1">
-            {methodDoc.split("\n")[0]}
-          </p>
+          <p className="text-3xs text-muted-foreground mt-1">{methodDoc.split("\n")[0]}</p>
         )}
       </div>
 
@@ -175,11 +171,7 @@ export function MergeSubTab() {
         onClick={() => setShowAdvanced(!showAdvanced)}
         className="flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground w-full"
       >
-        {showAdvanced ? (
-          <ChevronDown className="h-3 w-3" />
-        ) : (
-          <ChevronRight className="h-3 w-3" />
-        )}
+        {showAdvanced ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
         Advanced options
       </button>
       {showAdvanced && (
@@ -258,11 +250,7 @@ export function MergeSubTab() {
               </Label>
             </div>
             <div className="flex items-center gap-2">
-              <Checkbox
-                id="merge-prune"
-                checked={prune}
-                onCheckedChange={(v) => setPrune(!!v)}
-              />
+              <Checkbox id="merge-prune" checked={prune} onCheckedChange={(v) => setPrune(!!v)} />
 
               <Label htmlFor="merge-prune" className="text-2xs">
                 Prune
@@ -317,9 +305,7 @@ export function MergeSubTab() {
         {merge.isPending && <Loader2 className="h-3 w-3 animate-spin mr-1" />}
         Merge
       </Button>
-      {merge.data && (
-        <p className="text-2xs text-muted-foreground">{merge.data.status}</p>
-      )}
+      {merge.data && <p className="text-2xs text-muted-foreground">{merge.data.status}</p>}
     </div>
   );
 }

@@ -72,8 +72,7 @@ export function GalleryLightbox() {
 
   const handleCompare = useCallback(() => {
     if (!fullUrl || lightboxIndex === null) return;
-    const nextIndex =
-      lightboxIndex < maxIndex ? lightboxIndex + 1 : lightboxIndex - 1;
+    const nextIndex = lightboxIndex < maxIndex ? lightboxIndex + 1 : lightboxIndex - 1;
     if (nextIndex < 0 || nextIndex > maxIndex) return;
     const sortedFiles = useGalleryStore.getState().sortedFiles;
     const nextFile = sortedFiles[nextIndex];
@@ -83,10 +82,7 @@ export function GalleryLightbox() {
     const bName = nextFile.relativePath.split("/").pop() ?? "Image B";
     useComparisonStore
       .getState()
-      .openComparison(
-        { src: fullUrl, label: aName },
-        { src: nextUrl, label: bName },
-      );
+      .openComparison({ src: fullUrl, label: aName }, { src: nextUrl, label: bName });
   }, [fullUrl, lightboxIndex, maxIndex, file]);
 
   // Keyboard shortcuts (scoped to "lightbox", only active when open AND the
@@ -99,16 +95,8 @@ export function GalleryLightbox() {
   useShortcut("lightbox-prev", () => navigate(-1), active);
   useShortcut("lightbox-next", () => navigate(1), active);
   useShortcut("lightbox-zoom-in", () => zoom.setScale((s) => s * 1.25), active);
-  useShortcut(
-    "lightbox-zoom-in-eq",
-    () => zoom.setScale((s) => s * 1.25),
-    active,
-  );
-  useShortcut(
-    "lightbox-zoom-out",
-    () => zoom.setScale((s) => s / 1.25),
-    active,
-  );
+  useShortcut("lightbox-zoom-in-eq", () => zoom.setScale((s) => s * 1.25), active);
+  useShortcut("lightbox-zoom-out", () => zoom.setScale((s) => s / 1.25), active);
   useShortcut("lightbox-zoom-reset", () => zoom.resetTransform(), active);
 
   if (!isOpen || !file) return null;
@@ -117,18 +105,13 @@ export function GalleryLightbox() {
   const isVideo = isVideoFile(file.relativePath);
 
   return (
-    <div
-      className="fixed inset-0 z-50 bg-black/90 flex flex-col"
-      onClick={closeLightbox}
-    >
+    <div className="fixed inset-0 z-50 bg-black/90 flex flex-col" onClick={closeLightbox}>
       {/* Top bar */}
       <div
         className="flex items-center justify-between px-4 py-2 flex-shrink-0"
         onClick={(e) => e.stopPropagation()}
       >
-        <span className="text-xs text-white/70 truncate max-w-[50%]">
-          {filename}
-        </span>
+        <span className="text-xs text-white/70 truncate max-w-[50%]">{filename}</span>
         <div className="flex items-center gap-1">
           {!isVideo && (
             <>
@@ -229,13 +212,7 @@ export function GalleryLightbox() {
   );
 }
 
-function LightboxButton({
-  children,
-  onClick,
-}: {
-  children: React.ReactNode;
-  onClick: () => void;
-}) {
+function LightboxButton({ children, onClick }: { children: React.ReactNode; onClick: () => void }) {
   return (
     <button
       onClick={onClick}

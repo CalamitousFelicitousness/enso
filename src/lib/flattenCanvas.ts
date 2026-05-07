@@ -140,7 +140,17 @@ export async function compositeFitImage(
   const ctx = canvas.getContext("2d")!;
   ctx.imageSmoothingQuality = "high";
   if (fit.crop) {
-    ctx.drawImage(img, fit.crop.x, fit.crop.y, fit.crop.width, fit.crop.height, fit.x, fit.y, fit.width, fit.height);
+    ctx.drawImage(
+      img,
+      fit.crop.x,
+      fit.crop.y,
+      fit.crop.width,
+      fit.crop.height,
+      fit.x,
+      fit.y,
+      fit.width,
+      fit.height,
+    );
   } else {
     ctx.drawImage(img, fit.x, fit.y, fit.width, fit.height);
   }
@@ -190,7 +200,10 @@ export async function compositeControlImage(
   ctx.imageSmoothingQuality = "high";
 
   // Use WASM pre-resize when downscaling significantly and source fits in a canvas
-  const isDownscaling = drawnW > 0 && drawnH > 0 && (drawnW < img.naturalWidth * 0.9 || drawnH < img.naturalHeight * 0.9);
+  const isDownscaling =
+    drawnW > 0 &&
+    drawnH > 0 &&
+    (drawnW < img.naturalWidth * 0.9 || drawnH < img.naturalHeight * 0.9);
   const canPreResize = isDownscaling && canvasFitsLimit(img.naturalWidth, img.naturalHeight);
 
   if (canPreResize) {

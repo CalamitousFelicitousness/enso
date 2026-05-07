@@ -34,7 +34,6 @@ export function useLoadFramePack() {
 
 export function useUnloadFramePack() {
   return useMutation({
-    mutationFn: () =>
-      api.post<{ messages: string[] }>("/sdapi/v2/framepack/unload", {}),
+    mutationFn: () => api.post<{ messages: string[] }>("/sdapi/v2/framepack/unload", {}),
   });
 }

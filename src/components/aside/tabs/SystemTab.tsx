@@ -71,9 +71,7 @@ export function SystemTab() {
     (tab: SystemSubTab) => setPanelSelection("systemSubTab", tab),
     [setPanelSelection],
   );
-  const [confirmAction, setConfirmAction] = useState<
-    "restart" | "shutdown" | null
-  >(null);
+  const [confirmAction, setConfirmAction] = useState<"restart" | "shutdown" | null>(null);
 
   const restartServer = useRestartServer();
   const shutdownServer = useShutdownServer();
@@ -134,19 +132,11 @@ export function SystemTab() {
     <div className="flex flex-col h-full min-w-0">
       <div className="bg-card p-2 space-y-2 border-b border-border shrink-0">
         <div className="flex items-center gap-1 flex-wrap">
-          <Button
-            size="sm"
-            variant="destructive-soft"
-            onClick={() => setConfirmAction("restart")}
-          >
+          <Button size="sm" variant="destructive-soft" onClick={() => setConfirmAction("restart")}>
             <RotateCcw />
             Restart
           </Button>
-          <Button
-            size="sm"
-            variant="destructive-soft"
-            onClick={() => setConfirmAction("shutdown")}
-          >
+          <Button size="sm" variant="destructive-soft" onClick={() => setConfirmAction("shutdown")}>
             <PowerOff />
             Shutdown
           </Button>
@@ -190,9 +180,7 @@ export function SystemTab() {
         <DialogContent showCloseButton={false} className="sm:max-w-sm">
           <DialogHeader>
             <DialogTitle>
-              {confirmAction === "restart"
-                ? "Restart Server"
-                : "Shutdown Server"}
+              {confirmAction === "restart" ? "Restart Server" : "Shutdown Server"}
             </DialogTitle>
             <DialogDescription>
               {confirmAction === "restart"
@@ -201,11 +189,7 @@ export function SystemTab() {
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setConfirmAction(null)}
-            >
+            <Button variant="outline" size="sm" onClick={() => setConfirmAction(null)}>
               Cancel
             </Button>
             <Button

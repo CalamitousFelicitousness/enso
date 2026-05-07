@@ -43,8 +43,7 @@ export function AdvancedTab() {
       if (!key) continue;
       if (rawVal === "true") result[key] = true;
       else if (rawVal === "false") result[key] = false;
-      else if (rawVal !== "" && !isNaN(Number(rawVal)))
-        result[key] = Number(rawVal);
+      else if (rawVal !== "" && !isNaN(Number(rawVal))) result[key] = Number(rawVal);
       else result[key] = rawVal;
     }
     return result;
@@ -93,10 +92,7 @@ export function AdvancedTab() {
             <ParamLabel className="text-2xs text-muted-foreground flex-shrink-0">
               HiDiffusion
             </ParamLabel>
-            <Switch
-              checked={state.hidiffusion}
-              onCheckedChange={set.hidiffusion}
-            />
+            <Switch checked={state.hidiffusion} onCheckedChange={set.hidiffusion} />
           </div>
         </div>
       </SectionLeader>
@@ -110,12 +106,8 @@ export function AdvancedTab() {
           </Label>
           <Textarea
             value={overridesToText(state.overrideSettings)}
-            onChange={(e) =>
-              setParam("overrideSettings", parseOverrides(e.target.value))
-            }
-            placeholder={
-              "scheduler: Euler a\nsd_model_checkpoint: model.safetensors"
-            }
+            onChange={(e) => setParam("overrideSettings", parseOverrides(e.target.value))}
+            placeholder={"scheduler: Euler a\nsd_model_checkpoint: model.safetensors"}
             className="min-h-15 text-xs resize-y font-mono"
           />
         </div>

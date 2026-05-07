@@ -1,19 +1,7 @@
 import { useState, useCallback, useRef } from "react";
 import { toDisplayString } from "@/lib/utils";
-import {
-  Upload,
-  Copy,
-  ChevronDown,
-  Send,
-  Wand2,
-  Image as ImageIcon,
-} from "lucide-react";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Upload, Copy, ChevronDown, Send, Wand2, Image as ImageIcon } from "lucide-react";
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
@@ -25,11 +13,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { usePngInfo } from "@/api/hooks/usePngInfo";
 import { restoreFromPngInfo } from "@/lib/pngInfoRestore";
-import {
-  sendImageToCanvas,
-  sendFrameToVideoInit,
-  sendPromptToGeneration,
-} from "@/lib/sendTo";
+import { sendImageToCanvas, sendFrameToVideoInit, sendPromptToGeneration } from "@/lib/sendTo";
 import { uploadFile } from "@/lib/upload";
 import { toast } from "sonner";
 
@@ -72,12 +56,7 @@ const PARAM_GROUPS: { label: string; keys: string[] }[] = [
   },
   {
     label: "Refiner",
-    keys: [
-      "Refiner start",
-      "Refiner steps",
-      "Refiner prompt",
-      "Refiner negative",
-    ],
+    keys: ["Refiner start", "Refiner steps", "Refiner prompt", "Refiner negative"],
   },
   { label: "Variation", keys: ["Variation seed", "Variation strength"] },
   { label: "Guidance", keys: ["CFG true", "CFG adaptive", "Image CFG scale"] },
@@ -143,20 +122,10 @@ function PromptSection({
           {label}
         </span>
         <div className="flex gap-1">
-          <Button
-            size="sm"
-            variant="ghost"
-            className="h-5 px-1.5 text-3xs"
-            onClick={onCopy}
-          >
+          <Button size="sm" variant="ghost" className="h-5 px-1.5 text-3xs" onClick={onCopy}>
             <Copy size={10} /> Copy
           </Button>
-          <Button
-            size="sm"
-            variant="ghost"
-            className="h-5 px-1.5 text-3xs"
-            onClick={onUse}
-          >
+          <Button size="sm" variant="ghost" className="h-5 px-1.5 text-3xs" onClick={onUse}>
             <Send size={10} /> Use
           </Button>
         </div>
@@ -168,13 +137,7 @@ function PromptSection({
   );
 }
 
-function ParamGroup({
-  label,
-  entries,
-}: {
-  label: string;
-  entries: [string, string][];
-}) {
+function ParamGroup({ label, entries }: { label: string; entries: [string, string][] }) {
   if (entries.length === 0) return null;
   return (
     <div className="space-y-1.5">
@@ -193,10 +156,7 @@ function ParamGroup({
   );
 }
 
-function resolveGroupEntries(
-  items: Record<string, string>,
-  keys: string[],
-): [string, string][] {
+function resolveGroupEntries(items: Record<string, string>, keys: string[]): [string, string][] {
   const entries: [string, string][] = [];
   const seen = new Set<string>();
   for (const key of keys) {
@@ -355,10 +315,7 @@ export function PngInfoDialog({ open, onOpenChange }: PngInfoDialogProps) {
   const otherParamEntries: [string, string][] = Object.entries(paramStrings)
     .filter(
       ([key, val]) =>
-        !ALL_GROUPED_KEYS.has(key) &&
-        key !== "Prompt" &&
-        key !== "Negative prompt" &&
-        val,
+        !ALL_GROUPED_KEYS.has(key) && key !== "Prompt" && key !== "Negative prompt" && val,
     )
     .map(([key, val]) => [key, val]);
   // Also include image-level metadata from items (width, height, mode) if not already covered
@@ -417,12 +374,8 @@ export function PngInfoDialog({ open, onOpenChange }: PngInfoDialogProps) {
             <label className="flex flex-col items-center justify-center w-full h-full cursor-pointer border-2 border-dashed border-border rounded-lg p-8 text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors">
               <Upload size={40} className="mb-3 opacity-40" />
 
-              <p className="text-sm font-medium">
-                Drop image, paste, or click to browse
-              </p>
-              <p className="text-xs mt-1.5 opacity-60">
-                Ctrl+V to paste from clipboard
-              </p>
+              <p className="text-sm font-medium">Drop image, paste, or click to browse</p>
+              <p className="text-xs mt-1.5 opacity-60">Ctrl+V to paste from clipboard</p>
               <input
                 ref={fileInputRef}
                 type="file"
@@ -440,9 +393,7 @@ export function PngInfoDialog({ open, onOpenChange }: PngInfoDialogProps) {
                 <div className="text-center">
                   <Upload size={32} className="mx-auto mb-2 text-primary" />
 
-                  <p className="text-sm font-medium text-primary">
-                    Drop to replace
-                  </p>
+                  <p className="text-sm font-medium text-primary">Drop to replace</p>
                 </div>
               </div>
             )}
@@ -506,9 +457,7 @@ export function PngInfoDialog({ open, onOpenChange }: PngInfoDialogProps) {
                         <PromptSection
                           label="Negative Prompt"
                           text={negativePrompt}
-                          onCopy={() =>
-                            copyText(negativePrompt, "Negative prompt")
-                          }
+                          onCopy={() => copyText(negativePrompt, "Negative prompt")}
                           onUse={() => {
                             sendPromptToGeneration(prompt, negativePrompt);
                             toast.success("Prompts applied");
@@ -522,11 +471,7 @@ export function PngInfoDialog({ open, onOpenChange }: PngInfoDialogProps) {
                       {grouped.map(
                         (g) =>
                           g.entries.length > 0 && (
-                            <ParamGroup
-                              key={g.label}
-                              label={g.label}
-                              entries={g.entries}
-                            />
+                            <ParamGroup key={g.label} label={g.label} entries={g.entries} />
                           ),
                       )}
 
@@ -557,30 +502,22 @@ export function PngInfoDialog({ open, onOpenChange }: PngInfoDialogProps) {
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="start">
                       {prompt && (
-                        <DropdownMenuItem
-                          onClick={() => copyText(prompt, "Prompt")}
-                        >
+                        <DropdownMenuItem onClick={() => copyText(prompt, "Prompt")}>
                           Copy Prompt
                         </DropdownMenuItem>
                       )}
                       {negativePrompt && (
                         <DropdownMenuItem
-                          onClick={() =>
-                            copyText(negativePrompt, "Negative prompt")
-                          }
+                          onClick={() => copyText(negativePrompt, "Negative prompt")}
                         >
                           Copy Negative
                         </DropdownMenuItem>
                       )}
-                      <DropdownMenuItem
-                        onClick={() => copyText(infoText, "Raw info")}
-                      >
+                      <DropdownMenuItem onClick={() => copyText(infoText, "Raw info")}>
                         Copy Raw Info
                       </DropdownMenuItem>
                       {paramLine && (
-                        <DropdownMenuItem
-                          onClick={() => copyText(paramLine, "Parameters")}
-                        >
+                        <DropdownMenuItem onClick={() => copyText(paramLine, "Parameters")}>
                           Copy Parameters
                         </DropdownMenuItem>
                       )}

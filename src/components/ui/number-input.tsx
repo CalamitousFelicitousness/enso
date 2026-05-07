@@ -3,8 +3,10 @@ import { memo, useState } from "react";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 
-interface NumberInputProps
-  extends Omit<React.ComponentProps<"input">, "value" | "onChange" | "type"> {
+interface NumberInputProps extends Omit<
+  React.ComponentProps<"input">,
+  "value" | "onChange" | "type"
+> {
   value: number;
   onChange: (value: number) => void;
   min?: number | undefined;

@@ -35,23 +35,16 @@ export function CommandPalette() {
     if (!next) setSearch("");
   }, []);
 
-  const actions = useMemo(
-    () => (open ? buildActions(commands) : []),
-    [open, commands],
-  );
+  const actions = useMemo(() => (open ? buildActions(commands) : []), [open, commands]);
 
   const recentActions = useMemo(() => {
     if (!open) return [];
-    return recentIds
-      .map((id) => actions.find((a) => a.id === id))
-      .filter(Boolean);
+    return recentIds.map((id) => actions.find((a) => a.id === id)).filter(Boolean);
   }, [open, recentIds, actions]);
 
   const filteredActions = useMemo(() => {
     const isSearching = search.trim().length > 0;
-    const base = isSearching
-      ? actions
-      : actions.filter((a) => !a.showOnlyInSearch);
+    const base = isSearching ? actions : actions.filter((a) => !a.showOnlyInSearch);
     if (!isSearching) return base;
     return matchSorter(base, search, {
       keys: [
@@ -113,11 +106,7 @@ export function CommandPalette() {
       description="Search for a command to run..."
       showCloseButton={false}
     >
-      <CommandInput
-        placeholder="Type a command..."
-        value={search}
-        onValueChange={setSearch}
-      />
+      <CommandInput placeholder="Type a command..." value={search} onValueChange={setSearch} />
 
       <CommandList ref={listRef}>
         <CommandEmpty>No results found.</CommandEmpty>
@@ -125,11 +114,7 @@ export function CommandPalette() {
         {filteredRecent.length > 0 && (
           <CommandGroup heading="Recent">
             {filteredRecent.map((a) => (
-              <PaletteItem
-                key={`recent-${a.id}`}
-                action={a}
-                onSelect={handleSelect}
-              />
+              <PaletteItem key={`recent-${a.id}`} action={a} onSelect={handleSelect} />
             ))}
           </CommandGroup>
         )}
@@ -154,17 +139,13 @@ function PaletteItem({
   onSelect: (id: string) => void;
 }) {
   const Icon = action.icon;
-  const shortcutDef = action.shortcutId
-    ? SHORTCUTS[action.shortcutId]
-    : undefined;
+  const shortcutDef = action.shortcutId ? SHORTCUTS[action.shortcutId] : undefined;
 
   return (
     <CommandItem value={action.id} onSelect={() => onSelect(action.id)}>
       <Icon size={16} />
       <span>{action.label}</span>
-      {shortcutDef && (
-        <CommandShortcut>{formatShortcut(shortcutDef)}</CommandShortcut>
-      )}
+      {shortcutDef && <CommandShortcut>{formatShortcut(shortcutDef)}</CommandShortcut>}
     </CommandItem>
   );
 }

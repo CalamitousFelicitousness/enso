@@ -30,21 +30,14 @@ export function QueueTab() {
   const resubmit = useResubmitJob();
 
   const { runningJobs, terminalJobs, totalCount, avgProgress } = useMemo(() => {
-    const all = Array.from(jobsMap.values()).sort(
-      (a, b) => b.createdAt - a.createdAt,
-    );
+    const all = Array.from(jobsMap.values()).sort((a, b) => b.createdAt - a.createdAt);
     const running = all.filter((j) => j.status === "running");
     const avg =
-      running.length > 0
-        ? running.reduce((sum, j) => sum + j.progress, 0) / running.length
-        : 0;
+      running.length > 0 ? running.reduce((sum, j) => sum + j.progress, 0) / running.length : 0;
     return {
       runningJobs: running,
       terminalJobs: all.filter(
-        (j) =>
-          j.status === "completed" ||
-          j.status === "failed" ||
-          j.status === "cancelled",
+        (j) => j.status === "completed" || j.status === "failed" || j.status === "cancelled",
       ),
       totalCount: all.length,
       avgProgress: avg,
@@ -54,11 +47,7 @@ export function QueueTab() {
   const handleView = useCallback((job: TrackedJob) => {
     if (job.domain === "generate") {
       useUiStore.getState().setNavView("images");
-    } else if (
-      job.domain === "video" ||
-      job.domain === "framepack" ||
-      job.domain === "ltx"
-    ) {
+    } else if (job.domain === "video" || job.domain === "framepack" || job.domain === "ltx") {
       useUiStore.getState().setNavView("video");
     }
   }, []);
@@ -93,8 +82,7 @@ export function QueueTab() {
       }
       const pending = useJobQueueStore.getState();
       const sorted = selectPendingJobsSorted(pending);
-      const maxPriority =
-        sorted.length > 0 ? Math.max(...sorted.map((j) => j.priority)) : 0;
+      const maxPriority = sorted.length > 0 ? Math.max(...sorted.map((j) => j.priority)) : 0;
       if (job.priority >= maxPriority && sorted[0]?.id === job.id) return;
       try {
         deleteJob.mutate(job.id);
@@ -130,13 +118,8 @@ export function QueueTab() {
       }
       const pending = useJobQueueStore.getState();
       const sorted = selectPendingJobsSorted(pending);
-      const minPriority =
-        sorted.length > 0 ? Math.min(...sorted.map((j) => j.priority)) : 0;
-      if (
-        job.priority <= minPriority &&
-        sorted[sorted.length - 1]?.id === job.id
-      )
-        return;
+      const minPriority = sorted.length > 0 ? Math.min(...sorted.map((j) => j.priority)) : 0;
+      if (job.priority <= minPriority && sorted[sorted.length - 1]?.id === job.id) return;
       try {
         deleteJob.mutate(job.id);
         const newPriority = minPriority - 1;

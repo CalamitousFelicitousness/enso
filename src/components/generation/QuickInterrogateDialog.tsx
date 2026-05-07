@@ -1,18 +1,9 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { Loader2, Copy, Send, Upload } from "lucide-react";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import {
-  useOpenClipCaption,
-  useTaggerCaption,
-  useVqaCaption,
-} from "@/api/hooks/useCaption";
+import { useOpenClipCaption, useTaggerCaption, useVqaCaption } from "@/api/hooks/useCaption";
 import { useOptionsSubset } from "@/api/hooks/useSettings";
 import { useCaptionSettingsStore } from "@/stores/captionSettingsStore";
 import { sendPromptToGeneration } from "@/lib/sendTo";
@@ -34,11 +25,7 @@ interface QuickInterrogateDialogProps {
   file: File | null;
 }
 
-export function QuickInterrogateDialog({
-  open,
-  onOpenChange,
-  file,
-}: QuickInterrogateDialogProps) {
+export function QuickInterrogateDialog({ open, onOpenChange, file }: QuickInterrogateDialogProps) {
   const [caption, setCaption] = useState<string | null>(null);
   const [isRunning, setIsRunning] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -174,7 +161,10 @@ export function QuickInterrogateDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-md max-h-[60vh] p-0 gap-0 overflow-hidden flex flex-col" showCloseButton>
+      <DialogContent
+        className="sm:max-w-md max-h-[60vh] p-0 gap-0 overflow-hidden flex flex-col"
+        showCloseButton
+      >
         <DialogDescription className="sr-only">
           Quick interrogate an image using the default caption method
         </DialogDescription>

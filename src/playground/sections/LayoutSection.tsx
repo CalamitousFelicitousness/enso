@@ -31,7 +31,9 @@ export function LayoutSection() {
 
       {/* SectionLeader */}
       <div className="space-y-4">
-        <span className="text-3xs text-muted-foreground/60 uppercase tracking-wider">SectionLeader</span>
+        <span className="text-3xs text-muted-foreground/60 uppercase tracking-wider">
+          SectionLeader
+        </span>
 
         <div className="w-[280px] space-y-4">
           {/* Mode 1 — Neither collapsible nor enableable */}
@@ -128,7 +130,9 @@ export function LayoutSection() {
 
       {/* SectionDivider */}
       <div className="space-y-4">
-        <span className="text-3xs text-muted-foreground/60 uppercase tracking-wider">SectionDivider</span>
+        <span className="text-3xs text-muted-foreground/60 uppercase tracking-wider">
+          SectionDivider
+        </span>
 
         <div className="w-[280px] space-y-3">
           <div className="space-y-1.5">
@@ -145,7 +149,9 @@ export function LayoutSection() {
 
       {/* Accordion */}
       <div className="space-y-4">
-        <span className="text-3xs text-muted-foreground/60 uppercase tracking-wider">Accordion</span>
+        <span className="text-3xs text-muted-foreground/60 uppercase tracking-wider">
+          Accordion
+        </span>
 
         <div className="w-[280px]">
           <Accordion type="single" collapsible>
@@ -173,7 +179,9 @@ export function LayoutSection() {
 
       {/* Separator */}
       <div className="space-y-4">
-        <span className="text-3xs text-muted-foreground/60 uppercase tracking-wider">Separator</span>
+        <span className="text-3xs text-muted-foreground/60 uppercase tracking-wider">
+          Separator
+        </span>
 
         <div className="space-y-3">
           <div className="space-y-1.5">

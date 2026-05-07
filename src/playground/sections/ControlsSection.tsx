@@ -59,16 +59,38 @@ export function ControlsSection() {
         <div className="space-y-1.5">
           <span className="text-3xs text-muted-foreground/60">track</span>
           <div className="flex items-center gap-3">
-            <Switch variant="track" checked={trackOn} onCheckedChange={setTrackOn} className="w-16" />
-            <Switch variant="track" checked={trackOff} onCheckedChange={setTrackOff} className="w-16" />
+            <Switch
+              variant="track"
+              checked={trackOn}
+              onCheckedChange={setTrackOn}
+              className="w-16"
+            />
+            <Switch
+              variant="track"
+              checked={trackOff}
+              onCheckedChange={setTrackOff}
+              className="w-16"
+            />
           </div>
         </div>
 
         <div className="space-y-1.5">
           <span className="text-3xs text-muted-foreground/60">track + label</span>
           <div className="flex items-center gap-3">
-            <Switch variant="track" label="Label" checked={trackLabelOn} onCheckedChange={setTrackLabelOn} className="w-24" />
-            <Switch variant="track" label="Label" checked={trackLabelOff} onCheckedChange={setTrackLabelOff} className="w-24" />
+            <Switch
+              variant="track"
+              label="Label"
+              checked={trackLabelOn}
+              onCheckedChange={setTrackLabelOn}
+              className="w-24"
+            />
+            <Switch
+              variant="track"
+              label="Label"
+              checked={trackLabelOff}
+              onCheckedChange={setTrackLabelOff}
+              className="w-24"
+            />
           </div>
         </div>
 
@@ -88,39 +110,73 @@ export function ControlsSection() {
         <div className="space-y-1.5">
           <span className="text-3xs text-muted-foreground/60">default</span>
           <div className="flex items-center gap-3">
-            <Checkbox variant="default" checked={defaultOn} onCheckedChange={(v) => setDefaultOn(v === true)} />
-            <Checkbox variant="default" checked={defaultOff} onCheckedChange={(v) => setDefaultOff(v === true)} />
+            <Checkbox
+              variant="default"
+              checked={defaultOn}
+              onCheckedChange={(v) => setDefaultOn(v === true)}
+            />
+            <Checkbox
+              variant="default"
+              checked={defaultOff}
+              onCheckedChange={(v) => setDefaultOff(v === true)}
+            />
           </div>
         </div>
 
         <div className="space-y-1.5">
           <span className="text-3xs text-muted-foreground/60">morph</span>
           <div className="flex items-center gap-3">
-            <Checkbox variant="morph" checked={morphOn} onCheckedChange={(v) => setMorphOn(v === true)} />
-            <Checkbox variant="morph" checked={morphOff} onCheckedChange={(v) => setMorphOff(v === true)} />
+            <Checkbox
+              variant="morph"
+              checked={morphOn}
+              onCheckedChange={(v) => setMorphOn(v === true)}
+            />
+            <Checkbox
+              variant="morph"
+              checked={morphOff}
+              onCheckedChange={(v) => setMorphOff(v === true)}
+            />
           </div>
         </div>
 
         <div className="space-y-1.5">
           <span className="text-3xs text-muted-foreground/60">stamp</span>
           <div className="flex items-center gap-3">
-            <Checkbox variant="stamp" checked={stampOn} onCheckedChange={(v) => setStampOn(v === true)} />
-            <Checkbox variant="stamp" checked={stampOff} onCheckedChange={(v) => setStampOff(v === true)} />
+            <Checkbox
+              variant="stamp"
+              checked={stampOn}
+              onCheckedChange={(v) => setStampOn(v === true)}
+            />
+            <Checkbox
+              variant="stamp"
+              checked={stampOff}
+              onCheckedChange={(v) => setStampOff(v === true)}
+            />
           </div>
         </div>
 
         <div className="space-y-1.5">
           <span className="text-3xs text-muted-foreground/60">bracket</span>
           <div className="flex items-center gap-3">
-            <Checkbox variant="bracket" checked={bracketOn} onCheckedChange={(v) => setBracketOn(v === true)} />
-            <Checkbox variant="bracket" checked={bracketOff} onCheckedChange={(v) => setBracketOff(v === true)} />
+            <Checkbox
+              variant="bracket"
+              checked={bracketOn}
+              onCheckedChange={(v) => setBracketOn(v === true)}
+            />
+            <Checkbox
+              variant="bracket"
+              checked={bracketOff}
+              onCheckedChange={(v) => setBracketOff(v === true)}
+            />
           </div>
         </div>
       </div>
 
       {/* TextToggle variants */}
       <div className="space-y-4">
-        <span className="text-3xs text-muted-foreground/60 uppercase tracking-wider">TextToggle</span>
+        <span className="text-3xs text-muted-foreground/60 uppercase tracking-wider">
+          TextToggle
+        </span>
 
         <div className="space-y-1.5">
           <span className="text-3xs text-muted-foreground/60">underline</span>

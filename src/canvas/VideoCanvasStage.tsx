@@ -17,10 +17,7 @@ interface VideoCanvasStageProps {
   onPickImage?: (which: "init" | "last") => void;
 }
 
-export function VideoCanvasStage({
-  layout,
-  onPickImage,
-}: VideoCanvasStageProps) {
+export function VideoCanvasStage({ layout, onPickImage }: VideoCanvasStageProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<Konva.Stage>(null);
   const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
@@ -64,10 +61,8 @@ export function VideoCanvasStage({
     const availW = containerSize.width - PADDING * 2;
     const availH = containerSize.height - PADDING * 2;
     const scale = Math.min(availW / totalWidth, availH / totalHeight, 1);
-    const x =
-      (containerSize.width - totalWidth * scale) / 2 - totalBounds.minX * scale;
-    const y =
-      (containerSize.height - totalHeight * scale) / 2 + LABEL_HEIGHT * scale;
+    const x = (containerSize.width - totalWidth * scale) / 2 - totalBounds.minX * scale;
+    const y = (containerSize.height - totalHeight * scale) / 2 + LABEL_HEIGHT * scale;
     setViewport({ x, y, scale });
   }, [containerSize, frameW, frameH, totalBounds, setViewport]);
 
@@ -121,11 +116,7 @@ export function VideoCanvasStage({
             onPickImage={() => onPickImage?.("last")}
           />
 
-          <VideoOutputFrame
-            offsetX={outputX}
-            width={displayW}
-            height={displayH}
-          />
+          <VideoOutputFrame offsetX={outputX} width={displayW} height={displayH} />
         </Stage>
       )}
     </div>

@@ -89,7 +89,18 @@ export function ProcessPanel() {
       },
       snapshot: { kind: "none" as const },
     };
-  }, [image, upscaler, scale, resizeMode, targetWidth, targetHeight, crop, upscaler2, upscaler2Visibility, setUpscaleResult]);
+  }, [
+    image,
+    upscaler,
+    scale,
+    resizeMode,
+    targetWidth,
+    targetHeight,
+    crop,
+    upscaler2,
+    upscaler2Visibility,
+    setUpscaleResult,
+  ]);
 
   const { submit: submitUpscale, isSubmitting: isSubmittingUpscale } = useSubmitToQueue(
     useMemo(
@@ -160,11 +171,23 @@ export function ProcessPanel() {
               <div className="flex gap-2">
                 <div className="flex-1 space-y-1">
                   <Label className="text-2xs text-muted-foreground">Width</Label>
-                  <NumberInput value={targetWidth} onChange={setTargetWidth} min={0} max={16384} step={8} />
+                  <NumberInput
+                    value={targetWidth}
+                    onChange={setTargetWidth}
+                    min={0}
+                    max={16384}
+                    step={8}
+                  />
                 </div>
                 <div className="flex-1 space-y-1">
                   <Label className="text-2xs text-muted-foreground">Height</Label>
-                  <NumberInput value={targetHeight} onChange={setTargetHeight} min={0} max={16384} step={8} />
+                  <NumberInput
+                    value={targetHeight}
+                    onChange={setTargetHeight}
+                    min={0}
+                    max={16384}
+                    step={8}
+                  />
                 </div>
               </div>
             )}

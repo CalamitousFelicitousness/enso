@@ -1,10 +1,6 @@
 import { useState, useRef, useMemo } from "react";
 import { Settings, Check, ChevronDown, ChevronRight, X } from "lucide-react";
-import {
-  useCivitSettings,
-  useCivitSaveSettings,
-  useCivitMe,
-} from "@/api/hooks/useCivitai";
+import { useCivitSettings, useCivitSaveSettings, useCivitMe } from "@/api/hooks/useCivitai";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -45,9 +41,7 @@ export function CivitSettings() {
               id="subfolder-enabled"
               size="sm"
               checked={settings.save_subfolder_enabled}
-              onCheckedChange={(v) =>
-                save.mutate({ save_subfolder_enabled: v })
-              }
+              onCheckedChange={(v) => save.mutate({ save_subfolder_enabled: v })}
             />
           </div>
           {settings.save_subfolder_enabled && (
@@ -111,9 +105,7 @@ function TokenSection({ configured }: { configured: boolean }) {
           />
         ) : null}
         <span className="text-xs text-muted-foreground">
-          {profile?.username
-            ? `Signed in as ${profile.username}`
-            : "API token configured"}
+          {profile?.username ? `Signed in as ${profile.username}` : "API token configured"}
         </span>
         <Button
           size="sm"

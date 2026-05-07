@@ -11,7 +11,9 @@ export function paletteCodegenPlugin(): Plugin {
       const result = runCodegen();
       lastError = null;
       for (const w of result.warnings) {
-        console.warn(`[paramMap codegen] ${path.relative(process.cwd(), w.file)}:${w.line} ${w.message}`);
+        console.warn(
+          `[paramMap codegen] ${path.relative(process.cwd(), w.file)}:${w.line} ${w.message}`,
+        );
       }
       if (result.changed) {
         console.log(`[paramMap codegen] regenerated (${result.params.length} entries) — ${reason}`);
@@ -33,9 +35,7 @@ export function paletteCodegenPlugin(): Plugin {
       }
     },
     handleHotUpdate(ctx) {
-      const isTabFile =
-        ctx.file.startsWith(tabsDir) &&
-        ctx.file.endsWith("Tab.tsx");
+      const isTabFile = ctx.file.startsWith(tabsDir) && ctx.file.endsWith("Tab.tsx");
       if (!isTabFile) return;
       regenerate(`hot update: ${path.relative(process.cwd(), ctx.file)}`);
       return undefined;

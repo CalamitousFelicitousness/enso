@@ -1,10 +1,7 @@
 import { useMemo, useRef, useCallback, useEffect, useState } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useGalleryStore } from "@/stores/galleryStore";
-import {
-  useThumbnailLoader,
-  useBackgroundPreloader,
-} from "@/api/hooks/useGallery";
+import { useThumbnailLoader, useBackgroundPreloader } from "@/api/hooks/useGallery";
 import type { GalleryFile } from "@/api/types/gallery";
 import { ConnectedGalleryCard } from "./GalleryCard";
 import { MasonryGrid } from "./MasonryGrid";
@@ -120,15 +117,13 @@ export function GalleryGrid({
       const opMatch = q.match(/^([a-z]+)([=<>])(.*)$/);
       const numericKeys = ["width", "height", "size", "mtime"] as const;
       type NumericKey = (typeof numericKeys)[number];
-      const substringMatch = (f: GalleryFile): boolean =>
-        f.relativePath.toLowerCase().includes(q);
+      const substringMatch = (f: GalleryFile): boolean => f.relativePath.toLowerCase().includes(q);
       if (opMatch) {
         const key = opMatch[1];
         const op = opMatch[2];
         const rawVal = opMatch[3].trim();
         if ((numericKeys as readonly string[]).includes(key)) {
-          const targetVal =
-            key === "mtime" ? Date.parse(rawVal) : Number(rawVal);
+          const targetVal = key === "mtime" ? Date.parse(rawVal) : Number(rawVal);
           if (Number.isFinite(targetVal)) {
             const numericKey = key as NumericKey;
             result = result.filter((f) => {
@@ -178,10 +173,7 @@ export function GalleryGrid({
     setSortedFiles(sorted);
   }, [sorted, setSortedFiles]);
 
-  const cols = Math.max(
-    1,
-    Math.floor((containerWidth + GAP) / (thumbSize + GAP)),
-  );
+  const cols = Math.max(1, Math.floor((containerWidth + GAP) / (thumbSize + GAP)));
   const rowCount = Math.ceil(sorted.length / cols);
 
   // eslint-disable-next-line react-hooks/incompatible-library -- @tanstack/react-virtual
@@ -197,8 +189,7 @@ export function GalleryGrid({
   // which is a new array on every render and would re-fire the thumb loader.
   const visibleRange = virtualizer.getVirtualItems();
   const rangeStart = visibleRange[0]?.index ?? 0;
-  const rangeEnd =
-    visibleRange.length > 0 ? visibleRange[visibleRange.length - 1].index : -1;
+  const rangeEnd = visibleRange.length > 0 ? visibleRange[visibleRange.length - 1].index : -1;
   const visibleFileIds = useMemo(() => {
     const ids: string[] = [];
     for (let row = rangeStart; row <= rangeEnd; row++) {
@@ -213,19 +204,16 @@ export function GalleryGrid({
   useThumbnailLoader(visibleFileIds, sorted);
   useBackgroundPreloader(sorted);
 
-  const handleClick = useCallback(
-    (file: GalleryFile, index: number, e: React.MouseEvent) => {
-      const s = useGalleryStore.getState();
-      if (e.shiftKey || e.ctrlKey || e.metaKey) {
-        s.toggleSelect(file.id, index, e.shiftKey, e.ctrlKey || e.metaKey);
-      } else if (s.selectedIds.size > 0) {
-        s.toggleSelect(file.id, index, false, false);
-      } else {
-        s.selectFile(file, s.thumbs.get(file.id) ?? null);
-      }
-    },
-    [],
-  );
+  const handleClick = useCallback((file: GalleryFile, index: number, e: React.MouseEvent) => {
+    const s = useGalleryStore.getState();
+    if (e.shiftKey || e.ctrlKey || e.metaKey) {
+      s.toggleSelect(file.id, index, e.shiftKey, e.ctrlKey || e.metaKey);
+    } else if (s.selectedIds.size > 0) {
+      s.toggleSelect(file.id, index, false, false);
+    } else {
+      s.selectFile(file, s.thumbs.get(file.id) ?? null);
+    }
+  }, []);
 
   const handleDoubleClick = useCallback((index: number) => {
     useGalleryStore.getState().openLightbox(index);
@@ -263,14 +251,8 @@ export function GalleryGrid({
     }
   }, []);
 
-  const handleDeselectAll = useCallback(
-    () => useGalleryStore.getState().deselectAll(),
-    [],
-  );
-  const handleSelectAll = useCallback(
-    () => useGalleryStore.getState().selectAll(),
-    [],
-  );
+  const handleDeselectAll = useCallback(() => useGalleryStore.getState().deselectAll(), []);
+  const handleSelectAll = useCallback(() => useGalleryStore.getState().selectAll(), []);
 
   const handleSendToCanvas = useCallback(() => {
     const f = contextFileRef.current;
@@ -320,10 +302,7 @@ export function GalleryGrid({
               containerWidth={containerWidth}
             />
           ) : (
-            <div
-              className="relative w-full"
-              style={{ height: virtualizer.getTotalSize() }}
-            >
+            <div className="relative w-full" style={{ height: virtualizer.getTotalSize() }}>
               {virtualizer.getVirtualItems().map((vRow) => {
                 const rowStart = vRow.index * cols;
                 return (

@@ -2,11 +2,7 @@ import { useCallback, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useVideoStore } from "@/stores/videoStore";
-import {
-  useFramePackVariants,
-  useLoadFramePack,
-  useUnloadFramePack,
-} from "@/api/hooks/useVideo";
+import { useFramePackVariants, useLoadFramePack, useUnloadFramePack } from "@/api/hooks/useVideo";
 import { SectionLeader } from "@/components/ui/section-leader";
 import { ParamSlider } from "@/components/generation/ParamSlider";
 import { ParamGrid } from "@/components/generation/ParamRow";
@@ -56,8 +52,7 @@ export function FramePackTab() {
       { variant: fpVariant, attention: fpAttention },
       {
         onSuccess: () => toast.success(`Loaded FramePack ${fpVariant}`),
-        onError: (err) =>
-          toast.error("Failed to load FramePack", { description: err.message }),
+        onError: (err) => toast.error("Failed to load FramePack", { description: err.message }),
       },
     );
   }, [fpVariant, fpAttention, loadFP]);
@@ -65,8 +60,7 @@ export function FramePackTab() {
   const handleUnload = useCallback(() => {
     unloadFP.mutate(undefined, {
       onSuccess: () => toast.success("FramePack unloaded"),
-      onError: (err) =>
-        toast.error("Failed to unload", { description: err.message }),
+      onError: (err) => toast.error("Failed to unload", { description: err.message }),
     });
   }, [unloadFP]);
 
@@ -76,9 +70,7 @@ export function FramePackTab() {
       <SectionLeader title="Model" collapsible>
         <div className="space-y-1.5">
           <div className="flex items-center gap-2">
-            <Label className="text-2xs text-muted-foreground w-16 shrink-0">
-              Variant
-            </Label>
+            <Label className="text-2xs text-muted-foreground w-16 shrink-0">Variant</Label>
             <Combobox
               value={fpVariant}
               onValueChange={(v) => setParam("fpVariant", v)}
@@ -94,9 +86,7 @@ export function FramePackTab() {
               disabled={loadFP.isPending}
               className="flex-1"
             >
-              {loadFP.isPending ? (
-                <Loader2 size={14} className="animate-spin" />
-              ) : null}
+              {loadFP.isPending ? <Loader2 size={14} className="animate-spin" /> : null}
               Load
             </Button>
             <Button
@@ -264,45 +254,26 @@ export function FramePackTab() {
         />
 
         <div className="flex items-center gap-2">
-          <Label className="text-2xs text-muted-foreground w-16 shrink-0">
-            TeaCache
-          </Label>
-          <Switch
-            checked={fpTeacache}
-            onCheckedChange={(v) => setParam("fpTeacache", v)}
-          />
+          <Label className="text-2xs text-muted-foreground w-16 shrink-0">TeaCache</Label>
+          <Switch checked={fpTeacache} onCheckedChange={(v) => setParam("fpTeacache", v)} />
         </div>
         <div className="flex items-center gap-2">
-          <Label className="text-2xs text-muted-foreground w-16 shrink-0">
-            Optimized
-          </Label>
+          <Label className="text-2xs text-muted-foreground w-16 shrink-0">Optimized</Label>
           <Switch
             checked={fpOptimizedPrompt}
             onCheckedChange={(v) => setParam("fpOptimizedPrompt", v)}
           />
         </div>
         <div className="flex items-center gap-2">
-          <Label className="text-2xs text-muted-foreground w-16 shrink-0">
-            CFG Zero
-          </Label>
-          <Switch
-            checked={fpCfgZero}
-            onCheckedChange={(v) => setParam("fpCfgZero", v)}
-          />
+          <Label className="text-2xs text-muted-foreground w-16 shrink-0">CFG Zero</Label>
+          <Switch checked={fpCfgZero} onCheckedChange={(v) => setParam("fpCfgZero", v)} />
         </div>
         <div className="flex items-center gap-2">
-          <Label className="text-2xs text-muted-foreground w-16 shrink-0">
-            Preview
-          </Label>
-          <Switch
-            checked={fpPreview}
-            onCheckedChange={(v) => setParam("fpPreview", v)}
-          />
+          <Label className="text-2xs text-muted-foreground w-16 shrink-0">Preview</Label>
+          <Switch checked={fpPreview} onCheckedChange={(v) => setParam("fpPreview", v)} />
         </div>
         <div className="flex items-center gap-2">
-          <Label className="text-2xs text-muted-foreground w-16 shrink-0">
-            Attention
-          </Label>
+          <Label className="text-2xs text-muted-foreground w-16 shrink-0">Attention</Label>
           <Combobox
             value={fpAttention}
             onValueChange={(v) => setParam("fpAttention", v)}
@@ -311,9 +282,7 @@ export function FramePackTab() {
           />
         </div>
         <div className="flex items-center gap-2">
-          <Label className="text-2xs text-muted-foreground w-16 shrink-0">
-            VAE
-          </Label>
+          <Label className="text-2xs text-muted-foreground w-16 shrink-0">VAE</Label>
           <Combobox
             value={fpVaeType}
             onValueChange={(v) => setParam("fpVaeType", v)}

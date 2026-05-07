@@ -13,7 +13,8 @@ export function buildProcessorGroups(preprocessors: PreprocessorInfo[]): Combobo
   for (const names of Object.values(buckets)) {
     names.sort((a, b) => a.localeCompare(b));
   }
-  return GROUP_ORDER
-    .filter((g) => buckets[g]?.length)
-    .map((g) => ({ heading: g, options: buckets[g] }));
+  return GROUP_ORDER.filter((g) => buckets[g]?.length).map((g) => ({
+    heading: g,
+    options: buckets[g],
+  }));
 }

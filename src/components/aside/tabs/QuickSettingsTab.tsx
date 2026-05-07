@@ -1,22 +1,11 @@
 import { useState, useMemo, useRef, useCallback } from "react";
-import {
-  useOptions,
-  useSetOptions,
-  useOptionsInfo,
-} from "@/api/hooks/useSettings";
+import { useOptions, useSetOptions, useOptionsInfo } from "@/api/hooks/useSettings";
 import { useModelList, useVaeList } from "@/api/hooks/useModels";
-import {
-  DEFAULT_QUICK_SETTINGS_KEYS,
-  metaToSettingDef,
-} from "@/lib/settingsSchema";
+import { DEFAULT_QUICK_SETTINGS_KEYS, metaToSettingDef } from "@/lib/settingsSchema";
 import type { SettingDef } from "@/lib/settingsSchema";
 import { SettingControl } from "@/components/settings/SettingControl";
 import { useUiStore } from "@/stores/uiStore";
-import {
-  Popover,
-  PopoverTrigger,
-  PopoverContent,
-} from "@/components/ui/popover";
+import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import {
   Command,
   CommandInput,
@@ -37,9 +26,7 @@ export function QuickSettingsTab() {
   const setOptions = useSetOptions();
   const { data: models } = useModelList();
   const { data: vaes } = useVaeList();
-  const debounceTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(
-    new Map(),
-  );
+  const debounceTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
   const [pickerOpen, setPickerOpen] = useState(false);
 
   const customKeys = useUiStore((s) => s.quickSettingsKeys);
@@ -49,18 +36,9 @@ export function QuickSettingsTab() {
   const dynamicChoices = useMemo(() => {
     const choices: Record<string, string[]> = {};
     if (models) choices["sd_model_checkpoint"] = models.map((m) => m.title);
-    if (models)
-      choices["sd_model_refiner"] = [
-        SENTINEL_NONE,
-        ...models.map((m) => m.title),
-      ];
+    if (models) choices["sd_model_refiner"] = [SENTINEL_NONE, ...models.map((m) => m.title)];
 
-    if (vaes)
-      choices["sd_vae"] = [
-        SENTINEL_AUTOMATIC,
-        SENTINEL_NONE,
-        ...vaes.map((v) => v.name),
-      ];
+    if (vaes) choices["sd_vae"] = [SENTINEL_AUTOMATIC, SENTINEL_NONE, ...vaes.map((v) => v.name)];
 
     return choices;
   }, [models, vaes]);
@@ -153,11 +131,7 @@ export function QuickSettingsTab() {
   );
 
   if (!options || !optionsInfo) {
-    return (
-      <div className="p-3 text-xs text-muted-foreground">
-        Loading settings...
-      </div>
-    );
+    return <div className="p-3 text-xs text-muted-foreground">Loading settings...</div>;
   }
 
   return (
@@ -177,26 +151,13 @@ export function QuickSettingsTab() {
         )}
         <Popover open={pickerOpen} onOpenChange={setPickerOpen}>
           <PopoverTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-5 w-5"
-              title="Edit quick settings"
-            >
+            <Button variant="ghost" size="icon" className="h-5 w-5" title="Edit quick settings">
               <Pencil size={12} />
             </Button>
           </PopoverTrigger>
-          <PopoverContent
-            className="w-72 p-0"
-            align="end"
-            side="left"
-            sideOffset={8}
-          >
+          <PopoverContent className="w-72 p-0" align="end" side="left" sideOffset={8}>
             <Command>
-              <CommandInput
-                placeholder="Search settings..."
-                className="text-xs h-8"
-              />
+              <CommandInput placeholder="Search settings..." className="text-xs h-8" />
 
               <CommandList className="max-h-72">
                 <CommandEmpty>No settings found</CommandEmpty>
@@ -257,13 +218,7 @@ export function QuickSettingsTab() {
                   <SettingControl
                     setting={setting}
                     value={options[setting.key]}
-                    onChange={(v) =>
-                      handleChange(
-                        setting.key,
-                        v,
-                        setting.component === "slider",
-                      )
-                    }
+                    onChange={(v) => handleChange(setting.key, v, setting.component === "slider")}
                     dynamicChoices={dynamicChoices[setting.key]}
                   />
                 </div>
@@ -275,8 +230,7 @@ export function QuickSettingsTab() {
 
       {groups.length === 0 && (
         <div className="text-xs text-muted-foreground text-center py-4">
-          No settings selected. Click <Pencil size={10} className="inline" /> to
-          add settings.
+          No settings selected. Click <Pencil size={10} className="inline" /> to add settings.
         </div>
       )}
     </div>

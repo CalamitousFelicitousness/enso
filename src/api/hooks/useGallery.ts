@@ -1,10 +1,28 @@
 import { useCallback, useEffect, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { api } from "../client";
-import type { BrowserFolder, BrowserSubdir, BrowserThumb, GalleryFile, CachedThumb } from "../types/gallery";
+import type {
+  BrowserFolder,
+  BrowserSubdir,
+  BrowserThumb,
+  GalleryFile,
+  CachedThumb,
+} from "../types/gallery";
 import { useGalleryStore } from "@/stores/galleryStore";
-import { computeThumbHash, getThumb, putThumb, batchGetThumbs, deleteThumbsByHashes } from "@/lib/thumbnailCache";
-import { getCachedFolder, setCachedFolder, updateCachedThumbs, mergeChildCaches, invalidateFolder } from "@/lib/folderCache";
+import {
+  computeThumbHash,
+  getThumb,
+  putThumb,
+  batchGetThumbs,
+  deleteThumbsByHashes,
+} from "@/lib/thumbnailCache";
+import {
+  getCachedFolder,
+  setCachedFolder,
+  updateCachedThumbs,
+  mergeChildCaches,
+  invalidateFolder,
+} from "@/lib/folderCache";
 import { Semaphore } from "@/lib/concurrency";
 
 const thumbSemaphore = new Semaphore(16);
@@ -39,7 +57,12 @@ function parseFileEntry(raw: string): GalleryFile {
   let folderEnc = raw.slice(0, idx);
   let relEnc = raw.slice(idx + sep.length);
   // Restore Windows drive letter colons
-  if (folderEnc.length > 3 && folderEnc[1] === "%" && folderEnc[2] === "3" && folderEnc[3] === "A") {
+  if (
+    folderEnc.length > 3 &&
+    folderEnc[1] === "%" &&
+    folderEnc[2] === "3" &&
+    folderEnc[3] === "A"
+  ) {
     folderEnc = folderEnc[0] + ":" + folderEnc.slice(4);
   }
   if (relEnc.length > 3 && relEnc[1] === "%" && relEnc[2] === "3" && relEnc[3] === "A") {
@@ -53,9 +76,24 @@ function parseFileEntry(raw: string): GalleryFile {
 
 const MEDIA_EXTENSIONS = new Set([
   // Images
-  ".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp", ".tiff", ".tif", ".avif",
+  ".png",
+  ".jpg",
+  ".jpeg",
+  ".webp",
+  ".gif",
+  ".bmp",
+  ".tiff",
+  ".tif",
+  ".avif",
   // Video
-  ".mp4", ".webm", ".mov", ".avi", ".mkv", ".flv", ".wmv", ".m4v",
+  ".mp4",
+  ".webm",
+  ".mov",
+  ".avi",
+  ".mkv",
+  ".flv",
+  ".wmv",
+  ".m4v",
 ]);
 
 function isMediaFile(path: string): boolean {
@@ -254,84 +292,94 @@ function startFileStream(folder: string, ac: AbortController, hasChildSeed: bool
   };
 
   void getWsUrlWithTicket("/sdapi/v2/browser/files").then((wsUrl) => {
-  const ws = new WebSocket(wsUrl);
+    const ws = new WebSocket(wsUrl);
 
-  const cleanupWs = () => {
-    if (flushTimer) { clearTimeout(flushTimer); flushTimer = null; }
-    if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) ws.close();
-  };
-
-  ac.signal.addEventListener("abort", cleanupWs, { once: true });
-
-  ws.onopen = () => ws.send(folder);
-
-  ws.onmessage = (ev) => {
-    const msg = ev.data as string;
-    if (msg === "#END#") {
-      if (flushTimer) { clearTimeout(flushTimer); flushTimer = null; }
-      flush();
-      const endStore = useGalleryStore.getState();
-      // Re-key child-seeded thumbs to match parent-context file IDs.
-      // Child cache files have IDs like "outputs%2Ftext##F##img.png" while
-      // the parent stream produces "outputs##F##text%2Fimg.png" - different
-      // IDs for the same fullPath. Build a fullPath→thumb map, then re-key.
-      if (hasChildSeed && endStore.thumbs.size > 0) {
-        const pathToThumb = new Map<string, CachedThumb>();
-        const oldFileMap = new Map(endStore.files.map((f) => [f.id, f]));
-        for (const [id, thumb] of endStore.thumbs) {
-          const file = oldFileMap.get(id);
-          if (file) pathToThumb.set(file.fullPath, thumb);
-        }
-        const rekeyed: [string, CachedThumb][] = [];
-        for (const f of allFiles) {
-          const thumb = pathToThumb.get(f.fullPath);
-          if (thumb) rekeyed.push([f.id, thumb]);
-        }
-        endStore.setFiles(allFiles);
-        // Replace (not merge) to drop orphaned child-context IDs that would
-        // inflate thumbs.size past files.length and confuse the progress bar.
-        useGalleryStore.setState({ thumbs: new Map(rekeyed) });
-      } else {
-        endStore.setFiles(allFiles);
+    const cleanupWs = () => {
+      if (flushTimer) {
+        clearTimeout(flushTimer);
+        flushTimer = null;
       }
+      if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) ws.close();
+    };
 
-      endStore.setLoadProgress(allFiles.length, allFiles.length);
-      endStore.setLoadingFiles(false);
-      ws.close();
+    ac.signal.addEventListener("abort", cleanupWs, { once: true });
 
-      // Save to folder cache - fetch mtime for staleness tracking
-      api.get<{ mtime: number }>("/sdapi/v2/browser/folder-info", { folder })
-        .then((info) => {
-          const thumbs = new Map(useGalleryStore.getState().thumbs);
-          setCachedFolder(folder, allFiles, thumbs, info.mtime);
-        })
-        .catch(() => {
-          // Still cache with mtime=0 so revisit is instant
-          const thumbs = new Map(useGalleryStore.getState().thumbs);
-          setCachedFolder(folder, allFiles, thumbs, 0);
-        });
+    ws.onopen = () => ws.send(folder);
 
-      // Batch-read IndexedDB for parent-context files - finds thumbs
-      // from child folder browsing since IndexedDB keys on fullPath hash
-      void preloadCachedThumbs(allFiles, folder);
-      return;
-    }
-    const entry = parseFileEntry(msg);
-    if (isMediaFile(entry.relativePath)) {
-      buffer.push(entry);
-      scheduleFlush();
-    }
-  };
+    ws.onmessage = (ev) => {
+      const msg = ev.data as string;
+      if (msg === "#END#") {
+        if (flushTimer) {
+          clearTimeout(flushTimer);
+          flushTimer = null;
+        }
+        flush();
+        const endStore = useGalleryStore.getState();
+        // Re-key child-seeded thumbs to match parent-context file IDs.
+        // Child cache files have IDs like "outputs%2Ftext##F##img.png" while
+        // the parent stream produces "outputs##F##text%2Fimg.png" - different
+        // IDs for the same fullPath. Build a fullPath→thumb map, then re-key.
+        if (hasChildSeed && endStore.thumbs.size > 0) {
+          const pathToThumb = new Map<string, CachedThumb>();
+          const oldFileMap = new Map(endStore.files.map((f) => [f.id, f]));
+          for (const [id, thumb] of endStore.thumbs) {
+            const file = oldFileMap.get(id);
+            if (file) pathToThumb.set(file.fullPath, thumb);
+          }
+          const rekeyed: [string, CachedThumb][] = [];
+          for (const f of allFiles) {
+            const thumb = pathToThumb.get(f.fullPath);
+            if (thumb) rekeyed.push([f.id, thumb]);
+          }
+          endStore.setFiles(allFiles);
+          // Replace (not merge) to drop orphaned child-context IDs that would
+          // inflate thumbs.size past files.length and confuse the progress bar.
+          useGalleryStore.setState({ thumbs: new Map(rekeyed) });
+        } else {
+          endStore.setFiles(allFiles);
+        }
 
-  ws.onerror = () => {
-    useGalleryStore.getState().setLoadingFiles(false);
-  };
+        endStore.setLoadProgress(allFiles.length, allFiles.length);
+        endStore.setLoadingFiles(false);
+        ws.close();
 
-  ws.onclose = () => {
-    if (flushTimer) { clearTimeout(flushTimer); flushTimer = null; }
-    flush();
-    useGalleryStore.getState().setLoadingFiles(false);
-  };
+        // Save to folder cache - fetch mtime for staleness tracking
+        api
+          .get<{ mtime: number }>("/sdapi/v2/browser/folder-info", { folder })
+          .then((info) => {
+            const thumbs = new Map(useGalleryStore.getState().thumbs);
+            setCachedFolder(folder, allFiles, thumbs, info.mtime);
+          })
+          .catch(() => {
+            // Still cache with mtime=0 so revisit is instant
+            const thumbs = new Map(useGalleryStore.getState().thumbs);
+            setCachedFolder(folder, allFiles, thumbs, 0);
+          });
+
+        // Batch-read IndexedDB for parent-context files - finds thumbs
+        // from child folder browsing since IndexedDB keys on fullPath hash
+        void preloadCachedThumbs(allFiles, folder);
+        return;
+      }
+      const entry = parseFileEntry(msg);
+      if (isMediaFile(entry.relativePath)) {
+        buffer.push(entry);
+        scheduleFlush();
+      }
+    };
+
+    ws.onerror = () => {
+      useGalleryStore.getState().setLoadingFiles(false);
+    };
+
+    ws.onclose = () => {
+      if (flushTimer) {
+        clearTimeout(flushTimer);
+        flushTimer = null;
+      }
+      flush();
+      useGalleryStore.getState().setLoadingFiles(false);
+    };
   });
 }
 
@@ -497,7 +545,9 @@ function dispatchThumb(file: GalleryFile) {
  */
 export function useThumbnailLoader(visibleFileIds: string[], files: GalleryFile[]) {
   const filesRef = useRef(files);
-  useEffect(() => { filesRef.current = files; }, [files]);
+  useEffect(() => {
+    filesRef.current = files;
+  }, [files]);
 
   useEffect(() => {
     const fileMap = new Map(filesRef.current.map((f) => [f.id, f]));
@@ -558,7 +608,11 @@ async function cleanupThumbsForFiles(files: GalleryFile[]) {
 
 export function useDeleteFiles() {
   return useMutation({
-    mutationFn: (files: string[]) => api.post<{ deleted: string[]; errors: { file: string; error: string }[] }>("/sdapi/v2/browser/delete", { files }),
+    mutationFn: (files: string[]) =>
+      api.post<{ deleted: string[]; errors: { file: string; error: string }[] }>(
+        "/sdapi/v2/browser/delete",
+        { files },
+      ),
     onSuccess: (data) => {
       if (data.deleted.length === 0) return;
       const store = useGalleryStore.getState();
@@ -574,7 +628,11 @@ export function useDeleteFiles() {
 
 export function useMoveFiles() {
   return useMutation({
-    mutationFn: (params: { files: string[]; destination: string }) => api.post<{ moved: string[]; errors: { file: string; error: string }[] }>("/sdapi/v2/browser/move", params),
+    mutationFn: (params: { files: string[]; destination: string }) =>
+      api.post<{ moved: string[]; errors: { file: string; error: string }[] }>(
+        "/sdapi/v2/browser/move",
+        params,
+      ),
     onSuccess: (data, variables) => {
       if (data.moved.length === 0) return;
       const store = useGalleryStore.getState();

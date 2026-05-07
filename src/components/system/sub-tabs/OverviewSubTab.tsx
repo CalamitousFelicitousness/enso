@@ -1,9 +1,4 @@
-import {
-  useGpuStatus,
-  useMemory,
-  useLoadedModels,
-  useServerInfo,
-} from "@/api/hooks/useServer";
+import { useGpuStatus, useMemory, useLoadedModels, useServerInfo } from "@/api/hooks/useServer";
 import { useKeepAliveVisible } from "@/components/ui/keep-alive";
 import { GroupedModels } from "@/components/layout/LoadedModelsPanel";
 import { formatBytes } from "@/lib/utils";
@@ -30,61 +25,29 @@ export function OverviewSubTab() {
         <Section title="GPU">
           <Row label="Name" value={gpu.name} />
           {metrics?.temperature != null && (
-            <BarRow
-              label="Temp"
-              value={metrics.temperature}
-              max={100}
-              unit="C"
-            />
+            <BarRow label="Temp" value={metrics.temperature} max={100} unit="C" />
           )}
           {metrics?.load_gpu != null && (
-            <BarRow
-              label="GPU Load"
-              value={metrics.load_gpu}
-              max={100}
-              unit="%"
-            />
+            <BarRow label="GPU Load" value={metrics.load_gpu} max={100} unit="%" />
           )}
           {metrics?.load_vram != null && (
-            <BarRow
-              label="VRAM Load"
-              value={metrics.load_vram}
-              max={100}
-              unit="%"
-            />
+            <BarRow label="VRAM Load" value={metrics.load_vram} max={100} unit="%" />
           )}
-          {metrics?.fan_speed != null && (
-            <Row label="Fan" value={`${metrics.fan_speed}%`} />
-          )}
+          {metrics?.fan_speed != null && <Row label="Fan" value={`${metrics.fan_speed}%`} />}
           {metrics?.power_current != null && metrics?.power_limit != null && (
-            <Row
-              label="Power"
-              value={`${metrics.power_current}W / ${metrics.power_limit}W`}
-            />
+            <Row label="Power" value={`${metrics.power_current}W / ${metrics.power_limit}W`} />
           )}
         </Section>
       )}
 
       <Section title="Memory">
         {vramAllocated != null && vramTotal != null && vramTotal > 0 && (
-          <BarRow
-            label="VRAM"
-            value={vramAllocated}
-            max={vramTotal}
-            formatter={formatBytes}
-          />
+          <BarRow label="VRAM" value={vramAllocated} max={vramTotal} formatter={formatBytes} />
         )}
         {ramUsed != null && ramTotal != null && ramTotal > 0 && (
-          <BarRow
-            label="RAM"
-            value={ramUsed}
-            max={ramTotal}
-            formatter={formatBytes}
-          />
+          <BarRow label="RAM" value={ramUsed} max={ramTotal} formatter={formatBytes} />
         )}
-        {!vramTotal && !ramTotal && (
-          <p className="text-xs text-muted-foreground">No memory data</p>
-        )}
+        {!vramTotal && !ramTotal && <p className="text-xs text-muted-foreground">No memory data</p>}
       </Section>
 
       <Section title={`Loaded Models (${models?.length ?? 0})`}>
@@ -106,4 +69,3 @@ export function OverviewSubTab() {
     </div>
   );
 }
-

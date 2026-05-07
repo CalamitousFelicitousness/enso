@@ -127,18 +127,14 @@ export const GalleryCard = memo(function GalleryCard({
       )}
 
       {/* Selection tint overlay */}
-      {isSelected && (
-        <div className="absolute inset-0 bg-primary/10 pointer-events-none" />
-      )}
+      {isSelected && <div className="absolute inset-0 bg-primary/10 pointer-events-none" />}
 
       {/* Selection checkbox */}
       {(isSelectMode || isSelected) && (
         <div
           className={cn(
             "absolute top-1 left-1 w-5 h-5 rounded-sm flex items-center justify-center transition-colors",
-            isSelected
-              ? "bg-primary text-primary-foreground"
-              : "bg-black/40 text-white/60",
+            isSelected ? "bg-primary text-primary-foreground" : "bg-black/40 text-white/60",
           )}
         >
           {isSelected && <Check size={12} strokeWidth={3} />}
@@ -153,9 +149,7 @@ export const GalleryCard = memo(function GalleryCard({
       {/* Hover overlay */}
       <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
         <div className="absolute bottom-0 left-0 right-0 p-1.5">
-          <p className="text-4xs text-white/90 font-medium truncate">
-            {filename}
-          </p>
+          <p className="text-4xs text-white/90 font-medium truncate">{filename}</p>
           {thumb && (
             <p className="text-5xs text-white/60">
               {thumb.width}x{thumb.height}
@@ -196,10 +190,7 @@ export const ConnectedGalleryCard = memo(function ConnectedGalleryCard({
     (e: React.MouseEvent) => onClick(file, index, e),
     [file, index, onClick],
   );
-  const handleDoubleClick = useCallback(
-    () => onDoubleClick(index),
-    [index, onDoubleClick],
-  );
+  const handleDoubleClick = useCallback(() => onDoubleClick(index), [index, onDoubleClick]);
   const handleContextMenu = useCallback(
     () => onContextMenu?.(file, index),
     [file, index, onContextMenu],

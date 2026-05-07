@@ -3,7 +3,16 @@ import { persist } from "zustand/middleware";
 import type { RightTab } from "@/lib/constants";
 
 type NavView = "images" | "video" | "process" | "caption" | "gallery";
-type ImagesSubTab = "prompts" | "sampler" | "guidance" | "refine" | "detail" | "advanced" | "color" | "control" | "scripts";
+type ImagesSubTab =
+  | "prompts"
+  | "sampler"
+  | "guidance"
+  | "refine"
+  | "detail"
+  | "advanced"
+  | "color"
+  | "control"
+  | "scripts";
 type ColorMode = "dark" | "light" | "system";
 type CanvasBackground = "dots" | "noise" | "iso";
 
@@ -120,7 +129,17 @@ interface UiState {
   setDictAppendComma: (enabled: boolean) => void;
 }
 
-export type { NavView, ImagesSubTab, ColorMode, CanvasBackground, ModelsSubTab, SystemSubTab, CaptionSubTab, VideoSubTab, PanelSelections };
+export type {
+  NavView,
+  ImagesSubTab,
+  ColorMode,
+  CanvasBackground,
+  ModelsSubTab,
+  SystemSubTab,
+  CaptionSubTab,
+  VideoSubTab,
+  PanelSelections,
+};
 
 const DEFAULT_PANEL_SELECTIONS: PanelSelections = {
   modelsSubTab: "Current",
@@ -181,10 +200,11 @@ export const useUiStore = create<UiState>()(
       setUiScale: (scale) => set({ uiScale: Math.max(8, Math.min(28, scale)) }),
       setCanvasLabelScale: (scale) => set({ canvasLabelScale: Math.max(0.5, Math.min(2, scale)) }),
       setCanvasBackground: (bg) => set({ canvasBackground: bg }),
-      addRecentCommand: (id) => set((s) => {
-        const filtered = s.recentCommandIds.filter((c) => c !== id);
-        return { recentCommandIds: [id, ...filtered].slice(0, 5) };
-      }),
+      addRecentCommand: (id) =>
+        set((s) => {
+          const filtered = s.recentCommandIds.filter((c) => c !== id);
+          return { recentCommandIds: [id, ...filtered].slice(0, 5) };
+        }),
       setQuickSettingsKeys: (keys) => set({ quickSettingsKeys: keys }),
       setPendingSettingsSearch: (query) => set({ pendingSettingsSearch: query }),
       setPromptAutocomplete: (enabled) => set({ promptAutocomplete: enabled }),
@@ -204,7 +224,13 @@ export const useUiStore = create<UiState>()(
         return p;
       },
       partialize: (state) => {
-        const { pendingSettingsSearch: _pending, dictMinChars: _mc, dictReplaceUnderscores: _ru, dictAppendComma: _ac, ...rest } = state;
+        const {
+          pendingSettingsSearch: _pending,
+          dictMinChars: _mc,
+          dictReplaceUnderscores: _ru,
+          dictAppendComma: _ac,
+          ...rest
+        } = state;
         return rest;
       },
     },

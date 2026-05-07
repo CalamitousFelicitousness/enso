@@ -1,13 +1,24 @@
 import type { FitMode, FreeTransform } from "@/lib/image";
 
-export type ControlUnitType = "controlnet" | "t2i" | "xs" | "lite" | "style_transfer" | "ip" | "reference";
+export type ControlUnitType =
+  | "controlnet"
+  | "t2i"
+  | "xs"
+  | "lite"
+  | "style_transfer"
+  | "ip"
+  | "reference";
 
 /** High-level unified input roles visible to the user. */
 export type InputRole = "initial" | "reference" | "control";
 
 /** Control sub-types that are mutually exclusive (all except IP-Adapter). */
 export const EXCLUSIVE_CONTROL_TYPES: ReadonlySet<ControlUnitType> = new Set<ControlUnitType>([
-  "controlnet", "t2i", "xs", "lite", "style_transfer",
+  "controlnet",
+  "t2i",
+  "xs",
+  "lite",
+  "style_transfer",
 ]);
 
 /** Map frontend unit type → backend API string (only types that differ or need explicit mapping). */

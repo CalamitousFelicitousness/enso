@@ -11,15 +11,9 @@ interface ScriptSectionProps {
   setArgValue: (index: number, value: unknown) => void;
 }
 
-export function ScriptSection({
-  script,
-  getArgValue,
-  setArgValue,
-}: ScriptSectionProps) {
+export function ScriptSection({ script, getArgValue, setArgValue }: ScriptSectionProps) {
   const layout = SCRIPT_LAYOUTS[script.name];
-  const sectionEnabled = useScriptStore(
-    (s) => s.alwaysOnEnabled[script.name] ?? false,
-  );
+  const sectionEnabled = useScriptStore((s) => s.alwaysOnEnabled[script.name] ?? false);
   const setSectionEnabled = useScriptStore((s) => s.setAlwaysOnEnabled);
 
   // Fallback: flat list for unknown scripts
@@ -49,22 +43,17 @@ export function ScriptSection({
             <Switch
               size="sm"
               checked={sectionEnabled}
-              onCheckedChange={(checked) =>
-                setSectionEnabled(script.name, checked)
-              }
+              onCheckedChange={(checked) => setSectionEnabled(script.name, checked)}
             />
             Enabled
           </label>
           {layout.headerRow!.map((idx) => {
             const arg = script.args[idx];
-            if (!arg || typeof (getArgValue(idx) ?? arg.value) !== "boolean")
-              return null;
+            if (!arg || typeof (getArgValue(idx) ?? arg.value) !== "boolean") return null;
             const requirement = layout.headerArgRequires?.[idx];
             const requirementMet =
               !requirement ||
-              toDisplayString(getArgValue(requirement.arg)).includes(
-                requirement.includes,
-              );
+              toDisplayString(getArgValue(requirement.arg)).includes(requirement.includes);
             const disabled = !sectionEnabled || !requirementMet;
             return (
               <label
@@ -88,9 +77,7 @@ export function ScriptSection({
       {layout.groups.map((group, gi) => {
         const sectionDisabled = hasHeaderRow && !sectionEnabled;
         const ownDisabled =
-          group.disabledUnless != null
-            ? !getArgValue(group.disabledUnless)
-            : false;
+          group.disabledUnless != null ? !getArgValue(group.disabledUnless) : false;
         const visibleArgs = group.args.filter(
           (idx) => !hiddenSet.has(idx) && idx < script.args.length,
         );
@@ -99,16 +86,12 @@ export function ScriptSection({
         // Split into booleans and non-booleans for grid rendering
         const boolArgs = group.grid
           ? visibleArgs.filter(
-              (idx) =>
-                typeof (getArgValue(idx) ?? script.args[idx]?.value) ===
-                "boolean",
+              (idx) => typeof (getArgValue(idx) ?? script.args[idx]?.value) === "boolean",
             )
           : [];
         const otherArgs = group.grid
           ? visibleArgs.filter(
-              (idx) =>
-                typeof (getArgValue(idx) ?? script.args[idx]?.value) !==
-                "boolean",
+              (idx) => typeof (getArgValue(idx) ?? script.args[idx]?.value) !== "boolean",
             )
           : visibleArgs;
 
@@ -133,14 +116,11 @@ export function ScriptSection({
                   const requirement = group.argRequires?.[idx];
                   const requirementMet =
                     !requirement ||
-                    toDisplayString(getArgValue(requirement.arg)).includes(
-                      requirement.includes,
-                    );
+                    toDisplayString(getArgValue(requirement.arg)).includes(requirement.includes);
                   const disabled =
                     sectionDisabled ||
                     (ownDisabled && !isController) ||
-                    (perArgController != null &&
-                      !getArgValue(perArgController)) ||
+                    (perArgController != null && !getArgValue(perArgController)) ||
                     !requirementMet;
                   return (
                     <label
@@ -169,9 +149,7 @@ export function ScriptSection({
               const requirement = group.argRequires?.[idx];
               const requirementMet =
                 !requirement ||
-                toDisplayString(getArgValue(requirement.arg)).includes(
-                  requirement.includes,
-                );
+                toDisplayString(getArgValue(requirement.arg)).includes(requirement.includes);
               const argDisabled =
                 sectionDisabled ||
                 (ownDisabled && !isController) ||

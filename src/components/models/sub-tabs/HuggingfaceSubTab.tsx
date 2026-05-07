@@ -15,11 +15,7 @@ function formatDownloads(n: number): string {
 export function HuggingfaceSubTab() {
   const [keyword, setKeyword] = useState("");
   const [searchEnabled, setSearchEnabled] = useState(false);
-  const {
-    data: results,
-    isLoading,
-    refetch,
-  } = useHfSearch(keyword, searchEnabled);
+  const { data: results, isLoading, refetch } = useHfSearch(keyword, searchEnabled);
   const hfDownload = useHfDownload();
   const [selected, setSelected] = useState<string | null>(null);
   const [showAdvanced, setShowAdvanced] = useState(false);
@@ -93,13 +89,9 @@ export function HuggingfaceSubTab() {
                   onClick={() => setSelected(r.id)}
                   className={`border-b border-border/50 cursor-pointer ${selected === r.id ? "bg-accent/30" : "hover:bg-muted/30"}`}
                 >
-                  <td className="px-2 py-1 truncate max-w-40 font-mono">
-                    {r.id}
-                  </td>
+                  <td className="px-2 py-1 truncate max-w-40 font-mono">{r.id}</td>
                   <td className="px-2 py-1">{r.pipeline_tag ?? "-"}</td>
-                  <td className="px-2 py-1 text-right font-mono">
-                    {formatDownloads(r.downloads)}
-                  </td>
+                  <td className="px-2 py-1 text-right font-mono">{formatDownloads(r.downloads)}</td>
                   <td className="px-2 py-1 text-center">
                     {r.url && (
                       <a
@@ -184,15 +176,11 @@ export function HuggingfaceSubTab() {
             disabled={hfDownload.isPending}
             className="w-full"
           >
-            {hfDownload.isPending && (
-              <Loader2 className="h-3 w-3 animate-spin mr-1" />
-            )}
+            {hfDownload.isPending && <Loader2 className="h-3 w-3 animate-spin mr-1" />}
             Download
           </Button>
           {hfDownload.data && (
-            <p className="text-2xs text-muted-foreground">
-              {hfDownload.data.status}
-            </p>
+            <p className="text-2xs text-muted-foreground">{hfDownload.data.status}</p>
           )}
         </div>
       )}

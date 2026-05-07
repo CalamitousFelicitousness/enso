@@ -1,11 +1,7 @@
 import { memo, useState, useCallback, useEffect, useRef } from "react";
 import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
-import {
-  Tooltip,
-  TooltipTrigger,
-  TooltipContent,
-} from "@/components/ui/tooltip";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { KeepAlivePanel } from "./keep-alive";
 
 interface SectionLeaderProps {
@@ -62,7 +58,8 @@ const SectionLeader = memo(function SectionLeader({
   const hasBar = level < 2;
   const barWidth = level === 0 ? "w-[3px]" : "w-[2px]";
   const titleSize = level === 2 ? "text-3xs" : level === 1 ? "text-[10px]" : "text-2xs";
-  const dotSize = level === 2 ? "h-[3px] w-[3px]" : level === 1 ? "h-[4px] w-[4px]" : "h-[5px] w-[5px]";
+  const dotSize =
+    level === 2 ? "h-[3px] w-[3px]" : level === 1 ? "h-[4px] w-[4px]" : "h-[5px] w-[5px]";
   const headerPy = level === 0 ? "py-[7px]" : level === 1 ? "py-1" : "py-0.5";
 
   // Programmatic expand via custom event (used by navigateToParam.ts)
@@ -95,15 +92,9 @@ const SectionLeader = memo(function SectionLeader({
 
   // --- Tooltip-wrapped title text ---
   const titleEl = (titleClass: string) => {
-    const text = (
-      <span className={cn(titleClass, tooltip && "cursor-help")}>
-        {title}
-      </span>
-    );
+    const text = <span className={cn(titleClass, tooltip && "cursor-help")}>{title}</span>;
     if (!tooltip) return text;
-    return (
-      <SectionTooltip tooltip={tooltip}>{text}</SectionTooltip>
-    );
+    return <SectionTooltip tooltip={tooltip}>{text}</SectionTooltip>;
   };
 
   // --- Action slot (with propagation isolation) ---
@@ -120,10 +111,7 @@ const SectionLeader = memo(function SectionLeader({
   // --- Chevron element ---
   const chevron = (
     <ChevronDown
-      className={cn(
-        "w-3 h-3 transition-transform duration-200",
-        collapsed && "-rotate-90",
-      )}
+      className={cn("w-3 h-3 transition-transform duration-200", collapsed && "-rotate-90")}
     />
   );
 
@@ -162,10 +150,12 @@ const SectionLeader = memo(function SectionLeader({
           <span className="text-muted-foreground/40 group-hover:text-muted-foreground/70 transition-colors shrink-0">
             {chevron}
           </span>
-          {titleEl(cn(
-            titleSize,
-            "font-medium uppercase tracking-[0.06em] text-muted-foreground group-hover:text-foreground transition-colors",
-          ))}
+          {titleEl(
+            cn(
+              titleSize,
+              "font-medium uppercase tracking-[0.06em] text-muted-foreground group-hover:text-foreground transition-colors",
+            ),
+          )}
         </button>
         {actionSlot}
       </div>
@@ -173,12 +163,7 @@ const SectionLeader = memo(function SectionLeader({
   } else if (enableable) {
     // Enable-only or Both: dot left-anchored before title
     header = (
-      <div
-        className={cn(
-          "flex items-center w-full rounded-sm",
-          headerPy,
-        )}
-      >
+      <div className={cn("flex items-center w-full rounded-sm", headerPy)}>
         <button
           type="button"
           role="switch"
@@ -196,13 +181,13 @@ const SectionLeader = memo(function SectionLeader({
                 : "bg-muted-foreground/15",
             )}
           />
-          {titleEl(cn(
-            titleSize,
-            "font-medium uppercase tracking-[0.06em] transition-colors duration-200",
-            isActive
-              ? "text-foreground/80"
-              : "text-muted-foreground/35",
-          ))}
+          {titleEl(
+            cn(
+              titleSize,
+              "font-medium uppercase tracking-[0.06em] transition-colors duration-200",
+              isActive ? "text-foreground/80" : "text-muted-foreground/35",
+            ),
+          )}
         </button>
 
         {actionSlot}
@@ -227,16 +212,8 @@ const SectionLeader = memo(function SectionLeader({
   } else {
     // Neither: plain label
     header = (
-      <div
-        className={cn(
-          "flex items-center w-full",
-          headerPy,
-        )}
-      >
-        {titleEl(cn(
-          titleSize,
-          "font-medium uppercase tracking-[0.06em] text-muted-foreground/60",
-        ))}
+      <div className={cn("flex items-center w-full", headerPy)}>
+        {titleEl(cn(titleSize, "font-medium uppercase tracking-[0.06em] text-muted-foreground/60"))}
         {actionSlot}
       </div>
     );
@@ -245,10 +222,7 @@ const SectionLeader = memo(function SectionLeader({
   return (
     <div
       data-section={title.toLowerCase()}
-      className={cn(
-        "flex",
-        parentDisabled && "opacity-40 pointer-events-none",
-      )}
+      className={cn("flex", parentDisabled && "opacity-40 pointer-events-none")}
     >
       {/* Left edge bar - present at level 0 and 1 for visual cohesion */}
       {hasBar && (
@@ -297,12 +271,20 @@ function SectionTooltip({ tooltip, children }: { tooltip: string; children: Reac
   const didLongPress = useRef(false);
   const triggerRef = useRef<HTMLSpanElement>(null);
 
-  useEffect(() => () => { clearTimeout(hoverTimer.current); clearTimeout(pressTimer.current); }, []);
+  useEffect(
+    () => () => {
+      clearTimeout(hoverTimer.current);
+      clearTimeout(pressTimer.current);
+    },
+    [],
+  );
 
   // Dismiss pinned tooltip on Escape or outside tap
   useEffect(() => {
     if (!pinned) return;
-    const handleKey = (e: KeyboardEvent) => { if (e.key === "Escape") setPinned(false); };
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setPinned(false);
+    };
     const handleClick = (e: PointerEvent) => {
       if (triggerRef.current?.contains(e.target as Node)) return;
       const content = document.querySelector("[data-slot='tooltip-content']");
@@ -311,7 +293,10 @@ function SectionTooltip({ tooltip, children }: { tooltip: string; children: Reac
     };
     document.addEventListener("keydown", handleKey);
     document.addEventListener("pointerdown", handleClick);
-    return () => { document.removeEventListener("keydown", handleKey); document.removeEventListener("pointerdown", handleClick); };
+    return () => {
+      document.removeEventListener("keydown", handleKey);
+      document.removeEventListener("pointerdown", handleClick);
+    };
   }, [pinned]);
 
   // Content is developer-defined help text from parameterHelp.ts, not user input
@@ -320,8 +305,13 @@ function SectionTooltip({ tooltip, children }: { tooltip: string; children: Reac
       <TooltipTrigger asChild>
         <span
           ref={triggerRef}
-          onPointerEnter={() => { hoverTimer.current = setTimeout(() => setHovered(true), 300); }}
-          onPointerLeave={() => { clearTimeout(hoverTimer.current); setHovered(false); }}
+          onPointerEnter={() => {
+            hoverTimer.current = setTimeout(() => setHovered(true), 300);
+          }}
+          onPointerLeave={() => {
+            clearTimeout(hoverTimer.current);
+            setHovered(false);
+          }}
           onPointerDown={() => {
             didLongPress.current = false;
             pressTimer.current = setTimeout(() => {

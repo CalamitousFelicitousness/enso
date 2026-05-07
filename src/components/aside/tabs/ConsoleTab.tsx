@@ -29,7 +29,7 @@ function parseLine(raw: string): ParsedLine {
   try {
     const obj = JSON.parse(raw) as Record<string, string>;
     const asctime = obj["asctime"] ?? "";
-    const timePart = asctime.includes(" ") ? asctime.split(" ")[1] ?? asctime : asctime;
+    const timePart = asctime.includes(" ") ? (asctime.split(" ")[1] ?? asctime) : asctime;
     const time = timePart.replace(",", ".");
     return {
       time,
@@ -70,7 +70,9 @@ function highlightMsg(msg: string): ReactNode {
 
     if (quoted) {
       parts.push(
-        <span key={key++} className="text-amber-400/80">{full}</span>
+        <span key={key++} className="text-amber-400/80">
+          {full}
+        </span>,
       );
     } else if (keyval) {
       const eqIdx = keyval.indexOf("=");
@@ -81,19 +83,25 @@ function highlightMsg(msg: string): ReactNode {
           <span className="text-muted-foreground/60">{k}</span>
           <span className="text-muted-foreground/40">=</span>
           <span className="text-emerald-400/80">{v}</span>
-        </span>
+        </span>,
       );
     } else if (method) {
       parts.push(
-        <span key={key++} className="text-violet-400/80">{full}</span>
+        <span key={key++} className="text-violet-400/80">
+          {full}
+        </span>,
       );
     } else if (path) {
       parts.push(
-        <span key={key++} className="text-sky-400/70">{full}</span>
+        <span key={key++} className="text-sky-400/70">
+          {full}
+        </span>,
       );
     } else if (num) {
       parts.push(
-        <span key={key++} className="text-orange-300/80">{full}</span>
+        <span key={key++} className="text-orange-300/80">
+          {full}
+        </span>,
       );
     } else {
       parts.push(full);
@@ -150,7 +158,9 @@ export function ConsoleTab() {
   async function handleCopy() {
     if (filtered.length) {
       const text = filtered
-        .map((l) => (l.time ? `${l.time} ${l.level.padEnd(8)} ${l.module}:${l.func}  ${l.msg}` : l.raw))
+        .map((l) =>
+          l.time ? `${l.time} ${l.level.padEnd(8)} ${l.module}:${l.func}  ${l.msg}` : l.raw,
+        )
         .join("\n");
       await navigator.clipboard.writeText(text);
     }
@@ -181,20 +191,10 @@ export function ConsoleTab() {
         >
           <Filter className="h-3.5 w-3.5" />
         </Button>
-        <Button
-          variant="ghost"
-          size="icon-xs"
-          onClick={() => void handleCopy()}
-          title="Copy all"
-        >
+        <Button variant="ghost" size="icon-xs" onClick={() => void handleCopy()} title="Copy all">
           <Copy className="h-3.5 w-3.5" />
         </Button>
-        <Button
-          variant="ghost"
-          size="icon-xs"
-          onClick={() => clearLog.mutate()}
-          title="Clear log"
-        >
+        <Button variant="ghost" size="icon-xs" onClick={() => clearLog.mutate()} title="Clear log">
           <Trash2 className="h-3.5 w-3.5" />
         </Button>
         <span className="ml-auto text-3xs text-muted-foreground font-mono tabular-nums">
@@ -216,7 +216,9 @@ export function ConsoleTab() {
             key={i}
             className={cn(
               "flex px-2 hover:bg-muted/50",
-              wrap ? "flex-wrap gap-x-1.5 items-baseline leading-4" : "flex-nowrap gap-1.5 overflow-hidden h-4 items-center",
+              wrap
+                ? "flex-wrap gap-x-1.5 items-baseline leading-4"
+                : "flex-nowrap gap-1.5 overflow-hidden h-4 items-center",
             )}
           >
             {line.time ? (
@@ -231,12 +233,19 @@ export function ConsoleTab() {
                   {line.module}
                   {line.func && `:${line.func}`}
                 </span>
-                <span className={cn("text-foreground/90 min-w-0", wrap ? "flex-1 break-all" : "truncate")}>
+                <span
+                  className={cn(
+                    "text-foreground/90 min-w-0",
+                    wrap ? "flex-1 break-all" : "truncate",
+                  )}
+                >
                   {highlightMsg(line.msg)}
                 </span>
               </>
             ) : (
-              <span className={cn("text-foreground/90 min-w-0", wrap ? "flex-1 break-all" : "truncate")}>
+              <span
+                className={cn("text-foreground/90 min-w-0", wrap ? "flex-1 break-all" : "truncate")}
+              >
                 {highlightMsg(line.raw)}
               </span>
             )}

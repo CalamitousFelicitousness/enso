@@ -370,8 +370,7 @@ export const useGenerationStore = create<GenerationState>()(
       selectImage: (resultId, imageIndex) =>
         set({ selectedResultId: resultId, selectedImageIndex: imageIndex }),
 
-      clearSelection: () =>
-        set({ selectedResultId: null, selectedImageIndex: null }),
+      clearSelection: () => set({ selectedResultId: null, selectedImageIndex: null }),
 
       setHistoryLimit: (limit) => set({ historyLimit: limit }),
 
@@ -386,7 +385,11 @@ export const useGenerationStore = create<GenerationState>()(
         if (version < 1) {
           // Coerce detailerModels: string[] → DetailerModelEntry[]
           const oldModels = p["detailerModels"];
-          if (Array.isArray(oldModels) && oldModels.length > 0 && typeof oldModels[0] === "string") {
+          if (
+            Array.isArray(oldModels) &&
+            oldModels.length > 0 &&
+            typeof oldModels[0] === "string"
+          ) {
             p["detailerModels"] = oldModels.map((name) => ({ name: name as string }));
           }
           // Fold flat detailer* fields into a defaults block
@@ -412,12 +415,25 @@ export const useGenerationStore = create<GenerationState>()(
             negative: p["detailerNegative"],
           };
           for (const k of [
-            "detailerStrength", "detailerSteps", "detailerResolution",
-            "detailerPadding", "detailerBlur", "detailerConfidence", "detailerIou",
-            "detailerMinSize", "detailerMaxSize", "detailerMaxDetected",
-            "detailerRenoise", "detailerRenoiseEnd",
-            "detailerSegmentation", "detailerIncludeDetections", "detailerMerge", "detailerSort",
-            "detailerClasses", "detailerPrompt", "detailerNegative",
+            "detailerStrength",
+            "detailerSteps",
+            "detailerResolution",
+            "detailerPadding",
+            "detailerBlur",
+            "detailerConfidence",
+            "detailerIou",
+            "detailerMinSize",
+            "detailerMaxSize",
+            "detailerMaxDetected",
+            "detailerRenoise",
+            "detailerRenoiseEnd",
+            "detailerSegmentation",
+            "detailerIncludeDetections",
+            "detailerMerge",
+            "detailerSort",
+            "detailerClasses",
+            "detailerPrompt",
+            "detailerNegative",
           ]) {
             delete p[k];
           }

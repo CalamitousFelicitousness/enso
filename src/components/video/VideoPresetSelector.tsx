@@ -4,17 +4,9 @@ import { toast } from "sonner";
 import { Combobox } from "@/components/ui/combobox";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useVideoStore } from "@/stores/videoStore";
-import {
-  useVideoPresetStore,
-  snapshotParams,
-  type PresetDomain,
-} from "@/stores/videoPresetStore";
+import { useVideoPresetStore, snapshotParams, type PresetDomain } from "@/stores/videoPresetStore";
 
 interface VideoPresetSelectorProps {
   domain: PresetDomain;
@@ -91,8 +83,7 @@ export function VideoPresetSelector({ domain }: VideoPresetSelectorProps) {
       const reader = new FileReader();
       reader.onload = () => {
         const count = importPresets(reader.result as string);
-        if (count > 0)
-          toast.success(`Imported ${count} preset${count > 1 ? "s" : ""}`);
+        if (count > 0) toast.success(`Imported ${count} preset${count > 1 ? "s" : ""}`);
         else toast.error("No valid presets found in file");
       };
       reader.readAsText(file);
@@ -139,11 +130,7 @@ export function VideoPresetSelector({ domain }: VideoPresetSelectorProps) {
 
       <Popover open={saveOpen} onOpenChange={setSaveOpen}>
         <PopoverTrigger asChild>
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            title="Save current settings as preset"
-          >
+          <Button variant="ghost" size="icon-sm" title="Save current settings as preset">
             <Save size={14} />
           </Button>
         </PopoverTrigger>

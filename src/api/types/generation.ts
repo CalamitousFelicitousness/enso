@@ -127,15 +127,17 @@ export interface ControlRequest {
   inpainting_mask_invert?: number | undefined;
   resize_mode_before?: number | undefined;
   resize_name_before?: string | undefined;
-  ip_adapter?: Array<{
-    adapter: string;
-    images: string[];
-    masks?: string[] | undefined;
-    scale: number;
-    start: number;
-    end: number;
-    crop: boolean;
-  }> | undefined;
+  ip_adapter?:
+    | Array<{
+        adapter: string;
+        images: string[];
+        masks?: string[] | undefined;
+        scale: number;
+        start: number;
+        end: number;
+        crop: boolean;
+      }>
+    | undefined;
   init_control?: string[] | undefined;
   control?: ControlRequestUnit[] | undefined;
   schedulers_sigma?: string | undefined;

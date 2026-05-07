@@ -172,9 +172,7 @@ export const useVideoStore = create<VideoState>()(
 
       addResult: (result) =>
         set((state) => {
-          void videoHistoryDb
-            .put(result)
-            .then(() => videoHistoryDb.trim(state.historyLimit));
+          void videoHistoryDb.put(result).then(() => videoHistoryDb.trim(state.historyLimit));
           return {
             results: [result, ...state.results].slice(0, state.historyLimit),
             selectedResultId: result.id,

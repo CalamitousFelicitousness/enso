@@ -20,21 +20,18 @@ export function ImageToolsMenu() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const fileActionRef = useRef<"interrogate" | "canvas">("interrogate");
 
-  const handleFileInput = useCallback(
-    async (e: React.ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0];
-      if (!file) return;
-      e.target.value = "";
-      if (fileActionRef.current === "interrogate") {
-        setInterrogateFile(file);
-        setInterrogateOpen(true);
-      } else {
-        await sendImageToCanvas(file);
-        toast.success("Image sent to canvas");
-      }
-    },
-    [],
-  );
+  const handleFileInput = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = "";
+    if (fileActionRef.current === "interrogate") {
+      setInterrogateFile(file);
+      setInterrogateOpen(true);
+    } else {
+      await sendImageToCanvas(file);
+      toast.success("Image sent to canvas");
+    }
+  }, []);
 
   const openFilePicker = useCallback((action: "interrogate" | "canvas") => {
     fileActionRef.current = action;

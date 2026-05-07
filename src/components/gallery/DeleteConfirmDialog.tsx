@@ -33,20 +33,15 @@ export function DeleteConfirmDialog({
             Delete {count} {count === 1 ? "file" : "files"}
           </DialogTitle>
           <DialogDescription>
-            This will permanently delete the selected{" "}
-            {count === 1 ? "file" : "files"} from disk. This action cannot be
-            undone.
+            This will permanently delete the selected {count === 1 ? "file" : "files"} from disk.
+            This action cannot be undone.
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>
           <Button variant="outline" onClick={onCancel} disabled={isPending}>
             Cancel
           </Button>
-          <Button
-            variant="destructive"
-            onClick={onConfirm}
-            disabled={isPending}
-          >
+          <Button variant="destructive" onClick={onConfirm} disabled={isPending}>
             {isPending ? "Deleting..." : "Delete"}
           </Button>
         </DialogFooter>

@@ -8,12 +8,7 @@ interface ColorPickerProps {
   tooltip?: string;
 }
 
-export function ColorPicker({
-  label,
-  value,
-  onChange,
-  tooltip,
-}: ColorPickerProps) {
+export function ColorPicker({ label, value, onChange, tooltip }: ColorPickerProps) {
   const inputRef = useRef<HTMLInputElement>(null);
 
   const handleChange = useCallback(
@@ -25,10 +20,7 @@ export function ColorPicker({
 
   return (
     <div className="flex items-center gap-2">
-      <ParamLabel
-        className="text-2xs text-muted-foreground w-16 flex-shrink-0"
-        tooltip={tooltip}
-      >
+      <ParamLabel className="text-2xs text-muted-foreground w-16 flex-shrink-0" tooltip={tooltip}>
         {label}
       </ParamLabel>
       <div className="flex items-center gap-1.5 flex-1">
@@ -40,9 +32,7 @@ export function ColorPicker({
           className="h-6 w-8 cursor-pointer rounded border border-border bg-transparent p-0"
         />
 
-        <span className="text-2xs text-muted-foreground font-mono">
-          {value}
-        </span>
+        <span className="text-2xs text-muted-foreground font-mono">{value}</span>
       </div>
     </div>
   );

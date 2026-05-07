@@ -10,12 +10,7 @@ import { ModelBrowser } from "./ModelBrowser";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
-import {
-  RefreshCw,
-  Trash2,
-  ShieldCheck,
-  ChevronDown,
-} from "lucide-react";
+import { RefreshCw, Trash2, ShieldCheck, ChevronDown } from "lucide-react";
 import { toast } from "sonner";
 import type { Provider } from "@/api/types/cloud";
 
@@ -74,11 +69,12 @@ export function ProviderCard({ provider }: ProviderCardProps) {
     }
   }
 
-  const statusColor = provider.status === "ok"
-    ? "bg-emerald-400"
-    : provider.status === "error"
-      ? "bg-red-400"
-      : "bg-zinc-400";
+  const statusColor =
+    provider.status === "ok"
+      ? "bg-emerald-400"
+      : provider.status === "error"
+        ? "bg-red-400"
+        : "bg-zinc-400";
 
   return (
     <div className="rounded-md border border-border overflow-hidden">
@@ -120,7 +116,10 @@ export function ProviderCard({ provider }: ProviderCardProps) {
               onClick={() => void handleRefresh()}
               disabled={refreshProvider.isPending}
             >
-              <RefreshCw size={12} className={cn("mr-1", refreshProvider.isPending && "animate-spin")} />
+              <RefreshCw
+                size={12}
+                className={cn("mr-1", refreshProvider.isPending && "animate-spin")}
+              />
               Refresh
             </Button>
             <div className="flex-1" />
@@ -137,9 +136,7 @@ export function ProviderCard({ provider }: ProviderCardProps) {
           </div>
 
           <div className="flex items-center justify-between">
-            <span className="text-3xs text-muted-foreground">
-              {provider.base_url}
-            </span>
+            <span className="text-3xs text-muted-foreground">{provider.base_url}</span>
             <div className="flex items-center gap-1.5">
               <span className="text-3xs text-muted-foreground">Enabled</span>
               <Switch
@@ -151,13 +148,9 @@ export function ProviderCard({ provider }: ProviderCardProps) {
             </div>
           </div>
 
-          {provider.error && (
-            <p className="text-3xs text-destructive">{provider.error}</p>
-          )}
+          {provider.error && <p className="text-3xs text-destructive">{provider.error}</p>}
 
-          {models && models.length > 0 && (
-            <ModelBrowser models={models} />
-          )}
+          {models && models.length > 0 && <ModelBrowser models={models} />}
         </div>
       )}
     </div>

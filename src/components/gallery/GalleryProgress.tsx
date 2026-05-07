@@ -25,9 +25,7 @@ export function GalleryProgress() {
           )}
         </div>
         <span className="text-3xs text-muted-foreground font-mono tabular-nums whitespace-nowrap">
-          {loaded > 0
-            ? `${loaded} files${hasTotal ? ` / ${total}` : ""}…`
-            : "Loading files…"}
+          {loaded > 0 ? `${loaded} files${hasTotal ? ` / ${total}` : ""}…` : "Loading files…"}
         </span>
       </div>
     );

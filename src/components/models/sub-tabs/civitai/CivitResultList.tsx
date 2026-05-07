@@ -21,10 +21,7 @@ export function CivitResultList({
   fetchNextPage,
   onSelectModel,
 }: CivitResultListProps) {
-  const models = useMemo(
-    () => pages?.pages.flatMap((p) => p.items) ?? [],
-    [pages],
-  );
+  const models = useMemo(() => pages?.pages.flatMap((p) => p.items) ?? [], [pages]);
 
   const allHashes = useMemo(() => {
     const hashes: string[] = [];
@@ -64,9 +61,7 @@ export function CivitResultList({
             disabled={isFetchingNextPage}
             className="text-xs"
           >
-            {isFetchingNextPage && (
-              <Loader2 className="h-3 w-3 animate-spin mr-1" />
-            )}
+            {isFetchingNextPage && <Loader2 className="h-3 w-3 animate-spin mr-1" />}
             Load more
           </Button>
         </div>

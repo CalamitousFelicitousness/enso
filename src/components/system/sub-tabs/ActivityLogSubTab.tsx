@@ -50,9 +50,7 @@ export function ActivityLogSubTab() {
       />
 
       {isLoading && (
-        <p className="text-xs text-muted-foreground text-center py-4">
-          Loading activity...
-        </p>
+        <p className="text-xs text-muted-foreground text-center py-4">Loading activity...</p>
       )}
 
       {isError && (
@@ -68,9 +66,7 @@ export function ActivityLogSubTab() {
       )}
 
       {!isLoading && !isError && filtered.length === 0 && (
-        <p className="text-xs text-muted-foreground text-center py-4">
-          No activity entries
-        </p>
+        <p className="text-xs text-muted-foreground text-center py-4">No activity entries</p>
       )}
 
       {!isLoading && !isError && filtered.length > 0 && (
@@ -99,30 +95,19 @@ export function ActivityLogSubTab() {
                         <ChevronRight className="h-3 w-3 shrink-0" />
                       ))}
                     <span className="font-medium">{entry.op}</span>
-                    {entry.job && (
-                      <span className="text-muted-foreground">
-                        ({entry.job})
-                      </span>
-                    )}
+                    {entry.job && <span className="text-muted-foreground">({entry.job})</span>}
                   </span>
                   <span className="font-mono tabular-nums text-muted-foreground text-2xs">
-                    {entry.duration != null
-                      ? formatDuration(entry.duration)
-                      : "-"}
+                    {entry.duration != null ? formatDuration(entry.duration) : "-"}
                   </span>
                   <span className="font-mono tabular-nums text-muted-foreground text-2xs">
-                    {entry.timestamp
-                      ? new Date(entry.timestamp * 1000).toLocaleTimeString()
-                      : "-"}
+                    {entry.timestamp ? new Date(entry.timestamp * 1000).toLocaleTimeString() : "-"}
                   </span>
                 </button>
                 {isExpanded && hasOutputs && (
                   <div className="pl-7 pr-2 pb-1 space-y-0.5">
                     {entry.outputs.map((output, j) => (
-                      <p
-                        key={j}
-                        className="text-3xs text-muted-foreground truncate"
-                      >
+                      <p key={j} className="text-3xs text-muted-foreground truncate">
                         {output}
                       </p>
                     ))}

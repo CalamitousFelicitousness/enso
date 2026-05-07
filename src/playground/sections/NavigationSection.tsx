@@ -1,15 +1,7 @@
 import { useState } from "react";
 import { Sun, Moon, Monitor, Layers, Grid, List } from "lucide-react";
-import {
-  SegmentedControl,
-  type SegmentOption,
-} from "@/components/ui/segmented-control";
-import {
-  Tabs,
-  TabsList,
-  TabsTrigger,
-  TabsContent,
-} from "@/components/ui/tabs";
+import { SegmentedControl, type SegmentOption } from "@/components/ui/segmented-control";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
 const textOptions: SegmentOption[] = [
   { value: "one", label: "One" },
@@ -51,10 +43,7 @@ export function NavigationSection() {
   const [neonWireVal, setNeonWireVal] = useState("one");
 
   return (
-    <section
-      id="navigation"
-      className="rounded-lg border border-border/50 bg-card p-5 space-y-6"
-    >
+    <section id="navigation" className="rounded-lg border border-border/50 bg-card p-5 space-y-6">
       <h2 className="text-2xs font-medium uppercase tracking-wider text-muted-foreground">
         Navigation
       </h2>
@@ -67,9 +56,7 @@ export function NavigationSection() {
 
         {/* default */}
         <div className="space-y-1.5">
-          <span className="text-3xs text-muted-foreground/60">
-            variant: default
-          </span>
+          <span className="text-3xs text-muted-foreground/60">variant: default</span>
           <div className="flex items-center gap-3">
             <SegmentedControl
               options={textOptions}
@@ -82,9 +69,7 @@ export function NavigationSection() {
 
         {/* default animated */}
         <div className="space-y-1.5">
-          <span className="text-3xs text-muted-foreground/60">
-            variant: default (animated)
-          </span>
+          <span className="text-3xs text-muted-foreground/60">variant: default (animated)</span>
           <div className="flex items-center gap-3">
             <SegmentedControl
               options={textOptions}
@@ -98,9 +83,7 @@ export function NavigationSection() {
 
         {/* icon-label */}
         <div className="space-y-1.5">
-          <span className="text-3xs text-muted-foreground/60">
-            variant: icon-label
-          </span>
+          <span className="text-3xs text-muted-foreground/60">variant: icon-label</span>
           <div className="flex items-center gap-3">
             <SegmentedControl
               options={iconLabelOptions}
@@ -113,9 +96,7 @@ export function NavigationSection() {
 
         {/* icon-label animated */}
         <div className="space-y-1.5">
-          <span className="text-3xs text-muted-foreground/60">
-            variant: icon-label (animated)
-          </span>
+          <span className="text-3xs text-muted-foreground/60">variant: icon-label (animated)</span>
           <div className="flex items-center gap-3">
             <SegmentedControl
               options={iconLabelOptions}
@@ -129,9 +110,7 @@ export function NavigationSection() {
 
         {/* icon-only */}
         <div className="space-y-1.5">
-          <span className="text-3xs text-muted-foreground/60">
-            variant: icon-only
-          </span>
+          <span className="text-3xs text-muted-foreground/60">variant: icon-only</span>
           <div className="flex items-center gap-3">
             <SegmentedControl
               options={iconOnlyOptions}
@@ -144,9 +123,7 @@ export function NavigationSection() {
 
         {/* icon-only animated */}
         <div className="space-y-1.5">
-          <span className="text-3xs text-muted-foreground/60">
-            variant: icon-only (animated)
-          </span>
+          <span className="text-3xs text-muted-foreground/60">variant: icon-only (animated)</span>
           <div className="flex items-center gap-3">
             <SegmentedControl
               options={iconOnlyOptions}
@@ -160,9 +137,7 @@ export function NavigationSection() {
 
         {/* dense */}
         <div className="space-y-1.5">
-          <span className="text-3xs text-muted-foreground/60">
-            variant: dense
-          </span>
+          <span className="text-3xs text-muted-foreground/60">variant: dense</span>
           <div className="flex items-center gap-3">
             <SegmentedControl
               options={textOptions}
@@ -175,9 +150,7 @@ export function NavigationSection() {
 
         {/* dense animated */}
         <div className="space-y-1.5">
-          <span className="text-3xs text-muted-foreground/60">
-            variant: dense (animated)
-          </span>
+          <span className="text-3xs text-muted-foreground/60">variant: dense (animated)</span>
           <div className="flex items-center gap-3">
             <SegmentedControl
               options={textOptions}
@@ -191,9 +164,7 @@ export function NavigationSection() {
 
         {/* tabs */}
         <div className="space-y-1.5">
-          <span className="text-3xs text-muted-foreground/60">
-            variant: tabs
-          </span>
+          <span className="text-3xs text-muted-foreground/60">variant: tabs</span>
           <div className="flex items-center gap-3">
             <SegmentedControl
               options={textOptions}
@@ -206,9 +177,7 @@ export function NavigationSection() {
 
         {/* tabs animated */}
         <div className="space-y-1.5">
-          <span className="text-3xs text-muted-foreground/60">
-            variant: tabs (animated)
-          </span>
+          <span className="text-3xs text-muted-foreground/60">variant: tabs (animated)</span>
           <div className="flex items-center gap-3">
             <SegmentedControl
               options={textOptions}
@@ -222,9 +191,7 @@ export function NavigationSection() {
 
         {/* stacked */}
         <div className="space-y-1.5">
-          <span className="text-3xs text-muted-foreground/60">
-            variant: stacked
-          </span>
+          <span className="text-3xs text-muted-foreground/60">variant: stacked</span>
           <div className="flex items-center gap-3">
             <SegmentedControl
               options={stackedOptions}
@@ -237,9 +204,7 @@ export function NavigationSection() {
 
         {/* stacked animated */}
         <div className="space-y-1.5">
-          <span className="text-3xs text-muted-foreground/60">
-            variant: stacked (animated)
-          </span>
+          <span className="text-3xs text-muted-foreground/60">variant: stacked (animated)</span>
           <div className="flex items-center gap-3">
             <SegmentedControl
               options={stackedOptions}
@@ -253,9 +218,7 @@ export function NavigationSection() {
 
         {/* neon-wire */}
         <div className="space-y-1.5">
-          <span className="text-3xs text-muted-foreground/60">
-            variant: neon-wire
-          </span>
+          <span className="text-3xs text-muted-foreground/60">variant: neon-wire</span>
           <div className="flex items-center gap-3">
             <SegmentedControl
               options={textOptions}
@@ -275,9 +238,7 @@ export function NavigationSection() {
 
         {/* default */}
         <div className="space-y-1.5">
-          <span className="text-3xs text-muted-foreground/60">
-            TabsList variant: default
-          </span>
+          <span className="text-3xs text-muted-foreground/60">TabsList variant: default</span>
           <Tabs defaultValue="a">
             <TabsList>
               <TabsTrigger value="a">Tab A</TabsTrigger>
@@ -298,9 +259,7 @@ export function NavigationSection() {
 
         {/* line */}
         <div className="space-y-1.5">
-          <span className="text-3xs text-muted-foreground/60">
-            TabsList variant: line
-          </span>
+          <span className="text-3xs text-muted-foreground/60">TabsList variant: line</span>
           <Tabs defaultValue="a">
             <TabsList variant="line">
               <TabsTrigger value="a">Tab A</TabsTrigger>

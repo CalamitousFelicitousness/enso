@@ -1,12 +1,5 @@
 import { useCallback, useEffect } from "react";
-import {
-  Upload,
-  X,
-  Download,
-  Loader2,
-  GitCompareArrows,
-  Maximize2,
-} from "lucide-react";
+import { Upload, X, Download, Loader2, GitCompareArrows, Maximize2 } from "lucide-react";
 import { useProcessStore } from "@/stores/processStore";
 import { useComparisonStore } from "@/stores/comparisonStore";
 import { useJobQueueStore, selectUpscaleActive, selectRembgActive } from "@/stores/jobStore";
@@ -14,11 +7,7 @@ import { useDropTarget } from "@/hooks/useDropTarget";
 import { payloadToFile } from "@/lib/sendTo";
 import type { DragPayload } from "@/stores/dragStore";
 import { Button } from "@/components/ui/button";
-import {
-  ResizablePanelGroup,
-  ResizablePanel,
-  ResizableHandle,
-} from "@/components/ui/resizable";
+import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
 import { SwipeMode } from "@/components/comparison/SwipeMode";
 import { useKeepAliveVisible } from "@/components/ui/keep-alive";
 
@@ -80,11 +69,7 @@ export function ProcessView() {
     if (!visible) return;
     const onPaste = (e: ClipboardEvent) => {
       const target = e.target as HTMLElement;
-      if (
-        target.tagName === "INPUT" ||
-        target.tagName === "TEXTAREA" ||
-        target.isContentEditable
-      )
+      if (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable)
         return;
       const items = e.clipboardData?.items;
       if (!items) return;
@@ -105,11 +90,7 @@ export function ProcessView() {
     return (
       <div className="h-full flex flex-col">
         <div className="flex items-center gap-2 px-3 py-1.5 border-b border-border flex-shrink-0">
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={() => setCompareMode(false)}
-          >
+          <Button variant="secondary" size="sm" onClick={() => setCompareMode(false)}>
             Exit Compare
           </Button>
           <Button
@@ -140,11 +121,7 @@ export function ProcessView() {
         >
           {imagePreviewUrl ? (
             <>
-              <img
-                src={imagePreviewUrl}
-                alt="Input"
-                className="w-full h-full object-contain"
-              />
+              <img src={imagePreviewUrl} alt="Input" className="w-full h-full object-contain" />
 
               {isProcessing && (
                 <div className="absolute inset-0 bg-background/60 flex items-center justify-center">
@@ -165,15 +142,8 @@ export function ProcessView() {
               <Upload size={48} className="mb-3 opacity-40" />
 
               <p className="text-sm font-medium">Drop Image Here</p>
-              <p className="text-xs mt-1 opacity-60">
-                or click to browse, or paste from clipboard
-              </p>
-              <input
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={handleFileInput}
-              />
+              <p className="text-xs mt-1 opacity-60">or click to browse, or paste from clipboard</p>
+              <input type="file" accept="image/*" className="hidden" onChange={handleFileInput} />
             </label>
           )}
         </div>
@@ -185,19 +155,11 @@ export function ProcessView() {
         <div className="h-full flex items-center justify-center">
           {resultImageUrl ? (
             <div className="relative h-full w-full group">
-              <img
-                src={resultImageUrl}
-                alt="Result"
-                className="w-full h-full object-contain"
-              />
+              <img src={resultImageUrl} alt="Result" className="w-full h-full object-contain" />
 
               <div className="absolute bottom-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity flex gap-2">
                 {canCompare && (
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    onClick={() => setCompareMode(true)}
-                  >
+                  <Button variant="secondary" size="sm" onClick={() => setCompareMode(true)}>
                     <GitCompareArrows size={14} />
                     Compare
                   </Button>
@@ -215,9 +177,7 @@ export function ProcessView() {
               </div>
             </div>
           ) : (
-            <p className="text-sm text-muted-foreground opacity-50">
-              Result will appear here
-            </p>
+            <p className="text-sm text-muted-foreground opacity-50">Result will appear here</p>
           )}
         </div>
       </ResizablePanel>

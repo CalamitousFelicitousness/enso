@@ -31,21 +31,14 @@ export function ProvidersTab() {
   }
 
   if (isLoading) {
-    return (
-      <div className="p-4 text-xs text-muted-foreground">Loading providers...</div>
-    );
+    return <div className="p-4 text-xs text-muted-foreground">Loading providers...</div>;
   }
 
   const hasProviders = providers && providers.length > 0;
 
   return (
     <div className="p-3 space-y-3">
-      {showForm && (
-        <ProviderForm
-          initialPreset={formPreset}
-          onClose={handleFormClose}
-        />
-      )}
+      {showForm && <ProviderForm initialPreset={formPreset} onClose={handleFormClose} />}
 
       {hasProviders && !showForm && (
         <div className="flex items-center justify-end">

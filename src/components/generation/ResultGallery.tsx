@@ -42,9 +42,7 @@ export const ResultGallery = memo(function ResultGallery() {
   const thumbSize = useUiStore((s) => s.resultThumbSize);
   const setThumbSize = useUiStore((s) => s.setResultThumbSize);
 
-  const [confirmAction, setConfirmAction] = useState<
-    "downloadAll" | "clear" | null
-  >(null);
+  const [confirmAction, setConfirmAction] = useState<"downloadAll" | "clear" | null>(null);
   const [downloading, setDownloading] = useState(false);
   const [diffResult, setDiffResult] = useState<GenerationResult | null>(null);
   const [contextMenu, setContextMenu] = useState<{
@@ -53,8 +51,7 @@ export const ResultGallery = memo(function ResultGallery() {
     resultId: string;
     imageIndex: number;
   } | null>(null);
-  const [compareCandidate, setCompareCandidate] =
-    useState<CompareCandidate | null>(null);
+  const [compareCandidate, setCompareCandidate] = useState<CompareCandidate | null>(null);
   const [comparePickMode, setComparePickMode] = useState(false);
   const contextRef = useRef<HTMLDivElement>(null);
 
@@ -64,13 +61,9 @@ export const ResultGallery = memo(function ResultGallery() {
         const resultA = useGenerationStore
           .getState()
           .results.find((r) => r.id === compareCandidate.resultId);
-        const resultB = useGenerationStore
-          .getState()
-          .results.find((r) => r.id === resultId);
+        const resultB = useGenerationStore.getState().results.find((r) => r.id === resultId);
         if (resultA && resultB) {
-          const srcA = resolveImageSrc(
-            resultA.images[compareCandidate.imageIndex],
-          );
+          const srcA = resolveImageSrc(resultA.images[compareCandidate.imageIndex]);
           const srcB = resolveImageSrc(resultB.images[imageIndex]);
           useComparisonStore.getState().openComparison(
             {
@@ -94,13 +87,9 @@ export const ResultGallery = memo(function ResultGallery() {
           const resultA = useGenerationStore
             .getState()
             .results.find((r) => r.id === compareCandidate.resultId);
-          const resultB = useGenerationStore
-            .getState()
-            .results.find((r) => r.id === resultId);
+          const resultB = useGenerationStore.getState().results.find((r) => r.id === resultId);
           if (resultA && resultB) {
-            const srcA = resolveImageSrc(
-              resultA.images[compareCandidate.imageIndex],
-            );
+            const srcA = resolveImageSrc(resultA.images[compareCandidate.imageIndex]);
             const srcB = resolveImageSrc(resultB.images[imageIndex]);
             useComparisonStore.getState().openComparison(
               {
@@ -125,9 +114,7 @@ export const ResultGallery = memo(function ResultGallery() {
   );
 
   const handleDoubleClick = useCallback((resultId: string) => {
-    const result = useGenerationStore
-      .getState()
-      .results.find((r) => r.id === resultId);
+    const result = useGenerationStore.getState().results.find((r) => r.id === resultId);
     if (result) {
       restoreFromResult(result);
       toast.success("Settings restored from selected generation");
@@ -175,14 +162,11 @@ export const ResultGallery = memo(function ResultGallery() {
     [contextMenu],
   );
 
-  const handleCompareFromThumb = useCallback(
-    (resultId: string, imageIndex: number) => {
-      setCompareCandidate({ resultId, imageIndex });
-      setComparePickMode(true);
-      toast.info("Click another thumbnail to compare");
-    },
-    [],
-  );
+  const handleCompareFromThumb = useCallback((resultId: string, imageIndex: number) => {
+    setCompareCandidate({ resultId, imageIndex });
+    setComparePickMode(true);
+    toast.info("Click another thumbnail to compare");
+  }, []);
 
   const handleDownload = useCallback(() => {
     if (!selectedResultId || selectedImageIndex === null) return;
@@ -214,10 +198,7 @@ export const ResultGallery = memo(function ResultGallery() {
 
   if (results.length === 0) {
     return (
-      <div
-        data-tour="result-gallery"
-        className="text-2xs text-muted-foreground text-center py-2"
-      >
+      <div data-tour="result-gallery" className="text-2xs text-muted-foreground text-center py-2">
         No results yet
       </div>
     );
@@ -299,8 +280,7 @@ export const ResultGallery = memo(function ResultGallery() {
               result={result}
               size={thumbSize}
               selected={
-                item.resultId === selectedResultId &&
-                item.imageIndex === selectedImageIndex
+                item.resultId === selectedResultId && item.imageIndex === selectedImageIndex
               }
               isCompareCandidate={
                 compareCandidate?.resultId === item.resultId &&
@@ -434,11 +414,7 @@ interface ResultThumbProps {
   comparePickMode: boolean;
   onClick: (e: React.MouseEvent, resultId: string, imageIndex: number) => void;
   onDoubleClick: (resultId: string) => void;
-  onContextMenu: (
-    e: React.MouseEvent,
-    resultId: string,
-    imageIndex: number,
-  ) => void;
+  onContextMenu: (e: React.MouseEvent, resultId: string, imageIndex: number) => void;
   onCompare: (resultId: string, imageIndex: number) => void;
 }
 
@@ -470,8 +446,7 @@ const ResultThumb = memo(function ResultThumb({
   const handleMouseEnter = useCallback(() => {
     hoverTimer.current = setTimeout(() => {
       setHovered(true);
-      if (thumbRef.current)
-        setPreviewRect(thumbRef.current.getBoundingClientRect());
+      if (thumbRef.current) setPreviewRect(thumbRef.current.getBoundingClientRect());
     }, 300);
   }, []);
 
@@ -494,11 +469,7 @@ const ResultThumb = memo(function ResultThumb({
         onKeyDown={(e) => {
           if (e.key === "Enter" || e.key === " ") {
             e.preventDefault();
-            onClick(
-              e as unknown as React.MouseEvent,
-              item.resultId,
-              item.imageIndex,
-            );
+            onClick(e as unknown as React.MouseEvent, item.resultId, item.imageIndex);
           }
         }}
         onMouseEnter={handleMouseEnter}
@@ -535,11 +506,7 @@ const ResultThumb = memo(function ResultThumb({
         )}
       </div>
       {hovered && previewRect && (
-        <ResultThumbPreview
-          result={result}
-          imageIndex={item.imageIndex}
-          anchorRect={previewRect}
-        />
+        <ResultThumbPreview result={result} imageIndex={item.imageIndex} anchorRect={previewRect} />
       )}
     </>
   );

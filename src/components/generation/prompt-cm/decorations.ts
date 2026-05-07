@@ -1,9 +1,4 @@
-import {
-  ViewPlugin,
-  Decoration,
-  type DecorationSet,
-  type ViewUpdate,
-} from "@codemirror/view";
+import { ViewPlugin, Decoration, type DecorationSet, type ViewUpdate } from "@codemirror/view";
 import type { EditorView } from "@codemirror/view";
 import { RangeSetBuilder } from "@codemirror/state";
 import { TOKEN_PATTERN } from "./facets";

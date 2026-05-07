@@ -7,10 +7,7 @@ interface DiffModeProps {
   imageB: ComparisonImage;
 }
 
-function computeHeatmap(
-  imgA: HTMLImageElement,
-  imgB: HTMLImageElement,
-): string {
+function computeHeatmap(imgA: HTMLImageElement, imgB: HTMLImageElement): string {
   const w = Math.min(imgA.naturalWidth, imgB.naturalWidth);
   const h = Math.min(imgA.naturalHeight, imgB.naturalHeight);
 
@@ -35,10 +32,7 @@ function computeHeatmap(
 
   for (let i = 0; i < a.length; i += 4) {
     const diff =
-      (Math.abs(a[i] - b[i]) +
-        Math.abs(a[i + 1] - b[i + 1]) +
-        Math.abs(a[i + 2] - b[i + 2])) /
-      3;
+      (Math.abs(a[i] - b[i]) + Math.abs(a[i + 1] - b[i + 1]) + Math.abs(a[i + 2] - b[i + 2])) / 3;
     const t = diff / 255;
 
     // Heatmap: black → blue → yellow → red

@@ -75,10 +75,7 @@ function FolderTreeRow({
           <span className="w-5 shrink-0" />
         )}
         <FolderIcon
-          className={cn(
-            "h-3 w-3 shrink-0",
-            isActive ? "text-primary" : "text-muted-foreground/60",
-          )}
+          className={cn("h-3 w-3 shrink-0", isActive ? "text-primary" : "text-muted-foreground/60")}
         />
         <span className="truncate">{node.name}</span>
         {node.count > 0 && (
@@ -87,7 +84,8 @@ function FolderTreeRow({
           </span>
         )}
       </button>
-      {hasChildren && isExpanded &&
+      {hasChildren &&
+        isExpanded &&
         node.children.map((child) => (
           <FolderTreeRow
             key={child.path}
@@ -244,7 +242,8 @@ export function FilterPanel({
                               </span>
                             )}
                           </button>
-                          {hasChildren && isExpanded &&
+                          {hasChildren &&
+                            isExpanded &&
                             children.map((node) => (
                               <FolderTreeRow
                                 key={node.path}

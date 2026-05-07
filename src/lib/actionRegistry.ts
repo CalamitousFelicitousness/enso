@@ -1,7 +1,13 @@
 import type { LucideIcon } from "lucide-react";
 import {
-  RefreshCw, Download, Upload,
-  ImageIcon, Video, Sparkles, MessageSquare, Images,
+  RefreshCw,
+  Download,
+  Upload,
+  ImageIcon,
+  Video,
+  Sparkles,
+  MessageSquare,
+  Images,
   Settings,
 } from "lucide-react";
 import { NAV_ITEMS, IMAGES_SUB_TABS, RIGHT_TABS } from "@/lib/constants";

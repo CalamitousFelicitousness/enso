@@ -56,13 +56,7 @@ export const CanvasView = memo(function CanvasView() {
       await new Promise<void>((r) => {
         img.onload = () => r();
       });
-      addImageLayer(
-        file,
-        base64,
-        objectUrl,
-        img.naturalWidth,
-        img.naturalHeight,
-      );
+      addImageLayer(file, base64, objectUrl, img.naturalWidth, img.naturalHeight);
     },
     [addImageLayer],
   );
@@ -167,22 +161,28 @@ export const CanvasView = memo(function CanvasView() {
   useShortcut("canvas-toggle-mode", handleToggleMode);
 
   // Shortcut: previous frame (focus mode only)
-  useShortcut("canvas-focus-prev", useCallback(() => {
-    if (canvasMode !== "focus") return;
-    const frames = getOrderedFrames(layout);
-    const currentId = focusedFrameId ?? "output";
-    const idx = frames.findIndex((f) => f.id === currentId);
-    if (idx > 0) setFocusedFrame(frames[idx - 1].id);
-  }, [canvasMode, layout, focusedFrameId, setFocusedFrame]));
+  useShortcut(
+    "canvas-focus-prev",
+    useCallback(() => {
+      if (canvasMode !== "focus") return;
+      const frames = getOrderedFrames(layout);
+      const currentId = focusedFrameId ?? "output";
+      const idx = frames.findIndex((f) => f.id === currentId);
+      if (idx > 0) setFocusedFrame(frames[idx - 1].id);
+    }, [canvasMode, layout, focusedFrameId, setFocusedFrame]),
+  );
 
   // Shortcut: next frame (focus mode only)
-  useShortcut("canvas-focus-next", useCallback(() => {
-    if (canvasMode !== "focus") return;
-    const frames = getOrderedFrames(layout);
-    const currentId = focusedFrameId ?? "output";
-    const idx = frames.findIndex((f) => f.id === currentId);
-    if (idx >= 0 && idx < frames.length - 1) setFocusedFrame(frames[idx + 1].id);
-  }, [canvasMode, layout, focusedFrameId, setFocusedFrame]));
+  useShortcut(
+    "canvas-focus-next",
+    useCallback(() => {
+      if (canvasMode !== "focus") return;
+      const frames = getOrderedFrames(layout);
+      const currentId = focusedFrameId ?? "output";
+      const idx = frames.findIndex((f) => f.id === currentId);
+      if (idx >= 0 && idx < frames.length - 1) setFocusedFrame(frames[idx + 1].id);
+    }, [canvasMode, layout, focusedFrameId, setFocusedFrame]),
+  );
 
   // Re-center focused frame when panels resize the canvas area
   const rightPanelCollapsed = useUiStore((s) => s.rightPanelCollapsed);
@@ -219,7 +219,7 @@ export const CanvasView = memo(function CanvasView() {
     return useCanvasStore.subscribe((state) => {
       if (state.viewport !== prevVp) {
         prevVp = state.viewport;
-        if (overlayRef.current) overlayRef.current.style.transform = '';
+        if (overlayRef.current) overlayRef.current.style.transform = "";
       }
     });
   }, []);
@@ -315,7 +315,10 @@ export const CanvasView = memo(function CanvasView() {
       <CanvasProgressOverlay />
 
       {/* Floating control panels — delta-transform wrapper for zero-render pan/zoom */}
-      <div ref={overlayRef} style={{ position: 'absolute', inset: 0, pointerEvents: 'none', transformOrigin: '0 0' }}>
+      <div
+        ref={overlayRef}
+        style={{ position: "absolute", inset: 0, pointerEvents: "none", transformOrigin: "0 0" }}
+      >
         <ControlFramePanels
           layout={layout}
           onPickImage={handlePickImage}

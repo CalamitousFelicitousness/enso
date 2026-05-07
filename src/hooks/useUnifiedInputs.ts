@@ -43,9 +43,8 @@ export function useUnifiedInputs(): UnifiedInputsResult {
       const u = units[i];
       const idx = i + 2;
       const role: InputRole = u.unitType === "reference" ? "reference" : "control";
-      const roleLabel = role === "reference"
-        ? "Reference"
-        : `Control: ${UNIT_TYPE_LABELS[u.unitType]}`;
+      const roleLabel =
+        role === "reference" ? "Reference" : `Control: ${UNIT_TYPE_LABELS[u.unitType]}`;
       inputs.push({
         index: idx,
         role,
@@ -57,20 +56,25 @@ export function useUnifiedInputs(): UnifiedInputsResult {
     }
 
     // Locked exclusive control type
-    const lockedControlType = units
-      .filter((u) => u.enabled && EXCLUSIVE_CONTROL_TYPES.has(u.unitType))
-      .map((u) => u.unitType)[0] ?? null;
+    const lockedControlType =
+      units
+        .filter((u) => u.enabled && EXCLUSIVE_CONTROL_TYPES.has(u.unitType))
+        .map((u) => u.unitType)[0] ?? null;
 
     // Available sub-types for "Add Input > Control"
     const allSubTypes: ControlUnitType[] = [
-      "controlnet", "t2i", "xs", "lite", "style_transfer", "ip",
+      "controlnet",
+      "t2i",
+      "xs",
+      "lite",
+      "style_transfer",
+      "ip",
     ];
     const availableControlSubTypes = allSubTypes.map((t) => ({
       value: t,
       label: UNIT_TYPE_LABELS[t],
-      disabled: lockedControlType !== null
-        && EXCLUSIVE_CONTROL_TYPES.has(t)
-        && t !== lockedControlType,
+      disabled:
+        lockedControlType !== null && EXCLUSIVE_CONTROL_TYPES.has(t) && t !== lockedControlType,
     }));
 
     return {

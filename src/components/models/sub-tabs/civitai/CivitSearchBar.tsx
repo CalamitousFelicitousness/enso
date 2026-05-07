@@ -1,17 +1,6 @@
 import { useState, useRef } from "react";
-import {
-  ChevronDown,
-  ChevronRight,
-  History,
-  Loader2,
-  Search,
-  X,
-} from "lucide-react";
-import {
-  useCivitTags,
-  useCivitHistory,
-  useCivitClearHistory,
-} from "@/api/hooks/useCivitai";
+import { ChevronDown, ChevronRight, History, Loader2, Search, X } from "lucide-react";
+import { useCivitTags, useCivitHistory, useCivitClearHistory } from "@/api/hooks/useCivitai";
 import { useDebounce } from "@/hooks/useDebounce";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -40,12 +29,8 @@ export function CivitSearchBar({
   const [historyOpen, setHistoryOpen] = useState(false);
   const blurTimeout = useRef<ReturnType<typeof setTimeout>>(null);
   const debouncedTag = useDebounce(tag, 300);
-  const { data: tagResults } = useCivitTags(
-    debouncedTag,
-    debouncedTag.length >= 2,
-  );
-  const showSuggestions =
-    tagFocused && tag.length >= 2 && (tagResults?.items?.length ?? 0) > 0;
+  const { data: tagResults } = useCivitTags(debouncedTag, debouncedTag.length >= 2);
+  const showSuggestions = tagFocused && tag.length >= 2 && (tagResults?.items?.length ?? 0) > 0;
 
   const { data: historyData } = useCivitHistory();
   const clearHistory = useCivitClearHistory();

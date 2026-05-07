@@ -114,10 +114,7 @@ export function CivitaiSubTab() {
         onSelectModel={setSelectedModelId}
       />
 
-      <CivitModelDetail
-        modelId={selectedModelId}
-        onClose={() => setSelectedModelId(null)}
-      />
+      <CivitModelDetail modelId={selectedModelId} onClose={() => setSelectedModelId(null)} />
 
       <CivitDownloadQueue />
     </div>

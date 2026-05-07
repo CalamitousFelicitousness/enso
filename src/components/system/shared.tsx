@@ -1,29 +1,15 @@
 import type { ReactNode } from "react";
 
-export function Section({
-  title,
-  children,
-}: {
-  title: string;
-  children: ReactNode;
-}) {
+export function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
     <div>
-      <h3 className="text-xs font-medium text-muted-foreground mb-2">
-        {title}
-      </h3>
+      <h3 className="text-xs font-medium text-muted-foreground mb-2">{title}</h3>
       <div className="space-y-1.5">{children}</div>
     </div>
   );
 }
 
-export function Row({
-  label,
-  value,
-}: {
-  label: string;
-  value?: string | number | null;
-}) {
+export function Row({ label, value }: { label: string; value?: string | number | null }) {
   if (value == null) return null;
   return (
     <div className="flex justify-between gap-2 text-xs">

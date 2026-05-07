@@ -37,11 +37,7 @@ export function PromptEnhanceWorkspace({
           className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
           title="Enhance prompt"
         >
-          {isPending ? (
-            <Loader2 size={13} className="animate-spin" />
-          ) : (
-            <Sparkles size={13} />
-          )}
+          {isPending ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} />}
         </button>
         <button
           type="button"
@@ -64,11 +60,7 @@ export function PromptEnhanceWorkspace({
       {/* Preview */}
       {pendingResult && (
         <>
-          <PromptEnhancePreview
-            onEnhance={onEnhance}
-            isPending={isPending}
-            onAccept={onAccept}
-          />
+          <PromptEnhancePreview onEnhance={onEnhance} isPending={isPending} onAccept={onAccept} />
 
           <Separator />
         </>

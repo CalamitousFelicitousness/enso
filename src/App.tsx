@@ -67,12 +67,7 @@ function App() {
   return (
     <TooltipProvider delayDuration={300} skipDelayDuration={300}>
       <AppShell />
-      <Toaster
-        position="bottom-right"
-        richColors
-        closeButton
-        theme={resolvedTheme}
-      />
+      <Toaster position="bottom-right" richColors closeButton theme={resolvedTheme} />
     </TooltipProvider>
   );
 }

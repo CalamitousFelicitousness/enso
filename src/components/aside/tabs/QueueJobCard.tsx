@@ -16,7 +16,6 @@ import { useCancelJob } from "@/api/hooks/useJobs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
-
 const DOMAIN_ICONS: Record<JobDomain, typeof Image> = {
   generate: Image,
   upscale: Sparkles,
@@ -37,9 +36,7 @@ const DOMAIN_LABELS: Record<JobDomain, string> = {
   "xyz-grid": "XYZ Grid",
 };
 
-function statusBadgeVariant(
-  status: string,
-): "default" | "secondary" | "destructive" | "outline" {
+function statusBadgeVariant(status: string): "default" | "secondary" | "destructive" | "outline" {
   switch (status) {
     case "running":
       return "default";
@@ -67,9 +64,7 @@ function useElapsed(startTime: number, active: boolean): number {
     const update = () =>
       setElapsed(
         Math.floor(
-          performance.now() / 1000 -
-            startTime / 1000 +
-            (Date.now() - performance.now()) / 1000,
+          performance.now() / 1000 - startTime / 1000 + (Date.now() - performance.now()) / 1000,
         ),
       );
     const id = setInterval(update, 1000);
@@ -106,9 +101,7 @@ export function QueueJobCard({
   const isRunning = job.status === "running";
   const isPending = job.status === "pending";
   const isTerminal =
-    job.status === "completed" ||
-    job.status === "failed" ||
-    job.status === "cancelled";
+    job.status === "completed" || job.status === "failed" || job.status === "cancelled";
   const elapsed = useElapsed(job.createdAt, isRunning);
 
   const handleCancel = useCallback(() => {
@@ -124,10 +117,7 @@ export function QueueJobCard({
           {DOMAIN_LABELS[job.domain]}
           {job.task ? ` - ${job.task}` : ""}
         </span>
-        <Badge
-          variant={statusBadgeVariant(job.status)}
-          className="text-4xs px-1 py-0 shrink-0"
-        >
+        <Badge variant={statusBadgeVariant(job.status)} className="text-4xs px-1 py-0 shrink-0">
           {job.status}
         </Badge>
         {/* Reorder buttons for pending */}

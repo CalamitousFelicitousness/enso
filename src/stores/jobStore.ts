@@ -3,7 +3,14 @@ import type { JobRequest, JobResult, JobStatus } from "@/api/types/v2";
 import type { MaskLine } from "@/stores/img2imgStore";
 import type { ControlUnitSnapshot } from "@/api/types/control";
 
-export type JobDomain = "generate" | "upscale" | "rembg" | "video" | "framepack" | "ltx" | "xyz-grid";
+export type JobDomain =
+  | "generate"
+  | "upscale"
+  | "rembg"
+  | "video"
+  | "framepack"
+  | "ltx"
+  | "xyz-grid";
 
 /**
  * Captured workspace state for a submitted job, discriminated by the
@@ -85,10 +92,28 @@ interface JobQueueState {
   jobs: Map<string, TrackedJob>;
   activeJobId: string | null;
 
-  trackJob: (id: string, domain: JobDomain, snapshot: JobSnapshot, request?: JobRequest, priority?: number) => void;
+  trackJob: (
+    id: string,
+    domain: JobDomain,
+    snapshot: JobSnapshot,
+    request?: JobRequest,
+    priority?: number,
+  ) => void;
   rehydrateJob: (job: TrackedJob) => void;
   updateStatus: (id: string, status: JobStatus) => void;
-  updateProgress: (id: string, progress: number, eta: number, step: number, steps: number, task?: string, textinfo?: string | null, stage?: number, stageName?: string, stageCount?: number, phase?: string | null) => void;
+  updateProgress: (
+    id: string,
+    progress: number,
+    eta: number,
+    step: number,
+    steps: number,
+    task?: string,
+    textinfo?: string | null,
+    stage?: number,
+    stageName?: string,
+    stageCount?: number,
+    phase?: string | null,
+  ) => void;
   setStages: (id: string, stages: string[]) => void;
   updatePreview: (id: string, previewUrl: string) => void;
   completeJob: (id: string, result: JobResult) => void;
@@ -101,7 +126,9 @@ interface JobQueueState {
 function pruneOldTerminal(jobs: Map<string, TrackedJob>): Map<string, TrackedJob> {
   if (jobs.size <= MAX_TRACKED_JOBS) return jobs;
   const entries = Array.from(jobs.entries());
-  const terminal = entries.filter(([, j]) => isTerminal(j.status)).sort((a, b) => a[1].createdAt - b[1].createdAt);
+  const terminal = entries
+    .filter(([, j]) => isTerminal(j.status))
+    .sort((a, b) => a[1].createdAt - b[1].createdAt);
   const toRemove = jobs.size - MAX_TRACKED_JOBS;
   const next = new Map(jobs);
   for (let i = 0; i < Math.min(toRemove, terminal.length); i++) {
@@ -166,12 +193,30 @@ export const useJobQueueStore = create<JobQueueState>()((set) => ({
       return updates;
     }),
 
-  updateProgress: (id, progress, eta, step, steps, task?, textinfo?, stage?, stageName?, stageCount?, phase?) =>
+  updateProgress: (
+    id,
+    progress,
+    eta,
+    step,
+    steps,
+    task?,
+    textinfo?,
+    stage?,
+    stageName?,
+    stageCount?,
+    phase?,
+  ) =>
     set((state) => {
       const job = state.jobs.get(id);
       if (!job) return state;
       const next = new Map(state.jobs);
-      const jobUpdates: Partial<TrackedJob> = { progress, eta, step, steps, status: job.status === "pending" ? "running" : job.status };
+      const jobUpdates: Partial<TrackedJob> = {
+        progress,
+        eta,
+        step,
+        steps,
+        status: job.status === "pending" ? "running" : job.status,
+      };
       if (task !== undefined) jobUpdates.task = task;
       if (textinfo !== undefined) jobUpdates.textinfo = textinfo;
       if (stage !== undefined) jobUpdates.stage = stage;
@@ -194,7 +239,13 @@ export const useJobQueueStore = create<JobQueueState>()((set) => ({
       const job = state.jobs.get(id);
       if (!job) return state;
       const next = new Map(state.jobs);
-      next.set(id, { ...job, stages, stageCount: stages.length, stageName: stages[0] ?? "", stage: 0 });
+      next.set(id, {
+        ...job,
+        stages,
+        stageCount: stages.length,
+        stageName: stages[0] ?? "",
+        stage: 0,
+      });
       return { jobs: next };
     }),
 
@@ -217,7 +268,9 @@ export const useJobQueueStore = create<JobQueueState>()((set) => ({
       next.set(id, { ...job, status: "completed", result, previewUrl: null, progress: 1 });
       const updates: Partial<JobQueueState> = { jobs: next };
       if (state.activeJobId === id) {
-        const nextRunning = Array.from(next.values()).find((j) => j.status === "running" || j.status === "pending");
+        const nextRunning = Array.from(next.values()).find(
+          (j) => j.status === "running" || j.status === "pending",
+        );
         updates.activeJobId = nextRunning?.id ?? null;
       }
       return updates;
@@ -232,7 +285,9 @@ export const useJobQueueStore = create<JobQueueState>()((set) => ({
       next.set(id, { ...job, status: "failed", error, previewUrl: null });
       const updates: Partial<JobQueueState> = { jobs: next };
       if (state.activeJobId === id) {
-        const nextRunning = Array.from(next.values()).find((j) => j.status === "running" || j.status === "pending");
+        const nextRunning = Array.from(next.values()).find(
+          (j) => j.status === "running" || j.status === "pending",
+        );
         updates.activeJobId = nextRunning?.id ?? null;
       }
       return updates;
@@ -247,7 +302,9 @@ export const useJobQueueStore = create<JobQueueState>()((set) => ({
       next.delete(id);
       const updates: Partial<JobQueueState> = { jobs: next };
       if (state.activeJobId === id) {
-        const nextRunning = Array.from(next.values()).find((j) => j.status === "running" || j.status === "pending");
+        const nextRunning = Array.from(next.values()).find(
+          (j) => j.status === "running" || j.status === "pending",
+        );
         updates.activeJobId = nextRunning?.id ?? null;
       }
       return updates;
@@ -329,14 +386,18 @@ export function selectDomainRunning(domain: JobDomain) {
 
 export function selectDomainProgress(domain: JobDomain) {
   return (state: JobQueueState): number => {
-    const running = Array.from(state.jobs.values()).find((j) => j.domain === domain && j.status === "running");
+    const running = Array.from(state.jobs.values()).find(
+      (j) => j.domain === domain && j.status === "running",
+    );
     return running?.progress ?? 0;
   };
 }
 
 export function selectVideoDomainActiveJob(state: JobQueueState): TrackedJob | undefined {
   const videoDomains: JobDomain[] = ["video", "framepack", "ltx"];
-  return Array.from(state.jobs.values()).find((j) => videoDomains.includes(j.domain) && (j.status === "running" || j.status === "pending"));
+  return Array.from(state.jobs.values()).find(
+    (j) => videoDomains.includes(j.domain) && (j.status === "running" || j.status === "pending"),
+  );
 }
 
 export function selectPendingJobsSorted(state: JobQueueState): TrackedJob[] {

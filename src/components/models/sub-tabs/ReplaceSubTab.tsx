@@ -73,9 +73,7 @@ export function ReplaceSubTab() {
 
   return (
     <div className="space-y-3">
-      <p className="text-2xs text-muted-foreground">
-        Replace model components (SDXL only).
-      </p>
+      <p className="text-2xs text-muted-foreground">Replace model components (SDXL only).</p>
 
       <div className="flex gap-2">
         <div className="flex-1">
@@ -186,9 +184,7 @@ export function ReplaceSubTab() {
       <div className="space-y-2">
         <p className="text-xs font-medium">LoRA merge</p>
         <div>
-          <Label className="text-2xs">
-            LoRA list (comma-separated, name:strength)
-          </Label>
+          <Label className="text-2xs">LoRA list (comma-separated, name:strength)</Label>
           <Input
             className="h-6 text-2xs"
             value={compLora}
@@ -289,9 +285,7 @@ export function ReplaceSubTab() {
         {replace.isPending && <Loader2 className="h-3 w-3 animate-spin mr-1" />}
         Replace & Build
       </Button>
-      {replace.data && (
-        <p className="text-2xs text-muted-foreground">{replace.data.status}</p>
-      )}
+      {replace.data && <p className="text-2xs text-muted-foreground">{replace.data.status}</p>}
     </div>
   );
 }

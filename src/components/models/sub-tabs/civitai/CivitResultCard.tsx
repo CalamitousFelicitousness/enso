@@ -39,11 +39,7 @@ function formatCount(n: number): string {
   return String(n);
 }
 
-export function CivitResultCard({
-  model,
-  localFiles,
-  onClick,
-}: CivitResultCardProps) {
+export function CivitResultCard({ model, localFiles, onClick }: CivitResultCardProps) {
   const preview = getPreviewUrl(model);
   const { data: bookmarks } = useCivitBookmarks();
   const { data: banned } = useCivitBanned();
@@ -77,12 +73,7 @@ export function CivitResultCard({
     >
       <div className="w-10 h-10 rounded bg-muted/50 overflow-hidden shrink-0 flex items-center justify-center">
         {preview ? (
-          <img
-            src={preview}
-            alt=""
-            className="w-full h-full object-cover"
-            loading="lazy"
-          />
+          <img src={preview} alt="" className="w-full h-full object-cover" loading="lazy" />
         ) : (
           <span className="text-4xs text-muted-foreground">N/A</span>
         )}

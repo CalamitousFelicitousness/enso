@@ -15,11 +15,7 @@ function formatParams(n: number): string {
 
 export function CurrentSubTab() {
   const [analyzeEnabled, setAnalyzeEnabled] = useState(false);
-  const {
-    data: analysis,
-    isLoading,
-    refetch,
-  } = useModelAnalysis(analyzeEnabled);
+  const { data: analysis, isLoading, refetch } = useModelAnalysis(analyzeEnabled);
   const saveModel = useSaveModel();
   const [showSave, setShowSave] = useState(false);
   const [showMeta, setShowMeta] = useState(false);
@@ -63,21 +59,17 @@ export function CurrentSubTab() {
         <>
           <div className="text-xs space-y-1">
             <p>
-              <span className="text-muted-foreground">Name:</span>{" "}
-              {analysis.name}
+              <span className="text-muted-foreground">Name:</span> {analysis.name}
             </p>
             <p>
-              <span className="text-muted-foreground">Type:</span>{" "}
-              {analysis.type}
+              <span className="text-muted-foreground">Type:</span> {analysis.type}
             </p>
             <p>
-              <span className="text-muted-foreground">Class:</span>{" "}
-              {analysis.class}
+              <span className="text-muted-foreground">Class:</span> {analysis.class}
             </p>
             {analysis.hash && (
               <p>
-                <span className="text-muted-foreground">Hash:</span>{" "}
-                {analysis.hash}
+                <span className="text-muted-foreground">Hash:</span> {analysis.hash}
               </p>
             )}
           </div>
@@ -96,13 +88,8 @@ export function CurrentSubTab() {
                 </thead>
                 <tbody>
                   {analysis.modules.map((m) => (
-                    <tr
-                      key={m.name}
-                      className="border-b border-border/50 hover:bg-muted/30"
-                    >
-                      <td className="px-2 py-1 font-mono truncate max-w-25">
-                        {m.name}
-                      </td>
+                    <tr key={m.name} className="border-b border-border/50 hover:bg-muted/30">
+                      <td className="px-2 py-1 font-mono truncate max-w-25">{m.name}</td>
                       <td className="px-2 py-1 truncate max-w-25">{m.cls}</td>
                       <td className="px-2 py-1">{m.device ?? "-"}</td>
                       <td className="px-2 py-1">{m.quant ?? m.dtype ?? "-"}</td>
@@ -122,11 +109,7 @@ export function CurrentSubTab() {
             onClick={() => setShowSave(!showSave)}
             className="flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground w-full"
           >
-            {showSave ? (
-              <ChevronDown className="h-3 w-3" />
-            ) : (
-              <ChevronRight className="h-3 w-3" />
-            )}
+            {showSave ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
             Save model
           </button>
           {showSave && (
@@ -176,15 +159,11 @@ export function CurrentSubTab() {
                 disabled={saveModel.isPending || !saveName}
                 className="w-full"
               >
-                {saveModel.isPending && (
-                  <Loader2 className="h-3 w-3 animate-spin mr-1" />
-                )}
+                {saveModel.isPending && <Loader2 className="h-3 w-3 animate-spin mr-1" />}
                 Save
               </Button>
               {saveModel.data && (
-                <p className="text-2xs text-muted-foreground">
-                  {saveModel.data.status}
-                </p>
+                <p className="text-2xs text-muted-foreground">{saveModel.data.status}</p>
               )}
             </div>
           )}
@@ -215,9 +194,7 @@ export function CurrentSubTab() {
       )}
 
       {analyzeEnabled && !isLoading && (!analysis || !("name" in analysis)) && (
-        <p className="text-xs text-muted-foreground">
-          No model loaded or analysis returned empty.
-        </p>
+        <p className="text-xs text-muted-foreground">No model loaded or analysis returned empty.</p>
       )}
     </div>
   );

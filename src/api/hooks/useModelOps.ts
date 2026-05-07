@@ -38,14 +38,18 @@ export function useModelListDetail() {
 
 export function useSaveModel() {
   return useMutation({
-    mutationFn: (req: ModelSaveRequest) => api.post<{ status: string }>("/sdapi/v2/model/save", req),
+    mutationFn: (req: ModelSaveRequest) =>
+      api.post<{ status: string }>("/sdapi/v2/model/save", req),
   });
 }
 
 export function useUpdateHashes() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: () => api.post<{ updated: Array<{ name: string; type: string; hash: string }> }>("/sdapi/v2/model/update-hashes"),
+    mutationFn: () =>
+      api.post<{ updated: Array<{ name: string; type: string; hash: string }> }>(
+        "/sdapi/v2/model/update-hashes",
+      ),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["model-list-detail"] }),
   });
 }
@@ -63,25 +67,29 @@ export function useHfSearch(keyword: string, enabled = false) {
 
 export function useHfDownload() {
   return useMutation({
-    mutationFn: (req: HfDownloadRequest) => api.post<{ status: string }>("/sdapi/v2/model/hf/download", req),
+    mutationFn: (req: HfDownloadRequest) =>
+      api.post<{ status: string }>("/sdapi/v2/model/hf/download", req),
   });
 }
 
 export function useCivitaiDownload() {
   return useMutation({
-    mutationFn: (req: CivitaiDownloadRequest) => api.post<{ status: string }>("/sdapi/v2/model/civitai/download", req),
+    mutationFn: (req: CivitaiDownloadRequest) =>
+      api.post<{ status: string }>("/sdapi/v2/model/civitai/download", req),
   });
 }
 
 export function useMetadataScan() {
   return useMutation({
-    mutationFn: () => api.post<{ results: CivitMetadataScanResult[] }>("/sdapi/v2/model/metadata/scan"),
+    mutationFn: () =>
+      api.post<{ results: CivitMetadataScanResult[] }>("/sdapi/v2/model/metadata/scan"),
   });
 }
 
 export function useMetadataUpdate() {
   return useMutation({
-    mutationFn: () => api.post<{ results: CivitMetadataUpdateResult[] }>("/sdapi/v2/model/metadata/update"),
+    mutationFn: () =>
+      api.post<{ results: CivitMetadataUpdateResult[] }>("/sdapi/v2/model/metadata/update"),
   });
 }
 
@@ -103,7 +111,8 @@ export function useMergeModels() {
 
 export function useReplaceComponents() {
   return useMutation({
-    mutationFn: (req: ReplaceRequest) => api.post<{ status: string }>("/sdapi/v2/model/replace", req),
+    mutationFn: (req: ReplaceRequest) =>
+      api.post<{ status: string }>("/sdapi/v2/model/replace", req),
   });
 }
 
@@ -120,7 +129,10 @@ export function useLoaderPipelines() {
 export function useLoaderComponents(modelType: string, enabled = false) {
   return useQuery({
     queryKey: ["loader-components", modelType],
-    queryFn: () => api.post<LoaderComponentsResponse>("/sdapi/v2/model/loader/components", { model_type: modelType }),
+    queryFn: () =>
+      api.post<LoaderComponentsResponse>("/sdapi/v2/model/loader/components", {
+        model_type: modelType,
+      }),
     enabled: enabled && modelType.length > 0,
     staleTime: 0,
   });
@@ -128,7 +140,8 @@ export function useLoaderComponents(modelType: string, enabled = false) {
 
 export function useLoaderLoad() {
   return useMutation({
-    mutationFn: (req: LoaderLoadRequest) => api.post<{ status: string }>("/sdapi/v2/model/loader/load", req),
+    mutationFn: (req: LoaderLoadRequest) =>
+      api.post<{ status: string }>("/sdapi/v2/model/loader/load", req),
   });
 }
 
@@ -143,6 +156,7 @@ export function useLoraLoaded(enabled = true) {
 
 export function useLoraExtract() {
   return useMutation({
-    mutationFn: (req: LoraExtractRequest) => api.post<{ status: string }>("/sdapi/v2/model/lora/extract", req),
+    mutationFn: (req: LoraExtractRequest) =>
+      api.post<{ status: string }>("/sdapi/v2/model/lora/extract", req),
   });
 }

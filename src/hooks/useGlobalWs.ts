@@ -6,7 +6,12 @@ import { queryClient } from "@/main";
 
 /** Query keys to invalidate when the backend reconnects (e.g. after restart). */
 const RECONNECT_INVALIDATE_KEYS = [
-  "checkpoint", "options", "loaded-models", "memory", "gpu", "server-info",
+  "checkpoint",
+  "options",
+  "loaded-models",
+  "memory",
+  "gpu",
+  "server-info",
 ];
 
 export function useGlobalWs() {

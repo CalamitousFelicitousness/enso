@@ -26,14 +26,8 @@ function buildFolderTree(folders: BrowserFolder[]): FolderNode[] {
     // Find a parent: the longest path that is a prefix of this one
     let parent: FolderNode | null = null;
     for (const [candidatePath, candidateNode] of nodeMap) {
-      if (
-        normPath.startsWith(candidatePath + "/") &&
-        normPath !== candidatePath
-      ) {
-        if (
-          !parent ||
-          candidatePath.length > parent.folder.path.replace(/\/+$/, "").length
-        ) {
+      if (normPath.startsWith(candidatePath + "/") && normPath !== candidatePath) {
+        if (!parent || candidatePath.length > parent.folder.path.replace(/\/+$/, "").length) {
           parent = candidateNode;
         }
       }
@@ -67,9 +61,7 @@ function mergeDiscoveredSubdirs(
     }
 
     // Add discovered subdirs that aren't already represented as static children
-    const existingPaths = new Set(
-      mergedChildren.map((c) => c.folder.path.replace(/\/+$/, "")),
-    );
+    const existingPaths = new Set(mergedChildren.map((c) => c.folder.path.replace(/\/+$/, "")));
     const newChildren: FolderNode[] = [];
     for (const sub of subs) {
       const subNorm = sub.path.replace(/\/+$/, "");
@@ -93,9 +85,9 @@ export function GalleryPanel() {
   const [userExpanded, setUserExpanded] = useState<Set<string> | null>(null);
 
   // Dynamic subfolder state
-  const [discoveredSubdirs, setDiscoveredSubdirs] = useState<
-    Map<string, BrowserSubdir[]>
-  >(new Map());
+  const [discoveredSubdirs, setDiscoveredSubdirs] = useState<Map<string, BrowserSubdir[]>>(
+    new Map(),
+  );
   const [loadingSubdirs, setLoadingSubdirs] = useState<Set<string>>(new Set());
   const [leafPaths, setLeafPaths] = useState<Set<string>>(new Set());
 
@@ -137,15 +129,11 @@ export function GalleryPanel() {
 
     // Already discovered or currently loading - guards via ref so the
     // callback identity stays stable across renders.
-    if (discoveredRef.current.has(normPath) || loadingRef.current.has(normPath))
-      return;
+    if (discoveredRef.current.has(normPath) || loadingRef.current.has(normPath)) return;
 
     setLoadingSubdirs((prev) => new Set(prev).add(normPath));
     try {
-      const subdirs = await api.get<BrowserSubdir[]>(
-        "/sdapi/v2/browser/subdirs",
-        { folder: path },
-      );
+      const subdirs = await api.get<BrowserSubdir[]>("/sdapi/v2/browser/subdirs", { folder: path });
       setDiscoveredSubdirs((prev) => {
         const next = new Map(prev);
         next.set(normPath, subdirs);
@@ -273,21 +261,12 @@ function FolderTreeNode({
     if (!hasStaticChildren && !isLeaf && !isDiscovered && !isLoading) {
       onFetchSubdirs(node.folder.path);
     }
-  }, [
-    hasStaticChildren,
-    isLeaf,
-    isDiscovered,
-    isLoading,
-    node.folder.path,
-    onFetchSubdirs,
-  ]);
+  }, [hasStaticChildren, isLeaf, isDiscovered, isLoading, node.folder.path, onFetchSubdirs]);
 
   // Show chevron only when children are confirmed - either via static
   // tree relations or via completed discovery. Folders with discovery
   // pending render without a chevron (the eager fetch resolves quickly).
-  const hasChildren =
-    hasStaticChildren ||
-    (discoveredSubdirs.get(normPath)?.length ?? 0) > 0;
+  const hasChildren = hasStaticChildren || (discoveredSubdirs.get(normPath)?.length ?? 0) > 0;
 
   return (
     <>

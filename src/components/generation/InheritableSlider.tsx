@@ -1,6 +1,9 @@
 import { ParamSlider, type ParamSliderProps } from "./ParamSlider";
 
-interface InheritableSliderProps extends Omit<ParamSliderProps, "value" | "onChange" | "defaultValue"> {
+interface InheritableSliderProps extends Omit<
+  ParamSliderProps,
+  "value" | "onChange" | "defaultValue"
+> {
   /** The value inherited from defaults when no override is set. */
   inheritedValue: number;
   /** The user's explicit override; undefined = inherit. */
@@ -44,12 +47,7 @@ export function InheritableSlider({
         }
         title={isOverride ? "Override (right-click to reset)" : "Inheriting from defaults"}
       />
-      <ParamSlider
-        {...rest}
-        value={value}
-        defaultValue={inheritedValue}
-        onChange={handleChange}
-      />
+      <ParamSlider {...rest} value={value} defaultValue={inheritedValue} onChange={handleChange} />
     </div>
   );
 }

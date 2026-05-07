@@ -1,10 +1,6 @@
 import { useState } from "react";
 import { Loader2, ExternalLink } from "lucide-react";
-import {
-  useLoaderPipelines,
-  useLoaderComponents,
-  useLoaderLoad,
-} from "@/api/hooks/useModelOps";
+import { useLoaderPipelines, useLoaderComponents, useLoaderLoad } from "@/api/hooks/useModelOps";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,10 +11,7 @@ export function LoaderSubTab() {
   const { data: pipelineData } = useLoaderPipelines();
   const [modelType, setModelType] = useState("Autodetect");
   const fetchEnabled = modelType !== "" && modelType !== "Autodetect";
-  const { data: compData, isLoading: compLoading } = useLoaderComponents(
-    modelType,
-    fetchEnabled,
-  );
+  const { data: compData, isLoading: compLoading } = useLoaderComponents(modelType, fetchEnabled);
 
   const pipelines = pipelineData?.pipelines ?? [];
 
@@ -38,17 +31,9 @@ export function LoaderSubTab() {
         />
       </div>
 
-      {compLoading && (
-        <p className="text-xs text-muted-foreground">Loading components...</p>
-      )}
+      {compLoading && <p className="text-xs text-muted-foreground">Loading components...</p>}
 
-      {compData && (
-        <LoaderEditor
-          key={modelType}
-          compData={compData}
-          modelType={modelType}
-        />
-      )}
+      {compData && <LoaderEditor key={modelType} compData={compData} modelType={modelType} />}
     </div>
   );
 }
@@ -63,20 +48,12 @@ function LoaderEditor({
   const load = useLoaderLoad();
   const [repo, setRepo] = useState(compData.repo ?? "");
   const [editedComponents, setEditedComponents] = useState<
-    Record<
-      number,
-      { local?: string; remote?: string; dtype?: string; quant?: boolean }
-    >
+    Record<number, { local?: string; remote?: string; dtype?: string; quant?: boolean }>
   >({});
 
-  const loadableComponents = (compData.components ?? []).filter(
-    (c) => c.loadable,
-  );
+  const loadableComponents = (compData.components ?? []).filter((c) => c.loadable);
 
-  function getEditedValue(
-    id: number,
-    field: "local" | "remote" | "dtype" | "quant",
-  ) {
+  function getEditedValue(id: number, field: "local" | "remote" | "dtype" | "quant") {
     return editedComponents[id]?.[field];
   }
 
@@ -95,22 +72,10 @@ function LoaderEditor({
     if (!repo) return;
     const components = loadableComponents.map((c) => ({
       id: c.id,
-      local:
-        (getEditedValue(c.id, "local") as string | undefined) ??
-        c.local ??
-        undefined,
-      remote:
-        (getEditedValue(c.id, "remote") as string | undefined) ??
-        c.remote ??
-        undefined,
-      dtype:
-        (getEditedValue(c.id, "dtype") as string | undefined) ??
-        c.dtype ??
-        undefined,
-      quant:
-        (getEditedValue(c.id, "quant") as boolean | undefined) ??
-        c.quant ??
-        undefined,
+      local: (getEditedValue(c.id, "local") as string | undefined) ?? c.local ?? undefined,
+      remote: (getEditedValue(c.id, "remote") as string | undefined) ?? c.remote ?? undefined,
+      dtype: (getEditedValue(c.id, "dtype") as string | undefined) ?? c.dtype ?? undefined,
+      quant: (getEditedValue(c.id, "quant") as boolean | undefined) ?? c.quant ?? undefined,
     }));
     load.mutate({ model_type: modelType, repo, components });
   }
@@ -160,37 +125,21 @@ function LoaderEditor({
             <tbody>
               {loadableComponents.map((c) => (
                 <tr key={c.id} className="border-b border-border/50">
-                  <td className="px-2 py-1 font-mono truncate max-w-20">
-                    {c.name}
-                  </td>
-                  <td className="px-2 py-1 truncate max-w-25">
-                    {c.class_name}
-                  </td>
+                  <td className="px-2 py-1 font-mono truncate max-w-20">{c.name}</td>
+                  <td className="px-2 py-1 truncate max-w-25">{c.class_name}</td>
                   <td className="px-1 py-0.5">
                     <Input
                       className="h-6 text-3xs border-0 bg-transparent p-1"
-                      value={
-                        (getEditedValue(c.id, "local") as string | undefined) ??
-                        c.local ??
-                        ""
-                      }
-                      onChange={(e) =>
-                        setComponentField(c.id, "local", e.target.value)
-                      }
+                      value={(getEditedValue(c.id, "local") as string | undefined) ?? c.local ?? ""}
+                      onChange={(e) => setComponentField(c.id, "local", e.target.value)}
                       placeholder="local path"
                     />
                   </td>
                   <td className="px-1 py-0.5">
                     <Input
                       className="h-6 text-3xs border-0 bg-transparent p-1 w-16"
-                      value={
-                        (getEditedValue(c.id, "dtype") as string | undefined) ??
-                        c.dtype ??
-                        ""
-                      }
-                      onChange={(e) =>
-                        setComponentField(c.id, "dtype", e.target.value)
-                      }
+                      value={(getEditedValue(c.id, "dtype") as string | undefined) ?? c.dtype ?? ""}
+                      onChange={(e) => setComponentField(c.id, "dtype", e.target.value)}
                       placeholder="dtype"
                     />
                   </td>
@@ -213,9 +162,7 @@ function LoaderEditor({
           Load model
         </Button>
       </div>
-      {load.data && (
-        <p className="text-2xs text-muted-foreground">{load.data.status}</p>
-      )}
+      {load.data && <p className="text-2xs text-muted-foreground">{load.data.status}</p>}
     </>
   );
 }

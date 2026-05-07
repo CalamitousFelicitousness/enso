@@ -1,7 +1,11 @@
 import type { StateStorage } from "zustand/middleware";
 
 /** Zustand StateStorage backed by IndexedDB with debounced writes. */
-export function createIdbStorage(dbName: string, storeName: string, debounceMs = 2000): StateStorage {
+export function createIdbStorage(
+  dbName: string,
+  storeName: string,
+  debounceMs = 2000,
+): StateStorage {
   let dbPromise: Promise<IDBDatabase> | null = null;
 
   function openDb(): Promise<IDBDatabase> {
@@ -73,7 +77,10 @@ export function createIdbStorage(dbName: string, storeName: string, debounceMs =
       const v = pendingValue;
       pendingKey = null;
       pendingValue = null;
-      if (timer) { clearTimeout(timer); timer = null; }
+      if (timer) {
+        clearTimeout(timer);
+        timer = null;
+      }
       void idbSet(k, v);
     }
   }
@@ -83,7 +90,11 @@ export function createIdbStorage(dbName: string, storeName: string, debounceMs =
   }
 
   return {
-    getItem: (key) => idbGet(key).then((v) => { hydrated = true; return v; }),
+    getItem: (key) =>
+      idbGet(key).then((v) => {
+        hydrated = true;
+        return v;
+      }),
     setItem: (key, value) => {
       if (!hydrated) return;
       pendingKey = key;
@@ -91,6 +102,8 @@ export function createIdbStorage(dbName: string, storeName: string, debounceMs =
       if (timer) clearTimeout(timer);
       timer = setTimeout(flush, debounceMs);
     },
-    removeItem: (key) => { void idbDelete(key); },
+    removeItem: (key) => {
+      void idbDelete(key);
+    },
   };
 }

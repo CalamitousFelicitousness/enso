@@ -95,19 +95,26 @@ export async function buildControlRequest(): Promise<BuildResult> {
     hr_resize_y: gen.hiresResizeY,
     hr_resize_context: gen.hiresResizeContext,
     // Post-generation upscale (pure upscaler, no diffusion - runs after hires fix)
-    ...(gen.upscaleAfterEnabled && gen.upscaleAfterUpscaler !== "None" ? {
-      resize_name_after: gen.upscaleAfterUpscaler,
-      ...(gen.upscaleAfterResizeMode === 0
-        ? { scale_by_after: gen.upscaleAfterScale }
-        : { resize_mode_after: 1, width_after: gen.upscaleAfterWidth, height_after: gen.upscaleAfterHeight }
-      ),
-    } : {}),
-    ...(gen.refinerEnabled ? {
-      refiner_steps: gen.refinerSteps,
-      refiner_start: gen.refinerStart,
-      refiner_prompt: gen.refinerPrompt || undefined,
-      refiner_negative: gen.refinerNegative || undefined,
-    } : {}),
+    ...(gen.upscaleAfterEnabled && gen.upscaleAfterUpscaler !== "None"
+      ? {
+          resize_name_after: gen.upscaleAfterUpscaler,
+          ...(gen.upscaleAfterResizeMode === 0
+            ? { scale_by_after: gen.upscaleAfterScale }
+            : {
+                resize_mode_after: 1,
+                width_after: gen.upscaleAfterWidth,
+                height_after: gen.upscaleAfterHeight,
+              }),
+        }
+      : {}),
+    ...(gen.refinerEnabled
+      ? {
+          refiner_steps: gen.refinerSteps,
+          refiner_start: gen.refinerStart,
+          refiner_prompt: gen.refinerPrompt || undefined,
+          refiner_negative: gen.refinerNegative || undefined,
+        }
+      : {}),
     clip_skip: gen.clipSkip,
     vae_type: gen.vaeType,
     tiling: gen.tiling,
@@ -161,35 +168,45 @@ export async function buildControlRequest(): Promise<BuildResult> {
     schedulers_rescale_betas: gen.rescale,
     schedulers_use_loworder: gen.lowOrder,
     ...(gen.timestepsOverride ? { schedulers_timesteps: gen.timestepsOverride } : {}),
-    ...(gen.freeuEnabled ? {
-      freeu_enabled: true,
-      freeu_b1: gen.freeuB1,
-      freeu_b2: gen.freeuB2,
-      freeu_s1: gen.freeuS1,
-      freeu_s2: gen.freeuS2,
-    } : {}),
-    ...(gen.hypertileUnetEnabled ? {
-      hypertile_unet_enabled: true,
-      hypertile_hires_only: gen.hypertileHiresOnly,
-      hypertile_unet_tile: gen.hypertileUnetTile,
-      hypertile_unet_min_tile: gen.hypertileUnetMinTile,
-      hypertile_unet_swap_size: gen.hypertileUnetSwapSize,
-      hypertile_unet_depth: gen.hypertileUnetDepth,
-    } : {}),
-    ...(gen.hypertileVaeEnabled ? {
-      hypertile_vae_enabled: true,
-      hypertile_vae_tile: gen.hypertileVaeTile,
-      hypertile_vae_swap_size: gen.hypertileVaeSwapSize,
-    } : {}),
-    ...(gen.teacacheEnabled ? {
-      teacache_enabled: true,
-      teacache_thresh: gen.teacacheThresh,
-    } : {}),
-    ...(gen.tokenMergingMethod !== "None" ? {
-      token_merging_method: gen.tokenMergingMethod,
-      tome_ratio: gen.tomeRatio,
-      todo_ratio: gen.todoRatio,
-    } : {}),
+    ...(gen.freeuEnabled
+      ? {
+          freeu_enabled: true,
+          freeu_b1: gen.freeuB1,
+          freeu_b2: gen.freeuB2,
+          freeu_s1: gen.freeuS1,
+          freeu_s2: gen.freeuS2,
+        }
+      : {}),
+    ...(gen.hypertileUnetEnabled
+      ? {
+          hypertile_unet_enabled: true,
+          hypertile_hires_only: gen.hypertileHiresOnly,
+          hypertile_unet_tile: gen.hypertileUnetTile,
+          hypertile_unet_min_tile: gen.hypertileUnetMinTile,
+          hypertile_unet_swap_size: gen.hypertileUnetSwapSize,
+          hypertile_unet_depth: gen.hypertileUnetDepth,
+        }
+      : {}),
+    ...(gen.hypertileVaeEnabled
+      ? {
+          hypertile_vae_enabled: true,
+          hypertile_vae_tile: gen.hypertileVaeTile,
+          hypertile_vae_swap_size: gen.hypertileVaeSwapSize,
+        }
+      : {}),
+    ...(gen.teacacheEnabled
+      ? {
+          teacache_enabled: true,
+          teacache_thresh: gen.teacacheThresh,
+        }
+      : {}),
+    ...(gen.tokenMergingMethod !== "None"
+      ? {
+          token_merging_method: gen.tokenMergingMethod,
+          tome_ratio: gen.tomeRatio,
+          todo_ratio: gen.todoRatio,
+        }
+      : {}),
   };
 
   // Detailer (V2 schema: defaults block + per-model entries)
@@ -213,12 +230,17 @@ export async function buildControlRequest(): Promise<BuildResult> {
   }
 
   // Control units: partition by type - IP-adapter vs control types
-  const enabledIPUnits = control.units.filter((u) => u.enabled && u.unitType === "ip" && u.images.length > 0);
+  const enabledIPUnits = control.units.filter(
+    (u) => u.enabled && u.unitType === "ip" && u.images.length > 0,
+  );
 
   // Resolve images for control units (may reference another unit's image via "unit:N")
   const controlUnitEntries = control.units
     .map((u, i) => ({ unit: u, image: resolveUnitImage(control.units, i) }))
-    .filter((e) => e.unit.enabled && e.unit.unitType !== "ip" && e.unit.unitType !== "reference" && e.image);
+    .filter(
+      (e) =>
+        e.unit.enabled && e.unit.unitType !== "ip" && e.unit.unitType !== "reference" && e.image,
+    );
   const referenceUnitEntries = control.units
     .map((u, i) => ({ unit: u, image: resolveUnitImage(control.units, i) }))
     .filter((e) => e.unit.enabled && e.unit.unitType === "reference" && e.image);
@@ -255,7 +277,13 @@ export async function buildControlRequest(): Promise<BuildResult> {
         } else if (e.unit.fitMode === "free" && e.image) {
           // Free mode: composite the image at generation resolution before uploading
           const ft = e.unit.freeTransform ?? { x: 0, y: 0, scaleX: 1, scaleY: 1, rotation: 0 };
-          const composed = await compositeControlImage(e.image, ft, gen.width, gen.height, displayScale);
+          const composed = await compositeControlImage(
+            e.image,
+            ft,
+            gen.width,
+            gen.height,
+            displayScale,
+          );
           overrideRef = await uploadBlob(composed, "control.png");
         } else if (e.image) {
           // WYSIWYG: composite the image using the fit mode so what's sent matches what's on canvas
@@ -273,23 +301,40 @@ export async function buildControlRequest(): Promise<BuildResult> {
           mode: e.unit.mode,
           ...(e.unit.unitType === "controlnet" ? { guess: e.unit.guess } : {}),
           ...(e.unit.unitType === "t2i" ? { factor: e.unit.factor } : {}),
-          ...(e.unit.unitType === "style_transfer" ? { attention: e.unit.attention, fidelity: e.unit.fidelity, query_weight: e.unit.queryWeight, adain_weight: e.unit.adainWeight } : {}),
-          ...(Object.keys(e.unit.processorParams).length > 0 && !hasManualPreview ? { process_params: e.unit.processorParams } : {}),
+          ...(e.unit.unitType === "style_transfer"
+            ? {
+                attention: e.unit.attention,
+                fidelity: e.unit.fidelity,
+                query_weight: e.unit.queryWeight,
+                adain_weight: e.unit.adainWeight,
+              }
+            : {}),
+          ...(Object.keys(e.unit.processorParams).length > 0 && !hasManualPreview
+            ? { process_params: e.unit.processorParams }
+            : {}),
         };
       }),
     );
   }
 
   if (referenceUnitEntries.length > 0) {
-    request.init_control = await Promise.all(referenceUnitEntries.map(async (e) => {
-      if (e.unit.fitMode === "free" && e.image) {
-        const ft = e.unit.freeTransform ?? { x: 0, y: 0, scaleX: 1, scaleY: 1, rotation: 0 };
-        const composed = await compositeControlImage(e.image, ft, gen.width, gen.height, displayScale);
+    request.init_control = await Promise.all(
+      referenceUnitEntries.map(async (e) => {
+        if (e.unit.fitMode === "free" && e.image) {
+          const ft = e.unit.freeTransform ?? { x: 0, y: 0, scaleX: 1, scaleY: 1, rotation: 0 };
+          const composed = await compositeControlImage(
+            e.image,
+            ft,
+            gen.width,
+            gen.height,
+            displayScale,
+          );
+          return uploadBlob(composed, "control.png");
+        }
+        const composed = await compositeFitImage(e.image!, gen.width, gen.height, e.unit.fitMode);
         return uploadBlob(composed, "control.png");
-      }
-      const composed = await compositeFitImage(e.image!, gen.width, gen.height, e.unit.fitMode);
-      return uploadBlob(composed, "control.png");
-    }));
+      }),
+    );
   }
 
   // Reference mode: flatten layers → upload → init_control (no denoising, no mask)
@@ -310,7 +355,13 @@ export async function buildControlRequest(): Promise<BuildResult> {
     const frameH = gen.height;
     const isAutoFit = ui.autoFitFrame;
     const effectiveSizeMode: SizeMode = isAutoFit ? img2img.sizeMode : "fixed";
-    const genSize = resolveGenerationSize(effectiveSizeMode, frameW, frameH, img2img.scaleFactor, img2img.megapixelTarget);
+    const genSize = resolveGenerationSize(
+      effectiveSizeMode,
+      frameW,
+      frameH,
+      img2img.scaleFactor,
+      img2img.megapixelTarget,
+    );
 
     request.width_before = genSize.width;
     request.height_before = genSize.height;
@@ -414,14 +465,17 @@ export function extractParamsFromResult(result: GenerationResult): Partial<Gener
   const p = result.parameters;
 
   let info: GenerationInfo | null = null;
-  try { info = JSON.parse(result.info) as GenerationInfo; }
-  catch { /* ignore */ }
+  try {
+    info = JSON.parse(result.info) as GenerationInfo;
+  } catch {
+    /* ignore */
+  }
 
   const overrides: WireOverrides = p.extra ?? p.override_settings ?? {};
 
-  const num = (v: unknown, fallback: number) => typeof v === "number" ? v : fallback;
-  const str = (v: unknown, fallback: string) => typeof v === "string" ? v : fallback;
-  const bool = (v: unknown, fallback: boolean) => typeof v === "boolean" ? v : fallback;
+  const num = (v: unknown, fallback: number) => (typeof v === "number" ? v : fallback);
+  const str = (v: unknown, fallback: string) => (typeof v === "string" ? v : fallback);
+  const bool = (v: unknown, fallback: boolean) => (typeof v === "boolean" ? v : fallback);
 
   return {
     // Prompt
@@ -554,16 +608,31 @@ export function extractParamsFromResult(result: GenerationResult): Partial<Gener
 
     // Scheduler overrides (top-level in new API, overrides dict in legacy)
     sigmaMethod: str(p.schedulers_sigma ?? overrides.schedulers_sigma, "default"),
-    timestepSpacing: str(p.schedulers_timestep_spacing ?? overrides.schedulers_timestep_spacing, "default"),
+    timestepSpacing: str(
+      p.schedulers_timestep_spacing ?? overrides.schedulers_timestep_spacing,
+      "default",
+    ),
     betaSchedule: str(p.schedulers_beta_schedule ?? overrides.schedulers_beta_schedule, "default"),
-    predictionMethod: str(p.schedulers_prediction_type ?? overrides.schedulers_prediction_type, "default"),
+    predictionMethod: str(
+      p.schedulers_prediction_type ?? overrides.schedulers_prediction_type,
+      "default",
+    ),
     flowShift: num(p.schedulers_shift ?? overrides.schedulers_shift, 3),
     baseShift: num(p.schedulers_base_shift ?? overrides.schedulers_base_shift, 0.5),
     maxShift: num(p.schedulers_max_shift ?? overrides.schedulers_max_shift, 1.15),
     sigmaAdjust: num(p.schedulers_sigma_adjust ?? overrides.schedulers_sigma_adjust, 1.0),
-    sigmaAdjustStart: num(p.schedulers_sigma_adjust_min ?? overrides.schedulers_sigma_adjust_min, 0.2),
-    sigmaAdjustEnd: num(p.schedulers_sigma_adjust_max ?? overrides.schedulers_sigma_adjust_max, 1.0),
-    thresholding: bool(p.schedulers_use_thresholding ?? overrides.schedulers_use_thresholding, false),
+    sigmaAdjustStart: num(
+      p.schedulers_sigma_adjust_min ?? overrides.schedulers_sigma_adjust_min,
+      0.2,
+    ),
+    sigmaAdjustEnd: num(
+      p.schedulers_sigma_adjust_max ?? overrides.schedulers_sigma_adjust_max,
+      1.0,
+    ),
+    thresholding: bool(
+      p.schedulers_use_thresholding ?? overrides.schedulers_use_thresholding,
+      false,
+    ),
     dynamic: bool(p.schedulers_dynamic_shift ?? overrides.schedulers_dynamic_shift, false),
     rescale: bool(p.schedulers_rescale_betas ?? overrides.schedulers_rescale_betas, false),
     lowOrder: bool(p.schedulers_use_loworder ?? overrides.schedulers_use_loworder, true),
@@ -583,36 +652,40 @@ function extractDetailerV2(
   p: WireParams,
   overrides: WireOverrides,
 ): Pick<GenerationState, "detailerDefaults" | "detailerModels"> {
-  const num = (v: unknown): number | undefined => typeof v === "number" ? v : undefined;
-  const str = (v: unknown): string | undefined => typeof v === "string" && v ? v : undefined;
-  const bool = (v: unknown): boolean | undefined => typeof v === "boolean" ? v : undefined;
+  const num = (v: unknown): number | undefined => (typeof v === "number" ? v : undefined);
+  const str = (v: unknown): string | undefined => (typeof v === "string" && v ? v : undefined);
+  const bool = (v: unknown): boolean | undefined => (typeof v === "boolean" ? v : undefined);
 
   // Prefer V2 defaults block if present
-  const v2Defaults: DetailerOverrides | undefined = p.detailer_defaults ?? overrides.detailer_defaults;
-  const defaults: DetailerOverrides = v2Defaults && typeof v2Defaults === "object"
-    ? v2Defaults
-    : {
-        // Legacy: hoist flat detailer_* fields into the defaults block
-        strength: num(p.detailer_strength ?? overrides.detailer_strength),
-        steps: num(p.detailer_steps ?? overrides.detailer_steps),
-        resolution: num(p.detailer_resolution ?? overrides.detailer_resolution),
-        padding: num(p.detailer_padding ?? overrides.detailer_padding),
-        blur: num(p.detailer_blur ?? overrides.detailer_blur),
-        conf: num(p.detailer_conf ?? overrides.detailer_conf),
-        iou: num(p.detailer_iou ?? overrides.detailer_iou),
-        min_size: num(p.detailer_min_size ?? overrides.detailer_min_size),
-        max_size: num(p.detailer_max_size ?? overrides.detailer_max_size),
-        max: num(p.detailer_max ?? overrides.detailer_max),
-        sigma_adjust: num(p.detailer_sigma_adjust ?? overrides.detailer_sigma_adjust),
-        sigma_adjust_max: num(p.detailer_sigma_adjust_max ?? overrides.detailer_sigma_adjust_max),
-        segmentation: bool(p.detailer_segmentation ?? overrides.detailer_segmentation),
-        include_detections: bool(p.detailer_include_detections ?? overrides.detailer_include_detections),
-        merge: bool(p.detailer_merge ?? overrides.detailer_merge),
-        sort: bool(p.detailer_sort ?? overrides.detailer_sort),
-        prompt: str(p.detailer_prompt ?? overrides.detailer_prompt),
-        negative: str(p.detailer_negative ?? overrides.detailer_negative),
-        classes: str(p.detailer_classes ?? overrides.detailer_classes),
-      };
+  const v2Defaults: DetailerOverrides | undefined =
+    p.detailer_defaults ?? overrides.detailer_defaults;
+  const defaults: DetailerOverrides =
+    v2Defaults && typeof v2Defaults === "object"
+      ? v2Defaults
+      : {
+          // Legacy: hoist flat detailer_* fields into the defaults block
+          strength: num(p.detailer_strength ?? overrides.detailer_strength),
+          steps: num(p.detailer_steps ?? overrides.detailer_steps),
+          resolution: num(p.detailer_resolution ?? overrides.detailer_resolution),
+          padding: num(p.detailer_padding ?? overrides.detailer_padding),
+          blur: num(p.detailer_blur ?? overrides.detailer_blur),
+          conf: num(p.detailer_conf ?? overrides.detailer_conf),
+          iou: num(p.detailer_iou ?? overrides.detailer_iou),
+          min_size: num(p.detailer_min_size ?? overrides.detailer_min_size),
+          max_size: num(p.detailer_max_size ?? overrides.detailer_max_size),
+          max: num(p.detailer_max ?? overrides.detailer_max),
+          sigma_adjust: num(p.detailer_sigma_adjust ?? overrides.detailer_sigma_adjust),
+          sigma_adjust_max: num(p.detailer_sigma_adjust_max ?? overrides.detailer_sigma_adjust_max),
+          segmentation: bool(p.detailer_segmentation ?? overrides.detailer_segmentation),
+          include_detections: bool(
+            p.detailer_include_detections ?? overrides.detailer_include_detections,
+          ),
+          merge: bool(p.detailer_merge ?? overrides.detailer_merge),
+          sort: bool(p.detailer_sort ?? overrides.detailer_sort),
+          prompt: str(p.detailer_prompt ?? overrides.detailer_prompt),
+          negative: str(p.detailer_negative ?? overrides.detailer_negative),
+          classes: str(p.detailer_classes ?? overrides.detailer_classes),
+        };
 
   // detailer_models entries can be bare strings or objects on the wire
   const rawModels = p.detailer_models ?? overrides.detailer_models;
@@ -635,7 +708,7 @@ export function restoreFromResult(result: GenerationResult): void {
   useGenerationStore.getState().setParams(params);
 
   const p = result.parameters;
-  const num = (v: unknown, fallback: number) => typeof v === "number" ? v : fallback;
+  const num = (v: unknown, fallback: number) => (typeof v === "number" ? v : fallback);
 
   // Restore input image and mask if present (img2img history)
   if (result.inputImage) {
@@ -652,11 +725,13 @@ export function restoreFromResult(result: GenerationResult): void {
     }
   }
 
-  const bool = (v: unknown, fallback: boolean) => typeof v === "boolean" ? v : fallback;
+  const bool = (v: unknown, fallback: boolean) => (typeof v === "boolean" ? v : fallback);
 
   // Restore mask params
-  if (p.mask_apply_overlay !== undefined) useImg2ImgStore.getState().setMaskApplyOverlay(bool(p.mask_apply_overlay, true));
-  if (p.inpainting_mask_weight !== undefined) useImg2ImgStore.getState().setInpaintingMaskWeight(num(p.inpainting_mask_weight, 1.0));
+  if (p.mask_apply_overlay !== undefined)
+    useImg2ImgStore.getState().setMaskApplyOverlay(bool(p.mask_apply_overlay, true));
+  if (p.inpainting_mask_weight !== undefined)
+    useImg2ImgStore.getState().setInpaintingMaskWeight(num(p.inpainting_mask_weight, 1.0));
 
   // Restore control units if present
   if (result.controlUnits && result.controlUnits.length > 0) {
@@ -686,7 +761,13 @@ export async function buildCloudImageRequest(): Promise<CloudImageJobParams> {
   const isImg2Img = imageLayers.length > 0;
 
   const effectiveSizeMode: SizeMode = isImg2Img ? img2img.sizeMode : "fixed";
-  const targetSize = resolveGenerationSize(effectiveSizeMode, frameW, frameH, img2img.scaleFactor, img2img.megapixelTarget);
+  const targetSize = resolveGenerationSize(
+    effectiveSizeMode,
+    frameW,
+    frameH,
+    img2img.scaleFactor,
+    img2img.megapixelTarget,
+  );
 
   const request: CloudImageJobParams = {
     type: "cloud_image",
@@ -720,7 +801,10 @@ export async function buildCloudImageRequest(): Promise<CloudImageJobParams> {
     const imageRef = await uploadBlob(optimized.blob, filename);
     request.image = imageRef;
 
-    if (optimized.dimensions.width !== targetSize.width || optimized.dimensions.height !== targetSize.height) {
+    if (
+      optimized.dimensions.width !== targetSize.width ||
+      optimized.dimensions.height !== targetSize.height
+    ) {
       request.size = `${optimized.dimensions.width}x${optimized.dimensions.height}`;
     }
 
@@ -730,8 +814,16 @@ export async function buildCloudImageRequest(): Promise<CloudImageJobParams> {
       if (maskBlob && needsResize) {
         maskBlob = await resizeBlob(maskBlob, targetSize.width, targetSize.height);
       }
-      if (maskBlob && (optimized.dimensions.width !== targetSize.width || optimized.dimensions.height !== targetSize.height)) {
-        maskBlob = await resizeBlob(maskBlob, optimized.dimensions.width, optimized.dimensions.height);
+      if (
+        maskBlob &&
+        (optimized.dimensions.width !== targetSize.width ||
+          optimized.dimensions.height !== targetSize.height)
+      ) {
+        maskBlob = await resizeBlob(
+          maskBlob,
+          optimized.dimensions.width,
+          optimized.dimensions.height,
+        );
       }
       if (maskBlob) {
         const maskRef = await uploadBlob(maskBlob, "cloud-mask.png");

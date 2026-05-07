@@ -1,9 +1,7 @@
 import type { ExtraNetworkV2 } from "@/api/types/models";
 import type { ActiveLora, NetworkItem } from "./types";
 
-export function isExtraNetwork(
-  item: NetworkItem,
-): item is ExtraNetworkV2 {
+export function isExtraNetwork(item: NetworkItem): item is ExtraNetworkV2 {
   return "type" in item && !!item.type;
 }
 
@@ -22,16 +20,11 @@ export function isItemActive(
   }
   const t = item.type?.toLowerCase() ?? "";
   if (t === "model" || t === "checkpoint")
-    return (
-      (item.title ?? item.name) === (options?.["sd_model_checkpoint"] as string)
-    );
-  if (t === "lora" || t === "lycoris")
-    return prompt.includes(`<lora:${item.name}:`);
-  if (t === "embedding" || t === "textual inversion")
-    return prompt.includes(item.name);
+    return (item.title ?? item.name) === (options?.["sd_model_checkpoint"] as string);
+  if (t === "lora" || t === "lycoris") return prompt.includes(`<lora:${item.name}:`);
+  if (t === "embedding" || t === "textual inversion") return prompt.includes(item.name);
   if (t === "wildcards") return prompt.includes(`__${item.name}__`);
-  if (t === "vae")
-    return (item.title ?? item.name) === (options?.["sd_vae"] as string);
+  if (t === "vae") return (item.title ?? item.name) === (options?.["sd_vae"] as string);
   return false;
 }
 
@@ -59,11 +52,7 @@ export function parseActiveLoRAs(prompt: string): ActiveLora[] {
   return results;
 }
 
-export function setLoRAWeight(
-  prompt: string,
-  name: string,
-  weight: number,
-): string {
+export function setLoRAWeight(prompt: string, name: string, weight: number): string {
   const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const re = new RegExp(`<lora:${escaped}:[\\d.]+>`, "g");
   return prompt.replace(re, `<lora:${name}:${weight}>`);
@@ -75,11 +64,7 @@ export function removeLoRA(prompt: string, name: string): string {
   return prompt.replace(re, "").trim();
 }
 
-export function addLoRA(
-  prompt: string,
-  name: string,
-  weight: number = 1,
-): string {
+export function addLoRA(prompt: string, name: string, weight: number = 1): string {
   const tag = `<lora:${name}:${weight}>`;
   return prompt ? `${prompt} ${tag}` : tag;
 }

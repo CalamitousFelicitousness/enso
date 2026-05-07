@@ -8,15 +8,8 @@ import { KeepAlivePanel, KeepAliveSwitch } from "@/components/ui/keep-alive";
 import { useCaptionStore } from "@/stores/captionStore";
 import { useCaptionSettingsStore } from "@/stores/captionSettingsStore";
 import { useUiStore } from "@/stores/uiStore";
-import {
-  useOptionsSubset,
-  useSetOptions,
-} from "@/api/hooks/useSettings";
-import {
-  useOpenClipCaption,
-  useTaggerCaption,
-  useVqaCaption,
-} from "@/api/hooks/useCaption";
+import { useOptionsSubset, useSetOptions } from "@/api/hooks/useSettings";
+import { useOpenClipCaption, useTaggerCaption, useVqaCaption } from "@/api/hooks/useCaption";
 import { uploadFile } from "@/lib/upload";
 import { CUSTOM_PROMPT_TASKS } from "@/lib/captionModels";
 import { VlmSettings } from "./methods/VlmSettings";
@@ -126,9 +119,7 @@ export function CaptionPanel() {
           image: ref,
           model: s.model,
           question: s.task,
-          prompt: CUSTOM_PROMPT_TASKS.includes(s.task)
-            ? s.customPrompt
-            : undefined,
+          prompt: CUSTOM_PROMPT_TASKS.includes(s.task) ? s.customPrompt : undefined,
           system: s.system,
           include_annotated: true,
           max_tokens: s.maxTokens,
@@ -183,16 +174,7 @@ export function CaptionPanel() {
     } finally {
       setProcessing(false);
     }
-  }, [
-    image,
-    isProcessing,
-    method,
-    vqaMut,
-    openclipMut,
-    taggerMut,
-    setProcessing,
-    setResult,
-  ]);
+  }, [image, isProcessing, method, vqaMut, openclipMut, taggerMut, setProcessing, setResult]);
 
   return (
     <div className="flex flex-col h-full">

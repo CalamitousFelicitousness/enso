@@ -53,10 +53,7 @@ function findEnclosingWeight(
 }
 
 /** Find the word (non-separator run) touching `pos`. */
-function findWordAt(
-  doc: string,
-  pos: number,
-): { from: number; to: number } | null {
+function findWordAt(doc: string, pos: number): { from: number; to: number } | null {
   const sep = /[\s.,():<>]/;
   if (pos > 0 && pos < doc.length && sep.test(doc[pos]) && !sep.test(doc[pos - 1])) {
     // Cursor is right after the word — expand left
@@ -204,11 +201,13 @@ function skipChipRight(view: EditorView): boolean {
   return true;
 }
 
-export const promptKeymap = Prec.high(keymap.of([
-  { key: "Backspace", run: deleteChipBackward },
-  { key: "Delete", run: deleteChipForward },
-  { key: "ArrowLeft", run: skipChipLeft },
-  { key: "ArrowRight", run: skipChipRight },
-  { key: "Ctrl-ArrowUp", run: (view) => adjustWeight(view, 0.1) },
-  { key: "Ctrl-ArrowDown", run: (view) => adjustWeight(view, -0.1) },
-]));
+export const promptKeymap = Prec.high(
+  keymap.of([
+    { key: "Backspace", run: deleteChipBackward },
+    { key: "Delete", run: deleteChipForward },
+    { key: "ArrowLeft", run: skipChipLeft },
+    { key: "ArrowRight", run: skipChipRight },
+    { key: "Ctrl-ArrowUp", run: (view) => adjustWeight(view, 0.1) },
+    { key: "Ctrl-ArrowDown", run: (view) => adjustWeight(view, -0.1) },
+  ]),
+);

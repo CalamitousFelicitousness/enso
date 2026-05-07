@@ -158,8 +158,12 @@ export interface CivitHistoryEntry {
   timestamp: string;
 }
 
-export interface CivitBookmarkEntry { name: string; }
-export interface CivitBannedEntry { name: string; }
+export interface CivitBookmarkEntry {
+  name: string;
+}
+export interface CivitBannedEntry {
+  name: string;
+}
 
 export interface CivitTag {
   name: string;

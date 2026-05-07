@@ -22,17 +22,9 @@ export function InfoTab() {
           label="Documentation"
         />
 
-        <ExternalLink
-          href="https://github.com/vladmandic/sdnext"
-          icon={GitBranch}
-          label="GitHub"
-        />
+        <ExternalLink href="https://github.com/vladmandic/sdnext" icon={GitBranch} label="GitHub" />
 
-        <ExternalLink
-          href="https://discord.gg/VjvR2tabEX"
-          icon={MessageCircle}
-          label="Discord"
-        />
+        <ExternalLink href="https://discord.gg/VjvR2tabEX" icon={MessageCircle} label="Discord" />
       </div>
     </div>
   );

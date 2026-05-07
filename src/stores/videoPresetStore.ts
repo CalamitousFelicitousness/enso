@@ -13,13 +13,70 @@ export interface VideoPreset {
   builtIn?: boolean;
 }
 
-const SHARED_PARAM_KEYS = ["width", "height", "frames", "steps", "sampler", "samplerShift", "dynamicShift", "seed", "guidanceScale", "guidanceTrue", "initStrength", "vaeType", "vaeTileFrames"] as const;
+const SHARED_PARAM_KEYS = [
+  "width",
+  "height",
+  "frames",
+  "steps",
+  "sampler",
+  "samplerShift",
+  "dynamicShift",
+  "seed",
+  "guidanceScale",
+  "guidanceTrue",
+  "initStrength",
+  "vaeType",
+  "vaeTileFrames",
+] as const;
 
-const OUTPUT_PARAM_KEYS = ["fps", "interpolate", "codec", "format", "codecOptions", "outputPreset", "outputQuality", "saveVideo", "saveFrames", "saveSafetensors"] as const;
+const OUTPUT_PARAM_KEYS = [
+  "fps",
+  "interpolate",
+  "codec",
+  "format",
+  "codecOptions",
+  "outputPreset",
+  "outputQuality",
+  "saveVideo",
+  "saveFrames",
+  "saveSafetensors",
+] as const;
 
-const FP_PARAM_KEYS = ["fpVariant", "fpResolution", "fpDuration", "fpLatentWindowSize", "fpSteps", "fpShift", "fpCfgScale", "fpCfgDistilled", "fpCfgRescale", "fpStartWeight", "fpEndWeight", "fpVisionWeight", "fpSectionPrompt", "fpSystemPrompt", "fpTeacache", "fpOptimizedPrompt", "fpCfgZero", "fpPreview", "fpAttention", "fpVaeType"] as const;
+const FP_PARAM_KEYS = [
+  "fpVariant",
+  "fpResolution",
+  "fpDuration",
+  "fpLatentWindowSize",
+  "fpSteps",
+  "fpShift",
+  "fpCfgScale",
+  "fpCfgDistilled",
+  "fpCfgRescale",
+  "fpStartWeight",
+  "fpEndWeight",
+  "fpVisionWeight",
+  "fpSectionPrompt",
+  "fpSystemPrompt",
+  "fpTeacache",
+  "fpOptimizedPrompt",
+  "fpCfgZero",
+  "fpPreview",
+  "fpAttention",
+  "fpVaeType",
+] as const;
 
-const LTX_PARAM_KEYS = ["ltxModel", "ltxSteps", "ltxDecodeTimestep", "ltxNoiseScale", "ltxUpsampleEnable", "ltxUpsampleRatio", "ltxRefineEnable", "ltxRefineStrength", "ltxConditionStrength", "ltxAudioEnable"] as const;
+const LTX_PARAM_KEYS = [
+  "ltxModel",
+  "ltxSteps",
+  "ltxDecodeTimestep",
+  "ltxNoiseScale",
+  "ltxUpsampleEnable",
+  "ltxUpsampleRatio",
+  "ltxRefineEnable",
+  "ltxRefineStrength",
+  "ltxConditionStrength",
+  "ltxAudioEnable",
+] as const;
 
 function keysForDomain(domain: PresetDomain): readonly string[] {
   const base: string[] = [...SHARED_PARAM_KEYS, ...OUTPUT_PARAM_KEYS];
@@ -49,7 +106,13 @@ const BUILT_IN_PRESETS: VideoPreset[] = [
     domain: "framepack",
     builtIn: true,
     createdAt: 0,
-    params: { fpResolution: 480, fpSteps: 15, fpTeacache: true, fpDuration: 4, fpLatentWindowSize: 9 },
+    params: {
+      fpResolution: 480,
+      fpSteps: 15,
+      fpTeacache: true,
+      fpDuration: 4,
+      fpLatentWindowSize: 9,
+    },
   },
   {
     id: "builtin-fp-quality",
@@ -57,7 +120,13 @@ const BUILT_IN_PRESETS: VideoPreset[] = [
     domain: "framepack",
     builtIn: true,
     createdAt: 0,
-    params: { fpResolution: 832, fpSteps: 30, fpTeacache: false, fpDuration: 4, fpLatentWindowSize: 9 },
+    params: {
+      fpResolution: 832,
+      fpSteps: 30,
+      fpTeacache: false,
+      fpDuration: 4,
+      fpLatentWindowSize: 9,
+    },
   },
   {
     id: "builtin-ltx-quick",
@@ -65,7 +134,12 @@ const BUILT_IN_PRESETS: VideoPreset[] = [
     domain: "ltx",
     builtIn: true,
     createdAt: 0,
-    params: { ltxSteps: 25, ltxDecodeTimestep: 0.1, ltxUpsampleEnable: false, ltxRefineEnable: false },
+    params: {
+      ltxSteps: 25,
+      ltxDecodeTimestep: 0.1,
+      ltxUpsampleEnable: false,
+      ltxRefineEnable: false,
+    },
   },
   {
     id: "builtin-ltx-full",
@@ -73,7 +147,13 @@ const BUILT_IN_PRESETS: VideoPreset[] = [
     domain: "ltx",
     builtIn: true,
     createdAt: 0,
-    params: { ltxSteps: 50, ltxUpsampleEnable: true, ltxUpsampleRatio: 2, ltxRefineEnable: true, ltxRefineStrength: 0.4 },
+    params: {
+      ltxSteps: 50,
+      ltxUpsampleEnable: true,
+      ltxUpsampleRatio: 2,
+      ltxRefineEnable: true,
+      ltxRefineStrength: 0.4,
+    },
   },
 ];
 

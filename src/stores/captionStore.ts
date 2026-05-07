@@ -1,5 +1,10 @@
 import { create } from "zustand";
-import type { CaptionMethod, OpenClipResponse, TaggerResponse, VqaResponse } from "@/api/types/caption";
+import type {
+  CaptionMethod,
+  OpenClipResponse,
+  TaggerResponse,
+  VqaResponse,
+} from "@/api/types/caption";
 
 export type CaptionResult =
   | (OpenClipResponse & { type: "openclip" })

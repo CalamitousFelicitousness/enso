@@ -8,7 +8,10 @@ export function countAxisValues(values: string, type: string): number {
   const trimmed = values.trim();
   if (!trimmed) return 0;
 
-  const parts = trimmed.split(",").map((s) => s.trim()).filter(Boolean);
+  const parts = trimmed
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
   if (parts.length === 0) return 0;
 
   if (type === "int" || type === "float") {

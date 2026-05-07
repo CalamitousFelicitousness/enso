@@ -58,10 +58,8 @@ export function ColorTab() {
 
   const set = useMemo(
     () => ({
-      colorCorrectionEnabled: (checked: boolean) =>
-        setParam("colorCorrectionEnabled", checked),
-      colorCorrectionMethod: (v: string) =>
-        setParam("colorCorrectionMethod", v),
+      colorCorrectionEnabled: (checked: boolean) => setParam("colorCorrectionEnabled", checked),
+      colorCorrectionMethod: (v: string) => setParam("colorCorrectionMethod", v),
       hdrMode: (v: string) => setParam("hdrMode", Number(v)),
       hdrBrightness: (v: number) => setParam("hdrBrightness", v),
       hdrSharpen: (v: number) => setParam("hdrSharpen", v),
@@ -88,10 +86,8 @@ export function ColorTab() {
       gradingClaheClip: (v: number) => setParam("gradingClaheClip", v),
       gradingClaheGrid: (v: number) => setParam("gradingClaheGrid", v),
       gradingShadowsTint: (v: string) => setParam("gradingShadowsTint", v),
-      gradingHighlightsTint: (v: string) =>
-        setParam("gradingHighlightsTint", v),
-      gradingSplitToneBalance: (v: number) =>
-        setParam("gradingSplitToneBalance", v),
+      gradingHighlightsTint: (v: string) => setParam("gradingHighlightsTint", v),
+      gradingSplitToneBalance: (v: number) => setParam("gradingSplitToneBalance", v),
       gradingVignette: (v: number) => setParam("gradingVignette", v),
       gradingGrain: (v: number) => setParam("gradingGrain", v),
       gradingLutStrength: (v: number) => setParam("gradingLutStrength", v),
@@ -100,9 +96,7 @@ export function ColorTab() {
   );
 
   const lutInputRef = useRef<HTMLInputElement>(null);
-  const lutFileName = state.gradingLutFile
-    ? (state.gradingLutFile.split("/").pop() ?? "")
-    : "";
+  const lutFileName = state.gradingLutFile ? (state.gradingLutFile.split("/").pop() ?? "") : "";
   const hasLut = !!state.gradingLutFile;
 
   const handleLutFile = useCallback(
@@ -122,7 +116,12 @@ export function ColorTab() {
 
   return (
     <div className="flex flex-col gap-3 text-sm">
-      <SectionLeader title="Color Correction" enableable enabled={state.colorCorrectionEnabled} onToggleEnabled={set.colorCorrectionEnabled}>
+      <SectionLeader
+        title="Color Correction"
+        enableable
+        enabled={state.colorCorrectionEnabled}
+        onToggleEnabled={set.colorCorrectionEnabled}
+      >
         <div data-param="method" className="flex items-center gap-2">
           <ParamLabel
             className="text-2xs text-muted-foreground w-16 flex-shrink-0"
@@ -217,7 +216,7 @@ export function ColorTab() {
             max={10}
             step={0.1}
             disabled={!state.hdrClamp}
-            tooltip="The boundary defining the &quot;normal&quot; range for latent values. Clamping targets values beyond <b>Threshold × Range</b>.<br><br>Default 4.0 covers most of the typical latent distribution. Lower values clamp more of the distribution; higher values only affect extreme outliers."
+            tooltip='The boundary defining the "normal" range for latent values. Clamping targets values beyond <b>Threshold × Range</b>.<br><br>Default 4.0 covers most of the typical latent distribution. Lower values clamp more of the distribution; higher values only affect extreme outliers.'
           />
 
           <ParamSlider
@@ -240,10 +239,7 @@ export function ColorTab() {
           >
             Maximize
           </ParamLabel>
-          <Switch
-            checked={state.hdrMaximize}
-            onCheckedChange={set.hdrMaximize}
-          />
+          <Switch checked={state.hdrMaximize} onCheckedChange={set.hdrMaximize} />
         </div>
         <ParamGrid>
           <ParamSlider
@@ -295,10 +291,7 @@ export function ColorTab() {
           >
             Apply to hires
           </ParamLabel>
-          <Switch
-            checked={state.hdrApplyHires}
-            onCheckedChange={set.hdrApplyHires}
-          />
+          <Switch checked={state.hdrApplyHires} onCheckedChange={set.hdrApplyHires} />
         </div>
       </SectionLeader>
 
@@ -512,12 +505,7 @@ export function ColorTab() {
           {hasLut ? (
             <div className="flex items-center gap-1.5 flex-1 min-w-0">
               <span className="text-2xs truncate flex-1">{lutFileName}</span>
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                onClick={clearLut}
-                title="Remove LUT"
-              >
+              <Button variant="ghost" size="icon-sm" onClick={clearLut} title="Remove LUT">
                 <X size={12} />
               </Button>
             </div>

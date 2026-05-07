@@ -12,9 +12,7 @@ import {
   CommandSeparator,
 } from "./command";
 
-export type ComboboxOption =
-  | string
-  | { value: string; label: string; disabled?: boolean };
+export type ComboboxOption = string | { value: string; label: string; disabled?: boolean };
 
 export interface ComboboxGroup {
   heading?: string;
@@ -113,11 +111,7 @@ export function Combobox({
           )}
         >
           <span className="break-words text-left">
-            {value
-              ? renderLabel
-                ? renderLabel(value, currentLabel)
-                : currentLabel
-              : placeholder}
+            {value ? (renderLabel ? renderLabel(value, currentLabel) : currentLabel) : placeholder}
           </span>
           <ChevronDown size={12} className="shrink-0 opacity-50" />
         </button>
@@ -127,9 +121,7 @@ export function Combobox({
         align={align}
       >
         <Command>
-          {allOptions.length > 6 && (
-            <CommandInput placeholder={searchPlaceholder} />
-          )}
+          {allOptions.length > 6 && <CommandInput placeholder={searchPlaceholder} />}
           <CommandList>
             <CommandEmpty>{emptyText}</CommandEmpty>
             {groups ? (
@@ -137,7 +129,11 @@ export function Combobox({
                 <CommandGroup
                   key={g.heading ?? `group-${i}`}
                   heading={g.heading}
-                  className={g.heading ? "overflow-visible [&_[cmdk-group-heading]]:bg-popover [&_[cmdk-group-heading]]:sticky [&_[cmdk-group-heading]]:top-0 [&_[cmdk-group-heading]]:z-10" : undefined}
+                  className={
+                    g.heading
+                      ? "overflow-visible [&_[cmdk-group-heading]]:bg-popover [&_[cmdk-group-heading]]:sticky [&_[cmdk-group-heading]]:top-0 [&_[cmdk-group-heading]]:z-10"
+                      : undefined
+                  }
                 >
                   {g.options.map(renderItem)}
                   {i < groups.length - 1 && <CommandSeparator />}

@@ -19,13 +19,13 @@ export function DataSection() {
 
   return (
     <section id="data" className="rounded-lg border border-border/50 bg-card p-5 space-y-6">
-      <h2 className="text-2xs font-medium uppercase tracking-wider text-muted-foreground">
-        Data
-      </h2>
+      <h2 className="text-2xs font-medium uppercase tracking-wider text-muted-foreground">Data</h2>
 
       {/* ParamSlider */}
       <div className="space-y-4">
-        <span className="text-3xs text-muted-foreground/60 uppercase tracking-wider">ParamSlider</span>
+        <span className="text-3xs text-muted-foreground/60 uppercase tracking-wider">
+          ParamSlider
+        </span>
         <div className="w-[280px] space-y-2">
           <ParamSlider
             label="Steps"
@@ -66,8 +66,16 @@ export function DataSection() {
         <div className="space-y-1.5">
           <span className="text-3xs text-muted-foreground/60">single</span>
           <div className="flex items-center gap-3 w-[200px]">
-            <Slider value={[sliderVal]} onValueChange={([v]) => setSliderVal(v)} min={0} max={100} step={1} />
-            <span className="text-3xs font-mono tabular-nums text-muted-foreground w-6 text-right">{sliderVal}</span>
+            <Slider
+              value={[sliderVal]}
+              onValueChange={([v]) => setSliderVal(v)}
+              min={0}
+              max={100}
+              step={1}
+            />
+            <span className="text-3xs font-mono tabular-nums text-muted-foreground w-6 text-right">
+              {sliderVal}
+            </span>
           </div>
         </div>
 
@@ -84,7 +92,9 @@ export function DataSection() {
 
       {/* NumberInput */}
       <div className="space-y-4">
-        <span className="text-3xs text-muted-foreground/60 uppercase tracking-wider">NumberInput</span>
+        <span className="text-3xs text-muted-foreground/60 uppercase tracking-wider">
+          NumberInput
+        </span>
         <div className="flex items-center gap-3">
           <NumberInput value={num} onChange={setNum} min={0} max={100} step={1} className="w-20" />
           <span className="text-3xs text-muted-foreground/60">min 0 / max 100</span>
@@ -93,12 +103,16 @@ export function DataSection() {
 
       {/* ProgressRing */}
       <div className="space-y-4">
-        <span className="text-3xs text-muted-foreground/60 uppercase tracking-wider">ProgressRing</span>
+        <span className="text-3xs text-muted-foreground/60 uppercase tracking-wider">
+          ProgressRing
+        </span>
         <div className="flex items-center gap-4">
           {[0, 0.25, 0.5, 0.75, 1].map((p) => (
             <div key={p} className="flex flex-col items-center gap-1.5">
               <ProgressRing progress={p} />
-              <span className="text-3xs font-mono tabular-nums text-muted-foreground">{Math.round(p * 100)}%</span>
+              <span className="text-3xs font-mono tabular-nums text-muted-foreground">
+                {Math.round(p * 100)}%
+              </span>
             </div>
           ))}
         </div>

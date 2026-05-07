@@ -88,12 +88,13 @@ export const useProcessStore = create<ProcessState>()(
       setReturnMask: (enabled) => set({ returnMask: enabled }),
       setRefine: (enabled) => set({ refine: enabled }),
       setCompareMode: (enabled) => set({ compareMode: enabled }),
-      setResult: (url, width, height, source) => set({
-        resultImageUrl: url,
-        resultWidth: width ?? null,
-        resultHeight: height ?? null,
-        resultSource: source ?? null,
-      }),
+      setResult: (url, width, height, source) =>
+        set({
+          resultImageUrl: url,
+          resultWidth: width ?? null,
+          resultHeight: height ?? null,
+          resultSource: source ?? null,
+        }),
 
       reset: () => {
         const prev = get().imagePreviewUrl;
@@ -121,8 +122,30 @@ export const useProcessStore = create<ProcessState>()(
     }),
     {
       name: "enso-process",
-      partialize: ({ upscaler, scale, resizeMode, targetWidth, targetHeight, crop, upscaler2, upscaler2Visibility, rembgModel, returnMask, refine }) => ({
-        upscaler, scale, resizeMode, targetWidth, targetHeight, crop, upscaler2, upscaler2Visibility, rembgModel, returnMask, refine,
+      partialize: ({
+        upscaler,
+        scale,
+        resizeMode,
+        targetWidth,
+        targetHeight,
+        crop,
+        upscaler2,
+        upscaler2Visibility,
+        rembgModel,
+        returnMask,
+        refine,
+      }) => ({
+        upscaler,
+        scale,
+        resizeMode,
+        targetWidth,
+        targetHeight,
+        crop,
+        upscaler2,
+        upscaler2Visibility,
+        rembgModel,
+        returnMask,
+        refine,
       }),
     },
   ),

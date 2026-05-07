@@ -20,8 +20,7 @@ function loadSynonymGroups(): string[][] {
     const parsed = JSON.parse(raw) as SynonymsFile;
     if (!Array.isArray(parsed.groups)) return [];
     return parsed.groups.filter(
-      (g): g is string[] =>
-        Array.isArray(g) && g.every((t) => typeof t === "string"),
+      (g): g is string[] => Array.isArray(g) && g.every((t) => typeof t === "string"),
     );
   } catch {
     return [];
@@ -33,7 +32,7 @@ const HEADER = [
   "// Run `npm run prebuild` to regenerate. Source of truth: <ParamSlider>/<ParamRow>",
   "// JSX in src/components/generation/tabs/*.tsx.",
   "",
-  "import type { ImagesSubTab } from \"@/stores/uiStore\";",
+  'import type { ImagesSubTab } from "@/stores/uiStore";',
   "",
   "export interface ParamEntry {",
   "  tab: ImagesSubTab;",
@@ -114,7 +113,9 @@ export function runCodegen(): CodegenResult {
   let previous = "";
   try {
     previous = fs.readFileSync(OUTPUT_PATH, "utf-8");
-  } catch { /* file does not exist yet */ }
+  } catch {
+    /* file does not exist yet */
+  }
 
   const changed = previous !== output;
   if (changed) {
@@ -169,7 +170,9 @@ const isMain = process.argv[1] === fileURLToPath(import.meta.url);
 if (isMain) {
   const result = runCodegen();
   for (const w of result.warnings) {
-    process.stderr.write(`[paramMap codegen] ${path.relative(repoRoot, w.file)}:${w.line} ${w.message}\n`);
+    process.stderr.write(
+      `[paramMap codegen] ${path.relative(repoRoot, w.file)}:${w.line} ${w.message}\n`,
+    );
   }
   const action = result.changed ? "wrote" : "no change";
   process.stdout.write(

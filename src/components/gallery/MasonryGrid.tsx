@@ -26,17 +26,11 @@ interface MasonryGridProps {
   containerWidth: number;
 }
 
-export function MasonryGrid({
-  sorted,
-  containerRef,
-  containerWidth,
-}: MasonryGridProps) {
+export function MasonryGrid({ sorted, containerRef, containerWidth }: MasonryGridProps) {
   const thumbSize = useGalleryStore((s) => s.thumbSize);
 
   // Snapshot thumbs to avoid layout thrash on individual thumb loads
-  const thumbsRef = useRef<Map<string, CachedThumb>>(
-    useGalleryStore.getState().thumbs,
-  );
+  const thumbsRef = useRef<Map<string, CachedThumb>>(useGalleryStore.getState().thumbs);
   useEffect(
     () =>
       useGalleryStore.subscribe((s) => {
@@ -47,10 +41,7 @@ export function MasonryGrid({
 
   // Compute masonry layout: bin-pack items into columns
   const { rows, totalHeight } = useMemo(() => {
-    const cols = Math.max(
-      2,
-      Math.floor((containerWidth + GAP) / (thumbSize + GAP)),
-    );
+    const cols = Math.max(2, Math.floor((containerWidth + GAP) / (thumbSize + GAP)));
     const colWidth = (containerWidth - (cols + 1) * GAP) / cols;
     const colHeights: number[] = new Array<number>(cols).fill(GAP);
     const currentThumbs = thumbsRef.current;
@@ -107,28 +98,22 @@ export function MasonryGrid({
     overscan: 3,
   });
 
-  const handleClick = useCallback(
-    (file: GalleryFile, index: number, e: React.MouseEvent) => {
-      const s = useGalleryStore.getState();
-      if (e.shiftKey || e.ctrlKey || e.metaKey) {
-        s.toggleSelect(file.id, index, e.shiftKey, e.ctrlKey || e.metaKey);
-      } else if (s.selectedIds.size > 0) {
-        s.toggleSelect(file.id, index, false, false);
-      } else {
-        s.selectFile(file, s.thumbs.get(file.id) ?? null);
-      }
-    },
-    [],
-  );
+  const handleClick = useCallback((file: GalleryFile, index: number, e: React.MouseEvent) => {
+    const s = useGalleryStore.getState();
+    if (e.shiftKey || e.ctrlKey || e.metaKey) {
+      s.toggleSelect(file.id, index, e.shiftKey, e.ctrlKey || e.metaKey);
+    } else if (s.selectedIds.size > 0) {
+      s.toggleSelect(file.id, index, false, false);
+    } else {
+      s.selectFile(file, s.thumbs.get(file.id) ?? null);
+    }
+  }, []);
 
   const handleDoubleClick = useCallback((index: number) => {
     useGalleryStore.getState().openLightbox(index);
   }, []);
 
-  const cols = Math.max(
-    2,
-    Math.floor((containerWidth + GAP) / (thumbSize + GAP)),
-  );
+  const cols = Math.max(2, Math.floor((containerWidth + GAP) / (thumbSize + GAP)));
   const colWidth = (containerWidth - (cols + 1) * GAP) / cols;
 
   return (
@@ -137,11 +122,7 @@ export function MasonryGrid({
         const row = rows[vRow.index];
         if (!row) return null;
         return (
-          <div
-            key={vRow.index}
-            className="absolute left-0 w-full"
-            style={{ top: row.y }}
-          >
+          <div key={vRow.index} className="absolute left-0 w-full" style={{ top: row.y }}>
             {row.items.map((item) => {
               const x = GAP + item.col * (colWidth + GAP);
               return (

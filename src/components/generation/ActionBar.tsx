@@ -7,22 +7,19 @@ import {
 } from "@/stores/jobStore";
 import { useCanvasStore } from "@/stores/canvasStore";
 import { useImg2ImgStore } from "@/stores/img2imgStore";
-import { buildControlRequest, buildCloudImageRequest, buildDetailRequest, restoreFromResult } from "@/lib/requestBuilder";
+import {
+  buildControlRequest,
+  buildCloudImageRequest,
+  buildDetailRequest,
+  restoreFromResult,
+} from "@/lib/requestBuilder";
 import { blobToBase64 } from "@/lib/image";
 import { snapshotUnits } from "@/stores/controlStore";
 import { useModelSelectionStore } from "@/stores/modelSelectionStore";
 import { useSubmitToQueue } from "@/hooks/useSubmitToQueue";
 import { sendToJob } from "@/hooks/useJobTracker";
 import { useCancelJob } from "@/api/hooks/useJobs";
-import {
-  Play,
-  Square,
-  SkipForward,
-  History,
-  ChevronDown,
-  Layers,
-  Grid3X3,
-} from "lucide-react";
+import { Play, Square, SkipForward, History, ChevronDown, Layers, Grid3X3 } from "lucide-react";
 import { ProgressRing } from "@/components/ui/progress-ring";
 import { useState, useCallback, useMemo, memo } from "react";
 import { toast } from "sonner";
@@ -45,9 +42,7 @@ export const ActionBar = memo(function ActionBar() {
   const detailerEnabled = useGenerationStore((s) => s.detailerEnabled);
   const detailerOnly = useGenerationStore((s) => s.detailerOnly);
   const detailerModelCount = useGenerationStore((s) => s.detailerModels.length);
-  const hasInputImage = useCanvasStore(
-    (s) => s.layers.some((l) => l.type === "image"),
-  );
+  const hasInputImage = useCanvasStore((s) => s.layers.some((l) => l.type === "image"));
 
   const isActive = useJobQueueStore(selectGenerateActive);
   const runningJob = useJobQueueStore(selectRunningJob);
@@ -91,11 +86,9 @@ export const ActionBar = memo(function ActionBar() {
 
     const isImg2Img = useCanvasStore.getState().layers.length > 0;
     const { request, inputBlob } = await buildControlRequest();
-    const inputImage =
-      isImg2Img && inputBlob ? await blobToBase64(inputBlob) : undefined;
+    const inputImage = isImg2Img && inputBlob ? await blobToBase64(inputBlob) : undefined;
     const maskLines = useImg2ImgStore.getState().maskLines;
-    const inputMask =
-      isImg2Img && maskLines.length > 0 ? maskLines.slice() : undefined;
+    const inputMask = isImg2Img && maskLines.length > 0 ? maskLines.slice() : undefined;
     const controlUnits = await snapshotUnits();
     clearSelection();
     return {
@@ -105,10 +98,7 @@ export const ActionBar = memo(function ActionBar() {
   }, [clearSelection]);
 
   const { submit, isSubmitting } = useSubmitToQueue(
-    useMemo(
-      () => ({ domain: "generate" as const, buildRequest }),
-      [buildRequest],
-    ),
+    useMemo(() => ({ domain: "generate" as const, buildRequest }), [buildRequest]),
   );
 
   const isGenerating = isActive || isSubmitting;
@@ -268,18 +258,10 @@ export const ActionBar = memo(function ActionBar() {
           </DropdownMenu>
         )}
       </div>
-      <BatchDialog
-        open={batchOpen}
-        onOpenChange={setBatchOpen}
-        buildRequest={buildRequest}
-      />
+      <BatchDialog open={batchOpen} onOpenChange={setBatchOpen} buildRequest={buildRequest} />
 
       {xyzOpen && (
-        <XyzGridDialog
-          open={xyzOpen}
-          onOpenChange={setXyzOpen}
-          buildRequest={buildRequest}
-        />
+        <XyzGridDialog open={xyzOpen} onOpenChange={setXyzOpen} buildRequest={buildRequest} />
       )}
 
       {/* Stop button */}

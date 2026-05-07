@@ -28,11 +28,7 @@ function parseInfoMeta(info: string): Record<string, string> {
   }
 }
 
-export function ResultThumbPreview({
-  result,
-  imageIndex,
-  anchorRect,
-}: ResultThumbPreviewProps) {
+export function ResultThumbPreview({ result, imageIndex, anchorRect }: ResultThumbPreviewProps) {
   const src = resolveImageSrc(result.images[imageIndex]);
   const meta = useMemo(() => parseInfoMeta(result.info), [result.info]);
   const entries = Object.entries(meta);
@@ -51,11 +47,7 @@ export function ResultThumbPreview({
   return createPortal(
     <div style={style} className="flex flex-col items-center">
       <div className="rounded-lg overflow-hidden border border-border bg-popover shadow-xl">
-        <img
-          src={src}
-          alt="Preview"
-          className="w-64 max-h-64 object-contain bg-black"
-        />
+        <img src={src} alt="Preview" className="w-64 max-h-64 object-contain bg-black" />
 
         {entries.length > 0 && (
           <div className="px-2 py-1 flex flex-wrap gap-x-3 gap-y-0.5 text-3xs text-muted-foreground">

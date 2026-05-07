@@ -4,10 +4,7 @@ import { TAG_CATEGORIES, EXCLUDED_VERSIONS } from "./constants";
 import { isExtraNetwork, isReferenceName, itemHasTag, itemPath } from "./utils";
 
 /** Build a nested folder tree from a set of folder paths. */
-function buildFolderTree(
-  paths: Iterable<string>,
-  counts?: Map<string, number>,
-): FolderNode[] {
+function buildFolderTree(paths: Iterable<string>, counts?: Map<string, number>): FolderNode[] {
   const root: FolderNode[] = [];
   const nodeMap = new Map<string, FolderNode>();
   const sorted = Array.from(paths).sort((a, b) =>
@@ -99,8 +96,7 @@ export function useNetworkFiltering(
         if (isDiff) hasDiffusers = true;
         if (isRef && item.tags.length === 0) hasReference = true;
         for (const cat of TAG_CATEGORIES) {
-          if (itemHasTag(item, cat.toLowerCase()))
-            tagHits.set(cat.toLowerCase(), true);
+          if (itemHasTag(item, cat.toLowerCase())) tagHits.set(cat.toLowerCase(), true);
         }
       }
 
@@ -113,8 +109,7 @@ export function useNetworkFiltering(
       }
 
       const groups: SidebarGroup[] = [{ items: ["All", ...categories] }];
-      if (sortedVersions.length > 0)
-        groups.push({ header: "Class", items: sortedVersions });
+      if (sortedVersions.length > 0) groups.push({ header: "Class", items: sortedVersions });
       return groups;
     }
 
@@ -132,8 +127,7 @@ export function useNetworkFiltering(
 
     // LoRA, Wildcards, Embedding, VAE
     const groups: SidebarGroup[] = [{ items: ["All"] }];
-    if (sortedVersions.length > 0)
-      groups.push({ header: "Class", items: sortedVersions });
+    if (sortedVersions.length > 0) groups.push({ header: "Class", items: sortedVersions });
     return groups;
   }, [filtered, filter, versionSet]);
 
@@ -163,22 +157,17 @@ export function useNetworkFiltering(
         );
       } else if (selectedSubfolder === "Reference") {
         items = filtered.filter(
-          (item) =>
-            isExtraNetwork(item) &&
-            isReferenceName(item.name) &&
-            item.tags.length === 0,
+          (item) => isExtraNetwork(item) && isReferenceName(item.name) && item.tags.length === 0,
         );
       } else {
         const tagCat = TAG_CATEGORIES.find((c) => c === selectedSubfolder);
         if (tagCat) {
           items = filtered.filter(
-            (item) =>
-              isExtraNetwork(item) && itemHasTag(item, tagCat.toLowerCase()),
+            (item) => isExtraNetwork(item) && itemHasTag(item, tagCat.toLowerCase()),
           );
         } else if (versionSet.has(selectedSubfolder)) {
           items = filtered.filter(
-            (item) =>
-              isExtraNetwork(item) && item.version === selectedSubfolder,
+            (item) => isExtraNetwork(item) && item.version === selectedSubfolder,
           );
         } else {
           const prefix = selectedSubfolder + "/";
@@ -196,9 +185,7 @@ export function useNetworkFiltering(
         items = filtered.filter((item) => isReferenceName(item.name));
       else items = filtered;
     } else if (versionSet.has(selectedSubfolder)) {
-      items = filtered.filter(
-        (item) => isExtraNetwork(item) && item.version === selectedSubfolder,
-      );
+      items = filtered.filter((item) => isExtraNetwork(item) && item.version === selectedSubfolder);
     } else {
       const prefix = selectedSubfolder + "/";
       items = filtered.filter((item) => itemPath(item).startsWith(prefix));
@@ -212,8 +199,8 @@ export function useNetworkFiltering(
     }
     if (sortMode === "base-model") {
       return [...items].sort((a, b) => {
-        const va = isExtraNetwork(a) ? (a).version ?? "" : "";
-        const vb = isExtraNetwork(b) ? (b).version ?? "" : "";
+        const va = isExtraNetwork(a) ? (a.version ?? "") : "";
+        const vb = isExtraNetwork(b) ? (b.version ?? "") : "";
         return (
           va.localeCompare(vb, undefined, { sensitivity: "base" }) ||
           a.name.localeCompare(b.name, undefined, { sensitivity: "base" })
@@ -233,11 +220,18 @@ export function useNetworkFiltering(
   }, [filtered, selectedSubfolder, filter, versionSet, sortMode]);
 
   const { folderTree, classFolders } = useMemo(() => {
-    if (filter === "Style") return { folderTree: [] as FolderNode[], classFolders: new Map<string, FolderNode[]>() };
+    if (filter === "Style")
+      return { folderTree: [] as FolderNode[], classFolders: new Map<string, FolderNode[]>() };
     const stripPrefix = filter === "Model" ? "models/" : undefined;
-    const relevantItems = filter === "Model"
-      ? filtered.filter((item) => isExtraNetwork(item) && !isReferenceName(item.name) && !item.name.startsWith("Diffusers/"))
-      : filtered;
+    const relevantItems =
+      filter === "Model"
+        ? filtered.filter(
+            (item) =>
+              isExtraNetwork(item) &&
+              !isReferenceName(item.name) &&
+              !item.name.startsWith("Diffusers/"),
+          )
+        : filtered;
     const { dirs, folderCounts } = collectFolderPaths(relevantItems, stripPrefix);
     const tree = buildFolderTree(dirs, folderCounts);
 

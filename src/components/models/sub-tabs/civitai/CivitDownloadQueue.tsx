@@ -2,17 +2,12 @@ import { useState, useRef, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { ChevronDown, ChevronRight, X } from "lucide-react";
 import { useDownloadStore } from "@/stores/downloadStore";
-import {
-  useCivitDownloadCancel,
-  useCivitDownloadStatus,
-} from "@/api/hooks/useCivitai";
+import { useCivitDownloadCancel, useCivitDownloadStatus } from "@/api/hooks/useCivitai";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-function statusColor(
-  status: string,
-): "default" | "secondary" | "destructive" | "outline" {
+function statusColor(status: string): "default" | "secondary" | "destructive" | "outline" {
   switch (status) {
     case "downloading":
     case "verifying":
@@ -38,8 +33,7 @@ export function CivitDownloadQueue() {
   const activeItems = wsItems.length > 0 ? wsItems : (statusData?.active ?? []);
   const queuedItems = statusData?.queued ?? [];
   const completedItems = statusData?.completed ?? [];
-  const totalCount =
-    activeItems.length + queuedItems.length + completedItems.length;
+  const totalCount = activeItems.length + queuedItems.length + completedItems.length;
 
   // Invalidate check-local when new downloads complete
   const prevCompletedCount = useRef(completedItems.length);
@@ -59,11 +53,7 @@ export function CivitDownloadQueue() {
         onClick={() => setOpen(!open)}
         className="flex items-center gap-2 w-full px-3 py-2 text-left hover:bg-muted/30"
       >
-        {open ? (
-          <ChevronDown className="h-3 w-3" />
-        ) : (
-          <ChevronRight className="h-3 w-3" />
-        )}
+        {open ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
         <span className="text-xs font-medium">Downloads ({totalCount})</span>
       </button>
       {open && (
@@ -74,10 +64,7 @@ export function CivitDownloadQueue() {
                 <span className="truncate flex-1 min-w-0" title={item.filename}>
                   {item.filename}
                 </span>
-                <Badge
-                  variant={statusColor(item.status)}
-                  className="text-4xs px-1 py-0"
-                >
+                <Badge variant={statusColor(item.status)} className="text-4xs px-1 py-0">
                   {item.status}
                 </Badge>
                 <Button
@@ -116,17 +103,11 @@ export function CivitDownloadQueue() {
             </div>
           ))}
           {completedItems.slice(0, 5).map((item) => (
-            <div
-              key={item.id}
-              className="flex items-center gap-2 text-2xs text-muted-foreground"
-            >
+            <div key={item.id} className="flex items-center gap-2 text-2xs text-muted-foreground">
               <span className="truncate flex-1 min-w-0" title={item.filename}>
                 {item.filename}
               </span>
-              <Badge
-                variant={statusColor(item.status)}
-                className="text-4xs px-1 py-0"
-              >
+              <Badge variant={statusColor(item.status)} className="text-4xs px-1 py-0">
                 {item.status}
               </Badge>
             </div>

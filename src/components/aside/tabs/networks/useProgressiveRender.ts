@@ -2,10 +2,7 @@ import { useState, useEffect, useRef } from "react";
 
 const DEFAULT_BATCH = 40;
 
-export function useProgressiveRender<T>(
-  items: T[],
-  batchSize: number = DEFAULT_BATCH,
-) {
+export function useProgressiveRender<T>(items: T[], batchSize: number = DEFAULT_BATCH) {
   const [extraBatches, setExtraBatches] = useState(0);
   const [prevItems, setPrevItems] = useState(items);
   const sentinelRef = useRef<HTMLDivElement>(null);
@@ -15,10 +12,7 @@ export function useProgressiveRender<T>(
     if (extraBatches !== 0) setExtraBatches(0);
   }
 
-  const renderCount = Math.min(
-    batchSize + extraBatches * batchSize,
-    items.length,
-  );
+  const renderCount = Math.min(batchSize + extraBatches * batchSize, items.length);
   const hasMore = renderCount < items.length;
 
   useEffect(() => {

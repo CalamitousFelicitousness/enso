@@ -19,9 +19,7 @@ interface PromptEnhanceHistoryProps {
   onSelectPrompt?: ((prompt: string) => void) | undefined;
 }
 
-export function PromptEnhanceHistory({
-  onSelectPrompt,
-}: PromptEnhanceHistoryProps = {}) {
+export function PromptEnhanceHistory({ onSelectPrompt }: PromptEnhanceHistoryProps = {}) {
   const history = usePromptEnhanceStore((s) => s.history);
   const clearHistory = usePromptEnhanceStore((s) => s.clearHistory);
   const setParam = useGenerationStore((s) => s.setParam);
@@ -63,9 +61,7 @@ export function PromptEnhanceHistory({
               className="flex items-start gap-2 w-full text-left p-1.5 rounded hover:bg-muted/50 transition-colors group"
             >
               <span className="text-2xs leading-snug text-muted-foreground group-hover:text-foreground line-clamp-2 flex-1">
-                {item.prompt.length > 80
-                  ? `${item.prompt.slice(0, 80)}...`
-                  : item.prompt}
+                {item.prompt.length > 80 ? `${item.prompt.slice(0, 80)}...` : item.prompt}
               </span>
               <span className="flex flex-col items-end gap-0.5 flex-shrink-0">
                 <span className="text-4xs bg-muted px-1 rounded text-muted-foreground">

@@ -27,11 +27,7 @@ import type { FitMode } from "@/lib/image";
 import { Button } from "@/components/ui/button";
 import { ParamSlider } from "@/components/generation/ParamSlider";
 import { KeepAlivePanel } from "@/components/ui/keep-alive";
-import {
-  downloadImage,
-  generateImageFilename,
-  resolveImageSrc,
-} from "@/lib/utils";
+import { downloadImage, generateImageFilename, resolveImageSrc } from "@/lib/utils";
 import type { GenerationInfo } from "@/api/types/generation";
 import { fileToBase64 } from "@/lib/image";
 import { toast } from "sonner";
@@ -62,8 +58,7 @@ const GLASS_BORDER_SUBTLE = "rgba(42,42,62,0.3)";
 const GLASS_STYLE: React.CSSProperties = {
   backgroundColor: "rgba(17,17,24,0.85)",
   border: `1px solid ${GLASS_BORDER}`,
-  boxShadow:
-    "inset 0 0 0 1px rgba(255,255,255,0.04), 0 10px 15px -3px rgba(0,0,0,0.1)",
+  boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.04), 0 10px 15px -3px rgba(0,0,0,0.1)",
   backdropFilter: "blur(24px)",
   WebkitBackdropFilter: "blur(24px)",
 };
@@ -104,23 +99,11 @@ function DockTab({ active, label, icon: Icon, accent, onClick }: DockTabProps) {
 
 // ─── InfoRow ────────────────────────────────────────────────────────────────
 
-function InfoRow({
-  label,
-  value,
-  mono = false,
-}: {
-  label: string;
-  value: string;
-  mono?: boolean;
-}) {
+function InfoRow({ label, value, mono = false }: { label: string; value: string; mono?: boolean }) {
   return (
     <div className="flex items-center justify-between">
-      <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
-        {label}
-      </span>
-      <span
-        className={`text-[10px] text-foreground ${mono ? "font-mono tabular-nums" : ""}`}
-      >
+      <span className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</span>
+      <span className={`text-[10px] text-foreground ${mono ? "font-mono tabular-nums" : ""}`}>
         {value}
       </span>
     </div>
@@ -212,8 +195,7 @@ export function FrameHeader({
       };
     }
     const screenLeftX = (canvasX - STROKE_HALF) * viewport.scale + viewport.x;
-    const screenTopY =
-      STROKE_HALF * viewport.scale + viewport.y - ELEMENT_GAP * viewport.scale;
+    const screenTopY = STROKE_HALF * viewport.scale + viewport.y - ELEMENT_GAP * viewport.scale;
     return {
       position: "absolute",
       left: `${screenLeftX}px`,
@@ -231,10 +213,7 @@ export function FrameHeader({
 
   return (
     <div style={style} className="z-50">
-      <div
-        className="flex flex-col overflow-hidden rounded-md shadow-lg"
-        style={GLASS_STYLE}
-      >
+      <div className="flex flex-col overflow-hidden rounded-md shadow-lg" style={GLASS_STYLE}>
         {/* Glass header row */}
         <div
           className="flex items-center justify-between px-3 shrink-0"
@@ -245,9 +224,7 @@ export function FrameHeader({
               className="shrink-0 rounded-full"
               style={{ width: 6, height: 6, backgroundColor: color }}
             />
-            <span className="text-[11px] font-medium text-foreground truncate">
-              {label}
-            </span>
+            <span className="text-[11px] font-medium text-foreground truncate">{label}</span>
             {sizeText && (
               <span className="text-[10px] text-muted-foreground font-mono tabular-nums shrink-0">
                 {sizeText}
@@ -267,11 +244,7 @@ export function FrameHeader({
                 title={collapsed ? "Expand settings" : "Collapse settings"}
                 className="text-muted-foreground hover:bg-white/5"
               >
-                {collapsed ? (
-                  <ChevronDown size={12} />
-                ) : (
-                  <ChevronUp size={12} />
-                )}
+                {collapsed ? <ChevronDown size={12} /> : <ChevronUp size={12} />}
               </Button>
             )}
           </div>
@@ -280,11 +253,7 @@ export function FrameHeader({
         {/* Expandable section: tabs + drawer */}
         {showExpandedSection && (
           <div style={{ borderTop: `1px solid ${GLASS_BORDER_SUBTLE}` }}>
-            {tabBar && (
-              <div className="flex items-center gap-1 px-3 pt-2 pb-1">
-                {tabBar}
-              </div>
-            )}
+            {tabBar && <div className="flex items-center gap-1 px-3 pt-2 pb-1">{tabBar}</div>}
             {drawer && (
               <div
                 className="p-3 overflow-y-auto flex flex-col gap-2"
@@ -298,9 +267,7 @@ export function FrameHeader({
       </div>
 
       {/* Tether line (panel mode only) */}
-      {isPanel && (
-        <Tether accent={color} height={ELEMENT_GAP / labelScale} />
-      )}
+      {isPanel && <Tether accent={color} height={ELEMENT_GAP / labelScale} />}
     </div>
   );
 }
@@ -325,9 +292,7 @@ function UnitPanel({
   onClearImage,
 }: UnitPanelProps) {
   const togglePanelCollapsed = useCanvasStore((s) => s.togglePanelCollapsed);
-  const setSelectedControlFrame = useCanvasStore(
-    (s) => s.setSelectedControlFrame,
-  );
+  const setSelectedControlFrame = useCanvasStore((s) => s.setSelectedControlFrame);
   const unit = useControlStore((s) => s.units[unitIndex]);
   const setUnitParam = useControlStore((s) => s.setUnitParam);
   const setFreeTransform = useControlStore((s) => s.setFreeTransform);
@@ -348,20 +313,12 @@ function UnitPanel({
   let sizeText: string | null = null;
   if (isOwner) {
     if (isReference) {
-      sizeText = imageDims
-        ? `${imageDims.w}\u00d7${imageDims.h}`
-        : `${genW}\u00d7${genH}`;
+      sizeText = imageDims ? `${imageDims.w}\u00d7${imageDims.h}` : `${genW}\u00d7${genH}`;
     } else if (unit.fitMode === "free") {
-      sizeText = imageDims
-        ? `${imageDims.w}\u00d7${imageDims.h} free`
-        : `${genW}\u00d7${genH}`;
+      sizeText = imageDims ? `${imageDims.w}\u00d7${imageDims.h} free` : `${genW}\u00d7${genH}`;
     } else {
       const fitSuffix =
-        unit.fitMode === "contain"
-          ? "fit"
-          : unit.fitMode === "cover"
-            ? "crop"
-            : "stretch";
+        unit.fitMode === "contain" ? "fit" : unit.fitMode === "cover" ? "crop" : "stretch";
       sizeText = imageDims
         ? `${imageDims.w}\u00d7${imageDims.h} \u2192 ${genW}\u00d7${genH} ${fitSuffix}`
         : `${genW}\u00d7${genH}`;
@@ -388,19 +345,10 @@ function UnitPanel({
 
   const infoContent = (
     <div className="flex flex-col gap-1.5">
-      <InfoRow
-        label="Type"
-        value={UNIT_TYPE_LABELS[unit.unitType] ?? unit.unitType}
-      />
-      {unit.model && unit.model !== "None" && (
-        <InfoRow label="Model" value={unit.model} />
-      )}
+      <InfoRow label="Type" value={UNIT_TYPE_LABELS[unit.unitType] ?? unit.unitType} />
+      {unit.model && unit.model !== "None" && <InfoRow label="Model" value={unit.model} />}
       {imageDims && (
-        <InfoRow
-          label="Dimensions"
-          value={`${imageDims.w}\u00d7${imageDims.h}`}
-          mono
-        />
+        <InfoRow label="Dimensions" value={`${imageDims.w}\u00d7${imageDims.h}`} mono />
       )}
       {!isReference && <InfoRow label="Fit" value={unit.fitMode} />}
     </div>
@@ -422,9 +370,7 @@ function UnitPanel({
             className="shrink-0 rounded-full"
             style={{ width: 6, height: 6, backgroundColor: panelColor }}
           />
-          <span className="text-[11px] font-medium text-foreground truncate">
-            {labelText}
-          </span>
+          <span className="text-[11px] font-medium text-foreground truncate">{labelText}</span>
           {sizeText && (
             <span className="text-[10px] text-muted-foreground font-mono tabular-nums shrink-0">
               {sizeText}
@@ -475,8 +421,7 @@ function UnitPanel({
                         : unit.fitMode === "fill"
                           ? "free"
                           : "contain";
-                  if (next === "free" || unit.fitMode === "free")
-                    setFreeTransform(unitIndex, null);
+                  if (next === "free" || unit.fitMode === "free") setFreeTransform(unitIndex, null);
                   setUnitParam(unitIndex, "fitMode", next);
                 }}
                 title={`Fit: ${unit.fitMode}`}
@@ -511,11 +456,7 @@ function UnitPanel({
               title={collapsed ? "Expand settings" : "Collapse settings"}
               className="text-muted-foreground hover:bg-white/5"
             >
-              {collapsed ? (
-                <ChevronDown size={12} />
-              ) : (
-                <ChevronUp size={12} />
-              )}
+              {collapsed ? <ChevronDown size={12} /> : <ChevronUp size={12} />}
             </Button>
           )}
         </div>
@@ -583,23 +524,15 @@ interface ControlFrameStackProps {
   onClearImage?: ((unitIndex: number) => void) | undefined;
 }
 
-function ControlFrameStack({
-  frame,
-  genSize,
-  onPickImage,
-  onClearImage,
-}: ControlFrameStackProps) {
+function ControlFrameStack({ frame, genSize, onPickImage, onClearImage }: ControlFrameStackProps) {
   const viewport = useCanvasStore((s) => s.viewport);
   const labelScale = useUiStore((s) => s.canvasLabelScale);
-  const panelCollapsedOverrides = useCanvasStore(
-    (s) => s.panelCollapsedOverrides,
-  );
+  const panelCollapsedOverrides = useCanvasStore((s) => s.panelCollapsedOverrides);
   const units = useControlStore((s) => s.units);
 
   const containerStyle = useMemo(() => {
     const screenLeftX = (frame.x - STROKE_HALF) * viewport.scale + viewport.x;
-    const screenTopY =
-      frame.y * viewport.scale + viewport.y - ELEMENT_GAP * viewport.scale;
+    const screenTopY = frame.y * viewport.scale + viewport.y - ELEMENT_GAP * viewport.scale;
     const combinedScale = viewport.scale * labelScale;
 
     return {
@@ -616,17 +549,14 @@ function ControlFrameStack({
     };
   }, [frame, viewport, labelScale]);
 
-  const referencingSlots = frame.processedSlots.filter(
-    (s) => s.unitIndex !== frame.unitIndex,
-  );
+  const referencingSlots = frame.processedSlots.filter((s) => s.unitIndex !== frame.unitIndex);
 
   const ownerUnit = units[frame.unitIndex];
   if (!ownerUnit) return null;
 
   const ownerHasImage = ownerUnit.image !== null;
   const ownerOverride = panelCollapsedOverrides.get(frame.unitIndex);
-  const ownerCollapsed =
-    ownerOverride !== undefined ? ownerOverride : !ownerHasImage;
+  const ownerCollapsed = ownerOverride !== undefined ? ownerOverride : !ownerHasImage;
 
   const isReference = ownerUnit.unitType === "reference";
   const tetherColor = isReference ? INPUT_COLOR_REFERENCE : CONTROL_COLOR;
@@ -681,9 +611,7 @@ function InputFramePanel({
   const layers = useCanvasStore((s) => s.layers);
   const inputRole = useCanvasStore((s) => s.inputRole);
   const setInputRole = useCanvasStore((s) => s.setInputRole);
-  const panelCollapsedOverrides = useCanvasStore(
-    (s) => s.panelCollapsedOverrides,
-  );
+  const panelCollapsedOverrides = useCanvasStore((s) => s.panelCollapsedOverrides);
   const togglePanelCollapsed = useCanvasStore((s) => s.togglePanelCollapsed);
   const denoisingStrength = useGenerationStore((s) => s.denoisingStrength);
   const setParam = useGenerationStore((s) => s.setParam);
@@ -691,8 +619,7 @@ function InputFramePanel({
   const pixelH = useGenerationStore((s) => s.height);
   const hasLayers = layers.length > 0;
   const isReference = inputRole === "reference";
-  const supportsStrength =
-    useServerInfo().data?.model?.supports_strength ?? true;
+  const supportsStrength = useServerInfo().data?.model?.supports_strength ?? true;
   const [activeTab, setActiveTab] = useState<"info" | "params">("info");
 
   // Auto-switch to reference when model doesn't support strength
@@ -706,9 +633,7 @@ function InputFramePanel({
     (role: "initial" | "reference") => {
       if (role === inputRole) return;
       if (role === "initial" && !supportsStrength) {
-        toast.info(
-          "This model uses the image as a reference - denoising strength has no effect.",
-        );
+        toast.info("This model uses the image as a reference - denoising strength has no effect.");
       }
       setInputRole(role);
     },
@@ -728,10 +653,7 @@ function InputFramePanel({
       ? `${baseSizeText} \u2192 ${genSize.width}\u00d7${genSize.height}`
       : baseSizeText;
 
-  const handleDenoising = useCallback(
-    (v: number) => setParam("denoisingStrength", v),
-    [setParam],
-  );
+  const handleDenoising = useCallback((v: number) => setParam("denoisingStrength", v), [setParam]);
 
   const inputColor = !hasLayers
     ? INPUT_COLOR_INACTIVE
@@ -900,9 +822,7 @@ function OutputFramePanel({
   const selectedImageIndex = useGenerationStore((s) => s.selectedImageIndex);
   const results = useGenerationStore((s) => s.results);
   const addImageLayer = useCanvasStore((s) => s.addImageLayer);
-  const panelCollapsedOverrides = useCanvasStore(
-    (s) => s.panelCollapsedOverrides,
-  );
+  const panelCollapsedOverrides = useCanvasStore((s) => s.panelCollapsedOverrides);
   const togglePanelCollapsed = useCanvasStore((s) => s.togglePanelCollapsed);
   const [activeTab, setActiveTab] = useState<"info" | "params">("info");
 
@@ -951,10 +871,7 @@ function OutputFramePanel({
     const raw = selectedResult.images[selectedImageIndex];
     if (!raw) return;
     const src = resolveImageSrc(raw);
-    const filename = generateImageFilename(
-      selectedResult.info,
-      selectedImageIndex,
-    );
+    const filename = generateImageFilename(selectedResult.info, selectedImageIndex);
     void downloadImage(src, filename);
   }, [selectedResult, selectedImageIndex]);
 
@@ -1007,9 +924,7 @@ function OutputFramePanel({
       <div className="flex flex-col gap-1.5">
         <InfoRow label="Size" value={sizeText} mono />
         {genInfo?.model && <InfoRow label="Model" value={genInfo.model} />}
-        {genInfo?.sampler_name && (
-          <InfoRow label="Sampler" value={genInfo.sampler_name} />
-        )}
+        {genInfo?.sampler_name && <InfoRow label="Sampler" value={genInfo.sampler_name} />}
       </div>
     ) : (
       <div className="flex flex-col gap-1.5">
@@ -1019,14 +934,8 @@ function OutputFramePanel({
         {genInfo?.cfg_scale !== undefined && (
           <InfoRow label="CFG" value={String(genInfo.cfg_scale)} mono />
         )}
-        {genInfo?.seed !== undefined && (
-          <InfoRow label="Seed" value={String(genInfo.seed)} mono />
-        )}
-        {!genInfo && (
-          <span className="text-[10px] text-muted-foreground">
-            No generation data
-          </span>
-        )}
+        {genInfo?.seed !== undefined && <InfoRow label="Seed" value={String(genInfo.seed)} mono />}
+        {!genInfo && <span className="text-[10px] text-muted-foreground">No generation data</span>}
       </div>
     );
 
@@ -1044,9 +953,7 @@ function OutputFramePanel({
       tabBar={tabBar}
       drawer={drawer}
       collapsed={collapsed}
-      onToggleCollapsed={() =>
-        togglePanelCollapsed(OUTPUT_PANEL_KEY, collapsed)
-      }
+      onToggleCollapsed={() => togglePanelCollapsed(OUTPUT_PANEL_KEY, collapsed)}
     />
   );
 }
@@ -1084,10 +991,7 @@ function ProcessedFrameHeader({
 
   const handleDownload = useCallback(() => {
     if (!processedSrc) return;
-    const timestamp = new Date()
-      .toISOString()
-      .replace(/[:.]/g, "-")
-      .slice(0, 19);
+    const timestamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
     void downloadImage(processedSrc, `processed_${timestamp}.png`);
   }, [processedSrc]);
 
@@ -1182,9 +1086,7 @@ export function ControlFramePanels({
             PROCESSED_HEADER_HEIGHT +
             slotIdx * (frame.height + ELEMENT_GAP + PROCESSED_HEADER_HEIGHT);
           const slotLabel =
-            activeSlots.length > 1
-              ? `Processed (Input ${slot.unitIndex + 2})`
-              : "Processed";
+            activeSlots.length > 1 ? `Processed (Input ${slot.unitIndex + 2})` : "Processed";
           const unit = units[slot.unitIndex];
           return (
             <ProcessedFrameHeader

@@ -19,11 +19,5 @@ export function insertAtCursor(current: string, text: string): string {
   // Add spacing if needed
   const needsLeadingSpace = before.length > 0 && !before.endsWith(" ");
   const needsTrailingSpace = after.length > 0 && !after.startsWith(" ");
-  return (
-    before +
-    (needsLeadingSpace ? " " : "") +
-    text +
-    (needsTrailingSpace ? " " : "") +
-    after
-  );
+  return before + (needsLeadingSpace ? " " : "") + text + (needsTrailingSpace ? " " : "") + after;
 }

@@ -60,10 +60,8 @@ function inferSliderRange(defaultValue: number): {
 } {
   if (Number.isInteger(defaultValue)) {
     if (defaultValue <= 1) return { min: 0, max: 10, step: 1 };
-    if (defaultValue <= 64)
-      return { min: 0, max: Math.max(512, defaultValue * 4), step: 1 };
-    if (defaultValue <= 512)
-      return { min: 0, max: Math.max(2048, defaultValue * 4), step: 1 };
+    if (defaultValue <= 64) return { min: 0, max: Math.max(512, defaultValue * 4), step: 1 };
+    if (defaultValue <= 512) return { min: 0, max: Math.max(2048, defaultValue * 4), step: 1 };
     return { min: 0, max: defaultValue * 4, step: 1 };
   }
   // Float
@@ -76,10 +74,7 @@ interface ControlUnitControlsProps {
   compact?: boolean;
 }
 
-export function ControlUnitControls({
-  index,
-  compact,
-}: ControlUnitControlsProps) {
+export function ControlUnitControls({ index, compact }: ControlUnitControlsProps) {
   const unit = useControlStore((s) => s.units[index]);
   const units = useControlStore((s) => s.units);
   const setUnitParam = useControlStore((s) => s.setUnitParam);
@@ -100,19 +95,13 @@ export function ControlUnitControls({
     try {
       const ref = await uploadFile(resolvedImage);
       const params =
-        Object.keys(unit.processorParams).length > 0
-          ? unit.processorParams
-          : undefined;
+        Object.keys(unit.processorParams).length > 0 ? unit.processorParams : undefined;
       const result = await preprocessMutation.mutateAsync({
         image: ref,
         model: unit.processor,
         params,
       });
-      setUnitParam(
-        index,
-        "processedImage",
-        `data:image/png;base64,${result.image}`,
-      );
+      setUnitParam(index, "processedImage", `data:image/png;base64,${result.image}`);
     } catch (err) {
       toast.error("Preprocessing failed", {
         description: err instanceof Error ? err.message : String(err),
@@ -149,9 +138,7 @@ export function ControlUnitControls({
       setUnitParam(
         index,
         "processorParams",
-        info?.params && Object.keys(info.params).length > 0
-          ? { ...info.params }
-          : {},
+        info?.params && Object.keys(info.params).length > 0 ? { ...info.params } : {},
       );
     },
     [index, setUnitParam, preprocessors],
@@ -177,10 +164,8 @@ export function ControlUnitControls({
   }, [controlModes, unit.model]);
 
   const type = unit.unitType;
-  const showProcessor =
-    type !== "style_transfer" && type !== "ip" && type !== "reference";
-  const showModel =
-    type !== "style_transfer" && type !== "ip" && type !== "reference";
+  const showProcessor = type !== "style_transfer" && type !== "ip" && type !== "reference";
+  const showModel = type !== "style_transfer" && type !== "ip" && type !== "reference";
   const showTiming = type === "controlnet" || type === "xs" || type === "ip";
   const showGuess = type === "controlnet";
   const showFactor = type === "t2i";
@@ -192,10 +177,7 @@ export function ControlUnitControls({
     () => unit.images.map((f) => URL.createObjectURL(f)),
     [unit.images],
   );
-  const maskPreviews = useMemo(
-    () => unit.masks.map((f) => URL.createObjectURL(f)),
-    [unit.masks],
-  );
+  const maskPreviews = useMemo(() => unit.masks.map((f) => URL.createObjectURL(f)), [unit.masks]);
 
   const gap = compact ? "gap-1.5" : "gap-2";
 
@@ -287,9 +269,7 @@ export function ControlUnitControls({
             </ParamLabel>
             <Switch
               checked={unit.crop}
-              onCheckedChange={(checked) =>
-                setUnitParam(index, "crop", checked)
-              }
+              onCheckedChange={(checked) => setUnitParam(index, "crop", checked)}
             />
           </div>
         </>
@@ -341,12 +321,7 @@ export function ControlUnitControls({
               );
             }
             if (typeof value === "number" || typeof def === "number") {
-              const numDef =
-                typeof def === "number"
-                  ? def
-                  : typeof value === "number"
-                    ? value
-                    : 0;
+              const numDef = typeof def === "number" ? def : typeof value === "number" ? value : 0;
               const inferred = inferSliderRange(numDef);
               return (
                 <ParamSlider
@@ -365,9 +340,7 @@ export function ControlUnitControls({
               if (options) {
                 return (
                   <div key={key} className="flex items-center gap-1.5">
-                    <span className="text-2xs text-muted-foreground shrink-0">
-                      {key}
-                    </span>
+                    <span className="text-2xs text-muted-foreground shrink-0">{key}</span>
                     <Combobox
                       value={String(value)}
                       onValueChange={(v) => handleParamChange(key, v)}
@@ -379,9 +352,7 @@ export function ControlUnitControls({
               }
               return (
                 <div key={key} className="flex items-center gap-1.5">
-                  <span className="text-2xs text-muted-foreground shrink-0">
-                    {key}
-                  </span>
+                  <span className="text-2xs text-muted-foreground shrink-0">{key}</span>
                   <input
                     type="text"
                     value={String(value)}
@@ -408,25 +379,22 @@ export function ControlUnitControls({
               Guess mode
             </label>
           )}
-          {showControlImage &&
-            showProcessor &&
-            resolvedImage &&
-            unit.processor !== "None" && (
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-6 text-2xs px-2 gap-1 ml-auto"
-                onClick={() => void handleProcess()}
-                disabled={preprocessMutation.isPending}
-              >
-                {preprocessMutation.isPending ? (
-                  <Loader2 size={10} className="animate-spin" />
-                ) : (
-                  <Play size={10} />
-                )}
-                Process
-              </Button>
-            )}
+          {showControlImage && showProcessor && resolvedImage && unit.processor !== "None" && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-6 text-2xs px-2 gap-1 ml-auto"
+              onClick={() => void handleProcess()}
+              disabled={preprocessMutation.isPending}
+            >
+              {preprocessMutation.isPending ? (
+                <Loader2 size={10} className="animate-spin" />
+              ) : (
+                <Play size={10} />
+              )}
+              Process
+            </Button>
+          )}
         </div>
       ) : (
         <>
@@ -445,27 +413,23 @@ export function ControlUnitControls({
           {showControlImage && (
             <div className="flex flex-col gap-1">
               <div className="flex items-center justify-between">
-                <ParamLabel className="text-2xs text-muted-foreground">
-                  Control Image
-                </ParamLabel>
-                {showProcessor &&
-                  resolvedImage &&
-                  unit.processor !== "None" && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="h-6 text-2xs px-2 gap-1"
-                      onClick={() => void handleProcess()}
-                      disabled={preprocessMutation.isPending}
-                    >
-                      {preprocessMutation.isPending ? (
-                        <Loader2 size={10} className="animate-spin" />
-                      ) : (
-                        <Play size={10} />
-                      )}
-                      Process
-                    </Button>
-                  )}
+                <ParamLabel className="text-2xs text-muted-foreground">Control Image</ParamLabel>
+                {showProcessor && resolvedImage && unit.processor !== "None" && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-6 text-2xs px-2 gap-1"
+                    onClick={() => void handleProcess()}
+                    disabled={preprocessMutation.isPending}
+                  >
+                    {preprocessMutation.isPending ? (
+                      <Loader2 size={10} className="animate-spin" />
+                    ) : (
+                      <Play size={10} />
+                    )}
+                    Process
+                  </Button>
+                )}
               </div>
               {unit.processedImage && (
                 <button
@@ -548,11 +512,7 @@ export function ControlUnitControls({
                 key={i}
                 className="relative h-16 w-16 rounded border border-border overflow-hidden group"
               >
-                <img
-                  src={url}
-                  alt={`ref ${i}`}
-                  className="w-full h-full object-cover"
-                />
+                <img src={url} alt={`ref ${i}`} className="w-full h-full object-cover" />
 
                 <Button
                   variant="destructive"
@@ -586,11 +546,7 @@ export function ControlUnitControls({
                 key={i}
                 className="relative h-16 w-16 rounded border border-border overflow-hidden group"
               >
-                <img
-                  src={url}
-                  alt={`mask ${i}`}
-                  className="w-full h-full object-cover"
-                />
+                <img src={url} alt={`mask ${i}`} className="w-full h-full object-cover" />
 
                 <Button
                   variant="destructive"

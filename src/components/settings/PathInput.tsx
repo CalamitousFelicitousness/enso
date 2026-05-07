@@ -9,8 +9,7 @@ function isAbsolutePath(p: string): boolean {
 function resolvePreview(base: string, specific: string): string {
   if (!specific) return base || "";
   if (isAbsolutePath(specific)) return specific;
-  if (base)
-    return `${base.replace(/\/+$/, "")}/${specific}`.replace(/\/+/g, "/");
+  if (base) return `${base.replace(/\/+$/, "")}/${specific}`.replace(/\/+/g, "/");
   return specific;
 }
 
@@ -21,17 +20,9 @@ interface PathInputProps {
   placeholder?: string | undefined;
 }
 
-export function PathInput({
-  value,
-  onChange,
-  basePath,
-  placeholder,
-}: PathInputProps) {
+export function PathInput({ value, onChange, basePath, placeholder }: PathInputProps) {
   const showPrefix = basePath.length > 0 && !isAbsolutePath(value);
-  const preview = useMemo(
-    () => resolvePreview(basePath, value),
-    [basePath, value],
-  );
+  const preview = useMemo(() => resolvePreview(basePath, value), [basePath, value]);
   const prefixLabel = basePath.replace(/\/+$/, "") + "/";
 
   return (
@@ -52,10 +43,7 @@ export function PathInput({
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder}
-          className={cn(
-            "h-7 text-2xs font-mono",
-            showPrefix && "rounded-l-none border-l-0",
-          )}
+          className={cn("h-7 text-2xs font-mono", showPrefix && "rounded-l-none border-l-0")}
         />
       </div>
       {!showPrefix && preview && (

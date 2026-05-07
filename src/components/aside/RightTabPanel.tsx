@@ -12,38 +12,23 @@ const QuickSettingsTab = lazy(() =>
 const NetworksTab = lazy(() =>
   import("./tabs/NetworksTab").then((m) => ({ default: m.NetworksTab })),
 );
-const ModelsTab = lazy(() =>
-  import("./tabs/ModelsTab").then((m) => ({ default: m.ModelsTab })),
-);
+const ModelsTab = lazy(() => import("./tabs/ModelsTab").then((m) => ({ default: m.ModelsTab })));
 const ProvidersTab = lazy(() =>
   import("./tabs/ProvidersTab").then((m) => ({ default: m.ProvidersTab })),
 );
-const QueueTab = lazy(() =>
-  import("./tabs/QueueTab").then((m) => ({ default: m.QueueTab })),
-);
+const QueueTab = lazy(() => import("./tabs/QueueTab").then((m) => ({ default: m.QueueTab })));
 const ExtensionsTab = lazy(() =>
   import("./tabs/ExtensionsTab").then((m) => ({ default: m.ExtensionsTab })),
 );
 const SettingsTab = lazy(() =>
   import("./tabs/SettingsTab").then((m) => ({ default: m.SettingsTab })),
 );
-const SystemTab = lazy(() =>
-  import("./tabs/SystemTab").then((m) => ({ default: m.SystemTab })),
-);
-const HistoryTab = lazy(() =>
-  import("./tabs/HistoryTab").then((m) => ({ default: m.HistoryTab })),
-);
-const InfoTab = lazy(() =>
-  import("./tabs/InfoTab").then((m) => ({ default: m.InfoTab })),
-);
-const ConsoleTab = lazy(() =>
-  import("./tabs/ConsoleTab").then((m) => ({ default: m.ConsoleTab })),
-);
+const SystemTab = lazy(() => import("./tabs/SystemTab").then((m) => ({ default: m.SystemTab })));
+const HistoryTab = lazy(() => import("./tabs/HistoryTab").then((m) => ({ default: m.HistoryTab })));
+const InfoTab = lazy(() => import("./tabs/InfoTab").then((m) => ({ default: m.InfoTab })));
+const ConsoleTab = lazy(() => import("./tabs/ConsoleTab").then((m) => ({ default: m.ConsoleTab })));
 
-const TAB_COMPONENTS: Record<
-  string,
-  React.LazyExoticComponent<React.ComponentType>
-> = {
+const TAB_COMPONENTS: Record<string, React.LazyExoticComponent<React.ComponentType>> = {
   "quick-settings": QuickSettingsTab,
   networks: NetworksTab,
   models: ModelsTab,
@@ -59,11 +44,16 @@ const TAB_COMPONENTS: Record<
 
 // Tabs that manage their own scrolling internally - render them without an
 // outer ScrollArea so the inner one isn't double-wrapped.
-const SELF_SCROLL_TABS = new Set<string>(["settings", "networks", "history", "console", "models", "system"]);
+const SELF_SCROLL_TABS = new Set<string>([
+  "settings",
+  "networks",
+  "history",
+  "console",
+  "models",
+  "system",
+]);
 
-const FALLBACK = (
-  <div className="p-3 text-xs text-muted-foreground">Loading...</div>
-);
+const FALLBACK = <div className="p-3 text-xs text-muted-foreground">Loading...</div>;
 
 // Hoist panel JSX to module scope so React element references are stable
 // across re-renders. Without this, every parent render rebuilds every panel,
@@ -75,16 +65,8 @@ const TAB_PANELS = Object.entries(TAB_COMPONENTS).map(([id, Comp]) => {
     </Suspense>
   );
   return (
-    <KeepAlivePanel
-      key={id}
-      id={id}
-      activeClassName="flex-1 overflow-hidden"
-    >
-      {SELF_SCROLL_TABS.has(id) ? (
-        inner
-      ) : (
-        <ScrollArea className="size-full">{inner}</ScrollArea>
-      )}
+    <KeepAlivePanel key={id} id={id} activeClassName="flex-1 overflow-hidden">
+      {SELF_SCROLL_TABS.has(id) ? inner : <ScrollArea className="size-full">{inner}</ScrollArea>}
     </KeepAlivePanel>
   );
 });
@@ -97,9 +79,7 @@ export function RightTabPanel() {
     <div className="flex flex-col h-full min-w-0 bg-card">
       <div className="flex items-center gap-2 px-3 py-2 border-b border-border shrink-0">
         {tabMeta && <tabMeta.icon className="h-4 w-4 text-muted-foreground" />}
-        <span className="text-sm font-medium">
-          {tabMeta?.label ?? activeTab}
-        </span>
+        <span className="text-sm font-medium">{tabMeta?.label ?? activeTab}</span>
       </div>
       <KeepAliveSwitch active={activeTab}>{TAB_PANELS}</KeepAliveSwitch>
     </div>

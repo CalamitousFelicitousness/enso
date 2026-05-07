@@ -63,7 +63,13 @@ export function useControlFrameLayout(): CanvasLayout {
   return useMemo(() => {
     const isAutoFit = hasLayers && autoFitFrame;
     const effectiveSizeMode = isAutoFit ? sizeMode : "fixed";
-    const genSize = resolveGenerationSize(effectiveSizeMode, frameW, frameH, scaleFactor, megapixelTarget);
+    const genSize = resolveGenerationSize(
+      effectiveSizeMode,
+      frameW,
+      frameH,
+      scaleFactor,
+      megapixelTarget,
+    );
 
     // Normalize all layout positions to display units so that UI panels
     // stay a consistent size regardless of the actual generation resolution.
@@ -76,13 +82,12 @@ export function useControlFrameLayout(): CanvasLayout {
     const outputX = dw + FRAME_GAP;
 
     // Processed composite frame: visible when backend composite or any per-unit processedImage exists
-    const hasAnyProcessed = !!compositeProcessed || units.some((u) => u.enabled && !!u.processedImage);
+    const hasAnyProcessed =
+      !!compositeProcessed || units.some((u) => u.enabled && !!u.processedImage);
     const processedX = outputX + dw + FRAME_GAP;
 
     // Rightmost edge of main frames (display units)
-    const mainMaxX = hasAnyProcessed
-      ? processedX + dw
-      : outputX + dw;
+    const mainMaxX = hasAnyProcessed ? processedX + dw : outputX + dw;
 
     // Control frames: only enabled units with imageSource === "separate"
     const activeControlIndices = units
@@ -98,7 +103,11 @@ export function useControlFrameLayout(): CanvasLayout {
         { unitIndex: entry.index, hasProcessed: !!entry.unit.processedImage },
       ];
       for (let i = 0; i < units.length; i++) {
-        if (i !== entry.index && units[i].enabled && units[i].imageSource === `unit:${entry.index}`) {
+        if (
+          i !== entry.index &&
+          units[i].enabled &&
+          units[i].imageSource === `unit:${entry.index}`
+        ) {
           slots.push({ unitIndex: i, hasProcessed: !!units[i].processedImage });
         }
       }
@@ -119,9 +128,7 @@ export function useControlFrameLayout(): CanvasLayout {
       });
     }
 
-    const minX = controlFrames.length > 0
-      ? controlFrames[controlFrames.length - 1].x
-      : 0;
+    const minX = controlFrames.length > 0 ? controlFrames[controlFrames.length - 1].x : 0;
 
     // maxY: account for per-frame height + stacked processed slots (display units)
     let maxY = dh;
@@ -144,5 +151,15 @@ export function useControlFrameLayout(): CanvasLayout {
       displayW: dw,
       displayH: dh,
     };
-  }, [units, compositeProcessed, frameW, frameH, hasLayers, autoFitFrame, sizeMode, scaleFactor, megapixelTarget]);
+  }, [
+    units,
+    compositeProcessed,
+    frameW,
+    frameH,
+    hasLayers,
+    autoFitFrame,
+    sizeMode,
+    scaleFactor,
+    megapixelTarget,
+  ]);
 }

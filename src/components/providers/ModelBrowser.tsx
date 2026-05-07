@@ -19,8 +19,14 @@ const MODALITY_LABELS: Partial<Record<Modality, string>> = {
 };
 
 const MODALITY_ORDER: Modality[] = [
-  "text-to-image", "image-to-image", "chat", "vision",
-  "audio-out", "audio-in", "text-to-video", "image-to-video",
+  "text-to-image",
+  "image-to-image",
+  "chat",
+  "vision",
+  "audio-out",
+  "audio-in",
+  "text-to-video",
+  "image-to-video",
 ];
 
 function formatPricing(model: CloudModel): string {
@@ -70,15 +76,19 @@ export function ModelBrowser({ models }: ModelBrowserProps) {
       if (!groups.has(primary)) groups.set(primary, []);
       groups.get(primary)!.push(model);
     }
-    return MODALITY_ORDER
-      .filter((m) => groups.has(m))
-      .map((m) => ({ modality: m, models: groups.get(m)! }));
+    return MODALITY_ORDER.filter((m) => groups.has(m)).map((m) => ({
+      modality: m,
+      models: groups.get(m)!,
+    }));
   }, [filtered]);
 
   return (
     <div className="space-y-2">
       <div className="relative">
-        <Search size={12} className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground" />
+        <Search
+          size={12}
+          className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground"
+        />
         <Input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
@@ -135,9 +145,7 @@ export function ModelBrowser({ models }: ModelBrowserProps) {
         ))}
 
         {grouped.length === 0 && (
-          <p className="text-3xs text-muted-foreground text-center py-2">
-            No models match filter
-          </p>
+          <p className="text-3xs text-muted-foreground text-center py-2">No models match filter</p>
         )}
       </div>
     </div>

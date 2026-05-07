@@ -44,9 +44,7 @@ const TYPE_LABELS: Record<string, string> = {
   "xyz-grid": "XYZ Grid",
 };
 
-function statusBadgeVariant(
-  status: string,
-): "default" | "secondary" | "destructive" | "outline" {
+function statusBadgeVariant(status: string): "default" | "secondary" | "destructive" | "outline" {
   switch (status) {
     case "completed":
       return "secondary";
@@ -81,9 +79,7 @@ export function HistoryJobCard({ job }: HistoryJobCardProps) {
   const hasImages = job.result && job.result.images.length > 0;
   const timestamp = job.completed_at ?? job.created_at;
   const isTerminal =
-    job.status === "completed" ||
-    job.status === "failed" ||
-    job.status === "cancelled";
+    job.status === "completed" || job.status === "failed" || job.status === "cancelled";
 
   const handleRetry = async () => {
     setRetrying(true);
@@ -130,10 +126,7 @@ export function HistoryJobCard({ job }: HistoryJobCardProps) {
         <div className="flex items-center gap-1.5 text-2xs">
           <TypeIcon className="h-3 w-3 shrink-0 text-muted-foreground" />
           <span className="truncate">{TYPE_LABELS[job.type] ?? job.type}</span>
-          <Badge
-            variant={statusBadgeVariant(job.status)}
-            className="text-4xs px-1 py-0 shrink-0"
-          >
+          <Badge variant={statusBadgeVariant(job.status)} className="text-4xs px-1 py-0 shrink-0">
             {job.status}
           </Badge>
         </div>

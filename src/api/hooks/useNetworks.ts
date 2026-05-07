@@ -7,7 +7,15 @@ interface RefreshNetworksResponse {
   total: number;
 }
 
-export function useExtraNetworks(params: { page?: string | undefined; search?: string | undefined; subfolder?: string | undefined; offset?: number | undefined; limit?: number | undefined } = {}) {
+export function useExtraNetworks(
+  params: {
+    page?: string | undefined;
+    search?: string | undefined;
+    subfolder?: string | undefined;
+    offset?: number | undefined;
+    limit?: number | undefined;
+  } = {},
+) {
   const queryParams: Record<string, string> = {};
   if (params.page) queryParams["page"] = params.page;
   if (params.search) queryParams["search"] = params.search;

@@ -25,11 +25,7 @@ import {
   DropdownMenuTrigger,
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { HistoryJobCard } from "./HistoryJobCard";
 import { HistoryBulkDeleteDialog } from "./HistoryBulkDeleteDialog";
@@ -71,9 +67,7 @@ export function HistoryTab() {
 
   const queryStatus = statusFilter === "all" ? undefined : statusFilter;
   const queryType = typeFilter || undefined;
-  const queryAfter = appliedRange?.from
-    ? startOfDay(appliedRange.from).toISOString()
-    : undefined;
+  const queryAfter = appliedRange?.from ? startOfDay(appliedRange.from).toISOString() : undefined;
   const queryBefore = appliedRange?.to
     ? startOfDay(addDays(appliedRange.to, 1)).toISOString()
     : undefined;
@@ -122,8 +116,7 @@ export function HistoryTab() {
     setPickerOpen(false);
   }, []);
 
-  const isValidDraft =
-    !draftRange?.from || !draftRange.to || draftRange.from <= draftRange.to;
+  const isValidDraft = !draftRange?.from || !draftRange.to || draftRange.from <= draftRange.to;
 
   const dateLabel = (() => {
     if (!appliedRange?.from && !appliedRange?.to) return "Any date";
@@ -133,11 +126,9 @@ export function HistoryTab() {
     return `Before ${format(appliedRange.to!, "MMM d")}`;
   })();
 
-  const activeTypeLabel =
-    TYPE_FILTERS.find((t) => t.value === typeFilter)?.label ?? "All types";
+  const activeTypeLabel = TYPE_FILTERS.find((t) => t.value === typeFilter)?.label ?? "All types";
 
-  const hasFilters =
-    statusFilter !== "all" || typeFilter !== "" || appliedRange !== undefined;
+  const hasFilters = statusFilter !== "all" || typeFilter !== "" || appliedRange !== undefined;
 
   const deleteScope = (() => {
     const parts: string[] = ["all"];
@@ -251,18 +242,14 @@ export function HistoryTab() {
       <ScrollArea className="flex-1">
         <div className="py-1">
           {isLoading && (
-            <p className="text-xs text-muted-foreground px-3 py-4 text-center">
-              Loading...
-            </p>
+            <p className="text-xs text-muted-foreground px-3 py-4 text-center">Loading...</p>
           )}
 
           {!isLoading && data && data.items.length === 0 && (
             <div className="flex flex-col items-center gap-2 px-3 py-8 text-muted-foreground">
               <History className="h-8 w-8 opacity-30" />
               <p className="text-xs text-center">
-                {hasFilters
-                  ? "No jobs match the current filters."
-                  : "No job history yet."}
+                {hasFilters ? "No jobs match the current filters." : "No job history yet."}
               </p>
             </div>
           )}

@@ -33,13 +33,13 @@ The extension contract (`scripts/enso.py` registers routes on sdnext's FastAPI a
 
 The OpenAI API spec is the de facto standard for cloud model access. One adapter implementation covers:
 
-| Provider | Strengths | Notes |
-| --- | --- | --- |
-| **OpenRouter** | 200+ models, free tiers, live `/v1/models` with pricing/caps | Aggregator - covers most model families |
-| **NanoGPT** | Privacy-focused, pay-as-you-go | Smaller catalog, loyal user base |
-| **AIHubMix** | Chinese model access (GLM, Qwen), competitive pricing | Good for non-English users |
-| **Custom URL** | Self-hosted (vLLM, Ollama, text-gen-webui), any compatible endpoint | Maximum user autonomy |
-| **OpenAI direct** | DALL-E, GPT-Image, GPT-4o | Native provider, full feature set |
+| Provider          | Strengths                                                           | Notes                                   |
+| ----------------- | ------------------------------------------------------------------- | --------------------------------------- |
+| **OpenRouter**    | 200+ models, free tiers, live `/v1/models` with pricing/caps        | Aggregator - covers most model families |
+| **NanoGPT**       | Privacy-focused, pay-as-you-go                                      | Smaller catalog, loyal user base        |
+| **AIHubMix**      | Chinese model access (GLM, Qwen), competitive pricing               | Good for non-English users              |
+| **Custom URL**    | Self-hosted (vLLM, Ollama, text-gen-webui), any compatible endpoint | Maximum user autonomy                   |
+| **OpenAI direct** | DALL-E, GPT-Image, GPT-4o                                           | Native provider, full feature set       |
 
 All share the same auth pattern (Bearer token), endpoint structure (`/v1/models`, `/v1/images/generations`, `/v1/chat/completions`, `/v1/audio/*`), and response format.
 
@@ -67,18 +67,18 @@ These are future additions. The OpenAI-compatible layer is the v1 priority.
 
 The `/v1/models` response varies dramatically across providers:
 
-| Field | OpenAI | OpenRouter | NanoGPT | vLLM | Ollama |
-| --- | --- | --- | --- | --- | --- |
-| `id` | yes | yes | yes | yes | yes |
-| `object` | `"model"` | `"model"` | `"model"` | `"model"` | `"model"` |
-| `created` | model release | model release | present | request time (!) | file mtime (!) |
-| `owned_by` | `"openai"` etc | `"openai"` etc | present | hardcoded `"vllm"` | `"library"` |
-| Pricing | no | yes (per-token, per-image, per-audio strings) | yes (with `?detailed=true`) | no | no |
-| Input modalities | no | yes (array) | no | no | no |
-| Output modalities | no | yes (array) | no | no | no |
-| Context length | no | yes | no | yes (`max_model_len`) | no |
-| Supported params | no | yes (array of param names) | no | no | no |
-| Default params | no | yes (temperature, top_p, etc.) | no | no | no |
+| Field             | OpenAI         | OpenRouter                                    | NanoGPT                     | vLLM                  | Ollama         |
+| ----------------- | -------------- | --------------------------------------------- | --------------------------- | --------------------- | -------------- |
+| `id`              | yes            | yes                                           | yes                         | yes                   | yes            |
+| `object`          | `"model"`      | `"model"`                                     | `"model"`                   | `"model"`             | `"model"`      |
+| `created`         | model release  | model release                                 | present                     | request time (!)      | file mtime (!) |
+| `owned_by`        | `"openai"` etc | `"openai"` etc                                | present                     | hardcoded `"vllm"`    | `"library"`    |
+| Pricing           | no             | yes (per-token, per-image, per-audio strings) | yes (with `?detailed=true`) | no                    | no             |
+| Input modalities  | no             | yes (array)                                   | no                          | no                    | no             |
+| Output modalities | no             | yes (array)                                   | no                          | no                    | no             |
+| Context length    | no             | yes                                           | no                          | yes (`max_model_len`) | no             |
+| Supported params  | no             | yes (array of param names)                    | no                          | no                    | no             |
+| Default params    | no             | yes (temperature, top_p, etc.)                | no                          | no                    | no             |
 
 **Minimum reliable schema across all providers:** `{id: string}`. Everything else is optional or semantically different. The adapter must treat rich metadata as progressive enhancement.
 
@@ -90,30 +90,30 @@ The `/v1/models` response varies dramatically across providers:
 
 This is the most significant cross-provider divergence:
 
-| Provider | Image gen endpoint | Response format |
-| --- | --- | --- |
-| **OpenAI** | `POST /v1/images/generations` | `{data: [{b64_json\|url, revised_prompt}], usage}` |
-| **OpenRouter** | `POST /v1/chat/completions` with `modalities: ["image"]` | Chat completion with image content parts |
-| **Ollama** | `POST /v1/images/generations` (experimental) | b64_json only, no `url`, no `n`/`quality`/`style` |
-| **text-gen-webui** | `POST /v1/images/generations` | b64_json only |
-| **vLLM** | not supported (vllm-omni subproject only) | n/a |
-| **NanoGPT** | separate image endpoint | varies |
+| Provider           | Image gen endpoint                                       | Response format                                    |
+| ------------------ | -------------------------------------------------------- | -------------------------------------------------- |
+| **OpenAI**         | `POST /v1/images/generations`                            | `{data: [{b64_json\|url, revised_prompt}], usage}` |
+| **OpenRouter**     | `POST /v1/chat/completions` with `modalities: ["image"]` | Chat completion with image content parts           |
+| **Ollama**         | `POST /v1/images/generations` (experimental)             | b64_json only, no `url`, no `n`/`quality`/`style`  |
+| **text-gen-webui** | `POST /v1/images/generations`                            | b64_json only                                      |
+| **vLLM**           | not supported (vllm-omni subproject only)                | n/a                                                |
+| **NanoGPT**        | separate image endpoint                                  | varies                                             |
 
 **Architectural implication:** The adapter cannot assume a single image generation endpoint. It needs per-provider endpoint routing: OpenRouter uses chat completions for image gen, OpenAI uses the dedicated images endpoint, and self-hosted may not support images at all.
 
 **OpenAI `/v1/images/generations` params:**
 
-| Param | Required | Values | Notes |
-| --- | --- | --- | --- |
-| `prompt` | yes | up to 32000 chars (gpt-image-1) | |
-| `model` | no | `dall-e-2`, `dall-e-3`, `gpt-image-1` variants | default `dall-e-2` |
-| `n` | no | 1-10 | dall-e-3 only supports 1 |
-| `size` | no | model-dependent enum | `auto` for gpt-image |
-| `quality` | no | `low`/`medium`/`high`/`auto` (gpt-image), `standard`/`hd` (dall-e-3) | |
-| `style` | no | `vivid`/`natural` | dall-e-3 only |
-| `response_format` | no | `url`/`b64_json` | gpt-image-1 always b64, must omit field |
-| `background` | no | `transparent`/`opaque`/`auto` | gpt-image only |
-| `output_format` | no | `png`/`jpeg`/`webp` | gpt-image only |
+| Param             | Required | Values                                                               | Notes                                   |
+| ----------------- | -------- | -------------------------------------------------------------------- | --------------------------------------- |
+| `prompt`          | yes      | up to 32000 chars (gpt-image-1)                                      |                                         |
+| `model`           | no       | `dall-e-2`, `dall-e-3`, `gpt-image-1` variants                       | default `dall-e-2`                      |
+| `n`               | no       | 1-10                                                                 | dall-e-3 only supports 1                |
+| `size`            | no       | model-dependent enum                                                 | `auto` for gpt-image                    |
+| `quality`         | no       | `low`/`medium`/`high`/`auto` (gpt-image), `standard`/`hd` (dall-e-3) |                                         |
+| `style`           | no       | `vivid`/`natural`                                                    | dall-e-3 only                           |
+| `response_format` | no       | `url`/`b64_json`                                                     | gpt-image-1 always b64, must omit field |
+| `background`      | no       | `transparent`/`opaque`/`auto`                                        | gpt-image only                          |
+| `output_format`   | no       | `png`/`jpeg`/`webp`                                                  | gpt-image only                          |
 
 **OpenAI `/v1/images/edits`** (img2img/inpaint): multipart/form-data with `image` (up to 16 files for gpt-image-1), `mask` (transparent pixels = editable region), `prompt`. Same output params as generations.
 
@@ -138,17 +138,17 @@ Broadly consistent across providers, with extensions:
 **Vision input (universal format):**
 
 ```json
-{"type": "image_url", "image_url": {"url": "https://... or data:image/...;base64,..."}}
+{ "type": "image_url", "image_url": { "url": "https://... or data:image/...;base64,..." } }
 ```
 
 Variance: Ollama only accepts base64 data URIs (rejects https URLs). All others accept both.
 
 ### Audio Endpoints
 
-| Endpoint | OpenAI | OpenRouter | vLLM | Ollama | text-gen-webui |
-| --- | --- | --- | --- | --- | --- |
-| `POST /v1/audio/speech` (TTS) | yes | yes | no | no | yes |
-| `POST /v1/audio/transcriptions` | yes | no (uses chat) | conditional | no | yes |
+| Endpoint                        | OpenAI | OpenRouter     | vLLM        | Ollama | text-gen-webui |
+| ------------------------------- | ------ | -------------- | ----------- | ------ | -------------- |
+| `POST /v1/audio/speech` (TTS)   | yes    | yes            | no          | no     | yes            |
+| `POST /v1/audio/transcriptions` | yes    | no (uses chat) | conditional | no     | yes            |
 
 **OpenAI TTS params:** `model` (tts-1, tts-1-hd, gpt-4o-mini-tts), `input` (up to 4096 chars), `voice` (13 options), `response_format` (mp3/opus/aac/flac/wav/pcm), `speed` (0.25-4.0). Response is binary audio.
 
@@ -156,10 +156,10 @@ Variance: Ollama only accepts base64 data URIs (rejects https URLs). All others 
 
 ### Video Endpoints
 
-| Provider | Endpoint | Async |
-| --- | --- | --- |
-| **OpenAI** | `POST /v1/videos`, `GET /v1/videos/{id}`, `GET /v1/videos/{id}/content` | yes (poll or webhook) |
-| **OpenRouter** | `POST /v1/videos`, `GET /v1/videos/{id}`, `GET /v1/videos/models` | yes (poll or webhook) |
+| Provider       | Endpoint                                                                | Async                 |
+| -------------- | ----------------------------------------------------------------------- | --------------------- |
+| **OpenAI**     | `POST /v1/videos`, `GET /v1/videos/{id}`, `GET /v1/videos/{id}/content` | yes (poll or webhook) |
+| **OpenRouter** | `POST /v1/videos`, `GET /v1/videos/{id}`, `GET /v1/videos/models`       | yes (poll or webhook) |
 
 **OpenAI video (Sora):** `model`, `prompt`, `size`, `seconds` (4/8/12). States: `queued` -> `in_progress` -> `completed`/`failed`. Content retrieved via separate GET. **Sunset date: 2026-09-24.**
 
@@ -167,14 +167,14 @@ Variance: Ollama only accepts base64 data URIs (rejects https URLs). All others 
 
 ### Authentication Patterns
 
-| Provider | Header | Key format |
-| --- | --- | --- |
-| OpenAI | `Authorization: Bearer sk-...` | `sk-` prefix (user) or `sk-proj-` (project) |
-| OpenRouter | `Authorization: Bearer ...` | arbitrary string |
-| Fal | `Authorization: Key ...` | note: `Key` not `Bearer` |
-| Replicate | `Authorization: Bearer r8_...` | `r8_` prefix |
-| Ollama | any / none | accepts any string, often no auth required |
-| vLLM | `Authorization: Bearer ...` | only if `--api-key` was set at startup |
+| Provider   | Header                         | Key format                                  |
+| ---------- | ------------------------------ | ------------------------------------------- |
+| OpenAI     | `Authorization: Bearer sk-...` | `sk-` prefix (user) or `sk-proj-` (project) |
+| OpenRouter | `Authorization: Bearer ...`    | arbitrary string                            |
+| Fal        | `Authorization: Key ...`       | note: `Key` not `Bearer`                    |
+| Replicate  | `Authorization: Bearer r8_...` | `r8_` prefix                                |
+| Ollama     | any / none                     | accepts any string, often no auth required  |
+| vLLM       | `Authorization: Bearer ...`    | only if `--api-key` was set at startup      |
 
 **OpenRouter extra headers:** `HTTP-Referer` (app URL, recommended), `X-Title` (display name). OpenAI: `OpenAI-Organization`, `OpenAI-Project` for scoping.
 
@@ -193,7 +193,14 @@ All providers that enforce rate limits communicate via response headers:
 **OpenAI:**
 
 ```json
-{"error": {"message": "...", "type": "invalid_request_error", "param": "model", "code": "model_not_found"}}
+{
+  "error": {
+    "message": "...",
+    "type": "invalid_request_error",
+    "param": "model",
+    "code": "model_not_found"
+  }
+}
 ```
 
 **OpenRouter:**
@@ -206,19 +213,19 @@ Both use standard HTTP status codes (400, 401, 402, 403, 404, 429, 500, 502, 503
 
 ### Native API Gaps (what OpenAI-compat can't do)
 
-| Capability | Fal | Replicate | OpenAI-compat |
-| --- | --- | --- | --- |
-| ControlNet (canny/depth/pose) | first-class, per-model paths | per-model OpenAPI schema | not expressible |
-| IP-Adapter (style reference) | first-class on flux/SDXL paths | per-model | not expressible |
-| Inpainting with mask | `mask_url` parameter | `mask` parameter | `/v1/images/edits` only |
-| img2img with strength | `strength` param | `prompt_strength` param | not standard |
-| Intermediate latent previews | SSE with decoded previews per step | not available | not available |
-| Structured progress | `queue_position` + logs array | tqdm log scraping only | not available |
-| Webhooks | ED25519/JWKS signed | HMAC-SHA256 (Svix) | not available |
-| True cancellation | raises exception in runner | raises exception in runner | connection close only |
-| Dynamic schema discovery | OpenAPI 3.0 per endpoint | OpenAPI 3.1 per model version | static schema |
-| LoRA stacking | multi-LoRA endpoints | per-model | not expressible |
-| Hardware selection | implicit per model | explicit on deployments | not available |
+| Capability                    | Fal                                | Replicate                     | OpenAI-compat           |
+| ----------------------------- | ---------------------------------- | ----------------------------- | ----------------------- |
+| ControlNet (canny/depth/pose) | first-class, per-model paths       | per-model OpenAPI schema      | not expressible         |
+| IP-Adapter (style reference)  | first-class on flux/SDXL paths     | per-model                     | not expressible         |
+| Inpainting with mask          | `mask_url` parameter               | `mask` parameter              | `/v1/images/edits` only |
+| img2img with strength         | `strength` param                   | `prompt_strength` param       | not standard            |
+| Intermediate latent previews  | SSE with decoded previews per step | not available                 | not available           |
+| Structured progress           | `queue_position` + logs array      | tqdm log scraping only        | not available           |
+| Webhooks                      | ED25519/JWKS signed                | HMAC-SHA256 (Svix)            | not available           |
+| True cancellation             | raises exception in runner         | raises exception in runner    | connection close only   |
+| Dynamic schema discovery      | OpenAPI 3.0 per endpoint           | OpenAPI 3.1 per model version | static schema           |
+| LoRA stacking                 | multi-LoRA endpoints               | per-model                     | not expressible         |
+| Hardware selection            | implicit per model                 | explicit on deployments       | not available           |
 
 **Fal auth uses `Key` prefix**, not `Bearer`. Concurrency limit: 2 free, 40 at $1k credits.
 
@@ -298,17 +305,30 @@ API keys live server-side only. Options:
 ```typescript
 // What a model can produce (broad categories for filtering/routing)
 type Modality =
-  | "text-to-image" | "image-to-image" | "inpaint"
-  | "chat" | "vision"
-  | "audio-in" | "audio-out"
-  | "text-to-video" | "image-to-video";
+  | "text-to-image"
+  | "image-to-image"
+  | "inpaint"
+  | "chat"
+  | "vision"
+  | "audio-in"
+  | "audio-out"
+  | "text-to-video"
+  | "image-to-video";
 
 // Fine-grained features within a modality (drives UI gating)
 type Capability =
-  | "streaming" | "tools" | "structured-output"
-  | "controlnet" | "ip-adapter" | "lora"
-  | "negative-prompt" | "seed" | "guidance"
-  | "style" | "quality" | "reasoning";
+  | "streaming"
+  | "tools"
+  | "structured-output"
+  | "controlnet"
+  | "ip-adapter"
+  | "lora"
+  | "negative-prompt"
+  | "seed"
+  | "guidance"
+  | "style"
+  | "quality"
+  | "reasoning";
 ```
 
 ### Unified Model Type (discriminated union)
@@ -322,7 +342,7 @@ interface LocalModel {
   title: string;
   model_name: string;
   filename: string;
-  type: string;           // pipeline class
+  type: string; // pipeline class
   hash: string | null;
   sha256: string | null;
   size: number | null;
@@ -334,14 +354,14 @@ interface LocalModel {
 // Cloud model - fetched live from providers
 interface CloudModel {
   source: "cloud";
-  id: string;                              // provider model ID (e.g. "openai/gpt-5.4-image-2")
-  name: string;                            // display name (e.g. "GPT-5.4 Image 2")
-  provider: string;                        // configured provider id
-  modalities: Modality[];                  // what it can do (broad)
-  capabilities: Capability[];              // fine-grained features
-  pricing: ModelPricing | null;            // null if provider doesn't expose
-  context_length: number | null;           // for LLM models
-  supported_params: ParamDescriptor[] | null;  // null = unknown, show all
+  id: string; // provider model ID (e.g. "openai/gpt-5.4-image-2")
+  name: string; // display name (e.g. "GPT-5.4 Image 2")
+  provider: string; // configured provider id
+  modalities: Modality[]; // what it can do (broad)
+  capabilities: Capability[]; // fine-grained features
+  pricing: ModelPricing | null; // null if provider doesn't expose
+  context_length: number | null; // for LLM models
+  supported_params: ParamDescriptor[] | null; // null = unknown, show all
   // OpenRouter-specific rich metadata (progressive enhancement)
   description: string | null;
   default_params: Record<string, unknown> | null;
@@ -353,11 +373,11 @@ interface CloudModel {
 ```typescript
 interface ModelPricing {
   // Per-token (LLM)
-  prompt_token?: string;        // USD per token (string to avoid float precision)
+  prompt_token?: string; // USD per token (string to avoid float precision)
   completion_token?: string;
   // Per-unit (image/audio/video)
   per_image?: string;
-  per_second?: string;          // audio duration, video duration
+  per_second?: string; // audio duration, video duration
   per_request?: string;
   // Cache-aware (OpenRouter)
   cache_read_token?: string;
@@ -371,30 +391,28 @@ interface ModelPricing {
 
 ```typescript
 interface ParamDescriptor {
-  name: string;             // "temperature", "guidance", "steps"
+  name: string; // "temperature", "guidance", "steps"
   type: "float" | "int" | "string" | "bool" | "enum";
   min?: number;
   max?: number;
   step?: number;
   default?: number | string | boolean;
-  options?: string[];       // for enum type (e.g. style: ["vivid", "natural"])
+  options?: string[]; // for enum type (e.g. style: ["vivid", "natural"])
 }
 ```
 
 ### Provider Configuration
 
 ```typescript
-type ProviderPreset =
-  | "openrouter" | "openai" | "nanogpt"
-  | "aihubmix" | "ollama" | "custom";
+type ProviderPreset = "openrouter" | "openai" | "nanogpt" | "aihubmix" | "ollama" | "custom";
 
 // What the user configures
 interface ProviderConfig {
-  id: string;                   // user-chosen slug or auto-generated
-  name: string;                 // display name
-  preset: ProviderPreset;       // determines endpoint routing
-  base_url: string;             // pre-filled for presets, user-entered for custom
-  has_key: boolean;             // true if key is stored (never expose key itself)
+  id: string; // user-chosen slug or auto-generated
+  name: string; // display name
+  preset: ProviderPreset; // determines endpoint routing
+  base_url: string; // pre-filled for presets, user-entered for custom
+  has_key: boolean; // true if key is stored (never expose key itself)
   enabled: boolean;
 }
 
@@ -470,16 +488,16 @@ interface CloudImageJobParams {
   model: string;
   prompt: string;
   negative_prompt?: string;
-  size?: string;               // "1024x1024" or "landscape_16_9" etc
+  size?: string; // "1024x1024" or "landscape_16_9" etc
   n?: number;
   seed?: number;
   guidance?: number;
   steps?: number;
-  quality?: string;            // "low" | "medium" | "high" | "auto"
-  style?: string;              // "vivid" | "natural"
+  quality?: string; // "low" | "medium" | "high" | "auto"
+  style?: string; // "vivid" | "natural"
   // img2img / inpaint
-  image?: string;              // base64 or upload ref
-  mask?: string;               // base64 or upload ref
+  image?: string; // base64 or upload ref
+  mask?: string; // base64 or upload ref
   strength?: number;
   // Escape hatch for provider-specific params
   extra_params?: Record<string, unknown>;
@@ -506,7 +524,7 @@ interface CloudTtsJobParams {
   type: "cloud_tts";
   provider: string;
   model: string;
-  input: string;               // text to synthesize
+  input: string; // text to synthesize
   voice?: string;
   speed?: number;
   response_format?: "mp3" | "opus" | "aac" | "flac" | "wav" | "pcm";
@@ -517,8 +535,8 @@ interface CloudSttJobParams {
   type: "cloud_stt";
   provider: string;
   model: string;
-  audio: string;               // upload ref or base64
-  language?: string;           // ISO-639-1
+  audio: string; // upload ref or base64
+  language?: string; // ISO-639-1
   response_format?: "json" | "text" | "srt" | "vtt";
   priority?: number;
 }
@@ -528,10 +546,10 @@ interface CloudVideoJobParams {
   provider: string;
   model: string;
   prompt: string;
-  aspect_ratio?: string;       // "16:9", "9:16", "1:1"
-  duration?: number;           // seconds
+  aspect_ratio?: string; // "16:9", "9:16", "1:1"
+  duration?: number; // seconds
   size?: string;
-  image?: string;              // image-to-video conditioning
+  image?: string; // image-to-video conditioning
   extra_params?: Record<string, unknown>;
   priority?: number;
 }
@@ -543,15 +561,15 @@ interface CloudVideoJobParams {
 // Existing JobResult handles images already.
 // Cloud additions:
 interface JobResult {
-  images: ImageRef[];           // image gen results (existing)
-  processed: ImageRef[];        // post-processed (existing)
+  images: ImageRef[]; // image gen results (existing)
+  processed: ImageRef[]; // post-processed (existing)
   info: Record<string, unknown>;
   params: Record<string, unknown>;
   // Cloud extensions
-  text?: string;                // chat completion response
-  audio?: AudioRef;             // TTS output
-  video?: VideoRef;             // video output
-  usage?: CloudUsage;           // token/cost tracking
+  text?: string; // chat completion response
+  audio?: AudioRef; // TTS output
+  video?: VideoRef; // video output
+  usage?: CloudUsage; // token/cost tracking
 }
 
 interface AudioRef {
@@ -573,7 +591,7 @@ interface CloudUsage {
   prompt_tokens?: number;
   completion_tokens?: number;
   total_tokens?: number;
-  cost?: number;               // USD
+  cost?: number; // USD
   provider: string;
   model: string;
 }
@@ -849,10 +867,10 @@ def execute_cloud_image(params: dict, job_id: str) -> dict:
 async def _async_cloud_image(params: dict, job_id: str) -> dict:
     from enso_api.cloud import get_adapter
     adapter = get_adapter(params['provider'])
-    
+
     def on_progress(data: dict):
         job_queue._push_progress(job_id, data)
-    
+
     result = await adapter.generate_image(params, on_progress)
     # Save images to job output dir, return standard result dict
     return _save_image_result(result, job_id)
@@ -914,11 +932,11 @@ enso_api/cloud/
 
 ### Parameter Tiers
 
-| Tier | Examples | Cloud behavior |
-| --- | --- | --- |
-| **1 - Universal** | prompt, negative_prompt, width/height, seed, steps, guidance, batch_size | Translated to provider names via preset map |
-| **2 - Provider-specific** | quality, style (OpenAI), denoising_strength (img2img) | Present in some presets' maps, absent in others |
-| **3 - Local-only** | hires_*, refiner_*, detailer_*, hypertile_*, teacache_*, freeU_*, token_merging, color_correction, sampler tuning, clip_skip, VAE type | Never sent. Hidden in UI when cloud model selected |
+| Tier                      | Examples                                                                                                                                     | Cloud behavior                                     |
+| ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------- |
+| **1 - Universal**         | prompt, negative_prompt, width/height, seed, steps, guidance, batch_size                                                                     | Translated to provider names via preset map        |
+| **2 - Provider-specific** | quality, style (OpenAI), denoising_strength (img2img)                                                                                        | Present in some presets' maps, absent in others    |
+| **3 - Local-only**        | hires*\*, refiner*\_, detailer\__, hypertile*\*, teacache*_, freeU\_\_, token_merging, color_correction, sampler tuning, clip_skip, VAE type | Never sent. Hidden in UI when cloud model selected |
 
 ### Frontend Param Visibility
 
@@ -1022,7 +1040,7 @@ PRESETS = {
 async def generate_image(self, params: dict, on_progress) -> ImageResult:
     param_map = self.preset["param_maps"]["image"]
     size_fn = self.preset["param_maps"].get("image_size_transform")
-    
+
     # Translate params
     api_params = {}
     for enso_name, value in params.items():
@@ -1035,18 +1053,18 @@ async def generate_image(self, params: dict, on_progress) -> ImageResult:
         if api_name is None:
             continue  # explicitly suppressed
         api_params[api_name] = transform(value) if transform else value
-    
+
     # Apply structural transforms (width+height -> size)
     if size_fn and "width" in params and "height" in params:
         api_params.update(size_fn(params["width"], params["height"]))
-    
+
     # Merge extra_params (escape hatch for provider-specific params)
     if params.get("extra_params"):
         api_params.update(params["extra_params"])
-    
+
     # Remove None values (seed=-1 transformed to None means "don't send")
     api_params = {k: v for k, v in api_params.items() if v is not None}
-    
+
     # Route to correct endpoint based on preset
     return await self._submit_image(api_params, on_progress)
 ```
@@ -1060,7 +1078,7 @@ The adapter translates in the reverse direction too: when fetching models and bu
 def build_supported_params(self, provider_params: list[str] | None) -> list[dict] | None:
     if provider_params is None:
         return None  # unknown = show all
-    
+
     reverse_map = self._build_reverse_map()  # API name -> Enso name + schema
     descriptors = []
     for api_param in provider_params:
@@ -1071,17 +1089,17 @@ def build_supported_params(self, provider_params: list[str] | None) -> list[dict
 
 ### Tabs Hidden for Cloud Models
 
-| Tab | Cloud behavior |
-| --- | --- |
-| **Prompts** | Shown (prompt + negative always relevant) |
-| **Sampler** | Hidden (cloud APIs don't expose scheduler choice) unless model has `steps` in supported_params, then show steps only |
-| **Guidance** | Shown if model supports cfgScale/seed |
-| **Refine** | Hidden (local-only: refiner pipeline) |
-| **Detail** | Hidden (local-only: detailer pipeline) |
-| **Advanced** | Hidden (local-only: clip_skip, VAE, hypertile, teacache, FreeU, token merging) |
-| **Color** | Hidden (local-only: color correction, HDR) |
-| **Input** | Shown if model supports img2img/inpaint |
-| **Scripts** | Hidden (local-only: SD.Next scripts) |
+| Tab          | Cloud behavior                                                                                                       |
+| ------------ | -------------------------------------------------------------------------------------------------------------------- |
+| **Prompts**  | Shown (prompt + negative always relevant)                                                                            |
+| **Sampler**  | Hidden (cloud APIs don't expose scheduler choice) unless model has `steps` in supported_params, then show steps only |
+| **Guidance** | Shown if model supports cfgScale/seed                                                                                |
+| **Refine**   | Hidden (local-only: refiner pipeline)                                                                                |
+| **Detail**   | Hidden (local-only: detailer pipeline)                                                                               |
+| **Advanced** | Hidden (local-only: clip_skip, VAE, hypertile, teacache, FreeU, token merging)                                       |
+| **Color**    | Hidden (local-only: color correction, HDR)                                                                           |
+| **Input**    | Shown if model supports img2img/inpaint                                                                              |
+| **Scripts**  | Hidden (local-only: SD.Next scripts)                                                                                 |
 
 ## Stage 8 Design - Mixed Workflows & Edge Cases
 
@@ -1095,23 +1113,23 @@ def build_supported_params(self, provider_params: list[str] | None) -> list[dict
 
 ### v1 Scope vs Future
 
-| Feature | v1 | Future |
-| --- | --- | --- |
-| txt2img via cloud | Yes | - |
-| img2img via cloud | Yes (if model supports) | - |
-| Inpaint via cloud | Yes (if model supports) | - |
-| Cloud -> local upscale | Yes (existing "send to" flow) | - |
-| Local -> cloud upscale | Yes (if provider supports edits) | - |
-| LLM chat | Yes | - |
-| TTS | Yes | - |
-| STT | Yes | - |
-| Video generation | Yes | - |
-| ControlNet via cloud | No | Via Fal/Replicate native adapters |
-| IP-Adapter via cloud | No | Via Fal/Replicate native adapters |
-| Comparison mode (cloud vs local) | No | v2 - submit two jobs, side-by-side view |
-| Batch split across providers | No | v2 - UX for splitting batch_size |
-| Automatic fallback | No | Intentional - user should decide |
-| Provider cost tracking/dashboard | No | v2 - aggregate CloudUsage from job results |
+| Feature                          | v1                               | Future                                     |
+| -------------------------------- | -------------------------------- | ------------------------------------------ |
+| txt2img via cloud                | Yes                              | -                                          |
+| img2img via cloud                | Yes (if model supports)          | -                                          |
+| Inpaint via cloud                | Yes (if model supports)          | -                                          |
+| Cloud -> local upscale           | Yes (existing "send to" flow)    | -                                          |
+| Local -> cloud upscale           | Yes (if provider supports edits) | -                                          |
+| LLM chat                         | Yes                              | -                                          |
+| TTS                              | Yes                              | -                                          |
+| STT                              | Yes                              | -                                          |
+| Video generation                 | Yes                              | -                                          |
+| ControlNet via cloud             | No                               | Via Fal/Replicate native adapters          |
+| IP-Adapter via cloud             | No                               | Via Fal/Replicate native adapters          |
+| Comparison mode (cloud vs local) | No                               | v2 - submit two jobs, side-by-side view    |
+| Batch split across providers     | No                               | v2 - UX for splitting batch_size           |
+| Automatic fallback               | No                               | Intentional - user should decide           |
+| Provider cost tracking/dashboard | No                               | v2 - aggregate CloudUsage from job results |
 
 ### Canvas Pipeline for Cloud img2img/Inpaint
 
@@ -1241,16 +1259,17 @@ export const useModelSelectionStore = create<ModelSelectionState & ModelSelectio
         });
       },
 
-      clear: () => set({
-        activeModel: null,
-        isCloud: false,
-        cloudModelId: null,
-        cloudProvider: null,
-        localModelTitle: null,
-      }),
+      clear: () =>
+        set({
+          activeModel: null,
+          isCloud: false,
+          cloudModelId: null,
+          cloudProvider: null,
+          localModelTitle: null,
+        }),
     }),
-    { name: "enso-model-selection" }
-  )
+    { name: "enso-model-selection" },
+  ),
 );
 ```
 
@@ -1260,7 +1279,7 @@ export const useModelSelectionStore = create<ModelSelectionState & ModelSelectio
 // ModelSelector.tsx - extended with cloud models
 export function ModelSelector() {
   const { data: localModels } = useModelList();
-  const { data: cloudModels } = useCloudModels();  // new hook
+  const { data: cloudModels } = useCloudModels(); // new hook
   const { activeModel, selectLocal, selectCloud } = useModelSelectionStore();
 
   return (
@@ -1273,9 +1292,7 @@ export function ModelSelector() {
             {/* Local models */}
             <CommandGroup heading="Local">
               {localModels?.map((model) => (
-                <CommandItem onSelect={() => selectLocal(model)}>
-                  {model.title}
-                </CommandItem>
+                <CommandItem onSelect={() => selectLocal(model)}>{model.title}</CommandItem>
               ))}
             </CommandGroup>
 
@@ -1312,12 +1329,12 @@ export function useCloudModels() {
     queryFn: async () => {
       const providers = await api.get<Provider[]>("/sdapi/v2/cloud/providers");
       // Only fetch models for enabled providers with valid keys
-      const active = providers.filter(p => p.enabled && p.status === "ok");
+      const active = providers.filter((p) => p.enabled && p.status === "ok");
       const results = await Promise.all(
         active.map(async (p) => ({
           ...p,
           models: await api.get<CloudModel[]>(`/sdapi/v2/cloud/providers/${p.id}/models`),
-        }))
+        })),
       );
       return { providers: results };
     },
@@ -1375,9 +1392,7 @@ function JobProgress({ event }: { event: JobWsEvent }) {
     return (
       <div className="flex items-center gap-2">
         <span className="text-2xs">{phaseLabels[event.phase] ?? event.phase}</span>
-        {event.progress > 0 && (
-          <Progress value={event.progress * 100} />
-        )}
+        {event.progress > 0 && <Progress value={event.progress * 100} />}
       </div>
     );
   }
@@ -1399,7 +1414,7 @@ function useModelSync() {
   useEffect(() => {
     // If no active model in store but SD.Next has one loaded, sync it
     if (!activeModel && checkpoint?.title && localModels) {
-      const match = localModels.find(m => m.title === checkpoint.title);
+      const match = localModels.find((m) => m.title === checkpoint.title);
       if (match) selectLocal(match);
     }
   }, [checkpoint, localModels, activeModel]);
@@ -1422,9 +1437,7 @@ export function useCloudModelGating() {
       const tabParams = TAB_PARAM_MAPPING[tab];
       if (!tabParams) return false;
       if (!cloudModel?.supported_params) return true; // unknown = show all
-      return tabParams.some(p =>
-        cloudModel.supported_params!.some(sp => sp.name === p)
-      );
+      return tabParams.some((p) => cloudModel.supported_params!.some((sp) => sp.name === p));
     },
   };
 }
@@ -1433,12 +1446,12 @@ const TAB_PARAM_MAPPING: Record<string, string[]> = {
   prompts: ["prompt", "negativePrompt"],
   sampler: ["steps", "sampler"],
   guidance: ["cfgScale", "seed", "denoisingStrength"],
-  refine: [],     // always local-only
-  detail: [],     // always local-only
-  advanced: [],   // always local-only
-  color: [],      // always local-only
+  refine: [], // always local-only
+  detail: [], // always local-only
+  advanced: [], // always local-only
+  color: [], // always local-only
   input: ["denoisingStrength", "image", "mask"],
-  scripts: [],    // always local-only
+  scripts: [], // always local-only
 };
 ```
 
@@ -1605,11 +1618,11 @@ def _execute_job(self, job: dict) -> None:
     job_type = job['type']
     from enso_api.executors import EXECUTORS
     entry = EXECUTORS.get(job_type)
-    
+
     if entry is None:
         self.store.update_status(job_id, 'failed', error=f"Unknown type: {job_type}")
         return
-    
+
     if entry['lock']:
         # Local job: existing serial behavior with queue_lock
         self._run_local_job(job, entry['fn'])
@@ -1629,7 +1642,7 @@ def _run_cloud_job(self, job: dict, executor_fn) -> None:
     job_id = job['id']
     self.store.update_status(job_id, 'running', started_at=JobStore.now())
     self._push_progress(job_id, {'type': 'status', 'status': 'running'})
-    
+
     try:
         result = executor_fn(job.get('params', {}), job_id)
         self.store.update_status(job_id, 'completed', completed_at=JobStore.now(), result=json.dumps(result))
@@ -1672,12 +1685,12 @@ PRESETS = {
 async def _request_with_retry(self, method: str, path: str, **kw) -> httpx.Response:
     max_attempts = 3
     backoff = 1.0  # seconds
-    
+
     for attempt in range(max_attempts):
         try:
             response = await self.client.request(method, path, **kw)
             self.update_rate_limits(response.headers)
-            
+
             if response.status_code == 429:
                 retry_after = self._parse_retry_after(response.headers)
                 if attempt < 1 and retry_after and retry_after < 60:
@@ -1688,29 +1701,29 @@ async def _request_with_retry(self, method: str, path: str, **kw) -> httpx.Respo
                     provider=self.config.id,
                     retry_after=retry_after,
                 )
-            
+
             if response.status_code in (500, 502, 503) and attempt < max_attempts - 1:
                 await asyncio.sleep(backoff * (2 ** attempt))
                 continue
-            
+
             # Map other error codes to exceptions
             if response.status_code >= 400:
                 self._raise_for_status(response)
-            
+
             return response
-        
+
         except httpx.TimeoutException:
             if attempt < max_attempts - 1:
                 await asyncio.sleep(backoff * (2 ** attempt))
                 continue
             raise ProviderError("Request timed out", provider=self.config.id)
-        
+
         except httpx.ConnectError:
             if attempt < max_attempts - 1:
                 await asyncio.sleep(backoff * (2 ** attempt))
                 continue
             raise ProviderError("Connection failed", provider=self.config.id)
-    
+
     raise ProviderError("Max retries exceeded", provider=self.config.id)
 ```
 
@@ -1722,11 +1735,11 @@ def cancel(self, job_id: str) -> bool:
     job = self.store.get(job_id)
     if job is None:
         return False
-    
+
     if job['status'] == 'running':
         job_type = job['type']
         entry = EXECUTORS.get(job_type, {})
-        
+
         if entry.get('lock'):
             # Local job: interrupt via shared.state (existing)
             self._cancel_ids.add(job_id)
@@ -1738,7 +1751,7 @@ def cancel(self, job_id: str) -> bool:
             self._push_progress(job_id, {'type': 'status', 'status': 'cancelled'})
             self._attempt_remote_cancel(job_id, job)
         return True
-    
+
     if job['status'] == 'pending':
         return self.store.cancel(job_id)
     return self.store.delete(job_id)
@@ -1932,40 +1945,40 @@ CloudModel carries pricing data. Should the frontend show estimated cost before 
 
 ## Decisions Log
 
-| Date | Decision | Rationale |
-| --- | --- | --- |
-| 2026-04-28 | Implement entirely in Enso, zero sdnext changes | Extension architecture already provides full job lifecycle ownership; no GPU contention means no need for queue_lock integration |
-| 2026-04-28 | New executor rather than modifying existing `execute_generate` | Cloud dispatch is fundamentally different (HTTP API vs in-process function call); mixing them adds branches to every codepath |
-| 2026-04-28 | OpenAI-compatible endpoints as primary integration layer | One adapter spec covers OpenRouter, NanoGPT, AIHubMix, custom URLs, and OpenAI direct. Fal/Replicate are future native-API additions for advanced features (ControlNet, latent streaming) |
-| 2026-04-28 | Custom URL support is mandatory | Users need to point at self-hosted (vLLM, Ollama) or any compatible endpoint for privacy/autonomy. Provider = base_url + key + name, not a code-level concept |
-| 2026-04-28 | Multi-modal from the start (at least in data model) | OpenAI-compat gives image + LLM + audio + video with same auth. Even if v1 only ships image + LLM, the types and adapter interface must not assume single-modality |
-| 2026-04-28 | Live model discovery via /v1/models, no hardcoded lists | Minimises maintenance; what the provider offers is what Enso shows. Keeps model catalogs fresh without code changes |
-| 2026-04-28 | All four modalities in v1: image, LLM, audio, video | Shared adapter makes marginal cost of each modality low. Data model and adapter interface designed for all four from the start |
-| 2026-04-28 | Discriminated union for model types (LocalModel \| CloudModel) | Clean type narrowing, no phantom nulls. Each type has only the fields it uses. Frontend uses type guards |
-| 2026-04-28 | Two-level capability system: modalities (broad) + capabilities (fine-grained) | Modalities enable broad filtering/routing (show me image gen models). Capabilities gate specific UI controls (disable ControlNet tab) |
-| 2026-04-28 | Preset + custom provider configuration | Known providers (OpenRouter, OpenAI, NanoGPT, AIHubMix, Ollama) get declarative presets with endpoint routing rules. Custom providers probe. Explicit over implicit |
-| 2026-04-28 | Structured pricing object (not raw passthrough) | Typed fields for each billing dimension. Enables cost estimation in UI. Null when provider doesn't expose pricing |
-| 2026-04-28 | Typed ParamDescriptor array per model | Enables dynamic UI rendering of provider-specific params with correct control types and ranges. Null means unknown (show all, let API reject) |
-| 2026-04-28 | Per-modality job request types (cloud_image, cloud_chat, cloud_tts, cloud_stt, cloud_video) | Matches existing pattern of separate job type interfaces. Type safety for which fields are valid per modality. extra_params escape hatch for provider-specific fields |
-| 2026-04-28 | Protocol + Composition for adapter interface | Protocol defines contract (structural typing, future Fal/Replicate adapters just match the shape). HttpTransport injected for shared HTTP machinery. No inheritance hierarchy |
-| 2026-04-28 | Executor declares lock requirement via EXECUTORS dict metadata | `{fn, lock: bool}` per entry. Cloud executors set lock=False, run concurrently. Minimal change to existing _execute_job |
-| 2026-04-28 | Callback function for progress reporting | Adapter receives `on_progress(data)`, calls it with status updates. No coupling to job queue internals. Works for both streaming and one-shot |
-| 2026-04-28 | Custom exception hierarchy for error contract | 6 exception classes covering real API failure modes (Auth, Quota, RateLimit, ContentFilter, ModelNotFound, ProviderError). Executor catches by type |
-| 2026-04-28 | Async thread pool for cloud workers | Persistent event loop per cloud worker thread. Adapter methods are async def. True async with connection reuse, concurrent operations within a job |
-| 2026-04-28 | Hybrid param mapping: frontend gates visibility, backend translates names | Frontend uses supported_params to show/hide controls (UX layer). Backend adapter maps Enso names to provider names (API layer). Clean separation, no silent dropping |
-| 2026-04-28 | Local-only params hidden entirely for cloud models | Tabs that are fully local-only (Hires, Refiner, Detailer, Advanced, Color, Scripts) disappear when cloud model selected. No greying, no disabled state |
-| 2026-04-28 | Per-preset param mapping overrides | Each preset carries its own param_maps dict. Base adapter has defaults, presets override where their provider diverges. Handles OpenRouter (chat for images) vs OpenAI (dedicated endpoint) cleanly |
-| 2026-04-28 | Polling for progress, not webhooks | SD.Next runs on localhost behind NAT. Polling universally works. Webhooks future optimization only |
-| 2026-04-28 | Best-effort non-blocking cancellation | Mark local job cancelled immediately. Fire-and-forget remote cancel. User sees instant response |
-| 2026-04-28 | Per-modality timeouts with preset override | image 120s, chat 120s, TTS 30s, STT 60s, video 600s. Presets can override |
-| 2026-04-28 | Retry transient errors only (max 3, exponential backoff) | 500/502/503 retried. 429 respects retry_after (max 1 retry). Auth/Quota/Content/NotFound fail immediately |
-| 2026-04-28 | Thread pool of 8 workers for cloud jobs | I/O-bound, cheap to run concurrently. Rate limiting in HttpTransport, not concurrency limiting |
-| 2026-04-28 | Existing JobStatus enum unchanged for cloud | Cloud phases (submitted/queued_remote/processing/downloading) in WS events, not DB. DB stays simple |
-| 2026-04-28 | Worker loop dispatches cloud jobs to pool non-blocking | Local: inline serial with queue_lock. Cloud: submit to pool, immediately loop back for next job |
-| 2026-04-28 | Plaintext JSON file for provider config + keys | `{enso_root}/cloud-providers.json`, gitignored. Same security model as SD.Next config.json. No encryption theatre |
-| 2026-04-28 | Write-only API for keys, validate on add | POST sets key, GET never returns it. Immediate probe on add to confirm validity. Env vars override file |
-| 2026-04-28 | New modelSelectionStore for unified model selection | Single source of truth for active model (local or cloud). UnifiedModel discriminated union. Local model loading as side effect. Syncs from SD.Next options on startup |
-| 2026-04-28 | Cloud-to-local chains work already, no new architecture | Same "send to" pattern. Job results are local files regardless of source |
-| 2026-04-28 | No automatic fallback on cloud failure | Show error with "Try local" button. User decides. Avoid unexpected model loads |
-| 2026-04-28 | Always download result images locally | Provider URLs expire (OpenAI: 1h). Adapter saves bytes to output dir. JobResult never references remote URLs |
-| 2026-04-28 | Comparison mode and multi-provider batch are v2 scope | Not architecturally blocked but need UX design. Deferred |
+| Date       | Decision                                                                                    | Rationale                                                                                                                                                                                           |
+| ---------- | ------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-04-28 | Implement entirely in Enso, zero sdnext changes                                             | Extension architecture already provides full job lifecycle ownership; no GPU contention means no need for queue_lock integration                                                                    |
+| 2026-04-28 | New executor rather than modifying existing `execute_generate`                              | Cloud dispatch is fundamentally different (HTTP API vs in-process function call); mixing them adds branches to every codepath                                                                       |
+| 2026-04-28 | OpenAI-compatible endpoints as primary integration layer                                    | One adapter spec covers OpenRouter, NanoGPT, AIHubMix, custom URLs, and OpenAI direct. Fal/Replicate are future native-API additions for advanced features (ControlNet, latent streaming)           |
+| 2026-04-28 | Custom URL support is mandatory                                                             | Users need to point at self-hosted (vLLM, Ollama) or any compatible endpoint for privacy/autonomy. Provider = base_url + key + name, not a code-level concept                                       |
+| 2026-04-28 | Multi-modal from the start (at least in data model)                                         | OpenAI-compat gives image + LLM + audio + video with same auth. Even if v1 only ships image + LLM, the types and adapter interface must not assume single-modality                                  |
+| 2026-04-28 | Live model discovery via /v1/models, no hardcoded lists                                     | Minimises maintenance; what the provider offers is what Enso shows. Keeps model catalogs fresh without code changes                                                                                 |
+| 2026-04-28 | All four modalities in v1: image, LLM, audio, video                                         | Shared adapter makes marginal cost of each modality low. Data model and adapter interface designed for all four from the start                                                                      |
+| 2026-04-28 | Discriminated union for model types (LocalModel \| CloudModel)                              | Clean type narrowing, no phantom nulls. Each type has only the fields it uses. Frontend uses type guards                                                                                            |
+| 2026-04-28 | Two-level capability system: modalities (broad) + capabilities (fine-grained)               | Modalities enable broad filtering/routing (show me image gen models). Capabilities gate specific UI controls (disable ControlNet tab)                                                               |
+| 2026-04-28 | Preset + custom provider configuration                                                      | Known providers (OpenRouter, OpenAI, NanoGPT, AIHubMix, Ollama) get declarative presets with endpoint routing rules. Custom providers probe. Explicit over implicit                                 |
+| 2026-04-28 | Structured pricing object (not raw passthrough)                                             | Typed fields for each billing dimension. Enables cost estimation in UI. Null when provider doesn't expose pricing                                                                                   |
+| 2026-04-28 | Typed ParamDescriptor array per model                                                       | Enables dynamic UI rendering of provider-specific params with correct control types and ranges. Null means unknown (show all, let API reject)                                                       |
+| 2026-04-28 | Per-modality job request types (cloud_image, cloud_chat, cloud_tts, cloud_stt, cloud_video) | Matches existing pattern of separate job type interfaces. Type safety for which fields are valid per modality. extra_params escape hatch for provider-specific fields                               |
+| 2026-04-28 | Protocol + Composition for adapter interface                                                | Protocol defines contract (structural typing, future Fal/Replicate adapters just match the shape). HttpTransport injected for shared HTTP machinery. No inheritance hierarchy                       |
+| 2026-04-28 | Executor declares lock requirement via EXECUTORS dict metadata                              | `{fn, lock: bool}` per entry. Cloud executors set lock=False, run concurrently. Minimal change to existing \_execute_job                                                                            |
+| 2026-04-28 | Callback function for progress reporting                                                    | Adapter receives `on_progress(data)`, calls it with status updates. No coupling to job queue internals. Works for both streaming and one-shot                                                       |
+| 2026-04-28 | Custom exception hierarchy for error contract                                               | 6 exception classes covering real API failure modes (Auth, Quota, RateLimit, ContentFilter, ModelNotFound, ProviderError). Executor catches by type                                                 |
+| 2026-04-28 | Async thread pool for cloud workers                                                         | Persistent event loop per cloud worker thread. Adapter methods are async def. True async with connection reuse, concurrent operations within a job                                                  |
+| 2026-04-28 | Hybrid param mapping: frontend gates visibility, backend translates names                   | Frontend uses supported_params to show/hide controls (UX layer). Backend adapter maps Enso names to provider names (API layer). Clean separation, no silent dropping                                |
+| 2026-04-28 | Local-only params hidden entirely for cloud models                                          | Tabs that are fully local-only (Hires, Refiner, Detailer, Advanced, Color, Scripts) disappear when cloud model selected. No greying, no disabled state                                              |
+| 2026-04-28 | Per-preset param mapping overrides                                                          | Each preset carries its own param_maps dict. Base adapter has defaults, presets override where their provider diverges. Handles OpenRouter (chat for images) vs OpenAI (dedicated endpoint) cleanly |
+| 2026-04-28 | Polling for progress, not webhooks                                                          | SD.Next runs on localhost behind NAT. Polling universally works. Webhooks future optimization only                                                                                                  |
+| 2026-04-28 | Best-effort non-blocking cancellation                                                       | Mark local job cancelled immediately. Fire-and-forget remote cancel. User sees instant response                                                                                                     |
+| 2026-04-28 | Per-modality timeouts with preset override                                                  | image 120s, chat 120s, TTS 30s, STT 60s, video 600s. Presets can override                                                                                                                           |
+| 2026-04-28 | Retry transient errors only (max 3, exponential backoff)                                    | 500/502/503 retried. 429 respects retry_after (max 1 retry). Auth/Quota/Content/NotFound fail immediately                                                                                           |
+| 2026-04-28 | Thread pool of 8 workers for cloud jobs                                                     | I/O-bound, cheap to run concurrently. Rate limiting in HttpTransport, not concurrency limiting                                                                                                      |
+| 2026-04-28 | Existing JobStatus enum unchanged for cloud                                                 | Cloud phases (submitted/queued_remote/processing/downloading) in WS events, not DB. DB stays simple                                                                                                 |
+| 2026-04-28 | Worker loop dispatches cloud jobs to pool non-blocking                                      | Local: inline serial with queue_lock. Cloud: submit to pool, immediately loop back for next job                                                                                                     |
+| 2026-04-28 | Plaintext JSON file for provider config + keys                                              | `{enso_root}/cloud-providers.json`, gitignored. Same security model as SD.Next config.json. No encryption theatre                                                                                   |
+| 2026-04-28 | Write-only API for keys, validate on add                                                    | POST sets key, GET never returns it. Immediate probe on add to confirm validity. Env vars override file                                                                                             |
+| 2026-04-28 | New modelSelectionStore for unified model selection                                         | Single source of truth for active model (local or cloud). UnifiedModel discriminated union. Local model loading as side effect. Syncs from SD.Next options on startup                               |
+| 2026-04-28 | Cloud-to-local chains work already, no new architecture                                     | Same "send to" pattern. Job results are local files regardless of source                                                                                                                            |
+| 2026-04-28 | No automatic fallback on cloud failure                                                      | Show error with "Try local" button. User decides. Avoid unexpected model loads                                                                                                                      |
+| 2026-04-28 | Always download result images locally                                                       | Provider URLs expire (OpenAI: 1h). Adapter saves bytes to output dir. JobResult never references remote URLs                                                                                        |
+| 2026-04-28 | Comparison mode and multi-provider batch are v2 scope                                       | Not architecturally blocked but need UX design. Deferred                                                                                                                                            |

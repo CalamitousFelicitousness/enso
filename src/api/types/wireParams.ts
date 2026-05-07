@@ -58,12 +58,11 @@ export type WireOverrides = WireParams & Record<string, unknown>;
  * the field flows in automatically via Partial<ControlRequest>. Update only
  * when adding a legacy alias with no ControlRequest counterpart.
  */
-export type WireParams =
-  & Partial<ControlRequest>
-  & LegacyAliasWire
-  & LegacyDetailerWire
-  & LegacyUpscaleAfterWire
-  & LegacyOverrideWire;
+export type WireParams = Partial<ControlRequest> &
+  LegacyAliasWire &
+  LegacyDetailerWire &
+  LegacyUpscaleAfterWire &
+  LegacyOverrideWire;
 
 // Video-side wire shape, kept separate from WireParams because the video
 // namespaces (engine, fp_*, ltx_*) do not belong in image-restore autocomplete.
@@ -137,8 +136,4 @@ interface LtxWire {
   ltx_audio_enable?: boolean;
 }
 
-export type VideoWireParams =
-  & VideoSharedWire
-  & VideoOutputWire
-  & FramePackWire
-  & LtxWire;
+export type VideoWireParams = VideoSharedWire & VideoOutputWire & FramePackWire & LtxWire;

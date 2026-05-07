@@ -17,12 +17,7 @@ export function StorageSubTab() {
 
   return (
     <div className="space-y-4">
-      <Button
-        size="sm"
-        variant="outline"
-        onClick={() => void refetch()}
-        disabled={isFetching}
-      >
+      <Button size="sm" variant="outline" onClick={() => void refetch()} disabled={isFetching}>
         {isFetching ? (
           <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
         ) : (

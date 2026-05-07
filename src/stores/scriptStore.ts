@@ -42,5 +42,6 @@ export const useScriptStore = create<ScriptState>()((set) => ({
   setAlwaysOnEnabled: (name, enabled) =>
     set((state) => ({ alwaysOnEnabled: { ...state.alwaysOnEnabled, [name]: enabled } })),
 
-  reset: () => set({ selectedScript: "", scriptArgs: [], alwaysOnOverrides: {}, alwaysOnEnabled: {} }),
+  reset: () =>
+    set({ selectedScript: "", scriptArgs: [], alwaysOnOverrides: {}, alwaysOnEnabled: {} }),
 }));

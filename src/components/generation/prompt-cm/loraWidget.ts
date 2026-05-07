@@ -285,8 +285,7 @@ export const loraWidgetPlugin = ViewPlugin.fromClass(
         update.docChanged ||
         update.selectionSet ||
         update.focusChanged ||
-        update.startState.facet(embeddingNamesFacet) !==
-          update.state.facet(embeddingNamesFacet)
+        update.startState.facet(embeddingNamesFacet) !== update.state.facet(embeddingNamesFacet)
       ) {
         this.view = update.view;
         this.decorations = this.build();
@@ -315,14 +314,7 @@ export const loraWidgetPlugin = ViewPlugin.fromClass(
           chips.push({
             from,
             to,
-            widget: new LoraChipWidget(
-              displayName,
-              weight,
-              match[0],
-              from,
-              to,
-              () => this.view,
-            ),
+            widget: new LoraChipWidget(displayName, weight, match[0], from, to, () => this.view),
           });
         }
       }
@@ -335,14 +327,7 @@ export const loraWidgetPlugin = ViewPlugin.fromClass(
         chips.push({
           from,
           to,
-          widget: new TokenChipWidget(
-            match[3],
-            "wildcard",
-            match[0],
-            from,
-            to,
-            () => this.view,
-          ),
+          widget: new TokenChipWidget(match[3], "wildcard", match[0], from, to, () => this.view),
         });
       }
 
@@ -350,13 +335,8 @@ export const loraWidgetPlugin = ViewPlugin.fromClass(
       const embeddings = this.view.state.facet(embeddingNamesFacet);
       if (embeddings.length > 0) {
         const sorted = [...embeddings].sort((a, b) => b.length - a.length);
-        const escaped = sorted.map((n) =>
-          n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"),
-        );
-        const re = new RegExp(
-          `(?<=^|[\\s,])(?:${escaped.join("|")})(?=[\\s,]|$)`,
-          "g",
-        );
+        const escaped = sorted.map((n) => n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+        const re = new RegExp(`(?<=^|[\\s,])(?:${escaped.join("|")})(?=[\\s,]|$)`, "g");
         for (const m of text.matchAll(re)) {
           const from = m.index;
           const to = from + m[0].length;
@@ -364,14 +344,7 @@ export const loraWidgetPlugin = ViewPlugin.fromClass(
           chips.push({
             from,
             to,
-            widget: new TokenChipWidget(
-              displayName,
-              "embedding",
-              m[0],
-              from,
-              to,
-              () => this.view,
-            ),
+            widget: new TokenChipWidget(displayName, "embedding", m[0], from, to, () => this.view),
           });
         }
       }
@@ -430,9 +403,16 @@ export const loraDragDrop = EditorView.domEventHandlers({
     const insertText = dropPos === 0 ? `${raw} ` : ` ${raw}`;
 
     // Changes must be sorted by position for CM
-    const changes = dropPos <= delFrom
-      ? [{ from: dropPos, insert: insertText }, { from: delFrom, to: delTo }]
-      : [{ from: delFrom, to: delTo }, { from: dropPos, insert: insertText }];
+    const changes =
+      dropPos <= delFrom
+        ? [
+            { from: dropPos, insert: insertText },
+            { from: delFrom, to: delTo },
+          ]
+        : [
+            { from: delFrom, to: delTo },
+            { from: dropPos, insert: insertText },
+          ];
 
     view.dispatch({ changes });
 

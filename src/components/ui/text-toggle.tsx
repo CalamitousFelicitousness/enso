@@ -9,13 +9,7 @@ interface TextToggleProps {
   className?: string;
 }
 
-function TextToggle({
-  label,
-  checked,
-  onCheckedChange,
-  disabled,
-  className,
-}: TextToggleProps) {
+function TextToggle({ label, checked, onCheckedChange, disabled, className }: TextToggleProps) {
   return (
     <button
       type="button"
@@ -52,7 +46,9 @@ function TextToggle({
             ? "bg-primary/70 w-full"
             : "bg-transparent w-0 group-hover/toggle:bg-muted-foreground/20 group-hover/toggle:w-full",
         )}
-        style={checked ? { boxShadow: "0 0 3px oklch(from var(--primary) l c h / 0.3)" } : undefined}
+        style={
+          checked ? { boxShadow: "0 0 3px oklch(from var(--primary) l c h / 0.3)" } : undefined
+        }
       />
     </button>
   );

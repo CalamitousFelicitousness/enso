@@ -1,9 +1,5 @@
 import { useCallback, useRef } from "react";
-import {
-  useCanvasStore,
-  type ImageLayer,
-  type MaskObjectLayer,
-} from "@/stores/canvasStore";
+import { useCanvasStore, type ImageLayer, type MaskObjectLayer } from "@/stores/canvasStore";
 import { useGenerationStore } from "@/stores/generationStore";
 import { fileToBase64 } from "@/lib/image";
 import { Eye, EyeOff, X, Plus, Frame, Lock, Unlock } from "lucide-react";
@@ -13,8 +9,7 @@ import { cn } from "@/lib/utils";
 function LayerDims({ layer }: { layer: ImageLayer }) {
   const canvasW = Math.round(Math.abs(layer.naturalWidth * layer.scaleX));
   const canvasH = Math.round(Math.abs(layer.naturalHeight * layer.scaleY));
-  const isTransformed =
-    canvasW !== layer.naturalWidth || canvasH !== layer.naturalHeight;
+  const isTransformed = canvasW !== layer.naturalWidth || canvasH !== layer.naturalHeight;
   return (
     <p
       className="text-4xs text-muted-foreground"
@@ -47,9 +42,7 @@ export function LayerPanel() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const imageLayers = layers.filter((l) => l.type === "image") as ImageLayer[];
-  const maskLayers = layers.filter(
-    (l) => l.type === "mask",
-  ) as MaskObjectLayer[];
+  const maskLayers = layers.filter((l) => l.type === "mask") as MaskObjectLayer[];
 
   const handleAddFile = useCallback(
     async (file: File) => {
@@ -61,13 +54,7 @@ export function LayerPanel() {
       await new Promise<void>((r) => {
         img.onload = () => r();
       });
-      addImageLayer(
-        file,
-        base64,
-        objectUrl,
-        img.naturalWidth,
-        img.naturalHeight,
-      );
+      addImageLayer(file, base64, objectUrl, img.naturalWidth, img.naturalHeight);
     },
     [addImageLayer],
   );
@@ -90,15 +77,12 @@ export function LayerPanel() {
   return (
     <div className="flex flex-col gap-1">
       {imageLayers.length === 0 && (
-        <p className="text-3xs text-muted-foreground text-center py-1">
-          Drop images onto canvas
-        </p>
+        <p className="text-3xs text-muted-foreground text-center py-1">Drop images onto canvas</p>
       )}
 
       {imageLayers.map((layer) => {
         const isActive = layer.id === activeLayerId;
-        const truncName =
-          layer.name.length > 18 ? `${layer.name.slice(0, 15)}...` : layer.name;
+        const truncName = layer.name.length > 18 ? `${layer.name.slice(0, 15)}...` : layer.name;
         return (
           <div
             key={layer.id}
@@ -132,13 +116,11 @@ export function LayerPanel() {
                 e.stopPropagation();
                 const w = Math.max(
                   64,
-                  Math.round(Math.abs(layer.naturalWidth * layer.scaleX) / 8) *
-                    8,
+                  Math.round(Math.abs(layer.naturalWidth * layer.scaleX) / 8) * 8,
                 );
                 const h = Math.max(
                   64,
-                  Math.round(Math.abs(layer.naturalHeight * layer.scaleY) / 8) *
-                    8,
+                  Math.round(Math.abs(layer.naturalHeight * layer.scaleY) / 8) * 8,
                 );
                 setParam("width", w);
                 setParam("height", h);
@@ -189,9 +171,7 @@ export function LayerPanel() {
       {/* Mask objects */}
       {maskLayers.length > 0 && (
         <>
-          <p className="text-2xs text-muted-foreground uppercase tracking-wider px-1 pt-1">
-            Masks
-          </p>
+          <p className="text-2xs text-muted-foreground uppercase tracking-wider px-1 pt-1">Masks</p>
           {maskLayers.map((layer) => {
             const isActive = layer.id === activeLayerId;
             return (

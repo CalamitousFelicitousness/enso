@@ -50,7 +50,9 @@ export function InheritableTextInput({
           "pointer-events-none absolute -left-1.5 top-2.5 size-1 rounded-full transition-colors " +
           (isOverride ? "bg-primary" : "bg-muted-foreground/30")
         }
-        title={isOverride ? "Override (clear field to revert to inherit)" : "Inheriting from defaults"}
+        title={
+          isOverride ? "Override (clear field to revert to inherit)" : "Inheriting from defaults"
+        }
       />
       <ParamLabel className="text-2xs text-muted-foreground" tooltip={tooltip}>
         {label}

@@ -53,18 +53,17 @@ export function CommandBar({
   const [searchFocused, setSearchFocused] = useState(false);
 
   return (
-    <div
-      className="flex items-stretch rounded-lg overflow-hidden border dark:border-white/[0.06] border-black/[0.06]"
-    >
+    <div className="flex items-stretch rounded-lg overflow-hidden border dark:border-white/[0.06] border-black/[0.06]">
       {/* Filter zone */}
       <div className="flex items-center px-1.5 dark:bg-white/[0.02] bg-black/[0.02]">
         <button
           type="button"
           onClick={onFilterToggle}
           className={`size-8 flex items-center justify-center rounded-md transition-all relative
-            ${filterOpen
-              ? "text-primary drop-shadow-[0_0_5px_oklch(from_var(--primary)_l_c_h_/_0.5)]"
-              : "text-muted-foreground/50 hover:text-primary"
+            ${
+              filterOpen
+                ? "text-primary drop-shadow-[0_0_5px_oklch(from_var(--primary)_l_c_h_/_0.5)]"
+                : "text-muted-foreground/50 hover:text-primary"
             }`}
         >
           {filterOpen ? (
@@ -84,17 +83,11 @@ export function CommandBar({
       <div
         className="w-px self-stretch transition-all duration-200"
         style={{
-          background: searchFocused
-            ? "oklch(from var(--primary) l c h / 0.4)"
-            : undefined,
-          boxShadow: searchFocused
-            ? "0 0 6px oklch(from var(--primary) l c h / 0.3)"
-            : "none",
+          background: searchFocused ? "oklch(from var(--primary) l c h / 0.4)" : undefined,
+          boxShadow: searchFocused ? "0 0 6px oklch(from var(--primary) l c h / 0.3)" : "none",
         }}
       >
-        {!searchFocused && (
-          <div className="size-full dark:bg-white/[0.06] bg-black/[0.06]" />
-        )}
+        {!searchFocused && <div className="size-full dark:bg-white/[0.06] bg-black/[0.06]" />}
       </div>
 
       {/* Search zone */}
@@ -136,17 +129,11 @@ export function CommandBar({
       <div
         className="w-px self-stretch transition-all duration-200"
         style={{
-          background: searchFocused
-            ? "oklch(from var(--primary) l c h / 0.4)"
-            : undefined,
-          boxShadow: searchFocused
-            ? "0 0 6px oklch(from var(--primary) l c h / 0.3)"
-            : "none",
+          background: searchFocused ? "oklch(from var(--primary) l c h / 0.4)" : undefined,
+          boxShadow: searchFocused ? "0 0 6px oklch(from var(--primary) l c h / 0.3)" : "none",
         }}
       >
-        {!searchFocused && (
-          <div className="size-full dark:bg-white/[0.06] bg-black/[0.06]" />
-        )}
+        {!searchFocused && <div className="size-full dark:bg-white/[0.06] bg-black/[0.06]" />}
       </div>
 
       {/* Action zone */}
@@ -164,17 +151,10 @@ export function CommandBar({
           <DropdownMenuContent align="end" className="min-w-[120px]">
             <DropdownMenuLabel>Sort by</DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuRadioGroup
-              value={sort}
-              onValueChange={(v) => onSortChange(v as SortMode)}
-            >
+            <DropdownMenuRadioGroup value={sort} onValueChange={(v) => onSortChange(v as SortMode)}>
               <DropdownMenuRadioItem value="name">Name</DropdownMenuRadioItem>
-              <DropdownMenuRadioItem value="base-model">
-                Base Model
-              </DropdownMenuRadioItem>
-              <DropdownMenuRadioItem value="recent">
-                Recent
-              </DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="base-model">Base Model</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="recent">Recent</DropdownMenuRadioItem>
             </DropdownMenuRadioGroup>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -203,9 +183,7 @@ export function CommandBar({
           onClick={onRefresh}
           className="size-8 flex items-center justify-center rounded-md text-muted-foreground/50 hover:text-primary hover:drop-shadow-[0_0_5px_oklch(from_var(--primary)_l_c_h_/_0.5)] transition-all disabled:opacity-50"
         >
-          <RefreshCw
-            className={`size-3.5 ${isRefreshPending ? "animate-spin" : ""}`}
-          />
+          <RefreshCw className={`size-3.5 ${isRefreshPending ? "animate-spin" : ""}`} />
         </button>
       </div>
     </div>

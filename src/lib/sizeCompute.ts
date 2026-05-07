@@ -7,14 +7,22 @@ export function snapTo8(value: number): number {
   return Math.round(value / 8) * 8;
 }
 
-export function computeScaledSize(frameW: number, frameH: number, scaleFactor: number): { width: number; height: number } {
+export function computeScaledSize(
+  frameW: number,
+  frameH: number,
+  scaleFactor: number,
+): { width: number; height: number } {
   return {
     width: Math.max(64, snapTo8(frameW * scaleFactor)),
     height: Math.max(64, snapTo8(frameH * scaleFactor)),
   };
 }
 
-export function computeMegapixelSize(frameW: number, frameH: number, megapixelTarget: number): { width: number; height: number } {
+export function computeMegapixelSize(
+  frameW: number,
+  frameH: number,
+  megapixelTarget: number,
+): { width: number; height: number } {
   const targetPixels = megapixelTarget * 1_000_000;
   const currentPixels = frameW * frameH;
   if (currentPixels === 0) return { width: 512, height: 512 };
@@ -33,9 +41,12 @@ export function resolveGenerationSize(
   megapixelTarget: number,
 ): { width: number; height: number } {
   switch (sizeMode) {
-    case "scale": return computeScaledSize(frameW, frameH, scaleFactor);
-    case "megapixel": return computeMegapixelSize(frameW, frameH, megapixelTarget);
-    default: return { width: frameW, height: frameH };
+    case "scale":
+      return computeScaledSize(frameW, frameH, scaleFactor);
+    case "megapixel":
+      return computeMegapixelSize(frameW, frameH, megapixelTarget);
+    default:
+      return { width: frameW, height: frameH };
   }
 }
 
@@ -65,7 +76,12 @@ export function resolveOutputSize(
   return base;
 }
 
-export function containFit(w: number, h: number, boxW: number, boxH: number): { width: number; height: number } {
+export function containFit(
+  w: number,
+  h: number,
+  boxW: number,
+  boxH: number,
+): { width: number; height: number } {
   if (w === 0 || h === 0) return { width: boxW, height: boxH };
   const scale = Math.min(boxW / w, boxH / h);
   return { width: Math.round(w * scale), height: Math.round(h * scale) };

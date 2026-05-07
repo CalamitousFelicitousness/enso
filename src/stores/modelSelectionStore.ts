@@ -54,7 +54,13 @@ export const useModelSelectionStore = create<ModelSelectionState>()(
       name: "enso-model-selection",
       merge: (persisted, current) => {
         const p = persisted as Partial<ModelSelectionState> | undefined;
-        return { ...current, ...p, selectLocal: current.selectLocal, selectCloud: current.selectCloud, clear: current.clear };
+        return {
+          ...current,
+          ...p,
+          selectLocal: current.selectLocal,
+          selectCloud: current.selectCloud,
+          clear: current.clear,
+        };
       },
     },
   ),

@@ -40,9 +40,7 @@ export interface IdbListDb<T extends { id: string }> {
   clear(): Promise<void>;
 }
 
-export function createIdbListDb<T extends { id: string }>(
-  config: ListDbConfig<T>,
-): IdbListDb<T> {
+export function createIdbListDb<T extends { id: string }>(config: ListDbConfig<T>): IdbListDb<T> {
   const { dbName, storeName, sortKey } = config;
   const DB_VERSION = 1;
   let dbPromise: Promise<IDBDatabase> | null = null;

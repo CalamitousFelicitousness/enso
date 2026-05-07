@@ -31,23 +31,27 @@ export function extractFrameFromVideo(videoUrl: string, time: number): Promise<B
       video.currentTime = clampedTime;
     });
 
-    video.addEventListener("seeked", () => {
-      const canvas = document.createElement("canvas");
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      const ctx = canvas.getContext("2d");
-      if (!ctx) {
-        cleanup();
-        reject(new Error("Canvas 2D context unavailable"));
-        return;
-      }
-      ctx.drawImage(video, 0, 0);
-      canvas.toBlob((blob) => {
-        cleanup();
-        if (blob) resolve(blob);
-        else reject(new Error("Failed to capture frame"));
-      }, "image/png");
-    }, { once: true });
+    video.addEventListener(
+      "seeked",
+      () => {
+        const canvas = document.createElement("canvas");
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+          cleanup();
+          reject(new Error("Canvas 2D context unavailable"));
+          return;
+        }
+        ctx.drawImage(video, 0, 0);
+        canvas.toBlob((blob) => {
+          cleanup();
+          if (blob) resolve(blob);
+          else reject(new Error("Failed to capture frame"));
+        }, "image/png");
+      },
+      { once: true },
+    );
 
     video.src = videoUrl;
   });
@@ -63,8 +67,12 @@ export async function sendFrameToVideoInit(blob: Blob) {
   const objectUrl = URL.createObjectURL(file);
   const img = new window.Image();
   img.src = objectUrl;
-  await new Promise<void>((r) => { img.onload = () => r(); });
-  useVideoCanvasStore.getState().setFrame("init", file, base64, objectUrl, img.naturalWidth, img.naturalHeight);
+  await new Promise<void>((r) => {
+    img.onload = () => r();
+  });
+  useVideoCanvasStore
+    .getState()
+    .setFrame("init", file, base64, objectUrl, img.naturalWidth, img.naturalHeight);
   useUiStore.getState().setNavView("video");
 }
 
@@ -74,8 +82,12 @@ export async function sendFrameToVideoLast(blob: Blob) {
   const objectUrl = URL.createObjectURL(file);
   const img = new window.Image();
   img.src = objectUrl;
-  await new Promise<void>((r) => { img.onload = () => r(); });
-  useVideoCanvasStore.getState().setFrame("last", file, base64, objectUrl, img.naturalWidth, img.naturalHeight);
+  await new Promise<void>((r) => {
+    img.onload = () => r();
+  });
+  useVideoCanvasStore
+    .getState()
+    .setFrame("last", file, base64, objectUrl, img.naturalWidth, img.naturalHeight);
   useUiStore.getState().setNavView("video");
 }
 
@@ -96,8 +108,12 @@ export async function sendImageToCanvas(file: File) {
   const objectUrl = URL.createObjectURL(file);
   const img = new window.Image();
   img.src = objectUrl;
-  await new Promise<void>((r) => { img.onload = () => r(); });
-  useCanvasStore.getState().addImageLayer(file, base64, objectUrl, img.naturalWidth, img.naturalHeight);
+  await new Promise<void>((r) => {
+    img.onload = () => r();
+  });
+  useCanvasStore
+    .getState()
+    .addImageLayer(file, base64, objectUrl, img.naturalWidth, img.naturalHeight);
   useUiStore.getState().setNavView("images");
 }
 
@@ -213,14 +229,20 @@ export function restoreVideoSettings(params: VideoWireParams) {
   }
 }
 
-export async function sendResultToCanvas(result: { images: string[] }, imageIndex: number): Promise<void> {
+export async function sendResultToCanvas(
+  result: { images: string[] },
+  imageIndex: number,
+): Promise<void> {
   const raw = result.images[imageIndex];
   const src = resolveImageSrc(raw);
   const file = await fetchRemoteImage(src, "result.png");
   await sendImageToCanvas(file);
 }
 
-export async function sendResultToUpscale(result: { images: string[] }, imageIndex: number): Promise<void> {
+export async function sendResultToUpscale(
+  result: { images: string[] },
+  imageIndex: number,
+): Promise<void> {
   const raw = result.images[imageIndex];
   const src = resolveImageSrc(raw);
   const res = await fetch(src);
@@ -235,7 +257,12 @@ export async function payloadToFile(payload: DragPayload): Promise<File> {
       const raw = result.images[payload.imageIndex];
       if (raw) {
         const src = resolveImageSrc(raw);
-        if (src.startsWith("data:") || src.startsWith("blob:") || src.startsWith("/") || src.startsWith("http")) {
+        if (
+          src.startsWith("data:") ||
+          src.startsWith("blob:") ||
+          src.startsWith("/") ||
+          src.startsWith("http")
+        ) {
           return fetchRemoteImage(src, "result.png");
         }
         // Raw base64 (no data: prefix)
@@ -245,7 +272,10 @@ export async function payloadToFile(payload: DragPayload): Promise<File> {
   }
 
   if (payload.type === "gallery-image" && payload.filePath) {
-    return fetchRemoteImage(`/file=${payload.filePath}`, payload.filePath.split("/").pop() ?? "gallery.png");
+    return fetchRemoteImage(
+      `/file=${payload.filePath}`,
+      payload.filePath.split("/").pop() ?? "gallery.png",
+    );
   }
 
   throw new Error("Cannot resolve drag payload to file");

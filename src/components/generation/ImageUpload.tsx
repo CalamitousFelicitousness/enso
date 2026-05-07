@@ -87,14 +87,8 @@ export function ImageUpload({
 
   if (image && preview) {
     return (
-      <div
-        className={`relative ${size} rounded-md overflow-hidden border border-border group`}
-      >
-        <img
-          src={preview}
-          alt="Upload preview"
-          className="w-full h-full object-cover"
-        />
+      <div className={`relative ${size} rounded-md overflow-hidden border border-border group`}>
+        <img src={preview} alt="Upload preview" className="w-full h-full object-cover" />
 
         <Button
           variant="destructive"

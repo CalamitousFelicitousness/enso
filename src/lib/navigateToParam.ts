@@ -14,10 +14,17 @@ function waitForElement(selector: string, timeout = 500): Promise<Element | null
   const existing = document.querySelector(selector);
   if (existing) return Promise.resolve(existing);
   return new Promise((resolve) => {
-    const timer = setTimeout(() => { observer.disconnect(); resolve(null); }, timeout);
+    const timer = setTimeout(() => {
+      observer.disconnect();
+      resolve(null);
+    }, timeout);
     const observer = new MutationObserver(() => {
       const el = document.querySelector(selector);
-      if (el) { clearTimeout(timer); observer.disconnect(); resolve(el); }
+      if (el) {
+        clearTimeout(timer);
+        observer.disconnect();
+        resolve(el);
+      }
     });
     observer.observe(document.body, { childList: true, subtree: true });
   });
@@ -55,7 +62,9 @@ export async function navigateToParam(target: NavigateTarget) {
   // 5. Expand section if specified
   if (target.section) {
     await waitForElement(`[data-section="${target.section}"]`, 300);
-    document.dispatchEvent(new CustomEvent("param-section-expand", { detail: { section: target.section } }));
+    document.dispatchEvent(
+      new CustomEvent("param-section-expand", { detail: { section: target.section } }),
+    );
   }
 
   // 6. Wait for the param element to appear

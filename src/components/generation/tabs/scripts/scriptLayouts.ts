@@ -3,14 +3,14 @@ export interface ArgGroup {
   args: number[];
   grid?: boolean;
   disabledUnless?: number;
-  argDisabledUnless?: Record<number, number>;  // Per-arg disable: arg index → controller arg index (truthiness check)
-  argRequires?: Record<number, { arg: number; includes: string }>;  // Per-arg disable: arg disabled unless another arg's value includes a substring
+  argDisabledUnless?: Record<number, number>; // Per-arg disable: arg index → controller arg index (truthiness check)
+  argRequires?: Record<number, { arg: number; includes: string }>; // Per-arg disable: arg disabled unless another arg's value includes a substring
 }
 
 export interface ScriptLayout {
   hidden?: number[];
-  headerRow?: number[];  // Arg indices rendered alongside an Enabled toggle in a top row
-  headerArgRequires?: Record<number, { arg: number; includes: string }>;  // Header arg disabled unless another arg's value includes a substring
+  headerRow?: number[]; // Arg indices rendered alongside an Enabled toggle in a top row
+  headerArgRequires?: Record<number, { arg: number; includes: string }>; // Header arg disabled unless another arg's value includes a substring
   groups: ArgGroup[];
 }
 
@@ -32,11 +32,17 @@ export const SCRIPT_LAYOUTS: Record<string, ScriptLayout> = {
   "prompt enhance": {
     hidden: [0, 1],
     headerRow: [2, 15],
-    headerArgRequires: { 15: { arg: 3, includes: "\uf06e" } },  // Use vision disabled unless LLM model has vision symbol
+    headerArgRequires: { 15: { arg: 3, includes: "\uf06e" } }, // Use vision disabled unless LLM model has vision symbol
     groups: [
       { args: [3] },
       { title: "Prompts", args: [4, 5, 6] },
-      { title: "Options", args: [13, 18, 14, 17, 16], grid: true, argDisabledUnless: { 17: 16, 18: 13 }, argRequires: { 13: { arg: 3, includes: "\uf0eb" } } },
+      {
+        title: "Options",
+        args: [13, 18, 14, 17, 16],
+        grid: true,
+        argDisabledUnless: { 17: 16, 18: 13 },
+        argRequires: { 13: { arg: 3, includes: "\uf0eb" } },
+      },
       { title: "Sampling", args: [8, 7, 9, 10, 11, 12], disabledUnless: 8 },
     ],
   },

@@ -123,9 +123,7 @@ function SliderField({
     <div className="flex flex-col gap-1.5">
       <div className="flex items-center justify-between">
         <Label className="text-xs">{label}</Label>
-        <span className="text-3xs text-muted-foreground font-mono tabular-nums">
-          {value}
-        </span>
+        <span className="text-3xs text-muted-foreground font-mono tabular-nums">{value}</span>
       </div>
       <Slider
         value={[value]}

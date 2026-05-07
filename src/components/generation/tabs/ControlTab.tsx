@@ -6,11 +6,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Combobox } from "@/components/ui/combobox";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Plus, Trash2, PenLine } from "lucide-react";
 import type { ControlUnitType } from "@/api/types/control";
 import { UNIT_TYPE_LABELS, EXCLUSIVE_CONTROL_TYPES } from "@/api/types/control";
@@ -25,9 +21,7 @@ function CanvasInputRow() {
   const label = inputRole === "reference" ? "Reference" : "Initial";
   return (
     <div className="flex items-center gap-1.5 p-2 rounded-md border border-border">
-      <span className="text-2xs text-muted-foreground font-mono w-4 shrink-0">
-        1
-      </span>
+      <span className="text-2xs text-muted-foreground font-mono w-4 shrink-0">1</span>
       <span className="text-2xs flex-1">{label}</span>
       <span className="text-2xs text-muted-foreground">Input frame</span>
     </div>
@@ -44,11 +38,7 @@ interface AddInputPopoverProps {
   disabled: boolean;
 }
 
-function AddInputPopover({
-  availableSubTypes,
-  onAdd,
-  disabled,
-}: AddInputPopoverProps) {
+function AddInputPopover({ availableSubTypes, onAdd, disabled }: AddInputPopoverProps) {
   const [open, setOpen] = useState(false);
 
   const handleAdd = useCallback(
@@ -62,12 +52,7 @@ function AddInputPopover({
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button
-          variant="outline"
-          size="sm"
-          className="w-full"
-          disabled={disabled}
-        >
+        <Button variant="outline" size="sm" className="w-full" disabled={disabled}>
           <Plus size={12} className="mr-1" /> Add Input
         </Button>
       </PopoverTrigger>
@@ -85,9 +70,7 @@ function AddInputPopover({
         >
           Reference
         </button>
-        <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">
-          Control
-        </div>
+        <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">Control</div>
         {availableSubTypes.map((st) => (
           <button
             key={st.value}
@@ -119,10 +102,7 @@ export function ControlTab() {
         >
           Re-process on generate
         </Label>
-        <Switch
-          checked={reprocessOnGenerate}
-          onCheckedChange={setAutoUpdateProcessed}
-        />
+        <Switch checked={reprocessOnGenerate} onCheckedChange={setAutoUpdateProcessed} />
       </div>
 
       <div className="flex flex-col gap-1.5">
@@ -152,36 +132,25 @@ interface ControlUnitRowProps {
   canRemove: boolean;
 }
 
-function ControlUnitRow({
-  index,
-  unifiedIndex,
-  canRemove,
-}: ControlUnitRowProps) {
+function ControlUnitRow({ index, unifiedIndex, canRemove }: ControlUnitRowProps) {
   const unit = useControlStore((s) => s.units[index]);
   const units = useControlStore((s) => s.units);
   const setUnitParam = useControlStore((s) => s.setUnitParam);
   const setUnitType = useControlStore((s) => s.setUnitType);
   const removeUnit = useControlStore((s) => s.removeUnit);
   const setImageSource = useControlStore((s) => s.setImageSource);
-  const setSelectedControlFrame = useCanvasStore(
-    (s) => s.setSelectedControlFrame,
-  );
+  const setSelectedControlFrame = useCanvasStore((s) => s.setSelectedControlFrame);
 
   const typeOptions = useMemo(() => {
     const otherLocked =
       units
-        .filter(
-          (u, i) =>
-            i !== index && u.enabled && EXCLUSIVE_CONTROL_TYPES.has(u.unitType),
-        )
+        .filter((u, i) => i !== index && u.enabled && EXCLUSIVE_CONTROL_TYPES.has(u.unitType))
         .map((u) => u.unitType)[0] ?? null;
 
     return UNIT_TYPE_OPTIONS.map((opt) => ({
       ...opt,
       disabled:
-        otherLocked !== null &&
-        EXCLUSIVE_CONTROL_TYPES.has(opt.value) &&
-        opt.value !== otherLocked,
+        otherLocked !== null && EXCLUSIVE_CONTROL_TYPES.has(opt.value) && opt.value !== otherLocked,
     }));
   }, [units, index]);
 
@@ -209,8 +178,7 @@ function ControlUnitRow({
   }, [setSelectedControlFrame, index, unit.imageSource]);
 
   const showEditOnCanvas =
-    unit.enabled &&
-    (unit.imageSource === "separate" || unit.imageSource.startsWith("unit:"));
+    unit.enabled && (unit.imageSource === "separate" || unit.imageSource.startsWith("unit:"));
 
   return (
     <div className="flex flex-col gap-1.5 p-2 rounded-md border border-border">
@@ -230,9 +198,7 @@ function ControlUnitRow({
           <Label className="text-2xs text-muted-foreground">On</Label>
           <Switch
             checked={unit.enabled}
-            onCheckedChange={(checked) =>
-              setUnitParam(index, "enabled", checked)
-            }
+            onCheckedChange={(checked) => setUnitParam(index, "enabled", checked)}
           />
         </div>
         {canRemove && (

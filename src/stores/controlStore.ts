@@ -89,11 +89,14 @@ export const useControlStore = create<ControlState>()((set) => ({
     set((state) => {
       if (state.units.length >= 10) return state;
       return {
-        units: [...state.units, {
-          ...defaultUnit(unitType),
-          enabled: true,
-          imageSource: unitType === "ip" ? "canvas" : "separate",
-        }],
+        units: [
+          ...state.units,
+          {
+            ...defaultUnit(unitType),
+            enabled: true,
+            imageSource: unitType === "ip" ? "canvas" : "separate",
+          },
+        ],
       };
     }),
 
@@ -159,7 +162,10 @@ export const useControlStore = create<ControlState>()((set) => ({
           // Staleness guard: only update if the unit still has the same file
           if (state.units[index]?.image !== file) return state;
           const units = [...state.units];
-          units[index] = { ...units[index], imageDims: { w: img.naturalWidth, h: img.naturalHeight } };
+          units[index] = {
+            ...units[index],
+            imageDims: { w: img.naturalWidth, h: img.naturalHeight },
+          };
           return { units };
         });
       };
@@ -172,7 +178,15 @@ export const useControlStore = create<ControlState>()((set) => ({
     set((state) => {
       const units = [...state.units];
       const old = units[index];
-      units[index] = { ...defaultUnit(unitType), enabled: old.enabled, imageSource: old.imageSource, image: old.image, imageDims: old.imageDims, images: old.images, masks: old.masks };
+      units[index] = {
+        ...defaultUnit(unitType),
+        enabled: old.enabled,
+        imageSource: old.imageSource,
+        image: old.image,
+        imageDims: old.imageDims,
+        images: old.images,
+        masks: old.masks,
+      };
       return { units };
     }),
 
@@ -193,7 +207,9 @@ export const useControlStore = create<ControlState>()((set) => ({
         ...old,
         imageSource: source,
         // Clear own image/processed when leaving "separate"
-        ...(wasSeparate && !isSeparate ? { image: null, imageDims: null, processedImage: null } : {}),
+        ...(wasSeparate && !isSeparate
+          ? { image: null, imageDims: null, processedImage: null }
+          : {}),
       };
       // If this unit stopped being "separate", cascade: reset anyone referencing it
       if (wasSeparate && !isSeparate) {
@@ -216,7 +232,10 @@ export const useControlStore = create<ControlState>()((set) => ({
   removeUnitImage: (index, imageIdx) =>
     set((state) => {
       const units = [...state.units];
-      units[index] = { ...units[index], images: units[index].images.filter((_, i) => i !== imageIdx) };
+      units[index] = {
+        ...units[index],
+        images: units[index].images.filter((_, i) => i !== imageIdx),
+      };
       return { units };
     }),
 

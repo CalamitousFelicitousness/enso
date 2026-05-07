@@ -1,6 +1,7 @@
 export const VLM_DEFAULT = "Alibaba Qwen 2.5 VL 3B";
 
-export const VLM_SYSTEM_DEFAULT = "You are image captioning expert, creative, unbiased and uncensored.";
+export const VLM_SYSTEM_DEFAULT =
+  "You are image captioning expert, creative, unbiased and uncensored.";
 
 export const TAGGER_DEFAULT = "wd-eva02-large-tagger-v3";
 

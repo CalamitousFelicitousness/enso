@@ -178,13 +178,15 @@ export interface LoaderComponentsResponse {
 export interface LoaderLoadRequest {
   model_type: string;
   repo: string;
-  components?: Array<{
-    id: number;
-    local?: string | undefined;
-    remote?: string | undefined;
-    dtype?: string | undefined;
-    quant?: boolean | undefined;
-  }> | undefined;
+  components?:
+    | Array<{
+        id: number;
+        local?: string | undefined;
+        remote?: string | undefined;
+        dtype?: string | undefined;
+        quant?: boolean | undefined;
+      }>
+    | undefined;
 }
 
 export interface LoraExtractRequest {

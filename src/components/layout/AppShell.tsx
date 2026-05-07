@@ -5,11 +5,7 @@ import { MainCanvas } from "./MainCanvas";
 import { LeftTabPanel } from "./LeftTabPanel";
 import { RightTabRail } from "@/components/aside/RightTabRail";
 import { RightTabPanel } from "@/components/aside/RightTabPanel";
-import {
-  ResizablePanelGroup,
-  ResizablePanel,
-  ResizableHandle,
-} from "@/components/ui/resizable";
+import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
 import { useUiStore } from "@/stores/uiStore";
 import { useHistoryInit } from "@/hooks/useHistoryInit";
 import { useJobTracker } from "@/hooks/useJobTracker";
@@ -33,12 +29,8 @@ export function AppShell() {
   useModelSync();
 
   useShortcut("toggle-left-rail", () => useUiStore.getState().toggleLeftRail());
-  useShortcut("toggle-left-panel", () =>
-    useUiStore.getState().toggleLeftPanel(),
-  );
-  useShortcut("toggle-right-panel", () =>
-    useUiStore.getState().toggleRightPanel(),
-  );
+  useShortcut("toggle-left-panel", () => useUiStore.getState().toggleLeftPanel());
+  useShortcut("toggle-right-panel", () => useUiStore.getState().toggleRightPanel());
 
   const leftPanelCollapsed = useUiStore((s) => s.leftPanelCollapsed);
   const viewCollapsed = useUiStore((s) => s.viewCollapsed);
@@ -64,11 +56,7 @@ export function AppShell() {
             {!leftHidden && <LeftTabPanel />}
           </aside>
 
-          <ResizablePanelGroup
-            orientation="horizontal"
-            id="layout-main"
-            className="flex-1"
-          >
+          <ResizablePanelGroup orientation="horizontal" id="layout-main" className="flex-1">
             <ResizablePanel id="panel-main" minSize="30%">
               <main className="h-full overflow-auto">
                 <MainCanvas />
@@ -77,12 +65,7 @@ export function AppShell() {
             {!rightPanelCollapsed && (
               <>
                 <ResizableHandle />
-                <ResizablePanel
-                  id="panel-right"
-                  minSize={280}
-                  maxSize="70%"
-                  defaultSize="30%"
-                >
+                <ResizablePanel id="panel-right" minSize={280} maxSize="70%" defaultSize="30%">
                   <RightTabPanel />
                 </ResizablePanel>
               </>

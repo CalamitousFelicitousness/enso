@@ -1,10 +1,4 @@
-import {
-  Folder,
-  FolderOpen,
-  ChevronRight,
-  ChevronDown,
-  Loader2,
-} from "lucide-react";
+import { Folder, FolderOpen, ChevronRight, ChevronDown, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface FolderCardProps {
@@ -69,10 +63,7 @@ export function FolderCard({
       >
         <Icon
           size={13}
-          className={cn(
-            "flex-shrink-0",
-            active ? "text-primary" : "text-muted-foreground",
-          )}
+          className={cn("flex-shrink-0", active ? "text-primary" : "text-muted-foreground")}
         />
 
         <span className="truncate">{displayLabel}</span>

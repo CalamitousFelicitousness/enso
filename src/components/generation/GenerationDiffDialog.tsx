@@ -12,10 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import {
-  useGenerationStore,
-  type GenerationResult,
-} from "@/stores/generationStore";
+import { useGenerationStore, type GenerationResult } from "@/stores/generationStore";
 import { extractParamsFromResult } from "@/lib/requestBuilder";
 import type { GenerationState } from "@/stores/generationStore";
 
@@ -122,12 +119,7 @@ const DIFF_GROUPS: DiffGroup[] = [
   },
   {
     label: "Detailer",
-    keys: [
-      "detailerEnabled",
-      "detailerOnly",
-      "detailerDefaults",
-      "detailerModels",
-    ],
+    keys: ["detailerEnabled", "detailerOnly", "detailerDefaults", "detailerModels"],
   },
   {
     label: "Latent Corrections",
@@ -193,18 +185,11 @@ function formatValue(v: unknown): string {
   return toDisplayString(v);
 }
 
-export function GenerationDiffDialog({
-  open,
-  onOpenChange,
-  result,
-}: GenerationDiffDialogProps) {
+export function GenerationDiffDialog({ open, onOpenChange, result }: GenerationDiffDialogProps) {
   const storeState = useGenerationStore();
   const setParams = useGenerationStore((s) => s.setParams);
 
-  const resultParams = useMemo(
-    () => (result ? extractParamsFromResult(result) : {}),
-    [result],
-  );
+  const resultParams = useMemo(() => (result ? extractParamsFromResult(result) : {}), [result]);
 
   const groupedRows = useMemo(() => {
     const current = storeState as unknown as Record<string, unknown>;
@@ -238,9 +223,7 @@ export function GenerationDiffDialog({
       }
     }
     setParams(updates);
-    toast.success(
-      `Applied ${totalChanged} changed parameter${totalChanged !== 1 ? "s" : ""}`,
-    );
+    toast.success(`Applied ${totalChanged} changed parameter${totalChanged !== 1 ? "s" : ""}`);
     onOpenChange(false);
   }, [groupedRows, totalChanged, setParams, onOpenChange]);
 
@@ -257,7 +240,9 @@ export function GenerationDiffDialog({
       <DialogContent className="max-w-xl">
         <DialogHeader>
           <DialogTitle>Compare Settings ({totalChanged} changed)</DialogTitle>
-          <DialogDescription className="sr-only">Side-by-side comparison of generation parameters</DialogDescription>
+          <DialogDescription className="sr-only">
+            Side-by-side comparison of generation parameters
+          </DialogDescription>
         </DialogHeader>
         <ScrollArea className="max-h-[60vh]">
           <table className="w-full text-2xs">
@@ -317,19 +302,10 @@ function GroupSection({
         </td>
       </tr>
       {rows.map((row) => (
-        <tr
-          key={row.key}
-          className={
-            row.changed ? "bg-amber-500/10" : "text-muted-foreground/60"
-          }
-        >
+        <tr key={row.key} className={row.changed ? "bg-amber-500/10" : "text-muted-foreground/60"}>
           <td className="py-0.5 px-2 font-mono">{row.key}</td>
-          <td className="py-0.5 px-2 max-w-32 truncate">
-            {formatValue(row.current)}
-          </td>
-          <td className="py-0.5 px-2 max-w-32 truncate font-medium">
-            {formatValue(row.result)}
-          </td>
+          <td className="py-0.5 px-2 max-w-32 truncate">{formatValue(row.current)}</td>
+          <td className="py-0.5 px-2 max-w-32 truncate font-medium">{formatValue(row.result)}</td>
           <td className="py-0.5 px-1">
             {row.changed && (
               <button

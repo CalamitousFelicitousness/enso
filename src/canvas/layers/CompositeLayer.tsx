@@ -6,13 +6,7 @@
 // the same visual result. Changes to transform logic must update both.
 
 import { useEffect, useRef, useCallback } from "react";
-import {
-  Layer,
-  Group,
-  Image as KonvaImage,
-  Transformer,
-  Line,
-} from "react-konva";
+import { Layer, Group, Image as KonvaImage, Transformer, Line } from "react-konva";
 import {
   useCanvasStore,
   type ImageLayer as ImageLayerType,
@@ -39,18 +33,13 @@ export function CompositeLayer({ trRef, displayScale }: CompositeLayerProps) {
 
   const maskVisible = useCanvasStore((s) => s.maskVisible);
   const maskColor = useCanvasStore((s) => s.maskColor);
-  const maskAlpha =
-    maskColor.length > 7 ? parseInt(maskColor.slice(7, 9), 16) / 255 : 1;
+  const maskAlpha = maskColor.length > 7 ? parseInt(maskColor.slice(7, 9), 16) / 255 : 1;
 
   const imageMap = useRef<Map<string, HTMLImageElement>>(new Map());
   const nodeMap = useRef<Map<string, Konva.Image>>(new Map());
 
-  const imageLayers = layers.filter(
-    (l) => l.type === "image",
-  ) as ImageLayerType[];
-  const maskLayers = layers.filter(
-    (l) => l.type === "mask",
-  ) as MaskObjectLayer[];
+  const imageLayers = layers.filter((l) => l.type === "image") as ImageLayerType[];
+  const maskLayers = layers.filter((l) => l.type === "mask") as MaskObjectLayer[];
 
   // Load/unload HTMLImageElements as layers change (images + masks)
   useEffect(() => {
@@ -135,16 +124,13 @@ export function CompositeLayer({ trRef, displayScale }: CompositeLayerProps) {
     [activeTool, setActiveLayer],
   );
 
-  const setNodeRef = useCallback(
-    (layerId: string, node: Konva.Image | null) => {
-      if (node) {
-        nodeMap.current.set(layerId, node);
-      } else {
-        nodeMap.current.delete(layerId);
-      }
-    },
-    [],
-  );
+  const setNodeRef = useCallback((layerId: string, node: Konva.Image | null) => {
+    if (node) {
+      nodeMap.current.set(layerId, node);
+    } else {
+      nodeMap.current.delete(layerId);
+    }
+  }, []);
 
   return (
     <Layer>
@@ -212,9 +198,7 @@ export function CompositeLayer({ trRef, displayScale }: CompositeLayerProps) {
           <Line
             key={i}
             points={
-              g.orientation === "v"
-                ? [g.pos, -5000, g.pos, 5000]
-                : [-5000, g.pos, 5000, g.pos]
+              g.orientation === "v" ? [g.pos, -5000, g.pos, 5000] : [-5000, g.pos, 5000, g.pos]
             }
             stroke="#22d3ee"
             strokeWidth={1}

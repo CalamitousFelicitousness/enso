@@ -22,9 +22,7 @@ export function OpenClipSettings() {
           value={s.clipModel}
           onValueChange={(v) => set({ clipModel: v })}
           options={clipModelList}
-          placeholder={
-            clipModelList.length === 0 ? "Loading..." : "Select model"
-          }
+          placeholder={clipModelList.length === 0 ? "Loading..." : "Select model"}
           className="w-full text-xs"
         />
       </div>
@@ -51,11 +49,7 @@ export function OpenClipSettings() {
 
       <div className="flex items-center justify-between">
         <Label className="text-xs">Analyze</Label>
-        <Switch
-          size="sm"
-          checked={s.analyze}
-          onCheckedChange={(v) => set({ analyze: v })}
-        />
+        <Switch size="sm" checked={s.analyze} onCheckedChange={(v) => set({ analyze: v })} />
       </div>
 
       <SectionLeader title="Advanced Options" collapsible defaultCollapsed>
@@ -138,9 +132,7 @@ function SliderField({
     <div className="flex flex-col gap-1.5">
       <div className="flex items-center justify-between">
         <Label className="text-xs">{label}</Label>
-        <span className="text-3xs text-muted-foreground font-mono tabular-nums">
-          {value}
-        </span>
+        <span className="text-3xs text-muted-foreground font-mono tabular-nums">{value}</span>
       </div>
       <Slider
         value={[value]}

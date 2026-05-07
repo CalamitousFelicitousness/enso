@@ -4,7 +4,9 @@ import type { DragPayload } from "@/stores/dragStore";
 
 export function useDragSource(payload: DragPayload) {
   const payloadRef = useRef(payload);
-  useEffect(() => { payloadRef.current = payload; });
+  useEffect(() => {
+    payloadRef.current = payload;
+  });
 
   const onDragStart = useCallback((e: React.DragEvent) => {
     const p = payloadRef.current;

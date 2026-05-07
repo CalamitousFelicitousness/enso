@@ -52,19 +52,13 @@ export function PromptEnhancePreview({
 
           if (seg.type === "added")
             return (
-              <span
-                key={i}
-                className="bg-green-500/20 text-green-300 rounded px-0.5"
-              >
+              <span key={i} className="bg-green-500/20 text-green-300 rounded px-0.5">
                 {seg.text}
               </span>
             );
 
           return (
-            <span
-              key={i}
-              className="bg-red-500/20 text-red-300 line-through rounded px-0.5"
-            >
+            <span key={i} className="bg-red-500/20 text-red-300 line-through rounded px-0.5">
               {seg.text}
             </span>
           );
@@ -84,11 +78,7 @@ export function PromptEnhancePreview({
           disabled={isPending}
           className="flex items-center gap-1 px-2 py-1 rounded text-2xs bg-muted text-muted-foreground hover:bg-muted/80 transition-colors disabled:opacity-50"
         >
-          {isPending ? (
-            <Loader2 size={12} className="animate-spin" />
-          ) : (
-            <RotateCcw size={12} />
-          )}{" "}
+          {isPending ? <Loader2 size={12} className="animate-spin" /> : <RotateCcw size={12} />}{" "}
           Retry
         </button>
         <button

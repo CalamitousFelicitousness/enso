@@ -9,12 +9,7 @@ export function SystemInfoSubTab() {
 
   return (
     <div className="space-y-4">
-      <Button
-        size="sm"
-        onClick={() => void refetch()}
-        disabled={isFetching}
-        className="w-full"
-      >
+      <Button size="sm" onClick={() => void refetch()} disabled={isFetching} className="w-full">
         {isFetching ? (
           <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
         ) : (

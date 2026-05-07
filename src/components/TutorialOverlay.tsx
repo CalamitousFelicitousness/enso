@@ -12,9 +12,7 @@ function useTutorialAutoStart() {
   useEffect(() => {
     if (completed || active || __VERCEL__) return;
     const keys = Object.keys(localStorage);
-    const hasPriorData = keys.some(
-      (k) => k.startsWith("enso-") && k !== "enso-tutorial",
-    );
+    const hasPriorData = keys.some((k) => k.startsWith("enso-") && k !== "enso-tutorial");
     if (hasPriorData) return;
     const timer = setTimeout(start, 800);
     return () => clearTimeout(timer);
@@ -37,9 +35,7 @@ function useTargetRect(
   const observerRef = useRef<ResizeObserver | null>(null);
 
   const measure = useCallback(() => {
-    const found = document.querySelector<HTMLElement>(
-      `[data-tour="${target}"]`,
-    );
+    const found = document.querySelector<HTMLElement>(`[data-tour="${target}"]`);
     if (found) {
       const r = found.getBoundingClientRect();
       setRect({ top: r.top, left: r.left, width: r.width, height: r.height });
@@ -53,9 +49,7 @@ function useTargetRect(
   useEffect(() => {
     if (!active) return;
     requestAnimationFrame(measure);
-    const found = document.querySelector<HTMLElement>(
-      `[data-tour="${target}"]`,
-    );
+    const found = document.querySelector<HTMLElement>(`[data-tour="${target}"]`);
     if (found) {
       observerRef.current = new ResizeObserver(measure);
       observerRef.current.observe(found);
@@ -152,12 +146,7 @@ function TutorialOverlayInner() {
             />
           </mask>
         </defs>
-        <rect
-          width="100%"
-          height="100%"
-          fill="rgba(0,0,0,0.6)"
-          mask="url(#tutorial-mask)"
-        />
+        <rect width="100%" height="100%" fill="rgba(0,0,0,0.6)" mask="url(#tutorial-mask)" />
       </svg>
 
       {/* Tooltip card */}
@@ -174,9 +163,7 @@ function TutorialOverlayInner() {
           {currentStep + 1} of {TUTORIAL_STEPS.length}
         </div>
         <h3 className="text-sm font-semibold mb-1">{step.title}</h3>
-        <p className="text-xs text-muted-foreground mb-4 leading-relaxed">
-          {step.description}
-        </p>
+        <p className="text-xs text-muted-foreground mb-4 leading-relaxed">{step.description}</p>
         <div className="flex items-center justify-between">
           <button
             type="button"
@@ -187,12 +174,7 @@ function TutorialOverlayInner() {
           </button>
           <div className="flex gap-2">
             {currentStep > 0 && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={back}
-                className="text-xs h-7"
-              >
+              <Button variant="outline" size="sm" onClick={back} className="text-xs h-7">
                 Back
               </Button>
             )}

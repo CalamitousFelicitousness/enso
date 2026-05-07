@@ -53,8 +53,12 @@ export function useAllCloudModels() {
 export function useAddProvider() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (params: { name: string; preset: ProviderPreset; base_url: string; key?: string }) =>
-      api.post("/sdapi/v2/cloud/providers", params),
+    mutationFn: (params: {
+      name: string;
+      preset: ProviderPreset;
+      base_url: string;
+      key?: string;
+    }) => api.post("/sdapi/v2/cloud/providers", params),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["cloud-providers"] });
     },
@@ -64,8 +68,7 @@ export function useAddProvider() {
 export function useRemoveProvider() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (providerId: string) =>
-      api.delete(`/sdapi/v2/cloud/providers/${providerId}`),
+    mutationFn: (providerId: string) => api.delete(`/sdapi/v2/cloud/providers/${providerId}`),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["cloud-providers"] });
       void queryClient.invalidateQueries({ queryKey: ["cloud-models-all"] });
@@ -108,6 +111,8 @@ export function useRefreshProvider() {
 export function useValidateProvider() {
   return useMutation({
     mutationFn: (providerId: string) =>
-      api.post<{ valid: boolean; error?: string }>(`/sdapi/v2/cloud/providers/${providerId}/validate`),
+      api.post<{ valid: boolean; error?: string }>(
+        `/sdapi/v2/cloud/providers/${providerId}/validate`,
+      ),
   });
 }

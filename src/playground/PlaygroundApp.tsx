@@ -36,9 +36,7 @@ export function PlaygroundApp() {
         {/* Header */}
         <header className="sticky top-0 z-[100] bg-background border-b border-border/50 px-6 py-3 space-y-3">
           <div className="flex items-center gap-6">
-            <h1 className="text-sm font-medium tracking-wide shrink-0">
-              Enso Playground
-            </h1>
+            <h1 className="text-sm font-medium tracking-wide shrink-0">Enso Playground</h1>
 
             {/* Theme mode */}
             <SegmentedControl
@@ -51,7 +49,9 @@ export function PlaygroundApp() {
 
             {/* Accent color */}
             <div className="flex items-center gap-2">
-              <span className="text-3xs text-muted-foreground/60 uppercase tracking-wider">Accent</span>
+              <span className="text-3xs text-muted-foreground/60 uppercase tracking-wider">
+                Accent
+              </span>
               <input
                 type="color"
                 value={theme.accentColor}
@@ -62,7 +62,9 @@ export function PlaygroundApp() {
 
             {/* UI scale */}
             <div className="flex items-center gap-2">
-              <span className="text-3xs text-muted-foreground/60 uppercase tracking-wider">Scale</span>
+              <span className="text-3xs text-muted-foreground/60 uppercase tracking-wider">
+                Scale
+              </span>
               <input
                 type="range"
                 min={8}

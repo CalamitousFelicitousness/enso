@@ -21,13 +21,7 @@ interface MoveToDialogProps {
   onCancel: () => void;
 }
 
-export function MoveToDialog({
-  open,
-  count,
-  isPending,
-  onConfirm,
-  onCancel,
-}: MoveToDialogProps) {
+export function MoveToDialog({ open, count, isPending, onConfirm, onCancel }: MoveToDialogProps) {
   const { data: folders, isLoading } = useBrowserFolders();
   const [selected, setSelected] = useState<string | null>(null);
 
@@ -65,10 +59,7 @@ export function MoveToDialog({
                     : "hover:bg-accent text-foreground border border-transparent",
                 )}
               >
-                <FolderOpen
-                  size={14}
-                  className="flex-shrink-0 text-muted-foreground"
-                />
+                <FolderOpen size={14} className="flex-shrink-0 text-muted-foreground" />
 
                 <span className="truncate">{f.label}</span>
               </button>

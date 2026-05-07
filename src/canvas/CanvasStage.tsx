@@ -108,10 +108,8 @@ export function CanvasStage({ layout, onPickImage }: CanvasStageProps) {
     const availW = containerSize.width - PADDING * 2;
     const availH = containerSize.height - PADDING * 2;
     const scale = Math.min(availW / totalWidth, availH / totalHeight, 1);
-    const x =
-      (containerSize.width - totalWidth * scale) / 2 - totalBounds.minX * scale;
-    const y =
-      (containerSize.height - totalHeight * scale) / 2 + LABEL_HEIGHT * scale;
+    const x = (containerSize.width - totalWidth * scale) / 2 - totalBounds.minX * scale;
+    const y = (containerSize.height - totalHeight * scale) / 2 + LABEL_HEIGHT * scale;
     setViewport({ x, y, scale });
   }, [canvasMode, containerSize, frameW, frameH, totalBounds, setViewport]);
 
@@ -168,57 +166,53 @@ export function CanvasStage({ layout, onPickImage }: CanvasStageProps) {
     <div ref={containerRef} className="relative w-full h-full overflow-hidden">
       {containerSize.width > 0 && containerSize.height > 0 && (
         <>
-        <CanvasBackground
-          width={containerSize.width}
-          height={containerSize.height}
-          viewport={viewport}
-          bus={mainViewportBus}
-        />
-        <Stage
-          ref={stageRef}
-          width={containerSize.width}
-          height={containerSize.height}
-          x={viewport.x}
-          y={viewport.y}
-          scaleX={viewport.scale}
-          scaleY={viewport.scale}
-          onWheel={panZoom.onWheel}
-          onMouseDown={onMouseDown}
-          onMouseMove={onMouseMove}
-          onMouseUp={onMouseUp}
-          onMouseLeave={maskPaint.onMouseLeave}
-          onClick={onClick}
-        >
-          <ControlFrameLayer frames={controlFrames} onPickImage={onPickImage} />
-
-          <CompositeLayer trRef={trRef} displayScale={displayScale} />
-
-          <FrameLayer
-            displayScale={displayScale}
-            onPickImage={onPickImage ? () => onPickImage(-1) : undefined}
+          <CanvasBackground
+            width={containerSize.width}
+            height={containerSize.height}
+            viewport={viewport}
+            bus={mainViewportBus}
           />
+          <Stage
+            ref={stageRef}
+            width={containerSize.width}
+            height={containerSize.height}
+            x={viewport.x}
+            y={viewport.y}
+            scaleX={viewport.scale}
+            scaleY={viewport.scale}
+            onWheel={panZoom.onWheel}
+            onMouseDown={onMouseDown}
+            onMouseMove={onMouseMove}
+            onMouseUp={onMouseUp}
+            onMouseLeave={maskPaint.onMouseLeave}
+            onClick={onClick}
+          >
+            <ControlFrameLayer frames={controlFrames} onPickImage={onPickImage} />
 
-          {inputRole !== "reference" && (
-            <MaskLayer
+            <CompositeLayer trRef={trRef} displayScale={displayScale} />
+
+            <FrameLayer
               displayScale={displayScale}
-              setActiveLineNode={maskPaint.setActiveLineNode}
-              setCursorNode={maskPaint.setCursorNode}
+              onPickImage={onPickImage ? () => onPickImage(-1) : undefined}
             />
-          )}
-          <OutputLayer
-            offsetX={outputX}
-            placeholderWidth={displayW}
-            placeholderHeight={displayH}
-          />
 
-          {showProcessedFrame && (
-            <ProcessedCompositeLayer
-              offsetX={processedX}
-              width={displayW}
-              height={displayH}
+            {inputRole !== "reference" && (
+              <MaskLayer
+                displayScale={displayScale}
+                setActiveLineNode={maskPaint.setActiveLineNode}
+                setCursorNode={maskPaint.setCursorNode}
+              />
+            )}
+            <OutputLayer
+              offsetX={outputX}
+              placeholderWidth={displayW}
+              placeholderHeight={displayH}
             />
-          )}
-        </Stage>
+
+            {showProcessedFrame && (
+              <ProcessedCompositeLayer offsetX={processedX} width={displayW} height={displayH} />
+            )}
+          </Stage>
         </>
       )}
     </div>

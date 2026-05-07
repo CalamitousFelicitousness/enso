@@ -28,11 +28,14 @@ export class WebSocketManager {
   }
 
   connect(): void {
-    if (this.ws?.readyState === WebSocket.OPEN || this.ws?.readyState === WebSocket.CONNECTING) return;
+    if (this.ws?.readyState === WebSocket.OPEN || this.ws?.readyState === WebSocket.CONNECTING)
+      return;
 
     if (this.ticketFn) {
       this.ticketFn()
-        .then((ticket) => this.openSocket(`${this.url}${this.url.includes("?") ? "&" : "?"}ticket=${ticket}`))
+        .then((ticket) =>
+          this.openSocket(`${this.url}${this.url.includes("?") ? "&" : "?"}ticket=${ticket}`),
+        )
         .catch(() => this.openSocket(this.url));
     } else {
       this.openSocket(this.url);
@@ -40,7 +43,8 @@ export class WebSocketManager {
   }
 
   private openSocket(url: string): void {
-    if (this.ws?.readyState === WebSocket.OPEN || this.ws?.readyState === WebSocket.CONNECTING) return;
+    if (this.ws?.readyState === WebSocket.OPEN || this.ws?.readyState === WebSocket.CONNECTING)
+      return;
 
     this.ws = new WebSocket(url);
     this.ws.binaryType = "arraybuffer";
@@ -80,7 +84,10 @@ export class WebSocketManager {
           this.emit("max_retries");
           return;
         }
-        const delay = Math.min(this.reconnectDelay * Math.pow(2, this.reconnectAttempts), this.maxReconnectDelay);
+        const delay = Math.min(
+          this.reconnectDelay * Math.pow(2, this.reconnectAttempts),
+          this.maxReconnectDelay,
+        );
         this.reconnectAttempts++;
         this.reconnectTimer = setTimeout(() => {
           this.reconnectTimer = null;

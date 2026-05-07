@@ -13,11 +13,7 @@ interface OutputLayerProps {
   placeholderHeight: number;
 }
 
-export function OutputLayer({
-  offsetX,
-  placeholderWidth,
-  placeholderHeight,
-}: OutputLayerProps) {
+export function OutputLayer({ offsetX, placeholderWidth, placeholderHeight }: OutputLayerProps) {
   const viewedJob = useJobQueueStore(selectViewedJob);
   const previewImage = viewedJob?.previewUrl ?? null;
   const results = useGenerationStore((s) => s.results);

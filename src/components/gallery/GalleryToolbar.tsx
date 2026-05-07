@@ -18,7 +18,6 @@ import {
   Rows3,
 } from "lucide-react";
 
-
 const SORT_OPTIONS: { value: string; label: string }[] = [
   { value: "name-asc", label: "Name A-Z" },
   { value: "name-desc", label: "Name Z-A" },
@@ -101,15 +100,9 @@ export function GalleryToolbar({
       {/* Path breadcrumb */}
       {folderDisplay && (
         <div className="flex items-center gap-1.5 px-3 py-1 border-b border-border/50 bg-muted/30">
-          <FolderOpen
-            size={11}
-            className="text-muted-foreground flex-shrink-0"
-          />
+          <FolderOpen size={11} className="text-muted-foreground flex-shrink-0" />
 
-          <span
-            className="text-3xs text-muted-foreground truncate"
-            title={activeFolder ?? ""}
-          >
+          <span className="text-3xs text-muted-foreground truncate" title={activeFolder ?? ""}>
             {folderDisplay}
           </span>
         </div>

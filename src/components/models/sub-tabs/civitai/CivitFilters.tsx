@@ -56,10 +56,7 @@ export function CivitFilters({
         <Combobox
           value={type || "All types"}
           onValueChange={(v) => onTypeChange(v === "All types" ? "" : v)}
-          groups={[
-            { options: ["All types"] },
-            { options: types },
-          ]}
+          groups={[{ options: ["All types"] }, { options: types }]}
           placeholder="All types"
           className="h-6 text-2xs"
         />
@@ -69,10 +66,7 @@ export function CivitFilters({
         <Combobox
           value={sort || "Default"}
           onValueChange={(v) => onSortChange(v === "Default" ? "" : v)}
-          groups={[
-            { options: ["Default"] },
-            { options: sorts },
-          ]}
+          groups={[{ options: ["Default"] }, { options: sorts }]}
           placeholder="Default"
           className="h-6 text-2xs"
         />
@@ -82,10 +76,7 @@ export function CivitFilters({
         <Combobox
           value={period || "All time"}
           onValueChange={(v) => onPeriodChange(v === "All time" ? "" : v)}
-          groups={[
-            { options: ["All time"] },
-            { options: periods },
-          ]}
+          groups={[{ options: ["All time"] }, { options: periods }]}
           placeholder="All time"
           className="h-6 text-2xs"
         />
@@ -95,10 +86,7 @@ export function CivitFilters({
         <Combobox
           value={baseModel || "Any"}
           onValueChange={(v) => onBaseModelChange(v === "Any" ? "" : v)}
-          groups={[
-            { options: ["Any"] },
-            { options: baseModels },
-          ]}
+          groups={[{ options: ["Any"] }, { options: baseModels }]}
           placeholder="Any"
           className="h-6 text-2xs"
         />
@@ -107,12 +95,7 @@ export function CivitFilters({
 
       <div className="flex flex-col justify-end gap-1.5 pb-0.5">
         <div className="flex items-center gap-1.5">
-          <Switch
-            id="civit-nsfw"
-            size="sm"
-            checked={nsfw}
-            onCheckedChange={onNsfwChange}
-          />
+          <Switch id="civit-nsfw" size="sm" checked={nsfw} onCheckedChange={onNsfwChange} />
 
           <Label htmlFor="civit-nsfw" className="text-2xs">
             NSFW
@@ -137,22 +120,12 @@ export function CivitFilters({
   );
 }
 
-function CreatorInput({
-  value,
-  onChange,
-}: {
-  value: string;
-  onChange: (v: string) => void;
-}) {
+function CreatorInput({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   const [focused, setFocused] = useState(false);
   const blurTimeout = useRef<ReturnType<typeof setTimeout>>(null);
   const debouncedValue = useDebounce(value, 300);
-  const { data: results } = useCivitCreators(
-    debouncedValue,
-    debouncedValue.length >= 2,
-  );
-  const showSuggestions =
-    focused && value.length >= 2 && (results?.items?.length ?? 0) > 0;
+  const { data: results } = useCivitCreators(debouncedValue, debouncedValue.length >= 2);
+  const showSuggestions = focused && value.length >= 2 && (results?.items?.length ?? 0) > 0;
 
   function handleFocus() {
     if (blurTimeout.current) clearTimeout(blurTimeout.current);

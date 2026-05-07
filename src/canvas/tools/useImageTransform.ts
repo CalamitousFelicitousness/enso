@@ -7,13 +7,16 @@ export function useImageTransform(
   stageRef: React.RefObject<Konva.Stage | null>,
   trRef: React.RefObject<Konva.Transformer | null>,
 ) {
-  const onStageClick = useCallback((e: Konva.KonvaEventObject<MouseEvent>) => {
-    if (useCanvasStore.getState().activeTool !== "move") return;
-    if (e.target === stageRef.current) {
-      useCanvasStore.getState().setActiveLayer(null);
-      trRef.current?.nodes([]);
-    }
-  }, [stageRef, trRef]);
+  const onStageClick = useCallback(
+    (e: Konva.KonvaEventObject<MouseEvent>) => {
+      if (useCanvasStore.getState().activeTool !== "move") return;
+      if (e.target === stageRef.current) {
+        useCanvasStore.getState().setActiveLayer(null);
+        trRef.current?.nodes([]);
+      }
+    },
+    [stageRef, trRef],
+  );
 
   const deleteLayer = useCallback(() => {
     if (useCanvasStore.getState().activeTool !== "move") return;

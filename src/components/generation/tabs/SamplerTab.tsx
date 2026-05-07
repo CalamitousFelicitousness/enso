@@ -96,8 +96,7 @@ export function SamplerTab() {
       baseShift: (v: number) => setParam("baseShift", v),
       maxShift: (v: number) => setParam("maxShift", v),
       lowOrder: (c: boolean | "indeterminate") => setParam("lowOrder", !!c),
-      thresholding: (c: boolean | "indeterminate") =>
-        setParam("thresholding", !!c),
+      thresholding: (c: boolean | "indeterminate") => setParam("thresholding", !!c),
       dynamic: (c: boolean) => setParam("dynamic", c),
       rescale: (c: boolean | "indeterminate") => setParam("rescale", !!c),
       seed: (v: number) => setParam("seed", v),
@@ -139,24 +138,15 @@ export function SamplerTab() {
         <div className="flex items-center gap-4">
           <label className="flex items-center gap-1.5 text-2xs text-muted-foreground cursor-pointer">
             <Checkbox checked={state.lowOrder} onCheckedChange={set.lowOrder} />
-            <ParamLabel className="text-2xs text-muted-foreground">
-              Low order
-            </ParamLabel>
+            <ParamLabel className="text-2xs text-muted-foreground">Low order</ParamLabel>
           </label>
           <label className="flex items-center gap-1.5 text-2xs text-muted-foreground cursor-pointer">
-            <Checkbox
-              checked={state.thresholding}
-              onCheckedChange={set.thresholding}
-            />
-            <ParamLabel className="text-2xs text-muted-foreground">
-              Thresholding
-            </ParamLabel>
+            <Checkbox checked={state.thresholding} onCheckedChange={set.thresholding} />
+            <ParamLabel className="text-2xs text-muted-foreground">Thresholding</ParamLabel>
           </label>
           <label className="flex items-center gap-1.5 text-2xs text-muted-foreground cursor-pointer">
             <Checkbox checked={state.rescale} onCheckedChange={set.rescale} />
-            <ParamLabel className="text-2xs text-muted-foreground">
-              Rescale
-            </ParamLabel>
+            <ParamLabel className="text-2xs text-muted-foreground">Rescale</ParamLabel>
           </label>
         </div>
       </SectionLeader>
@@ -197,14 +187,7 @@ export function SamplerTab() {
             <Combobox
               value={state.betaSchedule}
               onValueChange={set.betaSchedule}
-              options={[
-                "default",
-                "linear",
-                "scaled",
-                "cosine",
-                "sigmoid",
-                "laplace",
-              ]}
+              options={["default", "linear", "scaled", "cosine", "sigmoid", "laplace"]}
               className="h-6 text-2xs"
             />
           </ParamRow>
@@ -216,13 +199,7 @@ export function SamplerTab() {
             <Combobox
               value={state.predictionMethod}
               onValueChange={set.predictionMethod}
-              options={[
-                "default",
-                "epsilon",
-                "sample",
-                "v_prediction",
-                "flow_prediction",
-              ]}
+              options={["default", "epsilon", "sample", "v_prediction", "flow_prediction"]}
               className="h-6 text-2xs"
             />
           </ParamRow>
@@ -372,15 +349,10 @@ export function SamplerTab() {
                     <Dices className="size-3.5" />
                     <span>Random</span>
                   </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={set.seedReuse}
-                    disabled={lastInfo?.seed == null}
-                  >
+                  <DropdownMenuItem onClick={set.seedReuse} disabled={lastInfo?.seed == null}>
                     <RotateCcw className="size-3.5" />
                     <span>
-                      {lastInfo?.seed != null
-                        ? `Reuse (${lastInfo.seed})`
-                        : "Reuse last"}
+                      {lastInfo?.seed != null ? `Reuse (${lastInfo.seed})` : "Reuse last"}
                     </span>
                   </DropdownMenuItem>
                 </DropdownMenuContent>
@@ -416,15 +388,10 @@ export function SamplerTab() {
                     <Dices className="size-3.5" />
                     <span>Random</span>
                   </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={set.subseedReuse}
-                    disabled={lastInfo?.subseed == null}
-                  >
+                  <DropdownMenuItem onClick={set.subseedReuse} disabled={lastInfo?.subseed == null}>
                     <RotateCcw className="size-3.5" />
                     <span>
-                      {lastInfo?.subseed != null
-                        ? `Reuse (${lastInfo.subseed})`
-                        : "Reuse last"}
+                      {lastInfo?.subseed != null ? `Reuse (${lastInfo.subseed})` : "Reuse last"}
                     </span>
                   </DropdownMenuItem>
                 </DropdownMenuContent>

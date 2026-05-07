@@ -4,11 +4,7 @@ import type { OptionsMap } from "@/api/types/settings";
 import { SettingControl } from "./SettingControl";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import {
-  Tooltip,
-  TooltipTrigger,
-  TooltipContent,
-} from "@/components/ui/tooltip";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { getParamHelp } from "@/data/parameterHelp";
 import { cn } from "@/lib/utils";
 import { highlightMatch } from "@/lib/highlightMatch";
@@ -33,10 +29,7 @@ export function SettingsSection({
   searchQuery,
   onNavigateToSection,
 }: SettingsSectionProps) {
-  const getSettingValue = useCallback(
-    (key: string) => dirty[key] ?? values[key],
-    [dirty, values],
-  );
+  const getSettingValue = useCallback((key: string) => dirty[key] ?? values[key], [dirty, values]);
 
   return (
     <div className="space-y-4">
@@ -47,14 +40,10 @@ export function SettingsSection({
           className="text-sm font-semibold text-primary hover:underline text-left"
         >
           {section.title}{" "}
-          <span className="text-3xs font-normal text-muted-foreground">
-            (go to section)
-          </span>
+          <span className="text-3xs font-normal text-muted-foreground">(go to section)</span>
         </button>
       ) : (
-        <h2 className="text-sm font-semibold text-foreground">
-          {section.title}
-        </h2>
+        <h2 className="text-sm font-semibold text-foreground">{section.title}</h2>
       )}
       <div className="space-y-3">
         {section.settings.map((setting) => {
@@ -62,15 +51,12 @@ export function SettingsSection({
             return (
               <div key={setting.key} className="pt-3 first:pt-0">
                 <div className="border-b border-primary/30 pb-1">
-                  <h3 className="text-sm font-semibold text-primary">
-                    {setting.label}
-                  </h3>
+                  <h3 className="text-sm font-semibold text-primary">{setting.label}</h3>
                 </div>
               </div>
             );
           }
-          const currentValue =
-            dirty[setting.key] ?? values[setting.key] ?? setting.defaultValue;
+          const currentValue = dirty[setting.key] ?? values[setting.key] ?? setting.defaultValue;
           const isDirty = setting.key in dirty;
           const inline =
             setting.component === "switch" ||
@@ -95,9 +81,7 @@ export function SettingsSection({
               )}
               {isDirty && setting.defaultValue !== undefined && (
                 <button
-                  onClick={() =>
-                    onSettingChange(setting.key, setting.defaultValue)
-                  }
+                  onClick={() => onSettingChange(setting.key, setting.defaultValue)}
                   className="text-muted-foreground hover:text-primary transition-colors"
                   title="Restore default"
                 >
@@ -140,19 +124,13 @@ export function SettingsSection({
           return inline ? (
             <div
               key={setting.key}
-              className={cn(
-                "flex items-center justify-between gap-3",
-                indented && "pl-4",
-              )}
+              className={cn("flex items-center justify-between gap-3", indented && "pl-4")}
             >
               {labelBlock}
               {controlBlock}
             </div>
           ) : (
-            <div
-              key={setting.key}
-              className={cn("flex flex-col gap-1", indented && "pl-4")}
-            >
+            <div key={setting.key} className={cn("flex flex-col gap-1", indented && "pl-4")}>
               {labelBlock}
               {controlBlock}
             </div>

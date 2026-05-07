@@ -1,11 +1,34 @@
 import type { LucideIcon } from "lucide-react";
 import {
-  ImageIcon, Video, Sparkles, MessageSquare, Images,
-  Type, SlidersHorizontal, Compass, Wand2, ScanSearch,
-  Settings2, Layers, FileCode, Palette,
-  BookOpen, GitBranch, MessageCircle, Users,
-  Gauge, LayoutGrid, Box, Puzzle, Settings, Monitor, Clock, Info, Terminal,
-  ListOrdered, CloudCog,
+  ImageIcon,
+  Video,
+  Sparkles,
+  MessageSquare,
+  Images,
+  Type,
+  SlidersHorizontal,
+  Compass,
+  Wand2,
+  ScanSearch,
+  Settings2,
+  Layers,
+  FileCode,
+  Palette,
+  BookOpen,
+  GitBranch,
+  MessageCircle,
+  Users,
+  Gauge,
+  LayoutGrid,
+  Box,
+  Puzzle,
+  Settings,
+  Monitor,
+  Clock,
+  Info,
+  Terminal,
+  ListOrdered,
+  CloudCog,
 } from "lucide-react";
 
 export interface NavItem {
@@ -27,7 +50,18 @@ export interface ExternalLink {
   url: string;
 }
 
-export type RightTab = "quick-settings" | "networks" | "models" | "providers" | "queue" | "extensions" | "settings" | "system" | "history" | "info" | "console";
+export type RightTab =
+  | "quick-settings"
+  | "networks"
+  | "models"
+  | "providers"
+  | "queue"
+  | "extensions"
+  | "settings"
+  | "system"
+  | "history"
+  | "info"
+  | "console";
 
 export interface RightTabItem {
   id: RightTab;
@@ -77,7 +111,11 @@ export const EXTERNAL_LINKS: ExternalLink[] = [
   { label: "Docs", icon: BookOpen, url: "https://vladmandic.github.io/sdnext-docs/" },
   { label: "GitHub", icon: GitBranch, url: "https://github.com/vladmandic/sdnext" },
   { label: "Discord", icon: MessageCircle, url: "https://discord.gg/VjvR2tabEX" },
-  { label: "Contributors", icon: Users, url: "https://github.com/vladmandic/sdnext/graphs/contributors" },
+  {
+    label: "Contributors",
+    icon: Users,
+    url: "https://github.com/vladmandic/sdnext/graphs/contributors",
+  },
 ];
 
 export const DEFAULT_GENERATION_PARAMS = {

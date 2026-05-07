@@ -29,7 +29,8 @@ function routeResult(domain: JobDomain, result: JobResult, snapshot: TrackedJob[
       }
       // Only the "control" snapshot variant captures inputImage/inputMask/controlUnits.
       // Detail jobs capture inputImage only; cloud/none jobs capture nothing.
-      const inputImage = snapshot.kind === "control" || snapshot.kind === "detail" ? snapshot.inputImage : undefined;
+      const inputImage =
+        snapshot.kind === "control" || snapshot.kind === "detail" ? snapshot.inputImage : undefined;
       const inputMask = snapshot.kind === "control" ? snapshot.inputMask : undefined;
       const controlUnits = snapshot.kind === "control" ? snapshot.controlUnits : undefined;
       useGenerationStore.getState().addResult({
@@ -47,7 +48,9 @@ function routeResult(domain: JobDomain, result: JobResult, snapshot: TrackedJob[
       });
     }
     if (result.processed?.length > 0) {
-      useControlStore.getState().replaceProcessedImages(`${api.getBaseUrl()}${result.processed[0].url}`);
+      useControlStore
+        .getState()
+        .replaceProcessedImages(`${api.getBaseUrl()}${result.processed[0].url}`);
     }
   } else if (domain === "video" || domain === "framepack" || domain === "ltx") {
     const vid = result.images[0];
@@ -71,7 +74,9 @@ function routeResult(domain: JobDomain, result: JobResult, snapshot: TrackedJob[
   } else if (domain === "upscale" || domain === "rembg") {
     const img = result.images[0];
     if (img) {
-      useProcessStore.getState().setResult(`${api.getBaseUrl()}${img.url}`, img.width, img.height, domain);
+      useProcessStore
+        .getState()
+        .setResult(`${api.getBaseUrl()}${img.url}`, img.width, img.height, domain);
     }
   }
 }
@@ -93,7 +98,9 @@ export function useJobTracker() {
 
   useEffect(() => {
     wsMapInstance = wsMap.current;
-    return () => { wsMapInstance = null; };
+    return () => {
+      wsMapInstance = null;
+    };
   }, []);
 
   useEffect(() => {
@@ -136,17 +143,45 @@ export function useJobTracker() {
               s.setStages(jobId, data.stages);
               break;
             case "progress":
-              s.updateProgress(jobId, data.progress, data.eta ?? 0, data.step, data.steps, data.task, data.textinfo, data.stage, data.stage_name, data.stage_count, data.phase);
+              s.updateProgress(
+                jobId,
+                data.progress,
+                data.eta ?? 0,
+                data.step,
+                data.steps,
+                data.task,
+                data.textinfo,
+                data.stage,
+                data.stage_name,
+                data.stage_count,
+                data.phase,
+              );
               break;
             case "cloud_progress":
-              s.updateProgress(jobId, data.progress ?? 0, 0, 0, 0, undefined, data.detail, undefined, undefined, undefined, data.phase);
+              s.updateProgress(
+                jobId,
+                data.progress ?? 0,
+                0,
+                0,
+                0,
+                undefined,
+                data.detail,
+                undefined,
+                undefined,
+                undefined,
+                data.phase,
+              );
               break;
             case "status":
               s.updateStatus(jobId, data.status);
               break;
             case "completed":
               s.completeJob(jobId, data.result);
-              routeResult(s.jobs.get(jobId)?.domain ?? "generate", data.result, s.jobs.get(jobId)?.snapshot ?? { kind: "none" });
+              routeResult(
+                s.jobs.get(jobId)?.domain ?? "generate",
+                data.result,
+                s.jobs.get(jobId)?.snapshot ?? { kind: "none" },
+              );
               void deleteJobPayload(jobId);
               break;
             case "error":

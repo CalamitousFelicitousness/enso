@@ -1,9 +1,14 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { api } from "../client";
 import type {
-  OpenClipRequest, OpenClipResponse,
-  TaggerRequest, TaggerResponse, TaggerModel,
-  VqaRequest, VqaResponse, VlmModel,
+  OpenClipRequest,
+  OpenClipResponse,
+  TaggerRequest,
+  TaggerResponse,
+  TaggerModel,
+  VqaRequest,
+  VqaResponse,
+  VlmModel,
 } from "../types/caption";
 
 // ---------------------------------------------------------------------------
@@ -58,7 +63,6 @@ export function useVlmModels() {
 
 export function useVqaCaption() {
   return useMutation({
-    mutationFn: (params: VqaRequest) =>
-      api.post<VqaResponse>("/sdapi/v2/caption/vlm", params),
+    mutationFn: (params: VqaRequest) => api.post<VqaResponse>("/sdapi/v2/caption/vlm", params),
   });
 }

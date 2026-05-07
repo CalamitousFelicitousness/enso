@@ -1,11 +1,5 @@
 import { useCallback } from "react";
-import {
-  History,
-  ImagePlus,
-  ArrowUpCircle,
-  GitCompareArrows,
-  Download,
-} from "lucide-react";
+import { History, ImagePlus, ArrowUpCircle, GitCompareArrows, Download } from "lucide-react";
 import { restoreFromResult } from "@/lib/requestBuilder";
 import { sendResultToCanvas, sendResultToUpscale } from "@/lib/sendTo";
 import { downloadImage, generateImageFilename } from "@/lib/utils";
@@ -18,11 +12,7 @@ interface ResultThumbActionsProps {
   onCompare: () => void;
 }
 
-export function ResultThumbActions({
-  result,
-  imageIndex,
-  onCompare,
-}: ResultThumbActionsProps) {
+export function ResultThumbActions({ result, imageIndex, onCompare }: ResultThumbActionsProps) {
   const handleRestore = useCallback(
     (e: React.MouseEvent) => {
       e.stopPropagation();
@@ -35,9 +25,7 @@ export function ResultThumbActions({
   const handleSendToCanvas = useCallback(
     (e: React.MouseEvent) => {
       e.stopPropagation();
-      sendResultToCanvas(result, imageIndex).catch(() =>
-        toast.error("Failed to send to canvas"),
-      );
+      sendResultToCanvas(result, imageIndex).catch(() => toast.error("Failed to send to canvas"));
     },
     [result, imageIndex],
   );
@@ -45,9 +33,7 @@ export function ResultThumbActions({
   const handleSendToUpscale = useCallback(
     (e: React.MouseEvent) => {
       e.stopPropagation();
-      sendResultToUpscale(result, imageIndex).catch(() =>
-        toast.error("Failed to send to upscale"),
-      );
+      sendResultToUpscale(result, imageIndex).catch(() => toast.error("Failed to send to upscale"));
     },
     [result, imageIndex],
   );

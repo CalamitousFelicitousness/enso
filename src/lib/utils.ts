@@ -44,7 +44,7 @@ export function contrastText(hex: string): string {
   const r = parseInt(hex.slice(1, 3), 16);
   const g = parseInt(hex.slice(3, 5), 16);
   const b = parseInt(hex.slice(5, 7), 16);
-  return (r * 0.299 + g * 0.587 + b * 0.114) > 128 ? "#000" : "#fff";
+  return r * 0.299 + g * 0.587 + b * 0.114 > 128 ? "#000" : "#fff";
 }
 
 export function base64ToBlob(base64: string, mimeType = "image/png"): Blob {
@@ -67,7 +67,11 @@ export function base64ToObjectUrl(base64: string, mimeType = "image/png"): strin
 }
 
 /** Download a base64 image as a file */
-export function downloadBase64Image(base64: string, filename: string, mimeType = "image/png"): void {
+export function downloadBase64Image(
+  base64: string,
+  filename: string,
+  mimeType = "image/png",
+): void {
   const blob = base64ToBlob(base64, mimeType);
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
@@ -81,7 +85,12 @@ export function downloadBase64Image(base64: string, filename: string, mimeType =
 
 /** Return a displayable URL for either a raw base64 string or an already-resolved URL. */
 export function resolveImageSrc(image: string): string {
-  if (image.startsWith("data:") || image.startsWith("blob:") || image.startsWith("/") || image.startsWith("http")) {
+  if (
+    image.startsWith("data:") ||
+    image.startsWith("blob:") ||
+    image.startsWith("/") ||
+    image.startsWith("http")
+  ) {
     return image;
   }
   return base64ToObjectUrl(image);
@@ -107,7 +116,9 @@ export async function downloadImage(image: string, filename: string): Promise<vo
 }
 
 /** Download all images from generation results as a zip file. */
-export async function downloadAllAsZip(results: { images: string[]; info: string }[]): Promise<void> {
+export async function downloadAllAsZip(
+  results: { images: string[]; info: string }[],
+): Promise<void> {
   const JSZip = (await import("jszip")).default;
   const zip = new JSZip();
   let fileIndex = 0;
@@ -147,8 +158,11 @@ export function generateImageFilename(info: string, imageIndex: number): string 
     const parsedSeed = parsed["seed"];
     const parsedModel = parsed["model"];
     if (typeof parsedSeed === "string" || typeof parsedSeed === "number") seed = String(parsedSeed);
-    if (typeof parsedModel === "string") model = parsedModel.split("/").pop()?.split(".")[0] ?? "image";
-  } catch { /* fallback */ }
+    if (typeof parsedModel === "string")
+      model = parsedModel.split("/").pop()?.split(".")[0] ?? "image";
+  } catch {
+    /* fallback */
+  }
   const timestamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
   return `${model}_${seed}_${imageIndex}_${timestamp}.png`;
 }

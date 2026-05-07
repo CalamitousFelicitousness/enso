@@ -7,7 +7,16 @@ export interface OptionInfoMeta {
   visible: boolean;
   hidden: boolean;
   type: "boolean" | "number" | "string" | "array";
-  component: "slider" | "switch" | "radio" | "dropdown" | "input" | "number" | "color" | "checkboxgroup" | "separator";
+  component:
+    | "slider"
+    | "switch"
+    | "radio"
+    | "dropdown"
+    | "input"
+    | "number"
+    | "color"
+    | "checkboxgroup"
+    | "separator";
   component_args: {
     minimum?: number;
     maximum?: number;

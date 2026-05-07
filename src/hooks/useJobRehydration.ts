@@ -1,6 +1,11 @@
 import { useEffect, useRef } from "react";
 import { api } from "@/api/client";
-import { useJobQueueStore, type JobDomain, type JobSnapshot, type TrackedJob } from "@/stores/jobStore";
+import {
+  useJobQueueStore,
+  type JobDomain,
+  type JobSnapshot,
+  type TrackedJob,
+} from "@/stores/jobStore";
 import { getAllJobPayloads, type StoredJobPayload } from "@/lib/jobPayloadDb";
 import type { Job, JobListResponse } from "@/api/types/v2";
 

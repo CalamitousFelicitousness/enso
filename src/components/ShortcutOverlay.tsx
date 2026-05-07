@@ -26,9 +26,7 @@ export function ShortcutOverlay() {
       if (seen.has(dedup)) continue;
       seen.add(dedup);
       if (!map.has(def.category)) map.set(def.category, []);
-      map
-        .get(def.category)!
-        .push({ label: def.label, keys: formatShortcut(def) });
+      map.get(def.category)!.push({ label: def.label, keys: formatShortcut(def) });
     }
     return map;
   }, []);

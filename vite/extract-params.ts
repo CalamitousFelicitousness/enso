@@ -165,10 +165,7 @@ function isOpeningLike(node: Node): node is OpeningLike {
   return Node.isJsxOpeningElement(node) || Node.isJsxSelfClosingElement(node);
 }
 
-type AttrResult<T> =
-  | { kind: "ok"; value: T }
-  | { kind: "missing" }
-  | { kind: "dynamic" };
+type AttrResult<T> = { kind: "ok"; value: T } | { kind: "missing" } | { kind: "dynamic" };
 
 function readStringAttr(node: OpeningLike, name: string): AttrResult<string> {
   const attr = node.getAttribute(name);
@@ -206,7 +203,11 @@ function readStringArrayAttr(node: OpeningLike, name: string): AttrResult<string
   return { kind: "ok", value: out };
 }
 
-function findEnclosingSectionTitle(node: Node, warnings: ExtractWarning[], file: string): string | null {
+function findEnclosingSectionTitle(
+  node: Node,
+  warnings: ExtractWarning[],
+  file: string,
+): string | null {
   let parent: Node | undefined = node.getParent();
   while (parent) {
     if (Node.isJsxElement(parent)) {
@@ -275,7 +276,7 @@ function collectJsxText(node: Node | undefined): string {
 }
 
 const HTML_ENTITY_MAP: Record<string, string> = {
-  "&quot;": "\"",
+  "&quot;": '"',
   "&apos;": "'",
   "&amp;": "&",
   "&lt;": "<",

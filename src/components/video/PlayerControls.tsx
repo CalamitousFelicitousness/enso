@@ -1,17 +1,5 @@
-import {
-  useCallback,
-  useRef,
-  useState,
-  type MouseEvent as ReactMouseEvent,
-} from "react";
-import {
-  Play,
-  Pause,
-  Maximize,
-  Minimize,
-  SkipBack,
-  SkipForward,
-} from "lucide-react";
+import { useCallback, useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
+import { Play, Pause, Maximize, Minimize, SkipBack, SkipForward } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const SPEEDS = [0.25, 0.5, 1, 2, 4] as const;
@@ -70,10 +58,7 @@ export function PlayerControls({
       const track = trackRef.current;
       if (!track || duration <= 0) return;
       const rect = track.getBoundingClientRect();
-      const fraction = Math.max(
-        0,
-        Math.min(1, (clientX - rect.left) / rect.width),
-      );
+      const fraction = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
       onSeek(fraction * duration);
     },
     [duration, onSeek],
@@ -111,9 +96,7 @@ export function PlayerControls({
   }, [speed, onSetSpeed]);
 
   const hoverTimestamp =
-    hoverX !== null && trackWidth > 0
-      ? formatTime((hoverX / trackWidth) * duration)
-      : null;
+    hoverX !== null && trackWidth > 0 ? formatTime((hoverX / trackWidth) * duration) : null;
 
   return (
     <div

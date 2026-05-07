@@ -25,12 +25,7 @@ interface PromptFieldProps {
   className?: string;
 }
 
-export function PromptField({
-  value,
-  onChange,
-  placeholder,
-  className,
-}: PromptFieldProps) {
+export function PromptField({ value, onChange, placeholder, className }: PromptFieldProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
   const lastValue = useRef(value);
@@ -69,10 +64,7 @@ export function PromptField({
   const wildcards = useMemo(() => wildcardData?.items ?? [], [wildcardData]);
 
   const { data: stylesData } = usePromptStyles();
-  const styles = useMemo(
-    () => (Array.isArray(stylesData) ? stylesData : []),
-    [stylesData],
-  );
+  const styles = useMemo(() => (Array.isArray(stylesData) ? stylesData : []), [stylesData]);
 
   // ── Dict tag data (from SD.Next autocomplete_enabled option) ────────────────
 
@@ -86,12 +78,13 @@ export function PromptField({
     const replaceUnderscores = opts["autocomplete_replace_underscores"];
     const appendComma = opts["autocomplete_append_comma"];
     if (typeof minChars === "number") useUiStore.getState().setDictMinChars(minChars);
-    if (typeof replaceUnderscores === "boolean") useUiStore.getState().setDictReplaceUnderscores(replaceUnderscores);
+    if (typeof replaceUnderscores === "boolean")
+      useUiStore.getState().setDictReplaceUnderscores(replaceUnderscores);
     if (typeof appendComma === "boolean") useUiStore.getState().setDictAppendComma(appendComma);
   }, [optionsData]);
 
   const enabledDicts = useMemo(
-    () => (optionsData as Record<string, unknown>)?.["autocomplete_enabled"] as string[] ?? [],
+    () => ((optionsData as Record<string, unknown>)?.["autocomplete_enabled"] as string[]) ?? [],
     [optionsData],
   );
   const dictQueries = useDictTagsMulti(enabledDicts);
@@ -181,9 +174,7 @@ export function PromptField({
 
   useEffect(() => {
     viewRef.current?.dispatch({
-      effects: autocompleteComp.current.reconfigure(
-        acEnabled ? promptAutocomplete() : [],
-      ),
+      effects: autocompleteComp.current.reconfigure(acEnabled ? promptAutocomplete() : []),
     });
   }, [acEnabled]);
 
@@ -191,9 +182,7 @@ export function PromptField({
 
   useEffect(() => {
     viewRef.current?.dispatch({
-      effects: embeddingComp.current.reconfigure(
-        embeddingNamesFacet.of(embeddingNames),
-      ),
+      effects: embeddingComp.current.reconfigure(embeddingNamesFacet.of(embeddingNames)),
     });
   }, [embeddingNames]);
 
@@ -211,17 +200,13 @@ export function PromptField({
 
   useEffect(() => {
     viewRef.current?.dispatch({
-      effects: wildcardComp.current.reconfigure(
-        wildcardNamesFacet.of(wildcards),
-      ),
+      effects: wildcardComp.current.reconfigure(wildcardNamesFacet.of(wildcards)),
     });
   }, [wildcards]);
 
   useEffect(() => {
     viewRef.current?.dispatch({
-      effects: dictComp.current.reconfigure(
-        dictTagsFacet.of(mergedDictTags),
-      ),
+      effects: dictComp.current.reconfigure(dictTagsFacet.of(mergedDictTags)),
     });
   }, [mergedDictTags]);
 

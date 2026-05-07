@@ -58,9 +58,7 @@ function SecretControl({
     return (
       <div className="flex items-center gap-2">
         <Check className="h-3 w-3 text-green-500 shrink-0" />
-        <span className="text-xs text-muted-foreground font-mono">
-          {masked}
-        </span>
+        <span className="text-xs text-muted-foreground font-mono">{masked}</span>
         <Button
           size="xs"
           variant="ghost"
@@ -148,22 +146,12 @@ export function SettingControl({
 
   switch (setting.component) {
     case "switch":
-      return (
-        <Switch
-          checked={Boolean(value)}
-          onCheckedChange={(checked) => onChange(checked)}
-        />
-      );
+      return <Switch checked={Boolean(value)} onCheckedChange={(checked) => onChange(checked)} />;
 
     case "slider": {
-      const numVal =
-        typeof value === "number"
-          ? value
-          : ((setting.defaultValue as number) ?? 0);
+      const numVal = typeof value === "number" ? value : ((setting.defaultValue as number) ?? 0);
       const display =
-        setting.precision != null
-          ? numVal.toFixed(setting.precision)
-          : String(numVal);
+        setting.precision != null ? numVal.toFixed(setting.precision) : String(numVal);
       return (
         <div className="flex items-center gap-2 flex-1">
           <Slider
@@ -224,10 +212,7 @@ export function SettingControl({
           {choices.map((choice) => {
             const checked = selected.includes(choice);
             return (
-              <label
-                key={choice}
-                className="flex items-center gap-1.5 text-xs cursor-pointer"
-              >
+              <label key={choice} className="flex items-center gap-1.5 text-xs cursor-pointer">
                 <Checkbox
                   checked={checked}
                   onCheckedChange={(c) => {
@@ -246,8 +231,7 @@ export function SettingControl({
 
     case "number": {
       const step =
-        setting.step ??
-        (setting.precision != null ? 10 ** -setting.precision : undefined);
+        setting.step ?? (setting.precision != null ? 10 ** -setting.precision : undefined);
       return (
         <NumberInput
           min={setting.min}

@@ -21,11 +21,7 @@ import { NumberInput } from "@/components/ui/number-input";
 import { ParamLabel } from "../ParamLabel";
 import { Button } from "@/components/ui/button";
 import { Combobox } from "@/components/ui/combobox";
-import {
-  Popover,
-  PopoverTrigger,
-  PopoverContent,
-} from "@/components/ui/popover";
+import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 
 interface AspectPreset {
@@ -101,13 +97,13 @@ export function PromptsTab() {
   const { isCloud, activeModel } = useModelSelectionStore(
     useShallow((s) => ({ isCloud: s.isCloud, activeModel: s.activeModel })),
   );
-  const cloudSizePresets = useMemo(
-    () => {
-      if (!isCloud) return null;
-      return parseSizeOptions((activeModel as CloudModel)?.supported_params ?? null) ?? GENERIC_CLOUD_PRESETS;
-    },
-    [isCloud, activeModel],
-  );
+  const cloudSizePresets = useMemo(() => {
+    if (!isCloud) return null;
+    return (
+      parseSizeOptions((activeModel as CloudModel)?.supported_params ?? null) ??
+      GENERIC_CLOUD_PRESETS
+    );
+  }, [isCloud, activeModel]);
   const aspectPresets = useMemo(
     () =>
       parseAspectRatios(
@@ -135,13 +131,7 @@ export function PromptsTab() {
         scaleFactor,
         megapixelTarget,
       ),
-    [
-      effectiveSizeMode,
-      state.width,
-      state.height,
-      scaleFactor,
-      megapixelTarget,
-    ],
+    [effectiveSizeMode, state.width, state.height, scaleFactor, megapixelTarget],
   );
 
   const lockedRatio = useMemo(() => {
@@ -154,8 +144,7 @@ export function PromptsTab() {
     (w: number) => {
       const rounded = Math.round(w / 8) * 8;
       setParam("width", rounded);
-      if (lockedRatio)
-        setParam("height", Math.round(rounded / lockedRatio / 8) * 8);
+      if (lockedRatio) setParam("height", Math.round(rounded / lockedRatio / 8) * 8);
     },
     [setParam, lockedRatio],
   );
@@ -164,8 +153,7 @@ export function PromptsTab() {
     (h: number) => {
       const rounded = Math.round(h / 8) * 8;
       setParam("height", rounded);
-      if (lockedRatio)
-        setParam("width", Math.round((rounded * lockedRatio) / 8) * 8);
+      if (lockedRatio) setParam("width", Math.round((rounded * lockedRatio) / 8) * 8);
     },
     [setParam, lockedRatio],
   );
@@ -253,9 +241,7 @@ export function PromptsTab() {
             <Combobox
               value=""
               onValueChange={addStyle}
-              options={styles
-                .filter((s) => !selectedStyles.includes(s.name))
-                .map((s) => s.name)}
+              options={styles.filter((s) => !selectedStyles.includes(s.name)).map((s) => s.name)}
               placeholder="Add style..."
               className="h-6 text-2xs"
             />
@@ -301,9 +287,7 @@ export function PromptsTab() {
 
         {/* Width / Height row */}
         <div data-param="width" className="flex items-center gap-2">
-          <ParamLabel className="text-2xs text-muted-foreground shrink-0">
-            Width
-          </ParamLabel>
+          <ParamLabel className="text-2xs text-muted-foreground shrink-0">Width</ParamLabel>
           <NumberInput
             value={isFixed ? state.width : genSize.width}
             onChange={setWidth}
@@ -324,32 +308,38 @@ export function PromptsTab() {
                   "inline-flex items-center justify-center gap-0 h-6 shrink-0 rounded-md transition-colors",
                   "hover:bg-accent hover:text-accent-foreground",
                   "disabled:pointer-events-none disabled:opacity-50",
-                  aspectLocked
-                    ? "text-primary px-1"
-                    : "text-muted-foreground px-1",
+                  aspectLocked ? "text-primary px-1" : "text-muted-foreground px-1",
                   cloudSizePresets ? "w-auto min-w-9" : "w-9",
                 )}
                 title={
                   cloudSizePresets
-                    ? (aspectLocked ? `Size: ${activePreset}` : "Select output size")
-                    : (aspectLocked ? `Aspect ratio locked to ${activePreset}` : "Select aspect ratio preset")
+                    ? aspectLocked
+                      ? `Size: ${activePreset}`
+                      : "Select output size"
+                    : aspectLocked
+                      ? `Aspect ratio locked to ${activePreset}`
+                      : "Select aspect ratio preset"
                 }
               >
                 {aspectLocked ? (
                   <span className="text-3xs font-medium leading-none font-mono">
                     {activePreset}
                   </span>
+                ) : cloudSizePresets ? (
+                  <span className="text-3xs font-medium leading-none font-mono">
+                    {state.width}x{state.height}
+                  </span>
                 ) : (
-                  cloudSizePresets
-                    ? <span className="text-3xs font-medium leading-none font-mono">
-                        {state.width}x{state.height}
-                      </span>
-                    : <Link2Off size={12} />
+                  <Link2Off size={12} />
                 )}
                 <ChevronDown size={8} className="ml-0.5 opacity-60" />
               </button>
             </PopoverTrigger>
-            <PopoverContent className={cn("p-1", cloudSizePresets ? "w-36" : "w-32")} align="center" sideOffset={6}>
+            <PopoverContent
+              className={cn("p-1", cloudSizePresets ? "w-36" : "w-32")}
+              align="center"
+              sideOffset={6}
+            >
               {cloudSizePresets ? (
                 <>
                   {cloudSizePresets.map((p) => (
@@ -360,8 +350,9 @@ export function PromptsTab() {
                       className={cn(
                         "w-full text-left text-2xs px-2 py-1 rounded-sm transition-colors font-mono",
                         "hover:bg-accent hover:text-accent-foreground",
-                        (activePreset === p.label || (!activePreset && state.width === p.w && state.height === p.h))
-                          && "text-primary font-medium",
+                        (activePreset === p.label ||
+                          (!activePreset && state.width === p.w && state.height === p.h)) &&
+                          "text-primary font-medium",
                       )}
                     >
                       {p.label}
@@ -420,9 +411,7 @@ export function PromptsTab() {
             className="flex-1 min-w-12 h-6 text-2xs text-center px-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
           />
 
-          <ParamLabel className="text-2xs text-muted-foreground shrink-0">
-            Height
-          </ParamLabel>
+          <ParamLabel className="text-2xs text-muted-foreground shrink-0">Height</ParamLabel>
         </div>
 
         {/* Scale slider */}
@@ -473,9 +462,7 @@ export function PromptsTab() {
           <div className="text-3xs text-muted-foreground text-center">
             {state.width}&times;{state.height} &rarr; {genSize.width}&times;
             {genSize.height}{" "}
-            <span className="opacity-70">
-              ({formatMegapixels(genSize.width, genSize.height)})
-            </span>
+            <span className="opacity-70">({formatMegapixels(genSize.width, genSize.height)})</span>
           </div>
         )}
       </SectionLeader>

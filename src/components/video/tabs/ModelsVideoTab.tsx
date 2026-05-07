@@ -34,10 +34,7 @@ export function ModelsVideoTab() {
   const { data: engines } = useVideoEngines();
   const loadModel = useLoadVideoModel();
 
-  const engineNames = useMemo(
-    () => engines?.map((e) => e.engine) ?? [],
-    [engines],
-  );
+  const engineNames = useMemo(() => engines?.map((e) => e.engine) ?? [], [engines]);
   const modelNames = useMemo(() => {
     if (!engines || !engine) return [];
     const eng = engines.find((e) => e.engine === engine);
@@ -72,15 +69,9 @@ export function ModelsVideoTab() {
       return (
         <span className="flex items-center gap-1.5">
           {detail.loaded ? (
-            <span
-              className="w-2 h-2 rounded-full bg-blue-500 shrink-0"
-              title="Loaded"
-            />
+            <span className="w-2 h-2 rounded-full bg-blue-500 shrink-0" title="Loaded" />
           ) : detail.cached ? (
-            <span
-              className="w-2 h-2 rounded-full bg-green-500 shrink-0"
-              title="Cached"
-            />
+            <span className="w-2 h-2 rounded-full bg-green-500 shrink-0" title="Cached" />
           ) : null}
           <span className="truncate">{label}</span>
           {detail.mode !== "t2v" && (
@@ -100,8 +91,7 @@ export function ModelsVideoTab() {
       { engine, model },
       {
         onSuccess: () => toast.success(`Loaded ${model}`),
-        onError: (err) =>
-          toast.error("Failed to load model", { description: err.message }),
+        onError: (err) => toast.error("Failed to load model", { description: err.message }),
       },
     );
   }, [engine, model, loadModel]);
@@ -112,9 +102,7 @@ export function ModelsVideoTab() {
       <SectionLeader title="Model" collapsible>
         <div className="space-y-1.5">
           <div className="flex items-center gap-2">
-            <Label className="text-2xs text-muted-foreground w-16 shrink-0">
-              Engine
-            </Label>
+            <Label className="text-2xs text-muted-foreground w-16 shrink-0">Engine</Label>
             <Combobox
               value={engine}
               onValueChange={(v) => {
@@ -127,9 +115,7 @@ export function ModelsVideoTab() {
             />
           </div>
           <div className="flex items-center gap-2">
-            <Label className="text-2xs text-muted-foreground w-16 shrink-0">
-              Model
-            </Label>
+            <Label className="text-2xs text-muted-foreground w-16 shrink-0">Model</Label>
             <Combobox
               value={model}
               onValueChange={(v) => setParam("model", v)}
@@ -153,9 +139,7 @@ export function ModelsVideoTab() {
             disabled={!engine || !model || loadModel.isPending}
             className="w-full"
           >
-            {loadModel.isPending ? (
-              <Loader2 size={14} className="animate-spin" />
-            ) : null}
+            {loadModel.isPending ? <Loader2 size={14} className="animate-spin" /> : null}
             Load Model
           </Button>
         </div>
@@ -209,13 +193,8 @@ export function ModelsVideoTab() {
         />
 
         <div className="flex items-center gap-2">
-          <Label className="text-2xs text-muted-foreground w-16 shrink-0">
-            Dynamic
-          </Label>
-          <Switch
-            checked={dynamicShift}
-            onCheckedChange={(v) => setParam("dynamicShift", v)}
-          />
+          <Label className="text-2xs text-muted-foreground w-16 shrink-0">Dynamic</Label>
+          <Switch checked={dynamicShift} onCheckedChange={(v) => setParam("dynamicShift", v)} />
         </div>
       </SectionLeader>
 
@@ -262,9 +241,7 @@ export function ModelsVideoTab() {
 
       <SectionLeader title="Decode" collapsible defaultCollapsed>
         <div className="flex items-center gap-2">
-          <Label className="text-2xs text-muted-foreground w-16 shrink-0">
-            VAE type
-          </Label>
+          <Label className="text-2xs text-muted-foreground w-16 shrink-0">VAE type</Label>
           <Combobox
             value={vaeType}
             onValueChange={(v) => setParam("vaeType", v)}

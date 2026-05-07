@@ -79,11 +79,7 @@ export async function getCachedDict(
 }
 
 /** Store dict tags in IDB cache. */
-export async function setCachedDict(
-  name: string,
-  tags: DictTag[],
-  version: string,
-): Promise<void> {
+export async function setCachedDict(name: string, tags: DictTag[], version: string): Promise<void> {
   try {
     await idbPut(name, { tags, version, cachedAt: Date.now() });
   } catch {

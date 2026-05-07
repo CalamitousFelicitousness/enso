@@ -6,7 +6,7 @@ import type { SizeMode } from "@/lib/sizeCompute";
 export type { SizeMode };
 
 export interface MaskLine {
-  points: number[];       // flat [x1,y1,x2,y2,...] in image-space pixels
+  points: number[]; // flat [x1,y1,x2,y2,...] in image-space pixels
   strokeWidth: number;
   tool: "brush" | "eraser";
 }
@@ -97,8 +97,30 @@ export const useImg2ImgStore = create<Img2ImgState>()(
     }),
     {
       name: "enso-img2img",
-      partialize: ({ resizeMode, sizeMode, scaleFactor, megapixelTarget, resizeMethod, maskBlur, inpaintFullRes, inpaintFullResPadding, inpaintingMaskInvert, maskApplyOverlay, inpaintingMaskWeight }) => ({
-        resizeMode, sizeMode, scaleFactor, megapixelTarget, resizeMethod, maskBlur, inpaintFullRes, inpaintFullResPadding, inpaintingMaskInvert, maskApplyOverlay, inpaintingMaskWeight,
+      partialize: ({
+        resizeMode,
+        sizeMode,
+        scaleFactor,
+        megapixelTarget,
+        resizeMethod,
+        maskBlur,
+        inpaintFullRes,
+        inpaintFullResPadding,
+        inpaintingMaskInvert,
+        maskApplyOverlay,
+        inpaintingMaskWeight,
+      }) => ({
+        resizeMode,
+        sizeMode,
+        scaleFactor,
+        megapixelTarget,
+        resizeMethod,
+        maskBlur,
+        inpaintFullRes,
+        inpaintFullResPadding,
+        inpaintingMaskInvert,
+        maskApplyOverlay,
+        inpaintingMaskWeight,
       }),
     },
   ),

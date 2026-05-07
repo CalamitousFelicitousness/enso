@@ -29,7 +29,8 @@ function isConstrained(): boolean {
   const ua = navigator.userAgent;
   const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(ua);
   // navigator.deviceMemory is Chrome-only (GB), absent on Safari/Firefox
-  const lowMemory = "deviceMemory" in navigator && (navigator as { deviceMemory: number }).deviceMemory < 4;
+  const lowMemory =
+    "deviceMemory" in navigator && (navigator as { deviceMemory: number }).deviceMemory < 4;
   _constrained = isMobile || lowMemory;
   return _constrained;
 }
@@ -50,9 +51,17 @@ function canvasToBlob(canvas: HTMLCanvasElement): Promise<Blob> {
   });
 }
 
-async function nativeResize(canvas: HTMLCanvasElement, targetW: number, targetH: number): Promise<Blob> {
+async function nativeResize(
+  canvas: HTMLCanvasElement,
+  targetW: number,
+  targetH: number,
+): Promise<Blob> {
   const blob = await canvasToBlob(canvas);
-  const bitmap = await createImageBitmap(blob, { resizeWidth: targetW, resizeHeight: targetH, resizeQuality: "high" });
+  const bitmap = await createImageBitmap(blob, {
+    resizeWidth: targetW,
+    resizeHeight: targetH,
+    resizeQuality: "high",
+  });
   const out = document.createElement("canvas");
   out.width = targetW;
   out.height = targetH;
@@ -75,7 +84,12 @@ function imageDataToBlob(imageData: ImageData): Promise<Blob> {
   return canvasToBlob(canvas);
 }
 
-async function wasmResize(canvas: HTMLCanvasElement, targetW: number, targetH: number, method: ResizeMethod): Promise<Blob> {
+async function wasmResize(
+  canvas: HTMLCanvasElement,
+  targetW: number,
+  targetH: number,
+  method: ResizeMethod,
+): Promise<Blob> {
   const sourceData = canvasToImageData(canvas);
   const resized = await resize(sourceData, {
     width: targetW,

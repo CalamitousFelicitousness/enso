@@ -51,30 +51,17 @@ export function UpdateSubTab() {
 
   return (
     <div className="space-y-4">
-      <Button
-        size="sm"
-        onClick={() => void refetch()}
-        disabled={isFetching}
-        className="w-full"
-      >
-        {isFetching ? (
-          <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
-        ) : null}
+      <Button size="sm" onClick={() => void refetch()} disabled={isFetching} className="w-full">
+        {isFetching ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : null}
         Check for updates
       </Button>
 
       {info && !info.error && (
         <Section title="Version Info">
           <Row label="Branch" value={info.branch} />
-          <Row
-            label="Current"
-            value={`${info.current_date} (${info.current_hash})`}
-          />
+          <Row label="Current" value={`${info.current_date} (${info.current_hash})`} />
 
-          <Row
-            label="Latest"
-            value={`${info.latest_date} (${info.latest_hash})`}
-          />
+          <Row label="Latest" value={`${info.latest_date} (${info.latest_hash})`} />
 
           <div className="flex items-center gap-1.5 text-xs mt-1">
             {info.up_to_date ? (
@@ -110,11 +97,7 @@ export function UpdateSubTab() {
       <Section title="Download Options">
         <div className="space-y-2">
           <div className="flex items-center gap-2">
-            <Checkbox
-              id="rebase"
-              checked={rebase}
-              onCheckedChange={(c) => setRebase(c === true)}
-            />
+            <Checkbox id="rebase" checked={rebase} onCheckedChange={(c) => setRebase(c === true)} />
 
             <Label htmlFor="rebase" className="text-xs">
               Rebase
@@ -172,26 +155,23 @@ export function UpdateSubTab() {
             <DialogTitle>Apply update</DialogTitle>
             {info && (
               <DialogDescription>
-                Update from <span className="font-mono">{info.current_hash}</span>{" "}
-                to <span className="font-mono">{info.latest_hash}</span> on
-                branch <span className="font-mono">{info.branch}</span>.
+                Update from <span className="font-mono">{info.current_hash}</span> to{" "}
+                <span className="font-mono">{info.latest_hash}</span> on branch{" "}
+                <span className="font-mono">{info.branch}</span>.
               </DialogDescription>
             )}
           </DialogHeader>
           <div className="space-y-2 text-xs">
-            <p className="text-muted-foreground">
-              The following actions will run:
-            </p>
+            <p className="text-muted-foreground">The following actions will run:</p>
             <ul className="list-disc pl-5 space-y-1">
               {rebase && (
                 <li>
-                  <span className="font-medium">Rebase</span> — local changes
-                  will be stashed before pulling.
+                  <span className="font-medium">Rebase</span> — local changes will be stashed before
+                  pulling.
                 </li>
               )}
               <li>
-                Pull latest commits from{" "}
-                <code>origin/{info?.branch ?? "?"}</code>.
+                Pull latest commits from <code>origin/{info?.branch ?? "?"}</code>.
               </li>
               {submodules && <li>Reinstall submodules.</li>}
               {extensions && <li>Reinstall extensions.</li>}
@@ -215,9 +195,7 @@ export function UpdateSubTab() {
               onClick={handleApply}
               disabled={applyUpdate.isPending}
             >
-              {applyUpdate.isPending && (
-                <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" />
-              )}
+              {applyUpdate.isPending && <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" />}
               Apply update
             </Button>
           </DialogFooter>

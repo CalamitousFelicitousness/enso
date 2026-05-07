@@ -304,7 +304,11 @@ export const ParamSlider = memo(function ParamSlider({
       title={helpText}
       className={cn(
         "relative h-5 rounded-sm bg-muted/60 select-none overflow-hidden",
-        disabled ? "opacity-50 pointer-events-none" : dragging ? "cursor-grabbing" : "cursor-ew-resize",
+        disabled
+          ? "opacity-50 pointer-events-none"
+          : dragging
+            ? "cursor-grabbing"
+            : "cursor-ew-resize",
         "focus-visible:ring-1 focus-visible:ring-ring/50",
       )}
       onPointerDown={handlePointerDown}
@@ -322,9 +326,10 @@ export const ParamSlider = memo(function ParamSlider({
         style={{
           width: `${fill}%`,
           background: `linear-gradient(to right, oklch(from var(--primary) l c h / 0.08), oklch(from var(--primary) l c h / 0.20) 70%, oklch(from var(--primary) l c h / 0.28))`,
-          boxShadow: fill > 0 && fill < 100
-            ? `inset -1px 0 0 0 oklch(from var(--primary) l c h / 0.6), inset -4px 0 6px -3px oklch(from var(--primary) l c h / 0.2)`
-            : "none",
+          boxShadow:
+            fill > 0 && fill < 100
+              ? `inset -1px 0 0 0 oklch(from var(--primary) l c h / 0.6), inset -4px 0 6px -3px oklch(from var(--primary) l c h / 0.2)`
+              : "none",
         }}
       />
 
@@ -372,8 +377,14 @@ export const ParamSlider = memo(function ParamSlider({
           onChange={(e) => setDraft(e.target.value)}
           onBlur={commitEdit}
           onKeyDown={(e) => {
-            if (e.key === "Enter") { e.preventDefault(); commitEdit(); }
-            if (e.key === "Escape") { e.preventDefault(); cancelEdit(); }
+            if (e.key === "Enter") {
+              e.preventDefault();
+              commitEdit();
+            }
+            if (e.key === "Escape") {
+              e.preventDefault();
+              cancelEdit();
+            }
             e.stopPropagation();
           }}
           className="absolute inset-y-0 right-1.5 w-16 bg-transparent text-right font-mono text-3xs tabular-nums outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
@@ -385,7 +396,10 @@ export const ParamSlider = memo(function ParamSlider({
         <span
           ref={valueRef}
           data-value-span=""
-          onClick={(e) => { e.stopPropagation(); startEdit(); }}
+          onClick={(e) => {
+            e.stopPropagation();
+            startEdit();
+          }}
           className="absolute inset-y-0 right-1.5 flex items-center text-3xs font-mono tabular-nums text-foreground/80 pointer-events-auto cursor-text leading-none hover:underline hover:decoration-dotted hover:underline-offset-2 hover:decoration-muted-foreground"
         >
           {formatValue(value, decimals, suffix)}
@@ -406,9 +420,7 @@ export const ParamSlider = memo(function ParamSlider({
           </ContextMenuItem>
         )}
         {hasReset && helpText && <ContextMenuSeparator />}
-        {helpText && (
-          <ContextMenuItem onSelect={triggerHelp}>Help</ContextMenuItem>
-        )}
+        {helpText && <ContextMenuItem onSelect={triggerHelp}>Help</ContextMenuItem>}
       </ContextMenuContent>
     </ContextMenu>
   );

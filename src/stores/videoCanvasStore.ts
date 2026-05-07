@@ -25,7 +25,14 @@ interface VideoCanvasState {
   lastFrame: VideoFrameImage | null;
 
   setViewport: (v: Partial<ViewportState>) => void;
-  setFrame: (which: "init" | "last", file: File, base64: string, objectUrl: string, w: number, h: number) => void;
+  setFrame: (
+    which: "init" | "last",
+    file: File,
+    base64: string,
+    objectUrl: string,
+    w: number,
+    h: number,
+  ) => void;
   clearFrame: (which: "init" | "last") => void;
   clearAll: () => void;
 }
@@ -66,8 +73,11 @@ export const useVideoCanvasStore = create<VideoCanvasState>()(
         if (prev?.objectUrl) URL.revokeObjectURL(prev.objectUrl);
         const frame: VideoFrameImage = {
           id: crypto.randomUUID(),
-          file, base64, objectUrl,
-          naturalWidth: w, naturalHeight: h,
+          file,
+          base64,
+          objectUrl,
+          naturalWidth: w,
+          naturalHeight: h,
         };
         set({ [which === "init" ? "initFrame" : "lastFrame"]: frame });
       },
@@ -92,10 +102,20 @@ export const useVideoCanvasStore = create<VideoCanvasState>()(
       partialize: (state): PersistedVideoCanvasState => ({
         viewport: state.viewport,
         initFrame: state.initFrame
-          ? { id: state.initFrame.id, base64: state.initFrame.base64, naturalWidth: state.initFrame.naturalWidth, naturalHeight: state.initFrame.naturalHeight }
+          ? {
+              id: state.initFrame.id,
+              base64: state.initFrame.base64,
+              naturalWidth: state.initFrame.naturalWidth,
+              naturalHeight: state.initFrame.naturalHeight,
+            }
           : null,
         lastFrame: state.lastFrame
-          ? { id: state.lastFrame.id, base64: state.lastFrame.base64, naturalWidth: state.lastFrame.naturalWidth, naturalHeight: state.lastFrame.naturalHeight }
+          ? {
+              id: state.lastFrame.id,
+              base64: state.lastFrame.base64,
+              naturalWidth: state.lastFrame.naturalWidth,
+              naturalHeight: state.lastFrame.naturalHeight,
+            }
           : null,
       }),
       merge: (persisted, current) => {

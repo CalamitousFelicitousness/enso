@@ -67,10 +67,12 @@ export function DetailTab() {
       defaultRenoise: (v: number) => setDefault("sigma_adjust", v),
       defaultRenoiseEnd: (v: number) => setDefault("sigma_adjust_max", v),
       defaultSegmentation: (c: boolean | "indeterminate") => setDefault("segmentation", !!c),
-      defaultIncludeDetections: (c: boolean | "indeterminate") => setDefault("include_detections", !!c),
+      defaultIncludeDetections: (c: boolean | "indeterminate") =>
+        setDefault("include_detections", !!c),
       defaultMerge: (c: boolean | "indeterminate") => setDefault("merge", !!c),
       defaultSort: (c: boolean | "indeterminate") => setDefault("sort", !!c),
-      defaultClasses: (e: React.ChangeEvent<HTMLInputElement>) => setDefault("classes", e.target.value),
+      defaultClasses: (e: React.ChangeEvent<HTMLInputElement>) =>
+        setDefault("classes", e.target.value),
     }),
     [setParam, setDefault],
   );
@@ -88,7 +90,10 @@ export function DetailTab() {
   const removeModelAt = useCallback(
     (index: number) => {
       const current = useGenerationStore.getState().detailerModels;
-      setParam("detailerModels", current.filter((_, i) => i !== index));
+      setParam(
+        "detailerModels",
+        current.filter((_, i) => i !== index),
+      );
     },
     [setParam],
   );
@@ -96,7 +101,10 @@ export function DetailTab() {
   const updateModelAt = useCallback(
     (index: number, next: DetailerModelEntry) => {
       const current = useGenerationStore.getState().detailerModels;
-      setParam("detailerModels", current.map((m, i) => (i === index ? next : m)));
+      setParam(
+        "detailerModels",
+        current.map((m, i) => (i === index ? next : m)),
+      );
     },
     [setParam],
   );
@@ -112,7 +120,12 @@ export function DetailTab() {
 
   return (
     <div className="flex flex-col gap-3 text-sm">
-      <SectionLeader title="Detailer" enableable enabled={state.detailerEnabled} onToggleEnabled={set.detailerEnabled}>
+      <SectionLeader
+        title="Detailer"
+        enableable
+        enabled={state.detailerEnabled}
+        onToggleEnabled={set.detailerEnabled}
+      >
         <div className="flex flex-col gap-2">
           <label
             data-param="detail only"

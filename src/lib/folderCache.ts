@@ -36,7 +36,12 @@ export function getCachedFolder(path: string): FolderSnapshot | undefined {
   return snap;
 }
 
-export function setCachedFolder(path: string, files: GalleryFile[], thumbs: Map<string, CachedThumb>, serverMtime: number): void {
+export function setCachedFolder(
+  path: string,
+  files: GalleryFile[],
+  thumbs: Map<string, CachedThumb>,
+  serverMtime: number,
+): void {
   cache.set(path, { files, thumbs: new Map(thumbs), serverMtime, cachedAt: Date.now() });
   evictIfNeeded();
 }
@@ -57,7 +62,9 @@ export function invalidateFolder(path: string): void {
  * with `parentPath + "/"`. Returns null if no children are cached.
  * Deduplicates by file id.
  */
-export function mergeChildCaches(parentPath: string): { files: GalleryFile[]; thumbs: Map<string, CachedThumb> } | null {
+export function mergeChildCaches(
+  parentPath: string,
+): { files: GalleryFile[]; thumbs: Map<string, CachedThumb> } | null {
   const norm = parentPath.replace(/\/+$/, "");
   const prefix = norm + "/";
   let files: GalleryFile[] | null = null;
@@ -66,7 +73,10 @@ export function mergeChildCaches(parentPath: string): { files: GalleryFile[]; th
 
   for (const [key, snap] of cache) {
     if (key.startsWith(prefix)) {
-      if (!files) { files = []; thumbs = new Map(); }
+      if (!files) {
+        files = [];
+        thumbs = new Map();
+      }
       for (const f of snap.files) {
         if (!seenIds.has(f.id)) {
           seenIds.add(f.id);

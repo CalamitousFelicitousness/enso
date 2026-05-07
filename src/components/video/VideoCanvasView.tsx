@@ -84,10 +84,7 @@ export function VideoCanvasView() {
 
   // Compare mode
   const [compareMode, setCompareMode] = useState(false);
-  const [compareIds, setCompareIds] = useState<[string | null, string | null]>([
-    null,
-    null,
-  ]);
+  const [compareIds, setCompareIds] = useState<[string | null, string | null]>([null, null]);
 
   const handleCompareToggle = useCallback(() => {
     if (compareMode) {
@@ -143,14 +140,7 @@ export function VideoCanvasView() {
       await new Promise<void>((r) => {
         img.onload = () => r();
       });
-      setFrame(
-        which,
-        file,
-        base64,
-        objectUrl,
-        img.naturalWidth,
-        img.naturalHeight,
-      );
+      setFrame(which, file, base64, objectUrl, img.naturalWidth, img.naturalHeight);
     },
     [setFrame],
   );
@@ -182,7 +172,7 @@ export function VideoCanvasView() {
     return useVideoCanvasStore.subscribe((state) => {
       if (state.viewport !== prevVp) {
         prevVp = state.viewport;
-        if (overlayRef.current) overlayRef.current.style.transform = '';
+        if (overlayRef.current) overlayRef.current.style.transform = "";
       }
     });
   }, []);
@@ -224,9 +214,7 @@ export function VideoCanvasView() {
   // Paste handler
   const handlePaste = useCallback(
     async (e: React.ClipboardEvent) => {
-      const item = Array.from(e.clipboardData.items).find((i) =>
-        i.type.startsWith("image/"),
-      );
+      const item = Array.from(e.clipboardData.items).find((i) => i.type.startsWith("image/"));
       if (!item) return;
       const file = item.getAsFile();
       if (file) await handleFileSelected("init", file);
@@ -250,10 +238,7 @@ export function VideoCanvasView() {
 
   return (
     <div
-      className={cn(
-        "h-full flex flex-col",
-        isOver && "ring-2 ring-primary ring-inset",
-      )}
+      className={cn("h-full flex flex-col", isOver && "ring-2 ring-primary ring-inset")}
       {...dropHandlers}
       onPaste={(e) => void handlePaste(e)}
       tabIndex={-1}
@@ -263,7 +248,10 @@ export function VideoCanvasView() {
         <VideoCanvasStage layout={layout} onPickImage={handlePickImage} />
 
         {/* Floating headers — delta-transform wrapper for zero-render pan/zoom */}
-        <div ref={overlayRef} style={{ position: 'absolute', inset: 0, pointerEvents: 'none', transformOrigin: '0 0' }}>
+        <div
+          ref={overlayRef}
+          style={{ position: "absolute", inset: 0, pointerEvents: "none", transformOrigin: "0 0" }}
+        >
           {/* Floating header: Init frame */}
           <FrameHeader
             mode="panel"
@@ -391,8 +379,7 @@ export function VideoCanvasView() {
               width: `${outputScreenW}px`,
               height: `${outputScreenH}px`,
               pointerEvents:
-                selectedResult?.videoUrl ||
-                (compareMode && compareLeft?.videoUrl)
+                selectedResult?.videoUrl || (compareMode && compareLeft?.videoUrl)
                   ? "auto"
                   : "none",
             }}
@@ -401,12 +388,8 @@ export function VideoCanvasView() {
               <VideoCompare
                 leftSrc={compareLeft.videoUrl}
                 rightSrc={compareRight.videoUrl}
-                leftLabel={
-                  DOMAIN_LABELS[compareLeft.domain] ?? compareLeft.domain
-                }
-                rightLabel={
-                  DOMAIN_LABELS[compareRight.domain] ?? compareRight.domain
-                }
+                leftLabel={DOMAIN_LABELS[compareLeft.domain] ?? compareLeft.domain}
+                rightLabel={DOMAIN_LABELS[compareRight.domain] ?? compareRight.domain}
               />
             ) : !isGenerating && selectedResult?.videoUrl ? (
               <VideoPlayer src={selectedResult.videoUrl} />
@@ -479,18 +462,13 @@ export function VideoCanvasView() {
                     "flex-shrink-0 w-16 h-10 rounded border overflow-hidden relative group transition-all",
                     !compareMode && r.id === selectedResultId
                       ? "border-primary ring-1 ring-primary/30"
-                      : compareMode &&
-                          (r.id === compareIds[0] || r.id === compareIds[1])
+                      : compareMode && (r.id === compareIds[0] || r.id === compareIds[1])
                         ? "border-primary ring-1 ring-primary/30"
                         : "border-border hover:border-primary/40",
                   )}
                 >
                   {r.thumbnailUrl ? (
-                    <img
-                      src={r.thumbnailUrl}
-                      alt=""
-                      className="w-full h-full object-cover"
-                    />
+                    <img src={r.thumbnailUrl} alt="" className="w-full h-full object-cover" />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center bg-muted">
                       <Film size={12} className="text-muted-foreground/50" />
@@ -524,12 +502,7 @@ export function VideoCanvasView() {
                 {compareMode ? <X size={12} /> : <Columns2 size={12} />}
               </Button>
             )}
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              onClick={clearResults}
-              title="Clear history"
-            >
+            <Button variant="ghost" size="icon-sm" onClick={clearResults} title="Clear history">
               <Trash2 size={12} />
             </Button>
           </div>

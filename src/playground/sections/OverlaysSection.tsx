@@ -8,16 +8,8 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   ContextMenu,
   ContextMenuContent,
@@ -47,7 +39,9 @@ export function OverlaysSection() {
           <div>
             <Dialog>
               <DialogTrigger asChild>
-                <Button variant="outline" size="sm">Open Dialog</Button>
+                <Button variant="outline" size="sm">
+                  Open Dialog
+                </Button>
               </DialogTrigger>
               <DialogContent>
                 <DialogHeader>
@@ -64,26 +58,32 @@ export function OverlaysSection() {
 
         {/* Tooltip */}
         <div className="space-y-1.5">
-          <span className="text-3xs text-muted-foreground/60 uppercase tracking-wider">Tooltip</span>
+          <span className="text-3xs text-muted-foreground/60 uppercase tracking-wider">
+            Tooltip
+          </span>
           <div>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant="outline" size="sm">Hover Me</Button>
+                <Button variant="outline" size="sm">
+                  Hover Me
+                </Button>
               </TooltipTrigger>
-              <TooltipContent side="bottom">
-                This is a tooltip
-              </TooltipContent>
+              <TooltipContent side="bottom">This is a tooltip</TooltipContent>
             </Tooltip>
           </div>
         </div>
 
         {/* Popover */}
         <div className="space-y-1.5">
-          <span className="text-3xs text-muted-foreground/60 uppercase tracking-wider">Popover</span>
+          <span className="text-3xs text-muted-foreground/60 uppercase tracking-wider">
+            Popover
+          </span>
           <div>
             <Popover>
               <PopoverTrigger asChild>
-                <Button variant="outline" size="sm">Open Popover</Button>
+                <Button variant="outline" size="sm">
+                  Open Popover
+                </Button>
               </PopoverTrigger>
               <PopoverContent>
                 <div className="space-y-2">
@@ -99,7 +99,9 @@ export function OverlaysSection() {
 
         {/* Context Menu */}
         <div className="space-y-1.5">
-          <span className="text-3xs text-muted-foreground/60 uppercase tracking-wider">Context Menu</span>
+          <span className="text-3xs text-muted-foreground/60 uppercase tracking-wider">
+            Context Menu
+          </span>
           <div>
             <ContextMenu>
               <ContextMenuTrigger>
@@ -119,11 +121,15 @@ export function OverlaysSection() {
 
         {/* Dropdown Menu */}
         <div className="space-y-1.5">
-          <span className="text-3xs text-muted-foreground/60 uppercase tracking-wider">Dropdown Menu</span>
+          <span className="text-3xs text-muted-foreground/60 uppercase tracking-wider">
+            Dropdown Menu
+          </span>
           <div>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm">Options</Button>
+                <Button variant="outline" size="sm">
+                  Options
+                </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent>
                 <DropdownMenuItem>Edit</DropdownMenuItem>

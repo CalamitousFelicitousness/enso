@@ -28,7 +28,8 @@ export const useComparisonStore = create<ComparisonState>()((set) => ({
   imageA: null,
   imageB: null,
 
-  openComparison: (a, b, mode) => set({ open: true, imageA: a, imageB: b, mode: mode ?? "side-by-side" }),
+  openComparison: (a, b, mode) =>
+    set({ open: true, imageA: a, imageB: b, mode: mode ?? "side-by-side" }),
   closeComparison: () => set({ open: false, imageA: null, imageB: null }),
   setMode: (mode) => set({ mode }),
   swapImages: () => set((s) => ({ imageA: s.imageB, imageB: s.imageA })),

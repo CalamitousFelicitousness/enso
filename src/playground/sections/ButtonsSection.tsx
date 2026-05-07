@@ -16,14 +16,7 @@ const buttonVariants = [
 const textSizes = ["xs", "sm", "default", "lg"] as const;
 const iconSizes = ["icon-xs", "icon-sm", "icon", "icon-lg"] as const;
 
-const badgeVariants = [
-  "default",
-  "secondary",
-  "destructive",
-  "outline",
-  "ghost",
-  "link",
-] as const;
+const badgeVariants = ["default", "secondary", "destructive", "outline", "ghost", "link"] as const;
 
 export function ButtonsSection() {
   return (
@@ -96,11 +89,7 @@ export function ButtonsSection() {
                 </>
               ) : (
                 iconSizes.map((size) => (
-                  <Button
-                    key={size}
-                    variant={variant}
-                    size={size}
-                  >
+                  <Button key={size} variant={variant} size={size}>
                     {variant === "destructive" || variant === "destructive-soft" ? (
                       <Trash2 />
                     ) : (
@@ -116,9 +105,7 @@ export function ButtonsSection() {
 
       {/* Disabled state */}
       <div className="space-y-4">
-        <span className="text-3xs text-muted-foreground/60 uppercase tracking-wider">
-          Disabled
-        </span>
+        <span className="text-3xs text-muted-foreground/60 uppercase tracking-wider">Disabled</span>
 
         <div className="flex items-center gap-3">
           <span className="text-3xs text-muted-foreground/60 w-28 shrink-0 text-right">
@@ -134,9 +121,7 @@ export function ButtonsSection() {
 
       {/* Badges */}
       <div className="space-y-4">
-        <span className="text-3xs text-muted-foreground/60 uppercase tracking-wider">
-          Badge
-        </span>
+        <span className="text-3xs text-muted-foreground/60 uppercase tracking-wider">Badge</span>
 
         <div className="flex items-center gap-3">
           {badgeVariants.map((variant) => (

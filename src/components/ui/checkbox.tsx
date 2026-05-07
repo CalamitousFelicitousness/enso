@@ -35,7 +35,10 @@ function CheckboxDefault({
         className="grid place-content-center text-current"
       >
         <CheckIcon className="size-2.5 hidden [[data-state=checked]_&]:block" strokeWidth={2} />
-        <MinusIcon className="size-2.5 hidden [[data-state=indeterminate]_&]:block" strokeWidth={2} />
+        <MinusIcon
+          className="size-2.5 hidden [[data-state=indeterminate]_&]:block"
+          strokeWidth={2}
+        />
       </CheckboxPrimitive.Indicator>
     </CheckboxPrimitive.Root>
   );
@@ -64,9 +67,7 @@ function CheckboxMorph({
       className={cn(
         "size-4 rounded-[3px] ring-1 outline-none transition-all duration-250 flex items-center justify-center",
         "focus-visible:ring-ring/50 focus-visible:ring-[3px]",
-        checked
-          ? "bg-primary/15 ring-primary/40"
-          : "bg-muted/30 ring-border/20",
+        checked ? "bg-primary/15 ring-primary/40" : "bg-muted/30 ring-border/20",
         disabled && "opacity-50 pointer-events-none",
         className,
       )}
@@ -88,7 +89,13 @@ function CheckboxMorph({
           )}
           style={{ stroke: "oklch(from var(--primary) l c h)" }}
         >
-          <path d="M2 5.5L4 7.5L8 3" fill="none" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+          <path
+            d="M2 5.5L4 7.5L8 3"
+            fill="none"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
         </svg>
         {/* X mark */}
         <svg
@@ -99,7 +106,12 @@ function CheckboxMorph({
           )}
           style={{ stroke: "oklch(from var(--muted-foreground) l c h / 0.35)" }}
         >
-          <path d="M2.5 2.5L7.5 7.5M7.5 2.5L2.5 7.5" fill="none" strokeWidth="1.5" strokeLinecap="round" />
+          <path
+            d="M2.5 2.5L7.5 7.5M7.5 2.5L2.5 7.5"
+            fill="none"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+          />
         </svg>
       </div>
     </button>
@@ -146,14 +158,16 @@ function CheckboxStamp({
       className={cn(
         "size-4 rounded-[3px] ring-1 outline-none flex items-center justify-center transition-all duration-150",
         "focus-visible:ring-ring/50 focus-visible:ring-[3px]",
-        checked
-          ? "bg-primary/10 ring-primary/30"
-          : "bg-muted/30 ring-border/20",
+        checked ? "bg-primary/10 ring-primary/30" : "bg-muted/30 ring-border/20",
         pressing && "scale-90",
         disabled && "opacity-50 pointer-events-none",
         className,
       )}
-      style={checked ? { boxShadow: "inset 0 1px 2px oklch(from var(--primary) l c h / 0.15)" } : undefined}
+      style={
+        checked
+          ? { boxShadow: "inset 0 1px 2px oklch(from var(--primary) l c h / 0.15)" }
+          : undefined
+      }
       onClick={handleClick}
       onKeyDown={(e) => {
         if (e.key === " " || e.key === "Enter") {
@@ -167,7 +181,9 @@ function CheckboxStamp({
           "rounded-full transition-all duration-150",
           checked ? "size-1.5 bg-primary" : "size-1 bg-muted-foreground/15",
         )}
-        style={checked ? { boxShadow: "0 0 4px oklch(from var(--primary) l c h / 0.4)" } : undefined}
+        style={
+          checked ? { boxShadow: "0 0 4px oklch(from var(--primary) l c h / 0.4)" } : undefined
+        }
       />
     </button>
   );

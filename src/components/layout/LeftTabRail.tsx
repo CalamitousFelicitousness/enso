@@ -9,11 +9,7 @@ import { cn } from "@/lib/utils";
 import { PanelLeftClose, PanelLeftOpen, HelpCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SegmentedControl } from "@/components/ui/segmented-control";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Separator } from "@/components/ui/separator";
 
 const SUBTAB_OPTIONS = IMAGES_SUB_TABS.map((tab) => ({
@@ -61,11 +57,7 @@ export function LeftTabRail() {
           className="h-10 w-full rounded-none text-rail-foreground/60 hover:text-rail-foreground hover:bg-rail-accent"
           title={collapsed ? "Expand Left Rail" : "Collapse Left Rail"}
         >
-          {collapsed ? (
-            <PanelLeftOpen size={18} />
-          ) : (
-            <PanelLeftClose size={18} />
-          )}
+          {collapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
         </Button>
 
         {/* Primary nav items */}
@@ -74,9 +66,7 @@ export function LeftTabRail() {
             const Icon = item.icon;
             const isActive = activeView === item.id;
             const isGated =
-              item.capability != null &&
-              capabilities != null &&
-              !capabilities[item.capability];
+              item.capability != null && capabilities != null && !capabilities[item.capability];
             return (
               <Tooltip key={item.id}>
                 <TooltipTrigger asChild>

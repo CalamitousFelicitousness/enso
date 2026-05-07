@@ -71,7 +71,10 @@ function colorizeRegion(region: HTMLCanvasElement, rgb: string): HTMLCanvasEleme
 function canvasToBase64(canvas: HTMLCanvasElement): Promise<string> {
   return new Promise((resolve) => {
     canvas.toBlob((blob) => {
-      if (!blob) { resolve(""); return; }
+      if (!blob) {
+        resolve("");
+        return;
+      }
       void blobToBase64(blob).then(resolve);
     }, "image/png");
   });
@@ -117,12 +120,15 @@ export async function bakeMaskStrokes(): Promise<void> {
   // We need to load each object's image synchronously, so we pre-load them
   if (oldMasks.length > 0) {
     const loadedImages = await Promise.all(
-      oldMasks.map((m) => new Promise<{ mask: MaskObjectLayer; img: HTMLImageElement }>((resolve) => {
-        const img = new Image();
-        img.onload = () => resolve({ mask: m, img });
-        img.onerror = () => resolve({ mask: m, img });
-        img.src = m.imageData;
-      })),
+      oldMasks.map(
+        (m) =>
+          new Promise<{ mask: MaskObjectLayer; img: HTMLImageElement }>((resolve) => {
+            const img = new Image();
+            img.onload = () => resolve({ mask: m, img });
+            img.onerror = () => resolve({ mask: m, img });
+            img.src = m.imageData;
+          }),
+      ),
     );
 
     for (const { mask: m, img } of loadedImages) {
@@ -171,14 +177,21 @@ export async function bakeMaskStrokes(): Promise<void> {
     regions.map(async (region) => {
       const coloredCanvas = colorizeRegion(region.canvas, rgb);
       const base64 = await canvasToBase64(coloredCanvas);
-      const blob = await new Promise<Blob | null>((resolve) => coloredCanvas.toBlob(resolve, "image/png"));
+      const blob = await new Promise<Blob | null>((resolve) =>
+        coloredCanvas.toBlob(resolve, "image/png"),
+      );
       const objectUrl = blob ? URL.createObjectURL(blob) : "";
 
       // Match against old masks to preserve lock/visible state
-      let locked = true;   // default: locked
+      let locked = true; // default: locked
       let visible = true;
       for (const old of oldMasks) {
-        const oldRect = { x: old.x, y: old.y, w: old.width * old.scaleX, h: old.height * old.scaleY };
+        const oldRect = {
+          x: old.x,
+          y: old.y,
+          w: old.width * old.scaleX,
+          h: old.height * old.scaleY,
+        };
         const newRect = { x: region.x, y: region.y, w: region.width, h: region.height };
         if (rectsOverlap(oldRect, newRect)) {
           locked = old.locked;

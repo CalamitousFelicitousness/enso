@@ -95,10 +95,7 @@ export function GroupedModels({ models }: { models: LoadedModel[] }) {
             {CATEGORY_LABELS[category] ?? category}
           </h4>
           {groups.get(category)!.map((model, i) => (
-            <ModelRow
-              key={`${model.category}-${model.name}-${i}`}
-              model={model}
-            />
+            <ModelRow key={`${model.category}-${model.name}-${i}`} model={model} />
           ))}
         </div>
       ))}
@@ -111,8 +108,7 @@ export function LoadedModelsPanel({ children }: { children: React.ReactNode }) {
   const { data: memory } = useMemory();
 
   const modelCount = models?.length ?? 0;
-  const totalSize =
-    models?.reduce((acc, m) => acc + (m.size_bytes ?? 0), 0) ?? 0;
+  const totalSize = models?.reduce((acc, m) => acc + (m.size_bytes ?? 0), 0) ?? 0;
   const vramAllocated = memory?.cuda?.allocated?.current;
   const vramTotal = memory?.cuda?.system?.total;
 
@@ -128,8 +124,7 @@ export function LoadedModelsPanel({ children }: { children: React.ReactNode }) {
             {vramAllocated != null && vramTotal != null && (
               <>
                 {" "}
-                &middot; VRAM {formatBytes(vramAllocated)} /{" "}
-                {formatBytes(vramTotal)}
+                &middot; VRAM {formatBytes(vramAllocated)} / {formatBytes(vramTotal)}
               </>
             )}
           </DialogDescription>

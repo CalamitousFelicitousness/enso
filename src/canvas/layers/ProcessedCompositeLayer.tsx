@@ -11,16 +11,12 @@ interface ProcessedCompositeLayerProps {
   height: number;
 }
 
-export function ProcessedCompositeLayer({
-  offsetX,
-  width,
-  height,
-}: ProcessedCompositeLayerProps) {
+export function ProcessedCompositeLayer({ offsetX, width, height }: ProcessedCompositeLayerProps) {
   const units = useControlStore((s) => s.units);
   const compositeProcessed = useControlStore((s) => s.compositeProcessed);
-  const [displayImage, setDisplayImage] = useState<
-    HTMLImageElement | HTMLCanvasElement | null
-  >(null);
+  const [displayImage, setDisplayImage] = useState<HTMLImageElement | HTMLCanvasElement | null>(
+    null,
+  );
   const prevKeyRef = useRef<string>("");
 
   // Collect per-unit processed data URLs (from manual preprocessing)
@@ -120,13 +116,7 @@ export function ProcessedCompositeLayer({
         listening={false}
       />
       {displayImage && (
-        <CornerBrackets
-          x={offsetX}
-          y={0}
-          w={width}
-          h={height}
-          color={BORDER_COLOR}
-        />
+        <CornerBrackets x={offsetX} y={0} w={width} h={height} color={BORDER_COLOR} />
       )}
     </Layer>
   );

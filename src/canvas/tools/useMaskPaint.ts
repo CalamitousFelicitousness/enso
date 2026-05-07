@@ -60,78 +60,86 @@ export function useMaskPaint({ stageRef, spaceHeld }: UseMaskPaintOptions) {
     return tool === "maskBrush" || tool === "maskEraser";
   }, []);
 
-  const handleMouseDown = useCallback((e: Konva.KonvaEventObject<MouseEvent>) => {
-    if (!isMaskTool() || e.evt.button !== 0 || spaceHeld.current) return;
-    const stage = stageRef.current;
-    if (!stage) return;
-    const pos = getCanvasPos(stage);
-    if (!pos) return;
-
-    const { activeTool, brushSize } = useCanvasStore.getState();
-    toolRef.current = activeTool === "maskEraser" ? "eraser" : "brush";
-    strokeWidthRef.current = brushSize;
-    pointsBuffer.current = [pos.x, pos.y];
-    isDrawing.current = true;
-
-    // Configure the active line node imperatively
-    const line = activeLineRef.current;
-    if (line) {
-      line.points([pos.x, pos.y]);
-      line.strokeWidth(brushSize);
-      line.globalCompositeOperation(toolRef.current === "eraser" ? "destination-out" : "source-over");
-      line.visible(true);
-      line.getLayer()?.batchDraw();
-    }
-  }, [stageRef, spaceHeld, getCanvasPos, isMaskTool]);
-
-  const handleMouseMove = useCallback((_e: Konva.KonvaEventObject<MouseEvent>) => {
-    const stage = stageRef.current;
-    if (!stage) return;
-
-    if (isMaskTool()) {
+  const handleMouseDown = useCallback(
+    (e: Konva.KonvaEventObject<MouseEvent>) => {
+      if (!isMaskTool() || e.evt.button !== 0 || spaceHeld.current) return;
+      const stage = stageRef.current;
+      if (!stage) return;
       const pos = getCanvasPos(stage);
-      const cursor = cursorRef.current;
-      if (cursor && pos) {
-        // Combined scale: viewport.scale * displayScale (cursor is inside Group)
-        const combinedScale = stage.scaleX() * getDisplayScale();
-        cursor.x(pos.x);
-        cursor.y(pos.y);
-        cursor.radius(useCanvasStore.getState().brushSize / 2);
-        cursor.strokeWidth(1 / combinedScale);
-        cursor.dash([4 / combinedScale, 4 / combinedScale]);
-        cursor.visible(true);
-      } else if (cursor) {
-        cursor.visible(false);
-      }
-      stage.container().style.cursor = "none";
+      if (!pos) return;
 
-      if (!isDrawing.current) {
-        cursor?.getLayer()?.batchDraw();
-      }
-    } else {
-      // Switched away from mask tool - restore cursor and hide the circle
-      const cursor = cursorRef.current;
-      if (cursor?.visible()) {
-        cursor.visible(false);
-        cursor.getLayer()?.batchDraw();
-      }
-      if (stage.container().style.cursor === "none") {
-        stage.container().style.cursor = "";
-      }
-    }
+      const { activeTool, brushSize } = useCanvasStore.getState();
+      toolRef.current = activeTool === "maskEraser" ? "eraser" : "brush";
+      strokeWidthRef.current = brushSize;
+      pointsBuffer.current = [pos.x, pos.y];
+      isDrawing.current = true;
 
-    if (!isDrawing.current) return;
-    const pos = getCanvasPos(stage);
-    if (!pos) return;
+      // Configure the active line node imperatively
+      const line = activeLineRef.current;
+      if (line) {
+        line.points([pos.x, pos.y]);
+        line.strokeWidth(brushSize);
+        line.globalCompositeOperation(
+          toolRef.current === "eraser" ? "destination-out" : "source-over",
+        );
+        line.visible(true);
+        line.getLayer()?.batchDraw();
+      }
+    },
+    [stageRef, spaceHeld, getCanvasPos, isMaskTool],
+  );
 
-    pointsBuffer.current.push(pos.x, pos.y);
+  const handleMouseMove = useCallback(
+    (_e: Konva.KonvaEventObject<MouseEvent>) => {
+      const stage = stageRef.current;
+      if (!stage) return;
 
-    const line = activeLineRef.current;
-    if (line) {
-      line.points(pointsBuffer.current);
-      line.getLayer()?.batchDraw();
-    }
-  }, [stageRef, getCanvasPos, isMaskTool]);
+      if (isMaskTool()) {
+        const pos = getCanvasPos(stage);
+        const cursor = cursorRef.current;
+        if (cursor && pos) {
+          // Combined scale: viewport.scale * displayScale (cursor is inside Group)
+          const combinedScale = stage.scaleX() * getDisplayScale();
+          cursor.x(pos.x);
+          cursor.y(pos.y);
+          cursor.radius(useCanvasStore.getState().brushSize / 2);
+          cursor.strokeWidth(1 / combinedScale);
+          cursor.dash([4 / combinedScale, 4 / combinedScale]);
+          cursor.visible(true);
+        } else if (cursor) {
+          cursor.visible(false);
+        }
+        stage.container().style.cursor = "none";
+
+        if (!isDrawing.current) {
+          cursor?.getLayer()?.batchDraw();
+        }
+      } else {
+        // Switched away from mask tool - restore cursor and hide the circle
+        const cursor = cursorRef.current;
+        if (cursor?.visible()) {
+          cursor.visible(false);
+          cursor.getLayer()?.batchDraw();
+        }
+        if (stage.container().style.cursor === "none") {
+          stage.container().style.cursor = "";
+        }
+      }
+
+      if (!isDrawing.current) return;
+      const pos = getCanvasPos(stage);
+      if (!pos) return;
+
+      pointsBuffer.current.push(pos.x, pos.y);
+
+      const line = activeLineRef.current;
+      if (line) {
+        line.points(pointsBuffer.current);
+        line.getLayer()?.batchDraw();
+      }
+    },
+    [stageRef, getCanvasPos, isMaskTool],
+  );
 
   const commitLine = useCallback(() => {
     if (!isDrawing.current) return;

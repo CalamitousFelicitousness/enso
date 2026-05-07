@@ -6,11 +6,7 @@ import { ParamGrid } from "@/components/generation/ParamRow";
 import { Combobox } from "@/components/ui/combobox";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import {
-  OUTPUT_PRESETS,
-  qualityToCrf,
-  crfToQuality,
-} from "@/lib/videoOutputPresets";
+import { OUTPUT_PRESETS, qualityToCrf, crfToQuality } from "@/lib/videoOutputPresets";
 
 const presetOptions = OUTPUT_PRESETS.map((p) => p.id);
 const presetLabels: Record<string, string> = Object.fromEntries(
@@ -65,22 +61,15 @@ export function VideoOutputSection() {
       .replace(/^,|,$/g, "")
       .trim();
     const crfStr = qualityToCrf(value);
-    setParam(
-      "codecOptions",
-      hasExtraOpts ? `${crfStr},${hasExtraOpts}` : crfStr,
-    );
+    setParam("codecOptions", hasExtraOpts ? `${crfStr},${hasExtraOpts}` : crfStr);
   };
 
-  const presetDescription = OUTPUT_PRESETS.find(
-    (p) => p.id === outputPreset,
-  )?.description;
+  const presetDescription = OUTPUT_PRESETS.find((p) => p.id === outputPreset)?.description;
 
   return (
     <SectionLeader title="Output" collapsible defaultCollapsed>
       <div className="flex items-center gap-2">
-        <Label className="text-2xs text-muted-foreground w-16 shrink-0">
-          Preset
-        </Label>
+        <Label className="text-2xs text-muted-foreground w-16 shrink-0">Preset</Label>
         <Combobox
           value={outputPreset}
           onValueChange={handlePresetChange}
@@ -90,9 +79,7 @@ export function VideoOutputSection() {
         />
       </div>
       {presetDescription && (
-        <p className="text-3xs text-muted-foreground ml-18 pl-0.5">
-          {presetDescription}
-        </p>
+        <p className="text-3xs text-muted-foreground ml-18 pl-0.5">{presetDescription}</p>
       )}
 
       {showQuality && (
@@ -114,26 +101,16 @@ export function VideoOutputSection() {
       {isCustom && (
         <>
           <div className="flex items-center gap-2">
-            <Label className="text-2xs text-muted-foreground w-16 shrink-0">
-              Codec
-            </Label>
+            <Label className="text-2xs text-muted-foreground w-16 shrink-0">Codec</Label>
             <Combobox
               value={codec}
               onValueChange={(v) => setParam("codec", v)}
-              options={[
-                "libx264",
-                "libx265",
-                "libvpx-vp9",
-                "libaom-av1",
-                "ffv1",
-              ]}
+              options={["libx264", "libx265", "libvpx-vp9", "libaom-av1", "ffv1"]}
               className="h-6 text-2xs flex-1"
             />
           </div>
           <div className="flex items-center gap-2">
-            <Label className="text-2xs text-muted-foreground w-16 shrink-0">
-              Format
-            </Label>
+            <Label className="text-2xs text-muted-foreground w-16 shrink-0">Format</Label>
             <Combobox
               value={format}
               onValueChange={(v) => setParam("format", v)}
@@ -142,9 +119,7 @@ export function VideoOutputSection() {
             />
           </div>
           <div className="flex items-center gap-2">
-            <Label className="text-2xs text-muted-foreground w-16 shrink-0">
-              Codec opts
-            </Label>
+            <Label className="text-2xs text-muted-foreground w-16 shrink-0">Codec opts</Label>
             <input
               type="text"
               value={codecOptions}
@@ -176,31 +151,16 @@ export function VideoOutputSection() {
       </ParamGrid>
 
       <div className="flex items-center gap-2">
-        <Label className="text-2xs text-muted-foreground w-16 shrink-0">
-          Video
-        </Label>
-        <Switch
-          checked={saveVideo}
-          onCheckedChange={(v) => setParam("saveVideo", v)}
-        />
+        <Label className="text-2xs text-muted-foreground w-16 shrink-0">Video</Label>
+        <Switch checked={saveVideo} onCheckedChange={(v) => setParam("saveVideo", v)} />
       </div>
       <div className="flex items-center gap-2">
-        <Label className="text-2xs text-muted-foreground w-16 shrink-0">
-          Frames
-        </Label>
-        <Switch
-          checked={saveFrames}
-          onCheckedChange={(v) => setParam("saveFrames", v)}
-        />
+        <Label className="text-2xs text-muted-foreground w-16 shrink-0">Frames</Label>
+        <Switch checked={saveFrames} onCheckedChange={(v) => setParam("saveFrames", v)} />
       </div>
       <div className="flex items-center gap-2">
-        <Label className="text-2xs text-muted-foreground w-16 shrink-0">
-          Safetensors
-        </Label>
-        <Switch
-          checked={saveSafetensors}
-          onCheckedChange={(v) => setParam("saveSafetensors", v)}
-        />
+        <Label className="text-2xs text-muted-foreground w-16 shrink-0">Safetensors</Label>
+        <Switch checked={saveSafetensors} onCheckedChange={(v) => setParam("saveSafetensors", v)} />
       </div>
     </SectionLeader>
   );

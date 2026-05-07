@@ -20,46 +20,57 @@ export function useDropTarget({ onDropPayload, onFileDrop, acceptTypes }: UseDro
     }
   }, []);
 
-  const onDragEnter = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setIsOver(true);
-    useDragStore.getState().setActiveDropTarget(targetId);
-  }, [targetId]);
+  const onDragEnter = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault();
+      setIsOver(true);
+      useDragStore.getState().setActiveDropTarget(targetId);
+    },
+    [targetId],
+  );
 
-  const onDragLeave = useCallback((e: React.DragEvent) => {
-    // Only deactivate if leaving the target element itself (not a child)
-    if (e.currentTarget.contains(e.relatedTarget as Node)) return;
-    setIsOver(false);
-    const store = useDragStore.getState();
-    if (store.activeDropTargetId === targetId) {
-      store.setActiveDropTarget(null);
-    }
-  }, [targetId]);
+  const onDragLeave = useCallback(
+    (e: React.DragEvent) => {
+      // Only deactivate if leaving the target element itself (not a child)
+      if (e.currentTarget.contains(e.relatedTarget as Node)) return;
+      setIsOver(false);
+      const store = useDragStore.getState();
+      if (store.activeDropTargetId === targetId) {
+        store.setActiveDropTarget(null);
+      }
+    },
+    [targetId],
+  );
 
-  const onDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setIsOver(false);
-    useDragStore.getState().setActiveDropTarget(null);
+  const onDrop = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault();
+      setIsOver(false);
+      useDragStore.getState().setActiveDropTarget(null);
 
-    // Check for internal drag payload first
-    const raw = e.dataTransfer.getData(INTERNAL_MIME);
-    if (raw) {
-      try {
-        const payload = JSON.parse(raw) as DragPayload;
-        if (!acceptTypes || acceptTypes.includes(payload.type)) {
-          onDropPayload?.(payload, e);
-          useDragStore.getState().endDrag();
-          return;
+      // Check for internal drag payload first
+      const raw = e.dataTransfer.getData(INTERNAL_MIME);
+      if (raw) {
+        try {
+          const payload = JSON.parse(raw) as DragPayload;
+          if (!acceptTypes || acceptTypes.includes(payload.type)) {
+            onDropPayload?.(payload, e);
+            useDragStore.getState().endDrag();
+            return;
+          }
+        } catch {
+          /* fall through to file handling */
         }
-      } catch { /* fall through to file handling */ }
-    }
+      }
 
-    // Fall through to native file drops
-    const file = e.dataTransfer.files?.[0];
-    if (file && file.type.startsWith("image/")) {
-      onFileDrop?.(file, e);
-    }
-  }, [onDropPayload, onFileDrop, acceptTypes]);
+      // Fall through to native file drops
+      const file = e.dataTransfer.files?.[0];
+      if (file && file.type.startsWith("image/")) {
+        onFileDrop?.(file, e);
+      }
+    },
+    [onDropPayload, onFileDrop, acceptTypes],
+  );
 
   return { onDragOver, onDragEnter, onDragLeave, onDrop, isOver };
 }

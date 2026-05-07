@@ -64,10 +64,7 @@ export function FramePickerDialog({
     const video = videoRef.current;
     if (!video) return;
     const frameTime = 1 / 30;
-    const newTime = Math.min(
-      Math.max(0, video.currentTime + delta * frameTime),
-      video.duration,
-    );
+    const newTime = Math.min(Math.max(0, video.currentTime + delta * frameTime), video.duration);
     video.currentTime = newTime;
     setCurrentTime(newTime);
   }, []);
@@ -106,9 +103,7 @@ export function FramePickerDialog({
       <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>Extract Frame</DialogTitle>
-          <DialogDescription>
-            Scrub to the desired frame and capture it.
-          </DialogDescription>
+          <DialogDescription>Scrub to the desired frame and capture it.</DialogDescription>
         </DialogHeader>
 
         <div className="flex flex-col gap-3">
@@ -161,11 +156,7 @@ export function FramePickerDialog({
               </Button>
             </div>
 
-            <Button
-              onClick={handleCapture}
-              disabled={capturing || duration === 0}
-              size="sm"
-            >
+            <Button onClick={handleCapture} disabled={capturing || duration === 0} size="sm">
               <Camera size={14} />
               Capture Frame
             </Button>

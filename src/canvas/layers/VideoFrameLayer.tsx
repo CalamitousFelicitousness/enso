@@ -20,9 +20,7 @@ export function VideoFrameLayer({
   height,
   onPickImage,
 }: VideoFrameLayerProps) {
-  const frame = useVideoCanvasStore((s) =>
-    which === "init" ? s.initFrame : s.lastFrame,
-  );
+  const frame = useVideoCanvasStore((s) => (which === "init" ? s.initFrame : s.lastFrame));
   const [image, setImage] = useState<HTMLImageElement | null>(null);
 
   const objectUrl = frame?.objectUrl;
@@ -85,14 +83,7 @@ export function VideoFrameLayer({
 
         {/* Image scaled to fit frame */}
         {hasImage && (
-          <KonvaImage
-            image={image}
-            x={0}
-            y={0}
-            width={width}
-            height={height}
-            listening={false}
-          />
+          <KonvaImage image={image} x={0} y={0} width={width} height={height} listening={false} />
         )}
 
         {/* Border */}

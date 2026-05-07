@@ -1,7 +1,13 @@
 import { useMemo } from "react";
 import { useMutation, useMutationState, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../client";
-import type { VaeV2, UpscalerV2, SdModelsResponse, SamplerV2, CheckpointInfoV2 } from "../types/models";
+import type {
+  VaeV2,
+  UpscalerV2,
+  SdModelsResponse,
+  SamplerV2,
+  CheckpointInfoV2,
+} from "../types/models";
 import type { ComboboxGroup } from "@/components/ui/combobox";
 
 const MODEL_MUTATION_KEY = ["model-operation"];
@@ -44,9 +50,24 @@ export function useUpscalerList() {
 }
 
 const UPSCALER_GROUP_ORDER = [
-  "None", "Resize", "Latent", "VIPS", "DCC Interpolation", "HQX", "ICB",
-  "ESRGAN", "RealESRGAN", "SwinIR", "SCUNet", "Spandrel", "chaiNNer",
-  "Diffusion", "Asymmetric VAE", "WAN", "Aura SR", "SeedVR2",
+  "None",
+  "Resize",
+  "Latent",
+  "VIPS",
+  "DCC Interpolation",
+  "HQX",
+  "ICB",
+  "ESRGAN",
+  "RealESRGAN",
+  "SwinIR",
+  "SCUNet",
+  "Spandrel",
+  "chaiNNer",
+  "Diffusion",
+  "Asymmetric VAE",
+  "WAN",
+  "Aura SR",
+  "SeedVR2",
 ];
 
 function stripGroupPrefix(name: string, group: string): string {

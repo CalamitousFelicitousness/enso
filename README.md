@@ -208,26 +208,26 @@ enso/
 
 ### Available Scripts
 
-| Command | Description |
-|---------|-------------|
+| Command       | Description                       |
+| ------------- | --------------------------------- |
 | `npm run dev` | Start development server with HMR |
 
 Production builds (`npm run build`) are handled automatically by `install.py` when SD.Next starts with `--enso`.
 
 ### Technology Stack
 
-| Layer | Technology |
-|-------|------------|
-| Frontend Framework | React 19 |
-| Language | TypeScript 5.9 (strict) |
-| Canvas Engine | Konva.js + react-konva |
-| State Management | Zustand 5 |
-| Server State | TanStack Query 5 |
-| Styling | Tailwind CSS 4 + shadcn/ui |
-| Build Tool | Vite 7 |
-| API Backend | FastAPI (runs inside SD.Next process) |
-| Job Persistence | SQLite |
-| Real-time | WebSocket |
+| Layer              | Technology                            |
+| ------------------ | ------------------------------------- |
+| Frontend Framework | React 19                              |
+| Language           | TypeScript 5.9 (strict)               |
+| Canvas Engine      | Konva.js + react-konva                |
+| State Management   | Zustand 5                             |
+| Server State       | TanStack Query 5                      |
+| Styling            | Tailwind CSS 4 + shadcn/ui            |
+| Build Tool         | Vite 7                                |
+| API Backend        | FastAPI (runs inside SD.Next process) |
+| Job Persistence    | SQLite                                |
+| Real-time          | WebSocket                             |
 
 ### How It Works
 

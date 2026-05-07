@@ -84,8 +84,7 @@ export function KeepAlivePanel({
 }: KeepAlivePanelProps) {
   const parentVisible = useKeepAliveVisible();
   const switchActiveId = useContext(KeepAliveSwitchContext);
-  const localActive =
-    explicitActive ?? (id != null && switchActiveId === id);
+  const localActive = explicitActive ?? (id != null && switchActiveId === id);
   const visible = parentVisible && localActive;
 
   // Lazy first mount: flip true on first visible, never back to false.
@@ -140,15 +139,8 @@ interface KeepAliveSwitchProps {
  * is unchanged, so a transient bad id (e.g. during gating fallback) doesn't
  * pollute state.
  */
-export function KeepAliveSwitch({
-  active,
-  initiallyMounted,
-  children,
-}: KeepAliveSwitchProps) {
-  const panels = useMemo(
-    () => Children.toArray(children).filter(isPanelElement),
-    [children],
-  );
+export function KeepAliveSwitch({ active, initiallyMounted, children }: KeepAliveSwitchProps) {
+  const panels = useMemo(() => Children.toArray(children).filter(isPanelElement), [children]);
 
   const knownIds = useMemo(() => {
     const ids = new Set<string>();

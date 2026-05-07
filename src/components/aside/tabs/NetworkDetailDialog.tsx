@@ -1,45 +1,23 @@
 import { useState } from "react";
-import {
-  Loader2,
-  ExternalLink,
-  ImageOff,
-  ChevronDown,
-  ChevronRight,
-} from "lucide-react";
+import { Loader2, ExternalLink, ImageOff, ChevronDown, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import { useNetworkDetail } from "@/api/hooks/useNetworks";
 import { useGenerationStore } from "@/stores/generationStore";
 import { insertAtCursor } from "@/lib/promptCursor";
-import type {
-  ExtraNetworkV2,
-  NetworkDetail,
-  PromptStyleV2,
-} from "@/api/types/models";
+import type { ExtraNetworkV2, NetworkDetail, PromptStyleV2 } from "@/api/types/models";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import {
-  Dialog,
-  DialogContent,
-  DialogTitle,
-  DialogDescription,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { api } from "@/api/client";
 
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  if (bytes < 1024 * 1024 * 1024)
-    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
 }
 
-function DetailRow({
-  label,
-  value,
-}: {
-  label: string;
-  value: string | null | undefined;
-}) {
+function DetailRow({ label, value }: { label: string; value: string | null | undefined }) {
   if (!value) return null;
   return (
     <div className="flex gap-2 text-xs leading-relaxed">
@@ -129,11 +107,7 @@ function TriggerWords({ words }: { words: string[] }) {
         onClick={() => setExpanded(!expanded)}
         className="flex items-center gap-1 text-xs font-medium hover:text-foreground transition-colors"
       >
-        {expanded ? (
-          <ChevronDown className="h-3 w-3" />
-        ) : (
-          <ChevronRight className="h-3 w-3" />
-        )}
+        {expanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
         Trigger words ({words.length})
       </button>
       {expanded && (
@@ -162,8 +136,7 @@ function NetworkDialogBody({
   previewUrl: string | null;
 }) {
   const civit = getCivitInfo(detail.info);
-  const tags =
-    detail.tags?.replaceAll("|", ", ").split(", ").filter(Boolean) ?? [];
+  const tags = detail.tags?.replaceAll("|", ", ").split(", ").filter(Boolean) ?? [];
   const hasPreview = !!previewUrl;
 
   return (
@@ -189,18 +162,11 @@ function NetworkDialogBody({
             <DetailRow label="Hash" value={detail.hash} />
             <DetailRow label="Version" value={detail.version} />
 
-            <DetailRow
-              label="Size"
-              value={detail.size != null ? formatBytes(detail.size) : null}
-            />
+            <DetailRow label="Size" value={detail.size != null ? formatBytes(detail.size) : null} />
 
             <DetailRow
               label="Modified"
-              value={
-                detail.mtime
-                  ? new Date(detail.mtime).toLocaleDateString()
-                  : null
-              }
+              value={detail.mtime ? new Date(detail.mtime).toLocaleDateString() : null}
             />
 
             <DetailRow label="File" value={detail.filename?.split("/").pop()} />
@@ -253,9 +219,7 @@ function NetworkDialogBody({
                 </a>
               </div>
               {civit.name && <DetailRow label="Name" value={civit.name} />}
-              {civit.baseModel && (
-                <DetailRow label="Base" value={civit.baseModel} />
-              )}
+              {civit.baseModel && <DetailRow label="Base" value={civit.baseModel} />}
             </div>
           )}
 
@@ -294,17 +258,13 @@ function StyleDialogBody({ item }: { item: PromptStyleV2 }) {
         {item.prompt && (
           <div className="text-xs space-y-0.5">
             <span className="text-muted-foreground font-medium">Prompt</span>
-            <p className="break-words bg-muted/30 rounded p-2 text-2xs">
-              {item.prompt}
-            </p>
+            <p className="break-words bg-muted/30 rounded p-2 text-2xs">{item.prompt}</p>
           </div>
         )}
         {item.negative_prompt && (
           <div className="text-xs space-y-0.5">
             <span className="text-muted-foreground font-medium">Negative</span>
-            <p className="break-words bg-muted/30 rounded p-2 text-2xs">
-              {item.negative_prompt}
-            </p>
+            <p className="break-words bg-muted/30 rounded p-2 text-2xs">{item.negative_prompt}</p>
           </div>
         )}
         {item.description && (
@@ -313,9 +273,7 @@ function StyleDialogBody({ item }: { item: PromptStyleV2 }) {
             <HtmlDescription html={item.description} />
           </div>
         )}
-        {item.filename && (
-          <DetailRow label="File" value={item.filename.split("/").pop()} />
-        )}
+        {item.filename && <DetailRow label="File" value={item.filename.split("/").pop()} />}
       </div>
     </div>
   );
@@ -331,7 +289,7 @@ export function NetworkDetailDialog({
   onOpenChange: (open: boolean) => void;
 }) {
   const isNetwork = item && "type" in item && item.type;
-  const network = isNetwork ? (item) : null;
+  const network = isNetwork ? item : null;
   const { data: detail, isLoading } = useNetworkDetail(
     network?.type ?? "",
     item?.name ?? "",
@@ -364,9 +322,7 @@ export function NetworkDetailDialog({
               <Badge variant="outline" className="text-2xs shrink-0">
                 {typeBadge}
               </Badge>
-              <DialogDescription className="sr-only">
-                Details for {item.name}
-              </DialogDescription>
+              <DialogDescription className="sr-only">Details for {item.name}</DialogDescription>
             </div>
 
             {/* Body */}

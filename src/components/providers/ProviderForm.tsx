@@ -72,7 +72,10 @@ export function ProviderForm({ initialPreset, onClose }: ProviderFormProps) {
   }
 
   return (
-    <form onSubmit={(e) => void handleSubmit(e)} className="rounded-md border border-primary/20 bg-accent/30 p-3 space-y-3">
+    <form
+      onSubmit={(e) => void handleSubmit(e)}
+      className="rounded-md border border-primary/20 bg-accent/30 p-3 space-y-3"
+    >
       <div className="flex items-center justify-between">
         <span className="text-xs font-medium">Add Provider</span>
         <Button type="button" variant="ghost" size="icon-sm" onClick={onClose}>
@@ -133,12 +136,7 @@ export function ProviderForm({ initialPreset, onClose }: ProviderFormProps) {
       </div>
 
       <div className="flex items-center gap-2 pt-1">
-        <Button
-          type="submit"
-          size="sm"
-          className="h-7 text-xs"
-          disabled={addProvider.isPending}
-        >
+        <Button type="submit" size="sm" className="h-7 text-xs" disabled={addProvider.isPending}>
           {addProvider.isPending ? (
             <Loader2 size={12} className="mr-1 animate-spin" />
           ) : (
@@ -146,13 +144,7 @@ export function ProviderForm({ initialPreset, onClose }: ProviderFormProps) {
           )}
           Add & Validate
         </Button>
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          className="h-7 text-xs"
-          onClick={onClose}
-        >
+        <Button type="button" variant="ghost" size="sm" className="h-7 text-xs" onClick={onClose}>
           Cancel
         </Button>
       </div>

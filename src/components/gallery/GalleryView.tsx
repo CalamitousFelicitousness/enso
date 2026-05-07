@@ -10,12 +10,15 @@ import { useShortcut } from "@/hooks/useShortcut";
 import { useShortcutScope } from "@/hooks/useShortcutScope";
 import { useKeepAliveVisible } from "@/components/ui/keep-alive";
 import { useRegisterCommand } from "@/lib/commandRegistry";
-import { Trash2, FolderInput, Download, CheckSquare, Square as SquareIcon, Eye } from "lucide-react";
 import {
-  ResizablePanelGroup,
-  ResizablePanel,
-  ResizableHandle,
-} from "@/components/ui/resizable";
+  Trash2,
+  FolderInput,
+  Download,
+  CheckSquare,
+  Square as SquareIcon,
+  Eye,
+} from "lucide-react";
+import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
 import { GalleryToolbar } from "./GalleryToolbar";
 import { GalleryProgress } from "./GalleryProgress";
 import { GalleryGrid } from "./GalleryGrid";
@@ -42,9 +45,7 @@ export function GalleryView() {
   useBrowserFiles(activeFolder);
   const visible = useKeepAliveVisible();
   useShortcutScope("gallery", visible);
-  useShortcut("gallery-toggle-info", () =>
-    useGalleryStore.getState().toggleMetadataPanel(),
-  );
+  useShortcut("gallery-toggle-info", () => useGalleryStore.getState().toggleMetadataPanel());
   useShortcut("gallery-select-all", (e) => {
     e.preventDefault();
     useGalleryStore.getState().selectAll();
@@ -57,22 +58,18 @@ export function GalleryView() {
   useShortcut(
     "gallery-delete",
     () => {
-      if (useGalleryStore.getState().selectedIds.size > 0)
-        setDeleteDialogOpen(true);
+      if (useGalleryStore.getState().selectedIds.size > 0) setDeleteDialogOpen(true);
     },
     selectionCount > 0,
   );
 
   const getSelectedPaths = useCallback(() => {
     const store = useGalleryStore.getState();
-    return store.files
-      .filter((f) => store.selectedIds.has(f.id))
-      .map((f) => f.fullPath);
+    return store.files.filter((f) => store.selectedIds.has(f.id)).map((f) => f.fullPath);
   }, []);
 
   const handleDeleteRequest = useCallback(() => {
-    if (useGalleryStore.getState().selectedIds.size > 0)
-      setDeleteDialogOpen(true);
+    if (useGalleryStore.getState().selectedIds.size > 0) setDeleteDialogOpen(true);
   }, []);
 
   const handleDeleteConfirm = useCallback(() => {
@@ -84,8 +81,7 @@ export function GalleryView() {
   }, [getSelectedPaths, deleteMutation]);
 
   const handleMoveRequest = useCallback(() => {
-    if (useGalleryStore.getState().selectedIds.size > 0)
-      setMoveDialogOpen(true);
+    if (useGalleryStore.getState().selectedIds.size > 0) setMoveDialogOpen(true);
   }, []);
 
   const handleMoveConfirm = useCallback(
@@ -162,8 +158,7 @@ export function GalleryView() {
   const filteredCount = useGalleryStore((s) => {
     if (!s.searchQuery) return s.files.length;
     const q = s.searchQuery.toLowerCase();
-    return s.files.filter((f) => f.relativePath.toLowerCase().includes(q))
-      .length;
+    return s.files.filter((f) => f.relativePath.toLowerCase().includes(q)).length;
   });
 
   if (!activeFolder) {
@@ -171,9 +166,7 @@ export function GalleryView() {
       <div className="flex flex-col items-center justify-center h-full text-muted-foreground gap-2">
         <FolderOpen size={32} className="opacity-30" />
         <p className="text-sm">Select a folder to browse</p>
-        <p className="text-xs opacity-60">
-          Choose a folder from the left panel
-        </p>
+        <p className="text-xs opacity-60">Choose a folder from the left panel</p>
       </div>
     );
   }

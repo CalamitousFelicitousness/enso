@@ -78,9 +78,7 @@ export function ActiveLoraStack({
                           min={0}
                           max={1}
                           step={0.05}
-                          onValueChange={([v]) =>
-                            onWeightChange(lora.name, v)
-                          }
+                          onValueChange={([v]) => onWeightChange(lora.name, v)}
                           className="flex-1 min-w-16"
                         />
                         <span className="font-mono text-4xs tabular-nums text-foreground shrink-0 w-8 text-right">

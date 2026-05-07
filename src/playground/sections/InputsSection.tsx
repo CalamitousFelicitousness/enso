@@ -4,16 +4,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Combobox, type ComboboxGroup } from "@/components/ui/combobox";
 
-const flatOptions = [
-  "Euler a",
-  "DPM++ 2M",
-  "DPM++ SDE",
-  "DDIM",
-  "UniPC",
-  "LMS",
-  "Heun",
-  "DPM2 a",
-];
+const flatOptions = ["Euler a", "DPM++ 2M", "DPM++ SDE", "DDIM", "UniPC", "LMS", "Heun", "DPM2 a"];
 
 const groupedOptions: ComboboxGroup[] = [
   { heading: "Recommended", options: ["Euler a", "DPM++ 2M Karras"] },

@@ -1,10 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Label } from "@/components/ui/label";
-import {
-  Tooltip,
-  TooltipTrigger,
-  TooltipContent,
-} from "@/components/ui/tooltip";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { getParamHelp } from "@/data/parameterHelp";
 import { cn } from "@/lib/utils";
 
@@ -53,8 +49,7 @@ export function ParamLabel({ children, className, tooltip }: ParamLabelProps) {
           className={cn(
             className,
             "cursor-help",
-            pinned &&
-              "underline decoration-dotted underline-offset-2 decoration-muted-foreground",
+            pinned && "underline decoration-dotted underline-offset-2 decoration-muted-foreground",
           )}
           onPointerEnter={() => {
             hoverTimer.current = setTimeout(() => setHovered(true), 300);

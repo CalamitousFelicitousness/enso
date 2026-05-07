@@ -1,12 +1,6 @@
 import { useState, useCallback, useMemo } from "react";
 import { toast } from "sonner";
-import {
-  Loader2,
-  AlertTriangle,
-  Plus,
-  Minus,
-  CheckCircle2,
-} from "lucide-react";
+import { Loader2, AlertTriangle, Plus, Minus, CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   useXyzAxisOptions,
@@ -115,9 +109,7 @@ function AxisSection({
     [values, onValuesChange],
   );
 
-  const valCount = axisType
-    ? countAxisValues(values, selectedOption?.type ?? "str")
-    : 0;
+  const valCount = axisType ? countAxisValues(values, selectedOption?.type ?? "str") : 0;
 
   return (
     <div className="space-y-2">
@@ -146,8 +138,7 @@ function AxisSection({
               value={values}
               onChange={(e) => onValuesChange(e.target.value)}
               placeholder={
-                selectedOption?.type === "int" ||
-                selectedOption?.type === "float"
+                selectedOption?.type === "int" || selectedOption?.type === "float"
                   ? "10, 20, 30 or 10-50:5"
                   : "value1, value2, value3"
               }
@@ -221,11 +212,7 @@ function AxisSection({
   );
 }
 
-export function XyzGridDialog({
-  open,
-  onOpenChange,
-  buildRequest,
-}: XyzGridDialogProps) {
+export function XyzGridDialog({ open, onOpenChange, buildRequest }: XyzGridDialogProps) {
   const [xType, setXType] = useState("");
   const [yType, setYType] = useState("");
   const [zType, setZType] = useState("");
@@ -256,10 +243,7 @@ export function XyzGridDialog({
   const validateMutation = useXyzValidate();
   const previewMutation = useXyzPreview();
 
-  const groups = useMemo(
-    () => (axisOptions ? groupAxisOptions(axisOptions) : []),
-    [axisOptions],
-  );
+  const groups = useMemo(() => (axisOptions ? groupAxisOptions(axisOptions) : []), [axisOptions]);
 
   const allOptions = useMemo(() => axisOptions ?? [], [axisOptions]);
   const findOpt = useCallback(
@@ -267,18 +251,10 @@ export function XyzGridDialog({
     [allOptions],
   );
 
-  const xCount = xType
-    ? countAxisValues(xValues, findOpt(xType)?.type ?? "str")
-    : 1;
-  const yCount = yType
-    ? countAxisValues(yValues, findOpt(yType)?.type ?? "str")
-    : 1;
-  const zCount =
-    showZ && zType
-      ? countAxisValues(zValues, findOpt(zType)?.type ?? "str")
-      : 1;
-  const totalCells =
-    Math.max(1, xCount) * Math.max(1, yCount) * Math.max(1, zCount);
+  const xCount = xType ? countAxisValues(xValues, findOpt(xType)?.type ?? "str") : 1;
+  const yCount = yType ? countAxisValues(yValues, findOpt(yType)?.type ?? "str") : 1;
+  const zCount = showZ && zType ? countAxisValues(zValues, findOpt(zType)?.type ?? "str") : 1;
+  const totalCells = Math.max(1, xCount) * Math.max(1, yCount) * Math.max(1, zCount);
 
   const dimensionText = useMemo(() => {
     const parts: string[] = [];
@@ -290,9 +266,7 @@ export function XyzGridDialog({
   }, [xType, yType, zType, showZ, xCount, yCount, zCount]);
 
   const canSubmit =
-    (xType && xValues.trim()) ||
-    (yType && yValues.trim()) ||
-    (showZ && zType && zValues.trim());
+    (xType && xValues.trim()) || (yType && yValues.trim()) || (showZ && zType && zValues.trim());
 
   const handleValidate = useCallback(
     (axisType: string, values: string, setter: (v: AxisValidation) => void) => {
@@ -312,14 +286,9 @@ export function XyzGridDialog({
   const handlePreview = useCallback(() => {
     previewMutation.mutate(
       {
-        x_axis:
-          xType && xValues.trim() ? { type: xType, values: xValues } : null,
-        y_axis:
-          yType && yValues.trim() ? { type: yType, values: yValues } : null,
-        z_axis:
-          showZ && zType && zValues.trim()
-            ? { type: zType, values: zValues }
-            : null,
+        x_axis: xType && xValues.trim() ? { type: xType, values: xValues } : null,
+        y_axis: yType && yValues.trim() ? { type: yType, values: yValues } : null,
+        z_axis: showZ && zType && zValues.trim() ? { type: zType, values: zValues } : null,
       },
       {
         onSuccess: (response) => setPreview(response),
@@ -348,18 +317,9 @@ export function XyzGridDialog({
       const xyzPayload: XyzGridJobParams = {
         ...(baseParams as Omit<XyzGridJobParams, "type">),
         type: "xyz-grid",
-        x_axis:
-          xType && xValues.trim()
-            ? { type: xType, values: xValues }
-            : undefined,
-        y_axis:
-          yType && yValues.trim()
-            ? { type: yType, values: yValues }
-            : undefined,
-        z_axis:
-          showZ && zType && zValues.trim()
-            ? { type: zType, values: zValues }
-            : undefined,
+        x_axis: xType && xValues.trim() ? { type: xType, values: xValues } : undefined,
+        y_axis: yType && yValues.trim() ? { type: yType, values: yValues } : undefined,
+        z_axis: showZ && zType && zValues.trim() ? { type: zType, values: zValues } : undefined,
         draw_legend: drawLegend,
         include_grid: true,
         include_subgrids: includeSubgrids,
@@ -382,9 +342,7 @@ export function XyzGridDialog({
         createdAt: Date.now(),
       });
       toast.success("XYZ Grid queued", {
-        description: dimensionText
-          ? `${dimensionText} = ${totalCells} images`
-          : "Grid submitted",
+        description: dimensionText ? `${dimensionText} = ${totalCells} images` : "Grid submitted",
       });
       onOpenChange(false);
     } catch (err) {
@@ -461,9 +419,7 @@ export function XyzGridDialog({
                 groups={groups}
                 allOptions={allOptions}
                 validation={zValidation}
-                onValidate={() =>
-                  handleValidate(zType, zValues, setZValidation)
-                }
+                onValidate={() => handleValidate(zType, zValues, setZValidation)}
               />
 
               <button
@@ -497,9 +453,7 @@ export function XyzGridDialog({
                 {totalCells} image{totalCells !== 1 ? "s" : ""}
               </span>
               {preview && (
-                <span className="text-muted-foreground ml-1">
-                  ~{preview.total_steps} steps
-                </span>
+                <span className="text-muted-foreground ml-1">~{preview.total_steps} steps</span>
               )}
               {totalCells > 50 && (
                 <span className="ml-auto flex items-center gap-1 text-amber-500">
@@ -541,10 +495,7 @@ export function XyzGridDialog({
             {showOptions && (
               <div className="mt-2 space-y-2 pl-1">
                 <label className="flex items-center gap-2 text-2xs">
-                  <Checkbox
-                    checked={drawLegend}
-                    onCheckedChange={(v) => setDrawLegend(!!v)}
-                  />
+                  <Checkbox checked={drawLegend} onCheckedChange={(v) => setDrawLegend(!!v)} />
                   Draw legend
                 </label>
                 <label className="flex items-center gap-2 text-2xs">
@@ -564,10 +515,7 @@ export function XyzGridDialog({
                   </label>
                 )}
                 <label className="flex items-center gap-2 text-2xs">
-                  <Checkbox
-                    checked={includeTime}
-                    onCheckedChange={(v) => setIncludeTime(!!v)}
-                  />
+                  <Checkbox checked={includeTime} onCheckedChange={(v) => setIncludeTime(!!v)} />
                   Show timing info
                 </label>
               </div>
@@ -576,11 +524,7 @@ export function XyzGridDialog({
         </div>
 
         <DialogFooter>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => onOpenChange(false)}
-          >
+          <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
           <Button
@@ -588,9 +532,7 @@ export function XyzGridDialog({
             onClick={() => void handleSubmit()}
             disabled={isSubmitting || !canSubmit}
           >
-            {isSubmitting && (
-              <Loader2 size={14} className="animate-spin mr-1" />
-            )}
+            {isSubmitting && <Loader2 size={14} className="animate-spin mr-1" />}
             Generate Grid
           </Button>
         </DialogFooter>

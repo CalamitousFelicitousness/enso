@@ -1,9 +1,5 @@
 import { useState, useMemo, useRef } from "react";
-import {
-  useExtraNetworks,
-  usePromptStyles,
-  useRefreshNetworks,
-} from "@/api/hooks/useNetworks";
+import { useExtraNetworks, usePromptStyles, useRefreshNetworks } from "@/api/hooks/useNetworks";
 import { useCivitMetadataScan } from "@/api/hooks/useCivitai";
 import { useOptions, useSetOptions } from "@/api/hooks/useSettings";
 import { useLoadModel } from "@/api/hooks/useModels";
@@ -26,9 +22,10 @@ import { CommandBar } from "./networks/CommandBar";
 import { FilterPanel } from "./networks/FilterPanel";
 import { NetworkGrid } from "./networks/NetworkGrid";
 
-const TYPE_FILTER_OPTIONS: SegmentOption<TypeFilter>[] = TYPE_FILTERS.map(
-  (t) => ({ value: t, label: t }),
-);
+const TYPE_FILTER_OPTIONS: SegmentOption<TypeFilter>[] = TYPE_FILTERS.map((t) => ({
+  value: t,
+  label: t,
+}));
 
 export function NetworksTab() {
   const { data: options } = useOptions();
@@ -64,8 +61,7 @@ export function NetworksTab() {
     if (filter === "Style") {
       const lowerSearch = search.toLowerCase();
       for (const s of styles ?? []) {
-        if (lowerSearch && !s.name.toLowerCase().includes(lowerSearch))
-          continue;
+        if (lowerSearch && !s.name.toLowerCase().includes(lowerSearch)) continue;
         items.push(s);
       }
     } else {
@@ -85,8 +81,7 @@ export function NetworksTab() {
   );
 
   // Progressive rendering
-  const { visibleItems, sentinelRef, hasMore } =
-    useProgressiveRender(displayItems);
+  const { visibleItems, sentinelRef, hasMore } = useProgressiveRender(displayItems);
 
   // LoRA preview map for ActiveLoraStack thumbnails
   const loraPreviewMap = useMemo(() => {
@@ -101,8 +96,7 @@ export function NetworksTab() {
   }, [networksResp?.items]);
 
   // Active filter count for badge
-  const activeFilterCount =
-    selectedSubfolder !== "All" ? 1 : 0;
+  const activeFilterCount = selectedSubfolder !== "All" ? 1 : 0;
 
   // Is item active (checkbox/model loaded/lora in prompt)
   function isActive(item: NetworkItem): boolean {
@@ -113,13 +107,10 @@ export function NetworksTab() {
     const t = item.type?.toLowerCase() ?? "";
     if (t === "model" || t === "checkpoint")
       return (item.title ?? item.name) === (options?.["sd_model_checkpoint"] as string);
-    if (t === "lora" || t === "lycoris")
-      return prompt.includes(`<lora:${item.name}:`);
-    if (t === "embedding" || t === "textual inversion")
-      return prompt.includes(item.name);
+    if (t === "lora" || t === "lycoris") return prompt.includes(`<lora:${item.name}:`);
+    if (t === "embedding" || t === "textual inversion") return prompt.includes(item.name);
     if (t === "wildcards") return prompt.includes(`__${item.name}__`);
-    if (t === "vae")
-      return (item.title ?? item.name) === (options?.["sd_vae"] as string);
+    if (t === "vae") return (item.title ?? item.name) === (options?.["sd_vae"] as string);
     return false;
   }
 
@@ -152,9 +143,7 @@ export function NetworksTab() {
         }
       } else if (t === "embedding" || t === "textual inversion") {
         const current = useGenerationStore.getState().prompt;
-        useGenerationStore
-          .getState()
-          .setParam("prompt", insertAtCursor(current, network.name));
+        useGenerationStore.getState().setParam("prompt", insertAtCursor(current, network.name));
       } else if (t === "wildcards") {
         const current = useGenerationStore.getState().prompt;
         useGenerationStore
@@ -169,10 +158,7 @@ export function NetworksTab() {
         const current = useGenerationStore.getState().prompt;
         useGenerationStore
           .getState()
-          .setParam(
-            "prompt",
-            current ? `${current} ${style.prompt}` : style.prompt,
-          );
+          .setParam("prompt", current ? `${current} ${style.prompt}` : style.prompt);
       }
       if (style.negative_prompt) {
         const currentNeg = useGenerationStore.getState().negativePrompt;
@@ -180,9 +166,7 @@ export function NetworksTab() {
           .getState()
           .setParam(
             "negativePrompt",
-            currentNeg
-              ? `${currentNeg} ${style.negative_prompt}`
-              : style.negative_prompt,
+            currentNeg ? `${currentNeg} ${style.negative_prompt}` : style.negative_prompt,
           );
       }
     }
@@ -249,19 +233,11 @@ export function NetworksTab() {
       {/* Scrollable body */}
       <div className="flex-1 overflow-y-auto">
         <div className="p-3 space-y-2">
-          {isLoading && (
-            <p className="text-xs text-muted-foreground p-2">
-              Loading networks...
-            </p>
-          )}
+          {isLoading && <p className="text-xs text-muted-foreground p-2">Loading networks...</p>}
           <NetworkGrid>
             {visibleItems.map((item) => (
               <MatteCard
-                key={
-                  isExtraNetwork(item)
-                    ? `${item.type}-${item.name}`
-                    : item.name
-                }
+                key={isExtraNetwork(item) ? `${item.type}-${item.name}` : item.name}
                 item={item}
                 active={isActive(item)}
                 isActiveLora={isActiveLora(item)}
@@ -272,9 +248,7 @@ export function NetworksTab() {
           </NetworkGrid>
           {hasMore && <div ref={sentinelRef} className="h-8" />}
           {!isLoading && displayItems.length === 0 && (
-            <p className="text-xs text-muted-foreground text-center py-6">
-              No results found.
-            </p>
+            <p className="text-xs text-muted-foreground text-center py-6">No results found.</p>
           )}
         </div>
       </div>

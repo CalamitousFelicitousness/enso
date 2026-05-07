@@ -37,9 +37,7 @@ export function ExtractLoraSubTab() {
 
   return (
     <div className="space-y-3">
-      <p className="text-2xs text-muted-foreground">
-        Extract LoRA from loaded model differences.
-      </p>
+      <p className="text-2xs text-muted-foreground">Extract LoRA from loaded model differences.</p>
 
       <div className="space-y-1">
         <div className="flex items-center justify-between">
@@ -55,18 +53,13 @@ export function ExtractLoraSubTab() {
         {loras.length > 0 ? (
           <div className="space-y-0.5">
             {loras.map((name) => (
-              <p
-                key={name}
-                className="text-2xs font-mono px-2 py-0.5 bg-muted/30 rounded"
-              >
+              <p key={name} className="text-2xs font-mono px-2 py-0.5 bg-muted/30 rounded">
                 {name}
               </p>
             ))}
           </div>
         ) : (
-          <p className="text-2xs text-muted-foreground">
-            No LoRAs currently loaded in model.
-          </p>
+          <p className="text-2xs text-muted-foreground">No LoRAs currently loaded in model.</p>
         )}
       </div>
 
@@ -134,9 +127,7 @@ export function ExtractLoraSubTab() {
         </div>
         {autoRank && (
           <div className="pl-5">
-            <Label className="text-2xs">
-              Rank ratio: {rankRatio.toFixed(2)}
-            </Label>
+            <Label className="text-2xs">Rank ratio: {rankRatio.toFixed(2)}</Label>
             <Slider
               value={[rankRatio]}
               onValueChange={([v]) => setRankRatio(v)}
@@ -171,9 +162,7 @@ export function ExtractLoraSubTab() {
         {extract.isPending && <Loader2 className="h-3 w-3 animate-spin mr-1" />}
         Extract LoRA
       </Button>
-      {extract.data && (
-        <p className="text-2xs text-muted-foreground">{extract.data.status}</p>
-      )}
+      {extract.data && <p className="text-2xs text-muted-foreground">{extract.data.status}</p>}
     </div>
   );
 }
