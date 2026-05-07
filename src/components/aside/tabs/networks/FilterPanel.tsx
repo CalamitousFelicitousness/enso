@@ -57,10 +57,19 @@ function FolderTreeRow({
           <span
             role="button"
             tabIndex={0}
-            className="shrink-0 p-1 -ml-1 rounded cursor-pointer hover:bg-muted/80 hover:text-foreground"
+            aria-expanded={isExpanded}
+            aria-label={isExpanded ? "Collapse" : "Expand"}
+            className="shrink-0 p-1 -ml-1 rounded cursor-pointer hover:bg-muted/80 hover:text-foreground outline-none focus-visible:ring-ring/50 focus-visible:ring-[3px]"
             onClick={(e) => {
               e.stopPropagation();
               onToggle(node.path);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                e.stopPropagation();
+                onToggle(node.path);
+              }
             }}
           >
             <motion.span
@@ -220,10 +229,19 @@ export function FilterPanel({
                               <span
                                 role="button"
                                 tabIndex={0}
-                                className="shrink-0 p-1 -ml-1 rounded cursor-pointer hover:bg-muted/80 hover:text-foreground"
+                                aria-expanded={isExpanded}
+                                aria-label={isExpanded ? "Collapse" : "Expand"}
+                                className="shrink-0 p-1 -ml-1 rounded cursor-pointer hover:bg-muted/80 hover:text-foreground outline-none focus-visible:ring-ring/50 focus-visible:ring-[3px]"
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   toggleExpand(dir);
+                                }}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter" || e.key === " ") {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    toggleExpand(dir);
+                                  }
                                 }}
                               >
                                 <motion.span
