@@ -76,9 +76,46 @@ export function SwipeMode({ imageA, imageB }: SwipeModeProps) {
 
       {/* Divider */}
       <div
-        className="absolute top-0 bottom-0 w-1 bg-white/80 cursor-col-resize z-10 hover:bg-white"
+        role="slider"
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={Math.round(dividerPct)}
+        aria-label="Comparison divider position, percent"
+        tabIndex={0}
+        className="absolute top-0 bottom-0 w-1 bg-white/80 cursor-col-resize z-10 hover:bg-white outline-none focus-visible:ring-ring/50 focus-visible:ring-[3px]"
         style={{ left: `${dividerPct}%`, transform: "translateX(-50%)" }}
         onMouseDown={handleDividerDown}
+        onKeyDown={(e) => {
+          const step = e.shiftKey ? 10 : 1;
+          switch (e.key) {
+            case "ArrowLeft":
+            case "ArrowDown":
+              e.preventDefault();
+              setDividerPct((v) => Math.max(0, v - step));
+              break;
+            case "ArrowRight":
+            case "ArrowUp":
+              e.preventDefault();
+              setDividerPct((v) => Math.min(100, v + step));
+              break;
+            case "Home":
+              e.preventDefault();
+              setDividerPct(0);
+              break;
+            case "End":
+              e.preventDefault();
+              setDividerPct(100);
+              break;
+            case "PageDown":
+              e.preventDefault();
+              setDividerPct((v) => Math.max(0, v - 10));
+              break;
+            case "PageUp":
+              e.preventDefault();
+              setDividerPct((v) => Math.min(100, v + 10));
+              break;
+          }
+        }}
       >
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-6 h-8 bg-white/90 rounded flex items-center justify-center">
           <span className="text-black text-3xs font-bold select-none">⟺</span>

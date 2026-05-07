@@ -202,11 +202,42 @@ export function VideoCompare({
       <div className="flex-shrink-0 bg-black/70 backdrop-blur-sm px-3 py-2 flex flex-col gap-1.5">
         {/* Scrub bar */}
         <div
-          className="relative h-4 flex items-center cursor-pointer group"
+          role="slider"
+          aria-valuemin={0}
+          aria-valuemax={duration}
+          aria-valuenow={currentTime}
+          aria-valuetext={`${formatTime(currentTime)} of ${formatTime(duration)}`}
+          aria-label="Comparison playback position"
+          tabIndex={0}
+          className="relative h-4 flex items-center cursor-pointer group outline-none focus-visible:ring-ring/50 focus-visible:ring-[3px] rounded-sm"
           onMouseDown={(e) => {
             const rect = e.currentTarget.getBoundingClientRect();
             const frac = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
             seek(frac * duration);
+          }}
+          onKeyDown={(e) => {
+            if (duration <= 0) return;
+            const step = e.shiftKey ? 10 : 5;
+            switch (e.key) {
+              case "ArrowLeft":
+              case "ArrowDown":
+                e.preventDefault();
+                seek(Math.max(0, currentTime - step));
+                break;
+              case "ArrowRight":
+              case "ArrowUp":
+                e.preventDefault();
+                seek(Math.min(duration, currentTime + step));
+                break;
+              case "Home":
+                e.preventDefault();
+                seek(0);
+                break;
+              case "End":
+                e.preventDefault();
+                seek(duration);
+                break;
+            }
           }}
         >
           <div className="absolute inset-x-0 h-1 bg-white/20 rounded-full">

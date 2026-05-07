@@ -111,10 +111,41 @@ export function PlayerControls({
         {/* Scrub bar */}
         <div
           ref={trackRef}
-          className="relative h-5 flex items-center cursor-pointer group"
+          role="slider"
+          aria-valuemin={0}
+          aria-valuemax={duration}
+          aria-valuenow={currentTime}
+          aria-valuetext={`${formatTime(currentTime)} of ${formatTime(duration)}`}
+          aria-label="Video position"
+          tabIndex={0}
+          className="relative h-5 flex items-center cursor-pointer group outline-none focus-visible:ring-ring/50 focus-visible:ring-[3px] rounded-sm"
           onMouseDown={handleTrackMouseDown}
           onMouseMove={handleTrackHover}
           onMouseLeave={() => setHoverX(null)}
+          onKeyDown={(e) => {
+            if (duration <= 0) return;
+            const step = e.shiftKey ? 10 : 5;
+            switch (e.key) {
+              case "ArrowLeft":
+              case "ArrowDown":
+                e.preventDefault();
+                onSeek(Math.max(0, currentTime - step));
+                break;
+              case "ArrowRight":
+              case "ArrowUp":
+                e.preventDefault();
+                onSeek(Math.min(duration, currentTime + step));
+                break;
+              case "Home":
+                e.preventDefault();
+                onSeek(0);
+                break;
+              case "End":
+                e.preventDefault();
+                onSeek(duration);
+                break;
+            }
+          }}
         >
           {/* Track background */}
           <div className="absolute inset-x-0 h-1 bg-white/20 rounded-full group-hover:h-1.5 transition-all">
