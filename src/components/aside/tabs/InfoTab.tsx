@@ -1,5 +1,5 @@
 import { useServerInfo } from "@/api/hooks/useServer";
-import { BookOpen, Github, MessageCircle } from "lucide-react";
+import { BookOpen, GitBranch, MessageCircle } from "lucide-react";
 
 export function InfoTab() {
   const { data: serverInfo } = useServerInfo();
@@ -24,7 +24,7 @@ export function InfoTab() {
 
         <ExternalLink
           href="https://github.com/vladmandic/sdnext"
-          icon={Github}
+          icon={GitBranch}
           label="GitHub"
         />
 

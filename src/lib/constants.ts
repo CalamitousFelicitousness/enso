@@ -3,7 +3,7 @@ import {
   ImageIcon, Video, Sparkles, MessageSquare, Images,
   Type, SlidersHorizontal, Compass, Wand2, ScanSearch,
   Settings2, Layers, FileCode, Palette,
-  BookOpen, Github, MessageCircle, Users,
+  BookOpen, GitBranch, MessageCircle, Users,
   Gauge, LayoutGrid, Box, Puzzle, Settings, Monitor, Clock, Info, Terminal,
   ListOrdered, CloudCog,
 } from "lucide-react";
@@ -75,7 +75,7 @@ export const IMAGES_SUB_TABS: SubTabItem[] = [
 /** External links at the bottom of the Left Rail */
 export const EXTERNAL_LINKS: ExternalLink[] = [
   { label: "Docs", icon: BookOpen, url: "https://vladmandic.github.io/sdnext-docs/" },
-  { label: "GitHub", icon: Github, url: "https://github.com/vladmandic/sdnext" },
+  { label: "GitHub", icon: GitBranch, url: "https://github.com/vladmandic/sdnext" },
   { label: "Discord", icon: MessageCircle, url: "https://discord.gg/VjvR2tabEX" },
   { label: "Contributors", icon: Users, url: "https://github.com/vladmandic/sdnext/graphs/contributors" },
 ];
