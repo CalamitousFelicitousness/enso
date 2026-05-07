@@ -14,7 +14,7 @@ export function createIdbStorage(dbName: string, storeName: string, debounceMs =
           }
         };
         req.onsuccess = () => resolve(req.result);
-        req.onerror = () => reject(req.error);
+        req.onerror = () => reject(req.error ?? new Error("IDB request failed"));
       });
     }
     return dbPromise;
@@ -27,7 +27,7 @@ export function createIdbStorage(dbName: string, storeName: string, debounceMs =
           const tx = db.transaction(storeName, "readonly");
           const req = tx.objectStore(storeName).get(key);
           req.onsuccess = () => resolve((req.result as string) ?? null);
-          req.onerror = () => reject(req.error);
+          req.onerror = () => reject(req.error ?? new Error("IDB request failed"));
         }),
     );
   }
@@ -39,7 +39,7 @@ export function createIdbStorage(dbName: string, storeName: string, debounceMs =
           const tx = db.transaction(storeName, "readwrite");
           tx.objectStore(storeName).put(value, key);
           tx.oncomplete = () => resolve();
-          tx.onerror = () => reject(tx.error);
+          tx.onerror = () => reject(tx.error ?? new Error("IDB transaction failed"));
         }),
     );
   }
@@ -51,7 +51,7 @@ export function createIdbStorage(dbName: string, storeName: string, debounceMs =
           const tx = db.transaction(storeName, "readwrite");
           tx.objectStore(storeName).delete(key);
           tx.oncomplete = () => resolve();
-          tx.onerror = () => reject(tx.error);
+          tx.onerror = () => reject(tx.error ?? new Error("IDB transaction failed"));
         }),
     );
   }

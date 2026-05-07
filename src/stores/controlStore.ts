@@ -353,7 +353,7 @@ function openControlDb(): Promise<IDBDatabase> {
         }
       };
       req.onsuccess = () => resolve(req.result);
-      req.onerror = () => reject(req.error);
+      req.onerror = () => reject(req.error ?? new Error("IDB request failed"));
     });
   }
   return controlDbPromise;
@@ -366,7 +366,7 @@ function readSnapshots(): Promise<ControlUnitSnapshot[] | null> {
         const tx = db.transaction(CONTROL_STORE, "readonly");
         const req = tx.objectStore(CONTROL_STORE).get(CONTROL_KEY);
         req.onsuccess = () => resolve((req.result as ControlUnitSnapshot[] | undefined) ?? null);
-        req.onerror = () => reject(req.error);
+        req.onerror = () => reject(req.error ?? new Error("IDB request failed"));
       }),
   );
 }
@@ -378,7 +378,7 @@ function writeSnapshots(snapshots: ControlUnitSnapshot[]): Promise<void> {
         const tx = db.transaction(CONTROL_STORE, "readwrite");
         tx.objectStore(CONTROL_STORE).put(snapshots, CONTROL_KEY);
         tx.oncomplete = () => resolve();
-        tx.onerror = () => reject(tx.error);
+        tx.onerror = () => reject(tx.error ?? new Error("IDB transaction failed"));
       }),
   );
 }

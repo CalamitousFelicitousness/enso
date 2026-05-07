@@ -28,7 +28,7 @@ function openDb(): Promise<IDBDatabase> {
       }
     };
     req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
+    req.onerror = () => reject(req.error ?? new Error("IDB request failed"));
   });
   return dbPromise;
 }
@@ -39,7 +39,7 @@ export async function putJobPayload(payload: StoredJobPayload): Promise<void> {
     const tx = db.transaction(STORE_NAME, "readwrite");
     tx.objectStore(STORE_NAME).put(payload);
     tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
+    tx.onerror = () => reject(tx.error ?? new Error("IDB transaction failed"));
   });
 }
 
@@ -49,7 +49,7 @@ export async function getJobPayload(id: string): Promise<StoredJobPayload | unde
     const tx = db.transaction(STORE_NAME, "readonly");
     const req = tx.objectStore(STORE_NAME).get(id);
     req.onsuccess = () => resolve(req.result as StoredJobPayload | undefined);
-    req.onerror = () => reject(req.error);
+    req.onerror = () => reject(req.error ?? new Error("IDB request failed"));
   });
 }
 
@@ -69,7 +69,7 @@ export async function getAllJobPayloads(): Promise<StoredJobPayload[]> {
         resolve(results);
       }
     };
-    req.onerror = () => reject(req.error);
+    req.onerror = () => reject(req.error ?? new Error("IDB request failed"));
   });
 }
 
@@ -79,7 +79,7 @@ export async function deleteJobPayload(id: string): Promise<void> {
     const tx = db.transaction(STORE_NAME, "readwrite");
     tx.objectStore(STORE_NAME).delete(id);
     tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
+    tx.onerror = () => reject(tx.error ?? new Error("IDB transaction failed"));
   });
 }
 
@@ -89,6 +89,6 @@ export async function clearAllJobPayloads(): Promise<void> {
     const tx = db.transaction(STORE_NAME, "readwrite");
     tx.objectStore(STORE_NAME).clear();
     tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
+    tx.onerror = () => reject(tx.error ?? new Error("IDB transaction failed"));
   });
 }

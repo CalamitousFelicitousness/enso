@@ -20,7 +20,7 @@ function openDb(): Promise<IDBDatabase> {
       store.createIndex("folder", "folder", { unique: false });
     };
     req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
+    req.onerror = () => reject(req.error ?? new Error("IDB request failed"));
   });
   return dbPromise;
 }
@@ -39,7 +39,7 @@ export async function getThumb(hash: string): Promise<CachedThumb | undefined> {
     const tx = db.transaction(STORE_NAME, "readonly");
     const req = tx.objectStore(STORE_NAME).get(hash);
     req.onsuccess = () => resolve(req.result as CachedThumb | undefined);
-    req.onerror = () => reject(req.error);
+    req.onerror = () => reject(req.error ?? new Error("IDB request failed"));
   });
 }
 
@@ -62,7 +62,7 @@ export async function batchGetThumbs(hashes: string[]): Promise<Map<string, Cach
         if (--pending === 0) resolve(map);
       };
     }
-    tx.onerror = () => reject(tx.error);
+    tx.onerror = () => reject(tx.error ?? new Error("IDB transaction failed"));
   });
 }
 
@@ -72,7 +72,7 @@ export async function putThumb(entry: CachedThumb): Promise<void> {
     const tx = db.transaction(STORE_NAME, "readwrite");
     tx.objectStore(STORE_NAME).put(entry);
     tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
+    tx.onerror = () => reject(tx.error ?? new Error("IDB transaction failed"));
   });
 }
 
@@ -91,7 +91,7 @@ export async function deleteFolder(folder: string): Promise<void> {
       }
     };
     tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
+    tx.onerror = () => reject(tx.error ?? new Error("IDB transaction failed"));
   });
 }
 
@@ -103,7 +103,7 @@ export async function deleteThumbsByHashes(hashes: string[]): Promise<void> {
     const store = tx.objectStore(STORE_NAME);
     for (const hash of hashes) store.delete(hash);
     tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
+    tx.onerror = () => reject(tx.error ?? new Error("IDB transaction failed"));
   });
 }
 
@@ -114,7 +114,7 @@ export async function cleanupFolder(folder: string, maxEntries: number): Promise
     const index = tx.objectStore(STORE_NAME).index("folder");
     const req = index.getAll(IDBKeyRange.only(folder));
     req.onsuccess = () => resolve(req.result as CachedThumb[]);
-    req.onerror = () => reject(req.error);
+    req.onerror = () => reject(req.error ?? new Error("IDB request failed"));
   });
   if (entries.length <= maxEntries) return;
   entries.sort((a, b) => a.mtime - b.mtime);
@@ -126,6 +126,6 @@ export async function cleanupFolder(folder: string, maxEntries: number): Promise
   }
   await new Promise<void>((resolve, reject) => {
     tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
+    tx.onerror = () => reject(tx.error ?? new Error("IDB transaction failed"));
   });
 }

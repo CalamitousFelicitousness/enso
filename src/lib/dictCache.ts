@@ -19,7 +19,7 @@ function openDb(): Promise<IDBDatabase> {
       }
     };
     req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
+    req.onerror = () => reject(req.error ?? new Error("IDB request failed"));
   });
 }
 
@@ -30,7 +30,7 @@ function idbGet(key: string): Promise<CachedEntry | undefined> {
         const tx = db.transaction(STORE_NAME, "readonly");
         const req = tx.objectStore(STORE_NAME).get(key);
         req.onsuccess = () => resolve(req.result as CachedEntry | undefined);
-        req.onerror = () => reject(req.error);
+        req.onerror = () => reject(req.error ?? new Error("IDB request failed"));
       }),
   );
 }
@@ -42,7 +42,7 @@ function idbPut(key: string, value: CachedEntry): Promise<void> {
         const tx = db.transaction(STORE_NAME, "readwrite");
         tx.objectStore(STORE_NAME).put(value, key);
         tx.oncomplete = () => resolve();
-        tx.onerror = () => reject(tx.error);
+        tx.onerror = () => reject(tx.error ?? new Error("IDB transaction failed"));
       }),
   );
 }
@@ -58,7 +58,7 @@ function idbDelete(key?: string): Promise<void> {
           tx.objectStore(STORE_NAME).clear();
         }
         tx.oncomplete = () => resolve();
-        tx.onerror = () => reject(tx.error);
+        tx.onerror = () => reject(tx.error ?? new Error("IDB transaction failed"));
       }),
   );
 }

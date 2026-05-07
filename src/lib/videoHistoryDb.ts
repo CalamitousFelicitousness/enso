@@ -18,7 +18,7 @@ function openDb(): Promise<IDBDatabase> {
       }
     };
     req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
+    req.onerror = () => reject(req.error ?? new Error("IDB request failed"));
   });
   return dbPromise;
 }
@@ -39,7 +39,7 @@ export async function getAllVideoResults(): Promise<VideoResult[]> {
         resolve(results);
       }
     };
-    req.onerror = () => reject(req.error);
+    req.onerror = () => reject(req.error ?? new Error("IDB request failed"));
   });
 }
 
@@ -49,7 +49,7 @@ export async function putVideoResult(result: VideoResult): Promise<void> {
     const tx = db.transaction(STORE_NAME, "readwrite");
     tx.objectStore(STORE_NAME).put(result);
     tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
+    tx.onerror = () => reject(tx.error ?? new Error("IDB transaction failed"));
   });
 }
 
@@ -59,7 +59,7 @@ export async function deleteVideoResult(id: string): Promise<void> {
     const tx = db.transaction(STORE_NAME, "readwrite");
     tx.objectStore(STORE_NAME).delete(id);
     tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
+    tx.onerror = () => reject(tx.error ?? new Error("IDB transaction failed"));
   });
 }
 
@@ -69,7 +69,7 @@ export async function trimVideoResults(maxCount: number): Promise<void> {
     const tx = db.transaction(STORE_NAME, "readonly");
     const req = tx.objectStore(STORE_NAME).count();
     req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
+    req.onerror = () => reject(req.error ?? new Error("IDB request failed"));
   });
   if (count <= maxCount) return;
   const toDelete = count - maxCount;
@@ -87,7 +87,7 @@ export async function trimVideoResults(maxCount: number): Promise<void> {
       }
     };
     tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
+    tx.onerror = () => reject(tx.error ?? new Error("IDB transaction failed"));
   });
 }
 
@@ -97,6 +97,6 @@ export async function clearAllVideoResults(): Promise<void> {
     const tx = db.transaction(STORE_NAME, "readwrite");
     tx.objectStore(STORE_NAME).clear();
     tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
+    tx.onerror = () => reject(tx.error ?? new Error("IDB transaction failed"));
   });
 }
