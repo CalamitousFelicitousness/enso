@@ -84,11 +84,16 @@ async def submit_job(request: JobRequest):
 async def list_jobs(
     status: str | None = None,
     type: str | None = None,
+    before: str | None = None,
+    after: str | None = None,
     limit: int = Query(default=20, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
 ):
     from enso_api.job_queue import job_queue
-    items, total = job_queue.store.list(status=status, job_type=type, limit=limit, offset=offset)
+    items, total = job_queue.store.list(
+        status=status, job_type=type, before=before, after=after,
+        limit=limit, offset=offset,
+    )
     return JobListResponse(items=[job_to_response(j) for j in items], total=total, offset=offset, limit=limit)
 
 
@@ -109,18 +114,18 @@ async def job_stats():
 async def bulk_job_action(request: ReqBulkJobV2):
     if request.action not in ("cancel", "delete"):
         raise HTTPException(status_code=400, detail="action must be 'cancel' or 'delete'")
-    if not any([request.status, request.type, request.ids, request.before]) and not request.confirm:
-        raise HTTPException(status_code=400, detail="At least one filter (status, type, ids, before) is required, or set confirm=true")
+    if not any([request.status, request.type, request.ids, request.before, request.after]) and not request.confirm:
+        raise HTTPException(status_code=400, detail="At least one filter (status, type, ids, before, after) is required, or set confirm=true")
     from enso_api.job_queue import job_queue
     if request.action == "cancel":
         affected = await asyncio.to_thread(
             job_queue.store.bulk_cancel,
-            job_type=request.type, ids=request.ids, before=request.before,
+            job_type=request.type, ids=request.ids, before=request.before, after=request.after,
         )
     else:
         affected = await asyncio.to_thread(
             job_queue.store.bulk_delete,
-            status=request.status, job_type=request.type, ids=request.ids, before=request.before,
+            status=request.status, job_type=request.type, ids=request.ids, before=request.before, after=request.after,
         )
     return ResBulkJobV2(action=request.action, affected=affected)
 

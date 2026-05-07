@@ -81,7 +81,7 @@ class JobStore:
         row = self._conn.execute("SELECT * FROM jobs WHERE id = ?", (job_id,)).fetchone()
         return self._row_to_dict(row) if row else None
 
-    def list(self, status: str | None = None, job_type: str | None = None, limit: int = 20, offset: int = 0) -> tuple[list[dict], int]:
+    def list(self, status: str | None = None, job_type: str | None = None, before: str | None = None, after: str | None = None, limit: int = 20, offset: int = 0) -> tuple[list[dict], int]:
         where_parts: list[str] = []
         binds: list = []
         if status:
@@ -90,6 +90,12 @@ class JobStore:
         if job_type:
             where_parts.append("type = ?")
             binds.append(job_type)
+        if before:
+            where_parts.append("created_at < ?")
+            binds.append(before)
+        if after:
+            where_parts.append("created_at >= ?")
+            binds.append(after)
         where_clause = f"WHERE {' AND '.join(where_parts)}" if where_parts else ""
         count_row = self._conn.execute(f"SELECT COUNT(*) FROM jobs {where_clause}", binds).fetchone()
         total = count_row[0] if count_row else 0
@@ -149,7 +155,7 @@ class JobStore:
             self._conn.commit()
             return cur.rowcount
 
-    def bulk_cancel(self, job_type: str | None = None, ids: list[str] | None = None, before: str | None = None) -> int:
+    def bulk_cancel(self, job_type: str | None = None, ids: list[str] | None = None, before: str | None = None, after: str | None = None) -> int:
         where_parts = ["status = 'pending'"]
         binds: list = []
         if job_type:
@@ -162,6 +168,9 @@ class JobStore:
         if before:
             where_parts.append("created_at < ?")
             binds.append(before)
+        if after:
+            where_parts.append("created_at >= ?")
+            binds.append(after)
         where_clause = f"WHERE {' AND '.join(where_parts)}"
         now = self.now()
         with self._write_lock:
@@ -172,7 +181,7 @@ class JobStore:
             self._conn.commit()
             return cur.rowcount
 
-    def bulk_delete(self, status: str | None = None, job_type: str | None = None, ids: list[str] | None = None, before: str | None = None) -> int:
+    def bulk_delete(self, status: str | None = None, job_type: str | None = None, ids: list[str] | None = None, before: str | None = None, after: str | None = None) -> int:
         terminal = ('completed', 'failed', 'cancelled')
         where_parts = [f"status IN ({','.join('?' for _ in terminal)})"]
         binds: list = list(terminal)
@@ -189,6 +198,9 @@ class JobStore:
         if before:
             where_parts.append("created_at < ?")
             binds.append(before)
+        if after:
+            where_parts.append("created_at >= ?")
+            binds.append(after)
         where_clause = f"WHERE {' AND '.join(where_parts)}"
         with self._write_lock:
             rows = self._conn.execute(f"SELECT result FROM jobs {where_clause}", binds).fetchall()

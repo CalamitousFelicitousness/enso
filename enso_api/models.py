@@ -91,7 +91,8 @@ class ReqBulkJobV2(BaseModel):
     status: str | None = None
     type: str | None = None
     ids: list[str] | None = None
-    before: str | None = None  # ISO timestamp
+    before: str | None = None  # ISO timestamp (created_at < before)
+    after: str | None = None   # ISO timestamp (created_at >= after)
     confirm: bool = False    # explicit opt-in for no-filter requests
 
 class ResBulkJobV2(BaseModel):
