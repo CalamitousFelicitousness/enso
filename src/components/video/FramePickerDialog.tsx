@@ -112,6 +112,7 @@ export function FramePickerDialog({
         </DialogHeader>
 
         <div className="flex flex-col gap-3">
+          {/* eslint-disable-next-line jsx-a11y/media-has-caption -- AI-generated video, no caption track available */}
           <video
             ref={videoRef}
             src={videoUrl}

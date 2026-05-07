@@ -366,6 +366,7 @@ export const ParamSlider = memo(function ParamSlider({
       {editing ? (
         <input
           type="number"
+          // eslint-disable-next-line jsx-a11y/no-autofocus -- click-to-edit UX requires immediate focus
           autoFocus
           value={draft}
           onChange={(e) => setDraft(e.target.value)}

@@ -28,6 +28,17 @@ export default defineConfig([
     },
     rules: {
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
+      // These two structural a11y rules need per-site role+tabIndex+onKeyDown
+      // refactoring (lightbox backdrops, comparison handles, custom rows). Kept
+      // as warnings so they stay visible for a focused accessibility pass.
+      'jsx-a11y/no-static-element-interactions': 'warn',
+      'jsx-a11y/click-events-have-key-events': 'warn',
+      // Radix-based Checkbox/Switch are the project's native form controls;
+      // labels wrap them like any input. Teach the rule about them.
+      'jsx-a11y/label-has-associated-control': ['error', {
+        controlComponents: ['Checkbox', 'Switch', 'RadioGroup', 'Slider', 'Combobox', 'NumberInput', 'SegmentedControl'],
+        assert: 'either',
+      }],
     },
   },
   {

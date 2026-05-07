@@ -177,6 +177,7 @@ export function SectionTimeline({
             onChange={(e) => handleSectionChange(activeSection, e.target.value)}
             placeholder={`Prompt for section ${activeSection + 1}`}
             className="h-7 text-xs"
+            // eslint-disable-next-line jsx-a11y/no-autofocus -- focus active section for immediate edit
             autoFocus
           />
         </div>

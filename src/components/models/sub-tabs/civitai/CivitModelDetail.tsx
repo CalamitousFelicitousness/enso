@@ -104,6 +104,7 @@ function ImageStrip({
   return (
     <div className={`flex gap-2 overflow-x-auto pb-1 ${className ?? ""}`}>
       {filtered.slice(0, 8).map((img, i) => (
+        // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- thumbnail used as button-like preview opener
         <img
           key={img.url}
           src={civitThumbnail(img.url)}

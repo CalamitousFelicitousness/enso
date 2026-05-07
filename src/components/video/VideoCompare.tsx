@@ -188,6 +188,7 @@ export function VideoCompare({
     <div
       ref={containerRef}
       className="relative h-full flex flex-col outline-none"
+      // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- container receives keyboard shortcuts (space/F)
       tabIndex={0}
     >
       {/* Videos side by side */}

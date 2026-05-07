@@ -154,7 +154,7 @@ export function CaptionView() {
               <div className="relative flex items-center justify-center h-full p-4 group">
                 <img
                   src={imagePreviewUrl}
-                  alt="Image to caption"
+                  alt="Source for caption"
                   className="max-w-full max-h-full object-contain rounded-lg"
                 />
 

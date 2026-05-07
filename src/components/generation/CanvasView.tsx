@@ -263,7 +263,8 @@ export const CanvasView = memo(function CanvasView() {
       ref={containerRef}
       className={`relative w-full h-full overflow-hidden${isOver ? " ring-2 ring-primary ring-inset" : ""}`}
       {...dropHandlers}
-      onPaste={handlePaste}
+      onPaste={(e) => void handlePaste(e)}
+      // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- paste target needs focus
       tabIndex={0}
     >
       <CanvasStage layout={layout} onPickImage={handlePickImage} />

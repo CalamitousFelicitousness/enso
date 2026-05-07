@@ -214,10 +214,12 @@ function VideoPlayerInner({ src }: { src: string }) {
     <div
       ref={containerRef}
       className="relative h-full w-full outline-none"
+      // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- container receives keyboard shortcuts (space/F)
       tabIndex={0}
       onMouseMove={resetIdleTimer}
       onClick={togglePlay}
     >
+      {/* eslint-disable-next-line jsx-a11y/media-has-caption -- AI-generated video, no caption track available */}
       <video
         ref={videoRef}
         src={src}

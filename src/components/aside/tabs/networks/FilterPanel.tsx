@@ -56,6 +56,7 @@ function FolderTreeRow({
         {hasChildren ? (
           <span
             role="button"
+            tabIndex={0}
             className="shrink-0 p-1 -ml-1 rounded cursor-pointer hover:bg-muted/80 hover:text-foreground"
             onClick={(e) => {
               e.stopPropagation();
@@ -220,6 +221,7 @@ export function FilterPanel({
                             {hasChildren ? (
                               <span
                                 role="button"
+                                tabIndex={0}
                                 className="shrink-0 p-1 -ml-1 rounded cursor-pointer hover:bg-muted/80 hover:text-foreground"
                                 onClick={(e) => {
                                   e.stopPropagation();
