@@ -55,7 +55,7 @@ export function DeviceBadge({ device }: { device?: string | null }) {
 }
 
 export function DtypeLabel({ model }: { model: LoadedModel }) {
-  const quant = model.extra?.quant as string | undefined;
+  const quant = model.extra?.["quant"] as string | undefined;
   const dtype = model.dtype;
   if (!quant && !dtype) return null;
   const label = quant ? `${quant} ${dtype ?? ""}`.trim() : dtype!;

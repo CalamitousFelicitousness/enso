@@ -93,8 +93,8 @@ export function restoreFromPngInfo(parameters: Record<string, unknown>) {
   }
 
   // Auto-enable hires when any hires param is present
-  if (update.hiresUpscaler || update.hiresScale || update.hiresSteps || update.hiresDenoising || update.hiresResizeX || update.hiresResizeY) {
-    update.hiresEnabled = true;
+  if (update["hiresUpscaler"] || update["hiresScale"] || update["hiresSteps"] || update["hiresDenoising"] || update["hiresResizeX"] || update["hiresResizeY"]) {
+    update["hiresEnabled"] = true;
   }
 
   if (Object.keys(update).length > 0) {

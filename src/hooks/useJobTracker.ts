@@ -8,7 +8,6 @@ import { useVideoStore } from "@/stores/videoStore";
 import { useProcessStore } from "@/stores/processStore";
 import { deleteJobPayload } from "@/lib/jobPayloadDb";
 import type { JobResult, JobWsEvent } from "@/api/types/v2";
-import type { WireParams, VideoWireParams } from "@/api/types/wireParams";
 import { toast } from "sonner";
 
 const MAX_CONCURRENT_WS = 5;
@@ -20,7 +19,7 @@ function isTerminal(status: string) {
 function routeResult(domain: JobDomain, result: JobResult, snapshot: TrackedJob["snapshot"]) {
   if (domain === "generate") {
     if (result.images.length > 0) {
-      const isHires = result.params?.enable_hr === true || result.info?.enable_hr === true;
+      const isHires = result.params?.["enable_hr"] === true || result.info?.["enable_hr"] === true;
       const hasMultipleImages = result.images.length > 1;
       let baseImage: string | undefined;
       let finalImages = result.images.map((img) => img.url);
@@ -31,9 +30,9 @@ function routeResult(domain: JobDomain, result: JobResult, snapshot: TrackedJob[
       useGenerationStore.getState().addResult({
         id: crypto.randomUUID(),
         images: finalImages,
-        // Server returns snake_case JSON; this cast crosses the wire-contract
-        // boundary the type system cannot verify.
-        parameters: result.params as WireParams,
+        // Server returns snake_case JSON; the structural assignment to
+        // WireParams here crosses the wire-contract boundary.
+        parameters: result.params,
         info: JSON.stringify(result.info),
         timestamp: Date.now(),
         inputImage: snapshot.inputImage,
@@ -57,9 +56,9 @@ function routeResult(domain: JobDomain, result: JobResult, snapshot: TrackedJob[
         height: vid.height,
         format: vid.format,
         size: vid.size,
-        // Server returns snake_case JSON; this cast crosses the wire-contract
-        // boundary the type system cannot verify.
-        params: result.params as VideoWireParams,
+        // Server returns snake_case JSON; the structural assignment to
+        // VideoWireParams here crosses the wire-contract boundary.
+        params: result.params,
         domain: domain,
         timestamp: Date.now(),
       });

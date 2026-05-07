@@ -82,16 +82,16 @@ export function PromptField({
   useEffect(() => {
     if (!optionsData) return;
     const opts = optionsData as Record<string, unknown>;
-    const minChars = opts.autocomplete_min_chars;
-    const replaceUnderscores = opts.autocomplete_replace_underscores;
-    const appendComma = opts.autocomplete_append_comma;
+    const minChars = opts["autocomplete_min_chars"];
+    const replaceUnderscores = opts["autocomplete_replace_underscores"];
+    const appendComma = opts["autocomplete_append_comma"];
     if (typeof minChars === "number") useUiStore.getState().setDictMinChars(minChars);
     if (typeof replaceUnderscores === "boolean") useUiStore.getState().setDictReplaceUnderscores(replaceUnderscores);
     if (typeof appendComma === "boolean") useUiStore.getState().setDictAppendComma(appendComma);
   }, [optionsData]);
 
   const enabledDicts = useMemo(
-    () => (optionsData as Record<string, unknown>)?.autocomplete_enabled as string[] ?? [],
+    () => (optionsData as Record<string, unknown>)?.["autocomplete_enabled"] as string[] ?? [],
     [optionsData],
   );
   const dictQueries = useDictTagsMulti(enabledDicts);

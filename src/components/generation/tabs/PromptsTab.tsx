@@ -111,8 +111,8 @@ export function PromptsTab() {
   const aspectPresets = useMemo(
     () =>
       parseAspectRatios(
-        typeof aspectOpts?.aspect_ratios === "string"
-          ? aspectOpts.aspect_ratios
+        typeof aspectOpts?.["aspect_ratios"] === "string"
+          ? aspectOpts["aspect_ratios"]
           : "1:1, 4:3, 3:2, 16:9, 16:10, 21:9, 2:3, 3:4, 9:16, 10:16, 9:21",
       ),
     [aspectOpts],

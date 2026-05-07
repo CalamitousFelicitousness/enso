@@ -30,10 +30,10 @@ export function useJobList(params?: {
   offset?: number;
 }) {
   const queryParams: Record<string, string> = {};
-  if (params?.status) queryParams.status = params.status;
-  if (params?.type) queryParams.type = params.type;
-  if (params?.limit !== undefined) queryParams.limit = String(params.limit);
-  if (params?.offset !== undefined) queryParams.offset = String(params.offset);
+  if (params?.status) queryParams["status"] = params.status;
+  if (params?.type) queryParams["type"] = params.type;
+  if (params?.limit !== undefined) queryParams["limit"] = String(params.limit);
+  if (params?.offset !== undefined) queryParams["offset"] = String(params.offset);
 
   return useQuery({
     queryKey: ["v2-jobs", params],

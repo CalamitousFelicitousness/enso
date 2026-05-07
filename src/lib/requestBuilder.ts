@@ -417,7 +417,7 @@ export function extractParamsFromResult(result: GenerationResult): Partial<Gener
   try { info = JSON.parse(result.info) as GenerationInfo; }
   catch { /* ignore */ }
 
-  const overrides: WireOverrides = (p.extra ?? p.override_settings ?? {}) as WireOverrides;
+  const overrides: WireOverrides = p.extra ?? p.override_settings ?? {};
 
   const num = (v: unknown, fallback: number) => typeof v === "number" ? v : fallback;
   const str = (v: unknown, fallback: string) => typeof v === "string" ? v : fallback;
@@ -619,8 +619,8 @@ function extractDetailerV2(
   const models: DetailerModelEntry[] = Array.isArray(rawModels)
     ? rawModels.flatMap((m): DetailerModelEntry[] => {
         if (typeof m === "string") return [{ name: m }];
-        if (m && typeof m === "object" && typeof (m as Record<string, unknown>).name === "string") {
-          return [m as DetailerModelEntry];
+        if (m && typeof m === "object" && typeof (m as Record<string, unknown>)["name"] === "string") {
+          return [m];
         }
         return [];
       })

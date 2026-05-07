@@ -27,7 +27,7 @@ export function useVaeList() {
 
 export function useSamplerList(modelType?: string | null) {
   const params: Record<string, string> = {};
-  if (modelType) params.model_type = modelType;
+  if (modelType) params["model_type"] = modelType;
   return useQuery({
     queryKey: ["samplers", modelType ?? "all"],
     queryFn: () => api.get<SamplerV2[]>("/sdapi/v2/samplers", params),

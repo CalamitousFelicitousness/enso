@@ -121,7 +121,7 @@ export const ParamSlider = memo(function ParamSlider({
   const handlePointerDown = useCallback(
     (e: React.PointerEvent) => {
       if (disabled || editing) return;
-      if ((e.target as HTMLElement).dataset.valueSpan) return;
+      if ((e.target as HTMLElement).dataset["valueSpan"]) return;
       if (e.button !== 0) return;
 
       e.preventDefault();
@@ -191,7 +191,7 @@ export const ParamSlider = memo(function ParamSlider({
       const track = trackRef.current;
       if (track) track.releasePointerCapture(e.pointerId);
 
-      if (!d.moved && !(e.target as HTMLElement).dataset.valueSpan) {
+      if (!d.moved && !(e.target as HTMLElement).dataset["valueSpan"]) {
         // Click-to-jump — direct to cursor position
         if (track) {
           const rect = track.getBoundingClientRect();

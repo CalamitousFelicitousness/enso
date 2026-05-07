@@ -45,7 +45,7 @@ export function QuickInterrogateDialog({
   const abortedRef = useRef(false);
 
   const { data: captionOpts } = useOptionsSubset(["caption_default_type"]);
-  const defaultType = (captionOpts?.caption_default_type as CaptionDefaultType) ?? "VLM";
+  const defaultType = (captionOpts?.["caption_default_type"] as CaptionDefaultType) ?? "VLM";
   const method = CAPTION_TYPE_MAP[defaultType] ?? "vlm";
 
   const openclipMut = useOpenClipCaption();

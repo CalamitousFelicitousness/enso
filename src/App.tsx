@@ -24,9 +24,9 @@ function App() {
   // Color mode
   useEffect(() => {
     if (resolvedTheme === "light") {
-      document.documentElement.dataset.theme = "light";
+      document.documentElement.dataset["theme"] = "light";
     } else {
-      delete document.documentElement.dataset.theme;
+      delete document.documentElement.dataset["theme"];
     }
   }, [resolvedTheme]);
 

@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { ws, ensureWs } from "@/api/wsManager";
-import { useBackendStatusStore, type BackendStatus } from "@/stores/backendStatusStore";
+import { useBackendStatusStore } from "@/stores/backendStatusStore";
 import { useDownloadStore, type DownloadProgress } from "@/stores/downloadStore";
 import { queryClient } from "@/main";
 
@@ -33,9 +33,9 @@ export function useGlobalWs() {
       const store = useBackendStatusStore.getState();
 
       if (msg.type === "progress" && msg.data) {
-        store.setStatus(msg.data as Partial<BackendStatus>);
+        store.setStatus(msg.data);
       } else if (msg.type === "status" && msg.data) {
-        store.setStatus(msg.data as Partial<BackendStatus>);
+        store.setStatus(msg.data);
       } else if (msg.type === "download" && Array.isArray(msg.data)) {
         useDownloadStore.getState().updateFromWs(msg.data as DownloadProgress[]);
       }

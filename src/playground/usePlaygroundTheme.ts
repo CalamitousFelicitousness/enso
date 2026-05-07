@@ -30,11 +30,11 @@ export function usePlaygroundTheme() {
   // Color mode — set/remove data-theme on <html>
   useEffect(() => {
     if (resolvedTheme === "light") {
-      document.documentElement.dataset.theme = "light";
+      document.documentElement.dataset["theme"] = "light";
     } else {
-      delete document.documentElement.dataset.theme;
+      delete document.documentElement.dataset["theme"];
     }
-    return () => { delete document.documentElement.dataset.theme; };
+    return () => { delete document.documentElement.dataset["theme"]; };
   }, [resolvedTheme]);
 
   // Accent color — set CSS custom properties

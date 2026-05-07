@@ -19,8 +19,8 @@ export function useHistoryInit() {
   }, [hydrateFromDb, hydrateVideoFromDb]);
 
   useEffect(() => {
-    if (options?.latent_history != null) {
-      setHistoryLimit(Number(options.latent_history));
+    if (options?.["latent_history"] != null) {
+      setHistoryLimit(Number(options["latent_history"]));
     }
   }, [options, setHistoryLimit]);
 }

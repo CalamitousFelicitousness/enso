@@ -334,7 +334,7 @@ export function PngInfoDialog({ open, onOpenChange }: PngInfoDialogProps) {
     if (v != null && v !== "") paramStrings[k] = toDisplayString(v);
   }
 
-  const prompt = paramStrings.Prompt ?? "";
+  const prompt = paramStrings["Prompt"] ?? "";
   const negativePrompt = paramStrings["Negative prompt"] ?? "";
 
   // Build param lines (everything after prompt/negative, starting from Steps:)

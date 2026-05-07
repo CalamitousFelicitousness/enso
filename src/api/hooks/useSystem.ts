@@ -14,11 +14,11 @@ import type {
 
 export function useHistory(params: { since?: number; job?: string; op?: string; offset?: number; limit?: number } = {}, enabled = true) {
   const queryParams: Record<string, string> = {};
-  if (params.since != null) queryParams.since = String(params.since);
-  if (params.job) queryParams.job = params.job;
-  if (params.op) queryParams.op = params.op;
-  if (params.offset != null) queryParams.offset = String(params.offset);
-  if (params.limit != null) queryParams.limit = String(params.limit);
+  if (params.since != null) queryParams["since"] = String(params.since);
+  if (params.job) queryParams["job"] = params.job;
+  if (params.op) queryParams["op"] = params.op;
+  if (params.offset != null) queryParams["offset"] = String(params.offset);
+  if (params.limit != null) queryParams["limit"] = String(params.limit);
   return useQuery({
     queryKey: ["history", params],
     queryFn: () => api.get<HistoryResponse>("/sdapi/v2/history", queryParams),

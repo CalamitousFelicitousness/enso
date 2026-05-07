@@ -44,7 +44,7 @@ const CAPTION_DEFAULT_OPTIONS: { value: CaptionDefaultType; label: string }[] = 
 function DefaultCaptionSettings() {
   const { data: captionOpts } = useOptionsSubset(["caption_default_type"]);
   const setOptions = useSetOptions();
-  const defaultType = (captionOpts?.caption_default_type as CaptionDefaultType) ?? "VLM";
+  const defaultType = (captionOpts?.["caption_default_type"] as CaptionDefaultType) ?? "VLM";
   const handleDefaultTypeChange = useCallback(
     (v: CaptionDefaultType) => {
       setOptions.mutate({ caption_default_type: v });

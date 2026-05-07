@@ -68,7 +68,7 @@ export function ModelSelector() {
 
   const displayName = isCloud
     ? (activeModel as CloudModel)?.name ?? "Cloud model"
-    : (options?.sd_model_checkpoint as string) ?? "No model loaded";
+    : (options?.["sd_model_checkpoint"] as string) ?? "No model loaded";
 
   const pipelineClass = !isCloud ? formatPipelineClass(checkpoint?.class_name) : null;
 
@@ -130,7 +130,7 @@ export function ModelSelector() {
                     onSelect={() => void handleSelectLocal(model)}
                     className={cn(
                       "text-xs",
-                      !isCloud && model.title === (options?.sd_model_checkpoint as string) &&
+                      !isCloud && model.title === (options?.["sd_model_checkpoint"] as string) &&
                         "font-semibold !text-primary",
                     )}
                   >

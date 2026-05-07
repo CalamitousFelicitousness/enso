@@ -697,7 +697,7 @@ export function SettingsView({ onDirtyChange }: SettingsViewProps = {}) {
     try {
       // Validate HF token first (calls hf.whoami + hf.login) - fails fast on bad token
       if ("huggingface_token" in dirty) {
-        await hfSave.mutateAsync({ token: toDisplayString(dirty.huggingface_token) });
+        await hfSave.mutateAsync({ token: toDisplayString(dirty["huggingface_token"]) });
       }
       // Persist all settings (including token) via standard options flow → secrets.json
       await setOptions.mutateAsync(dirty);
