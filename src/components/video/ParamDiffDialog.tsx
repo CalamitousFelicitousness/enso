@@ -13,11 +13,12 @@ import {
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useVideoStore } from "@/stores/videoStore";
+import type { VideoWireParams } from "@/api/types/wireParams";
 
 interface ParamDiffDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  resultParams: Record<string, unknown>;
+  resultParams: VideoWireParams;
   domain: string;
 }
 
@@ -133,7 +134,7 @@ const API_TO_STORE: Record<string, string> = {
 };
 
 function normalizeResultParams(
-  raw: Record<string, unknown>,
+  raw: VideoWireParams,
 ): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(raw)) {

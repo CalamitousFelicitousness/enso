@@ -1,3 +1,5 @@
+import type { VideoWireParams } from "./wireParams";
+
 export interface VideoResult {
   id: string;
   videoUrl: string;
@@ -6,7 +8,7 @@ export interface VideoResult {
   height: number;
   format: string;
   size: number;
-  params: Record<string, unknown>;
+  params: VideoWireParams;
   domain: "video" | "framepack" | "ltx";
   timestamp: number;
 }

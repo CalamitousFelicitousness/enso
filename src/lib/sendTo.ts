@@ -7,6 +7,7 @@ import { useUiStore } from "@/stores/uiStore";
 import { fileToBase64, base64ToFile } from "@/lib/image";
 import { resolveImageSrc } from "@/lib/utils";
 import type { DragPayload } from "@/stores/dragStore";
+import type { VideoWireParams } from "@/api/types/wireParams";
 
 export function extractFrameFromVideo(videoUrl: string, time: number): Promise<Blob> {
   return new Promise((resolve, reject) => {
@@ -120,12 +121,14 @@ export function appendToGenerationPrompt(text: string) {
   gen.setParam("prompt", current ? `${current} ${text}` : text);
 }
 
-export function restoreVideoSettings(params: Record<string, unknown>) {
+export function restoreVideoSettings(params: VideoWireParams) {
   const num = (v: unknown, fallback?: number) => (typeof v === "number" ? v : fallback);
   const str = (v: unknown, fallback?: string) => (typeof v === "string" ? v : fallback);
   const bool = (v: unknown, fallback?: boolean) => (typeof v === "boolean" ? v : fallback);
 
-  const sharedKeyMap: Record<string, (p: Record<string, unknown>) => unknown> = {
+  type WireMap = Record<string, (p: VideoWireParams) => unknown>;
+
+  const sharedKeyMap: WireMap = {
     engine: (p) => str(p.engine),
     model: (p) => str(p.model),
     prompt: (p) => str(p.prompt),
@@ -145,7 +148,7 @@ export function restoreVideoSettings(params: Record<string, unknown>) {
     vaeTileFrames: (p) => num(p.vae_tile_frames),
   };
 
-  const outputKeyMap: Record<string, (p: Record<string, unknown>) => unknown> = {
+  const outputKeyMap: WireMap = {
     fps: (p) => num(p.fps),
     interpolate: (p) => num(p.interpolate),
     codec: (p) => str(p.codec),
@@ -156,7 +159,7 @@ export function restoreVideoSettings(params: Record<string, unknown>) {
     saveSafetensors: (p) => bool(p.save_safetensors),
   };
 
-  const fpKeyMap: Record<string, (p: Record<string, unknown>) => unknown> = {
+  const fpKeyMap: WireMap = {
     fpVariant: (p) => str(p.fp_variant),
     fpResolution: (p) => num(p.fp_resolution),
     fpDuration: (p) => num(p.fp_duration),
@@ -179,7 +182,7 @@ export function restoreVideoSettings(params: Record<string, unknown>) {
     fpVaeType: (p) => str(p.fp_vae_type),
   };
 
-  const ltxKeyMap: Record<string, (p: Record<string, unknown>) => unknown> = {
+  const ltxKeyMap: WireMap = {
     ltxModel: (p) => str(p.ltx_model),
     ltxSteps: (p) => num(p.ltx_steps),
     ltxDecodeTimestep: (p) => num(p.ltx_decode_timestep),
@@ -193,7 +196,7 @@ export function restoreVideoSettings(params: Record<string, unknown>) {
   };
 
   const domain = str(params.domain ?? params.type, "") as string;
-  const maps: Record<string, (p: Record<string, unknown>) => unknown>[] = [sharedKeyMap, outputKeyMap];
+  const maps: WireMap[] = [sharedKeyMap, outputKeyMap];
   if (domain === "framepack" || domain === "") maps.push(fpKeyMap);
   if (domain === "ltx" || domain === "") maps.push(ltxKeyMap);
 
