@@ -393,6 +393,7 @@ export const ParamSlider = memo(function ParamSlider({
           step={step}
         />
       ) : (
+        // eslint-disable-next-line jsx-a11y/click-events-have-key-events,jsx-a11y/no-static-element-interactions -- click-to-edit is a mouse enhancement; keyboard users press Enter on the focused slider track to enter edit mode (handleKeyDown above)
         <span
           ref={valueRef}
           data-value-span=""
