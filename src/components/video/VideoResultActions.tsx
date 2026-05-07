@@ -38,7 +38,7 @@ export function VideoResultActions({ result }: VideoResultActionsProps) {
   const handleSendFirstFrame = useCallback(async () => {
     try {
       const blob = await extractFrameFromVideo(result.videoUrl, 0);
-      sendFrameToVideoInit(blob);
+      void sendFrameToVideoInit(blob);
       toast.success("First frame sent to Init Image");
     } catch {
       toast.error("Failed to extract frame");
@@ -48,7 +48,7 @@ export function VideoResultActions({ result }: VideoResultActionsProps) {
   const handleSendLastFrame = useCallback(async () => {
     try {
       const blob = await extractFrameFromVideo(result.videoUrl, 999999);
-      sendFrameToVideoInit(blob);
+      void sendFrameToVideoInit(blob);
       toast.success("Last frame sent to Init Image");
     } catch {
       toast.error("Failed to extract frame");
@@ -56,7 +56,7 @@ export function VideoResultActions({ result }: VideoResultActionsProps) {
   }, [result.videoUrl]);
 
   const handleFrameCapture = useCallback((blob: Blob) => {
-    sendFrameToVideoInit(blob);
+    void sendFrameToVideoInit(blob);
     toast.success("Captured frame sent to Init Image");
   }, []);
 
@@ -78,7 +78,7 @@ export function VideoResultActions({ result }: VideoResultActionsProps) {
   const handleExtend = useCallback(async () => {
     try {
       const blob = await extractFrameFromVideo(result.videoUrl, 999999);
-      sendFrameToVideoInit(blob);
+      void sendFrameToVideoInit(blob);
       restoreVideoSettings(result.params);
       toast.success("Ready to extend video");
     } catch {

@@ -144,7 +144,7 @@ export function useMaskPaint({ stageRef, spaceHeld }: UseMaskPaintOptions) {
         tool: toolRef.current,
       });
       // Bake strokes into mask objects (async, fire-and-forget)
-      bakeMaskStrokes();
+      void bakeMaskStrokes();
     }
 
     const line = activeLineRef.current;

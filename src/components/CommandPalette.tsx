@@ -87,7 +87,7 @@ export function CommandPalette() {
         if (action.kind === "command") {
           runCommand(action.commandId);
         } else {
-          navigateToParam(action.target);
+          void navigateToParam(action.target);
         }
       });
     },

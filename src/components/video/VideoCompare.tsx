@@ -90,8 +90,8 @@ export function VideoCompare({
   );
 
   const toggleFullscreen = useCallback(() => {
-    if (document.fullscreenElement) document.exitFullscreen();
-    else containerRef.current?.requestFullscreen();
+    if (document.fullscreenElement) void document.exitFullscreen();
+    else void containerRef.current?.requestFullscreen();
   }, []);
 
   // Sync right video to left's timeupdate
@@ -114,7 +114,7 @@ export function VideoCompare({
     const onMeta = () => setDuration(left.duration);
     const onPlay = () => {
       setPlaying(true);
-      right.play();
+      void right.play();
     };
     const onPause = () => {
       setPlaying(false);

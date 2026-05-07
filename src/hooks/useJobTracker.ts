@@ -138,16 +138,16 @@ export function useJobTracker() {
             case "completed":
               s.completeJob(jobId, data.result);
               routeResult(s.jobs.get(jobId)?.domain ?? "generate", data.result, s.jobs.get(jobId)?.snapshot ?? {});
-              deleteJobPayload(jobId);
+              void deleteJobPayload(jobId);
               break;
             case "error":
               s.failJob(jobId, data.error);
               toast.error("Generation failed", { description: data.error, duration: 8000 });
-              deleteJobPayload(jobId);
+              void deleteJobPayload(jobId);
               break;
             case "cancelled":
               s.updateStatus(jobId, "cancelled");
-              deleteJobPayload(jobId);
+              void deleteJobPayload(jobId);
               break;
           }
         });

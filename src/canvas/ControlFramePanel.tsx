@@ -955,7 +955,7 @@ function OutputFramePanel({
       selectedResult.info,
       selectedImageIndex,
     );
-    downloadImage(src, filename);
+    void downloadImage(src, filename);
   }, [selectedResult, selectedImageIndex]);
 
   const actions = (
@@ -1088,7 +1088,7 @@ function ProcessedFrameHeader({
       .toISOString()
       .replace(/[:.]/g, "-")
       .slice(0, 19);
-    downloadImage(processedSrc, `processed_${timestamp}.png`);
+    void downloadImage(processedSrc, `processed_${timestamp}.png`);
   }, [processedSrc]);
 
   const actions = (

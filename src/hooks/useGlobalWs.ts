@@ -17,7 +17,7 @@ export function useGlobalWs() {
     const offOpen = ws.on("open", () => {
       if (wasConnected) {
         for (const key of RECONNECT_INVALIDATE_KEYS) {
-          queryClient.invalidateQueries({ queryKey: [key] });
+          void queryClient.invalidateQueries({ queryKey: [key] });
         }
       }
       wasConnected = true;

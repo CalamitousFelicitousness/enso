@@ -346,7 +346,7 @@ export const useGenerationStore = create<GenerationState>()(
 
       addResult: (result) =>
         set((state) => {
-          putResult(result).then(() => trimResults(state.historyLimit));
+          void putResult(result).then(() => trimResults(state.historyLimit));
           return {
             results: [result, ...state.results].slice(0, 100),
             selectedResultId: result.id,
@@ -355,7 +355,7 @@ export const useGenerationStore = create<GenerationState>()(
         }),
 
       clearResults: () => {
-        clearAllResults();
+        void clearAllResults();
         set({ results: [], selectedResultId: null, selectedImageIndex: null });
       },
 
@@ -368,7 +368,7 @@ export const useGenerationStore = create<GenerationState>()(
       setHistoryLimit: (limit) => set({ historyLimit: limit }),
 
       hydrateFromDb: () => {
-        getAllResults().then((dbResults) => {
+        void getAllResults().then((dbResults) => {
           if (useGenerationStore.getState().results.length === 0 && dbResults.length > 0) {
             useGenerationStore.setState({
               results: dbResults,

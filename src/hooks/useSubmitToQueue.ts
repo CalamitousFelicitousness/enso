@@ -22,7 +22,7 @@ export function useSubmitToQueue({ domain, buildRequest }: SubmitOptions) {
       const job = await submitJob.mutateAsync(payload);
       const priority = (payload as { priority?: number }).priority ?? 0;
       trackJob(job.id, domain, snapshot, payload, priority);
-      putJobPayload({ id: job.id, domain, request: payload, priority, snapshot: { controlUnits: snapshot.controlUnits }, createdAt: Date.now() });
+      void putJobPayload({ id: job.id, domain, request: payload, priority, snapshot: { controlUnits: snapshot.controlUnits }, createdAt: Date.now() });
     } catch (err) {
       toast.error("Failed to submit job", { description: err instanceof Error ? err.message : String(err) });
     } finally {

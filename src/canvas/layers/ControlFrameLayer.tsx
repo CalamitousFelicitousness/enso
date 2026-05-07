@@ -190,7 +190,7 @@ export function ControlFrameLayer({
       setImageMap(newEntries);
       prevUrlsRef.current = newPrevUrls;
     };
-    loadImages();
+    void loadImages();
 
     return () => {
       aborted.current = true;
@@ -258,7 +258,7 @@ export function ControlFrameLayer({
       setProcessedMap(newProcessed);
       prevProcessedUrlsRef.current = newPrevUrls;
     };
-    loadProcessed();
+    void loadProcessed();
 
     return () => {
       aborted.current = true;

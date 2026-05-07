@@ -190,7 +190,7 @@ export const ResultGallery = memo(function ResultGallery() {
     if (!result || !result.images[selectedImageIndex]) return;
     const image = result.images[selectedImageIndex];
     const filename = generateImageFilename(result.info, selectedImageIndex);
-    downloadImage(image, filename);
+    void downloadImage(image, filename);
   }, [results, selectedResultId, selectedImageIndex]);
 
   const totalImages = results.reduce((sum, r) => sum + r.images.length, 0);

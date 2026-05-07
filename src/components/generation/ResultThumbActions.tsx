@@ -56,7 +56,7 @@ export function ResultThumbActions({
     (e: React.MouseEvent) => {
       e.stopPropagation();
       const filename = generateImageFilename(result.info, imageIndex);
-      downloadImage(result.images[imageIndex], filename);
+      void downloadImage(result.images[imageIndex], filename);
     },
     [result, imageIndex],
   );

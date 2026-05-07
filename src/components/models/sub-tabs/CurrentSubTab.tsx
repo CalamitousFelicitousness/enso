@@ -30,7 +30,7 @@ export function CurrentSubTab() {
 
   function handleAnalyze() {
     if (analyzeEnabled) {
-      refetch();
+      void refetch();
     } else {
       setAnalyzeEnabled(true);
     }

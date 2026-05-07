@@ -147,7 +147,7 @@ export const ActionBar = memo(function ActionBar() {
 
   // Global keyboard shortcuts for generation
   useShortcut("generate", () => {
-    if (!isSubmitting && !detailOnlyBlockReason) submit();
+    if (!isSubmitting && !detailOnlyBlockReason) void submit();
   });
   useShortcut("skip", handleSkip);
 
@@ -160,7 +160,7 @@ export const ActionBar = memo(function ActionBar() {
     icon: Play,
     shortcutId: "generate",
     run: () => {
-      if (!isSubmitting && !detailOnlyBlockReason) submit();
+      if (!isSubmitting && !detailOnlyBlockReason) void submit();
     },
   });
   useRegisterCommand({

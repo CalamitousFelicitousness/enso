@@ -50,7 +50,7 @@ export function useJobRehydration() {
     if (ran.current) return;
     ran.current = true;
 
-    (async () => {
+    void (async () => {
       try {
         const payloads = await getAllJobPayloads();
         const payloadMap = new Map<string, StoredJobPayload>();
@@ -74,7 +74,7 @@ export function useJobRehydration() {
 
         for (const [id] of payloadMap) {
           if (!backendIds.has(id)) {
-            deleteJobPayload(id);
+            void deleteJobPayload(id);
           }
         }
       } catch {

@@ -45,7 +45,7 @@ export function CivitDownloadQueue() {
   const prevCompletedCount = useRef(completedItems.length);
   useEffect(() => {
     if (completedItems.length > prevCompletedCount.current) {
-      qc.invalidateQueries({ queryKey: ["civitai-check-local"] });
+      void qc.invalidateQueries({ queryKey: ["civitai-check-local"] });
     }
     prevCompletedCount.current = completedItems.length;
   }, [completedItems.length, qc]);

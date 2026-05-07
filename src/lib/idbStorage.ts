@@ -74,7 +74,7 @@ export function createIdbStorage(dbName: string, storeName: string, debounceMs =
       pendingKey = null;
       pendingValue = null;
       if (timer) { clearTimeout(timer); timer = null; }
-      idbSet(k, v);
+      void idbSet(k, v);
     }
   }
 
@@ -91,6 +91,6 @@ export function createIdbStorage(dbName: string, storeName: string, debounceMs =
       if (timer) clearTimeout(timer);
       timer = setTimeout(flush, debounceMs);
     },
-    removeItem: (key) => { idbDelete(key); },
+    removeItem: (key) => { void idbDelete(key); },
   };
 }

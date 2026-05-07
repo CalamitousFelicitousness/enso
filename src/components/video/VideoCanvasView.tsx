@@ -158,7 +158,7 @@ export function VideoCanvasView() {
   const handleInputChange = useCallback(
     (which: "init" | "last") => (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
-      if (file) handleFileSelected(which, file);
+      if (file) void handleFileSelected(which, file);
       e.target.value = "";
     },
     [handleFileSelected],

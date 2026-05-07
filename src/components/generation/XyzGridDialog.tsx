@@ -373,7 +373,7 @@ export function XyzGridDialog({
 
       const job = await submitJob.mutateAsync(xyzPayload);
       trackJob(job.id, "xyz-grid", snapshot, xyzPayload, priority);
-      putJobPayload({
+      void putJobPayload({
         id: job.id,
         domain: "xyz-grid",
         request: xyzPayload,

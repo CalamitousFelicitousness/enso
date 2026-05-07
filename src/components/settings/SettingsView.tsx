@@ -382,7 +382,7 @@ function ConnectionPanel() {
 
   useEffect(() => {
     if (backendUrl) {
-      checkConnection(backendUrl);
+      void checkConnection(backendUrl);
     } else {
       setStatus("connected");
     }
@@ -402,7 +402,7 @@ function ConnectionPanel() {
     api.setBaseUrl(effectiveUrl);
     storeSetUrl(urlInput.replace(/\/$/, ""));
     ws.updateUrl(api.getWebSocketUrl("/sdapi/v2/ws"));
-    queryClient.invalidateQueries();
+    void queryClient.invalidateQueries();
     await checkConnection(effectiveUrl);
     toast.success("Connection updated");
   }, [urlInput, storeSetUrl, checkConnection]);
@@ -412,7 +412,7 @@ function ConnectionPanel() {
     api.setBaseUrl(window.location.origin);
     api.clearAuth();
     ws.updateUrl(api.getWebSocketUrl("/sdapi/v2/ws"));
-    queryClient.invalidateQueries();
+    void queryClient.invalidateQueries();
     setStatus("connected");
     setEditingAuth(false);
     toast.success("Connection reset to default");

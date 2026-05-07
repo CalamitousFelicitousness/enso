@@ -97,7 +97,7 @@ export function CaptionView() {
 
   const handleCopy = useCallback(() => {
     if (answerText) {
-      navigator.clipboard.writeText(answerText);
+      void navigator.clipboard.writeText(answerText);
       toast.success("Copied to clipboard");
     }
   }, [answerText]);

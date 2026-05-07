@@ -177,7 +177,7 @@ export function GalleryPanel() {
       } else {
         // Expand - fetch subdirs if not yet discovered
         if (!discoveredRef.current.has(normPath)) {
-          fetchSubdirs(path);
+          void fetchSubdirs(path);
         }
         const next = new Set(expanded);
         next.add(path);

@@ -133,7 +133,7 @@ export function QuickInterrogateDialog({
   useEffect(() => {
     if (open && file) {
       setPreviewUrl(URL.createObjectURL(file));
-      runCaption(file);
+      void runCaption(file);
     }
     return () => {
       if (previewUrl) URL.revokeObjectURL(previewUrl);
@@ -158,7 +158,7 @@ export function QuickInterrogateDialog({
 
   const handleCopy = useCallback(() => {
     if (caption) {
-      navigator.clipboard.writeText(caption);
+      void navigator.clipboard.writeText(caption);
       toast.success("Caption copied to clipboard");
     }
   }, [caption]);

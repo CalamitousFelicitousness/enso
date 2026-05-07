@@ -274,7 +274,7 @@ export function GalleryGrid({
   const handleSendToCanvas = useCallback(() => {
     const f = contextFileRef.current;
     if (f) {
-      fetchRemoteImage(
+      void fetchRemoteImage(
         `/file=${f.fullPath}`,
         f.relativePath.split("/").pop() ?? "image.png",
       ).then((blob) => sendImageToCanvas(blob));

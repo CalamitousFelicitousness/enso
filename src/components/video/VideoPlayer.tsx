@@ -74,7 +74,7 @@ function VideoPlayerInner({ src }: { src: string }) {
   const togglePlay = useCallback(() => {
     const video = videoRef.current;
     if (!video) return;
-    if (video.paused) video.play();
+    if (video.paused) void video.play();
     else video.pause();
   }, []);
 
@@ -110,9 +110,9 @@ function VideoPlayerInner({ src }: { src: string }) {
     const container = containerRef.current;
     if (!container) return;
     if (document.fullscreenElement) {
-      document.exitFullscreen();
+      void document.exitFullscreen();
     } else {
-      container.requestFullscreen();
+      void container.requestFullscreen();
     }
   }, []);
 

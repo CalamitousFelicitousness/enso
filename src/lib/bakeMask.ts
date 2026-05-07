@@ -72,7 +72,7 @@ function canvasToBase64(canvas: HTMLCanvasElement): Promise<string> {
   return new Promise((resolve) => {
     canvas.toBlob((blob) => {
       if (!blob) { resolve(""); return; }
-      blobToBase64(blob).then(resolve);
+      void blobToBase64(blob).then(resolve);
     }, "image/png");
   });
 }

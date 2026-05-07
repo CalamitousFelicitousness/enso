@@ -76,7 +76,7 @@ export function VideoPresetSelector({ domain }: VideoPresetSelectorProps) {
 
   const handleExport = useCallback(() => {
     const json = exportPresets(domain);
-    navigator.clipboard.writeText(json);
+    void navigator.clipboard.writeText(json);
     toast.success("Presets copied to clipboard");
   }, [domain, exportPresets]);
 

@@ -76,7 +76,7 @@ export function LayerPanel() {
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const files = e.target.files;
       if (files) {
-        for (const file of files) handleAddFile(file);
+        for (const file of files) void handleAddFile(file);
       }
       e.target.value = "";
     },

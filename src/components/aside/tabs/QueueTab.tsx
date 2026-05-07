@@ -68,7 +68,7 @@ export function QueueTab() {
         const newJob = await submitJob.mutateAsync(job.request);
         const priority = (job.request as { priority?: number }).priority ?? 0;
         trackJob(newJob.id, job.domain, job.snapshot, job.request, priority);
-        putJobPayload({
+        void putJobPayload({
           id: newJob.id,
           domain: job.domain,
           request: job.request,
@@ -93,7 +93,7 @@ export function QueueTab() {
         const newJob = await submitJob.mutateAsync(job.request);
         const priority = (job.request as { priority?: number }).priority ?? 0;
         trackJob(newJob.id, job.domain, job.snapshot, job.request, priority);
-        putJobPayload({
+        void putJobPayload({
           id: newJob.id,
           domain: job.domain,
           request: job.request,
@@ -131,7 +131,7 @@ export function QueueTab() {
         } as typeof job.request;
         const newJob = await submitJob.mutateAsync(newRequest);
         trackJob(newJob.id, job.domain, job.snapshot, newRequest, newPriority);
-        putJobPayload({
+        void putJobPayload({
           id: newJob.id,
           domain: job.domain,
           request: newRequest,
@@ -172,7 +172,7 @@ export function QueueTab() {
         } as typeof job.request;
         const newJob = await submitJob.mutateAsync(newRequest);
         trackJob(newJob.id, job.domain, job.snapshot, newRequest, newPriority);
-        putJobPayload({
+        void putJobPayload({
           id: newJob.id,
           domain: job.domain,
           request: newRequest,

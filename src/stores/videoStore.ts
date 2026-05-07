@@ -167,7 +167,7 @@ export const useVideoStore = create<VideoState>()(
 
       addResult: (result) =>
         set((state) => {
-          putVideoResult(result).then(() => trimVideoResults(state.historyLimit));
+          void putVideoResult(result).then(() => trimVideoResults(state.historyLimit));
           return {
             results: [result, ...state.results].slice(0, 100),
             selectedResultId: result.id,
@@ -177,14 +177,14 @@ export const useVideoStore = create<VideoState>()(
       selectResult: (id) => set({ selectedResultId: id }),
 
       clearResults: () => {
-        clearAllVideoResults();
+        void clearAllVideoResults();
         set({ results: [], selectedResultId: null });
       },
 
       setHistoryLimit: (limit) => set({ historyLimit: limit }),
 
       hydrateFromDb: () => {
-        getAllVideoResults().then((dbResults) => {
+        void getAllVideoResults().then((dbResults) => {
           if (useVideoStore.getState().results.length === 0 && dbResults.length > 0) {
             useVideoStore.setState({
               results: dbResults,

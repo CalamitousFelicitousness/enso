@@ -89,7 +89,7 @@ export function ProcessedCompositeLayer({
       if (!aborted.current) setDisplayImage(canvas);
     };
 
-    load();
+    void load();
     return () => {
       aborted.current = true;
     };

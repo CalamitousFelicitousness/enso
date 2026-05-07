@@ -52,7 +52,7 @@ export function BatchDialog({
         const job = await submitJob.mutateAsync(seedPayload);
         const priority = (seedPayload as { priority?: number }).priority ?? 0;
         trackJob(job.id, "generate", snapshot, seedPayload, priority);
-        putJobPayload({
+        void putJobPayload({
           id: job.id,
           domain: "generate",
           request: seedPayload,

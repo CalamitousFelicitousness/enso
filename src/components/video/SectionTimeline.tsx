@@ -81,7 +81,7 @@ export function SectionTimeline({
   );
 
   const handleCopy = useCallback(() => {
-    navigator.clipboard.writeText(value);
+    void navigator.clipboard.writeText(value);
     toast.success("Copied section prompts");
   }, [value]);
 

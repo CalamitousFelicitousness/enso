@@ -261,7 +261,7 @@ export function PngInfoDialog({ open, onOpenChange }: PngInfoDialogProps) {
       dragCounter.current = 0;
       setDragging(false);
       const file = e.dataTransfer.files?.[0];
-      if (file?.type.startsWith("image/")) processFile(file);
+      if (file?.type.startsWith("image/")) void processFile(file);
     },
     [processFile],
   );
@@ -288,7 +288,7 @@ export function PngInfoDialog({ open, onOpenChange }: PngInfoDialogProps) {
   const handleFileInput = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
-      if (file) processFile(file);
+      if (file) void processFile(file);
       e.target.value = "";
     },
     [processFile],
@@ -299,7 +299,7 @@ export function PngInfoDialog({ open, onOpenChange }: PngInfoDialogProps) {
       const file = Array.from(e.clipboardData.items)
         .find((item) => item.type.startsWith("image/"))
         ?.getAsFile();
-      if (file) processFile(file);
+      if (file) void processFile(file);
     },
     [processFile],
   );
@@ -324,7 +324,7 @@ export function PngInfoDialog({ open, onOpenChange }: PngInfoDialogProps) {
   };
 
   const copyText = useCallback((text: string, label: string) => {
-    navigator.clipboard.writeText(text);
+    void navigator.clipboard.writeText(text);
     toast.success(`${label} copied to clipboard`);
   }, []);
 

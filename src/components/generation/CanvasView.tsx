@@ -98,7 +98,7 @@ export const CanvasView = memo(function CanvasView() {
         setUnitImage(unit, file);
         setUnitParam(unit, "processedImage", null);
       } else {
-        handleFile(file);
+        void handleFile(file);
       }
     },
     [hitTestControlFrame, handleFile, setUnitImage, setUnitParam],
@@ -115,7 +115,7 @@ export const CanvasView = memo(function CanvasView() {
               setUnitImage(unit, f);
               setUnitParam(unit, "processedImage", null);
             } else {
-              handleFile(f);
+              void handleFile(f);
             }
           })
           .catch(() => {});
@@ -142,7 +142,7 @@ export const CanvasView = memo(function CanvasView() {
         }
       } else {
         // Input frame pick - multiple files
-        for (const file of files) handleFile(file);
+        for (const file of files) void handleFile(file);
       }
       e.target.value = "";
       setPendingUnitIndex(null);
@@ -235,7 +235,7 @@ export const CanvasView = memo(function CanvasView() {
       for (const item of items) {
         if (item.type.startsWith("image/")) {
           const file = item.getAsFile();
-          if (file) handleFile(file);
+          if (file) void handleFile(file);
         }
       }
     },

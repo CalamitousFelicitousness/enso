@@ -388,7 +388,7 @@ let controlPersistTimer: ReturnType<typeof setTimeout> | null = null;
 function scheduleControlPersist() {
   if (controlPersistTimer) clearTimeout(controlPersistTimer);
   controlPersistTimer = setTimeout(() => {
-    snapshotUnits().then(writeSnapshots);
+    void snapshotUnits().then(writeSnapshots);
   }, 2000);
 }
 
@@ -396,7 +396,7 @@ function scheduleControlPersist() {
 useControlStore.subscribe(scheduleControlPersist);
 
 // Rehydrate on startup
-readSnapshots().then((snapshots) => {
+void readSnapshots().then((snapshots) => {
   if (snapshots && snapshots.length > 0) {
     useControlStore.getState().restoreUnits(snapshots);
   }

@@ -48,7 +48,7 @@ export function CivitaiSubTab() {
 
   const handleSearch = useCallback(() => {
     if (searchEnabled) {
-      infiniteSearch.refetch();
+      void infiniteSearch.refetch();
     } else {
       setSearchEnabled(true);
     }

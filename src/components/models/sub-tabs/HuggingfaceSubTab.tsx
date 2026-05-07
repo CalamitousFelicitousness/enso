@@ -31,7 +31,7 @@ export function HuggingfaceSubTab() {
   function handleSearch() {
     if (!keyword) return;
     if (searchEnabled) {
-      refetch();
+      void refetch();
     } else {
       setSearchEnabled(true);
     }

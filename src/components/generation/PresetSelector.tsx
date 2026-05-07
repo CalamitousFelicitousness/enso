@@ -74,7 +74,7 @@ export function PresetSelector() {
 
   const handleExport = useCallback(() => {
     const json = exportPresets();
-    navigator.clipboard.writeText(json);
+    void navigator.clipboard.writeText(json);
     toast.success("Presets copied to clipboard");
   }, [exportPresets]);
 
