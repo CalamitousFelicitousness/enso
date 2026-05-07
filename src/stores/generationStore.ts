@@ -348,6 +348,9 @@ export const useGenerationStore = create<GenerationState>()(
       addResult: (result) =>
         set((state) => {
           void putResult(result).then(() => trimResults(state.historyLimit));
+          // In-memory cap of 100 is a safety stop; IDB is authoritative and
+          // bounded by historyLimit (default 16). Cap only matters if the
+          // user sets historyLimit > 100.
           return {
             results: [result, ...state.results].slice(0, 100),
             selectedResultId: result.id,
