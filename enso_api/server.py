@@ -2,12 +2,23 @@ import inspect
 import os
 import re
 import time
+
 from fastapi import APIRouter
+
 from enso_api.models import (
-    ResServerInfoV2, VersionInfoV2, ServerCapabilities, ServerModelInfo,
-    ResMemoryV2, RamMemoryV2, CudaMemoryV2, MemoryUsage, MemoryPeakUsage, MemoryWarnings,
-    ResGpuV2, GpuMetrics,
+    CudaMemoryV2,
+    GpuMetrics,
+    MemoryPeakUsage,
+    MemoryUsage,
+    MemoryWarnings,
+    RamMemoryV2,
+    ResGpuV2,
+    ResMemoryV2,
+    ResServerInfoV2,
     ResSystemInfoV2,
+    ServerCapabilities,
+    ServerModelInfo,
+    VersionInfoV2,
 )
 
 router = APIRouter(prefix="/sdapi/v2", tags=["Server"])
@@ -22,7 +33,7 @@ def detect_video_capability() -> bool:
 async def get_server_info_v2():
     """Return server version, backend, platform, capabilities, and loaded model."""
     import installer
-    from modules import shared, devices
+    from modules import devices, shared
     from modules.sd_models import model_data
     ver = installer.get_version()
     model_name = getattr(shared.opts, 'sd_model_checkpoint', None)
@@ -148,7 +159,7 @@ async def get_gpu_v2():
 async def get_system_info_v2():
     """Return full system diagnostics: versions, platform, GPU, device config, libraries, and flags."""
     import installer
-    from modules import shared, devices, loader
+    from modules import devices, loader, shared
     ver = installer.get_version()
     plat = installer.get_platform()
     gpu = devices.get_gpu_info()

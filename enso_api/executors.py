@@ -23,10 +23,10 @@ Do NOT duplicate processing logic here.  If v1 has a function for it,
 call that function.
 """
 
-import os
 import inspect
-from modules.logger import log
+import os
 
+from modules.logger import log
 
 # --- Detailer V2 per-model override helpers ---------------------------------
 # The V2 detailer schema (DetailerMixin in job_models.py) replaces the V1 flat
@@ -151,7 +151,7 @@ def install_detailer_per_model_patch(model_entries):
 
 
 def execute_generate(params: dict, job_id: str) -> dict:
-    from modules import shared, processing_helpers
+    from modules import processing_helpers, shared
     from modules.api import helpers
     from modules.control import run as control_run_module
     from modules.control.unit import Unit
@@ -399,8 +399,8 @@ def execute_generate(params: dict, job_id: str) -> dict:
 
 
 def execute_upscale(params: dict, job_id: str) -> dict:
-    from modules import shared, postprocessing
     from modules import images as img_module
+    from modules import postprocessing, shared
     from modules.api import helpers
     from modules.paths import resolve_output_path
 
@@ -467,16 +467,16 @@ def execute_caption(params: dict, job_id: str) -> dict:  # pylint: disable=unuse
     jobid = shared.state.begin('API-V2-CAP', api=True)
     try:
         if backend == 'vlm':
-            from modules.api.caption import do_vqa, ReqVQA
+            from modules.api.caption import ReqVQA, do_vqa
             req = ReqVQA(image='', model=model, prompt=params.get('prompt'))
             answer, _annotated = do_vqa(image, req)
             caption_text = answer
         elif backend == 'openclip':
-            from modules.api.caption import do_openclip, ReqCaptionOpenCLIP
+            from modules.api.caption import ReqCaptionOpenCLIP, do_openclip
             req = ReqCaptionOpenCLIP(image='', model=model)
             caption_text, *_ = do_openclip(image, req)
         elif backend == 'tagger':
-            from modules.api.caption import do_tagger, ReqTagger
+            from modules.api.caption import ReqTagger, do_tagger
             req = ReqTagger(image='', model=model)
             tags, _scores = do_tagger(image, req)
             caption_text = tags
@@ -489,7 +489,7 @@ def execute_caption(params: dict, job_id: str) -> dict:  # pylint: disable=unuse
 
 
 def execute_enhance(params: dict, job_id: str) -> dict:  # pylint: disable=unused-argument
-    from modules import shared, processing_helpers
+    from modules import processing_helpers, shared
     from modules.api import helpers
 
     prompt = params.get('prompt', '')
@@ -535,9 +535,9 @@ def execute_detail(params: dict, job_id: str) -> dict:
     regions (faces, hands, etc.) and inpaint them. Sidesteps control_run
     entirely.
     """
-    from modules import shared, processing, processing_helpers
-    from modules.processing_class import StableDiffusionProcessingImg2Img
+    from modules import processing, processing_helpers, shared
     from modules.api import helpers
+    from modules.processing_class import StableDiffusionProcessingImg2Img
 
     inputs = params.get('inputs') or []
     if not inputs:
@@ -944,7 +944,7 @@ def execute_model_load(params: dict, job_id: str) -> dict:  # pylint: disable=un
     check shared.state.interrupted. Cancellation will only take effect
     before execution starts (while queued) or after it completes.
     """
-    from modules import shared, sd_models, devices, modelloader
+    from modules import devices, modelloader, sd_models, shared
 
     checkpoint = params.get('sd_model_checkpoint')
     force = params.get('force', False)
@@ -1054,7 +1054,7 @@ def execute_model_save(params: dict, job_id: str) -> dict:  # pylint: disable=un
     sd_models.save_model() does not manage shared.state, so we wrap
     the call in state.begin/end for progress visibility.
     """
-    from modules import shared, sd_models
+    from modules import sd_models, shared
 
     name = params.get('name', '')
     if not name:
@@ -1085,6 +1085,7 @@ def execute_loader_load(params: dict, job_id: str) -> dict:  # pylint: disable=u
     to reuse the component setup logic.
     """
     from modules import shared
+
     from enso_api.models_ops import post_loader_load
 
     model_type = params.get('model_type', '')
@@ -1197,10 +1198,10 @@ def execute_rembg(params: dict, job_id: str) -> dict:
 
 
 from enso_api.cloud.executor import (
-    execute_cloud_image,
     execute_cloud_chat,
-    execute_cloud_tts,
+    execute_cloud_image,
     execute_cloud_stt,
+    execute_cloud_tts,
     execute_cloud_video,
 )
 

@@ -5,6 +5,7 @@ and rate limit tracking. Injected into adapters via composition.
 """
 
 import asyncio
+import contextlib
 import time
 
 import httpx
@@ -158,10 +159,8 @@ class HttpTransport:
     def _update_rate_limits(self, headers: httpx.Headers) -> None:
         remaining = headers.get("x-ratelimit-remaining") or headers.get("x-ratelimit-remaining-requests")
         if remaining is not None:
-            try:
+            with contextlib.suppress(ValueError):
                 self._rate_limit_remaining = int(remaining)
-            except ValueError:
-                pass
         reset = headers.get("x-ratelimit-reset") or headers.get("x-ratelimit-reset-requests")
         if reset is not None:
             try:

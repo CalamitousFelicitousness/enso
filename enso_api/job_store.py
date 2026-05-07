@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 import sqlite3
@@ -48,10 +49,8 @@ class JobStore:
     def _row_to_dict(row: sqlite3.Row) -> dict:
         d = dict(row)
         if d.get('result') and isinstance(d['result'], str):
-            try:
+            with contextlib.suppress(json.JSONDecodeError, TypeError):
                 d['result'] = json.loads(d['result'])
-            except (json.JSONDecodeError, TypeError):
-                pass
         return d
 
     @staticmethod
@@ -209,10 +208,8 @@ class JobStore:
         if staging_dir and os.path.isdir(staging_dir):
             for dirpath, _dirnames, filenames in os.walk(staging_dir):
                 for f in filenames:
-                    try:
+                    with contextlib.suppress(OSError):
                         staging_bytes += os.path.getsize(os.path.join(dirpath, f))
-                    except OSError:
-                        pass
         return {'total': total, 'counts': counts, 'staging_bytes': staging_bytes}
 
     def cleanup(self, max_age_hours: int = 168) -> int:

@@ -5,9 +5,11 @@ NanoGPT, AIHubMix, Ollama, custom endpoints). Parameterized by preset - not
 subclassed per provider.
 """
 
+import asyncio
 import base64
 import logging
 import struct
+from pathlib import Path
 
 import httpx
 
@@ -233,7 +235,7 @@ class OpenAICompatAdapter:
         body = self._build_image_params(params)
         body["model"] = params["model"]
 
-        log.debug("Cloud image request: %s", body)
+        log.debug(f"Cloud image request: {body}")
 
         on_progress({"type": "cloud_progress", "phase": "processing"})
         data = await self.http.post("/v1/images/generations", json=body)
@@ -335,8 +337,7 @@ class OpenAICompatAdapter:
             entry = get_upload_store().get(ref_id)
             if entry is None:
                 raise ProviderError(f"Upload {ref} not found or expired", provider=self.config.id)
-            with open(entry.path, "rb") as f:
-                return f.read()
+            return await asyncio.to_thread(Path(entry.path).read_bytes)
         if ref.startswith("/sdapi/v2/uploads/") or ref.startswith("http"):
             url = ref if ref.startswith("http") else f"{self.http.client.base_url}{ref}"
             async with httpx.AsyncClient(timeout=30) as client:
@@ -349,8 +350,9 @@ class OpenAICompatAdapter:
 
         Converts white-on-black mask to RGBA where white regions become transparent.
         """
-        from PIL import Image
         import io
+
+        from PIL import Image
         img = Image.open(io.BytesIO(mask_bytes)).convert("L")
         rgba = Image.new("RGBA", img.size, (0, 0, 0, 255))
         alpha = img.point(lambda p: 0 if p > 128 else 255)
@@ -526,7 +528,6 @@ class OpenAICompatAdapter:
         return None
 
     async def _poll_video(self, video_id: str, on_progress: ProgressCallback) -> VideoResult:
-        import asyncio
         max_polls = 120
         interval = 5.0
 

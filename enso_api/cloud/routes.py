@@ -8,7 +8,6 @@ from pydantic import BaseModel, Field
 
 import enso_api.cloud as cloud_registry
 
-
 router = APIRouter(prefix="/sdapi/v2/cloud", tags=["Cloud"])
 
 
@@ -20,10 +19,10 @@ class AddProviderRequest(BaseModel):
 
 
 class UpdateProviderRequest(BaseModel):
-    name: Optional[str] = None
-    base_url: Optional[str] = None
-    key: Optional[str] = None
-    enabled: Optional[bool] = None
+    name: str | None = None
+    base_url: str | None = None
+    key: str | None = None
+    enabled: bool | None = None
 
 
 @router.get("/providers")

@@ -1,8 +1,9 @@
-import io
 import asyncio
+import io
+
 from fastapi import WebSocket, WebSocketDisconnect
-from starlette.websockets import WebSocketState
 from modules.logger import log
+from starlette.websockets import WebSocketState
 
 
 class ConnectionManager:

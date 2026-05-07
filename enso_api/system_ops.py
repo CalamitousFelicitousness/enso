@@ -4,12 +4,12 @@ Provides REST endpoints for system management operations that were previously
 only accessible through the Gradio UI.
 """
 
-import os
 import json
+import os
 import threading
-from modules import shared, paths
-from modules.logger import log
 
+from modules import paths, shared
+from modules.logger import log
 
 # ---------------------------------------------------------------------------
 # Server control
@@ -178,7 +178,7 @@ def get_benchmark_results():
     headers = ['timestamp', 'it/s', 'version', 'system', 'libraries', 'gpu', 'flags', 'settings', 'username', 'note', 'hash']
     if os.path.isfile(bench_file) and os.path.getsize(bench_file) > 0:
         try:
-            with open(bench_file, 'r', encoding='utf-8') as f:
+            with open(bench_file, encoding='utf-8') as f:
                 data = json.load(f)
             return {"headers": headers, "data": data}
         except Exception as e:

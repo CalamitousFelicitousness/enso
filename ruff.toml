@@ -30,7 +30,6 @@ select = [
   "UP",    # pyupgrade
   "SIM",   # flake8-simplify
   "RET",   # flake8-return
-  "ERA",   # eradicate (commented-out code)
 ]
 ignore = [
   "E402",   # module-level import not at top of file
@@ -41,6 +40,7 @@ ignore = [
   "RUF013", # implicit Optional
   "E721",   # type comparison (sdnext uses == for type checks)
   "ASYNC240", # os.path in async (sync calls are fine in our context)
+  "SIM108",   # if/else -> ternary (often produces unreadable nested ternaries)
 ]
 
 [lint.mccabe]

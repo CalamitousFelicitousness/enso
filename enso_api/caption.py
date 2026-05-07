@@ -1,9 +1,16 @@
 import asyncio
+
 from fastapi import APIRouter
+
 from enso_api.models import (
-    ReqOpenClipV2, ResOpenClipV2,
-    ReqVqaV2, ResVqaV2, ItemVlmModelV2,
-    ReqTaggerV2, ResTaggerV2, ItemTaggerModelV2,
+    ItemTaggerModelV2,
+    ItemVlmModelV2,
+    ReqOpenClipV2,
+    ReqTaggerV2,
+    ReqVqaV2,
+    ResOpenClipV2,
+    ResTaggerV2,
+    ResVqaV2,
 )
 
 router = APIRouter(prefix="/sdapi/v2", tags=["Caption"])
@@ -61,7 +68,7 @@ async def get_openclip_models_v2():
 async def post_openclip_v2(req: ReqOpenClipV2):
     """Caption an image using OpenCLIP/BLIP."""
     def _run():
-        from modules.api.caption import validate_image, do_openclip
+        from modules.api.caption import do_openclip, validate_image
         image = validate_image(req.image)
         return do_openclip(image, req)
     caption, medium, artist, movement, trending, flavor = await asyncio.to_thread(_run)
@@ -72,6 +79,7 @@ async def post_openclip_v2(req: ReqOpenClipV2):
 async def get_vlm_models_v2():
     """List available VLM models with capabilities."""
     from modules.api.caption import get_vqa_models
+
     from enso_api.util import is_model_cached
     models = get_vqa_models()
     for m in models:
@@ -84,7 +92,7 @@ async def get_vlm_models_v2():
 async def post_vlm_v2(req: ReqVqaV2):
     """Caption an image using a Vision-Language Model."""
     def _run():
-        from modules.api.caption import validate_image, do_vqa
+        from modules.api.caption import do_vqa, validate_image
         image = validate_image(req.image)
         return do_vqa(image, req)
     answer, annotated_b64 = await asyncio.to_thread(_run)
@@ -102,7 +110,7 @@ async def get_tagger_models_v2():
 async def post_tagger_v2(req: ReqTaggerV2):
     """Tag an image using WaifuDiffusion or DeepBooru."""
     def _run():
-        from modules.api.caption import validate_image, do_tagger
+        from modules.api.caption import do_tagger, validate_image
         image = validate_image(req.image)
         return do_tagger(image, req)
     tags, scores = await asyncio.to_thread(_run)

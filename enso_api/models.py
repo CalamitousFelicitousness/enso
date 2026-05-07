@@ -1,6 +1,6 @@
-from typing import Any, Literal, Optional, Union
-from pydantic import BaseModel, ConfigDict, Field
+from typing import Any, Literal
 
+from pydantic import BaseModel, ConfigDict, Field
 
 # --- Strict base for request bodies ---
 
@@ -44,12 +44,12 @@ class JobResponse(BaseModel):
     progress: float = 0
     step: int = 0
     steps: int = 0
-    eta: Optional[float] = None
+    eta: float | None = None
     created_at: str
-    started_at: Optional[str] = None
-    completed_at: Optional[str] = None
-    error: Optional[str] = None
-    result: Optional[JobResult] = None
+    started_at: str | None = None
+    completed_at: str | None = None
+    error: str | None = None
+    result: JobResult | None = None
 
 
 class JobListResponse(BaseModel):
@@ -62,7 +62,7 @@ class JobListResponse(BaseModel):
 class ErrorResponse(BaseModel):
     error: str
     code: int
-    detail: Optional[str] = None
+    detail: str | None = None
 
 
 # --- Simple response types for Swagger docs ---
@@ -134,7 +134,7 @@ class ReqFramePackLoadV2(StrictBaseModel):
 
 class ReqHuggingFaceSettingsV2(StrictBaseModel):
     """Set or clear the HuggingFace Hub access token."""
-    token: Optional[str] = Field(default=None, title="Token", description="HF token; pass empty string or null to clear")
+    token: str | None = Field(default=None, title="Token", description="HF token; pass empty string or null to clear")
 
 
 class VideoLoadResponse(MessageResponse):
@@ -151,15 +151,15 @@ class FramePackLoadResponse(MessageResponse):
 class ItemExtraNetworkV2(BaseModel):
     name: str = Field(title="Name", description="Network short name")
     type: str = Field(title="Type", description="Network type: lora, model, embedding, etc.")
-    title: Optional[str] = Field(default=None, title="Title", description="Display title")
-    fullname: Optional[str] = Field(default=None, title="Full name", description="Fully qualified name")
-    filename: Optional[str] = Field(default=None, title="Filename", description="Path to file")
-    hash: Optional[str] = Field(default=None, title="Hash", description="Short hash")
-    preview: Optional[str] = Field(default=None, title="Preview", description="Preview thumbnail URL")
-    version: Optional[str] = Field(default=None, title="Version", description="Base model version")
+    title: str | None = Field(default=None, title="Title", description="Display title")
+    fullname: str | None = Field(default=None, title="Full name", description="Fully qualified name")
+    filename: str | None = Field(default=None, title="Filename", description="Path to file")
+    hash: str | None = Field(default=None, title="Hash", description="Short hash")
+    preview: str | None = Field(default=None, title="Preview", description="Preview thumbnail URL")
+    version: str | None = Field(default=None, title="Version", description="Base model version")
     tags: list[str] = Field(default_factory=list, title="Tags", description="Tag list")
-    size: Optional[int] = Field(default=None, title="Size", description="File size in bytes")
-    mtime: Optional[str] = Field(default=None, title="Modified", description="ISO 8601 modification time")
+    size: int | None = Field(default=None, title="Size", description="File size in bytes")
+    mtime: str | None = Field(default=None, title="Modified", description="ISO 8601 modification time")
 
 class ResExtraNetworksV2(BaseModel):
     items: list[ItemExtraNetworkV2] = Field(title="Items", description="List of extra network items")
@@ -172,12 +172,12 @@ class ItemModelV2(BaseModel):
     model_name: str = Field(title="Model Name")
     filename: str = Field(title="Filename")
     type: str = Field(title="Type")
-    hash: Optional[str] = Field(default=None, title="Hash")
-    sha256: Optional[str] = Field(default=None, title="SHA256")
-    size: Optional[int] = Field(default=None, title="Size", description="File size in bytes")
-    mtime: Optional[str] = Field(default=None, title="Modified", description="ISO 8601 modification time")
-    version: Optional[str] = Field(default=None, title="Version")
-    subfolder: Optional[str] = Field(default=None, title="Subfolder")
+    hash: str | None = Field(default=None, title="Hash")
+    sha256: str | None = Field(default=None, title="SHA256")
+    size: int | None = Field(default=None, title="Size", description="File size in bytes")
+    mtime: str | None = Field(default=None, title="Modified", description="ISO 8601 modification time")
+    version: str | None = Field(default=None, title="Version")
+    subfolder: str | None = Field(default=None, title="Subfolder")
 
 class ResModelsV2(BaseModel):
     items: list[ItemModelV2] = Field(title="Items")
@@ -188,15 +188,15 @@ class ResModelsV2(BaseModel):
 class ItemSamplerV2(BaseModel):
     name: str = Field(title="Name")
     group: str = Field(title="Group", description="Standard, FlowMatch, or Res4Lyf")
-    compatible: Optional[bool] = Field(default=None, title="Compatible", description="null if no model loaded")
+    compatible: bool | None = Field(default=None, title="Compatible", description="null if no model loaded")
     options: dict = Field(default_factory=dict, title="Options")
 
 class ItemHistoryV2(BaseModel):
-    id: Optional[Union[int, str]] = Field(default=None, title="ID")
+    id: int | str | None = Field(default=None, title="ID")
     job: str = Field(title="Job")
     op: str = Field(title="Operation")
-    timestamp: Optional[float] = Field(default=None, title="Timestamp")
-    duration: Optional[float] = Field(default=None, title="Duration")
+    timestamp: float | None = Field(default=None, title="Timestamp")
+    duration: float | None = Field(default=None, title="Duration")
     outputs: list[str] = Field(default_factory=list, title="Outputs")
 
 class ResHistoryV2(BaseModel):
@@ -207,22 +207,22 @@ class ResHistoryV2(BaseModel):
 
 class ResCheckpointV2(BaseModel):
     loaded: bool = Field(title="Loaded")
-    type: Optional[str] = Field(default=None, title="Type")
-    class_name: Optional[str] = Field(default=None, title="Class Name")
-    checkpoint: Optional[str] = Field(default=None, title="Checkpoint")
-    title: Optional[str] = Field(default=None, title="Title")
-    name: Optional[str] = Field(default=None, title="Name")
-    filename: Optional[str] = Field(default=None, title="Filename")
-    hash: Optional[str] = Field(default=None, title="Hash")
+    type: str | None = Field(default=None, title="Type")
+    class_name: str | None = Field(default=None, title="Class Name")
+    checkpoint: str | None = Field(default=None, title="Checkpoint")
+    title: str | None = Field(default=None, title="Title")
+    name: str | None = Field(default=None, title="Name")
+    filename: str | None = Field(default=None, title="Filename")
+    hash: str | None = Field(default=None, title="Hash")
 
 class ReqSetCheckpointV2(BaseModel):
     sd_model_checkpoint: str = Field(title="Checkpoint")
-    dtype: Optional[str] = Field(default=None, title="Dtype")
+    dtype: str | None = Field(default=None, title="Dtype")
     force: bool = Field(default=False, title="Force")
 
 class ResSetCheckpointV2(BaseModel):
     ok: bool = Field(title="OK")
-    checkpoint: Optional[ResCheckpointV2] = Field(default=None, title="Checkpoint")
+    checkpoint: ResCheckpointV2 | None = Field(default=None, title="Checkpoint")
 
 class ItemVaeV2(BaseModel):
     name: str = Field(title="Name", description="VAE model display name")
@@ -231,18 +231,18 @@ class ItemVaeV2(BaseModel):
 class ItemUpscalerV2(BaseModel):
     name: str = Field(title="Name", description="Upscaler display name")
     group: str = Field(title="Group", description="Upscaler family name")
-    model_name: Optional[str] = Field(default=None, title="Model Name", description="Underlying model name")
-    model_path: Optional[str] = Field(default=None, title="Path", description="Path to the model file")
-    scale: Optional[float] = Field(default=None, title="Scale", description="Default upscale factor")
+    model_name: str | None = Field(default=None, title="Model Name", description="Underlying model name")
+    model_path: str | None = Field(default=None, title="Path", description="Path to the model file")
+    scale: float | None = Field(default=None, title="Scale", description="Default upscale factor")
 
 class ItemEmbeddingV2(BaseModel):
     name: str = Field(title="Name", description="Embedding trigger word")
-    filename: Optional[str] = Field(default=None, title="Filename", description="Path to the embedding file")
-    step: Optional[int] = Field(default=None, title="Step", description="Training step count")
-    shape: Optional[int] = Field(default=None, title="Shape", description="Embedding vector dimension")
-    vectors: Optional[int] = Field(default=None, title="Vectors", description="Number of vectors")
-    sd_checkpoint: Optional[str] = Field(default=None, title="SD Checkpoint", description="Training checkpoint hash")
-    sd_checkpoint_name: Optional[str] = Field(default=None, title="SD Checkpoint Name", description="Training checkpoint name")
+    filename: str | None = Field(default=None, title="Filename", description="Path to the embedding file")
+    step: int | None = Field(default=None, title="Step", description="Training step count")
+    shape: int | None = Field(default=None, title="Shape", description="Embedding vector dimension")
+    vectors: int | None = Field(default=None, title="Vectors", description="Number of vectors")
+    sd_checkpoint: str | None = Field(default=None, title="SD Checkpoint", description="Training checkpoint hash")
+    sd_checkpoint_name: str | None = Field(default=None, title="SD Checkpoint Name", description="Training checkpoint name")
 
 class ResEmbeddingsV2(BaseModel):
     loaded: list[ItemEmbeddingV2] = Field(default_factory=list, title="Loaded", description="Successfully loaded embeddings")
@@ -250,14 +250,14 @@ class ResEmbeddingsV2(BaseModel):
 
 class ItemPromptStyleV2(BaseModel):
     name: str = Field(title="Name", description="Style name")
-    prompt: Optional[str] = Field(default=None, title="Prompt", description="Prompt template text")
-    negative_prompt: Optional[str] = Field(default=None, title="Negative Prompt", description="Negative prompt template text")
-    extra: Optional[str] = Field(default=None, title="Extra", description="Additional style data")
-    description: Optional[str] = Field(default=None, title="Description", description="Human-readable style description")
-    wildcards: Optional[str] = Field(default=None, title="Wildcards", description="Wildcard references used by this style")
-    filename: Optional[str] = Field(default=None, title="Filename", description="Path to the styles file")
-    preview: Optional[str] = Field(default=None, title="Preview", description="URL to the style preview image")
-    mtime: Optional[str] = Field(default=None, title="Modified", description="ISO 8601 modification time")
+    prompt: str | None = Field(default=None, title="Prompt", description="Prompt template text")
+    negative_prompt: str | None = Field(default=None, title="Negative Prompt", description="Negative prompt template text")
+    extra: str | None = Field(default=None, title="Extra", description="Additional style data")
+    description: str | None = Field(default=None, title="Description", description="Human-readable style description")
+    wildcards: str | None = Field(default=None, title="Wildcards", description="Wildcard references used by this style")
+    filename: str | None = Field(default=None, title="Filename", description="Path to the styles file")
+    preview: str | None = Field(default=None, title="Preview", description="URL to the style preview image")
+    mtime: str | None = Field(default=None, title="Modified", description="ISO 8601 modification time")
 
 class ResRefreshNetworksV2(BaseModel):
     ok: bool = Field(title="OK", description="Whether the refresh completed successfully")
@@ -275,23 +275,23 @@ class ResSetOptionsV2(BaseModel):
     updated: list[OptionUpdateItemV2] = Field(default_factory=list, title="Updated", description="Per-key update results")
 
 class OptionComponentArgsV2(BaseModel):
-    minimum: Optional[float] = Field(default=None, title="Minimum")
-    maximum: Optional[float] = Field(default=None, title="Maximum")
-    step: Optional[float] = Field(default=None, title="Step")
-    choices: Optional[list[str]] = Field(default=None, title="Choices")
-    precision: Optional[int] = Field(default=None, title="Precision")
-    multiselect: Optional[bool] = Field(default=None, title="Multiselect")
+    minimum: float | None = Field(default=None, title="Minimum")
+    maximum: float | None = Field(default=None, title="Maximum")
+    step: float | None = Field(default=None, title="Step")
+    choices: list[str] | None = Field(default=None, title="Choices")
+    precision: int | None = Field(default=None, title="Precision")
+    multiselect: bool | None = Field(default=None, title="Multiselect")
 
 class ItemOptionInfoV2(BaseModel):
     label: str = Field(title="Label")
-    section_id: Optional[str] = Field(default=None, title="Section ID")
+    section_id: str | None = Field(default=None, title="Section ID")
     section_title: str = Field(title="Section Title")
     visible: bool = Field(title="Visible")
     hidden: bool = Field(title="Hidden")
     type: str = Field(title="Type", description="boolean, number, string, or array")
     component: str = Field(title="Component", description="UI component type")
     component_args: OptionComponentArgsV2 = Field(default_factory=OptionComponentArgsV2, title="Component Args")
-    default: Optional[Any] = Field(default=None, title="Default")
+    default: Any | None = Field(default=None, title="Default")
     is_legacy: bool = Field(title="Is Legacy")
     is_secret: bool = Field(title="Is Secret")
 
@@ -354,8 +354,8 @@ class ServerCapabilities(BaseModel):
     websocket: bool = True
 
 class ServerModelInfo(BaseModel):
-    name: Optional[str] = None
-    type: Optional[str] = None
+    name: str | None = None
+    type: str | None = None
     supports_strength: bool = True
 
 class ResServerInfoV2(BaseModel):
@@ -370,32 +370,32 @@ class ResServerInfoV2(BaseModel):
 # --- Memory models (v2) ---
 
 class MemoryUsage(BaseModel):
-    free: Optional[int] = None
-    used: Optional[int] = None
-    total: Optional[int] = None
+    free: int | None = None
+    used: int | None = None
+    total: int | None = None
 
 class MemoryPeakUsage(BaseModel):
-    current: Optional[int] = None
-    peak: Optional[int] = None
+    current: int | None = None
+    peak: int | None = None
 
 class MemoryWarnings(BaseModel):
     retries: int = 0
     oom: int = 0
 
 class RamMemoryV2(BaseModel):
-    free: Optional[int] = None
-    used: Optional[int] = None
-    total: Optional[int] = None
-    error: Optional[str] = None
+    free: int | None = None
+    used: int | None = None
+    total: int | None = None
+    error: str | None = None
 
 class CudaMemoryV2(BaseModel):
-    system: Optional[MemoryUsage] = None
-    active: Optional[MemoryPeakUsage] = None
-    allocated: Optional[MemoryPeakUsage] = None
-    reserved: Optional[MemoryPeakUsage] = None
-    inactive: Optional[MemoryPeakUsage] = None
-    events: Optional[MemoryWarnings] = None
-    error: Optional[str] = None
+    system: MemoryUsage | None = None
+    active: MemoryPeakUsage | None = None
+    allocated: MemoryPeakUsage | None = None
+    reserved: MemoryPeakUsage | None = None
+    inactive: MemoryPeakUsage | None = None
+    events: MemoryWarnings | None = None
+    error: str | None = None
 
 class ResMemoryV2(BaseModel):
     ram: RamMemoryV2
@@ -420,21 +420,21 @@ class ResSystemInfoV2(BaseModel):
 
 
 class GpuMetrics(BaseModel):
-    load_gpu: Optional[float] = None
-    load_vram: Optional[float] = None
-    temperature: Optional[float] = None
-    fan_speed: Optional[float] = None
-    power_current: Optional[float] = None
-    power_limit: Optional[float] = None
-    vram_used: Optional[int] = None
-    vram_total: Optional[int] = None
+    load_gpu: float | None = None
+    load_vram: float | None = None
+    temperature: float | None = None
+    fan_speed: float | None = None
+    power_current: float | None = None
+    power_limit: float | None = None
+    vram_used: int | None = None
+    vram_total: int | None = None
 
 class ResGpuV2(BaseModel):
     name: str
     metrics: GpuMetrics = Field(default_factory=GpuMetrics)
     details: dict[str, str] = Field(default_factory=dict)
-    chart_vram_pct: Optional[float] = None
-    chart_gpu_pct: Optional[float] = None
+    chart_vram_pct: float | None = None
+    chart_gpu_pct: float | None = None
 
 
 # --- Caption models (v2) ---
@@ -446,44 +446,44 @@ class ReqOpenClipV2(BaseModel):
     blip_model: str = Field(default="blip-large", title="Caption Model", description="BLIP model for initial caption")
     mode: str = Field(default="best", title="Mode", description="Caption mode: best, fast, classic, caption, negative")
     analyze: bool = Field(default=False, title="Analyze", description="Return detailed breakdown (medium, artist, movement, trending, flavor)")
-    max_length: Optional[int] = Field(default=None, title="Max Length")
-    chunk_size: Optional[int] = Field(default=None, title="Chunk Size")
-    min_flavors: Optional[int] = Field(default=None, title="Min Flavors")
-    max_flavors: Optional[int] = Field(default=None, title="Max Flavors")
-    flavor_count: Optional[int] = Field(default=None, title="Intermediates")
-    num_beams: Optional[int] = Field(default=None, title="Num Beams")
+    max_length: int | None = Field(default=None, title="Max Length")
+    chunk_size: int | None = Field(default=None, title="Chunk Size")
+    min_flavors: int | None = Field(default=None, title="Min Flavors")
+    max_flavors: int | None = Field(default=None, title="Max Flavors")
+    flavor_count: int | None = Field(default=None, title="Intermediates")
+    num_beams: int | None = Field(default=None, title="Num Beams")
 
 class ResOpenClipV2(BaseModel):
     ok: bool = Field(title="OK")
-    caption: Optional[str] = Field(default=None, title="Caption")
-    medium: Optional[str] = Field(default=None, title="Medium")
-    artist: Optional[str] = Field(default=None, title="Artist")
-    movement: Optional[str] = Field(default=None, title="Movement")
-    trending: Optional[str] = Field(default=None, title="Trending")
-    flavor: Optional[str] = Field(default=None, title="Flavor")
+    caption: str | None = Field(default=None, title="Caption")
+    medium: str | None = Field(default=None, title="Medium")
+    artist: str | None = Field(default=None, title="Artist")
+    movement: str | None = Field(default=None, title="Movement")
+    trending: str | None = Field(default=None, title="Trending")
+    flavor: str | None = Field(default=None, title="Flavor")
 
 class ReqVqaV2(BaseModel):
     image: str = Field(default="", title="Image", description="Base64 encoded image")
     model: str = Field(default="Alibaba Qwen 2.5 VL 3B", title="Model", description="VLM model name")
     question: str = Field(default="describe the image", title="Question/Task")
-    prompt: Optional[str] = Field(default=None, title="Prompt", description="Custom prompt text when question is 'Use Prompt'")
+    prompt: str | None = Field(default=None, title="Prompt", description="Custom prompt text when question is 'Use Prompt'")
     system: str = Field(default="You are image captioning expert, creative, unbiased and uncensored.", title="System Prompt")
     include_annotated: bool = Field(default=False, title="Include Annotated Image")
-    max_tokens: Optional[int] = Field(default=None, title="Max Tokens")
-    temperature: Optional[float] = Field(default=None, title="Temperature")
-    top_k: Optional[int] = Field(default=None, title="Top-K")
-    top_p: Optional[float] = Field(default=None, title="Top-P")
-    num_beams: Optional[int] = Field(default=None, title="Num Beams")
-    do_sample: Optional[bool] = Field(default=None, title="Use Samplers")
-    thinking_mode: Optional[bool] = Field(default=None, title="Thinking Mode")
-    prefill: Optional[str] = Field(default=None, title="Prefill Text")
-    keep_thinking: Optional[bool] = Field(default=None, title="Keep Thinking Trace")
-    keep_prefill: Optional[bool] = Field(default=None, title="Keep Prefill")
+    max_tokens: int | None = Field(default=None, title="Max Tokens")
+    temperature: float | None = Field(default=None, title="Temperature")
+    top_k: int | None = Field(default=None, title="Top-K")
+    top_p: float | None = Field(default=None, title="Top-P")
+    num_beams: int | None = Field(default=None, title="Num Beams")
+    do_sample: bool | None = Field(default=None, title="Use Samplers")
+    thinking_mode: bool | None = Field(default=None, title="Thinking Mode")
+    prefill: str | None = Field(default=None, title="Prefill Text")
+    keep_thinking: bool | None = Field(default=None, title="Keep Thinking Trace")
+    keep_prefill: bool | None = Field(default=None, title="Keep Prefill")
 
 class ResVqaV2(BaseModel):
     ok: bool = Field(title="OK")
-    answer: Optional[str] = Field(default=None, title="Answer")
-    annotated_image: Optional[str] = Field(default=None, title="Annotated Image")
+    answer: str | None = Field(default=None, title="Answer")
+    annotated_image: str | None = Field(default=None, title="Annotated Image")
 
 class ReqTaggerV2(BaseModel):
     image: str = Field(default="", title="Image", description="Base64 encoded image")
@@ -501,7 +501,7 @@ class ReqTaggerV2(BaseModel):
 class ResTaggerV2(BaseModel):
     ok: bool = Field(title="OK")
     tags: str = Field(title="Tags")
-    scores: Optional[dict] = Field(default=None, title="Scores")
+    scores: dict | None = Field(default=None, title="Scores")
 
 class ItemVlmModelV2(BaseModel):
     name: str = Field(title="Name")
@@ -542,11 +542,11 @@ class ResPngInfoV2(BaseModel):
 
 class ItemExtensionV2(BaseModel):
     name: str = Field(title="Name")
-    remote: Optional[str] = Field(default=None, title="Remote")
+    remote: str | None = Field(default=None, title="Remote")
     branch: str = Field(default="unknown", title="Branch")
-    commit_hash: Optional[str] = Field(default=None, title="Commit Hash")
-    version: Optional[str] = Field(default=None, title="Version")
-    commit_date: Optional[str] = Field(default=None, title="Commit Date")
+    commit_hash: str | None = Field(default=None, title="Commit Hash")
+    version: str | None = Field(default=None, title="Version")
+    commit_date: str | None = Field(default=None, title="Commit Date")
     enabled: bool = Field(default=True, title="Enabled")
 
 
@@ -554,7 +554,7 @@ class ItemExtensionV2(BaseModel):
 
 class ItemDetailerV2(BaseModel):
     name: str = Field(title="Name")
-    path: Optional[str] = Field(default=None, title="Path")
+    path: str | None = Field(default=None, title="Path")
 
 
 # --- Job Type models (v2) ---
@@ -575,7 +575,7 @@ class ItemJobTypeV2(BaseModel):
             "its result is discarded."
         ),
     )
-    extends: Optional[str] = Field(
+    extends: str | None = Field(
         default=None, title="Extends",
         description="Discriminator value of a parent type whose schema is fully inherited (e.g. xyz-grid extends generate)",
     )
@@ -597,23 +597,23 @@ class ItemPromptEnhanceModelV2(BaseModel):
 class ReqPromptEnhanceV2(BaseModel):
     prompt: str = Field(title="Prompt", description="Prompt to enhance")
     type: str = Field(title="Type", default='text', description="Type of enhancement: text, image, video")
-    model: Optional[str] = Field(title="Model", default=None)
-    system_prompt: Optional[str] = Field(title="System prompt", default=None)
-    image: Optional[str] = Field(title="Image", default=None, description="Base64 encoded image")
+    model: str | None = Field(title="Model", default=None)
+    system_prompt: str | None = Field(title="System prompt", default=None)
+    image: str | None = Field(title="Image", default=None, description="Base64 encoded image")
     seed: int = Field(title="Seed", default=-1)
     nsfw: bool = Field(title="NSFW", default=True)
-    prefix: Optional[str] = Field(title="Prefix", default=None)
-    suffix: Optional[str] = Field(title="Suffix", default=None)
-    do_sample: Optional[bool] = Field(title="Sample", default=None)
-    max_tokens: Optional[int] = Field(title="Max tokens", default=None)
-    temperature: Optional[float] = Field(title="Temperature", default=None)
-    repetition_penalty: Optional[float] = Field(title="Repetition penalty", default=None)
-    top_k: Optional[int] = Field(title="Top K", default=None)
-    top_p: Optional[float] = Field(title="Top P", default=None)
+    prefix: str | None = Field(title="Prefix", default=None)
+    suffix: str | None = Field(title="Suffix", default=None)
+    do_sample: bool | None = Field(title="Sample", default=None)
+    max_tokens: int | None = Field(title="Max tokens", default=None)
+    temperature: float | None = Field(title="Temperature", default=None)
+    repetition_penalty: float | None = Field(title="Repetition penalty", default=None)
+    top_k: int | None = Field(title="Top K", default=None)
+    top_p: float | None = Field(title="Top P", default=None)
     thinking: bool = Field(title="Thinking", default=False)
     keep_thinking: bool = Field(title="Keep thinking", default=False)
     use_vision: bool = Field(title="Use vision", default=True)
-    prefill: Optional[str] = Field(title="Prefill", default=None)
+    prefill: str | None = Field(title="Prefill", default=None)
     keep_prefill: bool = Field(title="Keep prefill", default=False)
 
 class ResPromptEnhanceV2(BaseModel):

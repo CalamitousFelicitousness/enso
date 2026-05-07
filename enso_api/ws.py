@@ -1,5 +1,7 @@
 import asyncio
+import contextlib
 import json
+
 from fastapi import WebSocket, WebSocketDisconnect
 from modules.logger import log
 
@@ -81,10 +83,8 @@ async def ws_job_endpoint(ws: WebSocket, job_id: str):
                         break
         finally:
             cmd_task.cancel()
-            try:
+            with contextlib.suppress(asyncio.CancelledError):
                 await cmd_task
-            except asyncio.CancelledError:
-                pass
 
     except WebSocketDisconnect:
         pass

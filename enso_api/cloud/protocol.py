@@ -5,8 +5,10 @@ are shared across all adapters regardless of implementation.
 """
 # pylint: disable=unnecessary-ellipsis
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Callable, Protocol
+from typing import Protocol
+
 
 @dataclass
 class CloudUsage:

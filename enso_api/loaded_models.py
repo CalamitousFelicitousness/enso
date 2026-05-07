@@ -4,7 +4,6 @@ Returns a list of loaded models across all subsystems (pipeline, ControlNet,
 LoRA, upscalers, IP-adapter, caption, detailer) with device/size/dtype info.
 """
 
-from typing import List
 import torch
 from modules import shared
 from modules.api.models import ItemLoadedModel
@@ -89,7 +88,7 @@ def component_extra(comp, **kwargs) -> dict:
     return extra
 
 
-def enumerate_pipeline(pipe, role: str) -> List[ItemLoadedModel]:
+def enumerate_pipeline(pipe, role: str) -> list[ItemLoadedModel]:
     items = []
     if pipe is None:
         return items
@@ -123,7 +122,7 @@ def enumerate_pipeline(pipe, role: str) -> List[ItemLoadedModel]:
     return items
 
 
-def enumerate_control() -> List[ItemLoadedModel]:
+def enumerate_control() -> list[ItemLoadedModel]:
     items = []
     try:
         from modules.control import unit as control_unit
@@ -161,7 +160,7 @@ def enumerate_control() -> List[ItemLoadedModel]:
     return items
 
 
-def enumerate_lora() -> List[ItemLoadedModel]:
+def enumerate_lora() -> list[ItemLoadedModel]:
     items = []
     try:
         from modules.lora import lora_common, lora_load
@@ -182,7 +181,7 @@ def enumerate_lora() -> List[ItemLoadedModel]:
     return items
 
 
-def enumerate_ipadapter() -> List[ItemLoadedModel]:
+def enumerate_ipadapter() -> list[ItemLoadedModel]:
     items = []
     try:
         from modules import ipadapter
@@ -203,7 +202,7 @@ def enumerate_ipadapter() -> List[ItemLoadedModel]:
     return items
 
 
-def enumerate_upscalers() -> List[ItemLoadedModel]:
+def enumerate_upscalers() -> list[ItemLoadedModel]:
     items = []
     try:
         for upscaler in shared.sd_upscalers:
@@ -236,7 +235,7 @@ def enumerate_upscalers() -> List[ItemLoadedModel]:
     return items
 
 
-def enumerate_detailer() -> List[ItemLoadedModel]:
+def enumerate_detailer() -> list[ItemLoadedModel]:
     items = []
     try:
         yolo = getattr(shared, 'yolo', None)
@@ -257,7 +256,7 @@ def enumerate_detailer() -> List[ItemLoadedModel]:
     return items
 
 
-def enumerate_prompt_enhance() -> List[ItemLoadedModel]:
+def enumerate_prompt_enhance() -> list[ItemLoadedModel]:
     items = []
     try:
         from modules.scripts_manager import scripts_txt2img
@@ -281,7 +280,7 @@ def enumerate_prompt_enhance() -> List[ItemLoadedModel]:
     return items
 
 
-def enumerate_caption() -> List[ItemLoadedModel]:
+def enumerate_caption() -> list[ItemLoadedModel]:
     items = []
     # VQA
     try:
@@ -340,7 +339,7 @@ def enumerate_caption() -> List[ItemLoadedModel]:
     return items
 
 
-def get_loaded_models() -> List[ItemLoadedModel]:
+def get_loaded_models() -> list[ItemLoadedModel]:
     """
     Enumerate all models currently loaded in memory.
 
@@ -368,4 +367,4 @@ def get_loaded_models() -> List[ItemLoadedModel]:
 
 def register_api():
     from modules.shared import api as api_instance
-    api_instance.add_api_route("/sdapi/v2/loaded-models", get_loaded_models, methods=["GET"], response_model=List[ItemLoadedModel], tags=["Models"])
+    api_instance.add_api_route("/sdapi/v2/loaded-models", get_loaded_models, methods=["GET"], response_model=list[ItemLoadedModel], tags=["Models"])

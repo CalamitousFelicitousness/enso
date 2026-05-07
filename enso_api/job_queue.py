@@ -1,4 +1,5 @@
 import asyncio
+import contextlib
 import io
 import json
 import os
@@ -6,7 +7,6 @@ import threading
 from concurrent.futures import ThreadPoolExecutor
 
 from enso_api.job_store import JobStore
-
 
 # Maps SD.Next state.job labels → user-facing stage name
 STAGE_MAP: dict[str, str] = {
@@ -111,19 +111,15 @@ class JobQueue:
         with self._sub_lock:
             subs = self._subscribers.get(job_id, [])
             for q in subs:
-                try:
+                with contextlib.suppress(asyncio.QueueFull):
                     q.put_nowait(data)
-                except asyncio.QueueFull:
-                    pass
 
     def _push_binary(self, job_id: str, data: bytes) -> None:
         with self._sub_lock:
             subs = self._subscribers.get(job_id, [])
             for q in subs:
-                try:
+                with contextlib.suppress(asyncio.QueueFull):
                     q.put_nowait(data)
-                except asyncio.QueueFull:
-                    pass
 
     def _worker_loop(self) -> None:
         from modules.logger import log
@@ -162,6 +158,7 @@ class JobQueue:
 
     def _execute_job(self, job: dict) -> None:
         from modules.logger import log
+
         from enso_api.executors import EXECUTORS
         job_id = job['id']
         job_type = job['type']

@@ -1,10 +1,9 @@
 import re
-from typing import Optional
 from itertools import permutations
-from pydantic import BaseModel, Field
-from fastapi import APIRouter, Query
-import numpy as np
 
+import numpy as np
+from fastapi import APIRouter, Query
+from pydantic import BaseModel, Field
 
 router = APIRouter(prefix="/sdapi/v2/xyz-grid", tags=["XYZ Grid"])
 
@@ -17,7 +16,7 @@ class XyzAxisInfo(BaseModel):
     cost: float
     category: str = Field(description="Extracted from [Category] prefix in label")
     has_choices: bool
-    choices: Optional[list[str]] = None
+    choices: list[str] | None = None
 
 
 class ResXyzAxes(BaseModel):
@@ -43,9 +42,9 @@ class XyzAxisInput(BaseModel):
 
 
 class ReqXyzPreview(BaseModel):
-    x_axis: Optional[XyzAxisInput] = None
-    y_axis: Optional[XyzAxisInput] = None
-    z_axis: Optional[XyzAxisInput] = None
+    x_axis: XyzAxisInput | None = None
+    y_axis: XyzAxisInput | None = None
+    z_axis: XyzAxisInput | None = None
     steps: int = Field(default=20, description="Base steps for estimation")
 
 
@@ -79,7 +78,7 @@ def find_axis(label: str):
 
 
 def resolve_axis_values(axis_label: str, values_str: str) -> tuple[list, list[str]]:
-    from scripts.xyz.xyz_grid_shared import re_range, re_plain_comma, restore_comma, str_permutations  # pylint: disable=no-name-in-module
+    from scripts.xyz.xyz_grid_shared import re_plain_comma, re_range, restore_comma, str_permutations  # pylint: disable=no-name-in-module
 
     opt = find_axis(axis_label)
     if opt is None:
@@ -138,7 +137,7 @@ def resolve_axis_values(axis_label: str, values_str: str) -> tuple[list, list[st
 # --- Routes ---
 
 @router.get("/axes", response_model=ResXyzAxes)
-async def get_axes(expand: Optional[str] = Query(default=None, description="Axis label to expand choices for")):
+async def get_axes(expand: str | None = Query(default=None, description="Axis label to expand choices for")):
     axis_options = get_axis_options()
     items = []
     categories = set()
@@ -241,7 +240,7 @@ def execute_xyz_grid(params: dict, job_id: str) -> dict:
     axis_options = get_axis_options()
     label_to_index = {opt.label: i for i, opt in enumerate(axis_options)}
 
-    def axis_index(axis_input: Optional[dict]) -> int:
+    def axis_index(axis_input: dict | None) -> int:
         if not axis_input or not axis_input.get('type'):
             return 0  # "Nothing"
         label = axis_input['type']

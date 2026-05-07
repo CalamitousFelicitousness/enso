@@ -22,6 +22,7 @@ def on_app_started(blocks, app):  # pylint: disable=unused-argument
 
     from fastapi import Depends
     from modules import shared
+
     from enso_api import register_api
 
     # Write SD.Next port so the Vite dev server can auto-detect it

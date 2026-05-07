@@ -4,9 +4,9 @@ Provides REST endpoints for model management operations that were previously
 only accessible through the Gradio UI.
 """
 
+import inspect
 import os
 
-import inspect
 from modules import shared
 from modules.logger import log
 
@@ -81,7 +81,7 @@ def get_list_detail():
     Returns every registered checkpoint with its filename, file type, auto-detected
     model type, matching pipeline class, hash, file size, and modification time.
     """
-    from modules import sd_checkpoint, sd_detect, modelstats
+    from modules import modelstats, sd_checkpoint, sd_detect
     rows = []
     for ckpt in sd_checkpoint.checkpoints_list.values():
         try:
@@ -173,9 +173,9 @@ def post_civitai_download(url: str, name: str = "", path: str = "", model_type: 
     from modules.civitai.download_civitai import download_manager
     from modules.civitai.filemanage_civitai import get_type_folder
     try:
-        from modules.api.security import validate_download_url, is_confined_to
+        from modules.api.security import is_confined_to, validate_download_url
     except ImportError:
-        from enso_api.security_stubs import validate_download_url, is_confined_to
+        from enso_api.security_stubs import is_confined_to, validate_download_url
     if not url:
         return {"status": "Error: no url provided"}
     validate_download_url(url)
@@ -252,8 +252,8 @@ def get_merge_methods():
     per-method documentation, and SD 1.5 / SDXL block-weight presets.
     """
     from modules.merging import merge_methods
-    from modules.merging.merge_utils import BETA_METHODS, TRIPLE_METHODS
     from modules.merging.merge_presets import BLOCK_WEIGHTS_PRESETS, SDXL_BLOCK_WEIGHTS_PRESETS
+    from modules.merging.merge_utils import BETA_METHODS, TRIPLE_METHODS
     docs = {}
     for name in merge_methods.__all__:
         fn = getattr(merge_methods, name, None)
@@ -307,7 +307,7 @@ def post_merge(  # pylint: disable=unused-argument
     ``merge_mode``. Supports block-weight presets, precision control, re-basin
     alignment, and optional VAE bake-in. Saves the result as ``custom_name``.
     """
-    from modules import extras, sd_models, errors
+    from modules import errors, extras, sd_models
     kwargs = {k: v for k, v in locals().items() if v not in [None, "None", "", 0, []]}
     if not custom_name:
         return {"status": "Error: no output model name specified"}
@@ -392,8 +392,8 @@ def post_loader_components(model_type: str):
     loadable components with their IDs, class names, local/remote paths,
     dtype, and quantization settings.
     """
-    from modules import shared_items, ui_models_load
     import diffusers as _diffusers
+    from modules import shared_items, ui_models_load
     if model_type == "Current":
         cls = shared.sd_model.__class__ if shared.sd_loaded else None
     else:

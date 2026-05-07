@@ -10,7 +10,7 @@ absent rather than being filled with Pydantic defaults.
 Frontend reference: ``src/api/types/cloud.ts``.
 """
 
-from typing import Any, Literal, Optional
+from typing import Any, Literal
 
 from pydantic import Field
 
@@ -30,19 +30,19 @@ class CloudImageParams(CloudJobBase):
 
     type: Literal["cloud_image"] = "cloud_image"
     prompt: str
-    negative_prompt: Optional[str] = None
-    size: Optional[str] = Field(default=None, description="WxH string, e.g. '1024x1024'")
-    n: Optional[int] = Field(default=None, description="Batch count")
-    seed: Optional[int] = None
-    guidance: Optional[float] = None
-    steps: Optional[int] = None
-    quality: Optional[str] = None
-    style: Optional[str] = None
-    image: Optional[str] = Field(default=None, description="img2img source (upload ref or base64)")
-    mask: Optional[str] = Field(default=None, description="Inpaint mask (upload ref or base64)")
-    strength: Optional[float] = None
-    width: Optional[int] = Field(default=None, description="Width hint for result metadata")
-    height: Optional[int] = Field(default=None, description="Height hint for result metadata")
+    negative_prompt: str | None = None
+    size: str | None = Field(default=None, description="WxH string, e.g. '1024x1024'")
+    n: int | None = Field(default=None, description="Batch count")
+    seed: int | None = None
+    guidance: float | None = None
+    steps: int | None = None
+    quality: str | None = None
+    style: str | None = None
+    image: str | None = Field(default=None, description="img2img source (upload ref or base64)")
+    mask: str | None = Field(default=None, description="Inpaint mask (upload ref or base64)")
+    strength: float | None = None
+    width: int | None = Field(default=None, description="Width hint for result metadata")
+    height: int | None = Field(default=None, description="Height hint for result metadata")
     extra_params: dict[str, Any] = Field(default_factory=dict, description="Provider-specific passthrough fields")
 
 
@@ -58,12 +58,12 @@ class CloudChatParams(CloudJobBase):
 
     type: Literal["cloud_chat"] = "cloud_chat"
     messages: list[CloudChatMessage] = Field(default_factory=list)
-    prompt: Optional[str] = Field(default=None, description="Convenience: single user message; ignored if messages set")
-    temperature: Optional[float] = None
-    top_p: Optional[float] = None
-    max_tokens: Optional[int] = None
+    prompt: str | None = Field(default=None, description="Convenience: single user message; ignored if messages set")
+    temperature: float | None = None
+    top_p: float | None = None
+    max_tokens: int | None = None
     stream: bool = False
-    seed: Optional[int] = None
+    seed: int | None = None
     extra_params: dict[str, Any] = Field(default_factory=dict)
 
 
@@ -72,9 +72,9 @@ class CloudTtsParams(CloudJobBase):
 
     type: Literal["cloud_tts"] = "cloud_tts"
     input: str = Field(description="Text to synthesize")
-    voice: Optional[str] = None
-    speed: Optional[float] = None
-    response_format: Optional[Literal["mp3", "opus", "aac", "flac", "wav", "pcm"]] = None
+    voice: str | None = None
+    speed: float | None = None
+    response_format: Literal["mp3", "opus", "aac", "flac", "wav", "pcm"] | None = None
 
 
 class CloudSttParams(CloudJobBase):
@@ -82,8 +82,8 @@ class CloudSttParams(CloudJobBase):
 
     type: Literal["cloud_stt"] = "cloud_stt"
     audio: str = Field(description="Audio (upload ref or base64)")
-    language: Optional[str] = None
-    response_format: Optional[Literal["json", "text", "srt", "vtt"]] = None
+    language: str | None = None
+    response_format: Literal["json", "text", "srt", "vtt"] | None = None
 
 
 class CloudVideoParams(CloudJobBase):
@@ -91,8 +91,8 @@ class CloudVideoParams(CloudJobBase):
 
     type: Literal["cloud_video"] = "cloud_video"
     prompt: str
-    aspect_ratio: Optional[str] = None
-    duration: Optional[float] = None
-    size: Optional[str] = None
-    image: Optional[str] = Field(default=None, description="Optional first-frame image (upload ref or base64)")
+    aspect_ratio: str | None = None
+    duration: float | None = None
+    size: str | None = None
+    image: str | None = Field(default=None, description="Optional first-frame image (upload ref or base64)")
     extra_params: dict[str, Any] = Field(default_factory=dict)

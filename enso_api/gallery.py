@@ -1,19 +1,19 @@
+import base64
 import io
 import os
 import shutil
 import time
-import base64
 import zipfile
 from urllib.parse import quote, unquote
+
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse, StreamingResponse
-from starlette.websockets import WebSocket, WebSocketState
-from pydantic import BaseModel, Field # pylint: disable=no-name-in-module
-from PIL import Image
-from modules import shared, images, files_cache, modelstats
+from modules import files_cache, images, modelstats, shared
 from modules.logger import log
 from modules.paths import resolve_output_path
-
+from PIL import Image
+from pydantic import BaseModel, Field  # pylint: disable=no-name-in-module
+from starlette.websockets import WebSocket, WebSocketState
 
 debug = log.debug if os.environ.get('SD_BROWSER_DEBUG', None) is not None else lambda *args, **kwargs: None
 
@@ -78,10 +78,7 @@ def get_allowed_roots():
 def is_allowed_path(filepath: str) -> bool:
     """Check if a file path is within allowed gallery folders."""
     resolved = os.path.abspath(os.path.realpath(filepath))
-    for root in get_allowed_roots():
-        if resolved.startswith(root + os.sep) or resolved == root:
-            return True
-    return False
+    return any(resolved.startswith(root + os.sep) or resolved == root for root in get_allowed_roots())
 
 
 ### ws connection manager
@@ -135,7 +132,7 @@ def register_api(app: FastAPI): # register api
             frame.save(buffered, format='jpeg')
             data_url = f'data:image/jpeg;base64,{base64.b64encode(buffered.getvalue()).decode("ascii")}'
             frame.close()
-            content = {
+            return {
                 'exif': f'Codec: {codec}, Frames: {frames}, Duration: {duration:.2f} sec, FPS: {fps:.2f}',
                 'data': data_url,
                 'width': width,
@@ -143,7 +140,6 @@ def register_api(app: FastAPI): # register api
                 'size': stat_size,
                 'mtime': stat_mtime.timestamp() * 1000, # JS timestamps use milliseconds
             }
-            return content
         except Exception as e:
             log.error(f'Gallery video: file="{filepath}" {e}')
             return {}
@@ -162,7 +158,7 @@ def register_api(app: FastAPI): # register api
             image.save(buffered, format='jpeg')
             data_url = f'data:image/jpeg;base64,{base64.b64encode(buffered.getvalue()).decode("ascii")}'
             image.close()
-            content = {
+            return {
                 'exif': geninfo,
                 'data': data_url,
                 'width': width,
@@ -170,7 +166,6 @@ def register_api(app: FastAPI): # register api
                 'size': stat_size,
                 'mtime': stat_mtime.timestamp() * 1000, # JS timestamps use milliseconds
             }
-            return content
         except Exception as e:
             log.error(f'Gallery image: file="{filepath}" {e}')
             return {}
@@ -233,8 +228,7 @@ def register_api(app: FastAPI): # register api
             ext = os.path.splitext(decoded)[1].lower()
             if ext in video_extensions:
                 return JSONResponse(content=get_video_thumbnail(decoded))
-            else:
-                return JSONResponse(content=get_image_thumbnail(decoded))
+            return JSONResponse(content=get_image_thumbnail(decoded))
         except Exception as e:
             log.error(f'Gallery: {file} {e}')
             content = { 'error': str(e) }

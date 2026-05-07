@@ -11,10 +11,10 @@ as their v1 counterparts.
 import asyncio
 import os
 from datetime import datetime
-from typing import Any, Literal, Optional
+from typing import Any, Literal
+
 from fastapi import APIRouter, HTTPException, Query
 from modules import shared
-
 
 # Shared version normalization - unifies CivitAI baseModel values and sdnext
 # internal class names into a consistent set across all network types.
@@ -51,23 +51,38 @@ version_normalize = {
     "zImage": "Z-Image",
 }
 from enso_api.models import (
-    ItemExtraNetworkV2, ResExtraNetworksV2,
-    ItemModelV2, ResModelsV2,
-    ItemSamplerV2,
-    ItemHistoryV2, ResHistoryV2,
-    ResCheckpointV2, ReqSetCheckpointV2, ResSetCheckpointV2,
-    ItemScriptV2, ResScriptsV2,
-    ItemVaeV2, ItemUpscalerV2,
-    ItemEmbeddingV2, ResEmbeddingsV2,
-    ItemPromptStyleV2, ResRefreshNetworksV2,
-    OptionUpdateItemV2, ResSetOptionsV2,
-    ResOptionsInfoV2, ItemSecretStatusV2,
-    ItemPreprocessorV2, ReqPreprocessV2, ResPreprocessV2,
-    ResLogV2, ResLogClearV2,
-    ReqPngInfoV2, ResPngInfoV2,
-    ItemExtensionV2,
     ItemDetailerV2,
+    ItemEmbeddingV2,
+    ItemExtensionV2,
+    ItemExtraNetworkV2,
+    ItemHistoryV2,
     ItemJobTypeV2,
+    ItemModelV2,
+    ItemPreprocessorV2,
+    ItemPromptStyleV2,
+    ItemSamplerV2,
+    ItemScriptV2,
+    ItemSecretStatusV2,
+    ItemUpscalerV2,
+    ItemVaeV2,
+    OptionUpdateItemV2,
+    ReqPngInfoV2,
+    ReqPreprocessV2,
+    ReqSetCheckpointV2,
+    ResCheckpointV2,
+    ResEmbeddingsV2,
+    ResExtraNetworksV2,
+    ResHistoryV2,
+    ResLogClearV2,
+    ResLogV2,
+    ResModelsV2,
+    ResOptionsInfoV2,
+    ResPngInfoV2,
+    ResPreprocessV2,
+    ResRefreshNetworksV2,
+    ResScriptsV2,
+    ResSetCheckpointV2,
+    ResSetOptionsV2,
 )
 
 router = APIRouter(prefix="/sdapi/v2")
@@ -318,9 +333,9 @@ async def get_preprocessors_v2():
 async def post_preprocess_v2(req: ReqPreprocessV2):
     """Run an image preprocessor on the input image and return the processed result."""
     def _run():
-        from modules.control import processors
-        from modules.api.helpers import decode_base64_to_image, encode_pil_to_base64
         import modules.api.process as process_module
+        from modules.api.helpers import decode_base64_to_image, encode_pil_to_base64
+        from modules.control import processors
         processors_list = list(processors.config)
         if req.model not in processors_list:
             raise HTTPException(status_code=400, detail=f"Processor model not found: id={req.model}")
@@ -365,9 +380,8 @@ async def get_sd_models_v2(
             break
     matched = []
     for v in sd_checkpoint.checkpoints_list.values():
-        if lower_search:
-            if lower_search not in (v.title or '').lower() and lower_search not in (v.filename or '').lower():
-                continue
+        if lower_search and lower_search not in (v.title or '').lower() and lower_search not in (v.filename or '').lower():
+            continue
         if type and v.type != type:
             continue
         en_item = model_items.get(v.name)
@@ -497,7 +511,7 @@ async def get_checkpoint_v2():
 async def set_checkpoint_v2(req: ReqSetCheckpointV2):
     """Load a checkpoint by name with optional dtype and force options."""
     def _load():
-        from modules import sd_models, devices, modelloader
+        from modules import devices, modelloader, sd_models
         if req.force:
             sd_models.unload_model_weights(op='model')
         if req.dtype is not None:
@@ -714,7 +728,7 @@ async def delete_log_v2():
 @router.post("/png-info", response_model=ResPngInfoV2, tags=["Server"])
 async def post_png_info_v2(req: ReqPngInfoV2):
     """Extract generation parameters from a PNG image's metadata."""
-    from modules import images, script_callbacks, infotext
+    from modules import images, infotext, script_callbacks
     from modules.api.helpers import decode_base64_to_image
     if not req.image.strip():
         return ResPngInfoV2(ok=False, info="")
@@ -768,7 +782,7 @@ async def get_detailers_v2():
 
 @router.get("/job-types", response_model=list[ItemJobTypeV2], tags=["Enumerators"])
 async def get_job_types_v2(
-    runtime: Optional[Literal["local", "cloud"]] = Query(
+    runtime: Literal["local", "cloud"] | None = Query(
         default=None,
         description="Filter to local-only or cloud-only job types",
     ),

@@ -10,11 +10,12 @@ import tempfile
 
 def register_api(app, dependencies=None):
     from modules import shared
+
     from enso_api.job_queue import job_queue
-    from enso_api.routes import router
-    from enso_api.upload import upload_router, init_upload_store
-    from enso_api.ws import ws_job_endpoint
     from enso_api.job_types import validate_registries
+    from enso_api.routes import router
+    from enso_api.upload import init_upload_store, upload_router
+    from enso_api.ws import ws_job_endpoint
 
     deps = dependencies or []
 

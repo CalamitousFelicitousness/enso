@@ -1,13 +1,14 @@
+import contextlib
 import os
+import threading
 import time
 import uuid
-import threading
-from typing import Optional
-from PIL import Image
-from pydantic import BaseModel
+
 from fastapi import APIRouter, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 from modules.logger import log
+from PIL import Image
+from pydantic import BaseModel
 
 
 class UploadEntry:
@@ -41,14 +42,14 @@ class UploadStore:
             self._entries[ref_id] = entry
         return entry
 
-    def get(self, ref_id: str) -> Optional[UploadEntry]:
+    def get(self, ref_id: str) -> UploadEntry | None:
         with self._lock:
             entry = self._entries.get(ref_id)
         if entry and os.path.isfile(entry.path):
             return entry
         return None
 
-    def resolve_to_image(self, ref_id: str) -> Optional[Image.Image]:
+    def resolve_to_image(self, ref_id: str) -> Image.Image | None:
         entry = self.get(ref_id)
         if entry is None:
             return None
@@ -58,10 +59,8 @@ class UploadStore:
         with self._lock:
             entry = self._entries.pop(ref_id, None)
         if entry:
-            try:
+            with contextlib.suppress(OSError):
                 os.remove(entry.path)
-            except OSError:
-                pass
 
     def cleanup_expired(self) -> int:
         now = time.time()
@@ -86,7 +85,7 @@ class UploadStore:
 
 
 # Module-level singleton
-upload_store: Optional[UploadStore] = None
+upload_store: UploadStore | None = None
 
 
 def init_upload_store(staging_dir: str, ttl: int = 1800):

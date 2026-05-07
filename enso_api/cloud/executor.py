@@ -159,6 +159,7 @@ async def _async_cloud_video(params: dict, job_id: str) -> dict:
 
 def _get_output_dir(job_id: str) -> str:
     import os
+
     from enso_api.job_queue import job_queue
     base = os.path.dirname(job_queue.store.db_path) if job_queue.store else "."
     output_dir = os.path.join(base, "outputs", job_id)

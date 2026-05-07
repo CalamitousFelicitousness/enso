@@ -18,7 +18,7 @@ Frontend reference: ``src/api/types/v2.ts``,
 Cloud-specific parameter classes live in ``enso_api/cloud/models.py``.
 """
 
-from typing import Annotated, Any, Literal, Optional, Union
+from typing import Annotated, Any, Literal
 
 from pydantic import ConfigDict, Field
 
@@ -30,7 +30,6 @@ from enso_api.cloud.models import (
     CloudVideoParams,
 )
 from enso_api.models import StrictBaseModel
-
 
 # --- Nested helper models ---------------------------------------------------
 
@@ -49,8 +48,8 @@ class ControlUnitParams(StrictBaseModel):
     start: float = 0.0
     end: float = 1.0
     mode: str = Field(default="default", description="Pipeline mode override; 'default' to use unit's first choice")
-    override: Optional[str] = Field(default=None, description="Upload ref or base64 of an explicit processed image")
-    image: Optional[str] = Field(default=None, description="Upload ref or base64; alias of override")
+    override: str | None = Field(default=None, description="Upload ref or base64 of an explicit processed image")
+    image: str | None = Field(default=None, description="Upload ref or base64; alias of override")
     guess: bool = Field(default=False, description="ControlNet 'guess mode'")
     factor: float = Field(default=1.0, description="T2I-Adapter blend factor")
     attention: str = Field(default="Attention", description="Style-transfer attention type")
@@ -170,83 +169,83 @@ class DetailerOverrides(StrictBaseModel):
     not None, leaving the rest untouched.
     """
 
-    strength: Optional[float] = Field(
+    strength: float | None = Field(
         default=None, ge=0.0, le=1.0, title="Strength", examples=[0.3],
         description="Denoise strength applied to each detected region. Lower = lighter touch, preserves more of the original.",
     )
-    steps: Optional[int] = Field(
+    steps: int | None = Field(
         default=None, ge=0, le=99, title="Steps", examples=[10],
         description="Number of diffusion steps for the detailer pass on each detected region.",
     )
-    resolution: Optional[int] = Field(
+    resolution: int | None = Field(
         default=None, ge=256, le=4096, title="Resolution", examples=[1024],
         description="Working resolution for the detailer pass per region. Larger = more detail, slower.",
     )
-    padding: Optional[int] = Field(
+    padding: int | None = Field(
         default=None, ge=0, le=256, title="Padding", examples=[20],
         description="Pixels of padding around each detected region before inpainting.",
     )
-    blur: Optional[int] = Field(
+    blur: int | None = Field(
         default=None, ge=0, le=64, title="Blur", examples=[10],
         description="Mask edge blur. Softens the seam between inpainted region and surrounding image.",
     )
-    conf: Optional[float] = Field(
+    conf: float | None = Field(
         default=None, ge=0.0, le=1.0, title="Confidence", examples=[0.6],
         description="Minimum detection confidence (0-1) for a region to be processed.",
     )
-    iou: Optional[float] = Field(
+    iou: float | None = Field(
         default=None, ge=0.0, le=1.0, title="IoU", examples=[0.5],
         description="Intersection-over-union threshold for non-max suppression of overlapping detections.",
     )
-    min_size: Optional[float] = Field(
+    min_size: float | None = Field(
         default=None, ge=0.0, le=1.0, title="Min size", examples=[0.0],
         description="Minimum region size (fraction of image area) to detect.",
     )
-    max_size: Optional[float] = Field(
+    max_size: float | None = Field(
         default=None, ge=0.0, le=1.0, title="Max size", examples=[1.0],
         description="Maximum region size (fraction of image area) to detect.",
     )
-    max: Optional[int] = Field(
+    max: int | None = Field(
         default=None, ge=1, le=20, title="Max detect", examples=[2],
         description="Maximum number of detected regions to process per pass.",
     )
-    sigma_adjust: Optional[float] = Field(
+    sigma_adjust: float | None = Field(
         default=None, ge=0.0, le=2.0, title="Renoise", examples=[1.0],
         description="Sigma adjust at start. Multiplier on noise schedule for the detailer pass.",
     )
-    sigma_adjust_max: Optional[float] = Field(
+    sigma_adjust_max: float | None = Field(
         default=None, ge=0.0, le=2.0, title="Renoise end", examples=[1.0],
         description="Sigma adjust at end. Multiplier on noise schedule terminus for the detailer pass.",
     )
-    segmentation: Optional[bool] = Field(
+    segmentation: bool | None = Field(
         default=None, title="Segmentation", examples=[False],
         description="Use segmentation masks (if model supports them) instead of bounding boxes.",
     )
-    include_detections: Optional[bool] = Field(
+    include_detections: bool | None = Field(
         default=None, title="Include detections", examples=[False],
         description="Append the annotated detection-overlay image to the output set.",
     )
-    merge: Optional[bool] = Field(
+    merge: bool | None = Field(
         default=None, title="Merge", examples=[False],
         description="Merge multiple detections from this model before inpainting.",
     )
-    sort: Optional[bool] = Field(
+    sort: bool | None = Field(
         default=None, title="Sort", examples=[False],
         description="Sort detections by score before applying max-detect cap.",
     )
-    prompt: Optional[str] = Field(
+    prompt: str | None = Field(
         default=None, title="Prompt", examples=["highly detailed face"],
         description="Per-detector prompt override. Use [PROMPT] to inject the main prompt; leave empty to inherit.",
     )
-    negative: Optional[str] = Field(
+    negative: str | None = Field(
         default=None, title="Negative", examples=["blurry, low quality"],
         description="Per-detector negative prompt override. Use [PROMPT] to inject the main negative; leave empty to inherit.",
     )
-    classes: Optional[str] = Field(
+    classes: str | None = Field(
         default=None, title="Classes", examples=["person, face"],
         description="Comma-separated class filter for multi-class detector models. Empty = all classes.",
     )
-    augment: Optional[bool] = Field(
+    augment: bool | None = Field(
         default=None, title="Augment", examples=[False],
         description="Apply test-time augmentation during detection (slower, may catch more).",
     )
@@ -266,7 +265,7 @@ class DetailerModelEntry(DetailerOverrides):
     )
 
 
-DetailerModelRef = Union[str, DetailerModelEntry]
+DetailerModelRef = str | DetailerModelEntry
 """A detailer model reference: bare string (= use defaults) or full entry."""
 
 
@@ -500,7 +499,7 @@ class Img2ImgMixin(StrictBaseModel):
 
     inputs: list[str] = Field(default_factory=list, description="Init images (upload refs or base64). Empty for txt2img.")
     inits: list[str] = Field(default_factory=list, description="Pre-flattened init images for control-mode workflows")
-    mask: Optional[str] = Field(default=None, description="Inpaint mask (upload ref or base64); white = inpaint area")
+    mask: str | None = Field(default=None, description="Inpaint mask (upload ref or base64); white = inpaint area")
     init_control: list[str] = Field(default_factory=list, description="Reference unit composited inputs")
     input_type: int = 0
     width_before: int = 512
@@ -600,8 +599,8 @@ class CaptionParams(JobBase):
     type: Literal["caption"] = "caption"
     image: str = Field(description="Base64 encoded image or upload ref")
     backend: str = Field(default="vlm", description="vlm, openclip, or tagger")
-    model: Optional[str] = None
-    prompt: Optional[str] = Field(default=None, description="VLM-only: question or task prompt")
+    model: str | None = None
+    prompt: str | None = Field(default=None, description="VLM-only: question or task prompt")
 
 
 class EnhanceParams(JobBase):
@@ -609,10 +608,10 @@ class EnhanceParams(JobBase):
 
     type: Literal["enhance"] = "enhance"
     prompt: str = ""
-    model: Optional[str] = None
+    model: str | None = None
     enhance_type: str = Field(default="text", description="text, image, or video")
     seed: int = -1
-    image: Optional[str] = None
+    image: str | None = None
     system_prompt: str = ""
     prefix: str = ""
     suffix: str = ""
@@ -635,7 +634,7 @@ class DetectParams(JobBase):
 
     type: Literal["detect"] = "detect"
     image: str = ""
-    model: Optional[str] = None
+    model: str | None = None
 
 
 class PreprocessParams(JobBase):
@@ -681,9 +680,9 @@ class XyzGridParams(GenerateParams):
     """
 
     type: Literal["xyz-grid"] = "xyz-grid"  # type: ignore[assignment]
-    x_axis: Optional[XyzAxisInputParams] = None
-    y_axis: Optional[XyzAxisInputParams] = None
-    z_axis: Optional[XyzAxisInputParams] = None
+    x_axis: XyzAxisInputParams | None = None
+    y_axis: XyzAxisInputParams | None = None
+    z_axis: XyzAxisInputParams | None = None
     draw_legend: bool = True
     include_grid: bool = True
     include_subgrids: bool = False
@@ -715,9 +714,9 @@ class VideoParams(JobBase):
     seed: int = -1
     guidance_scale: float = 6.0
     guidance_true: float = -1.0
-    init_image: Optional[str] = None
+    init_image: str | None = None
     init_strength: float = 0.5
-    last_image: Optional[str] = None
+    last_image: str | None = None
     vae_type: str = "Default"
     vae_tile_frames: int = 0
     fps: int = 24
@@ -757,8 +756,8 @@ class FramePackParams(JobBase):
     use_preview: bool = True
     attention: str = "Default"
     vae_type: str = "Full"
-    init_image: Optional[str] = None
-    end_image: Optional[str] = None
+    init_image: str | None = None
+    end_image: str | None = None
     fps: int = 30
     interpolate: int = 0
     codec: str = "libx264"
@@ -793,8 +792,8 @@ class LtxParams(JobBase):
     refine_enable: bool = False
     refine_strength: float = 0.4
     condition_strength: float = 0.8
-    condition_image: Optional[str] = None
-    condition_last: Optional[str] = None
+    condition_image: str | None = None
+    condition_last: str | None = None
     condition_video_frames: int = 0
     condition_video_skip: int = 0
     audio_enable: bool = False
@@ -816,9 +815,9 @@ class ModelLoadParams(JobBase):
     """Load or reload an SD checkpoint."""
 
     type: Literal["model-load"] = "model-load"
-    sd_model_checkpoint: Optional[str] = Field(default=None, description="Checkpoint name; supports 'name@url' for CivitAI")
+    sd_model_checkpoint: str | None = Field(default=None, description="Checkpoint name; supports 'name@url' for CivitAI")
     force: bool = Field(default=False, description="Unload current model first")
-    dtype: Optional[str] = Field(default=None, description="Override CUDA dtype")
+    dtype: str | None = Field(default=None, description="Override CUDA dtype")
 
 
 class ModelMergeParams(JobBase):
@@ -833,15 +832,15 @@ class ModelMergeParams(JobBase):
     custom_name: str = Field(description="Output model name")
     primary_model_name: str = Field(description="Primary model")
     secondary_model_name: str = Field(description="Secondary model")
-    tertiary_model_name: Optional[str] = None
-    interp_method: Optional[str] = None
-    multiplier: Optional[float] = None
-    save_as_half: Optional[bool] = None
-    save_as_safetensors: Optional[bool] = None
-    discard_weights: Optional[str] = None
-    metadata_settings: Optional[dict[str, Any]] = None
-    bake_in_vae: Optional[str] = None
-    config_source: Optional[int] = None
+    tertiary_model_name: str | None = None
+    interp_method: str | None = None
+    multiplier: float | None = None
+    save_as_half: bool | None = None
+    save_as_safetensors: bool | None = None
+    discard_weights: str | None = None
+    metadata_settings: dict[str, Any] | None = None
+    bake_in_vae: str | None = None
+    config_source: int | None = None
 
 
 class ModelReplaceParams(JobBase):
@@ -875,8 +874,8 @@ class ModelSaveParams(JobBase):
 
     type: Literal["model-save"] = "model-save"
     name: str = Field(description="Output model name")
-    path: Optional[str] = None
-    shard: Optional[str] = None
+    path: str | None = None
+    shard: str | None = None
     overwrite: bool = False
 
 
@@ -886,7 +885,7 @@ class LoaderLoadParams(JobBase):
     type: Literal["loader-load"] = "loader-load"
     model_type: str = Field(description="Pipeline model type")
     repo: str = Field(description="HF repo ID or local path")
-    components: Optional[dict[str, Any]] = None
+    components: dict[str, Any] | None = None
 
 
 class LoraExtractParams(JobBase):
@@ -931,31 +930,6 @@ class RembgParams(JobBase):
 
 
 JobRequest = Annotated[
-    Union[
-        GenerateParams,
-        UpscaleParams,
-        CaptionParams,
-        EnhanceParams,
-        DetectParams,
-        PreprocessParams,
-        DetailParams,
-        XyzGridParams,
-        VideoParams,
-        FramePackParams,
-        LtxParams,
-        ModelLoadParams,
-        ModelMergeParams,
-        ModelReplaceParams,
-        ModelSaveParams,
-        LoaderLoadParams,
-        LoraExtractParams,
-        HfDownloadParams,
-        RembgParams,
-        CloudImageParams,
-        CloudChatParams,
-        CloudTtsParams,
-        CloudSttParams,
-        CloudVideoParams,
-    ],
+    GenerateParams | UpscaleParams | CaptionParams | EnhanceParams | DetectParams | PreprocessParams | DetailParams | XyzGridParams | VideoParams | FramePackParams | LtxParams | ModelLoadParams | ModelMergeParams | ModelReplaceParams | ModelSaveParams | LoaderLoadParams | LoraExtractParams | HfDownloadParams | RembgParams | CloudImageParams | CloudChatParams | CloudTtsParams | CloudSttParams | CloudVideoParams,
     Field(discriminator="type"),
 ]

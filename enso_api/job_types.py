@@ -26,11 +26,10 @@ update the category here in the same change. Tracked separately to keep
 this module focused on discovery.
 """
 
-from typing import Optional, get_args
 import inspect
+from typing import get_args
 
 from enso_api.job_models import JobRequest
-
 
 JOB_TYPE_META: dict[str, dict[str, str]] = {
     "generate":      {"title": "Generate",              "category": "core"},
@@ -70,7 +69,7 @@ def union_variants() -> list[type]:
     return list(get_args(union_alias))
 
 
-def extract_extends(cls: type) -> Optional[str]:
+def extract_extends(cls: type) -> str | None:
     """Return the parent type's discriminator if cls extends another union member.
 
     Walks ``cls.__mro__[1:]`` for the first ancestor with its own Literal

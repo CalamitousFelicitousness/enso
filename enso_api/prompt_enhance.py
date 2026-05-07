@@ -1,8 +1,11 @@
 import asyncio
+
 from fastapi import APIRouter, HTTPException
+
 from enso_api.models import (
     ItemPromptEnhanceModelV2,
-    ReqPromptEnhanceV2, ResPromptEnhanceV2,
+    ReqPromptEnhanceV2,
+    ResPromptEnhanceV2,
 )
 
 router = APIRouter(prefix="/sdapi/v2", tags=["Prompt Enhance"])
@@ -59,7 +62,8 @@ def enhance_group(repo: str) -> str:
 @router.get("/prompt-enhance/models", response_model=list[ItemPromptEnhanceModelV2])
 async def get_prompt_enhance_models_v2():
     """List available prompt enhancement models with capability flags."""
-    from scripts.prompt_enhance import Options, is_vision_model, is_thinking_model  # pylint: disable=no-name-in-module
+    from scripts.prompt_enhance import Options, is_thinking_model, is_vision_model  # pylint: disable=no-name-in-module
+
     from enso_api.util import is_model_cached
     return [
         ItemPromptEnhanceModelV2(name=repo, group=enhance_group(repo), vision=is_vision_model(repo), thinking=is_thinking_model(repo), cached=is_model_cached(repo))

@@ -2,12 +2,31 @@ import asyncio
 import json
 import os
 from typing import Optional
+
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import FileResponse
 from modules.logger import log
-from enso_api.job_models import JobRequest
-from enso_api.models import JobResponse, JobListResponse, JobResult, ImageRef, StatusResponse, ResPurgeV2, ResJobStatsV2, ReqBulkJobV2, ResBulkJobV2, ReqFramePackLoadV2, ReqVideoLoadV2, VideoEngine, VideoModel, VideoModelEnriched, VideoLoadResponse, MessageResponse, FramePackLoadResponse
 
+from enso_api.job_models import JobRequest
+from enso_api.models import (
+    FramePackLoadResponse,
+    ImageRef,
+    JobListResponse,
+    JobResponse,
+    JobResult,
+    MessageResponse,
+    ReqBulkJobV2,
+    ReqFramePackLoadV2,
+    ReqVideoLoadV2,
+    ResBulkJobV2,
+    ResJobStatsV2,
+    ResPurgeV2,
+    StatusResponse,
+    VideoEngine,
+    VideoLoadResponse,
+    VideoModel,
+    VideoModelEnriched,
+)
 
 router = APIRouter(prefix="/sdapi/v2", tags=["v2"])
 
@@ -45,8 +64,8 @@ async def submit_job(request: JobRequest):
     unknown fields with a 422 carrying field-level errors. The discriminator on
     `type` selects the matching parameter class. `priority` is honored across
     every job type and stripped before the params dict reaches the executor."""
-    from enso_api.job_queue import job_queue
     from enso_api.executors import EXECUTORS
+    from enso_api.job_queue import job_queue
     payload = request.model_dump(exclude_unset=True)
     job_type = payload["type"]
     if job_type not in EXECUTORS:
@@ -63,8 +82,8 @@ async def submit_job(request: JobRequest):
 
 @router.get("/jobs", response_model=JobListResponse, tags=["Jobs"])
 async def list_jobs(
-    status: Optional[str] = None,
-    type: Optional[str] = None,
+    status: str | None = None,
+    type: str | None = None,
     limit: int = Query(default=20, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
 ):
@@ -223,8 +242,8 @@ def parse_video_mode(name: str) -> str:
 
 @router.get("/video/engines", response_model=list[VideoEngine], tags=["Video"])
 async def list_video_engines():
-    from modules.video_models import models_def
-    from modules.video_models import video_load
+    from modules.video_models import models_def, video_load
+
     from enso_api.util import is_model_cached
     current_loaded = video_load.loaded_model
     result = []
