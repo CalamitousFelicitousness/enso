@@ -16,7 +16,7 @@ function formatRelativeTime(timestamp: number): string {
 }
 
 interface PromptEnhanceHistoryProps {
-  onSelectPrompt?: (prompt: string) => void;
+  onSelectPrompt?: ((prompt: string) => void) | undefined;
 }
 
 export function PromptEnhanceHistory({

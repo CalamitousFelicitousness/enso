@@ -11,7 +11,7 @@ import { CornerBrackets } from "@/canvas/layers/ControlFrameLayer";
 
 interface FrameLayerProps {
   displayScale: number;
-  onPickImage?: () => void;
+  onPickImage?: (() => void) | undefined;
 }
 
 export function FrameLayer({ displayScale, onPickImage }: FrameLayerProps) {

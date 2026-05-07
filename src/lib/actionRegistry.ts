@@ -18,9 +18,9 @@ interface PaletteActionBase {
   group: string;
   keywords: string[];
   /** HTML-stripped excerpt of help text, for low-priority fuzzy matching. */
-  helpExcerpt?: string;
-  shortcutId?: string;
-  showOnlyInSearch?: boolean;
+  helpExcerpt?: string | undefined;
+  shortcutId?: string | undefined;
+  showOnlyInSearch?: boolean | undefined;
 }
 
 export type PaletteAction =

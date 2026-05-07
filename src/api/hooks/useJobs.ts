@@ -24,10 +24,10 @@ export function useJob(jobId: string | null) {
 }
 
 export function useJobList(params?: {
-  status?: string;
-  type?: string;
-  limit?: number;
-  offset?: number;
+  status?: string | undefined;
+  type?: string | undefined;
+  limit?: number | undefined;
+  offset?: number | undefined;
 }) {
   const queryParams: Record<string, string> = {};
   if (params?.status) queryParams["status"] = params.status;

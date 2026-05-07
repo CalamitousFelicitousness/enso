@@ -7,7 +7,7 @@ import { Check, RotateCcw, X, Loader2 } from "lucide-react";
 interface PromptEnhancePreviewProps {
   onEnhance: () => void;
   isPending: boolean;
-  onAccept?: (prompt: string) => void;
+  onAccept?: ((prompt: string) => void) | undefined;
 }
 
 export function PromptEnhancePreview({

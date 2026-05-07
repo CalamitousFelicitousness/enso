@@ -10,8 +10,8 @@ import { cn } from "@/lib/utils";
 
 interface ParamLabelProps {
   children: string;
-  className?: string;
-  tooltip?: string;
+  className?: string | undefined;
+  tooltip?: string | undefined;
 }
 
 export function ParamLabel({ children, className, tooltip }: ParamLabelProps) {

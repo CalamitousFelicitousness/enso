@@ -3,7 +3,7 @@ import type { VideoWireParams } from "./wireParams";
 export interface VideoResult {
   id: string;
   videoUrl: string;
-  thumbnailUrl?: string;
+  thumbnailUrl?: string | undefined;
   width: number;
   height: number;
   format: string;

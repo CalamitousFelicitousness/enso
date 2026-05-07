@@ -17,10 +17,10 @@ export interface PaletteCommand {
   id: string;
   label: string;
   group: string;
-  keywords?: string[];
-  icon?: LucideIcon;
-  shortcutId?: string;
-  showOnlyInSearch?: boolean;
+  keywords?: string[] | undefined;
+  icon?: LucideIcon | undefined;
+  shortcutId?: string | undefined;
+  showOnlyInSearch?: boolean | undefined;
   run: () => void | Promise<void>;
 }
 

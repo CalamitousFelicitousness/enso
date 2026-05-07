@@ -44,16 +44,16 @@ export interface ParamSliderProps {
   onChange: (v: number) => void;
   min: number;
   max: number;
-  step?: number;
-  disabled?: boolean;
-  tooltip?: string;
-  suffix?: string;
-  decimals?: number;
-  notches?: number[];
-  snapRadius?: number;
-  defaultValue?: number;
+  step?: number | undefined;
+  disabled?: boolean | undefined;
+  tooltip?: string | undefined;
+  suffix?: string | undefined;
+  decimals?: number | undefined;
+  notches?: number[] | undefined;
+  snapRadius?: number | undefined;
+  defaultValue?: number | undefined;
   /** Search keywords for the Command Palette. Extracted at build time by vite/extract-params.ts. */
-  keywords?: string[];
+  keywords?: string[] | undefined;
 }
 
 // ── Component ──────────────────────────────────────────────────────

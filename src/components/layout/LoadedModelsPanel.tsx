@@ -40,7 +40,7 @@ const CATEGORY_LABELS: Record<string, string> = {
   detailer: "Detailer",
 };
 
-export function DeviceBadge({ device }: { device?: string | null }) {
+export function DeviceBadge({ device }: { device?: string | null | undefined }) {
   if (!device) return null;
   const variant = device.startsWith("cuda")
     ? "default"

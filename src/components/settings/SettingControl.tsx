@@ -126,8 +126,8 @@ interface SettingControlProps {
   setting: SettingDef;
   value: unknown;
   onChange: (value: unknown) => void;
-  dynamicChoices?: string[];
-  getSettingValue?: (key: string) => unknown;
+  dynamicChoices?: string[] | undefined;
+  getSettingValue?: ((key: string) => unknown) | undefined;
 }
 
 export function SettingControl({

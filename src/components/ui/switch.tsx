@@ -50,11 +50,11 @@ function SwitchTrack({
   label,
   className,
 }: {
-  checked?: boolean;
-  onCheckedChange?: (checked: boolean) => void;
-  disabled?: boolean;
-  label?: string;
-  className?: string;
+  checked?: boolean | undefined;
+  onCheckedChange?: ((checked: boolean) => void) | undefined;
+  disabled?: boolean | undefined;
+  label?: string | undefined;
+  className?: string | undefined;
 }) {
   return (
     <div
@@ -104,10 +104,10 @@ function SwitchSplit({
   disabled,
   className,
 }: {
-  checked?: boolean;
-  onCheckedChange?: (checked: boolean) => void;
-  disabled?: boolean;
-  className?: string;
+  checked?: boolean | undefined;
+  onCheckedChange?: ((checked: boolean) => void) | undefined;
+  disabled?: boolean | undefined;
+  className?: string | undefined;
 }) {
   return (
     <div

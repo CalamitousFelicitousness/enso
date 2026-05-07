@@ -25,7 +25,7 @@ import type { WireParams, WireOverrides } from "@/api/types/wireParams";
 
 export interface BuildResult {
   request: ControlRequest;
-  inputBlob?: Blob;
+  inputBlob?: Blob | undefined;
 }
 
 /** Strip undefined-valued keys so the wire payload stays minimal.

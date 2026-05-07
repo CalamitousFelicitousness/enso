@@ -11,22 +11,22 @@ import { KeepAlivePanel } from "./keep-alive";
 interface SectionLeaderProps {
   title: string;
   /** Can this section be collapsed? */
-  collapsible?: boolean;
+  collapsible?: boolean | undefined;
   /** Start collapsed? Only applies when collapsible. */
-  defaultCollapsed?: boolean;
+  defaultCollapsed?: boolean | undefined;
   /** Can this section be enabled/disabled? */
-  enableable?: boolean;
+  enableable?: boolean | undefined;
   /** Current enabled state (only matters if enableable). */
-  enabled?: boolean;
-  onToggleEnabled?: (v: boolean) => void;
+  enabled?: boolean | undefined;
+  onToggleEnabled?: ((v: boolean) => void) | undefined;
   /** Nesting level - 0 (top), 1 (nested), 2 (inline sub-header, no bar). */
-  level?: 0 | 1 | 2;
+  level?: 0 | 1 | 2 | undefined;
   /** When true, the entire section is visually disabled (parent is off). */
-  parentDisabled?: boolean;
+  parentDisabled?: boolean | undefined;
   /** Action slot - rendered in the header row, right-aligned. */
   action?: React.ReactNode;
   /** Tooltip HTML shown on hover over the section title. */
-  tooltip?: string;
+  tooltip?: string | undefined;
   children?: React.ReactNode;
 }
 

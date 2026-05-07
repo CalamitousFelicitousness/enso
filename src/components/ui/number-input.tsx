@@ -7,10 +7,10 @@ interface NumberInputProps
   extends Omit<React.ComponentProps<"input">, "value" | "onChange" | "type"> {
   value: number;
   onChange: (value: number) => void;
-  min?: number;
-  max?: number;
-  step?: number;
-  fallback?: number;
+  min?: number | undefined;
+  max?: number | undefined;
+  step?: number | undefined;
+  fallback?: number | undefined;
 }
 
 /**

@@ -8,15 +8,15 @@ export interface SettingDef {
   label: string;
   component: SettingComponent;
   defaultValue?: unknown;
-  min?: number;
-  max?: number;
-  step?: number;
-  precision?: number;
-  choices?: string[];
-  description?: string;
-  requiresRestart?: boolean;
-  isSecret?: boolean;
-  baseFolderKey?: string;
+  min?: number | undefined;
+  max?: number | undefined;
+  step?: number | undefined;
+  precision?: number | undefined;
+  choices?: string[] | undefined;
+  description?: string | undefined;
+  requiresRestart?: boolean | undefined;
+  isSecret?: boolean | undefined;
+  baseFolderKey?: string | undefined;
 }
 
 export interface SettingSectionDef {

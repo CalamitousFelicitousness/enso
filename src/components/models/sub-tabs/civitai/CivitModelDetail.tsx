@@ -94,8 +94,8 @@ function ImageStrip({
   onImageClick,
 }: {
   images: CivitImage[];
-  className?: string;
-  onImageClick?: (index: number) => void;
+  className?: string | undefined;
+  onImageClick?: ((index: number) => void) | undefined;
 }) {
   const filtered = images.filter(
     (img) => !img.url.toLowerCase().endsWith(".mp4"),

@@ -13,13 +13,13 @@ export interface GenerationResult {
   info: string;
   timestamp: number;
   /** Flattened canvas base64 captured at generation time. Persisted to IndexedDB with the result. */
-  inputImage?: string;
+  inputImage?: string | undefined;
   /** Mask strokes captured at generation time. Persisted to IndexedDB with the result. */
-  inputMask?: MaskLine[];
+  inputMask?: MaskLine[] | undefined;
   /** Control unit settings + images captured at generation time. */
-  controlUnits?: ControlUnitSnapshot[];
+  controlUnits?: ControlUnitSnapshot[] | undefined;
   /** Pre-hires-fix base image URL, stored when generation used enable_hr. */
-  baseImage?: string;
+  baseImage?: string | undefined;
 }
 
 export interface GenerationState {

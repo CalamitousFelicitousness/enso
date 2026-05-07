@@ -88,7 +88,7 @@ export function CornerBrackets({
 
 interface ControlFrameLayerProps {
   frames: ControlFramePosition[];
-  onPickImage?: (unitIndex: number) => void;
+  onPickImage?: ((unitIndex: number) => void) | undefined;
 }
 
 interface FrameImageState {

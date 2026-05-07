@@ -165,16 +165,16 @@ export interface FrameHeaderProps {
   mode: "panel" | "hat";
   color: string;
   label: string;
-  sizeText?: string;
+  sizeText?: string | undefined;
   canvasX: number;
-  canvasY?: number;
+  canvasY?: number | undefined;
   frameW: number;
   viewport: { x: number; y: number; scale: number };
   labelScale: number;
   actions?: ReactNode;
   drawer?: ReactNode;
-  collapsed?: boolean;
-  onToggleCollapsed?: () => void;
+  collapsed?: boolean | undefined;
+  onToggleCollapsed?: (() => void) | undefined;
   tabBar?: ReactNode;
 }
 
@@ -312,8 +312,8 @@ interface UnitPanelProps {
   isOwner: boolean;
   collapsed: boolean;
   genSize: { width: number; height: number };
-  onPickImage?: (unitIndex: number) => void;
-  onClearImage?: (unitIndex: number) => void;
+  onPickImage?: ((unitIndex: number) => void) | undefined;
+  onClearImage?: ((unitIndex: number) => void) | undefined;
 }
 
 function UnitPanel({
@@ -579,8 +579,8 @@ function UnitPanel({
 interface ControlFrameStackProps {
   frame: ControlFramePosition;
   genSize: { width: number; height: number };
-  onPickImage?: (unitIndex: number) => void;
-  onClearImage?: (unitIndex: number) => void;
+  onPickImage?: ((unitIndex: number) => void) | undefined;
+  onClearImage?: ((unitIndex: number) => void) | undefined;
 }
 
 function ControlFrameStack({
@@ -675,8 +675,8 @@ function InputFramePanel({
   genSize: { width: number; height: number };
   viewport: { x: number; y: number; scale: number };
   labelScale: number;
-  onPickImage?: () => void;
-  onClearAll?: () => void;
+  onPickImage?: (() => void) | undefined;
+  onClearAll?: (() => void) | undefined;
 }) {
   const layers = useCanvasStore((s) => s.layers);
   const inputRole = useCanvasStore((s) => s.inputRole);

@@ -18,7 +18,7 @@ interface PathInputProps {
   value: string;
   onChange: (value: string) => void;
   basePath: string;
-  placeholder?: string;
+  placeholder?: string | undefined;
 }
 
 export function PathInput({

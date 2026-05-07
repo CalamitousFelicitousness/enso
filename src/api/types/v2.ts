@@ -352,11 +352,11 @@ export interface JobStats {
 
 export interface BulkJobRequest {
   action: "cancel" | "delete";
-  status?: string;
-  type?: string;
-  ids?: string[];
-  before?: string;
-  confirm?: boolean;
+  status?: string | undefined;
+  type?: string | undefined;
+  ids?: string[] | undefined;
+  before?: string | undefined;
+  confirm?: boolean | undefined;
 }
 
 export interface BulkJobResponse {

@@ -2,11 +2,11 @@ import { create } from "zustand";
 
 export interface DragPayload {
   type: "result-image" | "gallery-image";
-  resultId?: string;
-  imageIndex?: number;
-  src?: string;
-  fileId?: string;
-  filePath?: string;
+  resultId?: string | undefined;
+  imageIndex?: number | undefined;
+  src?: string | undefined;
+  fileId?: string | undefined;
+  filePath?: string | undefined;
 }
 
 interface DragStoreState {

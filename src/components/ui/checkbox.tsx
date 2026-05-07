@@ -49,10 +49,10 @@ function CheckboxMorph({
   disabled,
   className,
 }: {
-  checked?: boolean;
-  onCheckedChange?: (checked: boolean) => void;
-  disabled?: boolean;
-  className?: string;
+  checked?: boolean | undefined;
+  onCheckedChange?: ((checked: boolean) => void) | undefined;
+  disabled?: boolean | undefined;
+  className?: string | undefined;
 }) {
   return (
     <button
@@ -114,10 +114,10 @@ function CheckboxStamp({
   disabled,
   className,
 }: {
-  checked?: boolean;
-  onCheckedChange?: (checked: boolean) => void;
-  disabled?: boolean;
-  className?: string;
+  checked?: boolean | undefined;
+  onCheckedChange?: ((checked: boolean) => void) | undefined;
+  disabled?: boolean | undefined;
+  className?: string | undefined;
 }) {
   const [pressing, setPressing] = React.useState(false);
   const timeoutRef = React.useRef<ReturnType<typeof setTimeout>>(null);
@@ -181,10 +181,10 @@ function CheckboxBracket({
   disabled,
   className,
 }: {
-  checked?: boolean;
-  onCheckedChange?: (checked: boolean) => void;
-  disabled?: boolean;
-  className?: string;
+  checked?: boolean | undefined;
+  onCheckedChange?: ((checked: boolean) => void) | undefined;
+  disabled?: boolean | undefined;
+  className?: string | undefined;
 }) {
   return (
     <button

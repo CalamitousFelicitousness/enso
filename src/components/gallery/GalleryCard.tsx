@@ -10,13 +10,13 @@ interface GalleryCardProps {
   file: GalleryFile;
   thumb: CachedThumb | undefined;
   size: number;
-  height?: number;
+  height?: number | undefined;
   selected: boolean;
   isSelected: boolean;
   isSelectMode: boolean;
   onClick: (e: React.MouseEvent) => void;
   onDoubleClick: () => void;
-  onContextMenu?: () => void;
+  onContextMenu?: (() => void) | undefined;
 }
 
 const HOVER_DELAY = 300;
