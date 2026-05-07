@@ -27,13 +27,16 @@ select = [
   "TID",   # flake8-tidy-imports
   "INT",   # flake8-gettext
   "PLE",   # pylint errors
+  "UP",    # pyupgrade
+  "SIM",   # flake8-simplify
+  "RET",   # flake8-return
+  "ERA",   # eradicate (commented-out code)
 ]
 ignore = [
   "E402",   # module-level import not at top of file
   "E501",   # line too long (handled by line-length)
   "E731",   # lambda assignment
   "F401",   # unused import
-  "I001",   # import sorting
   "RUF012", # mutable class default
   "RUF013", # implicit Optional
   "E721",   # type comparison (sdnext uses == for type checks)
