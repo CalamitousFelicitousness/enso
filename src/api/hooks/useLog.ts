@@ -6,11 +6,12 @@ interface LogResponse {
   total: number;
 }
 
+export type { LogResponse };
+
 export function useServerLog(lines = 200, enabled = true) {
   return useQuery({
     queryKey: ["server-log", lines],
     queryFn: () => api.get<LogResponse>("/sdapi/v2/log", { lines: String(lines) }),
-    select: (data) => data.lines,
     enabled,
     refetchInterval: enabled ? 3000 : false,
     staleTime: 3000,

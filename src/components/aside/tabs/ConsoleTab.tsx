@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 interface ParsedLine {
+  id: number;
   time: string;
   level: string;
   module: string;
@@ -25,13 +26,14 @@ const LEVEL_CLASSES: Record<string, string> = {
 
 const LEVEL_ORDER = ["TRACE", "DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"];
 
-function parseLine(raw: string): ParsedLine {
+function parseLine(raw: string, id: number): ParsedLine {
   try {
     const obj = JSON.parse(raw) as Record<string, string>;
     const asctime = obj["asctime"] ?? "";
     const timePart = asctime.includes(" ") ? (asctime.split(" ")[1] ?? asctime) : asctime;
     const time = timePart.replace(",", ".");
     return {
+      id,
       time,
       level: obj["level"] ?? "",
       module: obj["module"] ?? "",
@@ -40,7 +42,7 @@ function parseLine(raw: string): ParsedLine {
       raw,
     };
   } catch {
-    return { time: "", level: "", module: "", func: "", msg: raw, raw };
+    return { id, time: "", level: "", module: "", func: "", msg: raw, raw };
   }
 }
 
@@ -120,17 +122,21 @@ function highlightMsg(msg: string): ReactNode {
 
 export function ConsoleTab() {
   const visible = useKeepAliveVisible();
-  const { data: lines } = useServerLog(200, visible);
+  const { data } = useServerLog(200, visible);
   const clearLog = useClearLog();
   const [wrap, setWrap] = useState(false);
   const [minLevel, setMinLevel] = useState(0);
   const scrollRef = useRef<HTMLDivElement>(null);
   const autoScroll = useRef(true);
 
+  // Derive a stable monotonic id per log line. The backend returns the trailing
+  // window [total - lines.length, total) of the global log, so each line's
+  // position-from-the-end is invariant across polls and we can key by it.
   const parsed = useMemo(() => {
-    if (!lines) return [];
-    return lines.map(parseLine);
-  }, [lines]);
+    if (!data) return [];
+    const baseId = data.total - data.lines.length;
+    return data.lines.map((raw, i) => parseLine(raw, baseId + i));
+  }, [data]);
 
   const filtered = useMemo(() => {
     if (minLevel === 0) return parsed;
@@ -217,9 +223,9 @@ export function ConsoleTab() {
         onScroll={handleScroll}
         className="flex-1 overflow-auto bg-muted/30 font-mono text-3xs min-w-0"
       >
-        {filtered.map((line, i) => (
+        {filtered.map((line) => (
           <div
-            key={i}
+            key={line.id}
             className={cn(
               "flex px-2 hover:bg-muted/50",
               wrap
