@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef } from "react";
+import { toDisplayString } from "@/lib/utils";
 import {
   Upload,
   Copy,
@@ -330,7 +331,7 @@ export function PngInfoDialog({ open, onOpenChange }: PngInfoDialogProps) {
   // parameters has generation info (Steps, Prompt, Size-1, etc.); items has image metadata (width, height, mode)
   const paramStrings: Record<string, string> = {};
   for (const [k, v] of Object.entries(parameters)) {
-    if (v != null && v !== "") paramStrings[k] = String(v);
+    if (v != null && v !== "") paramStrings[k] = toDisplayString(v);
   }
 
   const prompt = paramStrings.Prompt ?? "";

@@ -3,6 +3,7 @@ import { Check } from "lucide-react";
 import { useHfSettings, useHfMe } from "@/api/hooks/useHuggingface";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { toDisplayString } from "@/lib/utils";
 
 /**
  * HuggingFace token control for the Settings tab.
@@ -22,7 +23,7 @@ export function HfTokenControl({
   const { data: settings } = useHfSettings();
   const configured = settings?.token_configured ?? false;
   const { data: profile } = useHfMe(configured);
-  const draft = String(value ?? "");
+  const draft = toDisplayString(value);
 
   if (configured && !editing) {
     return (

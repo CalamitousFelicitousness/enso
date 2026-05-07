@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { SettingDef } from "@/lib/settingsSchema";
+import { toDisplayString } from "@/lib/utils";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -22,7 +23,7 @@ function renderSelect(
   if (!choices || choices.length === 0) {
     return (
       <Textarea
-        value={String(value ?? "")}
+        value={toDisplayString(value)}
         onChange={(e) => onChange(e.target.value)}
         className="min-h-7 py-1 text-xs resize-none"
         rows={1}
@@ -32,7 +33,7 @@ function renderSelect(
   }
   return (
     <Combobox
-      value={String(value ?? "")}
+      value={toDisplayString(value)}
       onValueChange={(v) => onChange(v)}
       options={choices}
       placeholder="Select..."
@@ -48,7 +49,7 @@ function SecretControl({
   value: unknown;
   onChange: (value: unknown) => void;
 }) {
-  const masked = String(value ?? "");
+  const masked = toDisplayString(value);
   const configured = masked.length > 0;
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState("");
@@ -186,7 +187,7 @@ export function SettingControl({
         return (
           <SegmentedControl
             options={choices.map((c) => ({ value: c, label: c }))}
-            value={String(value ?? "")}
+            value={toDisplayString(value)}
             onValueChange={(v) => onChange(v)}
             variant={choices.length >= 4 ? "dense" : "default"}
             animated
@@ -265,13 +266,13 @@ export function SettingControl({
         <div className="flex items-center gap-2">
           <input
             type="color"
-            value={String(value ?? "#000000")}
+            value={toDisplayString(value, "#000000")}
             onChange={(e) => onChange(e.target.value)}
             className="h-7 w-7 rounded border border-border cursor-pointer p-0.5"
           />
 
           <Input
-            value={String(value ?? "")}
+            value={toDisplayString(value)}
             onChange={(e) => onChange(e.target.value)}
             className="h-6 text-2xs w-24"
             placeholder="#000000"
@@ -282,11 +283,11 @@ export function SettingControl({
     case "path": {
       const basePath =
         setting.baseFolderKey && getSettingValue
-          ? String(getSettingValue(setting.baseFolderKey) ?? "")
+          ? toDisplayString(getSettingValue(setting.baseFolderKey))
           : "";
       return (
         <PathInput
-          value={String(value ?? "")}
+          value={toDisplayString(value)}
           onChange={(v) => onChange(v)}
           basePath={basePath}
           placeholder={setting.description}
@@ -298,7 +299,7 @@ export function SettingControl({
     default:
       return (
         <Textarea
-          value={String(value ?? "")}
+          value={toDisplayString(value)}
           onChange={(e) => onChange(e.target.value)}
           className="min-h-7 py-1 text-xs resize-none"
           rows={1}

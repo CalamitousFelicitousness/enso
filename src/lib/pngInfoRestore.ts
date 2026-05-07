@@ -1,4 +1,5 @@
 import { useGenerationStore } from "@/stores/generationStore";
+import { toDisplayString } from "@/lib/utils";
 
 const KEY_MAP: Record<string, string> = {
   // Prompt
@@ -87,7 +88,7 @@ export function restoreFromPngInfo(parameters: Record<string, unknown>) {
     } else if (BOOL_KEYS.has(storeKey)) {
       update[storeKey] = val === true || val === "True" || val === "true" || val === "1";
     } else {
-      update[storeKey] = String(val);
+      update[storeKey] = toDisplayString(val);
     }
   }
 

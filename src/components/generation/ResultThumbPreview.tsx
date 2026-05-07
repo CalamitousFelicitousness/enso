@@ -13,11 +13,15 @@ function parseInfoMeta(info: string): Record<string, string> {
   try {
     const parsed = JSON.parse(info) as Record<string, unknown>;
     const meta: Record<string, string> = {};
-    if (parsed.seed != null) meta.Seed = String(parsed.seed);
-    if (parsed.steps != null) meta.Steps = String(parsed.steps);
-    if (parsed.sampler_name) meta.Sampler = String(parsed.sampler_name);
-    if (parsed.width && parsed.height)
-      meta.Size = `${parsed.width}x${parsed.height}`;
+    const seed = parsed["seed"];
+    const steps = parsed["steps"];
+    const sampler = parsed["sampler_name"];
+    const w = parsed["width"];
+    const h = parsed["height"];
+    if (typeof seed === "number" || typeof seed === "string") meta["Seed"] = String(seed);
+    if (typeof steps === "number" || typeof steps === "string") meta["Steps"] = String(steps);
+    if (typeof sampler === "string") meta["Sampler"] = sampler;
+    if (typeof w === "number" && typeof h === "number") meta["Size"] = `${w}x${h}`;
     return meta;
   } catch {
     return {};

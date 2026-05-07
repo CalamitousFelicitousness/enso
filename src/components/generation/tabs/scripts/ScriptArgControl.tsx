@@ -3,6 +3,7 @@ import { ParamLabel } from "../../ParamLabel";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { Combobox } from "@/components/ui/combobox";
+import { toDisplayString } from "@/lib/utils";
 import type { ScriptArg } from "@/api/types/script";
 
 interface ScriptArgControlProps {
@@ -27,7 +28,7 @@ export function ScriptArgControl({
           {arg.label}
         </ParamLabel>
         <Combobox
-          value={String(value ?? arg.choices[0])}
+          value={toDisplayString(value, arg.choices[0])}
           onValueChange={(v) => onChange(v)}
           options={arg.choices}
           className="h-6 text-2xs flex-1"
@@ -79,7 +80,7 @@ export function ScriptArgControl({
         {arg.label}
       </ParamLabel>
       <Input
-        value={String(value ?? arg.value ?? "")}
+        value={toDisplayString(value ?? arg.value)}
         onChange={(e) => onChange(e.target.value)}
         className="h-6 text-2xs flex-1"
         disabled={disabled}

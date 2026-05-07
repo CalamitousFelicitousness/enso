@@ -27,7 +27,7 @@ import { KeepAlivePanel, KeepAliveSwitch } from "@/components/ui/keep-alive";
 import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
 import { SegmentedControl } from "@/components/ui/segmented-control";
-import { cn } from "@/lib/utils";
+import { cn, toDisplayString } from "@/lib/utils";
 import {
   Save,
   RotateCcw,
@@ -693,7 +693,7 @@ export function SettingsView({ onDirtyChange }: SettingsViewProps = {}) {
     try {
       // Validate HF token first (calls hf.whoami + hf.login) - fails fast on bad token
       if ("huggingface_token" in dirty) {
-        await hfSave.mutateAsync({ token: String(dirty.huggingface_token ?? "") });
+        await hfSave.mutateAsync({ token: toDisplayString(dirty.huggingface_token) });
       }
       // Persist all settings (including token) via standard options flow → secrets.json
       await setOptions.mutateAsync(dirty);

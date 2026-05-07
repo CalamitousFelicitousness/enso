@@ -1,6 +1,7 @@
 import { useMemo, useCallback } from "react";
 import { ArrowRight } from "lucide-react";
 import { toast } from "sonner";
+import { toDisplayString } from "@/lib/utils";
 import {
   Dialog,
   DialogContent,
@@ -189,7 +190,7 @@ function formatValue(v: unknown): string {
     return JSON.stringify(v);
   }
   if (typeof v === "object") return JSON.stringify(v);
-  return String(v);
+  return toDisplayString(v);
 }
 
 export function GenerationDiffDialog({

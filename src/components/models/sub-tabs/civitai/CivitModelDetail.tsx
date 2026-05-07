@@ -19,6 +19,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { toast } from "sonner";
+import { toDisplayString } from "@/lib/utils";
 import {
   useCivitModel,
   useCivitDownload,
@@ -659,7 +660,7 @@ function ImageLightbox({
                         <DropdownMenuContent align="end" className="w-36">
                           <DropdownMenuItem
                             onClick={() => {
-                              sendPromptToGeneration(String(val));
+                              sendPromptToGeneration(toDisplayString(val));
                               toast.success(`${label} sent to Generation`);
                             }}
                           >
@@ -667,7 +668,7 @@ function ImageLightbox({
                           </DropdownMenuItem>
                           <DropdownMenuItem
                             onClick={() => {
-                              sendPromptToVideo(String(val));
+                              sendPromptToVideo(toDisplayString(val));
                               toast.success(`${label} sent to Video`);
                             }}
                           >
@@ -679,10 +680,10 @@ function ImageLightbox({
                   </div>
                   {isLong ? (
                     <p className="text-xs text-foreground whitespace-pre-wrap break-words max-h-32 overflow-y-auto bg-muted/30 rounded p-2">
-                      {String(val)}
+                      {toDisplayString(val)}
                     </p>
                   ) : (
-                    <p className="text-xs text-foreground">{String(val)}</p>
+                    <p className="text-xs text-foreground">{toDisplayString(val)}</p>
                   )}
                 </div>
               );

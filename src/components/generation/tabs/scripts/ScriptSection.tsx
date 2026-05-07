@@ -2,6 +2,7 @@ import { Switch } from "@/components/ui/switch";
 import { useScriptStore } from "@/stores/scriptStore";
 import { ScriptArgControl } from "./ScriptArgControl";
 import { SCRIPT_LAYOUTS } from "./scriptLayouts";
+import { toDisplayString } from "@/lib/utils";
 import type { ScriptInfoV2 } from "@/api/types/script";
 
 interface ScriptSectionProps {
@@ -61,7 +62,7 @@ export function ScriptSection({
             const requirement = layout.headerArgRequires?.[idx];
             const requirementMet =
               !requirement ||
-              String(getArgValue(requirement.arg) ?? "").includes(
+              toDisplayString(getArgValue(requirement.arg)).includes(
                 requirement.includes,
               );
             const disabled = !sectionEnabled || !requirementMet;
@@ -132,7 +133,7 @@ export function ScriptSection({
                   const requirement = group.argRequires?.[idx];
                   const requirementMet =
                     !requirement ||
-                    String(getArgValue(requirement.arg) ?? "").includes(
+                    toDisplayString(getArgValue(requirement.arg)).includes(
                       requirement.includes,
                     );
                   const disabled =
@@ -168,7 +169,7 @@ export function ScriptSection({
               const requirement = group.argRequires?.[idx];
               const requirementMet =
                 !requirement ||
-                String(getArgValue(requirement.arg) ?? "").includes(
+                toDisplayString(getArgValue(requirement.arg)).includes(
                   requirement.includes,
                 );
               const argDisabled =

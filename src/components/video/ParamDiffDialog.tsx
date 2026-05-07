@@ -1,6 +1,7 @@
 import { useMemo, useCallback } from "react";
 import { ArrowRight } from "lucide-react";
 import { toast } from "sonner";
+import { toDisplayString } from "@/lib/utils";
 import {
   Dialog,
   DialogContent,
@@ -146,7 +147,7 @@ function formatValue(v: unknown): string {
   if (v === undefined || v === null) return "-";
   if (typeof v === "boolean") return v ? "Yes" : "No";
   if (typeof v === "string") return v || '""';
-  return String(v);
+  return toDisplayString(v);
 }
 
 function keysForDomain(domain: string): string[] {

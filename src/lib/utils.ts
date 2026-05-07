@@ -25,6 +25,20 @@ export function stripPua(s: string): string {
   return s.replace(/[\uF000-\uF8FF]/g, "").trimEnd();
 }
 
+/** Coerce an unknown value to a display string. Plain objects/arrays are
+ *  JSON-encoded so they don't render as "[object Object]"; null/undefined
+ *  return the fallback. */
+export function toDisplayString(value: unknown, fallback = ""): string {
+  if (value == null) return fallback;
+  if (typeof value === "object") return JSON.stringify(value) ?? fallback;
+  if (typeof value === "string") return value;
+  if (typeof value === "symbol") return value.toString();
+  if (typeof value === "number" || typeof value === "boolean" || typeof value === "bigint") {
+    return String(value);
+  }
+  return fallback;
+}
+
 /** Return "#000" or "#fff" for best contrast against a hex background color. */
 export function contrastText(hex: string): string {
   const r = parseInt(hex.slice(1, 3), 16);
@@ -130,8 +144,10 @@ export function generateImageFilename(info: string, imageIndex: number): string 
   let model = "image";
   try {
     const parsed = JSON.parse(info) as Record<string, unknown>;
-    if (parsed.seed) seed = String(parsed.seed);
-    if (parsed.model) model = String(parsed.model).split("/").pop()?.split(".")[0] ?? "image";
+    const parsedSeed = parsed["seed"];
+    const parsedModel = parsed["model"];
+    if (typeof parsedSeed === "string" || typeof parsedSeed === "number") seed = String(parsedSeed);
+    if (typeof parsedModel === "string") model = parsedModel.split("/").pop()?.split(".")[0] ?? "image";
   } catch { /* fallback */ }
   const timestamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
   return `${model}_${seed}_${imageIndex}_${timestamp}.png`;
