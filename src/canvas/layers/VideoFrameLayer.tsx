@@ -103,7 +103,7 @@ export function VideoFrameLayer({
           height={height}
           stroke={hasImage ? ACTIVE_COLOR : INACTIVE_COLOR}
           strokeWidth={2}
-          dash={hasImage ? undefined : [8, 4]}
+          {...(!hasImage && { dash: [8, 4] })}
           listening={false}
         />
       </Group>

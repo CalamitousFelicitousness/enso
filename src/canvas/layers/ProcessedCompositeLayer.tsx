@@ -116,7 +116,7 @@ export function ProcessedCompositeLayer({
         height={height}
         stroke={BORDER_COLOR}
         strokeWidth={1}
-        dash={displayImage ? undefined : [8, 4]}
+        {...(!displayImage && { dash: [8, 4] })}
         listening={false}
       />
       {displayImage && (

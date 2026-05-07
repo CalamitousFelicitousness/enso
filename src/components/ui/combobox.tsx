@@ -86,7 +86,7 @@ export function Combobox({
       <CommandItem
         key={v}
         value={v}
-        keywords={typeof opt === "string" ? undefined : [l]}
+        {...(typeof opt !== "string" && { keywords: [l] })}
         onSelect={() => {
           if (!isDisabled) {
             onValueChange(v);

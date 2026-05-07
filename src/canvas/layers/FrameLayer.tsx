@@ -77,7 +77,7 @@ export function FrameLayer({ displayScale, onPickImage }: FrameLayerProps) {
           height={frameH}
           stroke={borderColor}
           strokeWidth={1 / displayScale}
-          dash={hasLayers ? undefined : [8 / displayScale, 4 / displayScale]}
+          {...(!hasLayers && { dash: [8 / displayScale, 4 / displayScale] })}
           listening={false}
         />
 

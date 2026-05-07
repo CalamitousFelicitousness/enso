@@ -68,28 +68,34 @@ export class ApiClient {
 
   async get<T>(path: string, params?: Record<string, string>, signal?: AbortSignal): Promise<T> {
     const query = params ? `?${new URLSearchParams(params)}` : "";
-    return this.request<T>(`${path}${query}`, { method: "GET", signal });
+    return this.request<T>(`${path}${query}`, {
+      method: "GET",
+      ...(signal !== undefined && { signal }),
+    });
   }
 
   async post<T>(path: string, body?: unknown, signal?: AbortSignal): Promise<T> {
     return this.request<T>(path, {
       method: "POST",
-      body: body != null ? JSON.stringify(body) : undefined,
-      signal,
+      ...(body != null && { body: JSON.stringify(body) }),
+      ...(signal !== undefined && { signal }),
     });
   }
 
   async put<T>(path: string, body?: unknown, signal?: AbortSignal): Promise<T> {
     return this.request<T>(path, {
       method: "PUT",
-      body: body != null ? JSON.stringify(body) : undefined,
-      signal,
+      ...(body != null && { body: JSON.stringify(body) }),
+      ...(signal !== undefined && { signal }),
     });
   }
 
   async delete<T>(path: string, params?: Record<string, string>, signal?: AbortSignal): Promise<T> {
     const query = params ? `?${new URLSearchParams(params)}` : "";
-    return this.request<T>(`${path}${query}`, { method: "DELETE", signal });
+    return this.request<T>(`${path}${query}`, {
+      method: "DELETE",
+      ...(signal !== undefined && { signal }),
+    });
   }
 
   async postMultipart<T>(path: string, formData: FormData, signal?: AbortSignal): Promise<T> {
@@ -98,7 +104,7 @@ export class ApiClient {
       method: "POST",
       headers: this.getAuthHeaders(),
       body: formData,
-      signal,
+      ...(signal !== undefined && { signal }),
     });
     if (!response.ok) {
       let body: unknown;
@@ -117,8 +123,8 @@ export class ApiClient {
     const response = await fetch(url, {
       method: "POST",
       headers: this.getHeaders(),
-      body: body != null ? JSON.stringify(body) : undefined,
-      signal,
+      ...(body != null && { body: JSON.stringify(body) }),
+      ...(signal !== undefined && { signal }),
     });
     if (!response.ok) {
       throw new ApiError(response.status, response.statusText, null);

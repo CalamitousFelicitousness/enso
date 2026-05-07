@@ -545,7 +545,7 @@ function ControlFrame({
           y={imgFit.y}
           width={imgFit.width}
           height={imgFit.height}
-          crop={imgFit.crop ?? undefined}
+          {...(imgFit.crop && { crop: imgFit.crop })}
           listening={false}
         />
       ) : (
@@ -570,7 +570,7 @@ function ControlFrame({
         height={frame.height}
         stroke={borderColor}
         strokeWidth={1}
-        dash={hasImage ? undefined : [8, 4]}
+        {...(!hasImage && { dash: [8, 4] })}
         listening={false}
       />
 
@@ -646,7 +646,7 @@ function ProcessedSlotRender({
         y={fit.y}
         width={fit.width}
         height={fit.height}
-        crop={fit.crop ?? undefined}
+        {...(fit.crop && { crop: fit.crop })}
         listening={false}
       />
 

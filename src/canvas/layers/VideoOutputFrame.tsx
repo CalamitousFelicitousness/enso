@@ -56,7 +56,7 @@ export function VideoOutputFrame({
         height={height}
         stroke={BORDER_COLOR}
         strokeWidth={2}
-        dash={hasPreview || hasResult ? undefined : [8, 4]}
+        {...(!hasPreview && !hasResult && { dash: [8, 4] })}
         listening={false}
       />
     </Layer>
