@@ -2,7 +2,7 @@ import { useState, useCallback } from "react";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import { useSubmitJob } from "@/api/hooks/useJobs";
-import { useJobQueueStore, type JobSnapshot } from "@/stores/jobStore";
+import { useJobQueueStore, strippedSnapshot, type JobSnapshot } from "@/stores/jobStore";
 import { putJobPayload } from "@/lib/jobPayloadDb";
 import type { JobRequest } from "@/api/types/v2";
 import {
@@ -57,7 +57,7 @@ export function BatchDialog({
           domain: "generate",
           request: seedPayload,
           priority,
-          snapshot: { controlUnits: snapshot.controlUnits },
+          snapshot: strippedSnapshot(snapshot),
           createdAt: Date.now(),
         });
       }

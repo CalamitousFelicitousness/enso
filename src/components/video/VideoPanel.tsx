@@ -252,7 +252,7 @@ export function VideoPanel() {
 
   const buildRequest = useCallback(async () => {
     const payload = await buildJobPayload(activeVideoTab);
-    return { payload, snapshot: {} };
+    return { payload, snapshot: { kind: "none" as const } };
   }, [activeVideoTab]);
 
   const { submit, isSubmitting } = useSubmitToQueue(

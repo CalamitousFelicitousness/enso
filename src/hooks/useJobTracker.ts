@@ -27,6 +27,11 @@ function routeResult(domain: JobDomain, result: JobResult, snapshot: TrackedJob[
         baseImage = result.images[0].url;
         finalImages = result.images.slice(1).map((img) => img.url);
       }
+      // Only the "control" snapshot variant captures inputImage/inputMask/controlUnits.
+      // Detail jobs capture inputImage only; cloud/none jobs capture nothing.
+      const inputImage = snapshot.kind === "control" || snapshot.kind === "detail" ? snapshot.inputImage : undefined;
+      const inputMask = snapshot.kind === "control" ? snapshot.inputMask : undefined;
+      const controlUnits = snapshot.kind === "control" ? snapshot.controlUnits : undefined;
       useGenerationStore.getState().addResult({
         id: crypto.randomUUID(),
         images: finalImages,
@@ -35,9 +40,9 @@ function routeResult(domain: JobDomain, result: JobResult, snapshot: TrackedJob[
         parameters: result.params,
         info: JSON.stringify(result.info),
         timestamp: Date.now(),
-        inputImage: snapshot.inputImage,
-        inputMask: snapshot.inputMask,
-        controlUnits: snapshot.controlUnits,
+        inputImage,
+        inputMask,
+        controlUnits,
         baseImage,
       });
     }
@@ -141,7 +146,7 @@ export function useJobTracker() {
               break;
             case "completed":
               s.completeJob(jobId, data.result);
-              routeResult(s.jobs.get(jobId)?.domain ?? "generate", data.result, s.jobs.get(jobId)?.snapshot ?? {});
+              routeResult(s.jobs.get(jobId)?.domain ?? "generate", data.result, s.jobs.get(jobId)?.snapshot ?? { kind: "none" });
               void deleteJobPayload(jobId);
               break;
             case "error":

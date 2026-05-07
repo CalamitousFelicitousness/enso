@@ -1,4 +1,4 @@
-import type { JobDomain, JobSnapshot } from "@/stores/jobStore";
+import type { JobDomain, StoredJobSnapshot } from "@/stores/jobStore";
 import type { JobRequest } from "@/api/types/v2";
 
 const DB_NAME = "SDNextJobPayloads";
@@ -10,7 +10,7 @@ export interface StoredJobPayload {
   domain: JobDomain;
   request: JobRequest;
   priority: number;
-  snapshot: Pick<JobSnapshot, "controlUnits">;
+  snapshot: StoredJobSnapshot;
   createdAt: number;
 }
 

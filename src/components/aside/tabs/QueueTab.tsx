@@ -1,7 +1,7 @@
 import { useCallback, useMemo } from "react";
 import { Trash2, ListOrdered, Ban } from "lucide-react";
 import { toast } from "sonner";
-import { useJobQueueStore, selectPendingJobsSorted } from "@/stores/jobStore";
+import { useJobQueueStore, selectPendingJobsSorted, strippedSnapshot } from "@/stores/jobStore";
 import type { TrackedJob } from "@/stores/jobStore";
 import { useUiStore } from "@/stores/uiStore";
 import { useSubmitJob, useDeleteJob, usePurgeJobs } from "@/api/hooks/useJobs";
@@ -73,7 +73,7 @@ export function QueueTab() {
           domain: job.domain,
           request: job.request,
           priority,
-          snapshot: { controlUnits: job.snapshot.controlUnits },
+          snapshot: strippedSnapshot(job.snapshot),
           createdAt: Date.now(),
         });
         toast.success("Job duplicated");
@@ -98,7 +98,7 @@ export function QueueTab() {
           domain: job.domain,
           request: job.request,
           priority,
-          snapshot: { controlUnits: job.snapshot.controlUnits },
+          snapshot: strippedSnapshot(job.snapshot),
           createdAt: Date.now(),
         });
         toast.success("Job retried");
@@ -136,7 +136,7 @@ export function QueueTab() {
           domain: job.domain,
           request: newRequest,
           priority: newPriority,
-          snapshot: { controlUnits: job.snapshot.controlUnits },
+          snapshot: strippedSnapshot(job.snapshot),
           createdAt: Date.now(),
         });
       } catch (err) {
@@ -177,7 +177,7 @@ export function QueueTab() {
           domain: job.domain,
           request: newRequest,
           priority: newPriority,
-          snapshot: { controlUnits: job.snapshot.controlUnits },
+          snapshot: strippedSnapshot(job.snapshot),
           createdAt: Date.now(),
         });
       } catch (err) {

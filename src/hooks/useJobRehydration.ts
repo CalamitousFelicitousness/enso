@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { api } from "@/api/client";
-import { useJobQueueStore, type JobDomain, type TrackedJob } from "@/stores/jobStore";
+import { useJobQueueStore, type JobDomain, type JobSnapshot, type TrackedJob } from "@/stores/jobStore";
 import { getAllJobPayloads, deleteJobPayload, type StoredJobPayload } from "@/lib/jobPayloadDb";
 import type { Job, JobListResponse } from "@/api/types/v2";
 
@@ -17,10 +17,22 @@ function jobToDomain(type: string): JobDomain {
   return JOB_TYPE_TO_DOMAIN[type] ?? "generate";
 }
 
+// Without a stored snapshot we can only guess: image jobs are control-shaped
+// with no preserved canvas inputs; cloud jobs need no snapshot at all. The
+// stored variant carries `kind` directly so this fallback only applies to
+// pre-discriminated-union persisted records.
+function defaultSnapshot(domain: JobDomain): JobSnapshot {
+  if (domain === "xyz-grid" || domain === "video" || domain === "framepack" || domain === "ltx" || domain === "upscale" || domain === "rembg") {
+    return { kind: "control", controlUnits: [] };
+  }
+  return { kind: "control", controlUnits: [] };
+}
+
 function buildTrackedJob(backendJob: Job, local: StoredJobPayload | undefined): TrackedJob {
+  const domain = local?.domain ?? jobToDomain(backendJob.type);
   return {
     id: backendJob.id,
-    domain: local?.domain ?? jobToDomain(backendJob.type),
+    domain,
     status: backendJob.status,
     progress: backendJob.progress ?? 0,
     eta: backendJob.eta ?? 0,
@@ -32,7 +44,7 @@ function buildTrackedJob(backendJob: Job, local: StoredJobPayload | undefined): 
     result: backendJob.result ?? null,
     error: backendJob.error ?? null,
     createdAt: backendJob.created_at ? new Date(backendJob.created_at).getTime() : Date.now(),
-    snapshot: local?.snapshot ? { controlUnits: local.snapshot.controlUnits } : {},
+    snapshot: local?.snapshot ?? defaultSnapshot(domain),
     request: local?.request ?? null,
     priority: local?.priority ?? 0,
     stage: 0,

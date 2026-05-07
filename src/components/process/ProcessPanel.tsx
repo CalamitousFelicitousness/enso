@@ -87,7 +87,7 @@ export function ProcessPanel() {
         upscaler_2: upscaler2,
         upscaler_2_visibility: upscaler2Visibility,
       },
-      snapshot: {},
+      snapshot: { kind: "none" as const },
     };
   }, [image, upscaler, scale, resizeMode, targetWidth, targetHeight, crop, upscaler2, upscaler2Visibility, setUpscaleResult]);
 
@@ -111,7 +111,7 @@ export function ProcessPanel() {
         return_mask: returnMask,
         refine: rembgModel === "ben2" ? refine : undefined,
       },
-      snapshot: {},
+      snapshot: { kind: "none" as const },
     };
   }, [image, rembgModel, returnMask, refine, setUpscaleResult]);
 

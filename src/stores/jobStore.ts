@@ -5,10 +5,50 @@ import type { ControlUnitSnapshot } from "@/api/types/control";
 
 export type JobDomain = "generate" | "upscale" | "rembg" | "video" | "framepack" | "ltx" | "xyz-grid";
 
-export interface JobSnapshot {
-  inputImage?: string;
-  inputMask?: MaskLine[];
-  controlUnits?: ControlUnitSnapshot[];
+/**
+ * Captured workspace state for a submitted job, discriminated by the
+ * shape of inputs each request type carries.
+ *
+ * - "control": canvas img2img + control units. inputImage/inputMask are
+ *   captured at submit time (large; persisted only for in-memory tracking).
+ * - "detail": detailer-only run on a flattened canvas image.
+ * - "none": no captured workspace -- the payload is self-contained
+ *   (cloud generations, upscale/rembg, video jobs, etc.).
+ */
+export type JobSnapshot =
+  | {
+      kind: "control";
+      inputImage?: string | undefined;
+      inputMask?: MaskLine[] | undefined;
+      controlUnits: ControlUnitSnapshot[];
+    }
+  | {
+      kind: "detail";
+      inputImage?: string | undefined;
+    }
+  | {
+      kind: "none";
+    };
+
+/**
+ * The storage-friendly subset of JobSnapshot. inputImage (base64) and
+ * inputMask (potentially large stroke arrays) are dropped for IDB
+ * persistence -- they are not needed for queue rehydration on reload.
+ */
+export type StoredJobSnapshot =
+  | { kind: "control"; controlUnits: ControlUnitSnapshot[] }
+  | { kind: "detail" }
+  | { kind: "none" };
+
+export function strippedSnapshot(s: JobSnapshot): StoredJobSnapshot {
+  switch (s.kind) {
+    case "control":
+      return { kind: "control", controlUnits: s.controlUnits };
+    case "detail":
+      return { kind: "detail" };
+    case "none":
+      return { kind: "none" };
+  }
 }
 
 export interface TrackedJob {

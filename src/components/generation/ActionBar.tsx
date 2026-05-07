@@ -74,7 +74,7 @@ export const ActionBar = memo(function ActionBar() {
       clearSelection();
       return {
         payload: cloudRequest,
-        snapshot: { controlUnits: [] },
+        snapshot: { kind: "none" as const },
       };
     }
 
@@ -85,7 +85,7 @@ export const ActionBar = memo(function ActionBar() {
       clearSelection();
       return {
         payload: detailRequest,
-        snapshot: { inputImage, controlUnits: [] },
+        snapshot: { kind: "detail" as const, inputImage },
       };
     }
 
@@ -100,7 +100,7 @@ export const ActionBar = memo(function ActionBar() {
     clearSelection();
     return {
       payload: { type: "generate" as const, ...request },
-      snapshot: { inputImage, inputMask, controlUnits },
+      snapshot: { kind: "control" as const, inputImage, inputMask, controlUnits },
     };
   }, [clearSelection]);
 
