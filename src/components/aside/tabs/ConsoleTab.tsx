@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo, type ReactNode } from "react";
+import { useState, useRef, useEffect, useMemo, type MouseEvent as ReactMouseEvent, type ReactNode } from "react";
 import { Copy, Trash2, WrapText, Filter } from "lucide-react";
 import { useServerLog, useClearLog } from "@/api/hooks/useLog";
 import { useKeepAliveVisible } from "@/components/ui/keep-alive";
@@ -166,8 +166,9 @@ export function ConsoleTab() {
     }
   }
 
-  function cycleLevel() {
-    setMinLevel((prev) => (prev + 1) % LEVEL_ORDER.length);
+  function cycleLevel(e: ReactMouseEvent) {
+    const dir = e.shiftKey ? -1 : 1;
+    setMinLevel((prev) => (prev + dir + LEVEL_ORDER.length) % LEVEL_ORDER.length);
   }
 
   return (
@@ -184,10 +185,15 @@ export function ConsoleTab() {
           <WrapText className="h-3.5 w-3.5" />
         </Button>
         <Button
-          variant="ghost"
+          variant="toggle"
           size="icon-xs"
+          data-state={minLevel > 0 ? "on" : "off"}
           onClick={cycleLevel}
-          title={`Filter: ${LEVEL_ORDER[minLevel]}+`}
+          title={
+            minLevel === 0
+              ? "All levels — click to filter (shift-click to cycle backward)"
+              : `Filter: ${LEVEL_ORDER[minLevel]}+ — click to raise, shift-click to lower`
+          }
         >
           <Filter className="h-3.5 w-3.5" />
         </Button>
