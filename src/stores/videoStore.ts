@@ -1,7 +1,13 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { VideoResult } from "@/api/types/video";
-import { putVideoResult, trimVideoResults, clearAllVideoResults, getAllVideoResults } from "@/lib/videoHistoryDb";
+import { createIdbListDb } from "@/lib/idbListDb";
+
+export const videoHistoryDb = createIdbListDb<VideoResult>({
+  dbName: "SDNextVideoHistory",
+  storeName: "results",
+  sortKey: "timestamp",
+});
 
 interface VideoState {
   // Shared
@@ -82,7 +88,6 @@ interface VideoState {
   selectResult: (id: string | null) => void;
   clearResults: () => void;
   setHistoryLimit: (limit: number) => void;
-  hydrateFromDb: () => void;
   reset: () => void;
 }
 
@@ -167,9 +172,11 @@ export const useVideoStore = create<VideoState>()(
 
       addResult: (result) =>
         set((state) => {
-          void putVideoResult(result).then(() => trimVideoResults(state.historyLimit));
+          void videoHistoryDb
+            .put(result)
+            .then(() => videoHistoryDb.trim(state.historyLimit));
           return {
-            results: [result, ...state.results].slice(0, 100),
+            results: [result, ...state.results].slice(0, state.historyLimit),
             selectedResultId: result.id,
           };
         }),
@@ -177,22 +184,11 @@ export const useVideoStore = create<VideoState>()(
       selectResult: (id) => set({ selectedResultId: id }),
 
       clearResults: () => {
-        void clearAllVideoResults();
+        void videoHistoryDb.clear();
         set({ results: [], selectedResultId: null });
       },
 
       setHistoryLimit: (limit) => set({ historyLimit: limit }),
-
-      hydrateFromDb: () => {
-        void getAllVideoResults().then((dbResults) => {
-          if (useVideoStore.getState().results.length === 0 && dbResults.length > 0) {
-            useVideoStore.setState({
-              results: dbResults,
-              selectedResultId: dbResults[0]?.id ?? null,
-            });
-          }
-        });
-      },
 
       reset: () => set({ ...defaultParams }),
     }),

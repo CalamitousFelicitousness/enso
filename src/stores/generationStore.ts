@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { putResult, trimResults, clearAllResults, getAllResults } from "@/lib/historyDb";
+import { createIdbListDb } from "@/lib/idbListDb";
 import type { MaskLine } from "@/stores/img2imgStore";
 import type { ControlUnitSnapshot } from "@/api/types/control";
 import type { DetailerOverrides, DetailerModelEntry } from "@/api/types/v2";
@@ -21,6 +21,12 @@ export interface GenerationResult {
   /** Pre-hires-fix base image URL, stored when generation used enable_hr. */
   baseImage?: string | undefined;
 }
+
+export const generationHistoryDb = createIdbListDb<GenerationResult>({
+  dbName: "SDNextHistory",
+  storeName: "results",
+  sortKey: "timestamp",
+});
 
 export interface GenerationState {
   // Prompt
@@ -183,7 +189,6 @@ export interface GenerationState {
   selectImage: (resultId: string, imageIndex: number) => void;
   clearSelection: () => void;
   setHistoryLimit: (limit: number) => void;
-  hydrateFromDb: () => void;
   reset: () => void;
 }
 
@@ -347,19 +352,18 @@ export const useGenerationStore = create<GenerationState>()(
 
       addResult: (result) =>
         set((state) => {
-          void putResult(result).then(() => trimResults(state.historyLimit));
-          // In-memory cap of 100 is a safety stop; IDB is authoritative and
-          // bounded by historyLimit (default 16). Cap only matters if the
-          // user sets historyLimit > 100.
+          void generationHistoryDb
+            .put(result)
+            .then(() => generationHistoryDb.trim(state.historyLimit));
           return {
-            results: [result, ...state.results].slice(0, 100),
+            results: [result, ...state.results].slice(0, state.historyLimit),
             selectedResultId: result.id,
             selectedImageIndex: 0,
           };
         }),
 
       clearResults: () => {
-        void clearAllResults();
+        void generationHistoryDb.clear();
         set({ results: [], selectedResultId: null, selectedImageIndex: null });
       },
 
@@ -370,18 +374,6 @@ export const useGenerationStore = create<GenerationState>()(
         set({ selectedResultId: null, selectedImageIndex: null }),
 
       setHistoryLimit: (limit) => set({ historyLimit: limit }),
-
-      hydrateFromDb: () => {
-        void getAllResults().then((dbResults) => {
-          if (useGenerationStore.getState().results.length === 0 && dbResults.length > 0) {
-            useGenerationStore.setState({
-              results: dbResults,
-              selectedResultId: dbResults[0]?.id ?? null,
-              selectedImageIndex: dbResults[0] ? 0 : null,
-            });
-          }
-        });
-      },
 
       reset: () => set({ ...defaultParams }),
     }),
