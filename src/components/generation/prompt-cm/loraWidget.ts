@@ -81,7 +81,7 @@ class TokenChipWidget extends WidgetType {
     this.getView = getView;
   }
 
-  eq(other: TokenChipWidget): boolean {
+  override eq(other: TokenChipWidget): boolean {
     return this.fullRaw === other.fullRaw && this.from === other.from;
   }
 
@@ -93,7 +93,7 @@ class TokenChipWidget extends WidgetType {
     return chip;
   }
 
-  ignoreEvent(e: Event): boolean {
+  override ignoreEvent(e: Event): boolean {
     const t = e.type;
     return t === "mousedown" || t.startsWith("drag") || t === "drop";
   }
@@ -126,7 +126,7 @@ class LoraChipWidget extends WidgetType {
     this.getView = getView;
   }
 
-  eq(other: LoraChipWidget): boolean {
+  override eq(other: LoraChipWidget): boolean {
     return this.fullRaw === other.fullRaw && this.from === other.from;
   }
 
@@ -163,7 +163,7 @@ class LoraChipWidget extends WidgetType {
     return chip;
   }
 
-  ignoreEvent(e: Event): boolean {
+  override ignoreEvent(e: Event): boolean {
     const t = e.type;
     return t === "mousedown" || t.startsWith("drag") || t === "drop";
   }
