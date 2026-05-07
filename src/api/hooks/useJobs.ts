@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../client";
+import { deleteJobPayload } from "@/lib/jobPayloadDb";
 import type { Job, JobListResponse, JobRequest, PurgeResponse, JobStats, BulkJobRequest, BulkJobResponse } from "../types/v2";
 
 export function useSubmitJob() {
@@ -46,7 +47,10 @@ export function useDeleteJob() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (jobId: string) => api.delete(`/sdapi/v2/jobs/${jobId}`),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["v2-jobs"] }),
+    onSuccess: (_data, jobId) => {
+      void deleteJobPayload(jobId);
+      return queryClient.invalidateQueries({ queryKey: ["v2-jobs"] });
+    },
   });
 }
 

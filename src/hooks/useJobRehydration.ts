@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import { api } from "@/api/client";
 import { useJobQueueStore, type JobDomain, type JobSnapshot, type TrackedJob } from "@/stores/jobStore";
-import { getAllJobPayloads, deleteJobPayload, type StoredJobPayload } from "@/lib/jobPayloadDb";
+import { getAllJobPayloads, type StoredJobPayload } from "@/lib/jobPayloadDb";
 import type { Job, JobListResponse } from "@/api/types/v2";
 
 const JOB_TYPE_TO_DOMAIN: Record<string, JobDomain> = {
@@ -17,15 +17,15 @@ function jobToDomain(type: string): JobDomain {
   return JOB_TYPE_TO_DOMAIN[type] ?? "generate";
 }
 
-// Without a stored snapshot we can only guess: image jobs are control-shaped
-// with no preserved canvas inputs; cloud jobs need no snapshot at all. The
-// stored variant carries `kind` directly so this fallback only applies to
-// pre-discriminated-union persisted records.
+// Pre-Phase-6 persisted records lack a `kind` discriminator. Guess from the
+// domain: canvas-rooted jobs (generate, xyz-grid) get `control` with no
+// preserved inputs; everything else (upscale, rembg, video, framepack, ltx)
+// is self-contained in the request payload and gets `none`.
 function defaultSnapshot(domain: JobDomain): JobSnapshot {
-  if (domain === "xyz-grid" || domain === "video" || domain === "framepack" || domain === "ltx" || domain === "upscale" || domain === "rembg") {
+  if (domain === "generate" || domain === "xyz-grid") {
     return { kind: "control", controlUnits: [] };
   }
-  return { kind: "control", controlUnits: [] };
+  return { kind: "none" };
 }
 
 function buildTrackedJob(backendJob: Job, local: StoredJobPayload | undefined): TrackedJob {
@@ -74,7 +74,6 @@ export function useJobRehydration() {
         ]);
 
         const backendJobs = [...pending.items, ...running.items];
-        const backendIds = new Set(backendJobs.map((j) => j.id));
         const store = useJobQueueStore.getState();
 
         for (const bj of backendJobs) {
@@ -84,11 +83,9 @@ export function useJobRehydration() {
           store.rehydrateJob(tracked);
         }
 
-        for (const [id] of payloadMap) {
-          if (!backendIds.has(id)) {
-            void deleteJobPayload(id);
-          }
-        }
+        // Terminal jobs' IDB payloads are intentionally NOT pruned here --
+        // HistoryTab retry depends on the request shape surviving reload.
+        // putJobPayload's LRU cap (MAX_PAYLOADS) keeps growth bounded.
       } catch {
         // Rehydration is best-effort; silently skip on error
       }
