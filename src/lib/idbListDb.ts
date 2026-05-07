@@ -30,6 +30,8 @@ interface ListDbConfig<T extends { id: string }> {
 export interface IdbListDb<T extends { id: string }> {
   /** All records ordered by sortKey descending (newest first). */
   getAll(): Promise<T[]>;
+  /** Single record by primary key. Resolves to undefined if absent. */
+  get(id: string): Promise<T | undefined>;
   /** Insert or update by id. */
   put(item: T): Promise<void>;
   /** Delete a single record by primary key. */
@@ -78,6 +80,16 @@ export function createIdbListDb<T extends { id: string }>(config: ListDbConfig<T
           resolve(out);
         }
       };
+      req.onerror = () => reject(req.error ?? new Error("IDB request failed"));
+    });
+  }
+
+  async function get(id: string): Promise<T | undefined> {
+    const db = await openDb();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(storeName, "readonly");
+      const req = tx.objectStore(storeName).get(id);
+      req.onsuccess = () => resolve(req.result as T | undefined);
       req.onerror = () => reject(req.error ?? new Error("IDB request failed"));
     });
   }
@@ -140,5 +152,5 @@ export function createIdbListDb<T extends { id: string }>(config: ListDbConfig<T
     });
   }
 
-  return { getAll, put, delete: deleteOne, trim, clear };
+  return { getAll, get, put, delete: deleteOne, trim, clear };
 }
