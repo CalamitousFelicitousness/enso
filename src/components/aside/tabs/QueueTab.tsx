@@ -5,6 +5,7 @@ import { useJobQueueStore, selectPendingJobsSorted, strippedSnapshot } from "@/s
 import type { TrackedJob } from "@/stores/jobStore";
 import { useUiStore } from "@/stores/uiStore";
 import { useSubmitJob, useDeleteJob, usePurgeJobs } from "@/api/hooks/useJobs";
+import { useResubmitJob } from "@/hooks/useResubmitJob";
 import { putJobPayload } from "@/lib/jobPayloadDb";
 import { QueueJobCard } from "./QueueJobCard";
 import { Button } from "@/components/ui/button";
@@ -26,6 +27,7 @@ export function QueueTab() {
   const submitJob = useSubmitJob();
   const deleteJob = useDeleteJob();
   const purgeJobs = usePurgeJobs();
+  const resubmit = useResubmitJob();
 
   const { runningJobs, terminalJobs, totalCount, avgProgress } = useMemo(() => {
     const all = Array.from(jobsMap.values()).sort(
@@ -64,51 +66,23 @@ export function QueueTab() {
   const handleDuplicate = useCallback(
     async (job: TrackedJob) => {
       if (!job.request) return;
-      try {
-        const newJob = await submitJob.mutateAsync(job.request);
-        const priority = (job.request as { priority?: number }).priority ?? 0;
-        trackJob(newJob.id, job.domain, job.snapshot, job.request, priority);
-        void putJobPayload({
-          id: newJob.id,
-          domain: job.domain,
-          request: job.request,
-          priority,
-          snapshot: strippedSnapshot(job.snapshot),
-          createdAt: Date.now(),
-        });
-        toast.success("Job duplicated");
-      } catch (err) {
-        toast.error("Failed to duplicate job", {
-          description: err instanceof Error ? err.message : String(err),
-        });
-      }
+      await resubmit(
+        { domain: job.domain, request: job.request, snapshot: job.snapshot },
+        { successMessage: "Job duplicated", errorMessage: "Failed to duplicate job" },
+      );
     },
-    [submitJob, trackJob],
+    [resubmit],
   );
 
   const handleRetry = useCallback(
     async (job: TrackedJob) => {
       if (!job.request) return;
-      try {
-        const newJob = await submitJob.mutateAsync(job.request);
-        const priority = (job.request as { priority?: number }).priority ?? 0;
-        trackJob(newJob.id, job.domain, job.snapshot, job.request, priority);
-        void putJobPayload({
-          id: newJob.id,
-          domain: job.domain,
-          request: job.request,
-          priority,
-          snapshot: strippedSnapshot(job.snapshot),
-          createdAt: Date.now(),
-        });
-        toast.success("Job retried");
-      } catch (err) {
-        toast.error("Failed to retry job", {
-          description: err instanceof Error ? err.message : String(err),
-        });
-      }
+      await resubmit(
+        { domain: job.domain, request: job.request, snapshot: job.snapshot },
+        { successMessage: "Job retried", errorMessage: "Failed to retry job" },
+      );
     },
-    [submitJob, trackJob],
+    [resubmit],
   );
 
   const handleMoveUp = useCallback(
