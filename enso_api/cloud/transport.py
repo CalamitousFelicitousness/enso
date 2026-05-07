@@ -98,7 +98,7 @@ class HttpTransport:
                     )
 
                 if response.status_code in (500, 502, 503) and attempt < max_attempts - 1:
-                    await asyncio.sleep(backoff * (2 ** attempt))
+                    await asyncio.sleep(backoff * (2**attempt))
                     continue
 
                 if response.status_code >= 400:
@@ -108,13 +108,13 @@ class HttpTransport:
 
             except httpx.TimeoutException as e:
                 if attempt < max_attempts - 1:
-                    await asyncio.sleep(backoff * (2 ** attempt))
+                    await asyncio.sleep(backoff * (2**attempt))
                     continue
                 raise ProviderError("Request timed out", provider=self.config.id) from e
 
             except httpx.ConnectError as e:
                 if attempt < max_attempts - 1:
-                    await asyncio.sleep(backoff * (2 ** attempt))
+                    await asyncio.sleep(backoff * (2**attempt))
                     continue
                 raise ProviderError("Connection failed", provider=self.config.id) from e
 
@@ -123,7 +123,7 @@ class HttpTransport:
 
             except Exception as e:
                 if attempt < max_attempts - 1:
-                    await asyncio.sleep(backoff * (2 ** attempt))
+                    await asyncio.sleep(backoff * (2**attempt))
                     continue
                 raise ProviderError(str(e), provider=self.config.id) from e
 

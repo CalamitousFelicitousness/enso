@@ -27,6 +27,7 @@ def _rebuild_adapters() -> None:
     for adapter in _adapters.values():
         try:
             import asyncio
+
             loop = asyncio.new_event_loop()
             loop.run_until_complete(adapter.http.close())
             loop.close()
@@ -102,6 +103,7 @@ def update_provider(provider_id: str, **kwargs) -> ProviderConfig | None:
     if provider_id in _adapters:
         try:
             import asyncio
+
             loop = asyncio.new_event_loop()
             loop.run_until_complete(_adapters[provider_id].http.close())
             loop.close()
@@ -118,6 +120,7 @@ def remove_provider(provider_id: str) -> bool:
     if provider_id in _adapters:
         try:
             import asyncio
+
             loop = asyncio.new_event_loop()
             loop.run_until_complete(_adapters[provider_id].http.close())
             loop.close()

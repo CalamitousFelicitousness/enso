@@ -4,6 +4,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 # --- Strict base for request bodies ---
 
+
 class StrictBaseModel(BaseModel):
     """Base model that rejects unknown fields.
 
@@ -20,6 +21,7 @@ class StrictBaseModel(BaseModel):
 
 
 # --- Job response types ---
+
 
 class ImageRef(BaseModel):
     index: int
@@ -67,6 +69,7 @@ class ErrorResponse(BaseModel):
 
 # --- Simple response types for Swagger docs ---
 
+
 class StatusResponse(BaseModel):
     id: str
     status: str
@@ -87,13 +90,14 @@ class ResJobStatsV2(BaseModel):
 
 
 class ReqBulkJobV2(BaseModel):
-    action: str              # "cancel" or "delete"
+    action: str  # "cancel" or "delete"
     status: str | None = None
     type: str | None = None
     ids: list[str] | None = None
     before: str | None = None  # ISO timestamp (created_at < before)
-    after: str | None = None   # ISO timestamp (created_at >= after)
-    confirm: bool = False    # explicit opt-in for no-filter requests
+    after: str | None = None  # ISO timestamp (created_at >= after)
+    confirm: bool = False  # explicit opt-in for no-filter requests
+
 
 class ResBulkJobV2(BaseModel):
     action: str
@@ -102,11 +106,11 @@ class ResBulkJobV2(BaseModel):
 
 class VideoModelEnriched(BaseModel):
     name: str
-    repo: str = ''
-    url: str = ''
+    repo: str = ""
+    url: str = ""
     cached: bool = False
     loaded: bool = False
-    mode: str = 't2v'
+    mode: str = "t2v"
 
 
 class VideoEngine(BaseModel):
@@ -123,18 +127,21 @@ class VideoModel(BaseModel):
 
 class ReqVideoLoadV2(StrictBaseModel):
     """Load a video model into the engine."""
+
     engine: str = Field(title="Engine", description="Video engine name (e.g. wan, hunyuan)")
     model: str = Field(title="Model", description="Model name within the engine")
 
 
 class ReqFramePackLoadV2(StrictBaseModel):
     """Load a FramePack model variant."""
+
     variant: str = Field(default="bi-directional", title="Variant", description="FramePack variant (e.g. bi-directional)")
     attention: str = Field(default="Default", title="Attention", description="Attention implementation")
 
 
 class ReqHuggingFaceSettingsV2(StrictBaseModel):
     """Set or clear the HuggingFace Hub access token."""
+
     token: str | None = Field(default=None, title="Token", description="HF token; pass empty string or null to clear")
 
 
@@ -149,6 +156,7 @@ class FramePackLoadResponse(MessageResponse):
 
 # --- V2 API models ---
 
+
 class ItemExtraNetworkV2(BaseModel):
     name: str = Field(title="Name", description="Network short name")
     type: str = Field(title="Type", description="Network type: lora, model, embedding, etc.")
@@ -162,11 +170,13 @@ class ItemExtraNetworkV2(BaseModel):
     size: int | None = Field(default=None, title="Size", description="File size in bytes")
     mtime: str | None = Field(default=None, title="Modified", description="ISO 8601 modification time")
 
+
 class ResExtraNetworksV2(BaseModel):
     items: list[ItemExtraNetworkV2] = Field(title="Items", description="List of extra network items")
     total: int = Field(title="Total", description="Total matching items before pagination")
     offset: int = Field(title="Offset", description="Number of items skipped")
     limit: int = Field(title="Limit", description="Maximum items returned per page")
+
 
 class ItemModelV2(BaseModel):
     title: str = Field(title="Title")
@@ -180,17 +190,20 @@ class ItemModelV2(BaseModel):
     version: str | None = Field(default=None, title="Version")
     subfolder: str | None = Field(default=None, title="Subfolder")
 
+
 class ResModelsV2(BaseModel):
     items: list[ItemModelV2] = Field(title="Items")
     total: int = Field(title="Total")
     offset: int = Field(title="Offset")
     limit: int = Field(title="Limit")
 
+
 class ItemSamplerV2(BaseModel):
     name: str = Field(title="Name")
     group: str = Field(title="Group", description="Standard, FlowMatch, or Res4Lyf")
     compatible: bool | None = Field(default=None, title="Compatible", description="null if no model loaded")
     options: dict = Field(default_factory=dict, title="Options")
+
 
 class ItemHistoryV2(BaseModel):
     id: int | str | None = Field(default=None, title="ID")
@@ -200,11 +213,13 @@ class ItemHistoryV2(BaseModel):
     duration: float | None = Field(default=None, title="Duration")
     outputs: list[str] = Field(default_factory=list, title="Outputs")
 
+
 class ResHistoryV2(BaseModel):
     items: list[ItemHistoryV2] = Field(title="Items")
     total: int = Field(title="Total")
     offset: int = Field(title="Offset")
     limit: int = Field(title="Limit")
+
 
 class ResCheckpointV2(BaseModel):
     loaded: bool = Field(title="Loaded")
@@ -216,18 +231,22 @@ class ResCheckpointV2(BaseModel):
     filename: str | None = Field(default=None, title="Filename")
     hash: str | None = Field(default=None, title="Hash")
 
+
 class ReqSetCheckpointV2(BaseModel):
     sd_model_checkpoint: str = Field(title="Checkpoint")
     dtype: str | None = Field(default=None, title="Dtype")
     force: bool = Field(default=False, title="Force")
 
+
 class ResSetCheckpointV2(BaseModel):
     ok: bool = Field(title="OK")
     checkpoint: ResCheckpointV2 | None = Field(default=None, title="Checkpoint")
 
+
 class ItemVaeV2(BaseModel):
     name: str = Field(title="Name", description="VAE model display name")
     filename: str = Field(title="Filename", description="Path to the VAE file")
+
 
 class ItemUpscalerV2(BaseModel):
     name: str = Field(title="Name", description="Upscaler display name")
@@ -235,6 +254,7 @@ class ItemUpscalerV2(BaseModel):
     model_name: str | None = Field(default=None, title="Model Name", description="Underlying model name")
     model_path: str | None = Field(default=None, title="Path", description="Path to the model file")
     scale: float | None = Field(default=None, title="Scale", description="Default upscale factor")
+
 
 class ItemEmbeddingV2(BaseModel):
     name: str = Field(title="Name", description="Embedding trigger word")
@@ -245,9 +265,11 @@ class ItemEmbeddingV2(BaseModel):
     sd_checkpoint: str | None = Field(default=None, title="SD Checkpoint", description="Training checkpoint hash")
     sd_checkpoint_name: str | None = Field(default=None, title="SD Checkpoint Name", description="Training checkpoint name")
 
+
 class ResEmbeddingsV2(BaseModel):
     loaded: list[ItemEmbeddingV2] = Field(default_factory=list, title="Loaded", description="Successfully loaded embeddings")
     skipped: list[ItemEmbeddingV2] = Field(default_factory=list, title="Skipped", description="Embeddings skipped due to incompatibility")
+
 
 class ItemPromptStyleV2(BaseModel):
     name: str = Field(title="Name", description="Style name")
@@ -260,6 +282,7 @@ class ItemPromptStyleV2(BaseModel):
     preview: str | None = Field(default=None, title="Preview", description="URL to the style preview image")
     mtime: str | None = Field(default=None, title="Modified", description="ISO 8601 modification time")
 
+
 class ResRefreshNetworksV2(BaseModel):
     ok: bool = Field(title="OK", description="Whether the refresh completed successfully")
     total: int = Field(default=0, title="Total", description="Total extra-network items after refresh")
@@ -267,13 +290,16 @@ class ResRefreshNetworksV2(BaseModel):
 
 # --- Options / Settings models (v2) ---
 
+
 class OptionUpdateItemV2(BaseModel):
     key: str = Field(title="Key", description="Option key name")
     changed: bool = Field(title="Changed", description="Whether the value actually changed")
 
+
 class ResSetOptionsV2(BaseModel):
     ok: bool = Field(title="OK", description="Whether the update completed successfully")
     updated: list[OptionUpdateItemV2] = Field(default_factory=list, title="Updated", description="Per-key update results")
+
 
 class OptionComponentArgsV2(BaseModel):
     minimum: float | None = Field(default=None, title="Minimum")
@@ -282,6 +308,7 @@ class OptionComponentArgsV2(BaseModel):
     choices: list[str] | None = Field(default=None, title="Choices")
     precision: int | None = Field(default=None, title="Precision")
     multiselect: bool | None = Field(default=None, title="Multiselect")
+
 
 class ItemOptionInfoV2(BaseModel):
     label: str = Field(title="Label")
@@ -296,14 +323,17 @@ class ItemOptionInfoV2(BaseModel):
     is_legacy: bool = Field(title="Is Legacy")
     is_secret: bool = Field(title="Is Secret")
 
+
 class ItemSectionInfoV2(BaseModel):
     id: str = Field(title="ID")
     title: str = Field(title="Title")
     hidden: bool = Field(title="Hidden")
 
+
 class ResOptionsInfoV2(BaseModel):
     options: dict[str, ItemOptionInfoV2] = Field(default_factory=dict, title="Options")
     sections: list[ItemSectionInfoV2] = Field(default_factory=list, title="Sections")
+
 
 class ItemSecretStatusV2(BaseModel):
     configured: bool = Field(title="Configured")
@@ -313,20 +343,24 @@ class ItemSecretStatusV2(BaseModel):
 
 # --- Control / Preprocessing models (v2) ---
 
+
 class ItemPreprocessorV2(BaseModel):
     name: str = Field(title="Name", description="Preprocessor name")
     group: str = Field(default="Other", title="Group", description="Category group")
     params: dict = Field(default_factory=dict, title="Params", description="Configurable parameters with default values")
+
 
 class ReqPreprocessV2(BaseModel):
     image: str = Field(title="Image", description="Base64 encoded image or upload ref")
     model: str = Field(title="Model", description="Preprocessor model name")
     params: dict = Field(default_factory=dict, title="Params", description="Preprocessor settings overrides")
 
+
 class ResPreprocessV2(BaseModel):
     ok: bool = Field(title="OK", description="Whether preprocessing completed successfully")
     model: str = Field(default="", title="Model", description="Processor model actually used")
     image: str = Field(default="", title="Image", description="Processed image in base64 format")
+
 
 class ItemScriptV2(BaseModel):
     name: str = Field(title="Name")
@@ -334,11 +368,13 @@ class ItemScriptV2(BaseModel):
     contexts: list[str] = Field(default_factory=list, title="Contexts", description="txt2img, img2img, control")
     args: list = Field(default_factory=list, title="Arguments")
 
+
 class ResScriptsV2(BaseModel):
     scripts: list[ItemScriptV2] = Field(title="Scripts")
 
 
 # --- Server info models (v2) ---
+
 
 class VersionInfoV2(BaseModel):
     app: str = ""
@@ -347,6 +383,7 @@ class VersionInfoV2(BaseModel):
     branch: str = ""
     url: str = ""
 
+
 class ServerCapabilities(BaseModel):
     txt2img: bool = True
     img2img: bool = True
@@ -354,10 +391,12 @@ class ServerCapabilities(BaseModel):
     video: bool = True
     websocket: bool = True
 
+
 class ServerModelInfo(BaseModel):
     name: str | None = None
     type: str | None = None
     supports_strength: bool = True
+
 
 class ResServerInfoV2(BaseModel):
     version: VersionInfoV2
@@ -370,24 +409,29 @@ class ResServerInfoV2(BaseModel):
 
 # --- Memory models (v2) ---
 
+
 class MemoryUsage(BaseModel):
     free: int | None = None
     used: int | None = None
     total: int | None = None
 
+
 class MemoryPeakUsage(BaseModel):
     current: int | None = None
     peak: int | None = None
 
+
 class MemoryWarnings(BaseModel):
     retries: int = 0
     oom: int = 0
+
 
 class RamMemoryV2(BaseModel):
     free: int | None = None
     used: int | None = None
     total: int | None = None
     error: str | None = None
+
 
 class CudaMemoryV2(BaseModel):
     system: MemoryUsage | None = None
@@ -398,12 +442,14 @@ class CudaMemoryV2(BaseModel):
     events: MemoryWarnings | None = None
     error: str | None = None
 
+
 class ResMemoryV2(BaseModel):
     ram: RamMemoryV2
     cuda: CudaMemoryV2
 
 
 # --- System info & GPU models (v2) ---
+
 
 class ResSystemInfoV2(BaseModel):
     version: dict[str, str] = Field(default_factory=dict)
@@ -430,6 +476,7 @@ class GpuMetrics(BaseModel):
     vram_used: int | None = None
     vram_total: int | None = None
 
+
 class ResGpuV2(BaseModel):
     name: str
     metrics: GpuMetrics = Field(default_factory=GpuMetrics)
@@ -439,6 +486,7 @@ class ResGpuV2(BaseModel):
 
 
 # --- Caption models (v2) ---
+
 
 class ReqOpenClipV2(BaseModel):
     image: str = Field(default="", title="Image", description="Base64 encoded image (PNG/JPEG)")
@@ -454,6 +502,7 @@ class ReqOpenClipV2(BaseModel):
     flavor_count: int | None = Field(default=None, title="Intermediates")
     num_beams: int | None = Field(default=None, title="Num Beams")
 
+
 class ResOpenClipV2(BaseModel):
     ok: bool = Field(title="OK")
     caption: str | None = Field(default=None, title="Caption")
@@ -462,6 +511,7 @@ class ResOpenClipV2(BaseModel):
     movement: str | None = Field(default=None, title="Movement")
     trending: str | None = Field(default=None, title="Trending")
     flavor: str | None = Field(default=None, title="Flavor")
+
 
 class ReqVqaV2(BaseModel):
     image: str = Field(default="", title="Image", description="Base64 encoded image")
@@ -481,10 +531,12 @@ class ReqVqaV2(BaseModel):
     keep_thinking: bool | None = Field(default=None, title="Keep Thinking Trace")
     keep_prefill: bool | None = Field(default=None, title="Keep Prefill")
 
+
 class ResVqaV2(BaseModel):
     ok: bool = Field(title="OK")
     answer: str | None = Field(default=None, title="Answer")
     annotated_image: str | None = Field(default=None, title="Annotated Image")
+
 
 class ReqTaggerV2(BaseModel):
     image: str = Field(default="", title="Image", description="Base64 encoded image")
@@ -499,10 +551,12 @@ class ReqTaggerV2(BaseModel):
     exclude_tags: str = Field(default="", title="Exclude Tags")
     show_scores: bool = Field(default=False, title="Show Scores")
 
+
 class ResTaggerV2(BaseModel):
     ok: bool = Field(title="OK")
     tags: str = Field(title="Tags")
     scores: dict | None = Field(default=None, title="Scores")
+
 
 class ItemVlmModelV2(BaseModel):
     name: str = Field(title="Name")
@@ -512,6 +566,7 @@ class ItemVlmModelV2(BaseModel):
     capabilities: list[str] = Field(title="Capabilities")
     cached: bool = Field(default=False, title="Cached", description="Model is available in local HF cache")
 
+
 class ItemTaggerModelV2(BaseModel):
     name: str = Field(title="Name")
     type: str = Field(title="Type")
@@ -519,9 +574,11 @@ class ItemTaggerModelV2(BaseModel):
 
 # --- Log models (v2) ---
 
+
 class ResLogV2(BaseModel):
     lines: list[str] = Field(title="Lines", description="Log lines from the in-memory buffer")
     total: int = Field(title="Total", description="Number of lines returned")
+
 
 class ResLogClearV2(BaseModel):
     ok: bool = Field(title="OK")
@@ -529,8 +586,10 @@ class ResLogClearV2(BaseModel):
 
 # --- PNG Info models (v2) ---
 
+
 class ReqPngInfoV2(BaseModel):
     image: str = Field(title="Image", description="Base64 encoded PNG image")
+
 
 class ResPngInfoV2(BaseModel):
     ok: bool = Field(title="OK")
@@ -540,6 +599,7 @@ class ResPngInfoV2(BaseModel):
 
 
 # --- Extension models (v2) ---
+
 
 class ItemExtensionV2(BaseModel):
     name: str = Field(title="Name")
@@ -553,6 +613,7 @@ class ItemExtensionV2(BaseModel):
 
 # --- Detailer models (v2) ---
 
+
 class ItemDetailerV2(BaseModel):
     name: str = Field(title="Name")
     path: str | None = Field(default=None, title="Path")
@@ -560,8 +621,10 @@ class ItemDetailerV2(BaseModel):
 
 # --- Job Type models (v2) ---
 
+
 class ItemJobTypeV2(BaseModel):
     """One entry of GET /sdapi/v2/job-types: a job type accepted by POST /sdapi/v2/jobs."""
+
     type: str = Field(title="Type", description="Discriminator value used in the POST /sdapi/v2/jobs body")
     title: str = Field(title="Title", description="Human-friendly display name")
     description: str = Field(title="Description", description="What this job type does (cleaned class docstring)")
@@ -569,15 +632,11 @@ class ItemJobTypeV2(BaseModel):
     runtime: Literal["local", "cloud"] = Field(title="Runtime", description="Where the job executes")
     interruptible: bool = Field(
         title="Interruptible",
-        description=(
-            "True if DELETE /sdapi/v2/jobs/{id} can interrupt mid-run via "
-            "shared.state.interrupt(). False for cloud jobs: DELETE marks "
-            "the row cancelled but the in-flight HTTP call continues and "
-            "its result is discarded."
-        ),
+        description=("True if DELETE /sdapi/v2/jobs/{id} can interrupt mid-run via shared.state.interrupt(). False for cloud jobs: DELETE marks the row cancelled but the in-flight HTTP call continues and its result is discarded."),
     )
     extends: str | None = Field(
-        default=None, title="Extends",
+        default=None,
+        title="Extends",
         description="Discriminator value of a parent type whose schema is fully inherited (e.g. xyz-grid extends generate)",
     )
     schema_ref: str = Field(
@@ -588,6 +647,7 @@ class ItemJobTypeV2(BaseModel):
 
 # --- Prompt Enhance models (v2) ---
 
+
 class ItemPromptEnhanceModelV2(BaseModel):
     name: str = Field(title="Name")
     group: str = Field(default="Other", title="Group", description="Architecture family")
@@ -595,9 +655,10 @@ class ItemPromptEnhanceModelV2(BaseModel):
     thinking: bool = Field(title="Thinking", description="Supports reasoning mode")
     cached: bool = Field(default=False, title="Cached", description="Model is available in local HF cache")
 
+
 class ReqPromptEnhanceV2(BaseModel):
     prompt: str = Field(title="Prompt", description="Prompt to enhance")
-    type: str = Field(title="Type", default='text', description="Type of enhancement: text, image, video")
+    type: str = Field(title="Type", default="text", description="Type of enhancement: text, image, video")
     model: str | None = Field(title="Model", default=None)
     system_prompt: str | None = Field(title="System prompt", default=None)
     image: str | None = Field(title="Image", default=None, description="Base64 encoded image")
@@ -616,6 +677,7 @@ class ReqPromptEnhanceV2(BaseModel):
     use_vision: bool = Field(title="Use vision", default=True)
     prefill: str | None = Field(title="Prefill", default=None)
     keep_prefill: bool = Field(title="Keep prefill", default=False)
+
 
 class ResPromptEnhanceV2(BaseModel):
     ok: bool = Field(title="OK")

@@ -8,5 +8,6 @@ def is_model_cached(repo_id: str) -> bool:
     if not repo_id:
         return False
     from modules import shared
-    cache_folder = 'models--' + repo_id.replace('/', '--')
-    return any(os.path.isdir(os.path.join(cache_dir, cache_folder, 'snapshots')) for cache_dir in [shared.opts.hfcache_dir, shared.opts.diffusers_dir])
+
+    cache_folder = "models--" + repo_id.replace("/", "--")
+    return any(os.path.isdir(os.path.join(cache_dir, cache_folder, "snapshots")) for cache_dir in [shared.opts.hfcache_dir, shared.opts.diffusers_dir])

@@ -33,6 +33,7 @@ async def list_providers():
 @router.post("/providers", status_code=201)
 async def add_provider(req: AddProviderRequest):
     from enso_api.cloud.presets import PRESETS
+
     if req.preset not in PRESETS:
         raise HTTPException(status_code=400, detail=f"Invalid preset: {req.preset}. Must be one of: {', '.join(sorted(PRESETS))}")
     if not req.base_url and req.preset == "custom":

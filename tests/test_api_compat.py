@@ -30,88 +30,74 @@ TIMEOUT = 30  # seconds per request
 
 ENDPOINTS: list[tuple[str, str, dict | None, str]] = [
     # --- Server / status ---
-    ("GET",  "/sdapi/v2/server-info",       None, "Server info (version, backend, model)"),
-    ("GET",  "/sdapi/v2/memory",            None, "RAM + CUDA memory stats"),
-    ("GET",  "/sdapi/v2/gpu",               None, "GPU metrics"),
-    ("GET",  "/sdapi/v2/system-info",       None, "Full system diagnostics"),
-    ("GET",  "/sdapi/v2/log?lines=5",       None, "Recent log lines"),
-
+    ("GET", "/sdapi/v2/server-info", None, "Server info (version, backend, model)"),
+    ("GET", "/sdapi/v2/memory", None, "RAM + CUDA memory stats"),
+    ("GET", "/sdapi/v2/gpu", None, "GPU metrics"),
+    ("GET", "/sdapi/v2/system-info", None, "Full system diagnostics"),
+    ("GET", "/sdapi/v2/log?lines=5", None, "Recent log lines"),
     # --- Options ---
-    ("GET",  "/sdapi/v2/options",           None, "All server options"),
-    ("GET",  "/sdapi/v2/options?keys=sd_model_checkpoint", None, "Filtered options"),
-    ("GET",  "/sdapi/v2/options-info",      None, "Options metadata"),
-    ("GET",  "/sdapi/v2/secrets-status",    None, "Secrets config status"),
-
+    ("GET", "/sdapi/v2/options", None, "All server options"),
+    ("GET", "/sdapi/v2/options?keys=sd_model_checkpoint", None, "Filtered options"),
+    ("GET", "/sdapi/v2/options-info", None, "Options metadata"),
+    ("GET", "/sdapi/v2/secrets-status", None, "Secrets config status"),
     # --- Enumerators ---
-    ("GET",  "/sdapi/v2/extra-networks?limit=3", None, "Extra networks (paginated)"),
-    ("GET",  "/sdapi/v2/sd-models?limit=3",      None, "SD models list"),
-    ("GET",  "/sdapi/v2/samplers",                None, "Samplers list"),
-    ("GET",  "/sdapi/v2/sd-vae",                  None, "VAE models"),
-    ("GET",  "/sdapi/v2/upscalers",               None, "Upscaler models"),
-    ("GET",  "/sdapi/v2/embeddings",              None, "Embeddings"),
-    ("GET",  "/sdapi/v2/prompt-styles",           None, "Prompt styles"),
-    ("GET",  "/sdapi/v2/detailers",               None, "Detailer (YOLO) models"),
-    ("GET",  "/sdapi/v2/scripts",                 None, "Scripts list"),
-    ("GET",  "/sdapi/v2/extensions",              None, "Installed extensions"),
-
+    ("GET", "/sdapi/v2/extra-networks?limit=3", None, "Extra networks (paginated)"),
+    ("GET", "/sdapi/v2/sd-models?limit=3", None, "SD models list"),
+    ("GET", "/sdapi/v2/samplers", None, "Samplers list"),
+    ("GET", "/sdapi/v2/sd-vae", None, "VAE models"),
+    ("GET", "/sdapi/v2/upscalers", None, "Upscaler models"),
+    ("GET", "/sdapi/v2/embeddings", None, "Embeddings"),
+    ("GET", "/sdapi/v2/prompt-styles", None, "Prompt styles"),
+    ("GET", "/sdapi/v2/detailers", None, "Detailer (YOLO) models"),
+    ("GET", "/sdapi/v2/scripts", None, "Scripts list"),
+    ("GET", "/sdapi/v2/extensions", None, "Installed extensions"),
     # --- Control ---
-    ("GET",  "/sdapi/v2/control-models",    None, "ControlNet models"),
-    ("GET",  "/sdapi/v2/control-modes",     None, "Control modes"),
-    ("GET",  "/sdapi/v2/ip-adapters",       None, "IP-Adapter models"),
-    ("GET",  "/sdapi/v2/preprocessors",     None, "Preprocessors"),
-
+    ("GET", "/sdapi/v2/control-models", None, "ControlNet models"),
+    ("GET", "/sdapi/v2/control-modes", None, "Control modes"),
+    ("GET", "/sdapi/v2/ip-adapters", None, "IP-Adapter models"),
+    ("GET", "/sdapi/v2/preprocessors", None, "Preprocessors"),
     # --- Models (read-only) ---
-    ("GET",  "/sdapi/v2/checkpoint",        None, "Current checkpoint info"),
-    ("GET",  "/sdapi/v2/loaded-models",     None, "All loaded models inventory"),
-    ("GET",  "/sdapi/v2/model/analyze",     None, "Analyze current model"),
-    ("GET",  "/sdapi/v2/model/list-detail", None, "Detailed model list"),
-    ("GET",  "/sdapi/v2/model/merge/methods", None, "Merge methods"),
-    ("GET",  "/sdapi/v2/model/lora/loaded", None, "Loaded LoRAs"),
-    ("GET",  "/sdapi/v2/model/loader/pipelines", None, "Loader pipelines"),
-
+    ("GET", "/sdapi/v2/checkpoint", None, "Current checkpoint info"),
+    ("GET", "/sdapi/v2/loaded-models", None, "All loaded models inventory"),
+    ("GET", "/sdapi/v2/model/analyze", None, "Analyze current model"),
+    ("GET", "/sdapi/v2/model/list-detail", None, "Detailed model list"),
+    ("GET", "/sdapi/v2/model/merge/methods", None, "Merge methods"),
+    ("GET", "/sdapi/v2/model/lora/loaded", None, "Loaded LoRAs"),
+    ("GET", "/sdapi/v2/model/loader/pipelines", None, "Loader pipelines"),
     # --- History ---
-    ("GET",  "/sdapi/v2/history?limit=3",   None, "Generation history"),
-
+    ("GET", "/sdapi/v2/history?limit=3", None, "Generation history"),
     # --- Jobs (read-only) ---
-    ("GET",  "/sdapi/v2/jobs",              None, "Job list"),
-    ("GET",  "/sdapi/v2/jobs/stats",        None, "Job stats"),
-
+    ("GET", "/sdapi/v2/jobs", None, "Job list"),
+    ("GET", "/sdapi/v2/jobs/stats", None, "Job stats"),
     # --- Gallery / browser ---
-    ("GET",  "/sdapi/v2/browser/folders",   None, "Gallery folders"),
-
+    ("GET", "/sdapi/v2/browser/folders", None, "Gallery folders"),
     # --- Video ---
-    ("GET",  "/sdapi/v2/video/engines",     None, "Video engines + models"),
-    ("GET",  "/sdapi/v2/framepack/variants", None, "FramePack variants"),
-
+    ("GET", "/sdapi/v2/video/engines", None, "Video engines + models"),
+    ("GET", "/sdapi/v2/framepack/variants", None, "FramePack variants"),
     # --- Caption ---
-    ("GET",  "/sdapi/v2/caption/openclip/models", None, "OpenCLIP models"),
-    ("GET",  "/sdapi/v2/caption/vlm/models",      None, "VLM models"),
-    ("GET",  "/sdapi/v2/caption/tagger/models",    None, "Tagger models"),
-
+    ("GET", "/sdapi/v2/caption/openclip/models", None, "OpenCLIP models"),
+    ("GET", "/sdapi/v2/caption/vlm/models", None, "VLM models"),
+    ("GET", "/sdapi/v2/caption/tagger/models", None, "Tagger models"),
     # --- Prompt enhance ---
-    ("GET",  "/sdapi/v2/prompt-enhance/models", None, "Prompt enhance models"),
-
+    ("GET", "/sdapi/v2/prompt-enhance/models", None, "Prompt enhance models"),
     # --- XYZ Grid ---
-    ("GET",  "/sdapi/v2/xyz-grid/axes",     None, "XYZ grid axis options"),
-
+    ("GET", "/sdapi/v2/xyz-grid/axes", None, "XYZ grid axis options"),
     # --- Misc ---
-    ("GET",  "/sdapi/v2/extra-networks/detail?page=lora&name=test", None, "Extra network detail (may 404)"),
-    ("GET",  "/sdapi/v2/extra-networks/details?limit=2", None, "Extra network details batch"),
-
+    ("GET", "/sdapi/v2/extra-networks/detail?page=lora&name=test", None, "Extra network detail (may 404)"),
+    ("GET", "/sdapi/v2/extra-networks/details?limit=2", None, "Extra network details batch"),
     # --- HuggingFace ---
-    ("GET",  "/sdapi/v2/huggingface/settings", None, "HuggingFace settings"),
-    ("GET",  "/sdapi/v2/huggingface/me",       None, "HuggingFace profile"),
-
+    ("GET", "/sdapi/v2/huggingface/settings", None, "HuggingFace settings"),
+    ("GET", "/sdapi/v2/huggingface/me", None, "HuggingFace profile"),
     # --- WebSocket ticket (safe POST) ---
-    ("POST", "/sdapi/v2/ws-ticket",         None, "WS ticket creation"),
-
+    ("POST", "/sdapi/v2/ws-ticket", None, "WS ticket creation"),
     # --- Safe mutation POSTs (state-check only) ---
     ("POST", "/sdapi/v2/checkpoint/unload", None, "Unload checkpoint (tests the fixed code)"),
-    ("GET",  "/sdapi/v2/storage",            None, "Storage info"),
+    ("GET", "/sdapi/v2/storage", None, "Storage info"),
 ]
 
 
 # ── Runner ─────────────────────────────────────────────────────────────────
+
 
 class Result:
     def __init__(self, method, path, desc):
@@ -208,8 +194,7 @@ def main():
     conn_err = [r for r in results if r.status is None]
 
     print("\n" + "=" * 80)
-    print(f"  RESULTS: {len(passed)} passed, {len(failed)} server errors, "
-          f"{len(client_err)} client errors, {len(conn_err)} connection errors")
+    print(f"  RESULTS: {len(passed)} passed, {len(failed)} server errors, {len(client_err)} client errors, {len(conn_err)} connection errors")
     print("=" * 80)
 
     if failed:

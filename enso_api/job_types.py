@@ -32,30 +32,30 @@ from typing import get_args
 from enso_api.job_models import JobRequest
 
 JOB_TYPE_META: dict[str, dict[str, str]] = {
-    "generate":      {"title": "Generate",              "category": "core"},
-    "upscale":       {"title": "Upscale",               "category": "core"},
-    "caption":       {"title": "Caption",               "category": "core"},
-    "enhance":       {"title": "Prompt Enhance",        "category": "core"},
-    "detect":        {"title": "Detect",                "category": "core"},
-    "preprocess":    {"title": "Preprocess",            "category": "core"},
-    "detail":        {"title": "Detailer-only",         "category": "core"},
-    "xyz-grid":      {"title": "XYZ Grid",              "category": "core"},
-    "video":         {"title": "Video (Native)",        "category": "video"},
-    "framepack":     {"title": "Video (FramePack)",     "category": "video"},
-    "ltx":           {"title": "Video (LTX)",           "category": "video"},
-    "model-load":    {"title": "Load Checkpoint",       "category": "model-management"},
-    "model-merge":   {"title": "Merge Checkpoints",     "category": "model-management"},
-    "model-replace": {"title": "Replace Components",    "category": "model-management"},
-    "model-save":    {"title": "Save Model",            "category": "model-management"},
-    "loader-load":   {"title": "Custom Loader",         "category": "model-management"},
-    "lora-extract":  {"title": "Extract LoRA",          "category": "model-management"},
-    "hf-download":   {"title": "HuggingFace Download",  "category": "model-management"},
-    "rembg":         {"title": "Background Remove",     "category": "model-management"},
-    "cloud_image":   {"title": "Cloud: Image",          "category": "cloud"},
-    "cloud_chat":    {"title": "Cloud: Chat",           "category": "cloud"},
-    "cloud_tts":     {"title": "Cloud: Text-to-Speech", "category": "cloud"},
-    "cloud_stt":     {"title": "Cloud: Speech-to-Text", "category": "cloud"},
-    "cloud_video":   {"title": "Cloud: Video",          "category": "cloud"},
+    "generate": {"title": "Generate", "category": "core"},
+    "upscale": {"title": "Upscale", "category": "core"},
+    "caption": {"title": "Caption", "category": "core"},
+    "enhance": {"title": "Prompt Enhance", "category": "core"},
+    "detect": {"title": "Detect", "category": "core"},
+    "preprocess": {"title": "Preprocess", "category": "core"},
+    "detail": {"title": "Detailer-only", "category": "core"},
+    "xyz-grid": {"title": "XYZ Grid", "category": "core"},
+    "video": {"title": "Video (Native)", "category": "video"},
+    "framepack": {"title": "Video (FramePack)", "category": "video"},
+    "ltx": {"title": "Video (LTX)", "category": "video"},
+    "model-load": {"title": "Load Checkpoint", "category": "model-management"},
+    "model-merge": {"title": "Merge Checkpoints", "category": "model-management"},
+    "model-replace": {"title": "Replace Components", "category": "model-management"},
+    "model-save": {"title": "Save Model", "category": "model-management"},
+    "loader-load": {"title": "Custom Loader", "category": "model-management"},
+    "lora-extract": {"title": "Extract LoRA", "category": "model-management"},
+    "hf-download": {"title": "HuggingFace Download", "category": "model-management"},
+    "rembg": {"title": "Background Remove", "category": "model-management"},
+    "cloud_image": {"title": "Cloud: Image", "category": "cloud"},
+    "cloud_chat": {"title": "Cloud: Chat", "category": "cloud"},
+    "cloud_tts": {"title": "Cloud: Text-to-Speech", "category": "cloud"},
+    "cloud_stt": {"title": "Cloud: Speech-to-Text", "category": "cloud"},
+    "cloud_video": {"title": "Cloud: Video", "category": "cloud"},
 }
 
 
@@ -90,21 +90,24 @@ def discover_job_types() -> list:
     """Project the union into ItemJobTypeV2 records for the discovery endpoint."""
     from enso_api.executors import EXECUTORS
     from enso_api.models import ItemJobTypeV2
+
     items = []
     for cls in union_variants():
         t = cls.model_fields["type"].default
         meta = JOB_TYPE_META[t]
         entry = EXECUTORS[t]
-        items.append(ItemJobTypeV2(
-            type=t,
-            title=meta["title"],
-            description=inspect.cleandoc(cls.__doc__ or ""),
-            category=meta["category"],
-            runtime="local" if entry["lock"] else "cloud",
-            interruptible=bool(entry["lock"]),
-            extends=extract_extends(cls),
-            schema_ref=f"#/components/schemas/{cls.__name__}",
-        ))
+        items.append(
+            ItemJobTypeV2(
+                type=t,
+                title=meta["title"],
+                description=inspect.cleandoc(cls.__doc__ or ""),
+                category=meta["category"],
+                runtime="local" if entry["lock"] else "cloud",
+                interruptible=bool(entry["lock"]),
+                extends=extract_extends(cls),
+                schema_ref=f"#/components/schemas/{cls.__name__}",
+            )
+        )
     return items
 
 
@@ -118,6 +121,7 @@ def validate_registries() -> None:
     submission.
     """
     from enso_api.executors import EXECUTORS
+
     union_keys = {c.model_fields["type"].default for c in union_variants()}
     exec_keys = set(EXECUTORS.keys())
     meta_keys = set(JOB_TYPE_META.keys())

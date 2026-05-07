@@ -32,7 +32,7 @@ router = APIRouter(prefix="/sdapi/v2", tags=["v2"])
 
 
 def job_to_response(job: dict) -> JobResponse:
-    result = job.get('result')
+    result = job.get("result")
     job_result = None
     if result:
         if isinstance(result, str):
@@ -41,19 +41,19 @@ def job_to_response(job: dict) -> JobResponse:
             except (json.JSONDecodeError, TypeError):
                 result = None
         if isinstance(result, dict):
-            images = [ImageRef(**img) for img in result.get('images', [])]
-            job_result = JobResult(images=images, info=result.get('info', {}), params=result.get('params', {}))
+            images = [ImageRef(**img) for img in result.get("images", [])]
+            job_result = JobResult(images=images, info=result.get("info", {}), params=result.get("params", {}))
     return JobResponse(
-        id=job['id'],
-        type=job['type'],
-        status=job['status'],
-        progress=job.get('progress', 0),
-        step=job.get('step', 0),
-        steps=job.get('steps', 0),
-        created_at=job['created_at'],
-        started_at=job.get('started_at'),
-        completed_at=job.get('completed_at'),
-        error=job.get('error'),
+        id=job["id"],
+        type=job["type"],
+        status=job["status"],
+        progress=job.get("progress", 0),
+        step=job.get("step", 0),
+        steps=job.get("steps", 0),
+        created_at=job["created_at"],
+        started_at=job.get("started_at"),
+        completed_at=job.get("completed_at"),
+        error=job.get("error"),
         result=job_result,
     )
 
@@ -66,6 +66,7 @@ async def submit_job(request: JobRequest):
     every job type and stripped before the params dict reaches the executor."""
     from enso_api.executors import EXECUTORS
     from enso_api.job_queue import job_queue
+
     payload = request.model_dump(exclude_unset=True)
     job_type = payload["type"]
     if job_type not in EXECUTORS:
@@ -90,9 +91,14 @@ async def list_jobs(
     offset: int = Query(default=0, ge=0),
 ):
     from enso_api.job_queue import job_queue
+
     items, total = job_queue.store.list(
-        status=status, job_type=type, before=before, after=after,
-        limit=limit, offset=offset,
+        status=status,
+        job_type=type,
+        before=before,
+        after=after,
+        limit=limit,
+        offset=offset,
     )
     return JobListResponse(items=[job_to_response(j) for j in items], total=total, offset=offset, limit=limit)
 
@@ -100,6 +106,7 @@ async def list_jobs(
 @router.delete("/jobs", response_model=ResPurgeV2, tags=["Jobs"])
 async def purge_jobs():
     from enso_api.job_queue import job_queue
+
     deleted = await asyncio.to_thread(job_queue.store.purge)
     return {"deleted": deleted}
 
@@ -107,6 +114,7 @@ async def purge_jobs():
 @router.get("/jobs/stats", response_model=ResJobStatsV2, tags=["Jobs"])
 async def job_stats():
     from enso_api.job_queue import job_queue
+
     return await asyncio.to_thread(job_queue.store.stats)
 
 
@@ -117,15 +125,23 @@ async def bulk_job_action(request: ReqBulkJobV2):
     if not any([request.status, request.type, request.ids, request.before, request.after]) and not request.confirm:
         raise HTTPException(status_code=400, detail="At least one filter (status, type, ids, before, after) is required, or set confirm=true")
     from enso_api.job_queue import job_queue
+
     if request.action == "cancel":
         affected = await asyncio.to_thread(
             job_queue.store.bulk_cancel,
-            job_type=request.type, ids=request.ids, before=request.before, after=request.after,
+            job_type=request.type,
+            ids=request.ids,
+            before=request.before,
+            after=request.after,
         )
     else:
         affected = await asyncio.to_thread(
             job_queue.store.bulk_delete,
-            status=request.status, job_type=request.type, ids=request.ids, before=request.before, after=request.after,
+            status=request.status,
+            job_type=request.type,
+            ids=request.ids,
+            before=request.before,
+            after=request.after,
         )
     return ResBulkJobV2(action=request.action, affected=affected)
 
@@ -133,6 +149,7 @@ async def bulk_job_action(request: ReqBulkJobV2):
 @router.get("/jobs/{job_id}", response_model=JobResponse, tags=["Jobs"])
 async def get_job(job_id: str):
     from enso_api.job_queue import job_queue
+
     job = job_queue.store.get(job_id)
     if job is None:
         raise HTTPException(status_code=404, detail=f"Job not found: {job_id}")
@@ -140,7 +157,8 @@ async def get_job(job_id: str):
     # Optionally include inline base64 images
     try:
         from modules import shared
-        if getattr(shared.opts, 'api_v2_base64', False) and resp.result and resp.result.images:
+
+        if getattr(shared.opts, "api_v2_base64", False) and resp.result and resp.result.images:
             embed_base64(job, resp)
     except Exception:
         pass
@@ -150,6 +168,7 @@ async def get_job(job_id: str):
 @router.delete("/jobs/{job_id}", response_model=StatusResponse, tags=["Jobs"])
 async def delete_job(job_id: str):
     from enso_api.job_queue import job_queue
+
     job = job_queue.store.get(job_id)
     if job is None:
         raise HTTPException(status_code=404, detail=f"Job not found: {job_id}")
@@ -162,15 +181,16 @@ async def delete_job(job_id: str):
 
 def embed_base64(job: dict, resp: JobResponse) -> None:
     import base64
+
     for img_ref in resp.result.images:
-        file_path = get_ref_path(job, 'images', img_ref.index)
+        file_path = get_ref_path(job, "images", img_ref.index)
         if file_path and os.path.isfile(file_path):
-            with open(file_path, 'rb') as f:
-                img_ref.__dict__['data'] = base64.b64encode(f.read()).decode('ascii')
+            with open(file_path, "rb") as f:
+                img_ref.__dict__["data"] = base64.b64encode(f.read()).decode("ascii")
 
 
 def get_ref_path(job: dict, key: str, index: int) -> str | None:
-    result = job.get('result')
+    result = job.get("result")
     if isinstance(result, str):
         try:
             result = json.loads(result)
@@ -181,7 +201,7 @@ def get_ref_path(job: dict, key: str, index: int) -> str | None:
     items = result.get(key, [])
     if index < 0 or index >= len(items):
         return None
-    return items[index].get('path')
+    return items[index].get("path")
 
 
 def serve_job_file(job: dict, key: str, index: int):
@@ -191,58 +211,65 @@ def serve_job_file(job: dict, key: str, index: int):
     if not os.path.isfile(file_path):
         raise HTTPException(status_code=404, detail="File not found on disk")
     from modules import shared
+
     try:
         from modules.api.security import is_confined_to
     except ImportError:
         from enso_api.security_stubs import is_confined_to
     allowed_attrs = [
-        'outdir_samples', 'outdir_grids', 'outdir_video',
-        'outdir_txt2img_samples', 'outdir_img2img_samples',
-        'outdir_control_samples', 'outdir_extras_samples',
+        "outdir_samples",
+        "outdir_grids",
+        "outdir_video",
+        "outdir_txt2img_samples",
+        "outdir_img2img_samples",
+        "outdir_control_samples",
+        "outdir_extras_samples",
     ]
     from enso_api.temp_store import get_staging_dir
+
     allowed = list({r for attr in allowed_attrs for r in [getattr(shared.opts, attr, None)] if r})
     staging = get_staging_dir()
     if staging:
         allowed.append(staging)
     if allowed and not is_confined_to(file_path, allowed):
         raise HTTPException(status_code=403, detail="Access denied")
-    ext = os.path.splitext(file_path)[1].lstrip('.').lower()
-    media_types = {'png': 'image/png', 'jpeg': 'image/jpeg', 'jpg': 'image/jpeg', 'webp': 'image/webp', 'jxl': 'image/jxl', 'mp4': 'video/mp4', 'webm': 'video/webm', 'gif': 'image/gif'}
-    return FileResponse(file_path, media_type=media_types.get(ext, 'application/octet-stream'))
+    ext = os.path.splitext(file_path)[1].lstrip(".").lower()
+    media_types = {"png": "image/png", "jpeg": "image/jpeg", "jpg": "image/jpeg", "webp": "image/webp", "jxl": "image/jxl", "mp4": "video/mp4", "webm": "video/webm", "gif": "image/gif"}
+    return FileResponse(file_path, media_type=media_types.get(ext, "application/octet-stream"))
 
 
 def get_completed_job(job_id: str):
     from enso_api.job_queue import job_queue
+
     job = job_queue.store.get(job_id)
     if job is None:
         raise HTTPException(status_code=404, detail="Job not found")
-    if job['status'] != 'completed':
+    if job["status"] != "completed":
         raise HTTPException(status_code=409, detail="Job not completed")
     return job
 
 
 @router.get("/jobs/{job_id}/images/{index}", tags=["Jobs"])
 async def get_job_image(job_id: str, index: int):
-    return serve_job_file(get_completed_job(job_id), 'images', index)
+    return serve_job_file(get_completed_job(job_id), "images", index)
 
 
 @router.get("/jobs/{job_id}/processed/{index}", tags=["Jobs"])
 async def get_job_processed(job_id: str, index: int):
-    return serve_job_file(get_completed_job(job_id), 'processed', index)
+    return serve_job_file(get_completed_job(job_id), "processed", index)
 
 
 def parse_video_mode(name: str) -> str:
     lower = name.lower()
-    if 'flf2v' in lower:
-        return 'flf2v'
-    if 'vace' in lower:
-        return 'vace'
-    if 'animate' in lower:
-        return 'animate'
-    if 'i2v' in lower:
-        return 'i2v'
-    return 't2v'
+    if "flf2v" in lower:
+        return "flf2v"
+    if "vace" in lower:
+        return "vace"
+    if "animate" in lower:
+        return "animate"
+    if "i2v" in lower:
+        return "i2v"
+    return "t2v"
 
 
 @router.get("/video/engines", response_model=list[VideoEngine], tags=["Video"])
@@ -250,38 +277,42 @@ async def list_video_engines():
     from modules.video_models import models_def, video_load
 
     from enso_api.util import is_model_cached
+
     current_loaded = video_load.loaded_model
     result = []
     for engine_name, model_list in models_def.models.items():
-        if engine_name == 'None':
+        if engine_name == "None":
             continue
-        model_names = [m.name for m in model_list if m.name != 'None']
+        model_names = [m.name for m in model_list if m.name != "None"]
         details = []
         for m in model_list:
-            if m.name == 'None':
+            if m.name == "None":
                 continue
             cached = is_model_cached(m.repo) if m.repo else False
             loaded = m.name == current_loaded if current_loaded else False
             mode = parse_video_mode(m.name)
-            details.append(VideoModelEnriched(name=m.name, repo=m.repo or '', url=m.url or '', cached=cached, loaded=loaded, mode=mode))
-        result.append({'engine': engine_name, 'models': model_names, 'model_details': details})
+            details.append(VideoModelEnriched(name=m.name, repo=m.repo or "", url=m.url or "", cached=cached, loaded=loaded, mode=mode))
+        result.append({"engine": engine_name, "models": model_names, "model_details": details})
     return result
 
 
 @router.get("/video/engines/{engine}/models", response_model=list[VideoModel], tags=["Video"])
 async def list_video_engine_models(engine: str):
     from modules.video_models import models_def
+
     if engine not in models_def.models:
         raise HTTPException(status_code=404, detail=f"Engine not found: {engine}")
     model_list = models_def.models[engine]
-    return [{'name': m.name, 'repo': m.repo or '', 'url': m.url or ''} for m in model_list if m.name != 'None']
+    return [{"name": m.name, "repo": m.repo or "", "url": m.url or ""} for m in model_list if m.name != "None"]
 
 
 @router.post("/video/load", response_model=VideoLoadResponse, tags=["Video"])
 async def load_video_model(request: ReqVideoLoadV2):
     def load():
         from modules.video_models import video_ui
+
         return list(video_ui.model_load(request.engine, request.model))
+
     messages = await asyncio.to_thread(load)
     return {"engine": request.engine, "model": request.model, "messages": messages}
 
@@ -289,6 +320,7 @@ async def load_video_model(request: ReqVideoLoadV2):
 @router.get("/framepack/variants", response_model=list[str], tags=["Video"])
 async def list_framepack_variants():
     from modules.framepack import framepack_load
+
     return list(framepack_load.models.keys())
 
 
@@ -296,11 +328,13 @@ async def list_framepack_variants():
 async def load_framepack_model(request: ReqFramePackLoadV2):
     def load():
         from modules.framepack import framepack_wrappers
+
         messages = []
         for item in framepack_wrappers.load_model(request.variant, request.attention):
             if isinstance(item, tuple) and len(item) > 2 and isinstance(item[2], str):
                 messages.append(item[2])
         return messages
+
     messages = await asyncio.to_thread(load)
     return {"variant": request.variant, "messages": messages}
 
@@ -309,6 +343,8 @@ async def load_framepack_model(request: ReqFramePackLoadV2):
 async def unload_framepack_model():
     def _unload():
         from modules.framepack import framepack_wrappers
+
         list(framepack_wrappers.unload_model())
+
     await asyncio.to_thread(_unload)
     return {"messages": ["Model unloaded"]}

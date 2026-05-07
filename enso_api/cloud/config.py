@@ -60,9 +60,7 @@ class ConfigStore:
         try:
             with open(self._path, encoding="utf-8") as f:
                 data = json.load(f)
-            self._providers = [
-                ProviderConfig(**p) for p in data.get("providers", [])
-            ]
+            self._providers = [ProviderConfig(**p) for p in data.get("providers", [])]
         except (json.JSONDecodeError, TypeError, KeyError):
             self._providers = []
 

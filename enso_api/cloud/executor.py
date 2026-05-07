@@ -26,7 +26,9 @@ def _get_thread_event_loop() -> asyncio.AbstractEventLoop:
 def _make_progress_callback(job_id: str) -> ProgressCallback:
     def on_progress(data: dict):
         from enso_api.job_queue import job_queue
+
         job_queue.push_progress(job_id, data)
+
     return on_progress
 
 
@@ -37,6 +39,7 @@ def execute_cloud_image(params: dict, job_id: str) -> dict:
 
 async def _async_cloud_image(params: dict, job_id: str) -> dict:
     from enso_api.cloud import get_adapter
+
     adapter = get_adapter(params["provider"])
     on_progress = _make_progress_callback(job_id)
 
@@ -51,6 +54,7 @@ def execute_cloud_chat(params: dict, job_id: str) -> dict:
 
 async def _async_cloud_chat(params: dict, job_id: str) -> dict:
     from enso_api.cloud import get_adapter
+
     adapter = get_adapter(params["provider"])
     on_progress = _make_progress_callback(job_id)
 
@@ -78,6 +82,7 @@ def execute_cloud_tts(params: dict, job_id: str) -> dict:
 
 async def _async_cloud_tts(params: dict, job_id: str) -> dict:
     from enso_api.cloud import get_adapter
+
     adapter = get_adapter(params["provider"])
 
     result = await adapter.tts(params)
@@ -107,6 +112,7 @@ def execute_cloud_stt(params: dict, job_id: str) -> dict:
 
 async def _async_cloud_stt(params: dict, _job_id: str) -> dict:
     from enso_api.cloud import get_adapter
+
     adapter = get_adapter(params["provider"])
 
     result = await adapter.transcribe(params)
@@ -132,6 +138,7 @@ def execute_cloud_video(params: dict, job_id: str) -> dict:
 
 async def _async_cloud_video(params: dict, job_id: str) -> dict:
     from enso_api.cloud import get_adapter
+
     adapter = get_adapter(params["provider"])
     on_progress = _make_progress_callback(job_id)
 
@@ -157,10 +164,12 @@ async def _async_cloud_video(params: dict, job_id: str) -> dict:
 
 # --- Result storage helpers ---
 
+
 def _get_output_dir(job_id: str) -> str:
     import os
 
     from enso_api.job_queue import job_queue
+
     base = os.path.dirname(job_queue.store.db_path) if job_queue.store else "."
     output_dir = os.path.join(base, "outputs", job_id)
     os.makedirs(output_dir, exist_ok=True)
@@ -169,6 +178,7 @@ def _get_output_dir(job_id: str) -> str:
 
 def _save_image_result(result, job_id: str, params: dict) -> dict:
     import os
+
     output_dir = _get_output_dir(job_id)
     images = []
     fmt = result.format or "png"
@@ -178,14 +188,16 @@ def _save_image_result(result, job_id: str, params: dict) -> dict:
         filepath = os.path.join(output_dir, filename)
         with open(filepath, "wb") as f:
             f.write(img_bytes)
-        images.append({
-            "index": i,
-            "url": f"/sdapi/v2/jobs/{job_id}/images/{i}",
-            "width": params.get("width", 0),
-            "height": params.get("height", 0),
-            "format": fmt,
-            "size": len(img_bytes),
-        })
+        images.append(
+            {
+                "index": i,
+                "url": f"/sdapi/v2/jobs/{job_id}/images/{i}",
+                "width": params.get("width", 0),
+                "height": params.get("height", 0),
+                "format": fmt,
+                "size": len(img_bytes),
+            }
+        )
 
     return {
         "images": images,
@@ -207,6 +219,7 @@ def _save_image_result(result, job_id: str, params: dict) -> dict:
 
 def _save_audio_result(result, job_id: str) -> str:
     import os
+
     output_dir = _get_output_dir(job_id)
     filename = f"audio.{result.format}"
     filepath = os.path.join(output_dir, filename)
@@ -217,6 +230,7 @@ def _save_audio_result(result, job_id: str) -> str:
 
 def _save_video_result(result, job_id: str) -> str:
     import os
+
     output_dir = _get_output_dir(job_id)
     filename = f"video.{result.format}"
     filepath = os.path.join(output_dir, filename)

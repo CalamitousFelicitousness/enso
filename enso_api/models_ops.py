@@ -26,6 +26,7 @@ def jsonable(obj):
 # Phase 1 - Current model & list
 # ---------------------------------------------------------------------------
 
+
 def get_analyze():
     """
     Analyze the currently loaded model.
@@ -34,6 +35,7 @@ def get_analyze():
     of all sub-modules with their device, dtype, quantization, and parameter counts.
     """
     from modules import modelstats
+
     model = modelstats.analyze()
     if model is None:
         return {}
@@ -54,7 +56,7 @@ def get_analyze():
                 "quant": str(m.quant) if m.quant else None,
                 "params": m.params,
                 "modules": m.modules,
-                "config": jsonable(dict(m.config)) if m.config and hasattr(m.config, 'items') else None,
+                "config": jsonable(dict(m.config)) if m.config and hasattr(m.config, "items") else None,
             }
             for m in model.modules
         ],
@@ -70,6 +72,7 @@ def post_save(name: str, path: str = None, shard: str = None, overwrite: bool = 
     an existing file.
     """
     from modules import sd_models
+
     result = sd_models.save_model(name=name, path=path, shard=shard, overwrite=overwrite)
     return {"status": result}
 
@@ -82,6 +85,7 @@ def get_list_detail():
     model type, matching pipeline class, hash, file size, and modification time.
     """
     from modules import modelstats, sd_checkpoint, sd_detect
+
     rows = []
     for ckpt in sd_checkpoint.checkpoints_list.values():
         try:
@@ -100,16 +104,18 @@ def get_list_detail():
             guess = sd_detect.guess_variant(f, guess)
             if pipeline is None:
                 pipeline = sd_detect.shared_items.get_pipelines().get(guess, None)
-            rows.append({
-                "model_name": ckpt.model_name,
-                "filename": ckpt.filename,
-                "type": typ,
-                "detected_type": guess,
-                "pipeline": pipeline.__name__ if pipeline else None,
-                "hash": ckpt.shorthash,
-                "size": stat_size,
-                "mtime": str(stat_mtime) if stat_mtime else None,
-            })
+            rows.append(
+                {
+                    "model_name": ckpt.model_name,
+                    "filename": ckpt.filename,
+                    "type": typ,
+                    "detected_type": guess,
+                    "pipeline": pipeline.__name__ if pipeline else None,
+                    "hash": ckpt.shorthash,
+                    "size": stat_size,
+                    "mtime": str(stat_mtime) if stat_mtime else None,
+                }
+            )
         except Exception as e:
             log.error(f"Model list-detail: {e}")
     return rows
@@ -123,6 +129,7 @@ def post_update_hashes():
     of updated entries with name, type, and new hash.
     """
     from modules import sd_checkpoint
+
     updated = []
     for _html in sd_checkpoint.update_model_hashes():
         pass  # consume the generator
@@ -136,6 +143,7 @@ def post_update_hashes():
 # Phase 2 - HuggingFace, CivitAI, Metadata
 # ---------------------------------------------------------------------------
 
+
 def get_hf_search(keyword: str = ""):
     """
     Search HuggingFace Hub for models.
@@ -144,11 +152,9 @@ def get_hf_search(keyword: str = ""):
     last modified date, and URL.
     """
     from modules import models_hf
+
     results = models_hf.hf_search(keyword)
-    return [
-        {"id": r[0], "pipeline_tag": r[1], "tags": r[2], "downloads": r[3], "last_modified": r[4], "url": r[5]}
-        for r in results
-    ]
+    return [{"id": r[0], "pipeline_tag": r[1], "tags": r[2], "downloads": r[3], "last_modified": r[4], "url": r[5]} for r in results]
 
 
 def post_hf_download(hub_id: str, token: str = "", variant: str = "", revision: str = "", mirror: str = "", custom_pipeline: str = ""):
@@ -159,6 +165,7 @@ def post_hf_download(hub_id: str, token: str = "", variant: str = "", revision: 
     authentication token, variant (e.g., fp16), revision, mirror URL, and custom pipeline.
     """
     from modules import models_hf
+
     result = models_hf.hf_download_model(hub_id, token, variant, revision, mirror, custom_pipeline)
     return {"status": result}
 
@@ -172,6 +179,7 @@ def post_civitai_download(url: str, name: str = "", path: str = "", model_type: 
     """
     from modules.civitai.download_civitai import download_manager
     from modules.civitai.filemanage_civitai import get_type_folder
+
     try:
         from modules.api.security import is_confined_to, validate_download_url
     except ImportError:
@@ -180,13 +188,15 @@ def post_civitai_download(url: str, name: str = "", path: str = "", model_type: 
         return {"status": "Error: no url provided"}
     validate_download_url(url)
     if not path:
-        folder = str(get_type_folder(model_type or 'Checkpoint'))
+        folder = str(get_type_folder(model_type or "Checkpoint"))
     elif os.path.isabs(path):
         folder = path
     else:
         from modules import paths
+
         folder = os.path.join(paths.models_path, path)
     from modules import paths
+
     if not is_confined_to(folder, [paths.models_path]):
         return {"status": "Error: path outside models directory"}
     item = download_manager.enqueue(
@@ -207,6 +217,7 @@ def post_metadata_scan():
     scan results with model ID, name, hash, versions, and status.
     """
     from modules.civitai import metadata_civitai
+
     results = []
     for batch in metadata_civitai.civit_search_metadata(raw=True):
         if isinstance(batch, list):
@@ -222,27 +233,31 @@ def post_metadata_update():
     local records. Returns per-model update results.
     """
     from modules.civitai import metadata_civitai
+
     items = []
     for batch in metadata_civitai.civit_update_metadata(raw=True):
         if isinstance(batch, list):
             items = batch
     results = []
     for item in items:
-        results.append({
-            "file": getattr(item, "file", None),
-            "id": getattr(item, "id", None),
-            "name": getattr(item, "name", None),
-            "sha": getattr(item, "sha", None),
-            "versions": getattr(item, "versions", None),
-            "latest": getattr(item, "latest_name", None),
-            "status": getattr(item, "status", None),
-        })
+        results.append(
+            {
+                "file": getattr(item, "file", None),
+                "id": getattr(item, "id", None),
+                "name": getattr(item, "name", None),
+                "sha": getattr(item, "sha", None),
+                "versions": getattr(item, "versions", None),
+                "latest": getattr(item, "latest_name", None),
+                "status": getattr(item, "status", None),
+            }
+        )
     return {"results": results}
 
 
 # ---------------------------------------------------------------------------
 # Phase 3 - Merge & Replace
 # ---------------------------------------------------------------------------
+
 
 def get_merge_methods():
     """
@@ -254,6 +269,7 @@ def get_merge_methods():
     from modules.merging import merge_methods
     from modules.merging.merge_presets import BLOCK_WEIGHTS_PRESETS, SDXL_BLOCK_WEIGHTS_PRESETS
     from modules.merging.merge_utils import BETA_METHODS, TRIPLE_METHODS
+
     docs = {}
     for name in merge_methods.__all__:
         fn = getattr(merge_methods, name, None)
@@ -308,6 +324,7 @@ def post_merge(  # pylint: disable=unused-argument
     alignment, and optional VAE bake-in. Saves the result as ``custom_name``.
     """
     from modules import errors, extras, sd_models
+
     kwargs = {k: v for k, v in locals().items() if v not in [None, "None", "", 0, []]}
     if not custom_name:
         return {"status": "Error: no output model name specified"}
@@ -353,15 +370,30 @@ def post_replace(
     with optional metadata (author, version, license, description).
     """
     from modules import extras
+
     status = "Unknown"
     for msg in extras.run_model_modules(
-        model_type, model_name, custom_name,
-        comp_unet, comp_vae, comp_te1, comp_te2,
-        precision, comp_scheduler, comp_prediction,
-        comp_lora, comp_fuse,
-        meta_author, meta_version, meta_license, meta_desc, meta_hint,
+        model_type,
+        model_name,
+        custom_name,
+        comp_unet,
+        comp_vae,
+        comp_te1,
+        comp_te2,
+        precision,
+        comp_scheduler,
+        comp_prediction,
+        comp_lora,
+        comp_fuse,
+        meta_author,
+        meta_version,
+        meta_license,
+        meta_desc,
+        meta_hint,
         None,  # meta_thumbnail (PIL image - not applicable via API)
-        create_diffusers, create_safetensors, debug,
+        create_diffusers,
+        create_safetensors,
+        debug,
     ):
         status = msg
     return {"status": status}
@@ -371,6 +403,7 @@ def post_replace(
 # Phase 4 - Loader & Extract LoRA
 # ---------------------------------------------------------------------------
 
+
 def get_loader_pipelines():
     """
     List available pipeline types for the model loader.
@@ -379,6 +412,7 @@ def get_loader_pipelines():
     that can be used with the loader/components and loader/load endpoints.
     """
     from modules import shared_items
+
     names = list(shared_items.pipelines)
     names = ["Current" if x.startswith("Custom") else x for x in names]
     return {"pipelines": names}
@@ -394,6 +428,7 @@ def post_loader_components(model_type: str):
     """
     import diffusers as _diffusers
     from modules import shared_items, ui_models_load
+
     if model_type == "Current":
         cls = shared.sd_model.__class__ if shared.sd_loaded else None
     else:
@@ -412,17 +447,19 @@ def post_loader_components(model_type: str):
         ui_models_load.components.append(component)
     result = []
     for c in ui_models_load.components:
-        result.append({
-            "id": c.id,
-            "name": c.name,
-            "loadable": c.loadable,
-            "default": str(c.val) if c.val is not None else None,
-            "class_name": c.str,
-            "local": c.local,
-            "remote": c.remote,
-            "dtype": c.dtype,
-            "quant": c.quant,
-        })
+        result.append(
+            {
+                "id": c.id,
+                "name": c.name,
+                "loadable": c.loadable,
+                "default": str(c.val) if c.val is not None else None,
+                "class_name": c.str,
+                "local": c.local,
+                "remote": c.remote,
+                "dtype": c.dtype,
+                "quant": c.quant,
+            }
+        )
     return {"class": name, "repo": repo, "components": result}
 
 
@@ -435,6 +472,7 @@ def post_loader_load(model_type: str, repo: str, components: list = None):
     Call loader/components first to discover available components.
     """
     from modules import ui_models_load
+
     cls_name = None
     # Ensure components are populated - call post_loader_components first
     if not ui_models_load.components:
@@ -443,6 +481,7 @@ def post_loader_load(model_type: str, repo: str, components: list = None):
     if cls_name is None:
         import diffusers as _diffusers
         from modules import shared_items
+
         if model_type == "Current":
             cls = shared.sd_model.__class__ if shared.sd_loaded else None
         else:
@@ -478,6 +517,7 @@ def get_lora_loaded():
     Returns names of all LoRA networks that are fused or applied to the current model.
     """
     from modules.lora import lora_extract
+
     result = lora_extract.loaded_lora()
     if isinstance(result, str):
         return {"loras": []}
@@ -493,6 +533,7 @@ def post_lora_extract(filename: str, max_rank: int = 64, auto_rank: bool = False
     to extract (defaults to ["te", "unet"]).
     """
     from modules.lora import lora_extract
+
     if modules is None:
         modules = ["te", "unet"]
     status = "Unknown"
@@ -504,6 +545,7 @@ def post_lora_extract(filename: str, max_rank: int = 64, auto_rank: bool = False
 # ---------------------------------------------------------------------------
 # Registration
 # ---------------------------------------------------------------------------
+
 
 def register_api():
     api = shared.api

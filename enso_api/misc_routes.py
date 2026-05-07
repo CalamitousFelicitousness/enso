@@ -14,6 +14,7 @@ from enso_api.models import ReqHuggingFaceSettingsV2
 # HuggingFace settings
 # ---------------------------------------------------------------------------
 
+
 def get_hf_settings():
     """Return HuggingFace token configuration status."""
     return {"token_configured": bool(shared.opts.huggingface_token)}
@@ -24,38 +25,43 @@ def post_hf_settings(request: ReqHuggingFaceSettingsV2):
     import os
 
     from starlette.responses import JSONResponse
+
     token = request.token
     if token is not None:
         token = token.strip()
         if token:
             try:
                 import huggingface_hub as hf
+
                 user = hf.whoami(token=token)
-                log.info(f'HuggingFace token validated: user={user.get("name", "?")}')
+                log.info(f"HuggingFace token validated: user={user.get('name', '?')}")
             except Exception:
                 return JSONResponse(content={"error": "Invalid token"}, status_code=400)
         shared.opts.huggingface_token = token
         shared.opts.save()
         if token:
-            os.environ['HF_TOKEN'] = token
+            os.environ["HF_TOKEN"] = token
             try:
                 import huggingface_hub as hf
+
                 hf.login(token=token, add_to_git_credential=False)
             except Exception:
                 pass
         else:
-            os.environ.pop('HF_TOKEN', None)
+            os.environ.pop("HF_TOKEN", None)
     return get_hf_settings()
 
 
 def get_hf_profile():
     """Return HuggingFace profile for the configured token."""
     from starlette.responses import JSONResponse
+
     token = shared.opts.huggingface_token
     if not token:
         return JSONResponse(content={"error": "not authenticated"}, status_code=401)
     try:
         import huggingface_hub as hf
+
         user = hf.whoami(token=token)
         return {
             "username": user.get("name", ""),
@@ -70,9 +76,10 @@ def get_hf_profile():
 # Extra-networks detail
 # ---------------------------------------------------------------------------
 
+
 def format_tags(raw_tags):
     if isinstance(raw_tags, dict):
-        return '|'.join(raw_tags.keys()) if raw_tags else None
+        return "|".join(raw_tags.keys()) if raw_tags else None
     if isinstance(raw_tags, str) and raw_tags:
         return raw_tags
     return None
@@ -81,30 +88,31 @@ def format_tags(raw_tags):
 def get_extra_network_detail(page: str, name: str):
     """Get detailed metadata for a single extra network item."""
     from starlette.responses import JSONResponse
+
     for pg in shared.extra_networks:
         if pg.name.lower() != page.lower():
             continue
         for item in pg.items:
-            if item.get('name', '').lower() != name.lower():
+            if item.get("name", "").lower() != name.lower():
                 continue
-            mtime = item.get('mtime', None)
+            mtime = item.get("mtime", None)
             if isinstance(mtime, datetime):
                 mtime = mtime.isoformat()
             elif mtime is not None:
                 mtime = str(mtime)
             return {
-                'name': item.get('name', ''),
-                'type': pg.name,
-                'title': item.get('title', None),
-                'filename': item.get('filename', None),
-                'hash': item.get('shorthash', None) or item.get('hash'),
-                'alias': item.get('alias', None),
-                'size': item.get('size', None),
-                'mtime': mtime,
-                'version': item.get('version', None),
-                'tags': format_tags(item.get('tags', None)),
-                'description': item.get('description', None),
-                'info': item.get('info', None) if isinstance(item.get('info'), dict) else None,
+                "name": item.get("name", ""),
+                "type": pg.name,
+                "title": item.get("title", None),
+                "filename": item.get("filename", None),
+                "hash": item.get("shorthash", None) or item.get("hash"),
+                "alias": item.get("alias", None),
+                "size": item.get("size", None),
+                "mtime": mtime,
+                "version": item.get("version", None),
+                "tags": format_tags(item.get("tags", None)),
+                "description": item.get("description", None),
+                "info": item.get("info", None) if isinstance(item.get("info"), dict) else None,
             }
     return JSONResponse(content={"detail": "Not found"}, status_code=404)
 
@@ -116,49 +124,52 @@ def get_extra_network_details(page: str | None = None, name: str | None = None, 
         if page is not None and pg.name != page.lower():
             continue
         for item in pg.items:
-            if name is not None and item.get('name', '') != name:
+            if name is not None and item.get("name", "") != name:
                 continue
-            if title is not None and item.get('title', '') != title:
+            if title is not None and item.get("title", "") != title:
                 continue
-            if filename is not None and item.get('filename', '') != filename:
+            if filename is not None and item.get("filename", "") != filename:
                 continue
-            if fullname is not None and item.get('fullname', '') != fullname:
+            if fullname is not None and item.get("fullname", "") != fullname:
                 continue
-            if hash is not None and (item.get('shorthash', None) or item.get('hash')) != hash:
+            if hash is not None and (item.get("shorthash", None) or item.get("hash")) != hash:
                 continue
-            mtime = item.get('mtime', None)
+            mtime = item.get("mtime", None)
             if isinstance(mtime, datetime):
                 mtime = mtime.isoformat()
             elif mtime is not None:
                 mtime = str(mtime)
-            matched.append({
-                'name': item.get('name', ''),
-                'type': pg.name,
-                'title': item.get('title', None),
-                'fullname': item.get('fullname', None),
-                'filename': item.get('filename', None),
-                'hash': item.get('shorthash', None) or item.get('hash'),
-                'preview': item.get('preview', None),
-                'alias': item.get('alias', None),
-                'size': item.get('size', None),
-                'mtime': mtime,
-                'version': item.get('version', None),
-                'tags': format_tags(item.get('tags', None)),
-                'description': item.get('description', None),
-                'info': item.get('info', None) if isinstance(item.get('info'), dict) else None,
-            })
+            matched.append(
+                {
+                    "name": item.get("name", ""),
+                    "type": pg.name,
+                    "title": item.get("title", None),
+                    "fullname": item.get("fullname", None),
+                    "filename": item.get("filename", None),
+                    "hash": item.get("shorthash", None) or item.get("hash"),
+                    "preview": item.get("preview", None),
+                    "alias": item.get("alias", None),
+                    "size": item.get("size", None),
+                    "mtime": mtime,
+                    "version": item.get("version", None),
+                    "tags": format_tags(item.get("tags", None)),
+                    "description": item.get("description", None),
+                    "info": item.get("info", None) if isinstance(item.get("info"), dict) else None,
+                }
+            )
     total = len(matched)
     return {
-        'items': matched[offset:offset + limit],
-        'total': total,
-        'offset': offset,
-        'limit': limit,
+        "items": matched[offset : offset + limit],
+        "total": total,
+        "offset": offset,
+        "limit": limit,
     }
 
 
 # ---------------------------------------------------------------------------
 # WS ticket
 # ---------------------------------------------------------------------------
+
 
 def post_ws_ticket():
     """Create a one-time WebSocket authentication ticket."""
@@ -173,9 +184,11 @@ def post_ws_ticket():
 # Registration
 # ---------------------------------------------------------------------------
 
+
 def register_misc_routes(app, add_route):
     """Register miscellaneous v2 routes via the shared add_api_route helper."""
     from modules.api.models import ItemExtraNetworkDetail, ResExtraNetworkDetails
+
     add_route("/sdapi/v2/huggingface/settings", get_hf_settings, methods=["GET"], tags=["HuggingFace"])
     add_route("/sdapi/v2/huggingface/settings", post_hf_settings, methods=["POST"], tags=["HuggingFace"])
     add_route("/sdapi/v2/huggingface/me", get_hf_profile, methods=["GET"], tags=["HuggingFace"])

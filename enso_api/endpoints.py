@@ -92,7 +92,7 @@ def format_tags(raw_tags) -> list[str]:
     if isinstance(raw_tags, dict):
         return list(raw_tags.keys()) if raw_tags else []
     if isinstance(raw_tags, str) and raw_tags:
-        return [t.strip() for t in raw_tags.split('|') if t.strip()]
+        return [t.strip() for t in raw_tags.split("|") if t.strip()]
     if isinstance(raw_tags, list):
         return raw_tags
     return []
@@ -134,14 +134,15 @@ def _read_arch_config(model_dir: str) -> dict | None:
     """
     search_dirs = [model_dir]
     # If the model is in a Diffusers/ directory, also check the huggingface/ cache
-    if '/Diffusers/' in model_dir:
-        search_dirs.append(model_dir.replace('/Diffusers/', '/huggingface/'))
+    if "/Diffusers/" in model_dir:
+        search_dirs.append(model_dir.replace("/Diffusers/", "/huggingface/"))
     for base in search_dirs:
         for subdir in _CONFIG_SUBDIRS:
-            config_path = os.path.join(base, subdir, 'config.json')
+            config_path = os.path.join(base, subdir, "config.json")
             if os.path.isfile(config_path):
                 try:
                     from modules.json_helpers import readfile
+
                     return readfile(config_path, silent=True)
                 except Exception:
                     pass
@@ -158,23 +159,23 @@ def resolve_version(item, page_name: str) -> str | None:
     For diffusers models without CivitAI info, we fingerprint the
     transformer/unet config.json to identify the exact model variant.
     """
-    version = item.get('version', None)
+    version = item.get("version", None)
     recovered_from_civitai = False
     # For checkpoints, try to recover the raw CivitAI baseModel
-    if page_name == 'model':
-        info = item.get('info')
+    if page_name == "model":
+        info = item.get("info")
         if isinstance(info, dict):
-            all_versions = info.get('modelVersions', [])
+            all_versions = info.get("modelVersions", [])
             if all_versions:
-                item_hash = (item.get('shorthash') or item.get('hash') or '')[:8].upper()
+                item_hash = (item.get("shorthash") or item.get("hash") or "")[:8].upper()
                 matched = all_versions[0]
                 if item_hash:
                     for v in all_versions:
-                        for f in v.get('files', []):
-                            if any(h.upper().startswith(item_hash) for h in f.get('hashes', {}).values()):
+                        for f in v.get("files", []):
+                            if any(h.upper().startswith(item_hash) for h in f.get("hashes", {}).values()):
                                 matched = v
                                 break
-                raw_base = matched.get('baseModel')
+                raw_base = matched.get("baseModel")
                 if raw_base:
                     version = raw_base
                     recovered_from_civitai = True
@@ -183,10 +184,10 @@ def resolve_version(item, page_name: str) -> str | None:
     normalized = version_normalize.get(version, version)
     # For diffusers models, fingerprint the architecture config to get
     # a more specific version (e.g. "Flux.2 Klein" -> "Flux.2 Klein 9B")
-    if not recovered_from_civitai and page_name == 'model':
+    if not recovered_from_civitai and page_name == "model":
         fingerprints = _ARCH_FINGERPRINTS.get(normalized)
         if fingerprints:
-            filename = item.get('filename', '')
+            filename = item.get("filename", "")
             if filename and os.path.isdir(filename):
                 arch_config = _read_arch_config(filename)
                 if arch_config:
@@ -194,14 +195,15 @@ def resolve_version(item, page_name: str) -> str | None:
                         val = arch_config.get(key)
                         size_label = value_map.get(val)
                         if size_label:
-                            info = item.get('info') or {}
-                            is_base = not info.get('is_distilled', False)
+                            info = item.get("info") or {}
+                            is_base = not info.get("is_distilled", False)
                             suffix = f"{size_label}-base" if is_base else size_label
                             return f"{normalized} {suffix}"
     return normalized
 
 
 # --- Extra Networks ---
+
 
 @router.get("/extra-networks", response_model=ResExtraNetworksV2, tags=["Enumerators"])
 async def get_extra_networks_v2(
@@ -218,43 +220,46 @@ async def get_extra_networks_v2(
         if page is not None and pg.name != page.lower():
             continue
         for item in pg.items:
-            tags = format_tags(item.get('tags', None))
-            name = item.get('name', '')
-            fullname = item.get('fullname', None)
+            tags = format_tags(item.get("tags", None))
+            name = item.get("name", "")
+            fullname = item.get("fullname", None)
             # LoRA/LyCo: normalize name the same way SD.Next does internally
             # (basename without extension, dots replaced with underscores)
-            if pg.name in ('lora', 'lyco') and item.get('filename'):
+            if pg.name in ("lora", "lyco") and item.get("filename"):
                 if fullname is None:
                     fullname = name
-                name = os.path.splitext(os.path.basename(item['filename']))[0].replace('.', '_')
-            title = item.get('title', '') or ''
-            filename = item.get('filename', '') or ''
+                name = os.path.splitext(os.path.basename(item["filename"]))[0].replace(".", "_")
+            title = item.get("title", "") or ""
+            filename = item.get("filename", "") or ""
             if lower_search:
                 haystack = f"{name} {title} {filename} {' '.join(tags)}".lower()
                 if lower_search not in haystack:
                     continue
             if subfolder and subfolder not in filename:
                 continue
-            mtime = format_mtime(item.get('mtime', None))
-            matched.append(ItemExtraNetworkV2(
-                name=name,
-                type=pg.name,
-                title=item.get('title', None),
-                fullname=fullname,
-                filename=item.get('filename', None),
-                hash=item.get('shorthash', None) or item.get('hash'),
-                preview=item.get('preview', None),
-                version=resolve_version(item, pg.name),
-                tags=tags,
-                size=item.get('size', None),
-                mtime=mtime,
-            ))
+            mtime = format_mtime(item.get("mtime", None))
+            matched.append(
+                ItemExtraNetworkV2(
+                    name=name,
+                    type=pg.name,
+                    title=item.get("title", None),
+                    fullname=fullname,
+                    filename=item.get("filename", None),
+                    hash=item.get("shorthash", None) or item.get("hash"),
+                    preview=item.get("preview", None),
+                    version=resolve_version(item, pg.name),
+                    tags=tags,
+                    size=item.get("size", None),
+                    mtime=mtime,
+                )
+            )
     total = len(matched)
-    page_items = matched[offset:offset + limit] if limit is not None else matched[offset:]
+    page_items = matched[offset : offset + limit] if limit is not None else matched[offset:]
     return ResExtraNetworksV2(items=page_items, total=total, offset=offset, limit=limit or total)
 
 
 # --- Options ---
+
 
 @router.get("/options", tags=["Server"])
 async def get_options_v2(
@@ -262,9 +267,10 @@ async def get_options_v2(
 ) -> dict[str, Any]:
     """Return server options, optionally filtered by key names."""
     from modules.api.options import get_options
+
     options = get_options()
     if keys:
-        requested = [k.strip() for k in keys.split(',') if k.strip()]
+        requested = [k.strip() for k in keys.split(",") if k.strip()]
         return {k: v for k, v in options.items() if k in requested}
     return options
 
@@ -273,6 +279,7 @@ async def get_options_v2(
 async def set_options_v2(req: dict[str, Any]):
     """Update one or more application options and persist them to disk."""
     from modules.api.options import set_options
+
     result = await asyncio.to_thread(set_options, req)
     updated = []
     for item in result.get("updated", []):
@@ -285,16 +292,18 @@ async def set_options_v2(req: dict[str, Any]):
 async def get_options_info_v2():
     """Return metadata for all application settings."""
     from modules.api.options import get_options_info
+
     return get_options_info()
 
 
 @router.get("/secrets-status", response_model=dict[str, ItemSecretStatusV2], tags=["Server"])
 async def get_secrets_status_v2():
     """Return configuration status for all secret options."""
-    return {} # secrets_manager not yet available in core
+    return {}  # secrets_manager not yet available in core
 
 
 # --- Control ---
+
 
 @router.get("/control-models", response_model=list[str], tags=["Control"])
 async def get_control_models_v2(
@@ -302,6 +311,7 @@ async def get_control_models_v2(
 ):
     """List available models for a given control unit type."""
     from modules.api.endpoints import get_control_models
+
     return get_control_models(unit_type)
 
 
@@ -309,6 +319,7 @@ async def get_control_models_v2(
 async def get_control_modes_v2():
     """List mode choices for control models that support modes."""
     from modules.api.endpoints import get_control_modes
+
     return get_control_modes()
 
 
@@ -316,6 +327,7 @@ async def get_control_modes_v2():
 async def get_ip_adapters_v2():
     """List available IP-Adapter models."""
     from modules.api.endpoints import get_ip_adapters
+
     return get_ip_adapters()
 
 
@@ -323,19 +335,19 @@ async def get_ip_adapters_v2():
 async def get_preprocessors_v2():
     """List available image preprocessors with their configurable parameters."""
     from modules.control import processors
-    return [
-        ItemPreprocessorV2(name=k, group=v.get('group', 'Other'), params=v.get('params', {}))
-        for k, v in processors.config.items()
-    ]
+
+    return [ItemPreprocessorV2(name=k, group=v.get("group", "Other"), params=v.get("params", {})) for k, v in processors.config.items()]
 
 
 @router.post("/preprocess", response_model=ResPreprocessV2, tags=["Control"])
 async def post_preprocess_v2(req: ReqPreprocessV2):
     """Run an image preprocessor on the input image and return the processed result."""
+
     def _run():
         import modules.api.process as process_module
         from modules.api.helpers import decode_base64_to_image, encode_pil_to_base64
         from modules.control import processors
+
         processors_list = list(processors.config)
         if req.model not in processors_list:
             raise HTTPException(status_code=400, detail=f"Processor model not found: id={req.model}")
@@ -343,23 +355,26 @@ async def post_preprocess_v2(req: ReqPreprocessV2):
         proc = process_module.processor
         if proc is None or proc.processor_id != req.model:
             from modules.call_queue import queue_lock
+
             with queue_lock:
                 proc = processors.Processor(req.model)
                 process_module.processor = proc
         for k, v in req.params.items():
-            if k not in processors.config[proc.processor_id]['params']:
+            if k not in processors.config[proc.processor_id]["params"]:
                 raise HTTPException(status_code=400, detail=f"Processor invalid parameter: id={req.model} {k}={v}")
-        jobid = shared.state.begin('API-PRE', api=True)
+        jobid = shared.state.begin("API-PRE", api=True)
         try:
             processed = proc(image, local_config=req.params)
             result_image = encode_pil_to_base64(processed)
         finally:
             shared.state.end(jobid)
         return ResPreprocessV2(ok=True, model=proc.processor_id, image=result_image)
+
     return await asyncio.to_thread(_run)
 
 
 # --- SD Models ---
+
 
 @router.get("/sd-models", response_model=ResModelsV2, tags=["Models"])
 async def get_sd_models_v2(
@@ -370,45 +385,49 @@ async def get_sd_models_v2(
 ):
     """List registered checkpoint models with search and type filtering."""
     from modules import sd_checkpoint
+
     lower_search = search.lower() if search else None
     # build a name→item lookup from the extra_networks cache (already has size/mtime/version)
     model_items = {}
     for pg in shared.extra_networks:
-        if pg.name == 'model':
+        if pg.name == "model":
             for item in pg.items:
-                model_items[item.get('name', '')] = item
+                model_items[item.get("name", "")] = item
             break
     matched = []
     for v in sd_checkpoint.checkpoints_list.values():
-        if lower_search and lower_search not in (v.title or '').lower() and lower_search not in (v.filename or '').lower():
+        if lower_search and lower_search not in (v.title or "").lower() and lower_search not in (v.filename or "").lower():
             continue
         if type and v.type != type:
             continue
         en_item = model_items.get(v.name)
-        size = en_item.get('size') if en_item else None
-        mtime = format_mtime(en_item.get('mtime')) if en_item else None
-        version = en_item.get('version') if en_item else None
-        matched.append(ItemModelV2(
-            title=v.title,
-            model_name=v.name,
-            filename=v.filename,
-            type=v.type,
-            hash=v.shorthash,
-            sha256=v.sha256,
-            size=size,
-            mtime=mtime,
-            version=version,
-            subfolder=getattr(v, 'subfolder', None),
-        ))
+        size = en_item.get("size") if en_item else None
+        mtime = format_mtime(en_item.get("mtime")) if en_item else None
+        version = en_item.get("version") if en_item else None
+        matched.append(
+            ItemModelV2(
+                title=v.title,
+                model_name=v.name,
+                filename=v.filename,
+                type=v.type,
+                hash=v.shorthash,
+                sha256=v.sha256,
+                size=size,
+                mtime=mtime,
+                version=version,
+                subfolder=getattr(v, "subfolder", None),
+            )
+        )
     matched.sort(key=lambda m: m.title.lower())
     total = len(matched)
-    page = matched[offset:offset + limit] if limit is not None else matched[offset:]
+    page = matched[offset : offset + limit] if limit is not None else matched[offset:]
     return ResModelsV2(items=page, total=total, offset=offset, limit=limit or total)
 
 
 # --- Samplers ---
 
-RES4LYF_KEYS = {'shift', 'base_shift', 'max_shift'}
+RES4LYF_KEYS = {"shift", "base_shift", "max_shift"}
+
 
 @router.get("/samplers", response_model=list[ItemSamplerV2], tags=["Enumerators"])
 async def get_samplers_v2(
@@ -417,29 +436,30 @@ async def get_samplers_v2(
 ):
     """List available samplers with optional compatibility filtering."""
     from modules import sd_samplers_diffusers
+
     compat = {}
     if shared.sd_loaded and shared.sd_model is not None:
         compat = sd_samplers_diffusers.get_sampler_compatibility(shared.sd_model)
     elif model_type:
         caps = sd_samplers_diffusers._get_cls_caps()  # pylint: disable=protected-access
-        flow_types = {'f1', 'f2', 'sd3', 'lumina', 'auraflow', 'sana', 'hidream', 'flux', 'stable diffusion 3', 'hunyuan'}
+        flow_types = {"f1", "f2", "sd3", "lumina", "auraflow", "sana", "hidream", "flux", "stable diffusion 3", "hunyuan"}
         lower_mt = model_type.lower()
-        requires_flow = lower_mt in flow_types or 'flux' in lower_mt or 'flow' in lower_mt
+        requires_flow = lower_mt in flow_types or "flux" in lower_mt or "flow" in lower_mt
         for name, cap in caps.items():
             if requires_flow:
-                compat[name] = cap['flow']
+                compat[name] = cap["flow"]
             else:
-                compat[name] = not cap['is_flow_only']
+                compat[name] = not cap["is_flow_only"]
     result = []
     for k, v in sd_samplers_diffusers.config.items():
-        if k in ('All', 'Default', 'Res4Lyf'):
+        if k in ("All", "Default", "Res4Lyf"):
             continue
-        if 'FlowMatch' in k:
-            sampler_group = 'FlowMatch'
+        if "FlowMatch" in k:
+            sampler_group = "FlowMatch"
         elif RES4LYF_KEYS.issubset(set(v.keys())):
-            sampler_group = 'Res4Lyf'
+            sampler_group = "Res4Lyf"
         else:
-            sampler_group = 'Standard'
+            sampler_group = "Standard"
         if group and sampler_group != group:
             continue
         compatible = compat.get(k) if compat else None
@@ -450,6 +470,7 @@ async def get_samplers_v2(
 
 
 # --- History ---
+
 
 @router.get("/history", response_model=ResHistoryV2, tags=["Server"])
 async def get_history_v2(
@@ -462,16 +483,16 @@ async def get_history_v2(
     """List generation history entries with optional filtering."""
     items = list(shared.state.state_history)
     if since is not None:
-        items = [h for h in items if (h.get('timestamp') or 0) > since]
+        items = [h for h in items if (h.get("timestamp") or 0) > since]
     if job:
         lower_job = job.lower()
-        items = [h for h in items if lower_job in (h.get('job', '') or '').lower()]
+        items = [h for h in items if lower_job in (h.get("job", "") or "").lower()]
     if op:
         lower_op = op.lower()
-        items = [h for h in items if lower_op in (h.get('op', '') or '').lower()]
+        items = [h for h in items if lower_op in (h.get("op", "") or "").lower()]
     items.reverse()
     total = len(items)
-    page = items[offset:offset + limit]
+    page = items[offset : offset + limit]
     return ResHistoryV2(
         items=[ItemHistoryV2(**h) for h in page],
         total=total,
@@ -482,6 +503,7 @@ async def get_history_v2(
 
 # --- Checkpoint ---
 
+
 def build_checkpoint_info() -> ResCheckpointV2:
     if not shared.sd_loaded or shared.sd_model is None:
         return ResCheckpointV2(loaded=False)
@@ -490,9 +512,9 @@ def build_checkpoint_info() -> ResCheckpointV2:
         type=shared.sd_model_type,
         class_name=shared.sd_model.__class__.__name__,
     )
-    if hasattr(shared.sd_model, 'sd_model_checkpoint'):
+    if hasattr(shared.sd_model, "sd_model_checkpoint"):
         info.checkpoint = shared.sd_model.sd_model_checkpoint
-    if hasattr(shared.sd_model, 'sd_checkpoint_info'):
+    if hasattr(shared.sd_model, "sd_checkpoint_info"):
         ci = shared.sd_model.sd_checkpoint_info
         info.title = ci.title
         info.name = ci.name
@@ -510,10 +532,12 @@ async def get_checkpoint_v2():
 @router.post("/checkpoint", response_model=ResSetCheckpointV2, tags=["Models"])
 async def set_checkpoint_v2(req: ReqSetCheckpointV2):
     """Load a checkpoint by name with optional dtype and force options."""
+
     def _load():
         from modules import devices, modelloader, sd_models
+
         if req.force:
-            sd_models.unload_model_weights(op='model')
+            sd_models.unload_model_weights(op="model")
         if req.dtype is not None:
             shared.opts.cuda_dtype = req.dtype
             devices.set_dtype()
@@ -521,12 +545,12 @@ async def set_checkpoint_v2(req: ReqSetCheckpointV2):
         # Handle reference models (same logic as ui_settings.reference_submit)
         ref_opts = modelloader.get_reference_opts(checkpoint, quiet=True)
         if ref_opts:
-            if '@' not in checkpoint:
+            if "@" not in checkpoint:
                 loaded = modelloader.load_reference(checkpoint)
                 if not loaded:
                     return None
             else:
-                model, url = checkpoint.split('@', 1)
+                model, url = checkpoint.split("@", 1)
                 loaded = modelloader.load_civitai(model, url)
                 if loaded is not None:
                     checkpoint = loaded
@@ -534,20 +558,24 @@ async def set_checkpoint_v2(req: ReqSetCheckpointV2):
                     return None
         shared.opts.sd_model_checkpoint = checkpoint
         return sd_models.reload_model_weights()
+
     model = await asyncio.to_thread(_load)
     return ResSetCheckpointV2(ok=model is not None, checkpoint=build_checkpoint_info())
 
 
 # --- VAE ---
 
+
 @router.get("/sd-vae", response_model=list[ItemVaeV2], tags=["Models"])
 async def get_sd_vae_v2():
     """List available VAE models."""
     from modules.sd_vae import vae_dict
+
     return [ItemVaeV2(name=str(k), filename=str(vae_dict[k])) for k in vae_dict]
 
 
 # --- Upscalers ---
+
 
 @router.get("/upscalers", response_model=list[ItemUpscalerV2], tags=["Models"])
 async def get_upscalers_v2():
@@ -566,6 +594,7 @@ async def get_upscalers_v2():
 
 # --- Checkpoint Mutations ---
 
+
 @router.post("/checkpoint/refresh", response_model=ResSetCheckpointV2, tags=["Models"])
 async def refresh_checkpoints_v2():
     """Rescan checkpoint directories and update the available models list."""
@@ -576,11 +605,14 @@ async def refresh_checkpoints_v2():
 @router.post("/checkpoint/reload", response_model=ResSetCheckpointV2, tags=["Models"])
 async def reload_checkpoint_v2(force: bool = Query(default=False, description="Unload model first for a clean reload")):
     """Reload the selected checkpoint."""
+
     def _reload():
         from modules import sd_models
+
         if force:
-            sd_models.unload_model_weights(op='model')
+            sd_models.unload_model_weights(op="model")
         sd_models.reload_model_weights()
+
     await asyncio.to_thread(_reload)
     return ResSetCheckpointV2(ok=True, checkpoint=build_checkpoint_info())
 
@@ -588,15 +620,19 @@ async def reload_checkpoint_v2(force: bool = Query(default=False, description="U
 @router.post("/checkpoint/unload", response_model=ResSetCheckpointV2, tags=["Models"])
 async def unload_checkpoint_v2():
     """Unload the current model and refiner from memory."""
+
     def _unload():
         from modules import sd_models
-        sd_models.unload_model_weights(op='model')
-        sd_models.unload_model_weights(op='refiner')
+
+        sd_models.unload_model_weights(op="model")
+        sd_models.unload_model_weights(op="refiner")
+
     await asyncio.to_thread(_unload)
     return ResSetCheckpointV2(ok=True, checkpoint=build_checkpoint_info())
 
 
 # --- Scripts ---
+
 
 @router.get("/scripts", response_model=ResScriptsV2, tags=["Scripts"])
 async def get_scripts_v2(
@@ -605,10 +641,11 @@ async def get_scripts_v2(
 ):
     """List available scripts with optional context and always-on filtering."""
     from modules import scripts_manager
+
     runners = [
-        (scripts_manager.scripts_txt2img, 'txt2img'),
-        (scripts_manager.scripts_img2img, 'img2img'),
-        (scripts_manager.scripts_control, 'control'),
+        (scripts_manager.scripts_txt2img, "txt2img"),
+        (scripts_manager.scripts_img2img, "img2img"),
+        (scripts_manager.scripts_control, "control"),
     ]
     dedup: dict[str, ItemScriptV2] = {}
     for runner, ctx_label in runners:
@@ -623,7 +660,7 @@ async def get_scripts_v2(
                 if ctx_label not in dedup[key].contexts:
                     dedup[key].contexts.append(ctx_label)
             else:
-                args = [{'label': a.label, 'value': a.value, 'minimum': a.minimum, 'maximum': a.maximum, 'step': a.step, 'choices': a.choices} for a in info.args] if hasattr(info, 'args') else []
+                args = [{"label": a.label, "value": a.value, "minimum": a.minimum, "maximum": a.maximum, "step": a.step, "choices": a.choices} for a in info.args] if hasattr(info, "args") else []
                 dedup[key] = ItemScriptV2(
                     name=info.name,
                     is_alwayson=info.is_alwayson,
@@ -640,22 +677,23 @@ async def get_scripts_v2(
 
 # --- Embeddings ---
 
+
 @router.get("/embeddings", response_model=ResEmbeddingsV2, tags=["Enumerators"])
 async def get_embeddings_v2():
     """List loaded and skipped textual-inversion embeddings for the current model."""
-    db = getattr(shared.sd_model, 'embedding_db', None) if shared.sd_loaded else None
+    db = getattr(shared.sd_model, "embedding_db", None) if shared.sd_loaded else None
     if db is None:
         return ResEmbeddingsV2()
 
     def _embed_item(emb) -> ItemEmbeddingV2:
         return ItemEmbeddingV2(
             name=emb.name,
-            filename=getattr(emb, 'filename', None),
-            step=getattr(emb, 'step', None),
-            shape=getattr(emb, 'shape', None),
-            vectors=getattr(emb, 'vectors', None),
-            sd_checkpoint=getattr(emb, 'sd_checkpoint', None),
-            sd_checkpoint_name=getattr(emb, 'sd_checkpoint_name', None),
+            filename=getattr(emb, "filename", None),
+            step=getattr(emb, "step", None),
+            shape=getattr(emb, "shape", None),
+            vectors=getattr(emb, "vectors", None),
+            sd_checkpoint=getattr(emb, "sd_checkpoint", None),
+            sd_checkpoint_name=getattr(emb, "sd_checkpoint_name", None),
         )
 
     loaded = [_embed_item(e) for e in db.word_embeddings.values()]
@@ -670,6 +708,7 @@ async def get_embeddings_v2():
 
 # --- Prompt Styles ---
 
+
 @router.get("/prompt-styles", response_model=list[ItemPromptStyleV2], tags=["Enumerators"])
 async def get_prompt_styles_v2():
     """List all saved prompt styles with prompt templates and metadata."""
@@ -679,11 +718,11 @@ async def get_prompt_styles_v2():
             prompt=v.prompt or None,
             negative_prompt=v.negative_prompt or None,
             extra=v.extra or None,
-            description=getattr(v, 'description', None) or None,
-            wildcards=getattr(v, 'wildcards', None) or None,
+            description=getattr(v, "description", None) or None,
+            wildcards=getattr(v, "wildcards", None) or None,
             filename=v.filename or None,
             preview=v.preview or None,
-            mtime=format_mtime(getattr(v, 'mtime', None)),
+            mtime=format_mtime(getattr(v, "mtime", None)),
         )
         for v in shared.prompt_styles.styles.values()
     ]
@@ -691,15 +730,19 @@ async def get_prompt_styles_v2():
 
 # --- Extra Networks Refresh ---
 
+
 @router.post("/extra-networks/refresh", response_model=ResRefreshNetworksV2, tags=["Enumerators"])
 async def refresh_extra_networks_v2():
     """Rescan all extra-network directories (LoRA, embeddings, etc.) and rebuild caches."""
+
     def _refresh():
         from modules.lora import lora_load
+
         lora_load.list_available_networks()
         for page in shared.extra_networks:
             page.refresh_time = 0
-            page.create_items('txt2img')
+            page.create_items("txt2img")
+
     await asyncio.to_thread(_refresh)
     total = sum(len(pg.items) for pg in shared.extra_networks)
     return ResRefreshNetworksV2(ok=True, total=total)
@@ -707,10 +750,12 @@ async def refresh_extra_networks_v2():
 
 # --- Log ---
 
+
 @router.get("/log", response_model=ResLogV2, tags=["Server"])
 async def get_log_v2(lines: int = Query(default=100, ge=0)):
     """Return recent log lines from the in-memory buffer."""
     from modules.logger import log
+
     result = log.buffer[-lines:] if lines > 0 else log.buffer.copy()
     return ResLogV2(lines=result, total=len(result))
 
@@ -719,17 +764,20 @@ async def get_log_v2(lines: int = Query(default=100, ge=0)):
 async def delete_log_v2():
     """Clear the in-memory log buffer."""
     from modules.logger import log
+
     log.buffer.clear()
     return ResLogClearV2(ok=True)
 
 
 # --- PNG Info ---
 
+
 @router.post("/png-info", response_model=ResPngInfoV2, tags=["Server"])
 async def post_png_info_v2(req: ReqPngInfoV2):
     """Extract generation parameters from a PNG image's metadata."""
     from modules import images, infotext, script_callbacks
     from modules.api.helpers import decode_base64_to_image
+
     if not req.image.strip():
         return ResPngInfoV2(ok=False, info="")
     image = decode_base64_to_image(req.image.strip())
@@ -745,31 +793,38 @@ async def post_png_info_v2(req: ReqPngInfoV2):
 
 # --- Extensions ---
 
+
 @router.get("/extensions", response_model=list[ItemExtensionV2], tags=["Server"])
 async def get_extensions_v2():
     """List installed extensions with their remote URLs, branches, versions, and enabled status."""
+
     def _list():
         from modules import extensions
+
         extensions.list_extensions()
         result = []
         for ext in extensions.extensions:
             ext.read_info()
             if ext.remote is not None:
                 branch = ext.branch if ext.branch and ext.branch != "uknnown" else "unknown"  # "uknnown" is a known typo in extension metadata
-                result.append(ItemExtensionV2(
-                    name=ext.name,
-                    remote=ext.remote,
-                    branch=branch,
-                    commit_hash=ext.commit_hash,
-                    version=ext.version,
-                    commit_date=str(ext.commit_date) if ext.commit_date is not None else None,
-                    enabled=ext.enabled,
-                ))
+                result.append(
+                    ItemExtensionV2(
+                        name=ext.name,
+                        remote=ext.remote,
+                        branch=branch,
+                        commit_hash=ext.commit_hash,
+                        version=ext.version,
+                        commit_date=str(ext.commit_date) if ext.commit_date is not None else None,
+                        enabled=ext.enabled,
+                    )
+                )
         return result
+
     return await asyncio.to_thread(_list)
 
 
 # --- Detailers ---
+
 
 @router.get("/detailers", response_model=list[ItemDetailerV2], tags=["Enumerators"])
 async def get_detailers_v2():
@@ -779,6 +834,7 @@ async def get_detailers_v2():
 
 
 # --- Job Types ---
+
 
 @router.get("/job-types", response_model=list[ItemJobTypeV2], tags=["Enumerators"])
 async def get_job_types_v2(
@@ -795,6 +851,7 @@ async def get_job_types_v2(
     /openapi.json where the request body schema is published.
     """
     from enso_api.job_types import discover_job_types
+
     items = discover_job_types()
     if runtime is not None:
         items = [i for i in items if i.runtime == runtime]

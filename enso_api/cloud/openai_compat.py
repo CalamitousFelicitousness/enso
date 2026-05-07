@@ -333,6 +333,7 @@ class OpenAICompatAdapter:
         """Resolve an upload reference (upload:<id>, URL path, http URL, or base64) to raw bytes."""
         if ref.startswith("upload:"):
             from enso_api.upload import get_upload_store
+
             ref_id = ref.split(":", 1)[1]
             entry = get_upload_store().get(ref_id)
             if entry is None:
@@ -353,6 +354,7 @@ class OpenAICompatAdapter:
         import io
 
         from PIL import Image
+
         img = Image.open(io.BytesIO(mask_bytes)).convert("L")
         rgba = Image.new("RGBA", img.size, (0, 0, 0, 255))
         alpha = img.point(lambda p: 0 if p > 128 else 255)
@@ -369,9 +371,7 @@ class OpenAICompatAdapter:
             size_mb = len(image_data) / 1_000_000
             limit_mb = max_bytes / 1_000_000
             raise ProviderError(
-                f"Image too large ({size_mb:.1f} MB). "
-                f"Provider limit is {limit_mb:.1f} MB. "
-                f"Reduce canvas resolution or image count.",
+                f"Image too large ({size_mb:.1f} MB). Provider limit is {limit_mb:.1f} MB. Reduce canvas resolution or image count.",
                 provider=self.config.id,
             )
         max_side = limits.get("max_longest_side")
@@ -379,8 +379,7 @@ class OpenAICompatAdapter:
             dims = self._read_image_dimensions(image_data)
             if dims and max(dims) > max_side:
                 raise ProviderError(
-                    f"Image dimensions {dims[0]}x{dims[1]} exceed provider limit "
-                    f"of {max_side}px on longest side.",
+                    f"Image dimensions {dims[0]}x{dims[1]} exceed provider limit of {max_side}px on longest side.",
                     provider=self.config.id,
                 )
 
@@ -396,10 +395,10 @@ class OpenAICompatAdapter:
                 if data[offset] != 0xFF:
                     break
                 marker = data[offset + 1]
-                length = struct.unpack(">H", data[offset + 2:offset + 4])[0]
+                length = struct.unpack(">H", data[offset + 2 : offset + 4])[0]
                 if marker in (0xC0, 0xC2):
-                    h = struct.unpack(">H", data[offset + 5:offset + 7])[0]
-                    w = struct.unpack(">H", data[offset + 7:offset + 9])[0]
+                    h = struct.unpack(">H", data[offset + 5 : offset + 7])[0]
+                    w = struct.unpack(">H", data[offset + 7 : offset + 9])[0]
                     return (w, h)
                 offset += 2 + length
         return None
@@ -555,11 +554,13 @@ class OpenAICompatAdapter:
                 msg = error.get("message", "Video generation failed") if isinstance(error, dict) else str(error)
                 raise ProviderError(msg, provider=self.config.id)
 
-            on_progress({
-                "type": "cloud_progress",
-                "phase": "processing",
-                "progress": progress / 100 if progress > 1 else progress,
-            })
+            on_progress(
+                {
+                    "type": "cloud_progress",
+                    "phase": "processing",
+                    "progress": progress / 100 if progress > 1 else progress,
+                }
+            )
 
         raise ProviderError("Video generation timed out", provider=self.config.id)
 
@@ -600,31 +601,32 @@ class OpenAICompatAdapter:
 
             has_size_enum = any(p.get("name") == "size" for p in supported_params)
             if not has_size_enum:
-                size_options = (
-                    self._get_size_constraints(model_id)
-                    or self._extract_resolutions_from_pricing(m)
-                )
+                size_options = self._get_size_constraints(model_id) or self._extract_resolutions_from_pricing(m)
                 if size_options:
-                    supported_params.append({
-                        "name": "size",
-                        "type": "enum",
-                        "options": size_options,
-                        "default": size_options[0],
-                    })
+                    supported_params.append(
+                        {
+                            "name": "size",
+                            "type": "enum",
+                            "options": size_options,
+                            "default": size_options[0],
+                        }
+                    )
 
-            normalized.append({
-                "source": "cloud",
-                "id": model_id,
-                "name": m.get("name") or model_id.split("/")[-1],
-                "provider": self.config.id,
-                "modalities": modalities,
-                "capabilities": capabilities,
-                "pricing": pricing,
-                "context_length": m.get("context_length") or m.get("max_model_len"),
-                "supported_params": supported_params or None,
-                "description": m.get("description"),
-                "default_params": m.get("default_parameters"),
-            })
+            normalized.append(
+                {
+                    "source": "cloud",
+                    "id": model_id,
+                    "name": m.get("name") or model_id.split("/")[-1],
+                    "provider": self.config.id,
+                    "modalities": modalities,
+                    "capabilities": capabilities,
+                    "pricing": pricing,
+                    "context_length": m.get("context_length") or m.get("max_model_len"),
+                    "supported_params": supported_params or None,
+                    "description": m.get("description"),
+                    "default_params": m.get("default_parameters"),
+                }
+            )
         return normalized
 
     def _get_size_constraints(self, model_id: str) -> list[str] | None:
@@ -712,12 +714,14 @@ class OpenAICompatAdapter:
         resolutions = supported.get("resolutions")
         if resolutions and isinstance(resolutions, list):
             options = [r.replace("*", "x") for r in resolutions]
-            descriptors.append({
-                "name": "size",
-                "type": "enum",
-                "options": options,
-                "default": options[0],
-            })
+            descriptors.append(
+                {
+                    "name": "size",
+                    "type": "enum",
+                    "options": options,
+                    "default": options[0],
+                }
+            )
         return descriptors or None
 
     def _extract_supported_params_list(self, supported: list) -> list[dict] | None:

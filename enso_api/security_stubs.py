@@ -1,9 +1,11 @@
 """Stub implementations for modules.api.security until it's available in core."""
+
 import secrets
 
 
 class WsTickets:
     """Simple WebSocket ticket manager."""
+
     def __init__(self):
         self.tickets = {}
 
@@ -26,5 +28,6 @@ def validate_download_url(_url):
 def is_confined_to(path, allowed_roots):
     """Check if path is under one of the allowed root directories."""
     import os
+
     path = os.path.realpath(path)
     return any(path.startswith(os.path.realpath(r)) for r in allowed_roots)

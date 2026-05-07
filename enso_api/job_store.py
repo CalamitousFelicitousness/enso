@@ -48,18 +48,19 @@ class JobStore:
     @staticmethod
     def _row_to_dict(row: sqlite3.Row) -> dict:
         d = dict(row)
-        if d.get('result') and isinstance(d['result'], str):
+        if d.get("result") and isinstance(d["result"], str):
             with contextlib.suppress(json.JSONDecodeError, TypeError):
-                d['result'] = json.loads(d['result'])
+                d["result"] = json.loads(d["result"])
         return d
 
     @staticmethod
     def _cleanup_staging(result_raw) -> None:
         import shutil
+
         try:
             result = json.loads(result_raw) if isinstance(result_raw, str) else result_raw
             if isinstance(result, dict):
-                staging_dir = result.get('_staging_dir')
+                staging_dir = result.get("_staging_dir")
                 if staging_dir and os.path.isdir(staging_dir):
                     shutil.rmtree(staging_dir, ignore_errors=True)
         except (json.JSONDecodeError, TypeError, OSError):
@@ -105,13 +106,13 @@ class JobStore:
     def update_status(self, job_id: str, status: str, **kwargs) -> None:
         sets = ["status = ?"]
         binds: list = [status]
-        for key in ('started_at', 'completed_at', 'error'):
+        for key in ("started_at", "completed_at", "error"):
             if key in kwargs:
                 sets.append(f"{key} = ?")
                 binds.append(kwargs[key])
-        if 'result' in kwargs:
+        if "result" in kwargs:
             sets.append("result = ?")
-            val = kwargs['result']
+            val = kwargs["result"]
             binds.append(json.dumps(val, default=str) if not isinstance(val, str) else val)
         binds.append(job_id)
         with self._write_lock:
@@ -144,14 +145,10 @@ class JobStore:
 
     def purge(self) -> int:
         with self._write_lock:
-            rows = self._conn.execute(
-                "SELECT result FROM jobs WHERE status IN ('completed', 'failed', 'cancelled')"
-            ).fetchall()
+            rows = self._conn.execute("SELECT result FROM jobs WHERE status IN ('completed', 'failed', 'cancelled')").fetchall()
             for row in rows:
                 self._cleanup_staging(row[0])
-            cur = self._conn.execute(
-                "DELETE FROM jobs WHERE status IN ('completed', 'failed', 'cancelled')"
-            )
+            cur = self._conn.execute("DELETE FROM jobs WHERE status IN ('completed', 'failed', 'cancelled')")
             self._conn.commit()
             return cur.rowcount
 
@@ -162,7 +159,7 @@ class JobStore:
             where_parts.append("type = ?")
             binds.append(job_type)
         if ids:
-            placeholders = ','.join('?' for _ in ids)
+            placeholders = ",".join("?" for _ in ids)
             where_parts.append(f"id IN ({placeholders})")
             binds.extend(ids)
         if before:
@@ -182,7 +179,7 @@ class JobStore:
             return cur.rowcount
 
     def bulk_delete(self, status: str | None = None, job_type: str | None = None, ids: list[str] | None = None, before: str | None = None, after: str | None = None) -> int:
-        terminal = ('completed', 'failed', 'cancelled')
+        terminal = ("completed", "failed", "cancelled")
         where_parts = [f"status IN ({','.join('?' for _ in terminal)})"]
         binds: list = list(terminal)
         if status:
@@ -192,7 +189,7 @@ class JobStore:
             where_parts.append("type = ?")
             binds.append(job_type)
         if ids:
-            placeholders = ','.join('?' for _ in ids)
+            placeholders = ",".join("?" for _ in ids)
             where_parts.append(f"id IN ({placeholders})")
             binds.extend(ids)
         if before:
@@ -216,13 +213,14 @@ class JobStore:
         total = sum(counts.values())
         staging_bytes = 0
         from enso_api.temp_store import get_staging_dir
+
         staging_dir = get_staging_dir()
         if staging_dir and os.path.isdir(staging_dir):
             for dirpath, _dirnames, filenames in os.walk(staging_dir):
                 for f in filenames:
                     with contextlib.suppress(OSError):
                         staging_bytes += os.path.getsize(os.path.join(dirpath, f))
-        return {'total': total, 'counts': counts, 'staging_bytes': staging_bytes}
+        return {"total": total, "counts": counts, "staging_bytes": staging_bytes}
 
     def cleanup(self, max_age_hours: int = 168) -> int:
         cutoff = datetime.now(timezone.utc).isoformat()

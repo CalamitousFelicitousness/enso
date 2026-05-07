@@ -12,7 +12,7 @@ from pydantic import BaseModel
 
 
 class UploadEntry:
-    __slots__ = ('content_type', 'created', 'name', 'path', 'ref_id', 'size')
+    __slots__ = ("content_type", "created", "name", "path", "ref_id", "size")
 
     def __init__(self, ref_id: str, path: str, name: str, size: int, content_type: str):
         self.ref_id = ref_id
@@ -33,9 +33,9 @@ class UploadStore:
 
     def store(self, data: bytes, original_name: str, content_type: str) -> UploadEntry:
         ref_id = uuid.uuid4().hex[:16]
-        ext = os.path.splitext(original_name)[1] or '.png'
+        ext = os.path.splitext(original_name)[1] or ".png"
         path = os.path.join(self.staging_dir, f"{ref_id}{ext}")
-        with open(path, 'wb') as f:
+        with open(path, "wb") as f:
             f.write(data)
         entry = UploadEntry(ref_id=ref_id, path=path, name=original_name, size=len(data), content_type=content_type)
         with self._lock:
@@ -92,8 +92,9 @@ def init_upload_store(staging_dir: str, ttl: int = 1800):
     global upload_store  # pylint: disable=global-statement
     upload_store = UploadStore(staging_dir, ttl)
     from modules.api.helpers import register_upload_store
+
     register_upload_store(get_upload_store)
-    log.debug(f'Upload store: dir={staging_dir} ttl={ttl}s')
+    log.debug(f"Upload store: dir={staging_dir} ttl={ttl}s")
 
 
 def get_upload_store() -> UploadStore:
@@ -103,6 +104,7 @@ def get_upload_store() -> UploadStore:
 
 
 # Pydantic models
+
 
 class UploadRef(BaseModel):
     ref: str
@@ -128,17 +130,17 @@ upload_router = APIRouter(prefix="/sdapi/v2", tags=["Upload"])
 
 
 IMAGE_SIGNATURES = {
-    b'\x89PNG': 'image/png',
-    b'\xff\xd8\xff': 'image/jpeg',
-    b'RIFF': 'image/webp',
-    b'GIF8': 'image/gif',
+    b"\x89PNG": "image/png",
+    b"\xff\xd8\xff": "image/jpeg",
+    b"RIFF": "image/webp",
+    b"GIF8": "image/gif",
 }
 
 
 def detect_image_type(data: bytes) -> str | None:
     for sig, mime in IMAGE_SIGNATURES.items():
-        if data[:len(sig)] == sig:
-            if sig == b'RIFF' and data[8:12] != b'WEBP':
+        if data[: len(sig)] == sig:
+            if sig == b"RIFF" and data[8:12] != b"WEBP":
                 continue
             return mime
     return None
@@ -160,17 +162,19 @@ async def upload_files(files: list[UploadFile]):
                 break
             total_read += len(chunk)
             if total_read > MAX_FILE_SIZE:
-                raise HTTPException(status_code=400, detail=f"File '{f.filename}' exceeds {MAX_FILE_SIZE // (1024*1024)}MB limit")
+                raise HTTPException(status_code=400, detail=f"File '{f.filename}' exceeds {MAX_FILE_SIZE // (1024 * 1024)}MB limit")
             chunks.append(chunk)
         data = b"".join(chunks)
         content_type = detect_image_type(data) or f.content_type or "application/octet-stream"
         entry = store.store(data, f.filename or "upload.png", content_type)
-        refs.append(UploadRef(
-            ref=f"upload:{entry.ref_id}",
-            name=entry.name,
-            size=entry.size,
-            url=f"/sdapi/v2/uploads/{entry.ref_id}",
-        ))
+        refs.append(
+            UploadRef(
+                ref=f"upload:{entry.ref_id}",
+                name=entry.name,
+                size=entry.size,
+                url=f"/sdapi/v2/uploads/{entry.ref_id}",
+            )
+        )
     return UploadResponse(uploads=refs)
 
 

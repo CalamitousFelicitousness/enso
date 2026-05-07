@@ -26,10 +26,10 @@ def on_app_started(blocks, app):  # pylint: disable=unused-argument
     from enso_api import register_api
 
     # Write SD.Next port so the Vite dev server can auto-detect it
-    port = getattr(shared.cmd_opts, 'port', 7860) or 7860
-    for port_path in [os.path.join(ext_root, '.sdnext.port'), os.path.expanduser('~/.sdnext.port')]:
+    port = getattr(shared.cmd_opts, "port", 7860) or 7860
+    for port_path in [os.path.join(ext_root, ".sdnext.port"), os.path.expanduser("~/.sdnext.port")]:
         try:
-            with open(port_path, 'w', encoding='utf-8') as f:
+            with open(port_path, "w", encoding="utf-8") as f:
                 f.write(str(port))
         except Exception:
             pass
@@ -40,8 +40,8 @@ def on_app_started(blocks, app):  # pylint: disable=unused-argument
     # (jobs, upload, endpoints, server, caption, prompt_enhance, xyz_grid)
     # need it threaded in explicitly or they bypass --auth entirely.
     deps = []
-    api_inst = getattr(shared, 'api', None)
-    if api_inst is not None and getattr(api_inst, 'credentials', None):
+    api_inst = getattr(shared, "api", None)
+    if api_inst is not None and getattr(api_inst, "credentials", None):
         deps.append(Depends(api_inst.auth))
 
     register_api(app, dependencies=deps)
@@ -50,9 +50,11 @@ def on_app_started(blocks, app):  # pylint: disable=unused-argument
     dist_dir = os.path.join(ext_root, "dist")
     if os.path.isdir(dist_dir):
         from starlette.staticfiles import StaticFiles
+
         app.mount("/enso", StaticFiles(directory=dist_dir, html=True), name="enso")
         from installer import log
-        log.info(f'Enso: path={dist_dir}')
+
+        log.info(f"Enso: path={dist_dir}")
 
 
 script_callbacks.on_app_started(on_app_started)

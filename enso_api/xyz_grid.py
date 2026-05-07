@@ -10,6 +10,7 @@ router = APIRouter(prefix="/sdapi/v2/xyz-grid", tags=["XYZ Grid"])
 
 # --- Models ---
 
+
 class XyzAxisInfo(BaseModel):
     label: str
     type: str = Field(description="int, float, str, str_permutations, or bool")
@@ -62,11 +63,12 @@ class ResXyzPreview(BaseModel):
 
 # --- Helpers ---
 
-re_category = re.compile(r'^\[([^\]]+)\]\s*')
+re_category = re.compile(r"^\[([^\]]+)\]\s*")
 
 
 def get_axis_options():
     from scripts.xyz.xyz_grid_classes import axis_options  # pylint: disable=no-name-in-module
+
     return axis_options
 
 
@@ -84,7 +86,7 @@ def resolve_axis_values(axis_label: str, values_str: str) -> tuple[list, list[st
     if opt is None:
         return [], [f"Unknown axis: {axis_label}"]
 
-    if opt.label == 'Nothing':
+    if opt.label == "Nothing":
         return [0], []
 
     valslist = [restore_comma(x.strip()) for x in re_plain_comma.split(values_str) if x]
@@ -136,13 +138,14 @@ def resolve_axis_values(axis_label: str, values_str: str) -> tuple[list, list[st
 
 # --- Routes ---
 
+
 @router.get("/axes", response_model=ResXyzAxes)
 async def get_axes(expand: str | None = Query(default=None, description="Axis label to expand choices for")):
     axis_options = get_axis_options()
     items = []
     categories = set()
     for opt in axis_options:
-        if opt.label == 'Nothing':
+        if opt.label == "Nothing":
             continue
         m = re_category.match(opt.label)
         category = m.group(1) if m else "Other"
@@ -175,7 +178,7 @@ async def preview_grid(req: ReqXyzPreview):
     all_errors: list[str] = []
     axis_data: dict[str, tuple[list, float]] = {}
 
-    for axis_name, axis_input in [('x', req.x_axis), ('y', req.y_axis), ('z', req.z_axis)]:
+    for axis_name, axis_input in [("x", req.x_axis), ("y", req.y_axis), ("z", req.z_axis)]:
         if axis_input and axis_input.type and axis_input.values.strip():
             resolved, errs = resolve_axis_values(axis_input.type, axis_input.values)
             all_errors.extend(errs)
@@ -185,42 +188,42 @@ async def preview_grid(req: ReqXyzPreview):
         else:
             axis_data[axis_name] = ([0], 0.0)
 
-    x_vals, x_cost = axis_data['x']
-    y_vals, y_cost = axis_data['y']
-    z_vals, z_cost = axis_data['z']
+    x_vals, x_cost = axis_data["x"]
+    y_vals, y_cost = axis_data["y"]
+    z_vals, z_cost = axis_data["z"]
 
     total_cells = len(x_vals) * len(y_vals) * len(z_vals)
 
     # Compute total steps: if an axis is Steps, sum its values instead of multiplying
     total_steps = 0
     steps_axis = None
-    for axis_name, axis_input in [('x', req.x_axis), ('y', req.y_axis), ('z', req.z_axis)]:
-        if axis_input and '[Param] Steps' in axis_input.type:
+    for axis_name, axis_input in [("x", req.x_axis), ("y", req.y_axis), ("z", req.z_axis)]:
+        if axis_input and "[Param] Steps" in axis_input.type:
             steps_axis = axis_name
-    if steps_axis == 'x':
+    if steps_axis == "x":
         total_steps = sum(v for v in x_vals if isinstance(v, (int, float))) * len(y_vals) * len(z_vals)
-    elif steps_axis == 'y':
+    elif steps_axis == "y":
         total_steps = sum(v for v in y_vals if isinstance(v, (int, float))) * len(x_vals) * len(z_vals)
-    elif steps_axis == 'z':
+    elif steps_axis == "z":
         total_steps = sum(v for v in z_vals if isinstance(v, (int, float))) * len(x_vals) * len(y_vals)
     else:
         total_steps = req.steps * total_cells
 
     # Hires steps handling
-    for axis_name, axis_input in [('x', req.x_axis), ('y', req.y_axis), ('z', req.z_axis)]:
-        if axis_input and '[Refine] Hires steps' in axis_input.type:
+    for axis_name, axis_input in [("x", req.x_axis), ("y", req.y_axis), ("z", req.z_axis)]:
+        if axis_input and "[Refine] Hires steps" in axis_input.type:
             vals = axis_data[axis_name][0]
             other_counts = total_cells // max(1, len(vals))
             total_steps += sum(v for v in vals if isinstance(v, (int, float))) * other_counts
 
     # Execution order: sort by cost descending (highest cost = outermost loop)
-    axes_with_cost = [('x', x_cost), ('y', y_cost), ('z', z_cost)]
+    axes_with_cost = [("x", x_cost), ("y", y_cost), ("z", z_cost)]
     axes_with_cost.sort(key=lambda a: a[1], reverse=True)
     execution_order = [a[0] for a in axes_with_cost]
 
     return ResXyzPreview(
         ok=len(all_errors) == 0,
-        dimensions={'x': len(x_vals), 'y': len(y_vals), 'z': len(z_vals)},
+        dimensions={"x": len(x_vals), "y": len(y_vals), "z": len(z_vals)},
         total_cells=total_cells,
         total_steps=int(total_steps),
         execution_order=execution_order,
@@ -233,6 +236,7 @@ async def preview_grid(req: ReqXyzPreview):
 
 # --- Executor ---
 
+
 def execute_xyz_grid(params: dict, job_id: str) -> dict:
     from enso_api.executors import execute_generate
 
@@ -241,44 +245,63 @@ def execute_xyz_grid(params: dict, job_id: str) -> dict:
     label_to_index = {opt.label: i for i, opt in enumerate(axis_options)}
 
     def axis_index(axis_input: dict | None) -> int:
-        if not axis_input or not axis_input.get('type'):
+        if not axis_input or not axis_input.get("type"):
             return 0  # "Nothing"
-        label = axis_input['type']
+        label = axis_input["type"]
         return label_to_index.get(label, 0)
 
-    x_axis = params.get('x_axis') or {}
-    y_axis = params.get('y_axis') or {}
-    z_axis = params.get('z_axis') or {}
+    x_axis = params.get("x_axis") or {}
+    y_axis = params.get("y_axis") or {}
+    z_axis = params.get("z_axis") or {}
 
     script_args = [
-        axis_index(x_axis), x_axis.get('values', ''), '',  # x_type, x_values, x_values_dropdown
-        axis_index(y_axis), y_axis.get('values', ''), '',  # y_type, y_values, y_values_dropdown
-        axis_index(z_axis), z_axis.get('values', ''), '',  # z_type, z_values, z_values_dropdown
-        False,                                               # csv_mode
-        params.get('draw_legend', True),                     # draw_legend
-        params.get('random_seeds', False),                   # no_fixed_seeds
-        params.get('include_grid', True),                    # include_grid
-        params.get('include_subgrids', False),               # include_subgrids
-        params.get('include_images', True),                  # include_images
-        params.get('include_time', False),                   # include_time
-        params.get('include_text', False),                   # include_text
-        params.get('margin_size', 0),                        # margin_size
-        False,                                               # create_video
-        'None',                                              # video_type
-        2.0,                                                 # video_duration
-        False,                                               # video_loop
-        0,                                                   # video_pad
-        0,                                                   # video_interpolate
+        axis_index(x_axis),
+        x_axis.get("values", ""),
+        "",  # x_type, x_values, x_values_dropdown
+        axis_index(y_axis),
+        y_axis.get("values", ""),
+        "",  # y_type, y_values, y_values_dropdown
+        axis_index(z_axis),
+        z_axis.get("values", ""),
+        "",  # z_type, z_values, z_values_dropdown
+        False,  # csv_mode
+        params.get("draw_legend", True),  # draw_legend
+        params.get("random_seeds", False),  # no_fixed_seeds
+        params.get("include_grid", True),  # include_grid
+        params.get("include_subgrids", False),  # include_subgrids
+        params.get("include_images", True),  # include_images
+        params.get("include_time", False),  # include_time
+        params.get("include_text", False),  # include_text
+        params.get("margin_size", 0),  # margin_size
+        False,  # create_video
+        "None",  # video_type
+        2.0,  # video_duration
+        False,  # video_loop
+        0,  # video_pad
+        0,  # video_interpolate
     ]
 
     # Remove xyz-specific keys and set up the generate request
-    gen_params = {k: v for k, v in params.items() if k not in (
-        'x_axis', 'y_axis', 'z_axis', 'draw_legend', 'include_grid',
-        'include_subgrids', 'include_images', 'include_time', 'include_text',
-        'margin_size', 'random_seeds',
-    )}
-    gen_params['type'] = 'generate'
-    gen_params['script_name'] = 'XYZ Grid Script'
-    gen_params['script_args'] = script_args
+    gen_params = {
+        k: v
+        for k, v in params.items()
+        if k
+        not in (
+            "x_axis",
+            "y_axis",
+            "z_axis",
+            "draw_legend",
+            "include_grid",
+            "include_subgrids",
+            "include_images",
+            "include_time",
+            "include_text",
+            "margin_size",
+            "random_seeds",
+        )
+    }
+    gen_params["type"] = "generate"
+    gen_params["script_name"] = "XYZ Grid Script"
+    gen_params["script_args"] = script_args
 
     return execute_generate(gen_params, job_id)

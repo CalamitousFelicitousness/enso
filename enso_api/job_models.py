@@ -170,83 +170,147 @@ class DetailerOverrides(StrictBaseModel):
     """
 
     strength: float | None = Field(
-        default=None, ge=0.0, le=1.0, title="Strength", examples=[0.3],
+        default=None,
+        ge=0.0,
+        le=1.0,
+        title="Strength",
+        examples=[0.3],
         description="Denoise strength applied to each detected region. Lower = lighter touch, preserves more of the original.",
     )
     steps: int | None = Field(
-        default=None, ge=0, le=99, title="Steps", examples=[10],
+        default=None,
+        ge=0,
+        le=99,
+        title="Steps",
+        examples=[10],
         description="Number of diffusion steps for the detailer pass on each detected region.",
     )
     resolution: int | None = Field(
-        default=None, ge=256, le=4096, title="Resolution", examples=[1024],
+        default=None,
+        ge=256,
+        le=4096,
+        title="Resolution",
+        examples=[1024],
         description="Working resolution for the detailer pass per region. Larger = more detail, slower.",
     )
     padding: int | None = Field(
-        default=None, ge=0, le=256, title="Padding", examples=[20],
+        default=None,
+        ge=0,
+        le=256,
+        title="Padding",
+        examples=[20],
         description="Pixels of padding around each detected region before inpainting.",
     )
     blur: int | None = Field(
-        default=None, ge=0, le=64, title="Blur", examples=[10],
+        default=None,
+        ge=0,
+        le=64,
+        title="Blur",
+        examples=[10],
         description="Mask edge blur. Softens the seam between inpainted region and surrounding image.",
     )
     conf: float | None = Field(
-        default=None, ge=0.0, le=1.0, title="Confidence", examples=[0.6],
+        default=None,
+        ge=0.0,
+        le=1.0,
+        title="Confidence",
+        examples=[0.6],
         description="Minimum detection confidence (0-1) for a region to be processed.",
     )
     iou: float | None = Field(
-        default=None, ge=0.0, le=1.0, title="IoU", examples=[0.5],
+        default=None,
+        ge=0.0,
+        le=1.0,
+        title="IoU",
+        examples=[0.5],
         description="Intersection-over-union threshold for non-max suppression of overlapping detections.",
     )
     min_size: float | None = Field(
-        default=None, ge=0.0, le=1.0, title="Min size", examples=[0.0],
+        default=None,
+        ge=0.0,
+        le=1.0,
+        title="Min size",
+        examples=[0.0],
         description="Minimum region size (fraction of image area) to detect.",
     )
     max_size: float | None = Field(
-        default=None, ge=0.0, le=1.0, title="Max size", examples=[1.0],
+        default=None,
+        ge=0.0,
+        le=1.0,
+        title="Max size",
+        examples=[1.0],
         description="Maximum region size (fraction of image area) to detect.",
     )
     max: int | None = Field(
-        default=None, ge=1, le=20, title="Max detect", examples=[2],
+        default=None,
+        ge=1,
+        le=20,
+        title="Max detect",
+        examples=[2],
         description="Maximum number of detected regions to process per pass.",
     )
     sigma_adjust: float | None = Field(
-        default=None, ge=0.0, le=2.0, title="Renoise", examples=[1.0],
+        default=None,
+        ge=0.0,
+        le=2.0,
+        title="Renoise",
+        examples=[1.0],
         description="Sigma adjust at start. Multiplier on noise schedule for the detailer pass.",
     )
     sigma_adjust_max: float | None = Field(
-        default=None, ge=0.0, le=2.0, title="Renoise end", examples=[1.0],
+        default=None,
+        ge=0.0,
+        le=2.0,
+        title="Renoise end",
+        examples=[1.0],
         description="Sigma adjust at end. Multiplier on noise schedule terminus for the detailer pass.",
     )
     segmentation: bool | None = Field(
-        default=None, title="Segmentation", examples=[False],
+        default=None,
+        title="Segmentation",
+        examples=[False],
         description="Use segmentation masks (if model supports them) instead of bounding boxes.",
     )
     include_detections: bool | None = Field(
-        default=None, title="Include detections", examples=[False],
+        default=None,
+        title="Include detections",
+        examples=[False],
         description="Append the annotated detection-overlay image to the output set.",
     )
     merge: bool | None = Field(
-        default=None, title="Merge", examples=[False],
+        default=None,
+        title="Merge",
+        examples=[False],
         description="Merge multiple detections from this model before inpainting.",
     )
     sort: bool | None = Field(
-        default=None, title="Sort", examples=[False],
+        default=None,
+        title="Sort",
+        examples=[False],
         description="Sort detections by score before applying max-detect cap.",
     )
     prompt: str | None = Field(
-        default=None, title="Prompt", examples=["highly detailed face"],
+        default=None,
+        title="Prompt",
+        examples=["highly detailed face"],
         description="Per-detector prompt override. Use [PROMPT] to inject the main prompt; leave empty to inherit.",
     )
     negative: str | None = Field(
-        default=None, title="Negative", examples=["blurry, low quality"],
+        default=None,
+        title="Negative",
+        examples=["blurry, low quality"],
         description="Per-detector negative prompt override. Use [PROMPT] to inject the main negative; leave empty to inherit.",
     )
     classes: str | None = Field(
-        default=None, title="Classes", examples=["person, face"],
+        default=None,
+        title="Classes",
+        examples=["person, face"],
         description="Comma-separated class filter for multi-class detector models. Empty = all classes.",
     )
     augment: bool | None = Field(
-        default=None, title="Augment", examples=[False],
+        default=None,
+        title="Augment",
+        examples=[False],
         description="Apply test-time augmentation during detection (slower, may catch more).",
     )
 
@@ -260,7 +324,8 @@ class DetailerModelEntry(DetailerOverrides):
     """
 
     name: str = Field(
-        title="Model name", examples=["face-yolo8n"],
+        title="Model name",
+        examples=["face-yolo8n"],
         description="Detector model identifier. Must match a model loaded by SD.Next (see GET /sdapi/v2/detailers).",
     )
 
@@ -317,15 +382,19 @@ class DetailerMixin(StrictBaseModel):
     )
 
     detailer_enabled: bool = Field(
-        default=False, title="Detailer enabled", examples=[True],
+        default=False,
+        title="Detailer enabled",
+        examples=[True],
         description="Master switch. When false, ``detailer_models`` is ignored and no detailer pass runs.",
     )
     detailer_defaults: DetailerOverrides = Field(
-        default_factory=DetailerOverrides, title="Detailer defaults",
+        default_factory=DetailerOverrides,
+        title="Detailer defaults",
         description="Base values inherited by every model in ``detailer_models``. Per-model entries can override individual fields.",
     )
     detailer_models: list[DetailerModelRef] = Field(
-        default_factory=list, title="Detailer models",
+        default_factory=list,
+        title="Detailer models",
         description="Ordered list of detector models to run. Each entry is a bare model name (uses defaults) or {name, ...overrides} object.",
         examples=[
             [
@@ -930,6 +999,29 @@ class RembgParams(JobBase):
 
 
 JobRequest = Annotated[
-    GenerateParams | UpscaleParams | CaptionParams | EnhanceParams | DetectParams | PreprocessParams | DetailParams | XyzGridParams | VideoParams | FramePackParams | LtxParams | ModelLoadParams | ModelMergeParams | ModelReplaceParams | ModelSaveParams | LoaderLoadParams | LoraExtractParams | HfDownloadParams | RembgParams | CloudImageParams | CloudChatParams | CloudTtsParams | CloudSttParams | CloudVideoParams,
+    GenerateParams
+    | UpscaleParams
+    | CaptionParams
+    | EnhanceParams
+    | DetectParams
+    | PreprocessParams
+    | DetailParams
+    | XyzGridParams
+    | VideoParams
+    | FramePackParams
+    | LtxParams
+    | ModelLoadParams
+    | ModelMergeParams
+    | ModelReplaceParams
+    | ModelSaveParams
+    | LoaderLoadParams
+    | LoraExtractParams
+    | HfDownloadParams
+    | RembgParams
+    | CloudImageParams
+    | CloudChatParams
+    | CloudTtsParams
+    | CloudSttParams
+    | CloudVideoParams,
     Field(discriminator="type"),
 ]
