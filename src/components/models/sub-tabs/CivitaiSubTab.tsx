@@ -57,8 +57,7 @@ export function CivitaiSubTab() {
   function handleHistorySelect(q: string, t: string) {
     setQuery(q);
     setTag(t);
-    setSearchEnabled(false);
-    setTimeout(() => setSearchEnabled(true), 0);
+    setSearchEnabled(true);
   }
 
   function handleFavoritesChange(v: boolean) {
