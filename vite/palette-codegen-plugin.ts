@@ -27,7 +27,10 @@ export function paletteCodegenPlugin(): Plugin {
     apply: () => true,
     buildStart() {
       regenerate("buildStart");
-      if (lastError) throw lastError;
+      if (lastError) {
+        if (lastError instanceof Error) throw lastError;
+        throw new Error(typeof lastError === "string" ? lastError : "palette codegen failed");
+      }
     },
     handleHotUpdate(ctx) {
       const isTabFile =

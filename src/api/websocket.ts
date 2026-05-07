@@ -51,12 +51,12 @@ export class WebSocketManager {
       this.emit("open");
     };
 
-    this.ws.onmessage = (event: MessageEvent) => {
+    this.ws.onmessage = (event: MessageEvent<unknown>) => {
       if (event.data instanceof ArrayBuffer) {
         this.emit("binary", event.data);
-      } else {
+      } else if (typeof event.data === "string") {
         try {
-          const data = JSON.parse(event.data);
+          const data: unknown = JSON.parse(event.data);
           this.emit("message", data);
         } catch {
           this.emit("message", event.data);

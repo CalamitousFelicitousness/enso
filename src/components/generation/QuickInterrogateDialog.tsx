@@ -132,6 +132,7 @@ export function QuickInterrogateDialog({
   // Auto-run when dialog opens with a file
   useEffect(() => {
     if (open && file) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- side effect (URL.createObjectURL) drives state
       setPreviewUrl(URL.createObjectURL(file));
       void runCaption(file);
     }

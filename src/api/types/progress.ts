@@ -8,7 +8,7 @@ export interface ResProgress {
 }
 
 export interface ResStatus {
-  status: "idle" | "running" | "paused" | "interrupted" | "skipped" | string;
+  status: "idle" | "running" | "paused" | "interrupted" | "skipped" | (string & {});
   task: string;
   timestamp: string | null;
   current: string;

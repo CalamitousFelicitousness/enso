@@ -172,7 +172,7 @@ function Switch({
     return (
       <SwitchTrack
         checked={props.checked}
-        onCheckedChange={props.onCheckedChange}
+        onCheckedChange={(checked) => props.onCheckedChange?.(checked)}
         disabled={props.disabled}
         label={label}
         className={className}
@@ -184,7 +184,7 @@ function Switch({
     return (
       <SwitchSplit
         checked={props.checked}
-        onCheckedChange={props.onCheckedChange}
+        onCheckedChange={(checked) => props.onCheckedChange?.(checked)}
         disabled={props.disabled}
         className={className}
       />

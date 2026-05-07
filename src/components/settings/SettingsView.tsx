@@ -240,6 +240,7 @@ function AppearancePanel() {
 
   const [hexInput, setHexInput] = useState(accentColor);
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- sync external accentColor into editable hex draft
     setHexInput(accentColor);
   }, [accentColor]);
 
@@ -365,6 +366,7 @@ function ConnectionPanel() {
   const [passDraft, setPassDraft] = useState("");
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- sync external backendUrl into editable input draft
     setUrlInput(backendUrl);
   }, [backendUrl]);
 
@@ -382,11 +384,13 @@ function ConnectionPanel() {
 
   useEffect(() => {
     if (backendUrl) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- checkConnection is the side effect; status update is its result
       void checkConnection(backendUrl);
     } else {
       setStatus("connected");
     }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only effect
+  }, []);
 
   const saveAuth = useCallback(
     (user: string, pass: string) => {

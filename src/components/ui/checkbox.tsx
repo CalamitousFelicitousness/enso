@@ -259,7 +259,7 @@ function Checkbox({
     return (
       <CheckboxMorph
         checked={props.checked === true}
-        onCheckedChange={props.onCheckedChange as (checked: boolean) => void}
+        onCheckedChange={(checked) => props.onCheckedChange?.(checked === true)}
         disabled={props.disabled}
         className={className}
       />
@@ -270,7 +270,7 @@ function Checkbox({
     return (
       <CheckboxStamp
         checked={props.checked === true}
-        onCheckedChange={props.onCheckedChange as (checked: boolean) => void}
+        onCheckedChange={(checked) => props.onCheckedChange?.(checked === true)}
         disabled={props.disabled}
         className={className}
       />
@@ -281,7 +281,7 @@ function Checkbox({
     return (
       <CheckboxBracket
         checked={props.checked === true}
-        onCheckedChange={props.onCheckedChange as (checked: boolean) => void}
+        onCheckedChange={(checked) => props.onCheckedChange?.(checked === true)}
         disabled={props.disabled}
         className={className}
       />

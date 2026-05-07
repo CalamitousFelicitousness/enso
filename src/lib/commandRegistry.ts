@@ -89,6 +89,7 @@ export function useCommands(): PaletteCommand[] {
  */
 export function useRegisterCommand(cmd: PaletteCommand): void {
   const cmdRef = useRef(cmd);
+  // eslint-disable-next-line react-hooks/refs -- latest-ref pattern; run() invoked from palette, never during render
   cmdRef.current = cmd;
 
   useEffect(() => {

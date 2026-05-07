@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { useGenerationStore } from "@/stores/generationStore";
 import { useShallow } from "zustand/react/shallow";
+import { toDisplayString } from "@/lib/utils";
 import { ParamSlider } from "../ParamSlider";
 import { SectionLeader, SectionDivider } from "@/components/ui/section-leader";
 import { Switch } from "@/components/ui/switch";
@@ -51,7 +52,7 @@ export function AdvancedTab() {
 
   function overridesToText(obj: Record<string, unknown>): string {
     return Object.entries(obj)
-      .map(([k, v]) => `${k}: ${v}`)
+      .map(([k, v]) => `${k}: ${toDisplayString(v)}`)
       .join("\n");
   }
 

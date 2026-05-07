@@ -184,6 +184,7 @@ export function GalleryGrid({
   );
   const rowCount = Math.ceil(sorted.length / cols);
 
+  // eslint-disable-next-line react-hooks/incompatible-library -- @tanstack/react-virtual
   const virtualizer = useVirtualizer({
     count: rowCount,
     getScrollElement: () => containerRef.current,

@@ -227,6 +227,7 @@ export function ControlFrameLayer({
     }
 
     if (toRemove.length > 0) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- cleanup of stale frames
       setProcessedMap((prev) => {
         const next = new Map(prev);
         for (const idx of toRemove) next.delete(idx);

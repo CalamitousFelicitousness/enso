@@ -36,6 +36,7 @@ export function ProcessedCompositeLayer({
     prevKeyRef.current = srcsKey;
 
     if (!srcsKey) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- clear stale image when sources empty
       setDisplayImage(null);
       return;
     }

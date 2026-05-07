@@ -17,7 +17,7 @@ const chartStore = {
     this.vram = [...this.vram, vramPct].slice(-MAX_POINTS);
     for (const l of this._listeners) l();
   },
-  subscribe(listener: () => void) {
+  subscribe(this: void, listener: () => void) {
     chartStore._listeners.add(listener);
     return () => {
       chartStore._listeners.delete(listener);

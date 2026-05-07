@@ -103,8 +103,10 @@ export function GalleryPanel() {
   // read these via ref keeps it as a stable callback, which matters now that
   // each FolderTreeNode invokes it from a useEffect on mount.
   const discoveredRef = useRef(discoveredSubdirs);
+  // eslint-disable-next-line react-hooks/refs -- latest-ref pattern; consumed only in async callbacks
   discoveredRef.current = discoveredSubdirs;
   const loadingRef = useRef(loadingSubdirs);
+  // eslint-disable-next-line react-hooks/refs -- latest-ref pattern; consumed only in async callbacks
   loadingRef.current = loadingSubdirs;
 
   useEffect(() => {

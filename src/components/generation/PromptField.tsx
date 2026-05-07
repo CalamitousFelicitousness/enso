@@ -35,6 +35,7 @@ export function PromptField({
   const viewRef = useRef<EditorView | null>(null);
   const lastValue = useRef(value);
   const onChangeRef = useRef(onChange);
+  // eslint-disable-next-line react-hooks/refs -- latest-ref pattern; CodeMirror callback reads via ref
   onChangeRef.current = onChange;
 
   // Compartments for dynamic data reconfiguration

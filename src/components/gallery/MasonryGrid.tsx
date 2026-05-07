@@ -52,7 +52,7 @@ export function MasonryGrid({
       Math.floor((containerWidth + GAP) / (thumbSize + GAP)),
     );
     const colWidth = (containerWidth - (cols + 1) * GAP) / cols;
-    const colHeights = new Array(cols).fill(GAP);
+    const colHeights: number[] = new Array<number>(cols).fill(GAP);
     const currentThumbs = thumbsRef.current;
     const items: MasonryItem[] = [];
 
@@ -99,6 +99,7 @@ export function MasonryGrid({
     return { rows: masonryRows, totalHeight: total, cols, colWidth };
   }, [sorted, containerWidth, thumbSize]);
 
+  // eslint-disable-next-line react-hooks/incompatible-library -- @tanstack/react-virtual
   const virtualizer = useVirtualizer({
     count: rows.length,
     getScrollElement: () => containerRef.current,
