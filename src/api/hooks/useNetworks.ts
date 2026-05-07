@@ -43,8 +43,8 @@ export function useRefreshNetworks() {
   return useMutation({
     mutationFn: () => api.post<RefreshNetworksResponse>("/sdapi/v2/extra-networks/refresh"),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["extra-networks"] });
-      queryClient.invalidateQueries({ queryKey: ["prompt-styles"] });
+      void queryClient.invalidateQueries({ queryKey: ["extra-networks"] });
+      void queryClient.invalidateQueries({ queryKey: ["prompt-styles"] });
     },
   });
 }

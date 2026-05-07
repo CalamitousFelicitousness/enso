@@ -22,7 +22,7 @@ export function useClearLog() {
   return useMutation({
     mutationFn: () => api.delete("/sdapi/v2/log"),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["server-log"] });
+      void queryClient.invalidateQueries({ queryKey: ["server-log"] });
     },
   });
 }

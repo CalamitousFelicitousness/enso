@@ -253,7 +253,7 @@ function startFileStream(folder: string, ac: AbortController, hasChildSeed: bool
     }, FILE_BATCH_INTERVAL);
   };
 
-  getWsUrlWithTicket("/sdapi/v2/browser/files").then((wsUrl) => {
+  void getWsUrlWithTicket("/sdapi/v2/browser/files").then((wsUrl) => {
   const ws = new WebSocket(wsUrl);
 
   const cleanupWs = () => {
@@ -313,7 +313,7 @@ function startFileStream(folder: string, ac: AbortController, hasChildSeed: bool
 
       // Batch-read IndexedDB for parent-context files - finds thumbs
       // from child folder browsing since IndexedDB keys on fullPath hash
-      preloadCachedThumbs(allFiles, folder);
+      void preloadCachedThumbs(allFiles, folder);
       return;
     }
     const entry = parseFileEntry(msg);
@@ -354,7 +354,7 @@ export function useBrowserFiles(folder: string | null) {
 
     if (cached) {
       // ---- Cache hit: files already restored by setActiveFolder ----
-      backgroundRefresh(folder, ac.signal);
+      void backgroundRefresh(folder, ac.signal);
     } else {
       // ---- Cache miss: stream from backend ----
       const store = useGalleryStore.getState();
@@ -367,7 +367,7 @@ export function useBrowserFiles(folder: string | null) {
       // Async IIFE: await IndexedDB preload for child-seeded files so
       // files + thumbs are set together BEFORE the grid renders.
       // This prevents useThumbnailLoader from racing with individual fetches.
-      (async () => {
+      void (async () => {
         if (childMerge) {
           try {
             const idbThumbs = await readCachedThumbs(childMerge.files);
@@ -481,7 +481,7 @@ function dispatchThumb(file: GalleryFile) {
   // Capture folder at dispatch time - not completion time - so the thumb
   // updates the correct folder cache even if the user navigates away
   const folder = useGalleryStore.getState().activeFolder;
-  fetchThumb(file).then((thumb) => {
+  void fetchThumb(file).then((thumb) => {
     inflightIds.delete(file.id);
     if (thumb) {
       thumbBatchBuffer.push([file.id, thumb]);
@@ -567,7 +567,7 @@ export function useDeleteFiles() {
       const deletedIds = deletedFiles.map((f) => f.id);
       store.removeFilesFromStore(deletedIds);
       if (store.activeFolder) invalidateFolder(store.activeFolder);
-      cleanupThumbsForFiles(deletedFiles);
+      void cleanupThumbsForFiles(deletedFiles);
     },
   });
 }
@@ -584,7 +584,7 @@ export function useMoveFiles() {
       store.removeFilesFromStore(movedIds);
       if (store.activeFolder) invalidateFolder(store.activeFolder);
       invalidateFolder(variables.destination);
-      cleanupThumbsForFiles(movedFiles);
+      void cleanupThumbsForFiles(movedFiles);
     },
   });
 }

@@ -27,8 +27,8 @@ export function useDownloadDict() {
   return useMutation({
     mutationFn: (name: string) => api.post<DictInfo>(`/sdapi/v1/autocomplete/${name}/download`),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["dicts"] });
-      qc.invalidateQueries({ queryKey: ["dicts-remote"] });
+      void qc.invalidateQueries({ queryKey: ["dicts"] });
+      void qc.invalidateQueries({ queryKey: ["dicts-remote"] });
     },
   });
 }
@@ -39,10 +39,10 @@ export function useDeleteDict() {
   return useMutation({
     mutationFn: (name: string) => api.delete(`/sdapi/v1/autocomplete/${name}`),
     onSuccess: (_data, name) => {
-      clearDictCache(name);
-      qc.invalidateQueries({ queryKey: ["dicts"] });
-      qc.invalidateQueries({ queryKey: ["dicts-remote"] });
-      qc.invalidateQueries({ queryKey: ["dict-tags", name] });
+      void clearDictCache(name);
+      void qc.invalidateQueries({ queryKey: ["dicts"] });
+      void qc.invalidateQueries({ queryKey: ["dicts-remote"] });
+      void qc.invalidateQueries({ queryKey: ["dict-tags", name] });
     },
   });
 }

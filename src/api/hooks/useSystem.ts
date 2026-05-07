@@ -92,8 +92,8 @@ export function useApplyUpdate() {
     mutationKey: ["update-apply"],
     mutationFn: (req: UpdateApplyRequest) => api.post<UpdateApplyResult>("/sdapi/v2/update/apply", req),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["update-check"] });
-      queryClient.invalidateQueries({ queryKey: ["server-info"] });
+      void queryClient.invalidateQueries({ queryKey: ["update-check"] });
+      void queryClient.invalidateQueries({ queryKey: ["server-info"] });
     },
   });
 }
@@ -113,7 +113,7 @@ export function useRunBenchmark() {
     mutationKey: ["benchmark-run"],
     mutationFn: (req: BenchmarkRunRequest) => api.post<BenchmarkRunResult>("/sdapi/v2/benchmark/run", req),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["benchmark-results"] });
+      void queryClient.invalidateQueries({ queryKey: ["benchmark-results"] });
     },
   });
 }

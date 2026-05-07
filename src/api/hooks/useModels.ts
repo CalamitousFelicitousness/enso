@@ -87,10 +87,10 @@ export function useLoadModel() {
     mutationFn: (checkpoint: string) =>
       api.post("/sdapi/v2/checkpoint", { sd_model_checkpoint: checkpoint }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["options"] });
-      queryClient.invalidateQueries({ queryKey: ["checkpoint"] });
-      queryClient.invalidateQueries({ queryKey: ["samplers"] });
-      queryClient.invalidateQueries({ queryKey: ["control-models"] });
+      void queryClient.invalidateQueries({ queryKey: ["options"] });
+      void queryClient.invalidateQueries({ queryKey: ["checkpoint"] });
+      void queryClient.invalidateQueries({ queryKey: ["samplers"] });
+      void queryClient.invalidateQueries({ queryKey: ["control-models"] });
     },
   });
 }
@@ -101,8 +101,8 @@ export function useRefreshModels() {
     mutationKey: MODEL_MUTATION_KEY,
     mutationFn: () => api.post("/sdapi/v2/checkpoint/refresh"),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["models"] });
-      queryClient.invalidateQueries({ queryKey: ["checkpoint"] });
+      void queryClient.invalidateQueries({ queryKey: ["models"] });
+      void queryClient.invalidateQueries({ queryKey: ["checkpoint"] });
     },
   });
 }
@@ -113,10 +113,10 @@ export function useReloadModel() {
     mutationKey: MODEL_MUTATION_KEY,
     mutationFn: () => api.post("/sdapi/v2/checkpoint/reload"),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["options"] });
-      queryClient.invalidateQueries({ queryKey: ["checkpoint"] });
-      queryClient.invalidateQueries({ queryKey: ["samplers"] });
-      queryClient.invalidateQueries({ queryKey: ["control-models"] });
+      void queryClient.invalidateQueries({ queryKey: ["options"] });
+      void queryClient.invalidateQueries({ queryKey: ["checkpoint"] });
+      void queryClient.invalidateQueries({ queryKey: ["samplers"] });
+      void queryClient.invalidateQueries({ queryKey: ["control-models"] });
     },
   });
 }
@@ -127,10 +127,10 @@ export function useUnloadModel() {
     mutationKey: MODEL_MUTATION_KEY,
     mutationFn: () => api.post("/sdapi/v2/checkpoint/unload"),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["options"] });
-      queryClient.invalidateQueries({ queryKey: ["checkpoint"] });
-      queryClient.invalidateQueries({ queryKey: ["samplers"] });
-      queryClient.invalidateQueries({ queryKey: ["control-models"] });
+      void queryClient.invalidateQueries({ queryKey: ["options"] });
+      void queryClient.invalidateQueries({ queryKey: ["checkpoint"] });
+      void queryClient.invalidateQueries({ queryKey: ["samplers"] });
+      void queryClient.invalidateQueries({ queryKey: ["control-models"] });
     },
   });
 }

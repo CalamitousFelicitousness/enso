@@ -56,7 +56,7 @@ export function useAddProvider() {
     mutationFn: (params: { name: string; preset: ProviderPreset; base_url: string; key?: string }) =>
       api.post("/sdapi/v2/cloud/providers", params),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["cloud-providers"] });
+      void queryClient.invalidateQueries({ queryKey: ["cloud-providers"] });
     },
   });
 }
@@ -67,8 +67,8 @@ export function useRemoveProvider() {
     mutationFn: (providerId: string) =>
       api.delete(`/sdapi/v2/cloud/providers/${providerId}`),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["cloud-providers"] });
-      queryClient.invalidateQueries({ queryKey: ["cloud-models-all"] });
+      void queryClient.invalidateQueries({ queryKey: ["cloud-providers"] });
+      void queryClient.invalidateQueries({ queryKey: ["cloud-models-all"] });
     },
   });
 }
@@ -87,8 +87,8 @@ export function useUpdateProvider() {
       enabled?: boolean;
     }) => api.put(`/sdapi/v2/cloud/providers/${id}`, updates),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["cloud-providers"] });
-      queryClient.invalidateQueries({ queryKey: ["cloud-models-all"] });
+      void queryClient.invalidateQueries({ queryKey: ["cloud-providers"] });
+      void queryClient.invalidateQueries({ queryKey: ["cloud-models-all"] });
     },
   });
 }
@@ -99,8 +99,8 @@ export function useRefreshProvider() {
     mutationFn: (providerId: string) =>
       api.post<{ model_count: number }>(`/sdapi/v2/cloud/providers/${providerId}/refresh`),
     onSuccess: (_data, providerId) => {
-      queryClient.invalidateQueries({ queryKey: ["cloud-models", providerId] });
-      queryClient.invalidateQueries({ queryKey: ["cloud-models-all"] });
+      void queryClient.invalidateQueries({ queryKey: ["cloud-models", providerId] });
+      void queryClient.invalidateQueries({ queryKey: ["cloud-models-all"] });
     },
   });
 }

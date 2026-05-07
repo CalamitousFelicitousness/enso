@@ -74,7 +74,7 @@ export function useCivitDownload() {
   return useMutation({
     mutationFn: (req: CivitDownloadRequest) => api.post<CivitDownloadItem>("/sdapi/v2/civitai/download", req),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["civitai-download-status"] });
+      void qc.invalidateQueries({ queryKey: ["civitai-download-status"] });
     },
   });
 }
@@ -247,8 +247,8 @@ export function useCivitMetadataScan() {
     mutationFn: (page?: string) =>
       api.post<{ results: CivitMetadataScanResult[] }>("/sdapi/v2/civitai/metadata/scan", page ? { page } : {}),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["extra-networks"] });
-      qc.invalidateQueries({ queryKey: ["network-detail"] });
+      void qc.invalidateQueries({ queryKey: ["extra-networks"] });
+      void qc.invalidateQueries({ queryKey: ["network-detail"] });
     },
   });
 }

@@ -26,8 +26,8 @@ export function useSetOptions() {
     mutationFn: (options: Partial<OptionsMap>) =>
       api.post<SetOptionsResponse>("/sdapi/v2/options", options),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["options"] });
-      queryClient.invalidateQueries({ queryKey: ["options-info"] });
+      void queryClient.invalidateQueries({ queryKey: ["options"] });
+      void queryClient.invalidateQueries({ queryKey: ["options-info"] });
     },
   });
 }

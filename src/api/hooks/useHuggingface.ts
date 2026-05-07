@@ -24,9 +24,9 @@ export function useHfSaveSettings() {
   return useMutation({
     mutationFn: (req: { token: string }) => api.post<HfSettings>("/sdapi/v2/huggingface/settings", req),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["hf-settings"] });
-      qc.invalidateQueries({ queryKey: ["hf-me"] });
-      qc.invalidateQueries({ queryKey: ["secrets-status"] });
+      void qc.invalidateQueries({ queryKey: ["hf-settings"] });
+      void qc.invalidateQueries({ queryKey: ["hf-me"] });
+      void qc.invalidateQueries({ queryKey: ["secrets-status"] });
     },
   });
 }
