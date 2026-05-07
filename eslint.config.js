@@ -1,4 +1,5 @@
 import js from '@eslint/js'
+import { fixupConfigRules } from '@eslint/compat'
 import globals from 'globals'
 import reactHooks from 'eslint-plugin-react-hooks'
 import reactRefresh from 'eslint-plugin-react-refresh'
@@ -6,6 +7,14 @@ import jsxA11y from 'eslint-plugin-jsx-a11y'
 import tseslint from 'typescript-eslint'
 import prettier from 'eslint-config-prettier/flat'
 import { defineConfig, globalIgnores } from 'eslint/config'
+
+// jsx-a11y has not released ESLint 10 support (PRs #1081, #1079 stalled
+// since Feb 2026). fixupConfigRules wraps each rule through the official
+// ESLint-team compat layer so removed v10 context APIs are back-filled.
+// The npm "overrides" entry in package.json handles the install-time
+// peer-dep gap. Both pieces should be removed once jsx-a11y publishes a
+// release that declares ESLint 10 support.
+const a11yConfig = fixupConfigRules(jsxA11y.flatConfigs.recommended)
 
 export default defineConfig([
   globalIgnores(['dist', 'dev-dist', 'mcp', 'working-docs', 'src/lib/*.generated.ts']),
@@ -16,7 +25,7 @@ export default defineConfig([
       tseslint.configs.recommendedTypeChecked,
       reactHooks.configs.flat.recommended,
       reactRefresh.configs.vite,
-      jsxA11y.flatConfigs.recommended,
+      a11yConfig,
     ],
     languageOptions: {
       ecmaVersion: 2020,

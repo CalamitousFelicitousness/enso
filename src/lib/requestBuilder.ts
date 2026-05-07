@@ -334,7 +334,7 @@ export async function buildControlRequest(): Promise<BuildResult> {
     }
 
     // Export mask from mask objects + painted strokes if no explicit maskData
-    let maskBlob: Blob | null = null;
+    let maskBlob: Blob | null;
     if (img2img.maskData) {
       // maskData is already a base64 string from external source - convert to Blob and upload
       const resp = await fetch(`data:image/png;base64,${img2img.maskData}`);
