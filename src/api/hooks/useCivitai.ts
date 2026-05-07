@@ -5,17 +5,17 @@ import type { CivitMetadataScanResult } from "../types/modelOps";
 
 function buildSearchParams(p: CivitSearchParams): Record<string, string> {
   const out: Record<string, string> = {};
-  if (p.query) out.query = p.query;
-  if (p.tag) out.tag = p.tag;
-  if (p.types) out.types = p.types;
-  if (p.sort) out.sort = p.sort;
-  if (p.period) out.period = p.period;
-  if (p.base_models) out.base_models = p.base_models;
-  if (p.nsfw !== undefined) out.nsfw = String(p.nsfw);
-  if (p.limit) out.limit = String(p.limit);
-  if (p.cursor) out.cursor = p.cursor;
-  if (p.username) out.username = p.username;
-  if (p.favorites) out.favorites = "true";
+  if (p.query) out["query"] = p.query;
+  if (p.tag) out["tag"] = p.tag;
+  if (p.types) out["types"] = p.types;
+  if (p.sort) out["sort"] = p.sort;
+  if (p.period) out["period"] = p.period;
+  if (p.base_models) out["base_models"] = p.base_models;
+  if (p.nsfw !== undefined) out["nsfw"] = String(p.nsfw);
+  if (p.limit) out["limit"] = String(p.limit);
+  if (p.cursor) out["cursor"] = p.cursor;
+  if (p.username) out["username"] = p.username;
+  if (p.favorites) out["favorites"] = "true";
   return out;
 }
 

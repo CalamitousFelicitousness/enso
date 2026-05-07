@@ -436,9 +436,9 @@ function ImageLightbox({
 }) {
   const img = images[index];
   const meta = img?.meta ?? {};
-  const hasPrompt = typeof meta.prompt === "string" && meta.prompt.length > 0;
+  const hasPrompt = typeof meta["prompt"] === "string" && meta["prompt"].length > 0;
   const hasNegative =
-    typeof meta.negativePrompt === "string" && meta.negativePrompt.length > 0;
+    typeof meta["negativePrompt"] === "string" && meta["negativePrompt"].length > 0;
 
   const navigate = useCallback(
     (delta: number) => {
@@ -579,9 +579,9 @@ function ImageLightbox({
                     <DropdownMenuItem
                       onClick={() => {
                         sendPromptToGeneration(
-                          meta.prompt as string,
+                          meta["prompt"] as string,
                           hasNegative
-                            ? (meta.negativePrompt as string)
+                            ? (meta["negativePrompt"] as string)
                             : undefined,
                         );
                         toast.success("Prompt sent to Generation");
@@ -593,9 +593,9 @@ function ImageLightbox({
                     <DropdownMenuItem
                       onClick={() => {
                         sendPromptToVideo(
-                          meta.prompt as string,
+                          meta["prompt"] as string,
                           hasNegative
-                            ? (meta.negativePrompt as string)
+                            ? (meta["negativePrompt"] as string)
                             : undefined,
                         );
                         toast.success("Prompt sent to Video");
@@ -612,9 +612,9 @@ function ImageLightbox({
                             const file = await fetchRemoteImage(fullUrl);
                             await sendImageToCanvas(file);
                             sendPromptToGeneration(
-                              meta.prompt as string,
+                              meta["prompt"] as string,
                               hasNegative
-                                ? (meta.negativePrompt as string)
+                                ? (meta["negativePrompt"] as string)
                                 : undefined,
                             );
                             onCloseAll();

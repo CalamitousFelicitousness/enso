@@ -50,19 +50,19 @@ function DetailRow({
 }
 
 function getCivitInfo(info: Record<string, unknown> | null | undefined) {
-  if (!info || typeof info.id !== "number" || info.id <= 0) return null;
-  const versions = Array.isArray(info.modelVersions)
-    ? (info.modelVersions as Array<Record<string, unknown>>)
+  if (!info || typeof info["id"] !== "number" || info["id"] <= 0) return null;
+  const versions = Array.isArray(info["modelVersions"])
+    ? (info["modelVersions"] as Array<Record<string, unknown>>)
     : [];
   const firstVersion = versions[0];
-  const trainedWords = Array.isArray(firstVersion?.trainedWords)
-    ? (firstVersion.trainedWords as string[]).filter(Boolean)
+  const trainedWords = Array.isArray(firstVersion?.["trainedWords"])
+    ? (firstVersion["trainedWords"] as string[]).filter(Boolean)
     : [];
   const baseModel =
-    typeof firstVersion?.baseModel === "string" ? firstVersion.baseModel : null;
+    typeof firstVersion?.["baseModel"] === "string" ? firstVersion["baseModel"] : null;
   return {
-    id: info.id,
-    name: typeof info.name === "string" ? info.name : null,
+    id: info["id"],
+    name: typeof info["name"] === "string" ? info["name"] : null,
     trainedWords,
     baseModel,
   };

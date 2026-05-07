@@ -23,7 +23,7 @@ export function isItemActive(
   const t = item.type?.toLowerCase() ?? "";
   if (t === "model" || t === "checkpoint")
     return (
-      (item.title ?? item.name) === (options?.sd_model_checkpoint as string)
+      (item.title ?? item.name) === (options?.["sd_model_checkpoint"] as string)
     );
   if (t === "lora" || t === "lycoris")
     return prompt.includes(`<lora:${item.name}:`);
@@ -31,7 +31,7 @@ export function isItemActive(
     return prompt.includes(item.name);
   if (t === "wildcards") return prompt.includes(`__${item.name}__`);
   if (t === "vae")
-    return (item.title ?? item.name) === (options?.sd_vae as string);
+    return (item.title ?? item.name) === (options?.["sd_vae"] as string);
   return false;
 }
 
