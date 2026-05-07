@@ -355,7 +355,10 @@ export interface BulkJobRequest {
   status?: string | undefined;
   type?: string | undefined;
   ids?: string[] | undefined;
+  /** ISO timestamp; backend filters `created_at < before`. */
   before?: string | undefined;
+  /** ISO timestamp; backend filters `created_at >= after`. */
+  after?: string | undefined;
   confirm?: boolean | undefined;
 }
 

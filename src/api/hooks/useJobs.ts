@@ -27,12 +27,16 @@ export function useJob(jobId: string | null) {
 export function useJobList(params?: {
   status?: string | undefined;
   type?: string | undefined;
+  before?: string | undefined;
+  after?: string | undefined;
   limit?: number | undefined;
   offset?: number | undefined;
 }) {
   const queryParams: Record<string, string> = {};
   if (params?.status) queryParams["status"] = params.status;
   if (params?.type) queryParams["type"] = params.type;
+  if (params?.before) queryParams["before"] = params.before;
+  if (params?.after) queryParams["after"] = params.after;
   if (params?.limit !== undefined) queryParams["limit"] = String(params.limit);
   if (params?.offset !== undefined) queryParams["offset"] = String(params.offset);
 
