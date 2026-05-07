@@ -99,6 +99,7 @@ const SectionLeader = memo(function SectionLeader({
 
   // --- Action slot (with propagation isolation) ---
   const actionSlot = action ? (
+    // eslint-disable-next-line jsx-a11y/click-events-have-key-events,jsx-a11y/no-static-element-interactions -- bubble-firewall around action child (Switch/Button); the child owns its own keyboard handling
     <span
       onClick={(e) => e.stopPropagation()}
       onPointerDown={(e) => e.stopPropagation()}
@@ -262,9 +263,11 @@ const SectionLeader = memo(function SectionLeader({
   );
 });
 
-/** Hover tooltip for section titles - 300ms hover delay, long-press to pin. */
+/** Hover tooltip for section titles - 300ms hover delay, long-press to pin.
+ *  Keyboard equivalents: focus opens the tooltip, Enter/Space toggles pinned. */
 function SectionTooltip({ tooltip, children }: { tooltip: string; children: React.ReactNode }) {
   const [hovered, setHovered] = useState(false);
+  const [focused, setFocused] = useState(false);
   const [pinned, setPinned] = useState(false);
   const hoverTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const pressTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -301,10 +304,16 @@ function SectionTooltip({ tooltip, children }: { tooltip: string; children: Reac
 
   // Content is developer-defined help text from parameterHelp.ts, not user input
   return (
-    <Tooltip open={hovered || pinned}>
+    <Tooltip open={hovered || focused || pinned}>
       <TooltipTrigger asChild>
         <span
           ref={triggerRef}
+          role="button"
+          tabIndex={0}
+          aria-pressed={pinned}
+          className="outline-none focus-visible:ring-ring/50 focus-visible:ring-[3px] rounded-sm"
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
           onPointerEnter={() => {
             hoverTimer.current = setTimeout(() => setHovered(true), 300);
           }}
@@ -328,6 +337,13 @@ function SectionTooltip({ tooltip, children }: { tooltip: string; children: Reac
               e.preventDefault();
               e.stopPropagation();
               didLongPress.current = false;
+            }
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              e.stopPropagation();
+              setPinned((p) => !p);
             }
           }}
         >

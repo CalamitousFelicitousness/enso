@@ -204,10 +204,13 @@ function VideoPlayerInner({ src }: { src: string }) {
   }, [speed, togglePlay, stepFrame, setPlaybackSpeed, toggleFullscreen]);
 
   return (
+    // eslint-disable-next-line jsx-a11y/click-events-have-key-events,jsx-a11y/no-noninteractive-element-interactions -- role="application" surface; keyboard shortcuts (Space/Arrows/J/K/L/F/[/]/0-9) handled via container's useEffect-bound keydown listener (lint rule sees only JSX attribute handlers)
     <div
       ref={containerRef}
+      role="application"
+      aria-label="Video player"
       className="relative h-full w-full outline-none"
-      // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- container receives keyboard shortcuts (space/F)
+      // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- role="application" takes keyboard ownership per WAI-ARIA 1.2
       tabIndex={0}
       onMouseMove={resetIdleTimer}
       onClick={togglePlay}
