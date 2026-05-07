@@ -34,9 +34,14 @@ export function SwipeMode({ imageA, imageB }: SwipeModeProps) {
   }, []);
 
   return (
+    // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- role="application" surfaces own gesture handlers per WAI-ARIA 1.2
     <div
       ref={containerRef}
-      className="relative h-full w-full overflow-hidden select-none"
+      role="application"
+      aria-label="Comparison swipe view; arrow keys move divider"
+      // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- role="application" takes keyboard ownership per WAI-ARIA 1.2
+      tabIndex={0}
+      className="relative h-full w-full overflow-hidden select-none outline-none focus-visible:ring-ring/50 focus-visible:ring-[3px]"
       onWheel={zoom.handlers.onWheel}
       onMouseDown={zoom.handlers.onMouseDown}
       onMouseMove={zoom.handlers.onMouseMove}

@@ -355,7 +355,10 @@ function UnitPanel({
   );
 
   return (
+    // eslint-disable-next-line jsx-a11y/click-events-have-key-events,jsx-a11y/no-noninteractive-element-interactions -- panel-shell click raises z-order; the interactive controls inside (sliders, buttons, layer rows) own their own keyboard handling
     <div
+      role="region"
+      aria-label={`${labelText} control frame`}
       className="flex flex-col overflow-hidden rounded-md shadow-lg"
       style={GLASS_STYLE}
       onClick={handlePanelClick}

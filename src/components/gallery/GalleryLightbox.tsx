@@ -158,8 +158,13 @@ export function GalleryLightbox() {
           <VideoPlayer src={fullUrl} />
         </div>
       ) : (
+        // eslint-disable-next-line jsx-a11y/click-events-have-key-events,jsx-a11y/no-noninteractive-element-interactions -- role="application" surface; lightbox scope provides global close/prev/next/zoom shortcuts
         <div
-          className="flex-1 flex items-center justify-center overflow-hidden select-none"
+          role="application"
+          aria-label="Image viewer; arrow keys navigate, plus/minus to zoom"
+          // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- role="application" takes keyboard ownership per WAI-ARIA 1.2
+          tabIndex={0}
+          className="flex-1 flex items-center justify-center overflow-hidden select-none outline-none focus-visible:ring-ring/50 focus-visible:ring-[3px]"
           style={{ cursor: zoom.style.cursor }}
           onWheel={zoom.handlers.onWheel}
           onMouseDown={(e) => {
