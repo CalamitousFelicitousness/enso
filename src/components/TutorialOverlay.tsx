@@ -150,6 +150,7 @@ function TutorialOverlayInner() {
       </svg>
 
       {/* Tooltip card */}
+      {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events,jsx-a11y/no-static-element-interactions -- bubble-firewall inside tutorial overlay; tutorial dismisses via Escape and explicit Skip/Done buttons */}
       <div
         className="fixed z-[61] w-72 rounded-lg border bg-popover p-4 text-popover-foreground shadow-lg"
         style={{

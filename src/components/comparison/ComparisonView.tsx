@@ -40,6 +40,7 @@ export function ComparisonView() {
   return (
     <div className="fixed inset-0 z-50 bg-black/95 flex flex-col" onClick={closeComparison}>
       {/* Top toolbar */}
+      {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events,jsx-a11y/no-static-element-interactions -- bubble-firewall inside comparison view; closes via Escape (comparison-close shortcut) */}
       <div
         className="flex items-center justify-between px-4 py-2 flex-shrink-0"
         onClick={(e) => e.stopPropagation()}
@@ -77,6 +78,7 @@ export function ComparisonView() {
       </div>
 
       {/* Content */}
+      {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events,jsx-a11y/no-static-element-interactions -- bubble-firewall inside comparison view; closes via Escape (comparison-close shortcut) */}
       <div className="flex-1 min-h-0" onClick={(e) => e.stopPropagation()}>
         {mode === "side-by-side" && <SideBySideMode imageA={imageA} imageB={imageB} />}
         {mode === "swipe" && <SwipeMode imageA={imageA} imageB={imageB} />}
@@ -85,6 +87,7 @@ export function ComparisonView() {
       </div>
 
       {/* Bottom bar */}
+      {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events,jsx-a11y/no-static-element-interactions -- bubble-firewall inside comparison view; closes via Escape (comparison-close shortcut) */}
       <div
         className="flex items-center justify-center px-4 py-1.5 flex-shrink-0 gap-4"
         onClick={(e) => e.stopPropagation()}

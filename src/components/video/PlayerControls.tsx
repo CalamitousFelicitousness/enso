@@ -99,6 +99,7 @@ export function PlayerControls({
     hoverX !== null && trackWidth > 0 ? formatTime((hoverX / trackWidth) * duration) : null;
 
   return (
+    // eslint-disable-next-line jsx-a11y/click-events-have-key-events,jsx-a11y/no-static-element-interactions -- bubble-firewall inside video player; play toggles via Space and other keys via parent VideoPlayer's keydown listener
     <div
       className={cn(
         "absolute inset-x-0 bottom-0 transition-opacity duration-200 pointer-events-none",

@@ -107,6 +107,7 @@ export function GalleryLightbox() {
   return (
     <div className="fixed inset-0 z-50 bg-black/90 flex flex-col" onClick={closeLightbox}>
       {/* Top bar */}
+      {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events,jsx-a11y/no-static-element-interactions -- bubble-firewall inside lightbox; closes via Escape (lightbox-close shortcut) */}
       <div
         className="flex items-center justify-between px-4 py-2 flex-shrink-0"
         onClick={(e) => e.stopPropagation()}
@@ -142,6 +143,7 @@ export function GalleryLightbox() {
 
       {/* Content area */}
       {isVideo ? (
+        // eslint-disable-next-line jsx-a11y/click-events-have-key-events,jsx-a11y/no-static-element-interactions -- bubble-firewall inside lightbox; closes via Escape (lightbox-close shortcut)
         <div
           className="flex-1 min-h-0 overflow-hidden select-none"
           onClick={(e) => e.stopPropagation()}
@@ -199,6 +201,7 @@ export function GalleryLightbox() {
       )}
 
       {/* Bottom bar */}
+      {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events,jsx-a11y/no-static-element-interactions -- bubble-firewall inside lightbox; closes via Escape (lightbox-close shortcut) */}
       <div
         className="flex items-center justify-center px-4 py-1.5 flex-shrink-0"
         onClick={(e) => e.stopPropagation()}

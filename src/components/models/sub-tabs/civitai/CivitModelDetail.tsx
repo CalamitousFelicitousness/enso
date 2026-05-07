@@ -442,6 +442,7 @@ function ImageLightbox({
       }}
     >
       {/* Image area */}
+      {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events,jsx-a11y/no-static-element-interactions -- bubble-firewall inside image lightbox; closes via Escape (capture-phase keydown listener above) */}
       <div
         className="flex-1 flex items-center justify-center min-w-0 relative"
         onClick={(e) => e.stopPropagation()}
@@ -475,6 +476,7 @@ function ImageLightbox({
       </div>
 
       {/* Metadata sidebar */}
+      {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events,jsx-a11y/no-static-element-interactions -- bubble-firewall inside image lightbox; closes via Escape (capture-phase keydown listener above) */}
       <div
         className="w-80 shrink-0 bg-background/95 border-l border-border/50 overflow-y-auto p-4 space-y-3"
         onClick={(e) => e.stopPropagation()}

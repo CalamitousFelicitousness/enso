@@ -48,6 +48,7 @@ export function ResultThumbActions({ result, imageIndex, onCompare }: ResultThum
   );
 
   return (
+    // eslint-disable-next-line jsx-a11y/click-events-have-key-events,jsx-a11y/no-static-element-interactions -- bubble-firewall inside result thumbnail; the action <button>s inside own their own keyboard handling
     <div
       className="absolute bottom-0 left-0 right-0 flex justify-center gap-0.5 bg-gradient-to-t from-black/80 to-transparent pt-3 pb-0.5 px-0.5"
       onClick={(e) => e.stopPropagation()}
