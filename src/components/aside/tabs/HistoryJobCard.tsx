@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   Image,
   Video,
@@ -6,10 +7,14 @@ import {
   ScanSearch,
   SlidersHorizontal,
   LayoutGrid,
+  RotateCcw,
   Trash2,
 } from "lucide-react";
+import { toast } from "sonner";
 import type { Job } from "@/api/types/v2";
 import { useDeleteJob } from "@/api/hooks/useJobs";
+import { useResubmitJob } from "@/hooks/useResubmitJob";
+import { getJobPayload } from "@/lib/jobPayloadDb";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
@@ -70,9 +75,38 @@ interface HistoryJobCardProps {
 
 export function HistoryJobCard({ job }: HistoryJobCardProps) {
   const deleteJob = useDeleteJob();
+  const resubmit = useResubmitJob();
+  const [retrying, setRetrying] = useState(false);
   const TypeIcon = TYPE_ICONS[job.type] ?? Image;
   const hasImages = job.result && job.result.images.length > 0;
   const timestamp = job.completed_at ?? job.created_at;
+  const isTerminal =
+    job.status === "completed" ||
+    job.status === "failed" ||
+    job.status === "cancelled";
+
+  const handleRetry = async () => {
+    setRetrying(true);
+    try {
+      const payload = await getJobPayload(job.id);
+      if (!payload) {
+        toast.error("Job parameters no longer available", {
+          description: "This job's request was evicted from local cache.",
+        });
+        return;
+      }
+      await resubmit(
+        {
+          domain: payload.domain,
+          request: payload.request,
+          snapshot: payload.snapshot,
+        },
+        { successMessage: "Job retried", errorMessage: "Failed to retry job" },
+      );
+    } finally {
+      setRetrying(false);
+    }
+  };
 
   return (
     <div className="group flex items-start gap-2 px-3 py-1.5 hover:bg-muted/50 rounded">
@@ -81,6 +115,8 @@ export function HistoryJobCard({ job }: HistoryJobCardProps) {
         <img
           src={job.result!.images[0].url}
           alt=""
+          loading="lazy"
+          decoding="async"
           className="h-8 w-8 rounded-sm object-cover shrink-0"
         />
       ) : (
@@ -115,6 +151,18 @@ export function HistoryJobCard({ job }: HistoryJobCardProps) {
 
       {/* Actions — visible on hover */}
       <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+        {isTerminal && (
+          <Button
+            size="icon"
+            variant="ghost"
+            className="h-5 w-5"
+            onClick={() => void handleRetry()}
+            disabled={retrying}
+            title="Retry"
+          >
+            <RotateCcw className="h-2.5 w-2.5" />
+          </Button>
+        )}
         <Button
           size="icon"
           variant="ghost"
