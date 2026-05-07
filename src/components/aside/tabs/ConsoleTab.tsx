@@ -1,4 +1,11 @@
-import { useState, useRef, useEffect, useMemo, type MouseEvent as ReactMouseEvent, type ReactNode } from "react";
+import {
+  useState,
+  useRef,
+  useEffect,
+  useMemo,
+  type MouseEvent as ReactMouseEvent,
+  type ReactNode,
+} from "react";
 import { Copy, Trash2, WrapText, Filter } from "lucide-react";
 import { useServerLog, useClearLog } from "@/api/hooks/useLog";
 import { useKeepAliveVisible } from "@/components/ui/keep-alive";
