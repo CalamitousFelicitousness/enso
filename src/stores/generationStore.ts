@@ -4,11 +4,12 @@ import { putResult, trimResults, clearAllResults, getAllResults } from "@/lib/hi
 import type { MaskLine } from "@/stores/img2imgStore";
 import type { ControlUnitSnapshot } from "@/api/types/control";
 import type { DetailerOverrides, DetailerModelEntry } from "@/api/types/v2";
+import type { WireParams } from "@/api/types/wireParams";
 
 export interface GenerationResult {
   id: string;
   images: string[];
-  parameters: Record<string, unknown>;
+  parameters: WireParams;
   info: string;
   timestamp: number;
   /** Flattened canvas base64 captured at generation time. Persisted to IndexedDB with the result. */

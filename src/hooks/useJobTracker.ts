@@ -8,6 +8,7 @@ import { useVideoStore } from "@/stores/videoStore";
 import { useProcessStore } from "@/stores/processStore";
 import { deleteJobPayload } from "@/lib/jobPayloadDb";
 import type { JobResult, JobWsEvent } from "@/api/types/v2";
+import type { WireParams } from "@/api/types/wireParams";
 import { toast } from "sonner";
 
 const MAX_CONCURRENT_WS = 5;
@@ -30,7 +31,9 @@ function routeResult(domain: JobDomain, result: JobResult, snapshot: TrackedJob[
       useGenerationStore.getState().addResult({
         id: crypto.randomUUID(),
         images: finalImages,
-        parameters: result.params,
+        // Server returns snake_case JSON; this cast crosses the wire-contract
+        // boundary the type system cannot verify.
+        parameters: result.params as WireParams,
         info: JSON.stringify(result.info),
         timestamp: Date.now(),
         inputImage: snapshot.inputImage,

@@ -21,6 +21,7 @@ import type { SizeMode } from "@/lib/sizeCompute";
 import type { ControlRequest, GenerationInfo } from "@/api/types/generation";
 import type { DetailerModelEntry, DetailerModelRef, DetailerOverrides } from "@/api/types/v2";
 import { BACKEND_UNIT_TYPE } from "@/api/types/control";
+import type { WireParams, WireOverrides } from "@/api/types/wireParams";
 
 export interface BuildResult {
   request: ControlRequest;
@@ -416,7 +417,7 @@ export function extractParamsFromResult(result: GenerationResult): Partial<Gener
   try { info = JSON.parse(result.info) as GenerationInfo; }
   catch { /* ignore */ }
 
-  const overrides = (p.extra ?? p.override_settings ?? {}) as Record<string, unknown>;
+  const overrides: WireOverrides = (p.extra ?? p.override_settings ?? {}) as WireOverrides;
 
   const num = (v: unknown, fallback: number) => typeof v === "number" ? v : fallback;
   const str = (v: unknown, fallback: string) => typeof v === "string" ? v : fallback;
@@ -579,17 +580,17 @@ export function extractParamsFromResult(result: GenerationResult): Partial<Gener
 /** Build the V2 detailerDefaults + detailerModels from a result's parameters.
  * Accepts both V2-shaped and legacy-flat inputs. */
 function extractDetailerV2(
-  p: Record<string, unknown>,
-  overrides: Record<string, unknown>,
+  p: WireParams,
+  overrides: WireOverrides,
 ): Pick<GenerationState, "detailerDefaults" | "detailerModels"> {
   const num = (v: unknown): number | undefined => typeof v === "number" ? v : undefined;
   const str = (v: unknown): string | undefined => typeof v === "string" && v ? v : undefined;
   const bool = (v: unknown): boolean | undefined => typeof v === "boolean" ? v : undefined;
 
   // Prefer V2 defaults block if present
-  const v2Defaults = (p.detailer_defaults ?? overrides.detailer_defaults) as Record<string, unknown> | undefined;
+  const v2Defaults: DetailerOverrides | undefined = p.detailer_defaults ?? overrides.detailer_defaults;
   const defaults: DetailerOverrides = v2Defaults && typeof v2Defaults === "object"
-    ? (v2Defaults)
+    ? v2Defaults
     : {
         // Legacy: hoist flat detailer_* fields into the defaults block
         strength: num(p.detailer_strength ?? overrides.detailer_strength),
