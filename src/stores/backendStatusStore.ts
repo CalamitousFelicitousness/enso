@@ -16,7 +16,7 @@ export interface BackendStatus {
 }
 
 interface BackendStatusState extends BackendStatus {
-  setStatus: (data: Record<string, unknown>) => void;
+  setStatus: (data: Partial<BackendStatus>) => void;
   setPreview: (url: string) => void;
   setConnected: (connected: boolean) => void;
   reset: () => void;
@@ -42,16 +42,16 @@ export const useBackendStatusStore = create<BackendStatusState>()((set) => ({
 
   setStatus: (data) =>
     set((state) => ({
-      status: (data.status as string) ?? state.status,
-      task: (data.task as string) ?? state.task,
-      textinfo: (data.textinfo as string | null) ?? null,
-      current: (data.current as string) ?? state.current,
-      step: (data.step as number) ?? state.step,
-      steps: (data.steps as number) ?? state.steps,
-      progress: (data.progress as number) ?? state.progress,
-      eta: (data.eta as number | null) ?? null,
-      elapsed: (data.elapsed as number | null) ?? null,
-      uptime: (data.uptime as number) ?? state.uptime,
+      status: data.status ?? state.status,
+      task: data.task ?? state.task,
+      textinfo: data.textinfo ?? null,
+      current: data.current ?? state.current,
+      step: data.step ?? state.step,
+      steps: data.steps ?? state.steps,
+      progress: data.progress ?? state.progress,
+      eta: data.eta ?? null,
+      elapsed: data.elapsed ?? null,
+      uptime: data.uptime ?? state.uptime,
     })),
 
   setPreview: (url) =>

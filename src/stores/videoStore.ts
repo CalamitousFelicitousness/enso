@@ -204,13 +204,13 @@ export const useVideoStore = create<VideoState>()(
         const p = persisted as Record<string, unknown>;
         if (version < 1) {
           if ("_historyLimit" in p) {
-            p.historyLimit = p._historyLimit;
-            delete p._historyLimit;
+            p["historyLimit"] = p["_historyLimit"];
+            delete p["_historyLimit"];
           }
         }
         if (version < 2) {
           // activeVideoTab moved to uiStore.panelSelections.videoSubTab in v2
-          delete p.activeVideoTab;
+          delete p["activeVideoTab"];
         }
         return p;
       },
@@ -220,7 +220,7 @@ export const useVideoStore = create<VideoState>()(
           if (key === "initImage" || key === "lastImage") continue;
           p[key] = state[key];
         }
-        p.historyLimit = state.historyLimit;
+        p["historyLimit"] = state.historyLimit;
         return p;
       },
     },

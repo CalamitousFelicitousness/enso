@@ -390,31 +390,31 @@ export const useGenerationStore = create<GenerationState>()(
         const p = persisted as Record<string, unknown>;
         if (version < 1) {
           // Coerce detailerModels: string[] → DetailerModelEntry[]
-          const oldModels = p.detailerModels;
+          const oldModels = p["detailerModels"];
           if (Array.isArray(oldModels) && oldModels.length > 0 && typeof oldModels[0] === "string") {
-            p.detailerModels = oldModels.map((name) => ({ name: name as string }));
+            p["detailerModels"] = oldModels.map((name) => ({ name: name as string }));
           }
           // Fold flat detailer* fields into a defaults block
-          p.detailerDefaults = {
-            strength: p.detailerStrength,
-            steps: p.detailerSteps,
-            resolution: p.detailerResolution,
-            padding: p.detailerPadding,
-            blur: p.detailerBlur,
-            conf: p.detailerConfidence,
-            iou: p.detailerIou,
-            min_size: p.detailerMinSize,
-            max_size: p.detailerMaxSize,
-            max: p.detailerMaxDetected,
-            sigma_adjust: p.detailerRenoise,
-            sigma_adjust_max: p.detailerRenoiseEnd,
-            segmentation: p.detailerSegmentation,
-            include_detections: p.detailerIncludeDetections,
-            merge: p.detailerMerge,
-            sort: p.detailerSort,
-            classes: p.detailerClasses,
-            prompt: p.detailerPrompt,
-            negative: p.detailerNegative,
+          p["detailerDefaults"] = {
+            strength: p["detailerStrength"],
+            steps: p["detailerSteps"],
+            resolution: p["detailerResolution"],
+            padding: p["detailerPadding"],
+            blur: p["detailerBlur"],
+            conf: p["detailerConfidence"],
+            iou: p["detailerIou"],
+            min_size: p["detailerMinSize"],
+            max_size: p["detailerMaxSize"],
+            max: p["detailerMaxDetected"],
+            sigma_adjust: p["detailerRenoise"],
+            sigma_adjust_max: p["detailerRenoiseEnd"],
+            segmentation: p["detailerSegmentation"],
+            include_detections: p["detailerIncludeDetections"],
+            merge: p["detailerMerge"],
+            sort: p["detailerSort"],
+            classes: p["detailerClasses"],
+            prompt: p["detailerPrompt"],
+            negative: p["detailerNegative"],
           };
           for (const k of [
             "detailerStrength", "detailerSteps", "detailerResolution",
@@ -429,8 +429,8 @@ export const useGenerationStore = create<GenerationState>()(
         }
         if (version < 2) {
           if ("_historyLimit" in p) {
-            p.historyLimit = p._historyLimit;
-            delete p._historyLimit;
+            p["historyLimit"] = p["_historyLimit"];
+            delete p["_historyLimit"];
           }
         }
         return p;
@@ -438,7 +438,7 @@ export const useGenerationStore = create<GenerationState>()(
       partialize: (state) => {
         const p: Record<string, unknown> = {};
         for (const key of defaultParamKeys) p[key] = state[key];
-        p.historyLimit = state.historyLimit;
+        p["historyLimit"] = state.historyLimit;
         return p;
       },
     },

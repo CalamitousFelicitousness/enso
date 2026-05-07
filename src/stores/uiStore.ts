@@ -199,7 +199,7 @@ export const useUiStore = create<UiState>()(
         if (!persisted || typeof persisted !== "object") return persisted;
         const p = persisted as Record<string, unknown>;
         if (version < 3 && !("panelSelections" in p)) {
-          p.panelSelections = { ...DEFAULT_PANEL_SELECTIONS };
+          p["panelSelections"] = { ...DEFAULT_PANEL_SELECTIONS };
         }
         return p;
       },
