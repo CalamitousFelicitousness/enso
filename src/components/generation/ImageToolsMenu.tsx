@@ -97,7 +97,7 @@ export function ImageToolsMenu() {
         type="file"
         accept="image/*"
         className="hidden"
-        onChange={handleFileInput}
+        onChange={(e) => void handleFileInput(e)}
       />
       <PngInfoDialog open={pngInfoOpen} onOpenChange={setPngInfoOpen} />
       <QuickInterrogateDialog

@@ -144,7 +144,7 @@ export function BatchDialog({
           >
             Cancel
           </Button>
-          <Button size="sm" onClick={handleSubmit} disabled={isSubmitting}>
+          <Button size="sm" onClick={() => void handleSubmit()} disabled={isSubmitting}>
             {isSubmitting && (
               <Loader2 size={14} className="animate-spin mr-1" />
             )}

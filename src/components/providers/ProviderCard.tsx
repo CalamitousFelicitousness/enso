@@ -107,7 +107,7 @@ export function ProviderCard({ provider }: ProviderCardProps) {
               variant="outline"
               size="sm"
               className="h-6 text-3xs"
-              onClick={handleValidate}
+              onClick={() => void handleValidate()}
               disabled={validateProvider.isPending}
             >
               <ShieldCheck size={12} className="mr-1" />
@@ -117,7 +117,7 @@ export function ProviderCard({ provider }: ProviderCardProps) {
               variant="outline"
               size="sm"
               className="h-6 text-3xs"
-              onClick={handleRefresh}
+              onClick={() => void handleRefresh()}
               disabled={refreshProvider.isPending}
             >
               <RefreshCw size={12} className={cn("mr-1", refreshProvider.isPending && "animate-spin")} />
@@ -128,7 +128,7 @@ export function ProviderCard({ provider }: ProviderCardProps) {
               variant="ghost"
               size="sm"
               className="h-6 text-3xs text-destructive hover:text-destructive"
-              onClick={handleRemove}
+              onClick={() => void handleRemove()}
               disabled={removeProvider.isPending}
             >
               <Trash2 size={12} className="mr-1" />

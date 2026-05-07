@@ -280,7 +280,7 @@ export function VideoPanel() {
             <div className="flex items-center gap-0.5">
               <button
                 type="button"
-                onClick={handleEnhance}
+                onClick={() => void handleEnhance()}
                 disabled={enhanceMutation.isPending}
                 className="p-0.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
                 title="Enhance prompt"
@@ -314,7 +314,7 @@ export function VideoPanel() {
                 >
                   <ScrollArea className="max-h-[80vh]">
                     <PromptEnhanceWorkspace
-                      onEnhance={handleEnhance}
+                      onEnhance={() => void handleEnhance()}
                       isPending={enhanceMutation.isPending}
                       onClose={() => setEnhanceOpen(false)}
                       onAccept={handleAcceptEnhanced}
@@ -345,7 +345,7 @@ export function VideoPanel() {
           <div className="flex gap-2">
             <Button
               type="button"
-              onClick={submit}
+              onClick={() => void submit()}
               disabled={isSubmitting || !canGenerate(activeVideoTab)}
               variant="default"
               size="sm"

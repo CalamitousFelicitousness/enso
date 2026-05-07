@@ -46,7 +46,7 @@ export function ExtractLoraSubTab() {
           <p className="text-xs font-medium">Loaded LoRAs</p>
           <button
             type="button"
-            onClick={() => refetchLoras()}
+            onClick={() => void refetchLoras()}
             className="p-1 text-muted-foreground hover:text-foreground"
           >
             <RefreshCw className="h-3 w-3" />

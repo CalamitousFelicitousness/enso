@@ -11,7 +11,7 @@ export function SystemInfoSubTab() {
     <div className="space-y-4">
       <Button
         size="sm"
-        onClick={() => refetch()}
+        onClick={() => void refetch()}
         disabled={isFetching}
         className="w-full"
       >

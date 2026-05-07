@@ -973,7 +973,7 @@ function OutputFramePanel({
       <Button
         variant="ghost"
         size="icon-xs"
-        onClick={handleSendToInput}
+        onClick={() => void handleSendToInput()}
         disabled={!hasSelectedImage}
         title="Send selected output to Input frame"
         className="text-muted-foreground hover:bg-white/5 disabled:opacity-30"

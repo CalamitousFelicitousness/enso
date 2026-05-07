@@ -199,7 +199,7 @@ export function CaptionPanel() {
       {/* Caption button */}
       <div className="px-3 py-2 border-b border-border">
         <Button
-          onClick={handleCaption}
+          onClick={() => void handleCaption()}
           disabled={!image || isProcessing}
           size="sm"
           className="w-full"

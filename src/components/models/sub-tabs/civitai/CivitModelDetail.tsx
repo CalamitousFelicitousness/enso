@@ -533,33 +533,37 @@ function ImageLightbox({
                   Image
                 </DropdownMenuLabel>
                 <DropdownMenuItem
-                  onClick={async () => {
-                    try {
-                      const file = await fetchRemoteImage(fullUrl);
-                      await sendImageToCanvas(file);
-                      onCloseAll();
-                      toast.success("Sent to Canvas");
-                    } catch {
-                      toast.error("Failed to send image");
-                    }
+                  onClick={() => {
+                    void (async () => {
+                      try {
+                        const file = await fetchRemoteImage(fullUrl);
+                        await sendImageToCanvas(file);
+                        onCloseAll();
+                        toast.success("Sent to Canvas");
+                      } catch {
+                        toast.error("Failed to send image");
+                      }
+                    })();
                   }}
                 >
                   <ImageIcon size={14} className="mr-2" />
                   Send to Canvas
                 </DropdownMenuItem>
                 <DropdownMenuItem
-                  onClick={async () => {
-                    try {
-                      const file = await fetchRemoteImage(fullUrl);
-                      const blob = new Blob([await file.arrayBuffer()], {
-                        type: file.type,
-                      });
-                      await sendFrameToVideoInit(blob);
-                      onCloseAll();
-                      toast.success("Sent to Video Init");
-                    } catch {
-                      toast.error("Failed to send image");
-                    }
+                  onClick={() => {
+                    void (async () => {
+                      try {
+                        const file = await fetchRemoteImage(fullUrl);
+                        const blob = new Blob([await file.arrayBuffer()], {
+                          type: file.type,
+                        });
+                        await sendFrameToVideoInit(blob);
+                        onCloseAll();
+                        toast.success("Sent to Video Init");
+                      } catch {
+                        toast.error("Failed to send image");
+                      }
+                    })();
                   }}
                 >
                   <ImageIcon size={14} className="mr-2" />
@@ -601,21 +605,23 @@ function ImageLightbox({
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
-                      onClick={async () => {
-                        try {
-                          const file = await fetchRemoteImage(fullUrl);
-                          await sendImageToCanvas(file);
-                          sendPromptToGeneration(
-                            meta.prompt as string,
-                            hasNegative
-                              ? (meta.negativePrompt as string)
-                              : undefined,
-                          );
-                          onCloseAll();
-                          toast.success("Image + Prompt sent to Canvas");
-                        } catch {
-                          toast.error("Failed to send");
-                        }
+                      onClick={() => {
+                        void (async () => {
+                          try {
+                            const file = await fetchRemoteImage(fullUrl);
+                            await sendImageToCanvas(file);
+                            sendPromptToGeneration(
+                              meta.prompt as string,
+                              hasNegative
+                                ? (meta.negativePrompt as string)
+                                : undefined,
+                            );
+                            onCloseAll();
+                            toast.success("Image + Prompt sent to Canvas");
+                          } catch {
+                            toast.error("Failed to send");
+                          }
+                        })();
                       }}
                     >
                       <Send size={14} className="mr-2" />

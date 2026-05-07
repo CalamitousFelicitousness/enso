@@ -597,13 +597,13 @@ export function PngInfoDialog({ open, onOpenChange }: PngInfoDialogProps) {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="start">
-                        <DropdownMenuItem onClick={handleSendToCanvas}>
+                        <DropdownMenuItem onClick={() => void handleSendToCanvas()}>
                           Send Image to Canvas
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={handleSendToVideo}>
+                        <DropdownMenuItem onClick={() => void handleSendToVideo()}>
                           Send to Video Init
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={handleSendImageAndPrompt}>
+                        <DropdownMenuItem onClick={() => void handleSendImageAndPrompt()}>
                           Image + Prompt to Canvas
                         </DropdownMenuItem>
                       </DropdownMenuContent>

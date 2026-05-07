@@ -235,7 +235,7 @@ export function NetworksTab() {
           canScan={canScan}
           isScanPending={civitScan.isPending}
           isRefreshPending={refreshNetworks.isPending}
-          onCivitScan={handleCivitScan}
+          onCivitScan={() => void handleCivitScan()}
           onRefresh={() => refreshNetworks.mutate()}
         />
         <ActiveLoraStack

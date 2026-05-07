@@ -61,7 +61,7 @@ export function ActivityLogSubTab() {
           <p className="text-xs text-destructive text-center">
             {error instanceof Error ? error.message : "Failed to load activity"}
           </p>
-          <Button size="sm" variant="ghost" className="h-6 text-2xs" onClick={() => refetch()}>
+          <Button size="sm" variant="ghost" className="h-6 text-2xs" onClick={() => void refetch()}>
             Retry
           </Button>
         </div>

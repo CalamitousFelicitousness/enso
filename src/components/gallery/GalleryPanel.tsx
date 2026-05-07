@@ -219,7 +219,7 @@ export function GalleryPanel() {
               discoveredSubdirs={discoveredSubdirs}
               onSelect={handleSelect}
               onToggle={toggleExpand}
-              onFetchSubdirs={fetchSubdirs}
+              onFetchSubdirs={(p) => void fetchSubdirs(p)}
             />
           ))}
           {folders && folders.length === 0 && (

@@ -117,7 +117,7 @@ export function PromptEditor() {
             </Button>
             <button
               type="button"
-              onClick={handleEnhance}
+              onClick={() => void handleEnhance()}
               disabled={enhanceMutation.isPending}
               className="p-0.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
               title="Enhance prompt"
@@ -151,7 +151,7 @@ export function PromptEditor() {
               >
                 <ScrollArea className="max-h-[80vh]">
                   <PromptEnhanceWorkspace
-                    onEnhance={handleEnhance}
+                    onEnhance={() => void handleEnhance()}
                     isPending={enhanceMutation.isPending}
                     onClose={() => setEnhanceOpen(false)}
                   />

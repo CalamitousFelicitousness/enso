@@ -127,7 +127,7 @@ export function ModelSelector() {
                   <CommandItem
                     key={model.hash || model.title}
                     value={model.title}
-                    onSelect={() => handleSelectLocal(model)}
+                    onSelect={() => void handleSelectLocal(model)}
                     className={cn(
                       "text-xs",
                       !isCloud && model.title === (options?.sd_model_checkpoint as string) &&

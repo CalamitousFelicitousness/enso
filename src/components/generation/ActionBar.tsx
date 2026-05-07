@@ -227,7 +227,7 @@ export const ActionBar = memo(function ActionBar() {
         <Button
           type="button"
           data-param="generate"
-          onClick={submit}
+          onClick={() => void submit()}
           disabled={isSubmitting || !!detailOnlyBlockReason}
           title={detailOnlyBlockReason ?? undefined}
           variant="default"

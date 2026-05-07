@@ -51,7 +51,7 @@ export function VideoCompare({
     const videos = bothVideos();
     if (videos.length === 0) return;
     if (videos[0].paused) {
-      videos.forEach((v) => v.play());
+      videos.forEach((v) => void v.play());
     } else {
       videos.forEach((v) => v.pause());
     }

@@ -184,7 +184,7 @@ export function ConsoleTab() {
         <Button
           variant="ghost"
           size="icon-xs"
-          onClick={handleCopy}
+          onClick={() => void handleCopy()}
           title="Copy all"
         >
           <Copy className="h-3.5 w-3.5" />

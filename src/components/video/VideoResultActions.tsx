@@ -95,11 +95,11 @@ export function VideoResultActions({ result }: VideoResultActionsProps) {
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          <DropdownMenuItem onClick={handleSendFirstFrame}>
+          <DropdownMenuItem onClick={() => void handleSendFirstFrame()}>
             <ImagePlus size={14} />
             <span>Send first frame to Init</span>
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={handleSendLastFrame}>
+          <DropdownMenuItem onClick={() => void handleSendLastFrame()}>
             <ImagePlus size={14} />
             <span>Send last frame to Init</span>
           </DropdownMenuItem>
@@ -108,16 +108,16 @@ export function VideoResultActions({ result }: VideoResultActionsProps) {
             <span>Extract frame...</span>
           </DropdownMenuItem>
           <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={handleSendToUpscale}>
+          <DropdownMenuItem onClick={() => void handleSendToUpscale()}>
             <ArrowUpFromLine size={14} />
             <span>Send frame to Upscale</span>
           </DropdownMenuItem>
           <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={handleReuseSettings}>
+          <DropdownMenuItem onClick={() => void handleReuseSettings()}>
             <RotateCcw size={14} />
             <span>Reuse Settings</span>
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={handleExtend}>
+          <DropdownMenuItem onClick={() => void handleExtend()}>
             <FastForward size={14} />
             <span>Extend Video</span>
           </DropdownMenuItem>

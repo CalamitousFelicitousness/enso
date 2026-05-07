@@ -293,7 +293,7 @@ export function GalleryMetadata() {
               variant="outline"
               size="sm"
               className="w-full h-6 text-2xs justify-start gap-2"
-              onClick={handleSendToCanvas}
+              onClick={() => void handleSendToCanvas()}
             >
               <Paintbrush size={12} /> Send to canvas
             </Button>

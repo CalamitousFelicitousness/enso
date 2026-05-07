@@ -529,7 +529,7 @@ function ConnectionPanel() {
         </SettingRow>
 
         <div className="flex gap-2 pt-2">
-          <Button size="sm" onClick={handleConnect} className="text-xs">
+          <Button size="sm" onClick={() => void handleConnect()} className="text-xs">
             <Plug size={14} />
             Connect
           </Button>
@@ -866,7 +866,7 @@ export function SettingsView({ onDirtyChange }: SettingsViewProps = {}) {
         <div className="p-2 border-t border-border flex flex-col gap-1.5">
           <Button
             size="sm"
-            onClick={handleApply}
+            onClick={() => void handleApply()}
             disabled={dirtyCount === 0 || setOptions.isPending}
             className="w-full text-xs"
           >

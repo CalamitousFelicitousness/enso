@@ -110,7 +110,7 @@ export function CivitaiSubTab() {
         pages={infiniteSearch.data}
         hasNextPage={!!infiniteSearch.hasNextPage}
         isFetchingNextPage={infiniteSearch.isFetchingNextPage}
-        fetchNextPage={() => infiniteSearch.fetchNextPage()}
+        fetchNextPage={() => void infiniteSearch.fetchNextPage()}
         onSelectModel={setSelectedModelId}
       />
 

@@ -271,8 +271,8 @@ export function QueueTab() {
             <QueueJobCard
               key={job.id}
               job={job}
-              onMoveUp={handleMoveUp}
-              onMoveDown={handleMoveDown}
+              onMoveUp={(j) => void handleMoveUp(j)}
+              onMoveDown={(j) => void handleMoveDown(j)}
               canMoveUp={i > 0}
               canMoveDown={i < pendingJobsSorted.length - 1}
             />
@@ -305,8 +305,8 @@ export function QueueTab() {
               key={job.id}
               job={job}
               onView={handleView}
-              onRetry={handleRetry}
-              onDuplicate={handleDuplicate}
+              onRetry={(j) => void handleRetry(j)}
+              onDuplicate={(j) => void handleDuplicate(j)}
               onRemove={handleRemove}
             />
           ))}

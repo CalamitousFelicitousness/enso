@@ -196,7 +196,7 @@ export function ProcessPanel() {
             )}
             <Button
               type="button"
-              onClick={submitUpscale}
+              onClick={() => void submitUpscale()}
               disabled={!image || isUpscaling || isSubmittingUpscale || upscaler === "None"}
               size="sm"
               className="w-full"
@@ -245,7 +245,7 @@ export function ProcessPanel() {
             </div>
             <Button
               type="button"
-              onClick={submitRembg}
+              onClick={() => void submitRembg()}
               disabled={!image || isRembg || isSubmittingRembg}
               size="sm"
               className="w-full"

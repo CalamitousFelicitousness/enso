@@ -218,7 +218,7 @@ export function VideoCanvasView() {
       },
       [hitTestTarget, handleFileSelected],
     ),
-    onFileDrop: handleDropFile,
+    onFileDrop: (f) => void handleDropFile(f),
   });
 
   // Paste handler
@@ -255,7 +255,7 @@ export function VideoCanvasView() {
         isOver && "ring-2 ring-primary ring-inset",
       )}
       {...dropHandlers}
-      onPaste={handlePaste}
+      onPaste={(e) => void handlePaste(e)}
       tabIndex={-1}
     >
       {/* Canvas + overlays */}

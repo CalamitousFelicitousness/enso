@@ -416,7 +416,7 @@ export function ControlUnitControls({
                 variant="outline"
                 size="sm"
                 className="h-6 text-2xs px-2 gap-1 ml-auto"
-                onClick={handleProcess}
+                onClick={() => void handleProcess()}
                 disabled={preprocessMutation.isPending}
               >
                 {preprocessMutation.isPending ? (
@@ -455,7 +455,7 @@ export function ControlUnitControls({
                       variant="outline"
                       size="sm"
                       className="h-6 text-2xs px-2 gap-1"
-                      onClick={handleProcess}
+                      onClick={() => void handleProcess()}
                       disabled={preprocessMutation.isPending}
                     >
                       {preprocessMutation.isPending ? (

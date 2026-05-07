@@ -537,7 +537,7 @@ export function ColorTab() {
             type="file"
             accept=".cube"
             className="hidden"
-            onChange={handleLutFile}
+            onChange={(e) => void handleLutFile(e)}
           />
         </div>
         <ParamSlider

@@ -116,7 +116,7 @@ export function SectionTimeline({
             size="icon"
             variant="ghost"
             className="h-5 w-5"
-            onClick={handlePaste}
+            onClick={() => void handlePaste()}
             title="Paste from text"
           >
             <ClipboardPaste className="h-3 w-3" />

@@ -585,7 +585,7 @@ export function XyzGridDialog({
           </Button>
           <Button
             size="sm"
-            onClick={handleSubmit}
+            onClick={() => void handleSubmit()}
             disabled={isSubmitting || !canSubmit}
           >
             {isSubmitting && (

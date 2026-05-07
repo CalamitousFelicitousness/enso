@@ -20,7 +20,7 @@ export function StorageSubTab() {
       <Button
         size="sm"
         variant="outline"
-        onClick={() => refetch()}
+        onClick={() => void refetch()}
         disabled={isFetching}
       >
         {isFetching ? (

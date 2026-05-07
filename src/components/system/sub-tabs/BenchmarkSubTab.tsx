@@ -149,7 +149,7 @@ export function BenchmarkSubTab() {
         <Button
           size="sm"
           variant="outline"
-          onClick={() => loadHistory()}
+          onClick={() => void loadHistory()}
           disabled={historyLoading}
           className="w-full"
         >
