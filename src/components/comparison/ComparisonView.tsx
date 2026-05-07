@@ -38,7 +38,14 @@ export function ComparisonView() {
   if (!open || !imageA || !imageB) return null;
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/95 flex flex-col" onClick={closeComparison}>
+    // eslint-disable-next-line jsx-a11y/click-events-have-key-events,jsx-a11y/no-noninteractive-element-interactions -- backdrop-click dismiss is the established dialog UX pattern; Escape provides the keyboard equivalent via comparison-close shortcut
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label="Image comparison"
+      className="fixed inset-0 z-50 bg-black/95 flex flex-col"
+      onClick={closeComparison}
+    >
       {/* Top toolbar */}
       {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events,jsx-a11y/no-static-element-interactions -- bubble-firewall inside comparison view; closes via Escape (comparison-close shortcut) */}
       <div

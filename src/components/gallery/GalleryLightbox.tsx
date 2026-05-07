@@ -105,7 +105,14 @@ export function GalleryLightbox() {
   const isVideo = isVideoFile(file.relativePath);
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/90 flex flex-col" onClick={closeLightbox}>
+    // eslint-disable-next-line jsx-a11y/click-events-have-key-events,jsx-a11y/no-noninteractive-element-interactions -- backdrop-click dismiss is the established dialog UX pattern; Escape provides the keyboard equivalent via lightbox-close shortcut
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label={filename}
+      className="fixed inset-0 z-50 bg-black/90 flex flex-col"
+      onClick={closeLightbox}
+    >
       {/* Top bar */}
       {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events,jsx-a11y/no-static-element-interactions -- bubble-firewall inside lightbox; closes via Escape (lightbox-close shortcut) */}
       <div

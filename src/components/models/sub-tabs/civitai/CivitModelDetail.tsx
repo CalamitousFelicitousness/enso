@@ -435,7 +435,11 @@ function ImageLightbox({
   const fullUrl = img.url.replace(/\/(width=\d+)\//, "/original=true/");
 
   return (
+    // eslint-disable-next-line jsx-a11y/click-events-have-key-events,jsx-a11y/no-noninteractive-element-interactions -- backdrop-click dismiss is the established dialog UX pattern; Escape and ArrowLeft/Right are wired via the capture-phase keydown listener registered above
     <div
+      role="dialog"
+      aria-modal="true"
+      aria-label="Model image preview"
       className="fixed inset-0 z-[100] bg-black/90 flex"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
