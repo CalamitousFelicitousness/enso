@@ -119,7 +119,7 @@ function formatCount(count: number): string {
 }
 
 function dictTagSource(ctx: CompletionContext): CompletionResult | null {
-  const { dictMinChars, dictReplaceUnderscores, dictAppendComma } = useUiStore.getState();
+  const { dictMinChars, dictKeepUnderscores, dictAppendComma } = useUiStore.getState();
   const minCharsPattern = new RegExp(`(?<=^|[\\s,])\\w{${dictMinChars},}`);
   const match = ctx.matchBefore(minCharsPattern);
   if (!match) return null;
@@ -128,9 +128,7 @@ function dictTagSource(ctx: CompletionContext): CompletionResult | null {
 
   const query = match.text.toLowerCase();
   const MAX_RESULTS = 50;
-  const formatName = dictReplaceUnderscores
-    ? (n: string) => n.replace(/_/g, " ")
-    : (n: string) => n;
+  const formatName = dictKeepUnderscores ? (n: string) => n : (n: string) => n.replace(/_/g, " ");
   const suffix = dictAppendComma ? ", " : " ";
 
   // Prefix match via binary search (O(log n + k))

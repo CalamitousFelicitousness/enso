@@ -97,7 +97,7 @@ interface UiState {
   // Prompt autocomplete
   promptAutocomplete: boolean;
   dictMinChars: number;
-  dictReplaceUnderscores: boolean;
+  dictKeepUnderscores: boolean;
   dictAppendComma: boolean;
 
   // Actions
@@ -125,7 +125,7 @@ interface UiState {
   setPendingSettingsSearch: (query: string | null) => void;
   setPromptAutocomplete: (enabled: boolean) => void;
   setDictMinChars: (n: number) => void;
-  setDictReplaceUnderscores: (enabled: boolean) => void;
+  setDictKeepUnderscores: (enabled: boolean) => void;
   setDictAppendComma: (enabled: boolean) => void;
 }
 
@@ -175,7 +175,7 @@ export const useUiStore = create<UiState>()(
       canvasBackground: "dots",
       promptAutocomplete: true,
       dictMinChars: 3,
-      dictReplaceUnderscores: true,
+      dictKeepUnderscores: false,
       dictAppendComma: true,
 
       toggleLeftRail: () => set((s) => ({ leftRailCollapsed: !s.leftRailCollapsed })),
@@ -209,7 +209,7 @@ export const useUiStore = create<UiState>()(
       setPendingSettingsSearch: (query) => set({ pendingSettingsSearch: query }),
       setPromptAutocomplete: (enabled) => set({ promptAutocomplete: enabled }),
       setDictMinChars: (n) => set({ dictMinChars: Math.max(2, Math.min(6, n)) }),
-      setDictReplaceUnderscores: (enabled) => set({ dictReplaceUnderscores: enabled }),
+      setDictKeepUnderscores: (enabled) => set({ dictKeepUnderscores: enabled }),
       setDictAppendComma: (enabled) => set({ dictAppendComma: enabled }),
     }),
     {
@@ -227,7 +227,7 @@ export const useUiStore = create<UiState>()(
         const {
           pendingSettingsSearch: _pending,
           dictMinChars: _mc,
-          dictReplaceUnderscores: _ru,
+          dictKeepUnderscores: _ku,
           dictAppendComma: _ac,
           ...rest
         } = state;
