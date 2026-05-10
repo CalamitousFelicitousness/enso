@@ -8,6 +8,7 @@ from datetime import datetime
 from modules import shared
 from modules.logger import log
 
+from enso_api.endpoints import display_name
 from enso_api.models import ReqHuggingFaceSettingsV2
 
 # ---------------------------------------------------------------------------
@@ -93,7 +94,7 @@ def get_extra_network_detail(page: str, name: str):
         if pg.name.lower() != page.lower():
             continue
         for item in pg.items:
-            if item.get("name", "").lower() != name.lower():
+            if display_name(item, pg.name).lower() != name.lower():
                 continue
             mtime = item.get("mtime", None)
             if isinstance(mtime, datetime):
@@ -101,7 +102,7 @@ def get_extra_network_detail(page: str, name: str):
             elif mtime is not None:
                 mtime = str(mtime)
             return {
-                "name": item.get("name", ""),
+                "name": display_name(item, pg.name),
                 "type": pg.name,
                 "title": item.get("title", None),
                 "filename": item.get("filename", None),
@@ -124,7 +125,7 @@ def get_extra_network_details(page: str | None = None, name: str | None = None, 
         if page is not None and pg.name != page.lower():
             continue
         for item in pg.items:
-            if name is not None and item.get("name", "") != name:
+            if name is not None and display_name(item, pg.name) != name:
                 continue
             if title is not None and item.get("title", "") != title:
                 continue
@@ -141,7 +142,7 @@ def get_extra_network_details(page: str | None = None, name: str | None = None, 
                 mtime = str(mtime)
             matched.append(
                 {
-                    "name": item.get("name", ""),
+                    "name": display_name(item, pg.name),
                     "type": pg.name,
                     "title": item.get("title", None),
                     "fullname": item.get("fullname", None),

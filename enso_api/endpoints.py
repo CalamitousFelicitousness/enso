@@ -108,6 +108,21 @@ def format_mtime(mtime) -> str | None:
     return None
 
 
+def display_name(item: dict, page_name: str) -> str:
+    """Externally-visible name for an extra-network item.
+
+    For LoRA/LyCO items with a filename, this is the file's basename without
+    extension and with dots replaced by underscores - the form used in prompt
+    references and exposed by the v2 listing endpoint. SD.Next stores the raw
+    `item["name"]` as a relative path including subfolders and dots, so any
+    lookup against an externally-visible name must go through this helper.
+    """
+    raw = item.get("name", "")
+    if page_name in ("lora", "lyco") and item.get("filename"):
+        return os.path.splitext(os.path.basename(item["filename"]))[0].replace(".", "_")
+    return raw
+
+
 # Architecture fingerprints: map (pipeline_class, config_key, config_value)
 # to a version suffix. Only needed for pipelines where multiple model sizes
 # share the same _class_name (e.g. Flux2KleinPipeline covers 4B and 9B).
@@ -221,14 +236,11 @@ async def get_extra_networks_v2(
             continue
         for item in pg.items:
             tags = format_tags(item.get("tags", None))
-            name = item.get("name", "")
+            raw_name = item.get("name", "")
+            name = display_name(item, pg.name)
             fullname = item.get("fullname", None)
-            # LoRA/LyCo: normalize name the same way SD.Next does internally
-            # (basename without extension, dots replaced with underscores)
-            if pg.name in ("lora", "lyco") and item.get("filename"):
-                if fullname is None:
-                    fullname = name
-                name = os.path.splitext(os.path.basename(item["filename"]))[0].replace(".", "_")
+            if pg.name in ("lora", "lyco") and item.get("filename") and fullname is None:
+                fullname = raw_name
             title = item.get("title", "") or ""
             filename = item.get("filename", "") or ""
             if lower_search:
