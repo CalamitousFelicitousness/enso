@@ -1,13 +1,24 @@
-import { useState } from "react";
-import { Loader2, ExternalLink, ImageOff, ChevronDown, ChevronRight } from "lucide-react";
+import { useMemo, useState } from "react";
+import { Loader2, ExternalLink, ImageOff, ChevronDown, ChevronRight, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { useNetworkDetail } from "@/api/hooks/useNetworks";
+import { useCivitVersionImages } from "@/api/hooks/useCivitai";
 import { useGenerationStore } from "@/stores/generationStore";
 import { insertAtCursor } from "@/lib/promptCursor";
+import { sendPromptToGeneration, sendPromptToVideo } from "@/lib/sendTo";
+import { toDisplayString } from "@/lib/utils";
 import type { ExtraNetworkV2, NetworkDetail, PromptStyleV2 } from "@/api/types/models";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { api } from "@/api/client";
 
 function formatBytes(bytes: number): string {
@@ -38,12 +49,125 @@ function getCivitInfo(info: Record<string, unknown> | null | undefined) {
     : [];
   const baseModel =
     typeof firstVersion?.["baseModel"] === "string" ? firstVersion["baseModel"] : null;
+  const versionId = typeof firstVersion?.["id"] === "number" ? firstVersion["id"] : null;
   return {
     id: info["id"],
     name: typeof info["name"] === "string" ? info["name"] : null,
     trainedWords,
     baseModel,
+    versionId,
   };
+}
+
+const PARAM_DISPLAY_KEYS: [string, string][] = [
+  ["steps", "Steps"],
+  ["sampler", "Sampler"],
+  ["cfgScale", "CFG"],
+  ["seed", "Seed"],
+  ["clipSkip", "Clip skip"],
+  ["Size", "Size"],
+];
+
+function PreviewPromptSection({ versionId }: { versionId: number }) {
+  // TODO: once sdnext's preview-embed PR ships, prefer reading the embedded
+  // params from the local file via GET /sdapi/v1/png-info?file=<local_preview>
+  // and fall back to this live fetch only when the chunk is absent.
+  // See docs/civitai-preview-meta.md.
+  const { data, isLoading, isError } = useCivitVersionImages([versionId], true);
+  const meta = data?.[0]?.meta ?? null;
+
+  const prompt = typeof meta?.["prompt"] === "string" ? meta["prompt"] : "";
+  const negative = typeof meta?.["negativePrompt"] === "string" ? meta["negativePrompt"] : "";
+  const hasPrompt = prompt.length > 0;
+
+  const paramRows = useMemo(() => {
+    if (!meta) return [] as Array<[string, string]>;
+    const out: Array<[string, string]> = [];
+    for (const [key, label] of PARAM_DISPLAY_KEYS) {
+      const v = meta[key];
+      if (v === undefined || v === null || v === "") continue;
+      out.push([label, toDisplayString(v)]);
+    }
+    return out;
+  }, [meta]);
+
+  function handleSend(target: "generation" | "video") {
+    if (!hasPrompt) return;
+    const send = target === "generation" ? sendPromptToGeneration : sendPromptToVideo;
+    send(prompt, negative || undefined);
+    toast.success(target === "generation" ? "Prompt sent to Generation" : "Prompt sent to Video");
+  }
+
+  return (
+    <div className="pt-2 border-t border-border space-y-2">
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-medium">Preview prompt</span>
+        {hasPrompt && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                className="inline-flex items-center gap-1 text-2xs text-primary hover:underline"
+              >
+                <Sparkles className="h-3 w-3" />
+                Use
+                <ChevronDown className="h-3 w-3" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-40">
+              <DropdownMenuLabel className="text-3xs">Send prompt</DropdownMenuLabel>
+              <DropdownMenuItem onClick={() => handleSend("generation")}>
+                Generation
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleSend("video")}>Video</DropdownMenuItem>
+              {negative && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuLabel className="text-3xs text-muted-foreground">
+                    Includes negative prompt
+                  </DropdownMenuLabel>
+                </>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
+      </div>
+
+      {isLoading ? (
+        <div className="flex items-center gap-1.5 text-2xs text-muted-foreground">
+          <Loader2 className="h-3 w-3 animate-spin" />
+          Loading from Civitai...
+        </div>
+      ) : isError ? (
+        <p className="text-2xs text-muted-foreground/70 italic">Could not load preview metadata</p>
+      ) : !hasPrompt ? (
+        <p className="text-2xs text-muted-foreground/70 italic">
+          Civitai didn&apos;t provide prompt metadata for this preview
+        </p>
+      ) : (
+        <>
+          <p className="text-2xs whitespace-pre-wrap break-words bg-muted/30 rounded p-2 max-h-32 overflow-y-auto font-mono">
+            {prompt}
+          </p>
+          {negative && (
+            <div className="space-y-1">
+              <span className="text-3xs font-medium text-muted-foreground uppercase tracking-wider">
+                Negative
+              </span>
+              <p className="text-2xs whitespace-pre-wrap break-words bg-muted/30 rounded p-2 max-h-24 overflow-y-auto font-mono">
+                {negative}
+              </p>
+            </div>
+          )}
+          {paramRows.length > 0 && (
+            <p className="text-2xs text-muted-foreground font-mono tabular-nums">
+              {paramRows.map(([label, value]) => `${label} ${value}`).join("  ·  ")}
+            </p>
+          )}
+        </>
+      )}
+    </div>
+  );
 }
 
 function HtmlDescription({ html }: { html: string }) {
@@ -202,6 +326,11 @@ function NetworkDialogBody({
             <div className="pt-2 border-t border-border">
               <TriggerWords words={civit.trainedWords} />
             </div>
+          )}
+
+          {/* CivitAI preview prompt */}
+          {civit?.versionId !== null && civit?.versionId !== undefined && (
+            <PreviewPromptSection versionId={civit.versionId} />
           )}
 
           {/* CivitAI link */}

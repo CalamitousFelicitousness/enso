@@ -177,15 +177,26 @@ export function NetworksTab() {
     try {
       const data = await civitScan.mutateAsync(scanPage);
       const results = data.results ?? [];
-      const found = results.filter((r) => String(r.code) === "200").length;
+      // sdnext's rescan returns one row per (network, action). Backfilled
+      // preview-prompt embeds come back as code=200 with note="metadata
+      // embedded"; metadata fetches are code=200 with other notes.
+      const embedded = results.filter((r) => r.note === "metadata embedded").length;
+      const found = results.filter(
+        (r) => String(r.code) === "200" && r.note !== "metadata embedded",
+      ).length;
       const notFound = results.filter((r) => String(r.code) === "404").length;
       if (results.length === 0) {
         toast.info("CivitAI scan complete", {
           description: "No items needed scanning",
         });
       } else {
+        const parts: string[] = [];
+        if (found > 0) parts.push(`${found} metadata fetched`);
+        if (embedded > 0)
+          parts.push(`${embedded} preview prompt${embedded === 1 ? "" : "s"} embedded`);
+        if (notFound > 0) parts.push(`${notFound} not on CivitAI`);
         toast.success("CivitAI scan complete", {
-          description: `${found} found, ${notFound} not on CivitAI`,
+          description: parts.join(", ") || `${results.length} processed`,
         });
       }
       refreshNetworks.mutate();
