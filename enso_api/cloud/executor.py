@@ -201,37 +201,73 @@ async def _async_cloud_video(params: dict, job_id: str) -> dict:
 # --- Result storage helpers ---
 
 
-def _get_output_dir(job_id: str) -> str:
-    import os
-
-    from enso_api.job_queue import job_queue
-
-    base = os.path.dirname(job_queue.store.db_path) if job_queue.store else "."
-    output_dir = os.path.join(base, "outputs", job_id)
-    os.makedirs(output_dir, exist_ok=True)
-    return output_dir
+def _build_pnginfo(result, params: dict) -> str:
+    # Match SD.Next's PNG `parameters` chunk shape so the gallery info dialog and
+    # any external PNG-info parser can extract these fields. First line is the
+    # prompt, second is the negative prompt, third is the comma-separated key-value
+    # block. Cloud-specific keys are namespaced with "Cloud " to make their origin
+    # obvious.
+    prompt = params.get("prompt", "") or ""
+    negative = params.get("negative_prompt", "") or ""
+    cost = result.usage.cost if result.usage else None
+    parts = [
+        f"Cloud provider: {params.get('provider')}",
+        f"Cloud model: {params.get('model')}",
+    ]
+    if params.get("seed") is not None:
+        parts.append(f"Seed: {params['seed']}")
+    if params.get("width") and params.get("height"):
+        parts.append(f"Size: {params['width']}x{params['height']}")
+    if cost is not None:
+        parts.append(f"Cloud cost: {cost}")
+    if result.revised_prompt:
+        parts.append(f"Revised prompt: {result.revised_prompt}")
+    return f"{prompt}\nNegative prompt: {negative}\n{', '.join(parts)}"
 
 
 def _save_image_result(result, job_id: str, params: dict) -> dict:
-    import os
+    import io
 
-    output_dir = _get_output_dir(job_id)
+    from modules import images as img_module
+    from modules import shared
+    from modules.paths import resolve_output_path
+    from PIL import Image
+
+    has_image = bool(params.get("image"))
+    output_dir = resolve_output_path(
+        shared.opts.outdir_samples,
+        shared.opts.outdir_img2img_samples if has_image else shared.opts.outdir_txt2img_samples,
+    )
+    pnginfo = _build_pnginfo(result, params)
+
     images = []
-    fmt = result.format or "png"
-
     for i, img_bytes in enumerate(result.images):
-        filename = f"{i:04d}.{fmt}"
-        filepath = os.path.join(output_dir, filename)
-        with open(filepath, "wb") as f:
-            f.write(img_bytes)
+        pil_img = Image.open(io.BytesIO(img_bytes))
+        pil_img.load()
+        # save_image returns (short_filename, full_path, txt_path). Inherits SD.Next's
+        # FilenameGenerator, save_to_dirs, gallery cache registration, and writes the
+        # PNG parameters chunk so cloud results are indistinguishable from local ones.
+        _, full_path, _ = img_module.save_image(
+            pil_img,
+            output_dir,
+            "",
+            seed=params.get("seed", -1),
+            prompt=params.get("prompt", ""),
+            info=pnginfo,
+        )
+        if full_path is None:
+            continue
+        import os
+
         images.append(
             {
                 "index": i,
+                "path": full_path,
                 "url": f"/sdapi/v2/jobs/{job_id}/images/{i}",
-                "width": params.get("width", 0),
-                "height": params.get("height", 0),
-                "format": fmt,
-                "size": len(img_bytes),
+                "width": pil_img.width,
+                "height": pil_img.height,
+                "format": os.path.splitext(full_path)[1].lstrip(".").lower() or "png",
+                "size": os.path.getsize(full_path),
             }
         )
 
@@ -254,11 +290,15 @@ def _save_image_result(result, job_id: str, params: dict) -> dict:
 
 
 def _save_audio_result(result, job_id: str) -> str:
+    # SD.Next doesn't ship an outdir option for audio; fall back to outdir_samples
+    # so it lives alongside other generated artifacts.
     import os
 
-    output_dir = _get_output_dir(job_id)
-    filename = f"audio.{result.format}"
-    filepath = os.path.join(output_dir, filename)
+    from modules import shared
+
+    output_dir = shared.opts.outdir_samples or shared.opts.outdir_txt2img_samples
+    os.makedirs(output_dir, exist_ok=True)
+    filepath = os.path.join(output_dir, f"cloud_{job_id}.{result.format}")
     with open(filepath, "wb") as f:
         f.write(result.data)
     return filepath
@@ -267,9 +307,11 @@ def _save_audio_result(result, job_id: str) -> str:
 def _save_video_result(result, job_id: str) -> str:
     import os
 
-    output_dir = _get_output_dir(job_id)
-    filename = f"video.{result.format}"
-    filepath = os.path.join(output_dir, filename)
+    from modules import shared
+
+    output_dir = shared.opts.outdir_video or shared.opts.outdir_samples
+    os.makedirs(output_dir, exist_ok=True)
+    filepath = os.path.join(output_dir, f"cloud_{job_id}.{result.format}")
     with open(filepath, "wb") as f:
         f.write(result.data)
     return filepath
