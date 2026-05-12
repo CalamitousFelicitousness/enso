@@ -6,9 +6,11 @@ and rate limit tracking. Injected into adapters via composition.
 
 import asyncio
 import contextlib
+import os
 import time
 
 import httpx
+from modules.logger import log
 
 from enso_api.cloud.config import ConfigStore, ProviderConfig
 from enso_api.cloud.errors import (
@@ -20,6 +22,10 @@ from enso_api.cloud.errors import (
     QuotaError,
     RateLimitError,
 )
+
+# SD_CLOUD_DEBUG=1 enables verbose per-request logging.
+# Kept module-local (duplicated in openai_compat.py) to avoid cross-module import cycles.
+debug = log.debug if os.environ.get("SD_CLOUD_DEBUG") else lambda *args, **kwargs: None
 
 
 class HttpTransport:
@@ -54,10 +60,13 @@ class HttpTransport:
         return await self._request("POST", path, json=json, **kw)
 
     async def post_stream(self, path: str, json: dict) -> httpx.Response:
+        t0 = time.time()
         response = await self.client.post(path, json=json, extensions={"timeout": {"read": 300}})
         self._update_rate_limits(response.headers)
         if response.status_code >= 400:
+            log.warning(f"Cloud: stream request failed provider={self.config.id} POST {path} status={response.status_code} time={time.time() - t0:.2f}s")
             self.raise_for_status(response)
+        debug(f"Cloud: stream opened provider={self.config.id} POST {path} time={time.time() - t0:.2f}s")
         return response
 
     async def get_cached(self, path: str, ttl: int = 300, params: dict | None = None) -> object:
@@ -80,54 +89,72 @@ class HttpTransport:
     async def _request(self, method: str, path: str, **kw) -> dict:
         max_attempts = 3
         backoff = 1.0
+        t0 = time.time()
+        provider_id = self.config.id
 
         for attempt in range(max_attempts):
             try:
                 response = await self.client.request(method, path, **kw)
                 self._update_rate_limits(response.headers)
+                elapsed = time.time() - t0
 
                 if response.status_code == 429:
                     retry_after = self._parse_retry_after(response.headers)
                     if attempt < 1 and retry_after and retry_after < 60:
+                        log.warning(f"Cloud: rate-limited provider={provider_id} {method} {path} retry_after={retry_after:.1f}s attempt={attempt + 1}")
                         await asyncio.sleep(retry_after)
                         continue
+                    log.warning(f"Cloud: rate-limited provider={provider_id} {method} {path} retry_after={retry_after} (giving up)")
                     raise RateLimitError(
                         self._extract_error_message(response),
-                        provider=self.config.id,
+                        provider=provider_id,
                         retry_after=retry_after,
                     )
 
                 if response.status_code in (500, 502, 503) and attempt < max_attempts - 1:
-                    await asyncio.sleep(backoff * (2**attempt))
+                    delay = backoff * (2**attempt)
+                    log.warning(f"Cloud: server error provider={provider_id} {method} {path} status={response.status_code} retry_in={delay:.1f}s attempt={attempt + 1}/{max_attempts}")
+                    await asyncio.sleep(delay)
                     continue
 
                 if response.status_code >= 400:
+                    log.warning(f"Cloud: request failed provider={provider_id} {method} {path} status={response.status_code} time={elapsed:.2f}s msg={self._extract_error_message(response)!r}")
                     self.raise_for_status(response)
 
+                debug(f"Cloud: request ok provider={provider_id} {method} {path} status={response.status_code} time={elapsed:.2f}s rl_remaining={self._rate_limit_remaining}")
                 return response.json()
 
             except httpx.TimeoutException as e:
                 if attempt < max_attempts - 1:
-                    await asyncio.sleep(backoff * (2**attempt))
+                    delay = backoff * (2**attempt)
+                    log.warning(f"Cloud: timeout provider={provider_id} {method} {path} retry_in={delay:.1f}s attempt={attempt + 1}/{max_attempts}")
+                    await asyncio.sleep(delay)
                     continue
-                raise ProviderError("Request timed out", provider=self.config.id) from e
+                log.error(f"Cloud: timeout provider={provider_id} {method} {path} time={time.time() - t0:.2f}s (giving up)")
+                raise ProviderError("Request timed out", provider=provider_id) from e
 
             except httpx.ConnectError as e:
                 if attempt < max_attempts - 1:
-                    await asyncio.sleep(backoff * (2**attempt))
+                    delay = backoff * (2**attempt)
+                    log.warning(f"Cloud: connect error provider={provider_id} {method} {path} retry_in={delay:.1f}s attempt={attempt + 1}/{max_attempts}: {e}")
+                    await asyncio.sleep(delay)
                     continue
-                raise ProviderError("Connection failed", provider=self.config.id) from e
+                log.error(f"Cloud: connect failed provider={provider_id} {method} {path}: {e}")
+                raise ProviderError("Connection failed", provider=provider_id) from e
 
             except CloudError:
                 raise
 
             except Exception as e:
                 if attempt < max_attempts - 1:
-                    await asyncio.sleep(backoff * (2**attempt))
+                    delay = backoff * (2**attempt)
+                    log.warning(f"Cloud: unexpected error provider={provider_id} {method} {path} retry_in={delay:.1f}s attempt={attempt + 1}/{max_attempts}: {e}")
+                    await asyncio.sleep(delay)
                     continue
-                raise ProviderError(str(e), provider=self.config.id) from e
+                log.error(f"Cloud: unexpected error provider={provider_id} {method} {path}: {e}")
+                raise ProviderError(str(e), provider=provider_id) from e
 
-        raise ProviderError("Max retries exceeded", provider=self.config.id)
+        raise ProviderError("Max retries exceeded", provider=provider_id)
 
     def raise_for_status(self, response: httpx.Response) -> None:
         message = self._extract_error_message(response)

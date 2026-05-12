@@ -4,6 +4,7 @@ import asyncio
 from typing import Optional
 
 from fastapi import APIRouter, HTTPException
+from modules.logger import log
 from pydantic import BaseModel, Field
 
 import enso_api.cloud as cloud_registry
@@ -52,6 +53,7 @@ async def add_provider(req: AddProviderRequest):
                 error = "Key validation failed"
         except Exception as e:
             error = str(e)
+            log.warning(f"Cloud: add_provider validate raised provider={cfg.id}: {e}")
 
     return {
         "id": cfg.id,
@@ -97,10 +99,12 @@ async def remove_provider(provider_id: str):
 async def refresh_provider_models(provider_id: str):
     try:
         models = await cloud_registry.refresh_models(provider_id)
+        log.info(f"Cloud: refresh_models provider={provider_id} count={len(models)}")
         return {"model_count": len(models)}
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e)) from None
     except Exception as e:
+        log.warning(f"Cloud: refresh_models failed provider={provider_id}: {e}")
         raise HTTPException(status_code=502, detail=str(e)) from None
 
 

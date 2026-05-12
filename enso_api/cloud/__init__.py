@@ -4,7 +4,10 @@ Manages adapter instances for all configured providers. Call init_providers()
 during API registration to load configs and create adapters.
 """
 
+import asyncio
 import os
+
+from modules.logger import log
 
 from enso_api.cloud.config import ConfigStore, ProviderConfig
 from enso_api.cloud.errors import CloudError
@@ -21,18 +24,21 @@ def init_providers(enso_root: str) -> None:
     config_path = os.path.join(enso_root, "cloud-providers.local.json")
     _config_store = ConfigStore(config_path)
     _rebuild_adapters()
+    log.info(f"Cloud: initialized providers={len(_adapters)} config={config_path}")
+
+
+def _close_adapter_http(adapter: OpenAICompatAdapter, context: str) -> None:
+    try:
+        loop = asyncio.new_event_loop()
+        loop.run_until_complete(adapter.http.close())
+        loop.close()
+    except Exception as e:
+        log.warning(f"Cloud: adapter close error provider={adapter.config.id} context={context}: {e}")
 
 
 def _rebuild_adapters() -> None:
     for adapter in _adapters.values():
-        try:
-            import asyncio
-
-            loop = asyncio.new_event_loop()
-            loop.run_until_complete(adapter.http.close())
-            loop.close()
-        except Exception:
-            pass
+        _close_adapter_http(adapter, context="rebuild")
     _adapters.clear()
 
     if _config_store is None:
@@ -47,6 +53,7 @@ def _create_adapter(cfg: ProviderConfig) -> OpenAICompatAdapter:
     transport = HttpTransport(cfg, preset, _config_store)
     adapter = OpenAICompatAdapter(cfg, transport, preset)
     _adapters[cfg.id] = adapter
+    log.debug(f"Cloud: adapter created provider={cfg.id} name={cfg.name!r} preset={cfg.preset} base_url={cfg.base_url}")
     return adapter
 
 
@@ -92,6 +99,7 @@ def add_provider(name: str, preset: str, base_url: str, key: str = "") -> Provid
     store = get_config_store()
     cfg = store.add(name, preset, base_url, key)
     _create_adapter(cfg)
+    log.info(f"Cloud: provider added id={cfg.id} name={cfg.name!r} preset={preset} has_key={bool(key)}")
     return cfg
 
 
@@ -99,32 +107,25 @@ def update_provider(provider_id: str, **kwargs) -> ProviderConfig | None:
     store = get_config_store()
     cfg = store.update(provider_id, **kwargs)
     if cfg is None:
+        log.warning(f"Cloud: update_provider not found id={provider_id}")
         return None
     if provider_id in _adapters:
-        try:
-            import asyncio
-
-            loop = asyncio.new_event_loop()
-            loop.run_until_complete(_adapters[provider_id].http.close())
-            loop.close()
-        except Exception:
-            pass
+        _close_adapter_http(_adapters[provider_id], context="update")
         del _adapters[provider_id]
     if cfg.enabled:
         _create_adapter(cfg)
+    log.info(f"Cloud: provider updated id={cfg.id} fields={list(kwargs)} enabled={cfg.enabled}")
     return cfg
 
 
 def remove_provider(provider_id: str) -> bool:
     store = get_config_store()
     if provider_id in _adapters:
-        try:
-            import asyncio
-
-            loop = asyncio.new_event_loop()
-            loop.run_until_complete(_adapters[provider_id].http.close())
-            loop.close()
-        except Exception:
-            pass
+        _close_adapter_http(_adapters[provider_id], context="remove")
         del _adapters[provider_id]
-    return store.remove(provider_id)
+    removed = store.remove(provider_id)
+    if removed:
+        log.info(f"Cloud: provider removed id={provider_id}")
+    else:
+        log.warning(f"Cloud: remove_provider not found id={provider_id}")
+    return removed

@@ -7,13 +7,17 @@ subclassed per provider.
 
 import asyncio
 import base64
-import logging
+import os
 import struct
+import time
 from pathlib import Path
 
 import httpx
+from modules.logger import log
 
-log = logging.getLogger("enso_api.cloud")
+# SD_CLOUD_DEBUG=1 enables verbose per-request logging (bodies, response shape,
+# capability probes, model normalization). Mirrors gallery.py:18 pattern.
+debug = log.debug if os.environ.get("SD_CLOUD_DEBUG") else lambda *args, **kwargs: None
 
 from enso_api.cloud.config import ProviderConfig
 from enso_api.cloud.errors import ProviderError
@@ -51,21 +55,26 @@ class OpenAICompatAdapter:
                 elif isinstance(data, list):
                     models = data
                 else:
+                    debug(f"Cloud: list_models unrecognized shape provider={self.config.id} endpoint={endpoint}")
                     continue
                 for model in models:
                     if isinstance(model, dict):
                         model["_source_endpoint"] = endpoint
                         all_models.append(model)
-            except Exception:
+            except Exception as e:
+                log.warning(f"Cloud: list_models endpoint failed provider={self.config.id} endpoint={endpoint}: {e}")
                 continue
 
-        return self._normalize_models(all_models)
+        normalized = self._normalize_models(all_models)
+        debug(f"Cloud: list_models provider={self.config.id} raw={len(all_models)} normalized={len(normalized)}")
+        return normalized
 
     async def generate_image(self, params: dict, on_progress: ProgressCallback) -> ImageResult:
         on_progress({"type": "cloud_progress", "phase": "submitted"})
 
         has_image = bool(params.get("image"))
         image_via = self.preset.get("image_via", "images")
+        log.info(f"Cloud: generate_image provider={self.config.id} model={params.get('model')} size={params.get('width')}x{params.get('height')} n={params.get('n', 1)} has_image={has_image} via={image_via}")
 
         if has_image and image_via == "images":
             return await self._generate_image_edit(params, on_progress)
@@ -77,6 +86,7 @@ class OpenAICompatAdapter:
 
     async def chat(self, params: dict, on_progress: ProgressCallback) -> ChatResult:
         on_progress({"type": "cloud_progress", "phase": "submitted"})
+        log.info(f"Cloud: chat provider={self.config.id} model={params.get('model')} messages={len(params.get('messages') or [])}")
 
         messages = params.get("messages", [])
         if not messages and params.get("prompt"):
@@ -115,6 +125,7 @@ class OpenAICompatAdapter:
         )
 
     async def tts(self, params: dict) -> AudioResult:
+        log.info(f"Cloud: tts provider={self.config.id} model={params.get('model')} voice={params.get('voice')}")
         body = {"model": params["model"]}
         tts_map = self.preset.get("param_maps", {}).get("tts", {})
         for enso_name, value in params.items():
@@ -145,6 +156,7 @@ class OpenAICompatAdapter:
         audio_data = params.get("audio", b"")
         if isinstance(audio_data, str):
             audio_data = base64.b64decode(audio_data)
+        log.info(f"Cloud: transcribe provider={self.config.id} model={params.get('model')} audio_bytes={len(audio_data)} language={params.get('language')}")
 
         files = {"file": ("audio.wav", audio_data, "audio/wav")}
         data_fields = {"model": params["model"]}
@@ -170,6 +182,7 @@ class OpenAICompatAdapter:
 
     async def generate_video(self, params: dict, on_progress: ProgressCallback) -> VideoResult:
         on_progress({"type": "cloud_progress", "phase": "submitted"})
+        log.info(f"Cloud: generate_video provider={self.config.id} model={params.get('model')} duration={params.get('duration')} size={params.get('size')} aspect={params.get('aspect_ratio')}")
 
         body = {
             "model": params["model"],
@@ -195,8 +208,10 @@ class OpenAICompatAdapter:
     async def cancel(self, remote_id: str) -> bool:
         try:
             await self.http.post(f"/v1/videos/{remote_id}/cancel", json={})
+            log.info(f"Cloud: cancelled provider={self.config.id} remote_id={remote_id}")
             return True
-        except Exception:
+        except Exception as e:
+            log.warning(f"Cloud: cancel failed provider={self.config.id} remote_id={remote_id}: {e}")
             return False
 
     async def probe_endpoints(self) -> dict[str, bool]:
@@ -213,20 +228,25 @@ class OpenAICompatAdapter:
             try:
                 response = await self.http.client.request("OPTIONS", path)
                 results[name] = response.status_code < 500
-            except Exception:
+            except Exception as e:
+                debug(f"Cloud: probe OPTIONS failed provider={self.config.id} path={path}, falling back to GET: {e}")
                 try:
                     response = await self.http.client.get(path)
                     results[name] = response.status_code != 404
-                except Exception:
+                except Exception as e2:
+                    debug(f"Cloud: probe GET failed provider={self.config.id} path={path}: {e2}")
                     results[name] = False
+        debug(f"Cloud: probe_endpoints provider={self.config.id} results={results}")
         return results
 
     async def validate_key(self) -> bool:
         try:
             endpoints = self.preset.get("model_list", ["/v1/models"])
             await self.http.get(endpoints[0], params={"limit": "1"})
+            log.debug(f"Cloud: validate_key ok provider={self.config.id}")
             return True
-        except Exception:
+        except Exception as e:
+            log.warning(f"Cloud: validate_key failed provider={self.config.id}: {e}")
             return False
 
     # --- Private helpers ---
@@ -235,7 +255,7 @@ class OpenAICompatAdapter:
         body = self._build_image_params(params)
         body["model"] = params["model"]
 
-        log.debug(f"Cloud image request: {body}")
+        debug(f"Cloud: image request body provider={self.config.id} body={body}")
 
         on_progress({"type": "cloud_progress", "phase": "processing"})
         data = await self.http.post("/v1/images/generations", json=body)
@@ -521,26 +541,32 @@ class OpenAICompatAdapter:
             async with httpx.AsyncClient(timeout=60) as client:
                 response = await client.get(url)
                 if response.status_code == 200:
+                    debug(f"Cloud: download ok provider={self.config.id} bytes={len(response.content)}")
                     return response.content
-        except Exception:
-            pass
+                log.warning(f"Cloud: download status={response.status_code} provider={self.config.id} url={url[:120]}")
+        except Exception as e:
+            log.warning(f"Cloud: download failed provider={self.config.id} url={url[:120]}: {e}")
         return None
 
     async def _poll_video(self, video_id: str, on_progress: ProgressCallback) -> VideoResult:
         max_polls = 120
         interval = 5.0
+        t0 = time.time()
 
-        for _ in range(max_polls):
+        for poll_idx in range(max_polls):
             await asyncio.sleep(interval)
             try:
                 data = await self.http.get(f"/v1/videos/{video_id}")
-            except Exception:
+            except Exception as e:
+                log.warning(f"Cloud: video poll error provider={self.config.id} remote_id={video_id} poll={poll_idx + 1}/{max_polls}: {e}")
                 continue
 
             status = data.get("status", "")
             progress = data.get("progress", 0)
+            debug(f"Cloud: video poll provider={self.config.id} remote_id={video_id} status={status} progress={progress} elapsed={time.time() - t0:.1f}s")
 
             if status == "completed":
+                log.info(f"Cloud: video completed provider={self.config.id} remote_id={video_id} elapsed={time.time() - t0:.1f}s")
                 on_progress({"type": "cloud_progress", "phase": "downloading", "progress": 0.9})
                 video_bytes = await self._download_video_content(video_id, data)
                 return VideoResult(
@@ -552,6 +578,7 @@ class OpenAICompatAdapter:
             if status == "failed":
                 error = data.get("error", {})
                 msg = error.get("message", "Video generation failed") if isinstance(error, dict) else str(error)
+                log.error(f"Cloud: video failed provider={self.config.id} remote_id={video_id}: {msg}")
                 raise ProviderError(msg, provider=self.config.id)
 
             on_progress(
@@ -562,6 +589,7 @@ class OpenAICompatAdapter:
                 }
             )
 
+        log.error(f"Cloud: video timed out provider={self.config.id} remote_id={video_id} after {max_polls} polls ({time.time() - t0:.1f}s)")
         raise ProviderError("Video generation timed out", provider=self.config.id)
 
     async def _download_video_content(self, video_id: str, data: dict) -> bytes:
@@ -575,8 +603,9 @@ class OpenAICompatAdapter:
             response = await self.http.client.get(f"/v1/videos/{video_id}/content")
             if response.status_code == 200:
                 return response.content
-        except Exception:
-            pass
+            log.warning(f"Cloud: video content fetch status={response.status_code} provider={self.config.id} remote_id={video_id}")
+        except Exception as e:
+            log.warning(f"Cloud: video content fetch failed provider={self.config.id} remote_id={video_id}: {e}")
 
         raise ProviderError("Failed to download video content", provider=self.config.id)
 

@@ -6,6 +6,9 @@ Cloud worker threads maintain a persistent event loop for efficient connection r
 
 import asyncio
 import threading
+import time
+
+from modules.logger import log
 
 from enso_api.cloud.protocol import ProgressCallback
 
@@ -43,8 +46,16 @@ async def _async_cloud_image(params: dict, job_id: str) -> dict:
     adapter = get_adapter(params["provider"])
     on_progress = _make_progress_callback(job_id)
 
-    result = await adapter.generate_image(params, on_progress)
-    return _save_image_result(result, job_id, params)
+    t0 = time.time()
+    try:
+        result = await adapter.generate_image(params, on_progress)
+        saved = _save_image_result(result, job_id, params)
+        cost = result.usage.cost if result.usage else None
+        log.info(f"Cloud: job done type=image job_id={job_id} provider={params.get('provider')} model={params.get('model')} images={len(saved.get('images', []))} cost={cost} time={time.time() - t0:.2f}s")
+        return saved
+    except Exception as e:
+        log.error(f"Cloud: job failed type=image job_id={job_id} provider={params.get('provider')} model={params.get('model')} time={time.time() - t0:.2f}s: {type(e).__name__}: {e}")
+        raise
 
 
 def execute_cloud_chat(params: dict, job_id: str) -> dict:
@@ -58,14 +69,21 @@ async def _async_cloud_chat(params: dict, job_id: str) -> dict:
     adapter = get_adapter(params["provider"])
     on_progress = _make_progress_callback(job_id)
 
-    result = await adapter.chat(params, on_progress)
+    t0 = time.time()
+    try:
+        result = await adapter.chat(params, on_progress)
+    except Exception as e:
+        log.error(f"Cloud: job failed type=chat job_id={job_id} provider={params.get('provider')} model={params.get('model')} time={time.time() - t0:.2f}s: {type(e).__name__}: {e}")
+        raise
+    cost = result.usage.cost if result.usage else None
+    log.info(f"Cloud: job done type=chat job_id={job_id} provider={params.get('provider')} model={params.get('model')} chars={len(result.content or '')} finish={result.finish_reason} cost={cost} time={time.time() - t0:.2f}s")
     return {
         "images": [],
         "processed": [],
         "info": {
             "cloud_provider": params.get("provider"),
             "cloud_model": params.get("model"),
-            "cloud_cost": result.usage.cost if result.usage else None,
+            "cloud_cost": cost,
         },
         "params": params,
         "text": result.content,
@@ -85,8 +103,14 @@ async def _async_cloud_tts(params: dict, job_id: str) -> dict:
 
     adapter = get_adapter(params["provider"])
 
-    result = await adapter.tts(params)
+    t0 = time.time()
+    try:
+        result = await adapter.tts(params)
+    except Exception as e:
+        log.error(f"Cloud: job failed type=tts job_id={job_id} provider={params.get('provider')} model={params.get('model')} time={time.time() - t0:.2f}s: {type(e).__name__}: {e}")
+        raise
     audio_path = _save_audio_result(result, job_id)
+    log.info(f"Cloud: job done type=tts job_id={job_id} provider={params.get('provider')} model={params.get('model')} bytes={len(result.data)} duration={result.duration} time={time.time() - t0:.2f}s")
     return {
         "images": [],
         "processed": [],
@@ -115,7 +139,13 @@ async def _async_cloud_stt(params: dict, _job_id: str) -> dict:
 
     adapter = get_adapter(params["provider"])
 
-    result = await adapter.transcribe(params)
+    t0 = time.time()
+    try:
+        result = await adapter.transcribe(params)
+    except Exception as e:
+        log.error(f"Cloud: job failed type=stt job_id={_job_id} provider={params.get('provider')} model={params.get('model')} time={time.time() - t0:.2f}s: {type(e).__name__}: {e}")
+        raise
+    log.info(f"Cloud: job done type=stt job_id={_job_id} provider={params.get('provider')} model={params.get('model')} chars={len(result.text or '')} language={result.language} time={time.time() - t0:.2f}s")
     return {
         "images": [],
         "processed": [],
@@ -142,8 +172,14 @@ async def _async_cloud_video(params: dict, job_id: str) -> dict:
     adapter = get_adapter(params["provider"])
     on_progress = _make_progress_callback(job_id)
 
-    result = await adapter.generate_video(params, on_progress)
+    t0 = time.time()
+    try:
+        result = await adapter.generate_video(params, on_progress)
+    except Exception as e:
+        log.error(f"Cloud: job failed type=video job_id={job_id} provider={params.get('provider')} model={params.get('model')} time={time.time() - t0:.2f}s: {type(e).__name__}: {e}")
+        raise
     video_path = _save_video_result(result, job_id)
+    log.info(f"Cloud: job done type=video job_id={job_id} provider={params.get('provider')} model={params.get('model')} bytes={len(result.data)} duration={result.duration} time={time.time() - t0:.2f}s")
     return {
         "images": [],
         "processed": [],
