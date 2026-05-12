@@ -244,10 +244,11 @@ def _save_image_result(result, job_id: str, params: dict) -> dict:
     for i, img_bytes in enumerate(result.images):
         pil_img = Image.open(io.BytesIO(img_bytes))
         pil_img.load()
-        # save_image returns (short_filename, full_path, txt_path). Inherits SD.Next's
-        # FilenameGenerator, save_to_dirs, gallery cache registration, and writes the
-        # PNG parameters chunk so cloud results are indistinguishable from local ones.
-        _, full_path, _ = img_module.save_image(
+        # save_image returns (image_path, txt_sidecar_path, exifinfo). Inherits
+        # SD.Next's FilenameGenerator, save_to_dirs, gallery cache registration, and
+        # writes the PNG parameters chunk so cloud results are indistinguishable
+        # from local ones.
+        path_info = img_module.save_image(
             pil_img,
             output_dir,
             "",
@@ -255,19 +256,20 @@ def _save_image_result(result, job_id: str, params: dict) -> dict:
             prompt=params.get("prompt", ""),
             info=pnginfo,
         )
-        if full_path is None:
+        image_path = path_info[0] if isinstance(path_info, (list, tuple)) and path_info else None
+        if not image_path:
             continue
         import os
 
         images.append(
             {
                 "index": i,
-                "path": full_path,
+                "path": image_path,
                 "url": f"/sdapi/v2/jobs/{job_id}/images/{i}",
                 "width": pil_img.width,
                 "height": pil_img.height,
-                "format": os.path.splitext(full_path)[1].lstrip(".").lower() or "png",
-                "size": os.path.getsize(full_path),
+                "format": os.path.splitext(image_path)[1].lstrip(".").lower() or "png",
+                "size": os.path.getsize(image_path),
             }
         )
 
