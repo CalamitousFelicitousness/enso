@@ -34,13 +34,27 @@ class HttpTransport:
         self.preset = preset
         self._config_store = config_store
         self.client = httpx.AsyncClient(
-            base_url=config.base_url,
+            base_url=self._normalize_base_url(config.base_url),
             headers=self._build_headers(),
             timeout=httpx.Timeout(connect=10, read=120, write=30, pool=10),
         )
         self._cache: dict[str, tuple[float, object]] = {}
         self._rate_limit_remaining: int | None = None
         self._rate_limit_reset: float | None = None
+
+    def _normalize_base_url(self, base_url: str) -> str:
+        # Every preset path in this module begins with /v1/ (e.g. /v1/chat/completions,
+        # /v1/images/generations). httpx concatenates base_url + path rather than
+        # urljoin'ing, so a base_url ending in /v1 produces /v1/v1/... requests.
+        # The OpenAI Python SDK convention is base_url WITH /v1, which users naturally
+        # carry over when configuring a custom provider. Strip it here so both
+        # conventions work.
+        normalized = base_url.rstrip("/")
+        if normalized.endswith("/v1"):
+            stripped = normalized[:-3]
+            log.info(f"Cloud: base_url normalized provider={self.config.id} from={base_url!r} to={stripped!r}")
+            return stripped
+        return normalized
 
     def _build_headers(self) -> dict[str, str]:
         headers = {"Content-Type": "application/json"}

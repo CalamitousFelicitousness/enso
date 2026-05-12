@@ -133,7 +133,7 @@ PRESETS: dict[str, dict] = {
         },
     },
     "aihubmix": {
-        "base_url": "https://aihubmix.com/v1",
+        "base_url": "https://aihubmix.com",
         "image_via": "images",
         "model_list": ["/v1/models"],
         "model_list_params": {},
