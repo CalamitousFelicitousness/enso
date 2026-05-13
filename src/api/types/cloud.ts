@@ -91,11 +91,10 @@ export interface ProviderConfig {
   enabled: boolean;
 }
 
-export interface Provider extends ProviderConfig {
-  status: "ok" | "error" | "unchecked";
-  error?: string;
-  model_count: number;
-}
+// V1's ItemProvider shape (sdnext-owned). Aliased as Provider so existing
+// frontend code reads naturally. Per-provider validation status is no longer
+// server-tracked - call /sdapi/v1/cloud/providers/{id}/validate on demand.
+export type Provider = ProviderConfig;
 
 export interface ProviderWithModels extends Provider {
   models: CloudModel[];
