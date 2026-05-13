@@ -11,9 +11,8 @@ contract (``images`` / ``processed`` / ``info`` / ``params`` dict that
 
 cloud_chat is exposed via the V1 ``/sdapi/v1/cloud/prompt-enhance``
 endpoint; the V2 job-type stub remains until removed from
-``JobRequest`` / ``EXECUTORS``. cloud_tts, cloud_stt, cloud_video are
-stubs until sdnext core ships ``modules.cloud.audio`` (Phase 4) and
-``modules.cloud.video`` (Phase 3).
+``JobRequest`` / ``EXECUTORS``. cloud_tts and cloud_stt are stubs until
+sdnext core ships ``modules.cloud.audio`` (Phase 4).
 """
 
 import base64
@@ -171,4 +170,77 @@ def execute_cloud_stt(params: dict, job_id: str) -> dict:
 
 
 def execute_cloud_video(params: dict, job_id: str) -> dict:
-    raise NotImplementedError("cloud_video executor stubbed; modules.cloud.video lands in Phase 3")
+    from modules.cloud.errors import CloudError
+    from modules.cloud.video import generate_video
+
+    t0 = time.time()
+    provider = params.get("provider", "")
+    model = params.get("model", "")
+    has_image = bool(params.get("image"))
+
+    init_image = resolve_ref(params.get("image"))
+
+    log.info(f"Cloud: cloud_video executing job_id={job_id} provider={provider} model={model} mode={'i2v' if has_image else 't2v'} duration={params.get('duration')} aspect={params.get('aspect_ratio')} size={params.get('size')}")
+
+    try:
+        result = generate_video(
+            params.get("prompt", ""),
+            provider,
+            model,
+            aspect_ratio=params.get("aspect_ratio"),
+            duration=params.get("duration"),
+            size=params.get("size"),
+            init_image=init_image,
+            seed=params.get("seed") if params.get("seed") is not None else -1,
+            extra_params=params.get("extra_params") or None,
+            save_to_disk=True,
+            on_progress=make_progress_callback(job_id),
+        )
+    except CloudError as e:
+        log.error(f"Cloud: cloud_video failed job_id={job_id} provider={provider} model={model} time={time.time() - t0:.2f}s: {type(e).__name__}: {e}")
+        raise
+
+    videos_refs: list[dict] = []
+    if result.saved_path:
+        # sdnext's modules.cloud.video.write_thumbnail writes the PNG to
+        # <video_path>.thumb.png; reference that path directly so the
+        # /thumbnail subroute can serve it under the same path-confinement.
+        thumb_path: str | None = f"{result.saved_path}.thumb.png" if result.thumbnail else None
+        try:
+            file_size = os.path.getsize(result.saved_path)
+        except OSError:
+            file_size = len(result.video) if result.video else 0
+        if thumb_path and not os.path.isfile(thumb_path):
+            thumb_path = None
+        videos_refs.append(
+            {
+                "index": 0,
+                "path": result.saved_path,
+                "thumbnail_path": thumb_path,
+                "url": f"/sdapi/v2/jobs/{job_id}/videos/0",
+                "thumbnail_url": f"/sdapi/v2/jobs/{job_id}/videos/0/thumbnail" if thumb_path else None,
+                "format": result.format,
+                "size": file_size,
+                "duration": result.duration,
+            }
+        )
+
+    cost = result.usage.cost if result.usage else None
+    log.info(f"Cloud: cloud_video done job_id={job_id} provider={provider} model={model} videos={len(videos_refs)} cost={cost} time={time.time() - t0:.2f}s")
+
+    return {
+        "videos": videos_refs,
+        "info": {
+            "cloud_provider": result.provider or provider,
+            "cloud_model": result.model or model,
+            "cloud_cost": cost,
+            "prompt": params.get("prompt"),
+            "seed": result.seed,
+            "duration": result.duration,
+            "aspect_ratio": params.get("aspect_ratio"),
+            "size": params.get("size"),
+            "format": result.format,
+            "is_i2v": has_image,
+        },
+        "params": params,
+    }
