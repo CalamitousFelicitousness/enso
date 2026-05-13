@@ -29,7 +29,7 @@ export interface BuildResult {
 }
 
 /** Strip undefined-valued keys so the wire payload stays minimal.
- * Empty-string text fields are treated as "inherit" too — the V2 schema
+ * Empty-string text fields are treated as "inherit" too - the V2 schema
  * uses absence to mean inheritance, and an empty override is meaningless. */
 function stripUndefined<T extends object>(obj: T): Partial<T> {
   const out: Record<string, unknown> = {};

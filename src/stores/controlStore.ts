@@ -146,13 +146,13 @@ export const useControlStore = create<ControlState>()((set) => ({
     }),
 
   setUnitImage: (index, file) => {
-    // Phase 1: set file + clear dims + reset free transform immediately
+    // set file + clear dims + reset free transform immediately
     set((state) => {
       const units = [...state.units];
       units[index] = { ...units[index], image: file, imageDims: null, freeTransform: null };
       return { units };
     });
-    // Phase 2: async-load dims from blob URL
+    // async-load dims from blob URL
     if (file) {
       const url = URL.createObjectURL(file);
       const img = new window.Image();

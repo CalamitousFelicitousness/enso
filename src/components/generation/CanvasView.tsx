@@ -311,10 +311,10 @@ export const CanvasView = memo(function CanvasView() {
       {/* Canvas toolbar for mask painting - only in initial mode with images */}
       {hasLayers && inputRole !== "reference" && <CanvasToolbar />}
 
-      {/* Generation progress overlay — not affected by pan/zoom */}
+      {/* Generation progress overlay - not affected by pan/zoom */}
       <CanvasProgressOverlay />
 
-      {/* Floating control panels — delta-transform wrapper for zero-render pan/zoom */}
+      {/* Floating control panels - delta-transform wrapper for zero-render pan/zoom */}
       <div
         ref={overlayRef}
         style={{ position: "absolute", inset: 0, pointerEvents: "none", transformOrigin: "0 0" }}

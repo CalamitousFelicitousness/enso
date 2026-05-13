@@ -139,8 +139,8 @@ function Tether({
 // ─── Unified FrameHeader ────────────────────────────────────────────────────
 //
 // Two modes:
-//   "panel" — fixed 320px width, positioned above frame with gap, expandable drawer
-//   "hat"   — matches frame width, flush to frame top, no drawer
+// "panel" - fixed 320px width, positioned above frame with gap, expandable drawer
+// "hat" - matches frame width, flush to frame top, no drawer
 //
 // Both modes use glass dock styling with accent-colored dot.
 

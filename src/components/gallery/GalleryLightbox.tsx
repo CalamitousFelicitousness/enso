@@ -86,7 +86,7 @@ export function GalleryLightbox() {
   }, [fullUrl, lightboxIndex, maxIndex, file]);
 
   // Keyboard shortcuts (scoped to "lightbox", only active when open AND the
-  // GalleryView panel is visible — without the visibility AND, switching to
+  // GalleryView panel is visible - without the visibility AND, switching to
   // a different MainCanvas view would leave lightbox shortcuts active).
   const parentVisible = useKeepAliveVisible();
   const active = isOpen && parentVisible;

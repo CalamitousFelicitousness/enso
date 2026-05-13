@@ -36,7 +36,7 @@ export function LayoutSection() {
         </span>
 
         <div className="w-[280px] space-y-4">
-          {/* Mode 1 — Neither collapsible nor enableable */}
+          {/* Mode 1 - Neither collapsible nor enableable */}
           <div className="space-y-1.5">
             <span className="text-3xs text-muted-foreground/60">neither</span>
             <SectionLeader title="Generation" level={0}>
@@ -44,7 +44,7 @@ export function LayoutSection() {
             </SectionLeader>
           </div>
 
-          {/* Mode 2 — Collapsible only */}
+          {/* Mode 2 - Collapsible only */}
           <div className="space-y-1.5">
             <span className="text-3xs text-muted-foreground/60">collapsible</span>
             <SectionLeader title="Samplers" collapsible defaultCollapsed level={0}>
@@ -52,7 +52,7 @@ export function LayoutSection() {
             </SectionLeader>
           </div>
 
-          {/* Mode 3 — Enableable only */}
+          {/* Mode 3 - Enableable only */}
           <div className="space-y-1.5">
             <span className="text-3xs text-muted-foreground/60">enableable</span>
             <SectionLeader
@@ -66,7 +66,7 @@ export function LayoutSection() {
             </SectionLeader>
           </div>
 
-          {/* Mode 4 — Both collapsible and enableable */}
+          {/* Mode 4 - Both collapsible and enableable */}
           <div className="space-y-1.5">
             <span className="text-3xs text-muted-foreground/60">both</span>
             <SectionLeader
@@ -81,7 +81,7 @@ export function LayoutSection() {
             </SectionLeader>
           </div>
 
-          {/* Nested — level 0 with level 1 child */}
+          {/* Nested - level 0 with level 1 child */}
           <div className="space-y-1.5">
             <span className="text-3xs text-muted-foreground/60">nested</span>
             <SectionLeader

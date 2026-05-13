@@ -48,7 +48,7 @@ export function OutputLayer({ offsetX, placeholderWidth, placeholderHeight }: Ou
   const isPreview = !!previewImage;
 
   // Fit image inside the frame when aspect ratios differ (e.g. detailer preview
-  // at 1024x1024 on a 16:9 output frame).  Frame never changes shape.
+  // at 1024x1024 on a 16:9 output frame). Frame never changes shape.
   let imgX = offsetX;
   let imgY = 0;
   let imgW = placeholderWidth;

@@ -17,10 +17,10 @@ export type JobDomain =
  * shape of inputs each request type carries.
  *
  * - "control": canvas img2img + control units. inputImage/inputMask are
- *   captured at submit time (large; persisted only for in-memory tracking).
+ * captured at submit time (large; persisted only for in-memory tracking).
  * - "detail": detailer-only run on a flattened canvas image.
  * - "none": no captured workspace -- the payload is self-contained
- *   (cloud generations, upscale/rembg, video jobs, etc.).
+ * (cloud generations, upscale/rembg, video jobs, etc.).
  */
 export type JobSnapshot =
   | {

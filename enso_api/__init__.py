@@ -97,7 +97,7 @@ def register_api(app, dependencies=None):
 
     register_misc_routes(app, shared.api.add_api_route)
 
-    # Log suppression — register noisy polling endpoints with the rate-limited logger
+    # Log suppression - register noisy polling endpoints with the rate-limited logger
     try:
         from modules.api.validate import log_cost
 
@@ -127,7 +127,7 @@ def register_api(app, dependencies=None):
 
     request_cost.update(
         {
-            # Cost 0 — polling / status / file serving (exempt)
+            # Cost 0 - polling / status / file serving (exempt)
             "/sdapi/v2/server-info": 0,
             "/sdapi/v2/memory": 0,
             "/sdapi/v2/gpu": 0,
@@ -151,7 +151,7 @@ def register_api(app, dependencies=None):
             "/sdapi/v2/jobs/{job_id}": 0,  # dormant until route-template keys
             "/sdapi/v2/jobs/{job_id}/images/{index}": 0,  # dormant until route-template keys
             "/sdapi/v2/jobs/{job_id}/processed/{index}": 0,  # dormant until route-template keys
-            # Cost 5 — GPU / compute / IO intensive
+            # Cost 5 - GPU / compute / IO intensive
             "/sdapi/v2/jobs": 5,
             "/sdapi/v2/video/load": 5,
             "/sdapi/v2/framepack/load": 5,

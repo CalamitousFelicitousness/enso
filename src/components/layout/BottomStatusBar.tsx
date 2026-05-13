@@ -13,7 +13,7 @@ import { LoadedModelsPanel } from "@/components/layout/LoadedModelsPanel";
 // Inline sub-components
 // ---------------------------------------------------------------------------
 
-/** Fixed-width numeric slot — phantom string reserves max width, real value overlays it. */
+/** Fixed-width numeric slot - phantom string reserves max width, real value overlays it. */
 function MonoSlot({ value, phantom }: { value: string; phantom: string }) {
   return (
     <span className="relative inline-flex font-mono tabular-nums text-3xs">

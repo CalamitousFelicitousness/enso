@@ -56,7 +56,7 @@ function findEnclosingWeight(
 function findWordAt(doc: string, pos: number): { from: number; to: number } | null {
   const sep = /[\s.,():<>]/;
   if (pos > 0 && pos < doc.length && sep.test(doc[pos]) && !sep.test(doc[pos - 1])) {
-    // Cursor is right after the word — expand left
+    // Cursor is right after the word - expand left
   } else if (pos < doc.length && sep.test(doc[pos]) && (pos === 0 || sep.test(doc[pos - 1]))) {
     return null;
   }
@@ -80,7 +80,7 @@ function adjustWeight(view: EditorView, delta: number): boolean {
     if (match) {
       const w = Math.max(0, Math.min(2, parseFloat(match[2]) + delta));
       if (Math.abs(w - 1.0) < 0.001) {
-        // Unwrap at 1.0 — select the inner text so user can adjust back
+        // Unwrap at 1.0 - select the inner text so user can adjust back
         view.dispatch({
           changes: { from, to, insert: match[1] },
           selection: { anchor: from, head: from + match[1].length },
@@ -103,12 +103,12 @@ function adjustWeight(view: EditorView, delta: number): boolean {
     return true;
   }
 
-  // No selection — check if cursor is inside (text:weight)
+  // No selection - check if cursor is inside (text:weight)
   const enclosing = findEnclosingWeight(doc, from);
   if (enclosing) {
     const w = Math.max(0, Math.min(2, enclosing.weight + delta));
     if (Math.abs(w - 1.0) < 0.001) {
-      // Unwrap at 1.0 — select the inner text so user can adjust back
+      // Unwrap at 1.0 - select the inner text so user can adjust back
       view.dispatch({
         changes: { from: enclosing.from, to: enclosing.to, insert: enclosing.text },
         selection: { anchor: enclosing.from, head: enclosing.from + enclosing.text.length },
@@ -123,7 +123,7 @@ function adjustWeight(view: EditorView, delta: number): boolean {
     return true;
   }
 
-  // No selection, no enclosing parens — wrap the word under cursor
+  // No selection, no enclosing parens - wrap the word under cursor
   const word = findWordAt(doc, from);
   if (word) {
     const text = doc.slice(word.from, word.to);

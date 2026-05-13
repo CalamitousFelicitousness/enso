@@ -17,7 +17,7 @@ import type {
   LoraExtractRequest,
 } from "../types/modelOps";
 
-// Phase 1
+// 
 
 export function useModelAnalysis(enabled = false) {
   return useQuery({
@@ -54,7 +54,7 @@ export function useUpdateHashes() {
   });
 }
 
-// Phase 2
+// 
 
 export function useHfSearch(keyword: string, enabled = false) {
   return useQuery({
@@ -93,7 +93,7 @@ export function useMetadataUpdate() {
   });
 }
 
-// Phase 3
+// 
 
 export function useMergeMethods() {
   return useQuery({
@@ -116,7 +116,7 @@ export function useReplaceComponents() {
   });
 }
 
-// Phase 4
+// 
 
 export function useLoaderPipelines() {
   return useQuery({

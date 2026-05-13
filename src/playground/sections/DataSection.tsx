@@ -84,7 +84,7 @@ export function DataSection() {
           <div className="flex items-center gap-3 w-[200px]">
             <Slider value={rangeVal} onValueChange={setRangeVal} min={0} max={100} step={1} />
             <span className="text-3xs font-mono tabular-nums text-muted-foreground w-12 text-right">
-              {rangeVal[0]}–{rangeVal[1]}
+              {rangeVal[0]}-{rangeVal[1]}
             </span>
           </div>
         </div>

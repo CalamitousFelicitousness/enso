@@ -1,5 +1,5 @@
 /** Lightweight cursor-position store for the prompt field.
- *  PromptField saves position on blur; network insertion code reads it. */
+ * PromptField saves position on blur; network insertion code reads it. */
 
 let pos: number | null = null;
 

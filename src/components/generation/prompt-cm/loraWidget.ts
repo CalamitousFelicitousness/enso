@@ -28,7 +28,7 @@ function setupDrag(
   chip.addEventListener("mousedown", () => {
     rebuildLock = true;
   });
-  // click fires on mouseup when no drag occurred — clears the lock
+  // click fires on mouseup when no drag occurred - clears the lock
   chip.addEventListener("click", () => {
     rebuildLock = false;
   });
@@ -276,7 +276,7 @@ export const loraWidgetPlugin = ViewPlugin.fromClass(
     }
 
     update(update: ViewUpdate) {
-      // Skip rebuild when a chip mousedown is in progress — the chip DOM
+      // Skip rebuild when a chip mousedown is in progress - the chip DOM
       // must survive for dragstart / dblclick to fire on the same element.
       if (rebuildLock && update.selectionSet && !update.docChanged) {
         return;

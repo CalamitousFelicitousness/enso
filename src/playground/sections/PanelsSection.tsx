@@ -20,7 +20,7 @@ const networkMocks = [
  * On-demand panel workspace.
  *
  * This section is for rendering REAL tab panels from the app in isolation.
- * Panels here are recreated on-demand when prototyping changes — not a
+ * Panels here are recreated on-demand when prototyping changes - not a
  * permanent catalog. See the playground workflow docs for how to add panels.
  */
 export function PanelsSection() {
@@ -37,14 +37,14 @@ export function PanelsSection() {
 
       {/* Each panel row is isolated so portals/popovers don't interfere */}
 
-      {/* GuidanceTab — Tier 1, no API hooks needed */}
+      {/* GuidanceTab - Tier 1, no API hooks needed */}
       <div className="flex items-start gap-6 flex-wrap">
         <PlaygroundPanel title="GuidanceTab" tag="example" width={280}>
           <GuidanceTab />
         </PlaygroundPanel>
       </div>
 
-      {/* NetworksTab — Tier 4, needs query mocks */}
+      {/* NetworksTab - Tier 4, needs query mocks */}
       <div className="flex items-start gap-6 flex-wrap">
         <PlaygroundQueryProvider
           mocks={networkMocks}

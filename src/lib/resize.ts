@@ -107,9 +107,9 @@ async function wasmResize(
  * High-quality resize of a canvas element to target dimensions.
  *
  * Desktop: WASM MKS2021 (same algorithm family as backend Sharpfin),
- *          with sRGB linearization and alpha premultiplication.
+ * with sRGB linearization and alpha premultiplication.
  * Mobile/constrained: createImageBitmap with resizeQuality:"high"
- *          (browser-native bicubic - still far better than raw bilinear).
+ * (browser-native bicubic - still far better than raw bilinear).
  *
  * Returns a PNG Blob at exactly targetW × targetH.
  * If the canvas is already at the target size, exports directly.

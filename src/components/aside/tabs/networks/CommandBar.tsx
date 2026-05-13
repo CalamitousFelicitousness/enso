@@ -79,7 +79,7 @@ export function CommandBar({
         </button>
       </div>
 
-      {/* Glowing accent divider — left */}
+      {/* Glowing accent divider - left */}
       <div
         className="w-px self-stretch transition-all duration-200"
         style={{
@@ -125,7 +125,7 @@ export function CommandBar({
         )}
       </motion.div>
 
-      {/* Glowing accent divider — right */}
+      {/* Glowing accent divider - right */}
       <div
         className="w-px self-stretch transition-all duration-200"
         style={{

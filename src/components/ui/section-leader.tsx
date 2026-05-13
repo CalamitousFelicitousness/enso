@@ -33,11 +33,11 @@ interface SectionLeaderProps {
  * Bar color communicates enable state; neutral for non-enableable.
  * Indicators (dot, chevron) are left-anchored before the title.
  *
- *   [bar] • TITLE              - enableable
- *   [bar] ▾ TITLE              - collapsible (entire row clickable)
- *   [bar] • TITLE          ▾   - both (dot=enable, chevron=collapse)
- *   [bar]   TITLE              - neither
- *         ▾ TITLE              - level 2 (no bar, inline sub-header)
+ * [bar] • TITLE - enableable
+ * [bar] ▾ TITLE - collapsible (entire row clickable)
+ * [bar] • TITLE ▾ - both (dot=enable, chevron=collapse)
+ * [bar] TITLE - neither
+ * ▾ TITLE - level 2 (no bar, inline sub-header)
  */
 const SectionLeader = memo(function SectionLeader({
   title,
@@ -264,7 +264,7 @@ const SectionLeader = memo(function SectionLeader({
 });
 
 /** Hover tooltip for section titles - 300ms hover delay, long-press to pin.
- *  Keyboard equivalents: focus opens the tooltip, Enter/Space toggles pinned. */
+ * Keyboard equivalents: focus opens the tooltip, Enter/Space toggles pinned. */
 function SectionTooltip({ tooltip, children }: { tooltip: string; children: React.ReactNode }) {
   const [hovered, setHovered] = useState(false);
   const [focused, setFocused] = useState(false);

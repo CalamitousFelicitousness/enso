@@ -5,11 +5,11 @@
  * `/sdapi/v1/*`, `/sdapi/v2/*`, and Gradio's own internal routes. Enso only
  * consumes `/sdapi/v2/*`, so we:
  *
- *   1. Filter `paths` to `/sdapi/v2/*` only.
- *   2. Walk those paths transitively collecting every referenced `$ref` into
- *      `components.schemas` and drop schemas that aren't reachable from v2.
- *   3. Sort every object's keys deterministically so the JSON serialization
- *      produces minimal diffs across regenerations.
+ * 1. Filter `paths` to `/sdapi/v2/*` only.
+ * 2. Walk those paths transitively collecting every referenced `$ref` into
+ * `components.schemas` and drop schemas that aren't reachable from v2.
+ * 3. Sort every object's keys deterministically so the JSON serialization
+ * produces minimal diffs across regenerations.
  *
  * The output is committed to `src/api/types/openapi.snapshot.json`. The
  * codegen reads it; the drift-check compares freshly-fetched output against

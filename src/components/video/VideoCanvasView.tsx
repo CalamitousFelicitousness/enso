@@ -247,7 +247,7 @@ export function VideoCanvasView() {
       <div className="flex-1 relative min-h-0">
         <VideoCanvasStage layout={layout} onPickImage={handlePickImage} />
 
-        {/* Floating headers — delta-transform wrapper for zero-render pan/zoom */}
+        {/* Floating headers - delta-transform wrapper for zero-render pan/zoom */}
         <div
           ref={overlayRef}
           style={{ position: "absolute", inset: 0, pointerEvents: "none", transformOrigin: "0 0" }}

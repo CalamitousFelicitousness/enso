@@ -28,7 +28,7 @@ const loadPersistedSort = (): GallerySort => {
       return { field: parsed.field!, dir: parsed.dir! };
     }
   } catch {
-    // quota, privacy mode, malformed JSON — fall through to default
+    // quota, privacy mode, malformed JSON - fall through to default
   }
   return DEFAULT_SORT;
 };

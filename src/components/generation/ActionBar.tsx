@@ -141,7 +141,7 @@ export const ActionBar = memo(function ActionBar() {
   });
   useShortcut("skip", handleSkip);
 
-  // Command Palette entries — captured at mount, dispatched via current closure refs
+  // Command Palette entries - captured at mount, dispatched via current closure refs
   useRegisterCommand({
     id: "actions:generate",
     label: "Generate",

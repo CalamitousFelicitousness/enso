@@ -66,7 +66,7 @@ export const MatteCard = forwardRef<
           ${active ? "ring-1 ring-primary/40 shadow-lg shadow-primary/5" : "ring-1 ring-border/30 group-hover:ring-primary/40"}`}
       />
 
-      {/* Family pill + active dot — top-right */}
+      {/* Family pill + active dot - top-right */}
       <div className="absolute top-2 right-2 flex items-center gap-1.5 z-10">
         {isActiveLora && (
           <div className="size-2 rounded-full bg-primary shrink-0" style={neonDotStyle} />

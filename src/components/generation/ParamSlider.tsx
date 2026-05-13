@@ -104,7 +104,7 @@ export const ParamSlider = memo(function ParamSlider({
     [min, max, step, decimals],
   );
 
-  /** Imperative visual update — sets fill width, edge position, value text */
+  /** Imperative visual update - sets fill width, edge position, value text */
   const updateVisuals = useCallback(
     (val: number) => {
       const pct = range === 0 ? 100 : Math.min(100, Math.max(0, ((val - min) / range) * 100));
@@ -115,7 +115,7 @@ export const ParamSlider = memo(function ParamSlider({
   );
 
   // ── Drag interaction ───────────────────────────────────────────
-  // No onChange during drag — only imperative DOM updates.
+  // No onChange during drag - only imperative DOM updates.
   // onChange fires once on pointerUp with the final value.
 
   const handlePointerDown = useCallback(
@@ -176,7 +176,7 @@ export const ParamSlider = memo(function ParamSlider({
       if (clamped === d.lastValue) return;
       d.lastValue = clamped;
 
-      // Imperative visual update only — no store update, no re-render
+      // Imperative visual update only - no store update, no re-render
       updateVisuals(clamped);
     },
     [dragging, min, range, notches, snapRadius, clampToStep, updateVisuals],
@@ -192,7 +192,7 @@ export const ParamSlider = memo(function ParamSlider({
       if (track) track.releasePointerCapture(e.pointerId);
 
       if (!d.moved && !(e.target as HTMLElement).dataset["valueSpan"]) {
-        // Click-to-jump — direct to cursor position
+        // Click-to-jump - direct to cursor position
         if (track) {
           const rect = track.getBoundingClientRect();
           const frac = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));

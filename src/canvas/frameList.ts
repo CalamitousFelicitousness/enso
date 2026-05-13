@@ -18,7 +18,7 @@ const TOOLBAR_RESERVE = 56;
 
 /**
  * Returns all visible frames sorted left-to-right.
- * Order: control frames (reversed — they accumulate rightmost-first in layout),
+ * Order: control frames (reversed - they accumulate rightmost-first in layout),
  * input, output, processed (if visible).
  */
 export function getOrderedFrames(layout: CanvasLayout): FrameBounds[] {

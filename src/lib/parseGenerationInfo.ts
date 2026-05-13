@@ -20,7 +20,7 @@ export function parseGenerationInfo(raw: string | null | undefined): ParsedGener
     const afterNeg = raw.slice(negIdx + "Negative prompt:".length);
 
     // SD.Next infotext (modules/processing_info.py) lays out:
-    //   {prompt}\nNegative prompt: {neg}[\nTemplate: {t}][\nNegative template: {nt}]\n{params}
+    // {prompt}\nNegative prompt: {neg}[\nTemplate: {t}][\nNegative template: {nt}]\n{params}
     // Template lines hold comma-separated prompt source from script extensions and
     // would shred the param regex, so slice them out before parseParams sees the tail.
     const templateIdx = afterNeg.search(/\nTemplate:\s/);

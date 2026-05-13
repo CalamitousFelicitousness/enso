@@ -215,7 +215,7 @@ function VideoPlayerInner({ src }: { src: string }) {
       onMouseMove={resetIdleTimer}
       onClick={togglePlay}
     >
-      {/* eslint-disable-next-line jsx-a11y/media-has-caption -- AI-generated video, no caption track available */}
+      {/* eslint-disable-next-line jsx-a11y/media-has-caption -- generated video has no caption track */}
       <video
         ref={videoRef}
         src={src}

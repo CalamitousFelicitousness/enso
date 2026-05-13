@@ -7,8 +7,8 @@ import { useImg2ImgStore } from "@/stores/img2imgStore";
 import { resolveGenerationSize } from "@/lib/sizeCompute";
 
 /** Reference height for display-unit normalization: all frames are laid out as
- *  if the main frame were this many units tall. Keeps UI panels consistently
- *  sized regardless of the actual generation resolution. */
+ * if the main frame were this many units tall. Keeps UI panels consistently
+ * sized regardless of the actual generation resolution. */
 export const REFERENCE_HEIGHT = 512;
 
 const FRAME_GAP = 48;

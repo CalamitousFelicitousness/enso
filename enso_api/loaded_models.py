@@ -225,7 +225,7 @@ def enumerate_upscalers() -> list[ItemLoadedModel]:
     items = []
     try:
         for upscaler in shared.sd_upscalers:
-            # ESRGAN-style: dict cache in .models
+            # ESRGAN-style: dict cache in.models
             models_cache = getattr(upscaler, "models", None)
             if isinstance(models_cache, dict):
                 for path, model in models_cache.items():
@@ -240,7 +240,7 @@ def enumerate_upscalers() -> list[ItemLoadedModel]:
                                 extra={"class": model.__class__.__name__, "path": str(path)},
                             )
                         )
-            # Spandrel/SeedVR-style: single .model attribute
+            # Spandrel/SeedVR-style: single.model attribute
             model = getattr(upscaler, "model", None)
             if model is not None and isinstance(model, torch.nn.Module):
                 items.append(

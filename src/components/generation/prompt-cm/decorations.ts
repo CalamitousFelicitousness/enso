@@ -22,7 +22,7 @@ function buildDecorations(view: EditorView): DecorationSet {
 
     if (match[1] !== undefined) {
       const tagType = match[1].toLowerCase();
-      // LoRA/LyCo handled by chip widgets — only style gets marks here
+      // LoRA/LyCo handled by chip widgets - only style gets marks here
       if (tagType === "style") {
         decos.push({ from, to, mark: styleMark });
         decos.push({ from, to: from + tagType.length + 2, mark: dimMark });
