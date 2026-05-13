@@ -1,5 +1,5 @@
 import { useCallback, type ReactNode } from "react";
-import { Play, Loader2, Eye, Aperture, Tags, Settings } from "lucide-react";
+import { Play, Loader2, Eye, Aperture, Tags, Cloud, Settings } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -7,14 +7,18 @@ import { SegmentedControl } from "@/components/ui/segmented-control";
 import { KeepAlivePanel, KeepAliveSwitch } from "@/components/ui/keep-alive";
 import { useCaptionStore } from "@/stores/captionStore";
 import { useCaptionSettingsStore } from "@/stores/captionSettingsStore";
+import { useCloudTextStore } from "@/stores/cloudTextStore";
 import { useUiStore } from "@/stores/uiStore";
 import { useOptionsSubset, useSetOptions } from "@/api/hooks/useSettings";
 import { useOpenClipCaption, useTaggerCaption, useVqaCaption } from "@/api/hooks/useCaption";
+import { useCloudCaption, useCloudVqa } from "@/api/hooks/useCloudText";
 import { uploadFile } from "@/lib/upload";
+import { fileToBase64 } from "@/lib/image";
 import { CUSTOM_PROMPT_TASKS } from "@/lib/captionModels";
 import { VlmSettings } from "./methods/VlmSettings";
 import { OpenClipSettings } from "./methods/OpenClipSettings";
 import { TaggerSettings } from "./methods/TaggerSettings";
+import { CloudCaptionSettings } from "./methods/CloudCaptionSettings";
 import type { CaptionMethod } from "@/api/types/caption";
 
 type CaptionDefaultType = "VLM" | "OpenCLiP" | "Tagger";
@@ -25,6 +29,7 @@ const CAPTION_TAB_OPTIONS: { value: CaptionTab; label: string; icon: typeof Eye 
   { value: "vlm", label: "VLM", icon: Eye },
   { value: "openclip", label: "OpenCLiP", icon: Aperture },
   { value: "tagger", label: "Tagger", icon: Tags },
+  { value: "cloud", label: "Cloud", icon: Cloud },
   { value: "default", label: "Default", icon: Settings },
 ];
 
@@ -79,6 +84,7 @@ const METHOD_PANELS = [
   methodPanel("vlm", <VlmSettings />),
   methodPanel("openclip", <OpenClipSettings />),
   methodPanel("tagger", <TaggerSettings />),
+  methodPanel("cloud", <CloudCaptionSettings />),
   methodPanel("default", <DefaultCaptionSettings />),
 ];
 
@@ -104,14 +110,62 @@ export function CaptionPanel() {
   const openclipMut = useOpenClipCaption();
   const taggerMut = useTaggerCaption();
   const vqaMut = useVqaCaption();
+  const cloudCaptionMut = useCloudCaption();
+  const cloudVqaMut = useCloudVqa();
+  const cloudMode = useCaptionStore((s) => s.cloudMode);
 
   const handleCaption = useCallback(async () => {
     if (!image || isProcessing) return;
     setProcessing(true);
     setResult(null);
     try {
-      const ref = await uploadFile(image);
       const settings = useCaptionSettingsStore.getState();
+
+      if (method === "cloud") {
+        const cloudText = useCloudTextStore.getState();
+        const slot = cloudMode === "caption" ? cloudText.caption : cloudText.vqa;
+        if (!slot.provider || !slot.model) {
+          toast.warning("Pick a cloud provider and model");
+          return;
+        }
+        if (cloudMode === "vqa" && !cloudText.vqaQuestion.trim()) {
+          toast.warning("Enter a question for VQA mode");
+          return;
+        }
+        const imageB64 = await fileToBase64(image);
+        if (cloudMode === "caption") {
+          const res = await cloudCaptionMut.mutateAsync({
+            image: imageB64,
+            provider: slot.provider,
+            model: slot.model,
+            prompt: cloudText.captionPrompt || undefined,
+          });
+          setResult({
+            type: "cloud",
+            text: res.caption,
+            provider: res.provider,
+            model: res.model,
+            mode: "caption",
+          });
+        } else {
+          const res = await cloudVqaMut.mutateAsync({
+            image: imageB64,
+            question: cloudText.vqaQuestion,
+            provider: slot.provider,
+            model: slot.model,
+          });
+          setResult({
+            type: "cloud",
+            text: res.answer,
+            provider: res.provider,
+            model: res.model,
+            mode: "vqa",
+          });
+        }
+        return;
+      }
+
+      const ref = await uploadFile(image);
 
       if (method === "vlm") {
         const s = settings.vlm;
@@ -174,7 +228,19 @@ export function CaptionPanel() {
     } finally {
       setProcessing(false);
     }
-  }, [image, isProcessing, method, vqaMut, openclipMut, taggerMut, setProcessing, setResult]);
+  }, [
+    image,
+    isProcessing,
+    method,
+    cloudMode,
+    vqaMut,
+    openclipMut,
+    taggerMut,
+    cloudCaptionMut,
+    cloudVqaMut,
+    setProcessing,
+    setResult,
+  ]);
 
   return (
     <div className="flex flex-col h-full">

@@ -16,6 +16,7 @@ import { KeepAlivePanel } from "@/components/ui/keep-alive";
 import { ChevronDown, ChevronRight, Sparkles, Loader2, Settings2 } from "lucide-react";
 import { toast } from "sonner";
 import { PromptEnhanceWorkspace } from "./PromptEnhanceWorkspace";
+import { CloudEnhanceButton } from "./CloudEnhanceButton";
 import type { PromptEnhanceRequest } from "@/api/types/promptEnhance";
 
 export function PromptEditor() {
@@ -112,6 +113,7 @@ export function PromptEditor() {
                 <Sparkles size={14} />
               )}
             </button>
+            <CloudEnhanceButton />
             <Popover open={enhanceOpen} onOpenChange={setEnhanceOpen}>
               <PopoverTrigger asChild>
                 <button

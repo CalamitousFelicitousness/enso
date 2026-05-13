@@ -36,7 +36,7 @@ type SystemSubTab =
   | "System Info"
   | "Benchmark";
 
-type CaptionSubTab = "vlm" | "openclip" | "tagger" | "default";
+type CaptionSubTab = "vlm" | "openclip" | "tagger" | "cloud" | "default";
 type VideoSubTab = "models" | "framepack" | "ltx";
 
 interface PanelSelections {
