@@ -57,7 +57,12 @@ class HttpTransport:
         return normalized
 
     def _build_headers(self) -> dict[str, str]:
-        headers = {"Content-Type": "application/json"}
+        # Don't pin Content-Type at the client level. httpx auto-detects per request
+        # body type: json= -> application/json, files= -> multipart/form-data with the
+        # required boundary. A client-level pin overrides the multipart boundary header
+        # and silently breaks /v1/images/edits against any provider that uses multipart
+        # (e.g. OpenAI image edits).
+        headers: dict[str, str] = {}
         auth_type = self.preset.get("auth_header")
         key = self._config_store.resolve_key(self.config)
         if auth_type and key:
