@@ -3,13 +3,24 @@
 import asyncio
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from modules.logger import log
 from pydantic import BaseModel, Field
 
 import enso_api.cloud as cloud_registry
 
-router = APIRouter(prefix="/sdapi/v2/cloud", tags=["Cloud"])
+
+async def _capture_main_loop() -> None:
+    """Router-level dependency: capture FastAPI's running loop so cloud worker
+    threads can dispatch back to it. See cloud_registry.set_main_loop for why."""
+    cloud_registry.set_main_loop(asyncio.get_running_loop())
+
+
+router = APIRouter(
+    prefix="/sdapi/v2/cloud",
+    tags=["Cloud"],
+    dependencies=[Depends(_capture_main_loop)],
+)
 
 
 class AddProviderRequest(BaseModel):

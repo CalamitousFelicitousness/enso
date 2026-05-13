@@ -1,29 +1,30 @@
 """Cloud job executors and async thread pool setup.
 
-Each executor bridges the sync job queue worker thread to the async adapter.
-Cloud worker threads maintain a persistent event loop for efficient connection reuse.
+Each executor bridges the sync job queue worker thread to the async adapter
+by dispatching the coroutine to FastAPI's main event loop via
+run_coroutine_threadsafe. This is required because httpx.AsyncClient's
+internal primitives bind to the loop that first uses them (FastAPI's loop,
+via provider routes), so all subsequent cloud I/O must run on the same loop.
 """
 
 import asyncio
-import threading
 import time
+from collections.abc import Coroutine
+from typing import Any
 
 from modules.logger import log
 
 from enso_api.cloud.protocol import ProgressCallback
 
-_thread_loops: dict[int, asyncio.AbstractEventLoop] = {}
-_loops_lock = threading.Lock()
 
+def _dispatch(coro: Coroutine[Any, Any, dict]) -> dict:
+    from enso_api.cloud import get_main_loop
 
-def _get_thread_event_loop() -> asyncio.AbstractEventLoop:
-    tid = threading.current_thread().ident
-    with _loops_lock:
-        if tid in _thread_loops:
-            return _thread_loops[tid]
-        loop = asyncio.new_event_loop()
-        _thread_loops[tid] = loop
-        return loop
+    loop = get_main_loop()
+    if loop is None or not loop.is_running():
+        raise RuntimeError("Cloud main event loop not captured. The FastAPI server must serve at least one /sdapi/v2/cloud/* request before a cloud job can run.")
+    future = asyncio.run_coroutine_threadsafe(coro, loop)
+    return future.result()
 
 
 def _make_progress_callback(job_id: str) -> ProgressCallback:
@@ -36,8 +37,7 @@ def _make_progress_callback(job_id: str) -> ProgressCallback:
 
 
 def execute_cloud_image(params: dict, job_id: str) -> dict:
-    loop = _get_thread_event_loop()
-    return loop.run_until_complete(_async_cloud_image(params, job_id))
+    return _dispatch(_async_cloud_image(params, job_id))
 
 
 async def _async_cloud_image(params: dict, job_id: str) -> dict:
@@ -59,8 +59,7 @@ async def _async_cloud_image(params: dict, job_id: str) -> dict:
 
 
 def execute_cloud_chat(params: dict, job_id: str) -> dict:
-    loop = _get_thread_event_loop()
-    return loop.run_until_complete(_async_cloud_chat(params, job_id))
+    return _dispatch(_async_cloud_chat(params, job_id))
 
 
 async def _async_cloud_chat(params: dict, job_id: str) -> dict:
@@ -94,8 +93,7 @@ async def _async_cloud_chat(params: dict, job_id: str) -> dict:
 
 
 def execute_cloud_tts(params: dict, job_id: str) -> dict:
-    loop = _get_thread_event_loop()
-    return loop.run_until_complete(_async_cloud_tts(params, job_id))
+    return _dispatch(_async_cloud_tts(params, job_id))
 
 
 async def _async_cloud_tts(params: dict, job_id: str) -> dict:
@@ -130,8 +128,7 @@ async def _async_cloud_tts(params: dict, job_id: str) -> dict:
 
 
 def execute_cloud_stt(params: dict, job_id: str) -> dict:
-    loop = _get_thread_event_loop()
-    return loop.run_until_complete(_async_cloud_stt(params, job_id))
+    return _dispatch(_async_cloud_stt(params, job_id))
 
 
 async def _async_cloud_stt(params: dict, _job_id: str) -> dict:
@@ -162,8 +159,7 @@ async def _async_cloud_stt(params: dict, _job_id: str) -> dict:
 
 
 def execute_cloud_video(params: dict, job_id: str) -> dict:
-    loop = _get_thread_event_loop()
-    return loop.run_until_complete(_async_cloud_video(params, job_id))
+    return _dispatch(_async_cloud_video(params, job_id))
 
 
 async def _async_cloud_video(params: dict, job_id: str) -> dict:

@@ -17,6 +17,27 @@ from enso_api.cloud.transport import HttpTransport
 
 _config_store: ConfigStore | None = None
 _adapters: dict[str, OpenAICompatAdapter] = {}
+_main_loop: asyncio.AbstractEventLoop | None = None
+
+
+def set_main_loop(loop: asyncio.AbstractEventLoop) -> None:
+    """Record FastAPI's event loop so cloud worker threads can dispatch coroutines
+    back to it via run_coroutine_threadsafe. Called from a cloud route dependency
+    on first request; idempotent thereafter.
+
+    Why this matters: httpx.AsyncClient binds its internal asyncio.Event/Lock
+    primitives to whichever loop first uses it. Provider routes run on FastAPI's
+    loop and bind there; if cloud jobs then run on per-worker-thread loops, the
+    cross-loop reuse fails with "Event is bound to a different event loop" and
+    burns a retry cycle (~30s) before httpx recovers."""
+    global _main_loop  # pylint: disable=global-statement
+    if _main_loop is None:
+        _main_loop = loop
+        log.debug("Cloud: captured main event loop for cross-thread dispatch")
+
+
+def get_main_loop() -> asyncio.AbstractEventLoop | None:
+    return _main_loop
 
 
 def init_providers(enso_root: str) -> None:
@@ -28,10 +49,18 @@ def init_providers(enso_root: str) -> None:
 
 
 def _close_adapter_http(adapter: OpenAICompatAdapter, context: str) -> None:
+    # httpx.AsyncClient.close() must run on the loop the client's primitives bind
+    # to (FastAPI's main loop). If captured, dispatch there; otherwise fall back
+    # to a fresh loop (only happens at startup before any cloud route hits).
     try:
-        loop = asyncio.new_event_loop()
-        loop.run_until_complete(adapter.http.close())
-        loop.close()
+        main_loop = _main_loop
+        if main_loop is not None and main_loop.is_running():
+            future = asyncio.run_coroutine_threadsafe(adapter.http.close(), main_loop)
+            future.result(timeout=5)
+        else:
+            loop = asyncio.new_event_loop()
+            loop.run_until_complete(adapter.http.close())
+            loop.close()
     except Exception as e:
         log.warning(f"Cloud: adapter close error provider={adapter.config.id} context={context}: {e}")
 
