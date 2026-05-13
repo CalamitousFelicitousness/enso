@@ -314,9 +314,26 @@ export interface ImageRef {
   size: number;
 }
 
+/** A cloud-generated video plus its sibling thumbnail. `thumbnail_url`
+ * is null when extraction failed upstream; the mp4 itself is always
+ * present at `url` when the ref exists. Mirrors VideoRef in enso_api/models.py. */
+export interface VideoRef {
+  index: number;
+  url: string;
+  thumbnail_url: string | null;
+  width: number;
+  height: number;
+  format: string;
+  size: number;
+  duration: number | null;
+}
+
 export interface JobResult {
   images: ImageRef[];
   processed: ImageRef[];
+  /** Populated by cloud_video; absent for local-pipeline executors that
+   * still place the mp4 + thumbnail under `images[0]` / `images[1]`. */
+  videos?: VideoRef[] | undefined;
   info: Record<string, unknown>;
   params: Record<string, unknown>;
 }

@@ -34,9 +34,31 @@ class ImageRef(BaseModel):
     """Base64-encoded image bytes; populated only when ``shared.opts.api_v2_base64`` is enabled."""
 
 
+class VideoRef(BaseModel):
+    """One cloud-generated video plus its sibling thumbnail.
+
+    `thumbnail_url` is populated when the upstream orchestrator wrote a
+    `<video_path>.thumb.png` (best-effort, may be absent on extraction failure).
+    The video file itself is served from `url`; the thumbnail (when present)
+    from `thumbnail_url`. The Python-side stored ref dict also carries `path`
+    and `thumbnail_path` fields that the file-serving handlers read; those
+    are intentionally absent from this response model.
+    """
+
+    index: int
+    url: str
+    thumbnail_url: str | None = None
+    width: int = 0
+    height: int = 0
+    format: str = "mp4"
+    size: int = 0
+    duration: float | None = None
+
+
 class JobResult(BaseModel):
     images: list[ImageRef] = Field(default_factory=list)
     processed: list[ImageRef] = Field(default_factory=list)
+    videos: list[VideoRef] = Field(default_factory=list)
     info: dict = Field(default_factory=dict)
     params: dict = Field(default_factory=dict)
 
