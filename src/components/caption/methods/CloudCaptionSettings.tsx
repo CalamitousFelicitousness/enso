@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { useCloudTextStore } from "@/stores/cloudTextStore";
 import { useCaptionStore } from "@/stores/captionStore";
 import { useAllCloudModels } from "@/api/hooks/useCloudModels";
+import { useCloudDefaults } from "@/hooks/useCloudDefaults";
 import { Combobox } from "@/components/ui/combobox";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { Textarea } from "@/components/ui/textarea";
@@ -18,6 +19,7 @@ export function CloudCaptionSettings() {
   const setVqaQuestion = useCloudTextStore((s) => s.setVqaQuestion);
 
   const { data: cloudData } = useAllCloudModels();
+  const defaults = useCloudDefaults();
 
   // Cloud caption/VQA both need vision-capable models. Same filter.
   const providersWithModels = useMemo(() => {
@@ -35,10 +37,14 @@ export function CloudCaptionSettings() {
     [providersWithModels],
   );
 
+  // Until the user picks, fall back to sdnext's configured default vision
+  // provider (cloud_default_vision_provider, then cloud_default_provider).
+  const effectiveProvider = slot.provider || defaults.vision;
+
   const modelOptions = useMemo(() => {
-    const g = providersWithModels.find((g) => g.provider.id === slot.provider);
+    const g = providersWithModels.find((g) => g.provider.id === effectiveProvider);
     return (g?.models ?? []).map((m) => ({ value: m.id, label: m.name }));
-  }, [providersWithModels, slot.provider]);
+  }, [providersWithModels, effectiveProvider]);
 
   const slotKey = cloudMode === "caption" ? "caption" : "vqa";
 
@@ -69,7 +75,7 @@ export function CloudCaptionSettings() {
           <div className="space-y-1">
             <span className="text-2xs text-muted-foreground">Provider</span>
             <Combobox
-              value={slot.provider}
+              value={effectiveProvider}
               onValueChange={(v) => setSlot(slotKey, { provider: v, model: "" })}
               options={providerOptions}
               placeholder="Pick provider..."
@@ -81,9 +87,9 @@ export function CloudCaptionSettings() {
             <span className="text-2xs text-muted-foreground">Model</span>
             <Combobox
               value={slot.model}
-              onValueChange={(v) => setSlot(slotKey, { provider: slot.provider, model: v })}
+              onValueChange={(v) => setSlot(slotKey, { provider: effectiveProvider, model: v })}
               options={modelOptions}
-              placeholder={slot.provider ? "Pick model..." : "Pick provider first"}
+              placeholder={effectiveProvider ? "Pick model..." : "Pick provider first"}
               className="h-7 text-2xs"
             />
           </div>
