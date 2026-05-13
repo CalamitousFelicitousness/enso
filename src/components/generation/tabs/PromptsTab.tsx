@@ -12,7 +12,7 @@ import { Link2Off, ArrowLeftRight, ChevronDown, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { resolveGenerationSize, formatMegapixels } from "@/lib/sizeCompute";
 import type { SizeMode } from "@/lib/sizeCompute";
-import type { CloudModel, ParamDescriptor } from "@/api/types/cloud";
+import type { ParamDescriptor } from "@/api/types/cloud";
 import { PromptEditor } from "../PromptEditor";
 import { ParamSlider } from "../ParamSlider";
 import { SectionLeader, SectionDivider } from "@/components/ui/section-leader";
@@ -94,15 +94,11 @@ export function PromptsTab() {
   const setResizeMethod = useImg2ImgStore((s) => s.setResizeMethod);
   const upscalerGroups = useUpscalerGroups({ excludeLatent: true });
   const { data: aspectOpts } = useOptionsSubset(["aspect_ratios"]);
-  const { isCloud, activeModel } = useModelSelectionStore(
-    useShallow((s) => ({ isCloud: s.isCloud, activeModel: s.activeModel })),
-  );
+  const activeModel = useModelSelectionStore((s) => s.activeModel);
+  const isCloud = activeModel?.source === "cloud";
   const cloudSizePresets = useMemo(() => {
     if (!isCloud) return null;
-    return (
-      parseSizeOptions((activeModel as CloudModel)?.supported_params ?? null) ??
-      GENERIC_CLOUD_PRESETS
-    );
+    return parseSizeOptions(activeModel?.supported_params ?? null) ?? GENERIC_CLOUD_PRESETS;
   }, [isCloud, activeModel]);
   const aspectPresets = useMemo(
     () =>

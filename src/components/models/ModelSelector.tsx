@@ -47,7 +47,9 @@ export function ModelSelector() {
   const { data: cloudData } = useAllCloudModels();
   const { data: options } = useOptionsSubset(["sd_model_checkpoint"]);
   const { data: checkpoint } = useCurrentCheckpoint();
-  const { activeModel, isCloud, selectLocal, selectCloud } = useModelSelectionStore();
+  const activeModel = useModelSelectionStore((s) => s.activeModel);
+  const setActiveModel = useModelSelectionStore((s) => s.setActiveModel);
+  const isCloud = activeModel?.source === "cloud";
   const loadModel = useLoadModel();
   const reloadModel = useReloadModel();
   const unloadModel = useUnloadModel();
@@ -57,7 +59,7 @@ export function ModelSelector() {
   const [open, setOpen] = useState(false);
 
   const displayName = isCloud
-    ? ((activeModel as CloudModel)?.name ?? "Cloud model")
+    ? (activeModel?.name ?? "Cloud model")
     : ((options?.["sd_model_checkpoint"] as string) ?? "No model loaded");
 
   const pipelineClass = !isCloud ? formatPipelineClass(checkpoint?.class_name) : null;
@@ -68,7 +70,7 @@ export function ModelSelector() {
     if (!model) return;
     setOpen(false);
     const localModel: LocalModel = { ...model, source: "local" };
-    selectLocal(localModel);
+    setActiveModel(localModel);
     try {
       await loadModel.mutateAsync(model.title);
       toast.success("Model loaded", { description: model.title });
@@ -81,7 +83,7 @@ export function ModelSelector() {
 
   function handleSelectCloud(model: CloudModel) {
     setOpen(false);
-    selectCloud(model);
+    setActiveModel(model);
     toast.success("Cloud model selected", { description: model.name });
   }
 
@@ -152,9 +154,7 @@ export function ModelSelector() {
                         onSelect={() => handleSelectCloud(model)}
                         className={cn(
                           "text-xs",
-                          isCloud &&
-                            (activeModel as CloudModel)?.id === model.id &&
-                            "font-semibold !text-primary",
+                          isCloud && activeModel?.id === model.id && "font-semibold !text-primary",
                         )}
                       >
                         <Cloud size={12} className="flex-shrink-0 text-sky-400 mr-1.5" />
