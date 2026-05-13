@@ -75,7 +75,9 @@ export function CaptionView() {
         ? (result.caption ?? "")
         : result?.type === "tagger"
           ? (result.tags ?? "")
-          : "";
+          : result?.type === "cloud"
+            ? result.text
+            : "";
 
   const hasAnalysis =
     result?.type === "openclip" &&

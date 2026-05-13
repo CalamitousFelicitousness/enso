@@ -1,4 +1,11 @@
-export type CaptionMethod = "vlm" | "openclip" | "tagger";
+export type CaptionMethod = "vlm" | "openclip" | "tagger" | "cloud";
+
+export interface CloudCaptionResult {
+  text: string;
+  provider: string;
+  model: string;
+  mode: "caption" | "vqa";
+}
 
 // ---------------------------------------------------------------------------
 // OpenCLIP / BLIP
