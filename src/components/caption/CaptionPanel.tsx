@@ -12,6 +12,7 @@ import { useUiStore } from "@/stores/uiStore";
 import { useOptionsSubset, useSetOptions } from "@/api/hooks/useSettings";
 import { useOpenClipCaption, useTaggerCaption, useVqaCaption } from "@/api/hooks/useCaption";
 import { useCloudCaption, useCloudVqa } from "@/api/hooks/useCloudText";
+import { useCloudDefaults } from "@/hooks/useCloudDefaults";
 import { uploadFile } from "@/lib/upload";
 import { fileToBase64 } from "@/lib/image";
 import { CUSTOM_PROMPT_TASKS } from "@/lib/captionModels";
@@ -113,6 +114,7 @@ export function CaptionPanel() {
   const cloudCaptionMut = useCloudCaption();
   const cloudVqaMut = useCloudVqa();
   const cloudMode = useCaptionStore((s) => s.cloudMode);
+  const cloudDefaults = useCloudDefaults();
 
   const handleCaption = useCallback(async () => {
     if (!image || isProcessing) return;
@@ -124,7 +126,8 @@ export function CaptionPanel() {
       if (method === "cloud") {
         const cloudText = useCloudTextStore.getState();
         const slot = cloudMode === "caption" ? cloudText.caption : cloudText.vqa;
-        if (!slot.provider || !slot.model) {
+        const effectiveProvider = slot.provider || cloudDefaults.vision;
+        if (!effectiveProvider || !slot.model) {
           toast.warning("Pick a cloud provider and model");
           return;
         }
@@ -136,7 +139,7 @@ export function CaptionPanel() {
         if (cloudMode === "caption") {
           const res = await cloudCaptionMut.mutateAsync({
             image: imageB64,
-            provider: slot.provider,
+            provider: effectiveProvider,
             model: slot.model,
             prompt: cloudText.captionPrompt || undefined,
           });
@@ -151,7 +154,7 @@ export function CaptionPanel() {
           const res = await cloudVqaMut.mutateAsync({
             image: imageB64,
             question: cloudText.vqaQuestion,
-            provider: slot.provider,
+            provider: effectiveProvider,
             model: slot.model,
           });
           setResult({
@@ -233,6 +236,7 @@ export function CaptionPanel() {
     isProcessing,
     method,
     cloudMode,
+    cloudDefaults.vision,
     vqaMut,
     openclipMut,
     taggerMut,

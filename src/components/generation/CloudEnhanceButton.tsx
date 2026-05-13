@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { useGenerationStore } from "@/stores/generationStore";
 import { useCloudTextStore } from "@/stores/cloudTextStore";
 import { useAllCloudModels } from "@/api/hooks/useCloudModels";
+import { useCloudDefaults } from "@/hooks/useCloudDefaults";
 import { useCloudPromptEnhance } from "@/api/hooks/useCloudText";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
@@ -23,8 +24,14 @@ export function CloudEnhanceButton() {
   const setNsfw = useCloudTextStore((s) => s.setEnhanceNsfw);
 
   const { data: cloudData } = useAllCloudModels();
+  const defaults = useCloudDefaults();
   const enhanceMutation = useCloudPromptEnhance();
   const [open, setOpen] = useState(false);
+
+  // Until the user picks, fall back to the sdnext-configured default text
+  // provider (cloud_default_text_provider, then cloud_default_provider). Same
+  // resolution as modules.cloud.registry.resolve_default_provider("text").
+  const effectiveProvider = slot.provider || defaults.text;
 
   // Filter to chat-capable cloud models, grouped by provider.
   const providersWithModels = useMemo(() => {
@@ -43,23 +50,23 @@ export function CloudEnhanceButton() {
   );
 
   const modelOptions = useMemo(() => {
-    const g = providersWithModels.find((g) => g.provider.id === slot.provider);
+    const g = providersWithModels.find((g) => g.provider.id === effectiveProvider);
     return (g?.models ?? []).map((m) => ({ value: m.id, label: m.name }));
-  }, [providersWithModels, slot.provider]);
+  }, [providersWithModels, effectiveProvider]);
 
   const handleEnhance = useCallback(() => {
     if (!prompt.trim()) {
       toast.warning("Enter a prompt first");
       return;
     }
-    if (!slot.provider || !slot.model) {
+    if (!effectiveProvider || !slot.model) {
       toast.warning("Pick a cloud provider and model");
       return;
     }
     enhanceMutation.mutate(
       {
         prompt,
-        provider: slot.provider,
+        provider: effectiveProvider,
         model: slot.model,
         system_prompt: systemPrompt || undefined,
         nsfw,
@@ -77,7 +84,7 @@ export function CloudEnhanceButton() {
         },
       },
     );
-  }, [prompt, slot, systemPrompt, nsfw, enhanceMutation, setParam]);
+  }, [prompt, effectiveProvider, slot.model, systemPrompt, nsfw, enhanceMutation, setParam]);
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -112,7 +119,7 @@ export function CloudEnhanceButton() {
             <div className="space-y-1">
               <span className="text-2xs text-muted-foreground">Provider</span>
               <Combobox
-                value={slot.provider}
+                value={effectiveProvider}
                 onValueChange={(v) => setSlot("enhance", { provider: v, model: "" })}
                 options={providerOptions}
                 placeholder="Pick provider..."
@@ -124,9 +131,9 @@ export function CloudEnhanceButton() {
               <span className="text-2xs text-muted-foreground">Model</span>
               <Combobox
                 value={slot.model}
-                onValueChange={(v) => setSlot("enhance", { provider: slot.provider, model: v })}
+                onValueChange={(v) => setSlot("enhance", { provider: effectiveProvider, model: v })}
                 options={modelOptions}
-                placeholder={slot.provider ? "Pick model..." : "Pick provider first"}
+                placeholder={effectiveProvider ? "Pick model..." : "Pick provider first"}
                 className="h-7 text-2xs"
               />
             </div>
