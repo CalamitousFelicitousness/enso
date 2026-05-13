@@ -4,7 +4,7 @@ import { useUiStore } from "@/stores/uiStore";
 import { useTutorialStore } from "@/stores/tutorialStore";
 import type { NavView, ImagesSubTab } from "@/stores/uiStore";
 import { useCapabilities } from "@/api/hooks/useServer";
-import { useCloudModelGating } from "@/hooks/useCloudModelGating";
+import { useModelCapabilities } from "@/hooks/useModelCapabilities";
 import { cn } from "@/lib/utils";
 import { PanelLeftClose, PanelLeftOpen, HelpCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -32,7 +32,7 @@ export function LeftTabRail() {
   const startTutorial = useTutorialStore((s) => s.start);
 
   const capabilities = useCapabilities();
-  const { showTab } = useCloudModelGating();
+  const { showTab } = useModelCapabilities();
 
   const hasSubTabs = activeView === "images" && !viewCollapsed;
   const filteredSubTabs = useMemo(

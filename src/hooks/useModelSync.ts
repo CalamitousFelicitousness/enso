@@ -5,7 +5,8 @@ import { useModelSelectionStore } from "@/stores/modelSelectionStore";
 export function useModelSync() {
   const { data: checkpoint } = useCurrentCheckpoint();
   const { data: models } = useModelList();
-  const { activeModel, selectLocal } = useModelSelectionStore();
+  const activeModel = useModelSelectionStore((s) => s.activeModel);
+  const setActiveModel = useModelSelectionStore((s) => s.setActiveModel);
   const initialized = useRef(false);
 
   useEffect(() => {
@@ -18,8 +19,8 @@ export function useModelSync() {
 
     const match = models.find((m) => m.title === checkpoint.title);
     if (match) {
-      selectLocal({ ...match, source: "local" });
+      setActiveModel({ ...match, source: "local" });
     }
     initialized.current = true;
-  }, [checkpoint?.title, models, activeModel, selectLocal]);
+  }, [checkpoint?.title, models, activeModel, setActiveModel]);
 }

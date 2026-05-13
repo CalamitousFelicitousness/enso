@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { useUiStore } from "@/stores/uiStore";
-import { useCloudModelGating } from "@/hooks/useCloudModelGating";
+import { useModelCapabilities } from "@/hooks/useModelCapabilities";
 import { ActionBar } from "@/components/generation/ActionBar";
 import { ResultGallery } from "@/components/generation/ResultGallery";
 import { PromptsTab } from "@/components/generation/tabs/PromptsTab";
@@ -49,7 +49,7 @@ const SUB_PANELS = [
 
 function ImagesView() {
   const activeSubTab = useUiStore((s) => s.activeImagesSubTab);
-  const { showTab } = useCloudModelGating();
+  const { showTab } = useModelCapabilities();
   const resolvedSubTab = showTab(activeSubTab) ? activeSubTab : "prompts";
 
   return (

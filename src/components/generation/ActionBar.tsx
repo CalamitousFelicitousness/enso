@@ -62,9 +62,9 @@ export const ActionBar = memo(function ActionBar() {
   const cancelJob = useCancelJob();
 
   const buildRequest = useCallback(async () => {
-    const { isCloud } = useModelSelectionStore.getState();
+    const { activeModel } = useModelSelectionStore.getState();
 
-    if (isCloud) {
+    if (activeModel?.source === "cloud") {
       const cloudRequest = await buildCloudImageRequest();
       clearSelection();
       return {
