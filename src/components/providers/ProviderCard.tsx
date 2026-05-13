@@ -69,12 +69,13 @@ export function ProviderCard({ provider }: ProviderCardProps) {
     }
   }
 
-  const statusColor =
-    provider.status === "ok"
+  // V1 doesn't track per-provider validation state — colour reflects whether
+  // the provider is enabled. Call Validate for an active health check.
+  const statusColor = provider.enabled
+    ? provider.has_key
       ? "bg-emerald-400"
-      : provider.status === "error"
-        ? "bg-red-400"
-        : "bg-zinc-400";
+      : "bg-amber-400"
+    : "bg-zinc-400";
 
   return (
     <div className="rounded-md border border-border overflow-hidden">
@@ -85,7 +86,7 @@ export function ProviderCard({ provider }: ProviderCardProps) {
         <span className={cn("w-2 h-2 rounded-full flex-shrink-0", statusColor)} />
         <span className="text-xs font-medium flex-1 truncate">{provider.name}</span>
         <span className="text-3xs text-muted-foreground font-mono">
-          {provider.model_count > 0 ? `${provider.model_count} models` : provider.preset}
+          {models && models.length > 0 ? `${models.length} models` : provider.preset}
         </span>
         <ChevronDown
           size={14}
@@ -147,8 +148,6 @@ export function ProviderCard({ provider }: ProviderCardProps) {
               />
             </div>
           </div>
-
-          {provider.error && <p className="text-3xs text-destructive">{provider.error}</p>}
 
           {models && models.length > 0 && <ModelBrowser models={models} />}
         </div>
