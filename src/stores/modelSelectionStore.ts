@@ -19,14 +19,23 @@ export const useModelSelectionStore = create<ModelSelectionState>()(
     }),
     {
       name: "enso-model-selection",
+      version: 1,
       // Strip the old `isCloud` / `cloudModelId` / `cloudProvider` / `localModelTitle`
       // fields that earlier versions persisted. `activeModel.source` is now the sole
-      // discriminator.
+      // discriminator. v1 also discards any persisted activeModel whose source
+      // isn't one of the three known kinds, so a downgraded session can't
+      // poison rehydrate by leaving an unknown shape behind.
       merge: (persisted, current) => {
         const p = persisted as Partial<ModelSelectionState> | undefined;
+        const candidate = p?.activeModel;
+        const known =
+          candidate &&
+          (candidate.source === "local" ||
+            candidate.source === "local-video" ||
+            candidate.source === "cloud");
         return {
           ...current,
-          activeModel: p?.activeModel ?? null,
+          activeModel: known ? candidate : null,
         };
       },
     },

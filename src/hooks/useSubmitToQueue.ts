@@ -15,6 +15,15 @@ interface SubmitOptions {
   buildRequest: () => Promise<{ payload: JobRequest; snapshot: JobSnapshot }>;
 }
 
+/** Throw from a buildRequest implementation to cancel cleanly without a
+ * generic "Failed to submit job" toast. The caller is expected to have
+ * already surfaced a guidance message (e.g. via toast.warning) before
+ * throwing this. Used by ActionBar to refuse local-video models on the
+ * Images view path. */
+export class UserAbortError extends Error {
+  override name = "UserAbortError";
+}
+
 export function useSubmitToQueue({ domain, buildRequest }: SubmitOptions) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const submitJob = useSubmitJob();
@@ -36,6 +45,7 @@ export function useSubmitToQueue({ domain, buildRequest }: SubmitOptions) {
         createdAt: Date.now(),
       });
     } catch (err) {
+      if (err instanceof UserAbortError) return;
       toast.error("Failed to submit job", {
         description: err instanceof Error ? err.message : String(err),
       });

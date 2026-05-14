@@ -10,9 +10,9 @@ export const videoHistoryDb = createIdbListDb<VideoResult>({
 });
 
 interface VideoState {
-  // Shared
-  engine: string;
-  model: string;
+  // Shared. Engine + model are not stored here — they live on
+  // modelSelectionStore.activeModel as a LocalVideoModel (or a CloudModel
+  // for cloud video) and the Video panel reads them from there.
   prompt: string;
   negative: string;
   width: number;
@@ -43,8 +43,7 @@ interface VideoState {
   initImage: File | null;
   lastImage: File | null;
 
-  // FramePack
-  fpVariant: string;
+  // FramePack. fpVariant lives on activeModel; the rest are tunables.
   fpResolution: number;
   fpDuration: number;
   fpLatentWindowSize: number;
@@ -65,8 +64,7 @@ interface VideoState {
   fpAttention: string;
   fpVaeType: string;
 
-  // LTX
-  ltxModel: string;
+  // LTX. ltxModel lives on activeModel; the rest are tunables.
   ltxSteps: number;
   ltxDecodeTimestep: number;
   ltxNoiseScale: number;
@@ -97,8 +95,6 @@ interface VideoState {
 }
 
 const defaultParams = {
-  engine: "",
-  model: "",
   prompt: "",
   negative: "",
   width: 848,
@@ -128,7 +124,6 @@ const defaultParams = {
   initImage: null as File | null,
   lastImage: null as File | null,
 
-  fpVariant: "bi-directional",
   fpResolution: 640,
   fpDuration: 4,
   fpLatentWindowSize: 9,
@@ -149,7 +144,6 @@ const defaultParams = {
   fpAttention: "Default",
   fpVaeType: "Full",
 
-  ltxModel: "",
   ltxSteps: 50,
   ltxDecodeTimestep: 0.05,
   ltxNoiseScale: 0.025,
@@ -200,7 +194,7 @@ export const useVideoStore = create<VideoState>()(
     }),
     {
       name: "enso-video",
-      version: 3,
+      version: 4,
       migrate: (persisted, version) => {
         if (!persisted || typeof persisted !== "object") return persisted;
         const p = persisted as Record<string, unknown>;
@@ -211,12 +205,22 @@ export const useVideoStore = create<VideoState>()(
           }
         }
         if (version < 2) {
-          // activeVideoTab moved to uiStore.panelSelections.videoSubTab in v2
+          // activeVideoTab moved to uiStore.panelSelections.videoSubTab in v2.
           delete p["activeVideoTab"];
         }
-        // v3: introduces cloudAspectRatio + cloudDuration. No migration needed
-        // since the zustand initializer spreads defaultParams; missing keys
-        // default in cleanly on rehydrate.
+        // v3: introduces cloudAspectRatio + cloudDuration. No migration step
+        // needed — the zustand initializer spreads defaultParams so missing
+        // keys default in cleanly on rehydrate.
+        if (version < 4) {
+          // v4: engine / model / fpVariant / ltxModel moved to
+          // modelSelectionStore.activeModel (typed as LocalVideoModel). Drop
+          // the persisted strings — they have no consumer in the new
+          // architecture and would just sit as dead bytes.
+          delete p["engine"];
+          delete p["model"];
+          delete p["fpVariant"];
+          delete p["ltxModel"];
+        }
         return p;
       },
       partialize: (state) => {

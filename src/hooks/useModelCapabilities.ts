@@ -23,7 +23,7 @@ export interface ModelSupports {
 }
 
 export interface ModelCapabilities {
-  kind: "local" | "cloud";
+  kind: "local" | "local-video" | "cloud";
   model: UnifiedModel | null;
   supports: ModelSupports;
   /** True when the named left-rail sub-tab should be visible for the active model. */
@@ -43,6 +43,24 @@ const LOCAL_SUPPORTS: ModelSupports = {
   sampler: true,
   refine: true,
   scripts: true,
+};
+
+// Local video models live in the Video view's own panel and don't touch any
+// of the Images-view sub-tabs. All flags false so the Images-side `showTab`
+// drops every gated tab, leaving only "prompts" (gated by "always").
+const LOCAL_VIDEO_SUPPORTS: ModelSupports = {
+  detailer: false,
+  controlNet: false,
+  img2img: false,
+  inpaint: false,
+  negativePrompt: false,
+  seed: false,
+  guidance: false,
+  style: false,
+  quality: false,
+  sampler: false,
+  refine: false,
+  scripts: false,
 };
 
 // Tabs gate on a specific `supports` flag. Tabs that are sdnext-only concepts
@@ -72,6 +90,17 @@ export function useModelCapabilities(): ModelCapabilities {
           const flag = TAB_TO_FLAG[tabId];
           return flag === undefined || flag === "always" || LOCAL_SUPPORTS[flag];
         },
+      };
+    }
+    if (model.source === "local-video") {
+      return {
+        kind: "local-video",
+        model,
+        supports: LOCAL_VIDEO_SUPPORTS,
+        // Images-view sub-tabs all hide for local-video; "prompts" survives
+        // via the "always" flag. Local-video models drive their own panel
+        // and never reach the Images-side sub-tab gating in practice.
+        showTab: (tabId: string) => TAB_TO_FLAG[tabId] === "always",
       };
     }
     const caps = model.capabilities;

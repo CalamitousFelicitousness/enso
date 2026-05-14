@@ -42,8 +42,10 @@ const OUTPUT_PARAM_KEYS = [
   "saveSafetensors",
 ] as const;
 
+// Note: variant lives on modelSelectionStore.activeModel as a
+// LocalVideoModel, not in videoStore. Presets only carry tunable params;
+// the user picks variant via the top selector.
 const FP_PARAM_KEYS = [
-  "fpVariant",
   "fpResolution",
   "fpDuration",
   "fpLatentWindowSize",
@@ -65,8 +67,8 @@ const FP_PARAM_KEYS = [
   "fpVaeType",
 ] as const;
 
+// Note: ltxModel lives on activeModel; preset carries only tunables.
 const LTX_PARAM_KEYS = [
-  "ltxModel",
   "ltxSteps",
   "ltxDecodeTimestep",
   "ltxNoiseScale",
