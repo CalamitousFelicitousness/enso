@@ -8,6 +8,9 @@ export interface VideoResult {
   height: number;
   format: string;
   size: number;
+  /** Reported by cloud providers via VideoRef.duration. Local pipelines
+   * compute duration from frames/fps client-side and leave this undefined. */
+  duration?: number | null | undefined;
   params: VideoWireParams;
   domain: "video" | "framepack" | "ltx";
   timestamp: number;

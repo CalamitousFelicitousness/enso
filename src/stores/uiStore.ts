@@ -37,7 +37,7 @@ type SystemSubTab =
   | "Benchmark";
 
 type CaptionSubTab = "vlm" | "openclip" | "tagger" | "cloud" | "default";
-type VideoSubTab = "models" | "framepack" | "ltx";
+type VideoSubTab = "models" | "framepack" | "ltx" | "cloud";
 
 interface PanelSelections {
   modelsSubTab: ModelsSubTab;

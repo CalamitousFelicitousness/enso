@@ -9,6 +9,7 @@ import {
 } from "@/api/hooks/useModels";
 import { useAllCloudModels } from "@/api/hooks/useCloudModels";
 import { useModelSelectionStore } from "@/stores/modelSelectionStore";
+import { useUiStore } from "@/stores/uiStore";
 import { useOptionsSubset } from "@/api/hooks/useSettings";
 import type { LocalModel, CloudModel } from "@/api/types/cloud";
 import { RefreshCw, ChevronsUpDown, ArrowBigDownDash, FolderSync, Cloud } from "lucide-react";
@@ -49,7 +50,11 @@ export function ModelSelector() {
   const { data: checkpoint } = useCurrentCheckpoint();
   const activeModel = useModelSelectionStore((s) => s.activeModel);
   const setActiveModel = useModelSelectionStore((s) => s.setActiveModel);
+  const activeNavView = useUiStore((s) => s.activeNavView);
   const isCloud = activeModel?.source === "cloud";
+
+  const showCloudImage = activeNavView === "images";
+  const showCloudVideo = activeNavView === "video";
   const loadModel = useLoadModel();
   const reloadModel = useReloadModel();
   const unloadModel = useUnloadModel();
@@ -137,38 +142,79 @@ export function ModelSelector() {
                 ))}
               </CommandGroup>
 
-              {cloudData?.map(({ provider, models: cloudModels }) => {
-                const imageModels = cloudModels.filter((m) =>
-                  m.modalities.some(
-                    (mod) =>
-                      mod === "text-to-image" || mod === "image-to-image" || mod === "inpaint",
-                  ),
-                );
-                if (imageModels.length === 0) return null;
-                return (
-                  <CommandGroup key={provider.id} heading={provider.name}>
-                    {imageModels.map((model) => (
-                      <CommandItem
-                        key={`${provider.id}:${model.id}`}
-                        value={`${provider.name} ${model.name} ${model.id}`}
-                        onSelect={() => handleSelectCloud(model)}
-                        className={cn(
-                          "text-xs",
-                          isCloud && activeModel?.id === model.id && "font-semibold !text-primary",
-                        )}
-                      >
-                        <Cloud size={12} className="flex-shrink-0 text-sky-400 mr-1.5" />
-                        <span className="truncate flex-1">{model.name}</span>
-                        {model.pricing && (
-                          <span className="text-3xs text-muted-foreground font-mono pl-2">
-                            {formatPricing(model.pricing)}
-                          </span>
-                        )}
-                      </CommandItem>
-                    ))}
-                  </CommandGroup>
-                );
-              })}
+              {/* Cloud models render only on the view that can use them:
+                  image-capable on Images, video-capable on Video. Picking a
+                  cloud model on any other view would be a dead-end since
+                  generation can't fire from there. */}
+              {showCloudImage &&
+                cloudData?.map(({ provider, models: cloudModels }) => {
+                  const imageModels = cloudModels.filter((m) =>
+                    m.modalities.some((mod) => mod === "text-to-image" || mod === "image-to-image"),
+                  );
+                  if (imageModels.length === 0) return null;
+                  return (
+                    <CommandGroup key={`img-${provider.id}`} heading={provider.name}>
+                      {imageModels.map((model) => (
+                        <CommandItem
+                          key={`${provider.id}:${model.id}`}
+                          value={`${provider.name} ${model.name} ${model.id}`}
+                          onSelect={() => handleSelectCloud(model)}
+                          className={cn(
+                            "text-xs",
+                            isCloud &&
+                              activeModel?.source === "cloud" &&
+                              activeModel.provider === provider.id &&
+                              activeModel.id === model.id &&
+                              "font-semibold !text-primary",
+                          )}
+                        >
+                          <Cloud size={12} className="flex-shrink-0 text-sky-400 mr-1.5" />
+                          <span className="truncate flex-1">{model.name}</span>
+                          {model.pricing && (
+                            <span className="text-3xs text-muted-foreground font-mono pl-2">
+                              {formatPricing(model.pricing)}
+                            </span>
+                          )}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  );
+                })}
+
+              {showCloudVideo &&
+                cloudData?.map(({ provider, models: cloudModels }) => {
+                  const videoModels = cloudModels.filter((m) =>
+                    m.modalities.some((mod) => mod === "text-to-video" || mod === "image-to-video"),
+                  );
+                  if (videoModels.length === 0) return null;
+                  return (
+                    <CommandGroup key={`vid-${provider.id}`} heading={provider.name}>
+                      {videoModels.map((model) => (
+                        <CommandItem
+                          key={`${provider.id}:${model.id}`}
+                          value={`${provider.name} ${model.name} ${model.id}`}
+                          onSelect={() => handleSelectCloud(model)}
+                          className={cn(
+                            "text-xs",
+                            isCloud &&
+                              activeModel?.source === "cloud" &&
+                              activeModel.provider === provider.id &&
+                              activeModel.id === model.id &&
+                              "font-semibold !text-primary",
+                          )}
+                        >
+                          <Cloud size={12} className="flex-shrink-0 text-sky-400 mr-1.5" />
+                          <span className="truncate flex-1">{model.name}</span>
+                          {model.pricing && (
+                            <span className="text-3xs text-muted-foreground font-mono pl-2">
+                              {formatPricing(model.pricing)}
+                            </span>
+                          )}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  );
+                })}
             </CommandList>
           </Command>
         </PopoverContent>
