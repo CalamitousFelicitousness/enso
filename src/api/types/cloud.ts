@@ -1,4 +1,5 @@
 import type { SdModelV2 } from "./models";
+import type { VideoMode } from "./video";
 
 // --- Modality & Capability ---
 
@@ -76,7 +77,31 @@ export interface CloudModel {
 
 export type LocalModel = SdModelV2 & { source: "local" };
 
-export type UnifiedModel = LocalModel | CloudModel;
+/** Which VideoPanel form a local video model renders. Engine-specific
+ * forms own different param surfaces (Wan/Hunyuan vs FramePack vs LTX),
+ * so the discriminator travels on the model itself rather than being
+ * recomputed at every render site. */
+export type LocalVideoEngineKind = "generic" | "framepack" | "ltx";
+
+/** A locally-served video model (Wan, Hunyuan, FramePack variant, LTX, etc.)
+ * surfaced alongside local image checkpoints and cloud models in the unified
+ * ModelSelector. The `engine` + `model` pair maps directly to the body of
+ * /sdapi/v2/video/load (or /sdapi/v2/framepack/load when kind === "framepack",
+ * where `model` is the variant name). `title` is a composed identity used as
+ * a stable React/identity key. */
+export interface LocalVideoModel {
+  source: "local-video";
+  engine: string;
+  model: string;
+  name: string;
+  title: string;
+  mode: VideoMode;
+  cached: boolean;
+  loaded: boolean;
+  kind: LocalVideoEngineKind;
+}
+
+export type UnifiedModel = LocalModel | LocalVideoModel | CloudModel;
 
 // --- Provider Types ---
 

@@ -16,7 +16,7 @@ import {
 import { blobToBase64 } from "@/lib/image";
 import { snapshotUnits } from "@/stores/controlStore";
 import { useModelSelectionStore } from "@/stores/modelSelectionStore";
-import { useSubmitToQueue } from "@/hooks/useSubmitToQueue";
+import { useSubmitToQueue, UserAbortError } from "@/hooks/useSubmitToQueue";
 import { sendToJob } from "@/hooks/useJobTracker";
 import { useCancelJob } from "@/api/hooks/useJobs";
 import { Play, Square, SkipForward, History, ChevronDown, Layers, Grid3X3 } from "lucide-react";
@@ -63,6 +63,14 @@ export const ActionBar = memo(function ActionBar() {
 
   const buildRequest = useCallback(async () => {
     const { activeModel } = useModelSelectionStore.getState();
+
+    // Active model belongs to the Video panel - refuse to build an image
+    // request from it. UserAbortError tells useSubmitToQueue to skip the
+    // "Failed to submit job" toast since we already surfaced guidance.
+    if (activeModel?.source === "local-video") {
+      toast.warning("Switch to Video view to use this model");
+      throw new UserAbortError("local-video model active on Images view");
+    }
 
     if (activeModel?.source === "cloud") {
       const cloudRequest = await buildCloudImageRequest();

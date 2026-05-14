@@ -1,8 +1,7 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useMemo, useState, type ReactNode } from "react";
 import { Play, Square, Sparkles, Settings2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useVideoStore } from "@/stores/videoStore";
-import { useUiStore, type VideoSubTab } from "@/stores/uiStore";
 import { useModelSelectionStore } from "@/stores/modelSelectionStore";
 import { usePromptEnhanceStore } from "@/stores/promptEnhanceStore";
 import {
@@ -17,9 +16,10 @@ import { useSubmitToQueue } from "@/hooks/useSubmitToQueue";
 import { sendToJob } from "@/hooks/useJobTracker";
 import { useCancelJob } from "@/api/hooks/useJobs";
 import { usePromptEnhance } from "@/api/hooks/usePromptEnhance";
+import { useLoadVideoModel, useLoadFramePack } from "@/api/hooks/useVideo";
 import { uploadFile, uploadBlob } from "@/lib/upload";
 import { buildCloudVideoRequest } from "@/lib/requestBuilder";
-import { isCloudVideoModel } from "@/lib/cloudVideo";
+import { resolveVideoUi, kindToDomain, type VideoUiKind } from "@/lib/videoModel";
 import { Button } from "@/components/ui/button";
 import { PromptField } from "@/components/generation/PromptField";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -27,24 +27,18 @@ import { KeepAlivePanel, KeepAliveSwitch } from "@/components/ui/keep-alive";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { PromptEnhanceWorkspace } from "@/components/generation/PromptEnhanceWorkspace";
-import { ModelsVideoTab } from "./tabs/ModelsVideoTab";
-import { FramePackTab } from "./tabs/FramePackTab";
-import { LtxVideoTab } from "./tabs/LtxVideoTab";
-import { CloudVideoForm } from "./CloudVideoForm";
-import type { JobDomain } from "@/stores/jobStore";
+import { WanHunyuanForm } from "./forms/WanHunyuanForm";
+import { FramePackForm } from "./forms/FramePackForm";
+import { LtxForm } from "./forms/LtxForm";
+import { CloudVideoForm } from "./forms/CloudVideoForm";
+import type { LocalVideoModel } from "@/api/types/cloud";
 import type { PromptEnhanceRequest } from "@/api/types/promptEnhance";
 
-const tabs = [
-  { id: "models", label: "Models" },
-  { id: "framepack", label: "FramePack" },
-  { id: "ltx", label: "LTX" },
-  { id: "cloud", label: "Cloud" },
-] as const;
-
-// Hoist panel JSX to module scope so React element references stay stable
-// across re-renders. Without this, every parent render rebuilds every panel,
-// forcing the reconciler to walk every kept-alive subtree on every state change.
-function subPanel(id: VideoSubTab, content: ReactNode) {
+// One panel per video UI kind. The "empty" state has no params - render a
+// hint inline rather than as a 5th keep-alive panel. Forms below are
+// kept-alive across kind swaps so CodeMirror cursors, textarea drafts,
+// FramePack section prompts, etc. survive the user switching models.
+function subPanel(id: VideoUiKind, content: ReactNode) {
   return (
     <KeepAlivePanel key={id} id={id} activeClassName="flex-1 overflow-hidden">
       <ScrollArea className="size-full">
@@ -55,25 +49,13 @@ function subPanel(id: VideoSubTab, content: ReactNode) {
 }
 
 const SUB_PANELS = [
-  subPanel("models", <ModelsVideoTab />),
-  subPanel("framepack", <FramePackTab />),
-  subPanel("ltx", <LtxVideoTab />),
+  subPanel("generic", <WanHunyuanForm />),
+  subPanel("framepack", <FramePackForm />),
+  subPanel("ltx", <LtxForm />),
   subPanel("cloud", <CloudVideoForm />),
 ];
 
-function tabToDomain(tab: string): JobDomain {
-  if (tab === "framepack") return "framepack";
-  if (tab === "ltx") return "ltx";
-  // "cloud" piggybacks on the video domain - distinguished downstream by
-  // payload.type === "cloud_video". Mirrors how cloud_image piggybacks on
-  // the generate domain.
-  return "video";
-}
-
-async function buildJobPayload(tab: string) {
-  if (tab === "cloud") {
-    return await buildCloudVideoRequest();
-  }
+async function buildLocalVideoPayload(kind: VideoUiKind, model: LocalVideoModel) {
   const s = useVideoStore.getState();
   const output = {
     fps: s.fps,
@@ -89,13 +71,13 @@ async function buildJobPayload(tab: string) {
   const initRef = s.initImage ? await uploadFile(s.initImage) : null;
   const lastRef = s.lastImage ? await uploadFile(s.lastImage) : null;
 
-  if (tab === "framepack") {
+  if (kind === "framepack") {
     return {
       type: "framepack" as const,
       prompt: s.prompt,
       negative: s.negative,
       seed: s.seed,
-      variant: s.fpVariant,
+      variant: model.model,
       resolution: s.fpResolution,
       duration: s.fpDuration,
       latent_ws: s.fpLatentWindowSize,
@@ -121,10 +103,10 @@ async function buildJobPayload(tab: string) {
     };
   }
 
-  if (tab === "ltx") {
+  if (kind === "ltx") {
     return {
       type: "ltx" as const,
-      model: s.ltxModel,
+      model: model.model,
       prompt: s.prompt,
       negative: s.negative,
       seed: s.seed,
@@ -146,11 +128,11 @@ async function buildJobPayload(tab: string) {
     };
   }
 
-  // models (generic video)
+  // "generic" - Wan/Hunyuan/etc. routed through the canonical /video/load.
   return {
     type: "video" as const,
-    engine: s.engine,
-    model: s.model,
+    engine: model.engine,
+    model: model.model,
     prompt: s.prompt,
     negative: s.negative,
     seed: s.seed,
@@ -171,50 +153,13 @@ async function buildJobPayload(tab: string) {
   };
 }
 
-function canGenerate(tab: string) {
-  const s = useVideoStore.getState();
-  if (tab === "models") return !!(s.engine && s.model);
-  if (tab === "ltx") return !!s.ltxModel;
-  if (tab === "cloud") {
-    const { activeModel } = useModelSelectionStore.getState();
-    return isCloudVideoModel(activeModel) && !!s.prompt.trim();
-  }
-  return true;
-}
-
 export function VideoPanel() {
-  const activeVideoTab = useUiStore((s) => s.panelSelections.videoSubTab);
-  const setPanelSelection = useUiStore((s) => s.setPanelSelection);
   const prompt = useVideoStore((s) => s.prompt);
   const negative = useVideoStore((s) => s.negative);
   const setParam = useVideoStore((s) => s.setParam);
   const activeModel = useModelSelectionStore((s) => s.activeModel);
-  const domain = tabToDomain(activeVideoTab);
-
-  // Auto-switch to the Cloud sub-tab when the user picks a cloud video model
-  // from the top-level ModelSelector. Tracked by id to fire only on transition
-  // - not on every render where the model happens to be cloud video. The
-  // guard against `activeVideoTab === "cloud"` prevents reentry when the
-  // user manually switched away while keeping the cloud model active.
-  const prevModelKey = useRef<string | null>(null);
-  useEffect(() => {
-    // Compose a stable identity per model so the auto-switch fires only on
-    // transitions. LocalModel keys by `title` (its filename-derived id),
-    // CloudModel keys by `(provider, id)` since cloud ids can collide across
-    // providers.
-    const key =
-      activeModel?.source === "cloud"
-        ? `cloud:${activeModel.provider}:${activeModel.id}`
-        : activeModel?.source === "local"
-          ? `local:${activeModel.title}`
-          : null;
-    if (key !== prevModelKey.current) {
-      prevModelKey.current = key;
-      if (isCloudVideoModel(activeModel) && activeVideoTab !== "cloud") {
-        setPanelSelection("videoSubTab", "cloud");
-      }
-    }
-  }, [activeModel, activeVideoTab, setPanelSelection]);
+  const kind = resolveVideoUi(activeModel);
+  const domain = kindToDomain(kind);
 
   const isVideoActive = useJobQueueStore(selectVideoActive);
   const isFramepackActive = useJobQueueStore(selectFramepackActive);
@@ -226,6 +171,14 @@ export function VideoPanel() {
   const runningVideoJob = useJobQueueStore(selectRunning);
 
   const cancelJob = useCancelJob();
+
+  // Pre-submit load mutations - only used when generating with a local-video
+  // model. The unified action-row Load button writes the same mutations; this
+  // path lets us lazy-load when the user clicks Generate without an explicit
+  // Load click first (the "load on generate" semantic).
+  const loadVideoModel = useLoadVideoModel();
+  const loadFramePack = useLoadFramePack();
+  const [isLoadingModel, setIsLoadingModel] = useState(false);
 
   // Prompt enhance
   const [enhanceOpen, setEnhanceOpen] = useState(false);
@@ -285,13 +238,55 @@ export function VideoPanel() {
   const handleAcceptEnhanced = useCallback((p: string) => setParam("prompt", p), [setParam]);
 
   const buildRequest = useCallback(async () => {
-    const payload = await buildJobPayload(activeVideoTab);
+    if (kind === "cloud") {
+      const payload = await buildCloudVideoRequest();
+      return { payload, snapshot: { kind: "none" as const } };
+    }
+    if (kind === "empty" || !activeModel || activeModel.source !== "local-video") {
+      // Generate button is gated by canGenerate so this branch shouldn't
+      // run in practice. Throwing a regular Error lets useSubmitToQueue
+      // surface a real "Failed to submit" toast as a safety net.
+      throw new Error("No video model selected");
+    }
+    const payload = await buildLocalVideoPayload(kind, activeModel);
     return { payload, snapshot: { kind: "none" as const } };
-  }, [activeVideoTab]);
+  }, [kind, activeModel]);
 
   const { submit, isSubmitting } = useSubmitToQueue(
     useMemo(() => ({ domain, buildRequest }), [domain, buildRequest]),
   );
+
+  // "Load on generate": when the active model is local video, ensure it's
+  // loaded before submission. Server is idempotent (re-firing load when the
+  // model is already loaded is cheap), so we don't try to be clever about
+  // skipping when activeModel.loaded is already true - that snapshot can be
+  // stale, and the cost of being wrong is a redundant 50-200ms round-trip
+  // rather than a real generation failure.
+  const handleGenerate = useCallback(async () => {
+    if (kind === "generic" || kind === "ltx" || kind === "framepack") {
+      if (!activeModel || activeModel.source !== "local-video") return;
+      setIsLoadingModel(true);
+      try {
+        if (kind === "framepack") {
+          const attention = useVideoStore.getState().fpAttention;
+          await loadFramePack.mutateAsync({ variant: activeModel.model, attention });
+        } else {
+          await loadVideoModel.mutateAsync({
+            engine: activeModel.engine,
+            model: activeModel.model,
+          });
+        }
+      } catch (err) {
+        toast.error("Failed to load model", {
+          description: err instanceof Error ? err.message : String(err),
+        });
+        return;
+      } finally {
+        setIsLoadingModel(false);
+      }
+    }
+    void submit();
+  }, [kind, activeModel, loadVideoModel, loadFramePack, submit]);
 
   const handleCancel = useCallback(() => {
     if (runningVideoJob) {
@@ -300,14 +295,14 @@ export function VideoPanel() {
     }
   }, [runningVideoJob, cancelJob]);
 
+  const canGenerate = kind !== "empty" && !!prompt.trim();
   const progressPct = Math.round(progress * 100);
 
   return (
     <div className="flex flex-col h-full min-w-0">
-      {/* Sticky header: prompt + Generate + sub-tab bar stay visible while
-          sub-tab content scrolls independently inside its KeepAlivePanel. */}
+      {/* Sticky header: prompt + Generate stay visible while the
+          kind-specific form scrolls independently below. */}
       <div className="shrink-0 p-3 pb-0 space-y-1 border-b border-border">
-        {/* Prompt - always visible */}
         <div className="space-y-1.5 mb-3">
           <div className="flex items-center justify-between mb-1">
             <Label className="text-2xs text-muted-foreground">Prompt</Label>
@@ -374,19 +369,27 @@ export function VideoPanel() {
           />
         </div>
 
-        {/* Generate / Stop */}
         <div className="space-y-2 mb-3">
           <div className="flex gap-2">
             <Button
               type="button"
-              onClick={() => void submit()}
-              disabled={isSubmitting || !canGenerate(activeVideoTab)}
+              onClick={() => void handleGenerate()}
+              disabled={isSubmitting || isLoadingModel || !canGenerate}
               variant="default"
               size="sm"
               className="flex-1"
             >
-              <Play size={14} />
-              Generate
+              {isLoadingModel ? (
+                <>
+                  <Loader2 size={14} className="animate-spin" />
+                  Loading model...
+                </>
+              ) : (
+                <>
+                  <Play size={14} />
+                  Generate
+                </>
+              )}
             </Button>
             {isGenerating && (
               <Button type="button" onClick={handleCancel} variant="destructive" size="sm">
@@ -409,30 +412,15 @@ export function VideoPanel() {
             </div>
           )}
         </div>
-
-        {/* Sub-tab bar */}
-        <div className="flex">
-          {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              type="button"
-              onClick={() => setPanelSelection("videoSubTab", tab.id)}
-              className={`px-3 py-1.5 text-xs font-medium transition-colors relative ${
-                activeVideoTab === tab.id
-                  ? "text-foreground"
-                  : "text-muted-foreground hover:text-foreground/70"
-              }`}
-            >
-              {tab.label}
-              {activeVideoTab === tab.id && (
-                <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-t" />
-              )}
-            </button>
-          ))}
-        </div>
       </div>
 
-      <KeepAliveSwitch active={activeVideoTab}>{SUB_PANELS}</KeepAliveSwitch>
+      {kind === "empty" ? (
+        <div className="p-6 text-center text-3xs text-muted-foreground">
+          Pick a video model from the model selector to configure and run it.
+        </div>
+      ) : (
+        <KeepAliveSwitch active={kind}>{SUB_PANELS}</KeepAliveSwitch>
+      )}
     </div>
   );
 }

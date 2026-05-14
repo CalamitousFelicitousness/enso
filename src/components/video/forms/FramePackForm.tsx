@@ -1,22 +1,22 @@
-import { useCallback, useState } from "react";
-import { Loader2 } from "lucide-react";
-import { toast } from "sonner";
+import { useState } from "react";
 import { useVideoStore } from "@/stores/videoStore";
-import { useFramePackVariants, useLoadFramePack, useUnloadFramePack } from "@/api/hooks/useVideo";
+import { useModelSelectionStore } from "@/stores/modelSelectionStore";
 import { SectionLeader } from "@/components/ui/section-leader";
 import { ParamSlider } from "@/components/generation/ParamSlider";
 import { ParamGrid } from "@/components/generation/ParamRow";
 import { SectionTimeline } from "@/components/video/SectionTimeline";
 import { Combobox } from "@/components/ui/combobox";
-import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { VideoOutputSection } from "./VideoOutputSection";
 import { VideoPresetSelector } from "../VideoPresetSelector";
 
-export function FramePackTab() {
-  const fpVariant = useVideoStore((s) => s.fpVariant);
+// FramePack-specific form. Variant is selected in the top-level
+// ModelSelector (Video view); the global Load/Unload buttons act on it via
+// useLoadFramePack/useUnloadFramePack. This form owns the parameter surface
+// and the SectionTimeline editor.
+export function FramePackForm() {
   const fpResolution = useVideoStore((s) => s.fpResolution);
   const fpDuration = useVideoStore((s) => s.fpDuration);
   const fpLatentWindowSize = useVideoStore((s) => s.fpLatentWindowSize);
@@ -41,66 +41,22 @@ export function FramePackTab() {
   const seed = useVideoStore((s) => s.seed);
   const setParam = useVideoStore((s) => s.setParam);
 
+  // SectionTimeline needs the FramePack variant to compute window layout.
+  // Pull it from activeModel (the top-level model picker is the source of
+  // truth for variant selection now). Fall back to "bi-directional" so the
+  // timeline still renders when the form is briefly visible without an
+  // active FramePack model selected (KeepAlive can pre-mount).
+  const activeModel = useModelSelectionStore((s) => s.activeModel);
+  const variant =
+    activeModel?.source === "local-video" && activeModel.kind === "framepack"
+      ? activeModel.model
+      : "bi-directional";
+
   const [rawEdit, setRawEdit] = useState(false);
-
-  const { data: variants } = useFramePackVariants();
-  const loadFP = useLoadFramePack();
-  const unloadFP = useUnloadFramePack();
-
-  const handleLoad = useCallback(() => {
-    loadFP.mutate(
-      { variant: fpVariant, attention: fpAttention },
-      {
-        onSuccess: () => toast.success(`Loaded FramePack ${fpVariant}`),
-        onError: (err) => toast.error("Failed to load FramePack", { description: err.message }),
-      },
-    );
-  }, [fpVariant, fpAttention, loadFP]);
-
-  const handleUnload = useCallback(() => {
-    unloadFP.mutate(undefined, {
-      onSuccess: () => toast.success("FramePack unloaded"),
-      onError: (err) => toast.error("Failed to unload", { description: err.message }),
-    });
-  }, [unloadFP]);
 
   return (
     <div className="space-y-1">
       <VideoPresetSelector domain="framepack" />
-      <SectionLeader title="Model" collapsible>
-        <div className="space-y-1.5">
-          <div className="flex items-center gap-2">
-            <Label className="text-2xs text-muted-foreground w-16 shrink-0">Variant</Label>
-            <Combobox
-              value={fpVariant}
-              onValueChange={(v) => setParam("fpVariant", v)}
-              options={variants ?? ["bi-directional", "forward-only"]}
-              className="h-6 text-2xs flex-1"
-            />
-          </div>
-          <div className="flex gap-1.5">
-            <Button
-              size="sm"
-              variant="secondary"
-              onClick={handleLoad}
-              disabled={loadFP.isPending}
-              className="flex-1"
-            >
-              {loadFP.isPending ? <Loader2 size={14} className="animate-spin" /> : null}
-              Load
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={handleUnload}
-              disabled={unloadFP.isPending}
-              className="flex-1"
-            >
-              Unload
-            </Button>
-          </div>
-        </div>
-      </SectionLeader>
 
       <SectionLeader title="Size" collapsible defaultCollapsed>
         <ParamGrid>
@@ -171,7 +127,7 @@ export function FramePackTab() {
             fps={fps}
             duration={fpDuration}
             latentWindowSize={fpLatentWindowSize}
-            variant={fpVariant}
+            variant={variant}
             interpolate={interpolate}
             value={fpSectionPrompt}
             onChange={(v) => setParam("fpSectionPrompt", v)}

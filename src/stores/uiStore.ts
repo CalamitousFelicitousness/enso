@@ -37,13 +37,11 @@ type SystemSubTab =
   | "Benchmark";
 
 type CaptionSubTab = "vlm" | "openclip" | "tagger" | "cloud" | "default";
-type VideoSubTab = "models" | "framepack" | "ltx" | "cloud";
 
 interface PanelSelections {
   modelsSubTab: ModelsSubTab;
   systemSubTab: SystemSubTab;
   captionSubTab: CaptionSubTab;
-  videoSubTab: VideoSubTab;
   /** Free-form because backend Settings sections are dynamic. The synthetic
    * Connection / Appearance ids and any backend section id are valid; null
    * falls back to whichever section SettingsView resolves first. */
@@ -137,7 +135,6 @@ export type {
   ModelsSubTab,
   SystemSubTab,
   CaptionSubTab,
-  VideoSubTab,
   PanelSelections,
 };
 
@@ -145,7 +142,6 @@ const DEFAULT_PANEL_SELECTIONS: PanelSelections = {
   modelsSubTab: "Current",
   systemSubTab: "Overview",
   captionSubTab: "vlm",
-  videoSubTab: "models",
   settingsSection: null,
 };
 
@@ -214,12 +210,22 @@ export const useUiStore = create<UiState>()(
     }),
     {
       name: "enso-ui",
-      version: 3,
+      version: 4,
       migrate: (persisted, version) => {
         if (!persisted || typeof persisted !== "object") return persisted;
         const p = persisted as Record<string, unknown>;
         if (version < 3 && !("panelSelections" in p)) {
           p["panelSelections"] = { ...DEFAULT_PANEL_SELECTIONS };
+        }
+        // v4: drop panelSelections.videoSubTab. The Video panel is now
+        // model-first (driven by activeModel rather than a sub-tab id), so
+        // the persisted key has no consumer and would just sit as dead
+        // weight in storage.
+        if (version < 4) {
+          const sel = p["panelSelections"];
+          if (sel && typeof sel === "object" && "videoSubTab" in sel) {
+            delete (sel as Record<string, unknown>)["videoSubTab"];
+          }
         }
         return p;
       },

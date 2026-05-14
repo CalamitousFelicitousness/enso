@@ -95,11 +95,13 @@ export function PromptsTab() {
   const upscalerGroups = useUpscalerGroups({ excludeLatent: true });
   const { data: aspectOpts } = useOptionsSubset(["aspect_ratios"]);
   const activeModel = useModelSelectionStore((s) => s.activeModel);
-  const isCloud = activeModel?.source === "cloud";
   const cloudSizePresets = useMemo(() => {
-    if (!isCloud) return null;
-    return parseSizeOptions(activeModel?.supported_params ?? null) ?? GENERIC_CLOUD_PRESETS;
-  }, [isCloud, activeModel]);
+    // Narrow inside the closure so `.supported_params` access is type-safe
+    // and doesn't leak into non-cloud model branches (local-video has no
+    // such field).
+    if (!activeModel || activeModel.source !== "cloud") return null;
+    return parseSizeOptions(activeModel.supported_params ?? null) ?? GENERIC_CLOUD_PRESETS;
+  }, [activeModel]);
   const aspectPresets = useMemo(
     () =>
       parseAspectRatios(
