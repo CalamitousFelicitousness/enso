@@ -77,6 +77,11 @@ interface VideoState {
   ltxConditionStrength: number;
   ltxAudioEnable: boolean;
 
+  // Cloud video. Provider + model come from modelSelectionStore.activeModel;
+  // these are the operational params the form binds to.
+  cloudAspectRatio: string;
+  cloudDuration: number;
+
   // Result history
   results: VideoResult[];
   selectedResultId: string | null;
@@ -154,6 +159,9 @@ const defaultParams = {
   ltxRefineStrength: 0.4,
   ltxConditionStrength: 0.8,
   ltxAudioEnable: false,
+
+  cloudAspectRatio: "16:9",
+  cloudDuration: 5,
 };
 
 const defaultParamKeys = Object.keys(defaultParams) as (keyof typeof defaultParams)[];
@@ -192,7 +200,7 @@ export const useVideoStore = create<VideoState>()(
     }),
     {
       name: "enso-video",
-      version: 2,
+      version: 3,
       migrate: (persisted, version) => {
         if (!persisted || typeof persisted !== "object") return persisted;
         const p = persisted as Record<string, unknown>;
@@ -206,6 +214,9 @@ export const useVideoStore = create<VideoState>()(
           // activeVideoTab moved to uiStore.panelSelections.videoSubTab in v2
           delete p["activeVideoTab"];
         }
+        // v3: introduces cloudAspectRatio + cloudDuration. No migration needed
+        // since the zustand initializer spreads defaultParams; missing keys
+        // default in cleanly on rehydrate.
         return p;
       },
       partialize: (state) => {

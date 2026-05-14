@@ -834,3 +834,35 @@ export async function buildCloudImageRequest(): Promise<CloudImageJobParams> {
 
   return request;
 }
+
+// --- Cloud video request builder ---
+
+import { useVideoStore } from "@/stores/videoStore";
+import { uploadFile } from "@/lib/upload";
+import { supportsImageToVideo } from "@/lib/cloudVideo";
+import type { CloudVideoJobParams } from "@/api/types/cloud";
+
+export async function buildCloudVideoRequest(): Promise<CloudVideoJobParams> {
+  const { activeModel } = useModelSelectionStore.getState();
+  const video = useVideoStore.getState();
+  // VideoPanel.canGenerate guards entry on isCloudVideoModel(activeModel), so
+  // the cast is safe here. If we're called with a non-cloud-video model,
+  // payload.provider/model end up empty and the backend rejects with 4xx.
+  const model = activeModel as CloudModel;
+
+  const request: CloudVideoJobParams = {
+    type: "cloud_video",
+    provider: model.provider,
+    model: model.id,
+    prompt: video.prompt,
+  };
+
+  if (video.cloudAspectRatio) request.aspect_ratio = video.cloudAspectRatio;
+  if (video.cloudDuration > 0) request.duration = video.cloudDuration;
+
+  if (video.initImage && supportsImageToVideo(model)) {
+    request.image = await uploadFile(video.initImage);
+  }
+
+  return request;
+}

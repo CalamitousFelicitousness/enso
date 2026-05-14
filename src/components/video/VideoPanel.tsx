@@ -1,8 +1,9 @@
-import { useCallback, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Play, Square, Sparkles, Settings2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useVideoStore } from "@/stores/videoStore";
 import { useUiStore, type VideoSubTab } from "@/stores/uiStore";
+import { useModelSelectionStore } from "@/stores/modelSelectionStore";
 import { usePromptEnhanceStore } from "@/stores/promptEnhanceStore";
 import {
   useJobQueueStore,
@@ -17,6 +18,8 @@ import { sendToJob } from "@/hooks/useJobTracker";
 import { useCancelJob } from "@/api/hooks/useJobs";
 import { usePromptEnhance } from "@/api/hooks/usePromptEnhance";
 import { uploadFile, uploadBlob } from "@/lib/upload";
+import { buildCloudVideoRequest } from "@/lib/requestBuilder";
+import { isCloudVideoModel } from "@/lib/cloudVideo";
 import { Button } from "@/components/ui/button";
 import { PromptField } from "@/components/generation/PromptField";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -27,6 +30,7 @@ import { PromptEnhanceWorkspace } from "@/components/generation/PromptEnhanceWor
 import { ModelsVideoTab } from "./tabs/ModelsVideoTab";
 import { FramePackTab } from "./tabs/FramePackTab";
 import { LtxVideoTab } from "./tabs/LtxVideoTab";
+import { CloudVideoForm } from "./CloudVideoForm";
 import type { JobDomain } from "@/stores/jobStore";
 import type { PromptEnhanceRequest } from "@/api/types/promptEnhance";
 
@@ -34,6 +38,7 @@ const tabs = [
   { id: "models", label: "Models" },
   { id: "framepack", label: "FramePack" },
   { id: "ltx", label: "LTX" },
+  { id: "cloud", label: "Cloud" },
 ] as const;
 
 // Hoist panel JSX to module scope so React element references stay stable
@@ -53,15 +58,22 @@ const SUB_PANELS = [
   subPanel("models", <ModelsVideoTab />),
   subPanel("framepack", <FramePackTab />),
   subPanel("ltx", <LtxVideoTab />),
+  subPanel("cloud", <CloudVideoForm />),
 ];
 
 function tabToDomain(tab: string): JobDomain {
   if (tab === "framepack") return "framepack";
   if (tab === "ltx") return "ltx";
+  // "cloud" piggybacks on the video domain - distinguished downstream by
+  // payload.type === "cloud_video". Mirrors how cloud_image piggybacks on
+  // the generate domain.
   return "video";
 }
 
 async function buildJobPayload(tab: string) {
+  if (tab === "cloud") {
+    return await buildCloudVideoRequest();
+  }
   const s = useVideoStore.getState();
   const output = {
     fps: s.fps,
@@ -163,6 +175,10 @@ function canGenerate(tab: string) {
   const s = useVideoStore.getState();
   if (tab === "models") return !!(s.engine && s.model);
   if (tab === "ltx") return !!s.ltxModel;
+  if (tab === "cloud") {
+    const { activeModel } = useModelSelectionStore.getState();
+    return isCloudVideoModel(activeModel) && !!s.prompt.trim();
+  }
   return true;
 }
 
@@ -172,7 +188,34 @@ export function VideoPanel() {
   const prompt = useVideoStore((s) => s.prompt);
   const negative = useVideoStore((s) => s.negative);
   const setParam = useVideoStore((s) => s.setParam);
+  const activeModel = useModelSelectionStore((s) => s.activeModel);
   const domain = tabToDomain(activeVideoTab);
+
+  // Auto-switch to the Cloud sub-tab when the user picks a cloud video model
+  // from the top-level ModelSelector. Tracked by id to fire only on transition
+  // - not on every render where the model happens to be cloud video. The
+  // guard against `activeVideoTab === "cloud"` prevents reentry when the
+  // user manually switched away while keeping the cloud model active.
+  const prevModelKey = useRef<string | null>(null);
+  useEffect(() => {
+    // Compose a stable identity per model so the auto-switch fires only on
+    // transitions. LocalModel keys by `title` (its filename-derived id),
+    // CloudModel keys by `(provider, id)` since cloud ids can collide across
+    // providers.
+    const key =
+      activeModel?.source === "cloud"
+        ? `cloud:${activeModel.provider}:${activeModel.id}`
+        : activeModel?.source === "local"
+          ? `local:${activeModel.title}`
+          : null;
+    if (key !== prevModelKey.current) {
+      prevModelKey.current = key;
+      if (isCloudVideoModel(activeModel) && activeVideoTab !== "cloud") {
+        setPanelSelection("videoSubTab", "cloud");
+      }
+    }
+  }, [activeModel, activeVideoTab, setPanelSelection]);
+
   const isVideoActive = useJobQueueStore(selectVideoActive);
   const isFramepackActive = useJobQueueStore(selectFramepackActive);
   const isLtxActive = useJobQueueStore(selectLtxActive);
