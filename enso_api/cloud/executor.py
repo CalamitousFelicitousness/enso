@@ -86,11 +86,22 @@ def execute_cloud_image(params: dict, job_id: str) -> dict:
     model = params.get("model", "")
     has_image = bool(params.get("image"))
 
-    width, height = parse_size(params.get("size"), params.get("width"), params.get("height"))
+    # SPEC §11.10.15: detect size="auto" before parse_size silently coerces it
+    # to fallback dims. When auto, pass ask_auto=True with width/height=0
+    # sentinels so generate_image's resolve_auto_dispatch can consult the
+    # model's auto_wire and shape the adapter params accordingly. Explicit
+    # WxH continues through the existing parse_size path.
+    raw_size = params.get("size")
+    ask_auto = isinstance(raw_size, str) and raw_size.strip().lower() == "auto"
+    if ask_auto:
+        width, height = 0, 0
+    else:
+        width, height = parse_size(raw_size, params.get("width"), params.get("height"))
     init_image = resolve_ref(params.get("image"))
     mask = resolve_ref(params.get("mask"))
 
-    log.info(f"Cloud: cloud_image executing job_id={job_id} provider={provider} model={model} {width}x{height} mode={'img2img' if has_image else 'txt2img'}")
+    size_str = "auto" if ask_auto else f"{width}x{height}"
+    log.info(f"Cloud: cloud_image executing job_id={job_id} provider={provider} model={model} {size_str} mode={'img2img' if has_image else 'txt2img'}")
 
     try:
         result = generate_image(
@@ -111,6 +122,7 @@ def execute_cloud_image(params: dict, job_id: str) -> dict:
             strength=params.get("strength") or 0.75,
             extra_params=params.get("extra_params") or None,
             save_to_disk=True,
+            ask_auto=ask_auto,
             on_progress=make_progress_callback(job_id),
         )
     except CloudError as e:
