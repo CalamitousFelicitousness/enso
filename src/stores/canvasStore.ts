@@ -56,6 +56,21 @@ export interface MaskObjectLayer extends CanvasLayer {
   rotation: number;
 }
 
+/** One ordered entry in the Reference filmstrip - sibling concept to ImageLayer.
+ * Used in Reference mode to model a set of input images sent to multi-image
+ * cloud workflows (Nano Banana, Seedream multi-ref, etc.). Order in the array
+ * is wire order. Separate from `layers` because the filmstrip's semantic is
+ * "ordered list of independent images" not "composited scene graph." */
+export interface ReferenceInput {
+  id: string;
+  imageData: string; // object URL for display
+  base64: string; // raw base64 for persistence + flatten fallback
+  file: File; // original File object for raw upload via uploadFile()
+  naturalWidth: number;
+  naturalHeight: number;
+  filename: string;
+}
+
 interface ViewportState {
   x: number;
   y: number;
@@ -81,8 +96,37 @@ interface CanvasState {
   focusedFrameId: FrameId | null;
   focusFitTrigger: number;
   modeLocked: boolean;
+  /** Ordered list of reference images for multi-image cloud workflows.
+   * Index in the array is wire order. Used in Reference mode in place of
+   * the layer-stack-flatten path. Persisted to IndexedDB. */
+  referenceInputs: ReferenceInput[];
+  /** Ephemeral drag state for the filmstrip. Not persisted. */
+  draggingReferenceId: string | null;
+  dropTargetReferenceId: string | null;
+  dropInsertIndex: number | null;
 
   setInputRole: (role: "initial" | "reference") => void;
+  appendReferenceInput: (
+    file: File,
+    base64: string,
+    objectUrl: string,
+    w: number,
+    h: number,
+  ) => void;
+  replaceReferenceInput: (
+    id: string,
+    file: File,
+    base64: string,
+    objectUrl: string,
+    w: number,
+    h: number,
+  ) => void;
+  removeReferenceInput: (id: string) => void;
+  reorderReferenceInput: (fromIndex: number, toIndex: number) => void;
+  setDraggingReference: (id: string | null) => void;
+  setDropTargetReference: (id: string | null) => void;
+  setDropInsertIndex: (index: number | null) => void;
+  clearReferenceInputs: () => void;
   setViewport: (viewport: Partial<ViewportState>) => void;
   setCanvasMode: (mode: "focus" | "canvas") => void;
   setFocusedFrame: (id: FrameId) => void;
@@ -128,6 +172,7 @@ interface PersistedCanvasState {
   canvasMode: "focus" | "canvas";
   focusedFrameId: FrameId | null;
   modeLocked: boolean;
+  referenceInputs: ReferenceInput[];
 }
 
 const canvasIdbStorage = createIdbStorage("enso-canvas", "state");
@@ -152,6 +197,18 @@ function rehydrateLayer(layer: CanvasLayer): CanvasLayer | ImageLayer | MaskObje
   return layer;
 }
 
+/** Reconstruct a ReferenceInput's File + object URL from persisted base64.
+ * Mirrors rehydrateLayer for the image-layer case. */
+function rehydrateReferenceInput(ref: ReferenceInput): ReferenceInput {
+  if (!ref.base64) return ref;
+  const blob = base64ToBlob(ref.base64);
+  return {
+    ...ref,
+    imageData: URL.createObjectURL(blob),
+    file: new File([blob], ref.filename || "reference.png", { type: "image/png" }),
+  };
+}
+
 export const useCanvasStore = create<CanvasState>()(
   persist(
     (set, get) => ({
@@ -173,8 +230,91 @@ export const useCanvasStore = create<CanvasState>()(
       focusedFrameId: null,
       focusFitTrigger: 0,
       modeLocked: false,
+      referenceInputs: [],
+      draggingReferenceId: null,
+      dropTargetReferenceId: null,
+      dropInsertIndex: null,
 
       setInputRole: (role) => set({ inputRole: role }),
+
+      appendReferenceInput: (file, base64, objectUrl, w, h) => {
+        const ref: ReferenceInput = {
+          id: crypto.randomUUID(),
+          file,
+          base64,
+          imageData: objectUrl,
+          naturalWidth: w,
+          naturalHeight: h,
+          filename: file.name,
+        };
+        set((s) => ({ referenceInputs: [...s.referenceInputs, ref] }));
+      },
+
+      replaceReferenceInput: (id, file, base64, objectUrl, w, h) => {
+        set((s) => ({
+          referenceInputs: s.referenceInputs.map((ref) => {
+            if (ref.id !== id) return ref;
+            URL.revokeObjectURL(ref.imageData);
+            return {
+              ...ref,
+              file,
+              base64,
+              imageData: objectUrl,
+              naturalWidth: w,
+              naturalHeight: h,
+              filename: file.name,
+            };
+          }),
+        }));
+      },
+
+      removeReferenceInput: (id) => {
+        set((s) => {
+          const target = s.referenceInputs.find((r) => r.id === id);
+          if (target) URL.revokeObjectURL(target.imageData);
+          return {
+            referenceInputs: s.referenceInputs.filter((r) => r.id !== id),
+            draggingReferenceId: s.draggingReferenceId === id ? null : s.draggingReferenceId,
+            dropTargetReferenceId: s.dropTargetReferenceId === id ? null : s.dropTargetReferenceId,
+          };
+        });
+      },
+
+      reorderReferenceInput: (fromIndex, toIndex) => {
+        set((s) => {
+          const next = s.referenceInputs.slice();
+          if (
+            fromIndex < 0 ||
+            fromIndex >= next.length ||
+            toIndex < 0 ||
+            toIndex > next.length ||
+            fromIndex === toIndex
+          ) {
+            return s;
+          }
+          const [moved] = next.splice(fromIndex, 1);
+          // toIndex was computed before the splice; account for the shift when
+          // moving forward in the array.
+          const insertAt = toIndex > fromIndex ? toIndex - 1 : toIndex;
+          next.splice(insertAt, 0, moved);
+          return { referenceInputs: next };
+        });
+      },
+
+      setDraggingReference: (id) => set({ draggingReferenceId: id }),
+      setDropTargetReference: (id) => set({ dropTargetReferenceId: id }),
+      setDropInsertIndex: (index) => set({ dropInsertIndex: index }),
+
+      clearReferenceInputs: () => {
+        const { referenceInputs } = get();
+        for (const ref of referenceInputs) URL.revokeObjectURL(ref.imageData);
+        set({
+          referenceInputs: [],
+          draggingReferenceId: null,
+          dropTargetReferenceId: null,
+          dropInsertIndex: null,
+        });
+      },
       setCanvasMode: (mode) =>
         set((s) => ({
           canvasMode: mode,
@@ -365,6 +505,12 @@ export const useCanvasStore = create<CanvasState>()(
         canvasMode: state.canvasMode,
         focusedFrameId: state.focusedFrameId,
         modeLocked: state.modeLocked,
+        referenceInputs: state.referenceInputs.map((ref) => {
+          // Strip File + object URL for storage; base64 + dims + filename
+          // are enough to rehydrate on next load.
+          const { file: _file, imageData: _url, ...rest } = ref;
+          return { ...rest, imageData: "", file: undefined } as unknown as ReferenceInput;
+        }),
       }),
       merge: (persisted, current) => {
         const saved = persisted as Partial<PersistedCanvasState> | undefined;
@@ -388,6 +534,9 @@ export const useCanvasStore = create<CanvasState>()(
           focusedFrameId: saved.focusedFrameId ?? null,
           modeLocked: saved.modeLocked ?? false,
           layers: saved.layers ? saved.layers.map(rehydrateLayer) : current.layers,
+          referenceInputs: saved.referenceInputs
+            ? saved.referenceInputs.map(rehydrateReferenceInput)
+            : current.referenceInputs,
         };
       },
     },
