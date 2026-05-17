@@ -88,13 +88,24 @@ export function useControlFrameLayout(): CanvasLayout {
     const dw = frameW * ds;
     const dh = REFERENCE_HEIGHT;
 
-    // In Reference mode the image is sent at native resolution, so the input
-    // frame represents the source image rather than the generation target.
-    // Initial mode keeps the input frame at gen dims (WYSIWYG flatten target).
+    // In Reference mode the input frame represents the source image, but its
+    // display height is normalized to REFERENCE_HEIGHT (same as the output
+    // frame) so floating panels and headers line up vertically and the user
+    // can compare input/output shapes side by side. Width derives from the
+    // image's aspect ratio. Strict WYSIWYG is broken on purpose here:
+    // Reference sends the source file at native resolution regardless of
+    // canvas geometry, so the visual size disparity that WYSIWYG would
+    // otherwise enforce serves no semantic purpose.
+    //
+    // Initial mode keeps the input frame at gen dims (real WYSIWYG flatten target).
     const firstImage = layers.find((l): l is ImageLayer => l.type === "image" && l.visible) ?? null;
     const isReferenceMode = inputRole === "reference" && firstImage !== null;
-    const inputFrameW = isReferenceMode ? firstImage.naturalWidth : frameW;
-    const inputFrameH = isReferenceMode ? firstImage.naturalHeight : frameH;
+    const refAspect =
+      isReferenceMode && firstImage.naturalHeight > 0
+        ? firstImage.naturalWidth / firstImage.naturalHeight
+        : 1;
+    const inputFrameH = frameH;
+    const inputFrameW = isReferenceMode ? frameH * refAspect : frameW;
     const inputDisplayW = inputFrameW * ds;
     const inputDisplayH = inputFrameH * ds;
 
