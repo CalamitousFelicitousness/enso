@@ -15,6 +15,7 @@ import { CanvasStage } from "@/canvas/CanvasStage";
 import { CanvasToolbar } from "@/canvas/CanvasToolbar";
 import { ControlFramePanels } from "@/canvas/ControlFramePanel";
 import { ReferenceFilmstripOverlay } from "@/canvas/filmstrip/ReferenceFilmstripOverlay";
+import { useModelCapabilities } from "@/hooks/useModelCapabilities";
 import { CanvasProgressOverlay } from "./CanvasProgressOverlay";
 import { useControlFrameLayout } from "@/canvas/useControlFrameLayout";
 import { getOrderedFrames } from "@/canvas/frameList";
@@ -46,6 +47,7 @@ export const CanvasView = memo(function CanvasView() {
   const [pendingUnitIndex, setPendingUnitIndex] = useState<number | null>(null);
 
   const layout = useControlFrameLayout();
+  const capabilities = useModelCapabilities();
 
   const handleFile = useCallback(
     async (file: File) => {
@@ -326,11 +328,18 @@ export const CanvasView = memo(function CanvasView() {
           onClearImage={handleClearImage}
           onClearAll={handleClearAll}
         />
-        {/* Reference filmstrip - shown when in Reference mode. Renders an
-            empty AddSlot when no refs exist yet, switches to the slot row
-            once any reference is appended. */}
-        {inputRole === "reference" && (
-          <ReferenceFilmstripOverlay frames={layout.referenceFrames} height={layout.displayH} />
+        {/* Reference filmstrip - shown in Reference mode when the active model
+            advertises multi-image capability (sdnext's CloudModel.multi_image
+           ). Single-image-only models fall back to the
+            legacy InputFramePanel render. Renders an empty AddSlot when no
+            refs exist yet; switches to the slot row once any reference is
+            appended. */}
+        {inputRole === "reference" && capabilities.supports.multiImage && (
+          <ReferenceFilmstripOverlay
+            frames={layout.referenceFrames}
+            height={layout.displayH}
+            maxImages={capabilities.maxImages}
+          />
         )}
       </div>
 

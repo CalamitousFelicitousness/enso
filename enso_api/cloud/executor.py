@@ -84,7 +84,19 @@ def execute_cloud_image(params: dict, job_id: str) -> dict:
     t0 = time.time()
     provider = params.get("provider", "")
     model = params.get("model", "")
-    has_image = bool(params.get("image"))
+
+    # SPEC when the caller emits images: [...] (multi-image
+    # Reference mode), resolve all refs to bytes and pass init_images list to
+    # generate_image. When only the singular image is set (legacy Reference
+    # fallback, current img2img path), keep the existing init_image kwarg
+    # call - sdnext folds it into init_images=[init_image] per the alias.
+    images_param = params.get("images")
+    init_images = None
+    if isinstance(images_param, list) and images_param:
+        init_images = [resolve_ref(ref) for ref in images_param]
+    init_image = resolve_ref(params.get("image"))
+    has_any_image = bool(init_images) or bool(init_image)
+    image_count = len(init_images) if init_images else (1 if init_image else 0)
 
     # detect size="auto" before parse_size silently coerces it
     # to fallback dims. When auto, pass ask_auto=True with width/height=0
@@ -97,11 +109,12 @@ def execute_cloud_image(params: dict, job_id: str) -> dict:
         width, height = 0, 0
     else:
         width, height = parse_size(raw_size, params.get("width"), params.get("height"))
-    init_image = resolve_ref(params.get("image"))
     mask = resolve_ref(params.get("mask"))
 
     size_str = "auto" if ask_auto else f"{width}x{height}"
-    log.info(f"Cloud: cloud_image executing job_id={job_id} provider={provider} model={model} {size_str} mode={'img2img' if has_image else 'txt2img'}")
+    mode_str = "img2img" if has_any_image else "txt2img"
+    image_count_str = f" images={image_count}" if image_count > 1 else ""
+    log.info(f"Cloud: cloud_image executing job_id={job_id} provider={provider} model={model} {size_str} mode={mode_str}{image_count_str}")
 
     try:
         result = generate_image(
@@ -118,6 +131,7 @@ def execute_cloud_image(params: dict, job_id: str) -> dict:
             quality=params.get("quality") or "standard",
             style=params.get("style"),
             init_image=init_image,
+            init_images=init_images,
             mask=mask,
             strength=params.get("strength") or 0.75,
             extra_params=params.get("extra_params") or None,

@@ -35,9 +35,19 @@ interface ReferenceFilmstripOverlayProps {
   frames: ReferenceFramePosition[];
   /** Display height for all slots (matches REFERENCE_HEIGHT in single-row mode). */
   height: number;
+  /** Cap from the active model (CloudModel.max_images). When set and
+   * referenceInputs.length is at or above this number, the AddSlot is hidden
+   * so the user can't pile on more refs than the provider will accept.
+   * sdnext-side soft pre-flight (cloud_image_count_validation) is the
+   * authoritative gate. */
+  maxImages?: number | null;
 }
 
-export function ReferenceFilmstripOverlay({ frames, height }: ReferenceFilmstripOverlayProps) {
+export function ReferenceFilmstripOverlay({
+  frames,
+  height,
+  maxImages,
+}: ReferenceFilmstripOverlayProps) {
   const referenceInputs = useCanvasStore((s) => s.referenceInputs);
   const appendReferenceInput = useCanvasStore((s) => s.appendReferenceInput);
   const replaceReferenceInput = useCanvasStore((s) => s.replaceReferenceInput);
@@ -148,6 +158,7 @@ export function ReferenceFilmstripOverlay({ frames, height }: ReferenceFilmstrip
   // Position the AddSlot just past the last frame's right edge.
   const lastFrame = frames[frames.length - 1];
   const addSlotX = lastFrame.x + lastFrame.displayW + FILMSTRIP_SLOT_GAP;
+  const atCapacity = maxImages != null && referenceInputs.length >= maxImages;
 
   const slotIds = referenceInputs.map((r) => r.id);
 
@@ -169,13 +180,15 @@ export function ReferenceFilmstripOverlay({ frames, height }: ReferenceFilmstrip
           );
         })}
       </SortableContext>
-      <div className="pointer-events-auto absolute" style={{ left: addSlotX, top: 0, height }}>
-        <ReferenceAddSlot
-          height={height}
-          onPick={openFilePicker}
-          onFilesDropped={handleAddSlotDrop}
-        />
-      </div>
+      {!atCapacity && (
+        <div className="pointer-events-auto absolute" style={{ left: addSlotX, top: 0, height }}>
+          <ReferenceAddSlot
+            height={height}
+            onPick={openFilePicker}
+            onFilesDropped={handleAddSlotDrop}
+          />
+        </div>
+      )}
       <input
         ref={fileInputRef}
         type="file"

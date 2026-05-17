@@ -765,9 +765,10 @@ export async function buildCloudImageRequest(): Promise<CloudImageJobParams> {
   const frameH = gen.height;
 
   const imageLayers = canvas.layers.filter((l): l is ImageLayer => l.type === "image" && l.visible);
-  const hasImage = imageLayers.length > 0;
-  const isReferenceMode = hasImage && canvas.inputRole === "reference";
-  const isImg2Img = hasImage && canvas.inputRole === "initial";
+  const hasLayerImage = imageLayers.length > 0;
+  const hasReferenceInputs = canvas.referenceInputs.length > 0;
+  const isReferenceMode = canvas.inputRole === "reference";
+  const isImg2Img = hasLayerImage && canvas.inputRole === "initial";
 
   const effectiveSizeMode: SizeMode = isImg2Img ? img2img.sizeMode : "fixed";
   const targetSize = resolveGenerationSize(
@@ -801,11 +802,24 @@ export async function buildCloudImageRequest(): Promise<CloudImageJobParams> {
   if (gen.cfgScale !== 7) request.guidance = gen.cfgScale;
   if (gen.steps !== 20) request.steps = gen.steps;
 
-  if (isReferenceMode) {
-    // Raw upload: source file at native resolution, size left as the user's requested
-    // output dimension. Reference-capable cloud models (multi-image fusion, etc.)
-    // honor size independently of input dims. Strength is omitted to signal
-    // reference semantics rather than img2img-with-denoising.
+  if (isReferenceMode && hasReferenceInputs) {
+    // Multi-image Reference: emit `images: string[]` in wire order matching
+    // referenceInputs. Each file is raw-uploaded (no flatten, no provider
+    // optimization). sdnext's adapter dispatches per-provider via its
+    // images_transform. Strength is omitted - mask is paired
+    // with the primary image only and the filmstrip
+    // doesn't expose mask UI today.
+    const imageRefs = await Promise.all(canvas.referenceInputs.map((ref) => uploadFile(ref.file)));
+    request.images = imageRefs;
+    return request;
+  }
+
+  if (isReferenceMode && hasLayerImage) {
+    // Legacy single-image Reference fallback: when the filmstrip is empty but
+    // the user has a visible image layer (e.g. they entered Reference mode
+    // before auto-migration ran, or they cleared all refs). Sends the layer
+    // as the singular `image` field for back-compat with sdnext's init_image
+    // alias. New code paths produce `images: string[]` via the filmstrip.
     const layer = imageLayers[0];
     const imageRef = await uploadFile(layer.file);
     request.image = imageRef;
