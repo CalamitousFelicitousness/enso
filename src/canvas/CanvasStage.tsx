@@ -193,6 +193,8 @@ export function CanvasStage({ layout, onPickImage }: CanvasStageProps) {
 
             <FrameLayer
               displayScale={displayScale}
+              frameW={layout.inputFrameW}
+              frameH={layout.inputFrameH}
               onPickImage={onPickImage ? () => onPickImage(-1) : undefined}
             />
 

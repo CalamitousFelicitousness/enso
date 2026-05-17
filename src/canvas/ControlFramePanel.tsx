@@ -651,8 +651,10 @@ function InputFramePanel({
   const baseSizeText = firstImage
     ? `${firstImage.naturalWidth}\u00d7${firstImage.naturalHeight}`
     : `${pixelW}\u00d7${pixelH}`;
+  // Reference mode sends the source file at native resolution, so the "input
+  // dims arrow gen dims" hint is misleading. Show native dims alone.
   const sizeText =
-    genSize.width !== pixelW || genSize.height !== pixelH
+    !isReference && (genSize.width !== pixelW || genSize.height !== pixelH)
       ? `${baseSizeText} \u2192 ${genSize.width}\u00d7${genSize.height}`
       : baseSizeText;
 

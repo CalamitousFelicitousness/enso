@@ -1,6 +1,5 @@
 import { useCallback } from "react";
 import { Layer, Group, Rect, Text } from "react-konva";
-import { useGenerationStore } from "@/stores/generationStore";
 import { useCanvasStore } from "@/stores/canvasStore";
 import {
   INPUT_COLOR_ACTIVE,
@@ -11,12 +10,15 @@ import { CornerBrackets } from "@/canvas/layers/ControlFrameLayer";
 
 interface FrameLayerProps {
   displayScale: number;
+  /** Input frame dimensions in pixel space. Driven by useControlFrameLayout's
+   * inputFrameW/H: equals gen.width/height in Initial mode; equals the source
+   * image's natural dims in Reference mode. */
+  frameW: number;
+  frameH: number;
   onPickImage?: (() => void) | undefined;
 }
 
-export function FrameLayer({ displayScale, onPickImage }: FrameLayerProps) {
-  const frameW = useGenerationStore((s) => s.width);
-  const frameH = useGenerationStore((s) => s.height);
+export function FrameLayer({ displayScale, frameW, frameH, onPickImage }: FrameLayerProps) {
   const hasLayers = useCanvasStore((s) => s.layers.length > 0);
   const inputRole = useCanvasStore((s) => s.inputRole);
   const borderColor = !hasLayers
