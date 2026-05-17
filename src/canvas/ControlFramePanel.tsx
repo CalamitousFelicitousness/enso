@@ -696,6 +696,7 @@ function InputFramePanel({
           e.stopPropagation();
           handleRoleChange("initial");
         }}
+        title="Initial: canvas flattened at frame size, used as img2img target with denoising."
         className="px-2 py-0.5 text-[10px] font-medium rounded-sm transition-colors"
         style={{
           backgroundColor: !isReference ? `${inputColor}26` : "transparent",
@@ -709,6 +710,7 @@ function InputFramePanel({
           e.stopPropagation();
           handleRoleChange("reference");
         }}
+        title="Reference: source file sent at native resolution. For edit models (Klein, Kontext, Qwen Edit) and cloud reference workflows. Canvas transforms (position, scale, rotation) are not applied."
         className="px-2 py-0.5 text-[10px] font-medium rounded-sm transition-colors"
         style={{
           backgroundColor: isReference ? `${inputColor}26` : "transparent",

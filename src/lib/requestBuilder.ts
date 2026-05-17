@@ -14,7 +14,7 @@ import { useCanvasStore, type ImageLayer } from "@/stores/canvasStore";
 import { useUiStore } from "@/stores/uiStore";
 import { exportMask } from "@/lib/exportMask";
 import { flattenCanvas, compositeControlImage, compositeFitImage } from "@/lib/flattenCanvas";
-import { uploadFiles, uploadBlob } from "@/lib/upload";
+import { uploadFiles, uploadBlob, uploadFile } from "@/lib/upload";
 import { REFERENCE_HEIGHT } from "@/canvas/useControlFrameLayout";
 import { resolveGenerationSize } from "@/lib/sizeCompute";
 import type { SizeMode } from "@/lib/sizeCompute";
@@ -337,15 +337,22 @@ export async function buildControlRequest(): Promise<BuildResult> {
     );
   }
 
-  // Reference mode: flatten layers → upload → init_control (no denoising, no mask)
+  // Reference mode: upload source file raw via inputs - no flatten, no resize.
+  // Server-side resize_init_images snaps to VAE alignment and overrides p.width/p.height
+  // to the image's dimensions, so edit models (Klein/Kontext/Qwen Edit) and img2img
+  // pipelines all receive the image at native resolution. init_control would silently
+  // discard the image when no control units are active.
   let inputBlob: Blob | undefined;
   if (hasInputImage && inputRole === "reference") {
-    const imageLayers = canvas.layers.filter((l): l is ImageLayer => l.type === "image");
-    const flattenedBlob = await flattenCanvas(imageLayers, gen.width, gen.height);
-    if (flattenedBlob) {
-      inputBlob = flattenedBlob;
-      const ref = await uploadBlob(flattenedBlob, "input.png");
-      request.init_control = [...(request.init_control ?? []), ref];
+    const imageLayers = canvas.layers.filter(
+      (l): l is ImageLayer => l.type === "image" && l.visible,
+    );
+    if (imageLayers.length > 0) {
+      const layer = imageLayers[0];
+      const ref = await uploadFile(layer.file);
+      inputBlob = layer.file;
+      request.inputs = [ref];
+      request.input_type = 1;
     }
   }
 
@@ -758,7 +765,9 @@ export async function buildCloudImageRequest(): Promise<CloudImageJobParams> {
   const frameH = gen.height;
 
   const imageLayers = canvas.layers.filter((l): l is ImageLayer => l.type === "image" && l.visible);
-  const isImg2Img = imageLayers.length > 0;
+  const hasImage = imageLayers.length > 0;
+  const isReferenceMode = hasImage && canvas.inputRole === "reference";
+  const isImg2Img = hasImage && canvas.inputRole === "initial";
 
   const effectiveSizeMode: SizeMode = isImg2Img ? img2img.sizeMode : "fixed";
   const targetSize = resolveGenerationSize(
@@ -782,6 +791,17 @@ export async function buildCloudImageRequest(): Promise<CloudImageJobParams> {
   if (gen.batchSize > 1) request.n = gen.batchSize;
   if (gen.cfgScale !== 7) request.guidance = gen.cfgScale;
   if (gen.steps !== 20) request.steps = gen.steps;
+
+  if (isReferenceMode) {
+    // Raw upload: source file at native resolution, size left as the user's requested
+    // output dimension. Reference-capable cloud models (multi-image fusion, etc.)
+    // honor size independently of input dims. Strength is omitted to signal
+    // reference semantics rather than img2img-with-denoising.
+    const layer = imageLayers[0];
+    const imageRef = await uploadFile(layer.file);
+    request.image = imageRef;
+    return request;
+  }
 
   if (isImg2Img) {
     request.strength = gen.denoisingStrength;
@@ -838,7 +858,6 @@ export async function buildCloudImageRequest(): Promise<CloudImageJobParams> {
 // --- Cloud video request builder ---
 
 import { useVideoStore } from "@/stores/videoStore";
-import { uploadFile } from "@/lib/upload";
 import { supportsImageToVideo } from "@/lib/cloudVideo";
 import type { CloudVideoJobParams } from "@/api/types/cloud";
 
