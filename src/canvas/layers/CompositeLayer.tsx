@@ -146,25 +146,34 @@ export function CompositeLayer({ trRef, displayScale }: CompositeLayerProps) {
     <Layer>
       <Group scaleX={displayScale} scaleY={displayScale}>
         {/* eslint-disable-next-line react-hooks/refs -- imageMap synced with imageLayers in effect above */}
-        {imageLayers.map((layer) => (
-          <KonvaImage
-            key={layer.id}
-            ref={(node) => setNodeRef(layer.id, node)}
-            image={imageMap.current.get(layer.id)}
-            x={isReferenceMode ? 0 : layer.x}
-            y={isReferenceMode ? 0 : layer.y}
-            scaleX={isReferenceMode ? 1 : layer.scaleX}
-            scaleY={isReferenceMode ? 1 : layer.scaleY}
-            rotation={isReferenceMode ? 0 : layer.rotation}
-            opacity={layer.opacity}
-            visible={layer.visible}
-            draggable={activeTool === "move" && !layer.locked && !isReferenceMode}
-            onDragMove={snap.handleDragMove}
-            onDragEnd={(e) => handleDragEnd(layer.id, e)}
-            onTransformEnd={(e) => handleTransformEnd(layer.id, e)}
-            onClick={(e) => handleClick(layer.id, e)}
-          />
-        ))}
+        {imageLayers.map((layer) => {
+          // Reference autoscale: each image is fit to the input frame's pixel
+          // height (= frameH after useControlFrameLayout's normalization), so
+          // every layer shows at the same visual height regardless of native
+          // pixel dims. Width follows the layer's aspect. Persisted transforms
+          // in the store stay untouched; only the rendered transforms differ.
+          const refScale =
+            isReferenceMode && layer.naturalHeight > 0 ? frameH / layer.naturalHeight : 1;
+          return (
+            <KonvaImage
+              key={layer.id}
+              ref={(node) => setNodeRef(layer.id, node)}
+              image={imageMap.current.get(layer.id)}
+              x={isReferenceMode ? 0 : layer.x}
+              y={isReferenceMode ? 0 : layer.y}
+              scaleX={isReferenceMode ? refScale : layer.scaleX}
+              scaleY={isReferenceMode ? refScale : layer.scaleY}
+              rotation={isReferenceMode ? 0 : layer.rotation}
+              opacity={layer.opacity}
+              visible={layer.visible}
+              draggable={activeTool === "move" && !layer.locked && !isReferenceMode}
+              onDragMove={snap.handleDragMove}
+              onDragEnd={(e) => handleDragEnd(layer.id, e)}
+              onTransformEnd={(e) => handleTransformEnd(layer.id, e)}
+              onClick={(e) => handleClick(layer.id, e)}
+            />
+          );
+        })}
         {/* eslint-disable react-hooks/refs -- imageMap synced with maskLayers in effect above */}
         {maskVisible &&
           maskLayers.map((layer) => (
