@@ -69,6 +69,15 @@
   --border-hover: #3a3a52;
   --control-radius: var(--radius-lg);
   --control-inner-radius: var(--radius-md);
+
+  /* Reference frame palette - muted teal, distinct from --primary (cyan,
+     owned by Output frame + focus rings). Used by the Reference filmstrip's
+     slot borders, badges, and corner brackets. --reference-drop is the
+     brighter accept variant for drop targets and the insertion line. */
+  --reference: oklch(0.6 0.045 200);
+  --reference-soft: oklch(0.6 0.045 200 / 0.35);
+  --reference-drop: oklch(0.75 0.07 200);
+  --reference-glow: 0 0 12px 0 oklch(0.6 0.045 200 / 0.5);
 }
 
 :root[data-theme="light"] {
@@ -98,6 +107,12 @@
   --chart-3: #d97706;
   --chart-4: #059669;
   --chart-5: #dc2626;
+
+  /* Reference frame palette - slightly less saturated/lighter for light theme. */
+  --reference: oklch(0.55 0.04 200);
+  --reference-soft: oklch(0.55 0.04 200 / 0.35);
+  --reference-drop: oklch(0.65 0.08 200);
+  --reference-glow: 0 0 12px 0 oklch(0.55 0.04 200 / 0.45);
 }
 
 @theme inline {
