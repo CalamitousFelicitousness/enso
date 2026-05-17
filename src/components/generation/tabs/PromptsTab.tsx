@@ -100,11 +100,53 @@ export function PromptsTab() {
   const { data: aspectOpts } = useOptionsSubset(["aspect_ratios"]);
   const activeModel = useModelSelectionStore((s) => s.activeModel);
   const cloudSizePresets = useMemo(() => {
-    // Narrow inside the closure so `.supported_params` access is type-safe
-    // and doesn't leak into non-cloud model branches (local-video has no
-    // such field).
+    // Narrow inside the closure so `.supported_params` and `.size_constraint`
+    // access is type-safe and doesn't leak into non-cloud model branches
+    // (local-video has no such fields).
     if (!activeModel || activeModel.source !== "cloud") return null;
+
+    //.5: size_constraint is authoritative when present.
+    const sc = activeModel.size_constraint;
+    if (sc?.kind === "enum" && sc.options.length > 0) {
+      const presets: AbsoluteSizePreset[] = [];
+      for (const opt of sc.options) {
+        const [w, h] = opt.split("x").map(Number);
+        if (w > 0 && h > 0) presets.push({ label: opt, w, h });
+      }
+      return presets.length > 0 ? presets : null;
+    }
+    if (sc?.kind === "bucket" && sc.options.length > 0) {
+      // Bucket: labels are symbolic; resolve provides display hints.
+      // TODO: send the symbolic label on the wire instead of the resolved WxH
+      //. Requires plumbing an activeBucketSymbol state
+      // through to buildCloudImageRequest. No priority models use bucket today
+      // (NanoGPT catalogue codifies as enum), so deferred.
+      const presets: AbsoluteSizePreset[] = [];
+      for (const opt of sc.options) {
+        const resolved = sc.resolve[opt];
+        if (resolved) presets.push({ label: opt, w: resolved.w, h: resolved.h });
+      }
+      return presets.length > 0 ? presets : null;
+    }
+    if (sc?.kind === "free") {
+      // Free: no preset list. Width/Height inputs only.
+      // TODO: surface min/max/align validation indicators when a model uses this shape.
+      return null;
+    }
+
+    // Pre-Phase-2.5 fallback: supported_params enum, then GENERIC list.
     return parseSizeOptions(activeModel.supported_params ?? null) ?? GENERIC_CLOUD_PRESETS;
+  }, [activeModel]);
+
+  // Auto button gating: when the model explicitly says allow_auto=false, the
+  // toggle is disabled. When size_constraint is null (unknown coverage) or
+  // allow_auto=true, the toggle stays active and sdnext's soft pre-flight
+  // catches mismatches via telemetry.
+  const autoAllowed = useMemo(() => {
+    if (!activeModel || activeModel.source !== "cloud") return false;
+    const sc = activeModel.size_constraint;
+    if (sc == null) return true;
+    return sc.allow_auto;
   }, [activeModel]);
 
   // Reference mode on local models sends the source file raw via `inputs`. The
@@ -120,7 +162,10 @@ export function PromptsTab() {
   const isCloud = activeModel != null && activeModel.source === "cloud";
   const referenceInactive =
     inputRole === "reference" && firstImage != null && activeModel != null && !isCloud;
-  const autoInactive = isCloud && autoSize;
+  // Auto only dims Size when both the user toggle is on AND the model actually
+  // accepts auto. Switching to a non-auto-supporting model leaves the toggle
+  // in its persisted state but treats it as inert for both UI and wire.
+  const autoInactive = isCloud && autoSize && autoAllowed;
   const sizeIsAdvisory = referenceInactive || autoInactive;
   const sizeTooltip = useMemo(() => {
     const base = "Output dimensions in pixels.";
@@ -314,14 +359,17 @@ export function PromptsTab() {
               )}
               {isCloud && (
                 <Button
-                  variant={autoSize ? "default" : "outline"}
+                  variant={autoSize && autoAllowed ? "default" : "outline"}
                   size="sm"
                   onClick={() => setAutoSize(!autoSize)}
+                  disabled={!autoAllowed}
                   className="h-5 px-1.5 text-3xs rounded"
                   title={
-                    autoSize
-                      ? "Auto on: server picks output dimensions. Size controls are inactive."
-                      : "Auto off: you control output dimensions via Width and Height below."
+                    !autoAllowed
+                      ? "Auto not supported by this model. Set explicit Width and Height below."
+                      : autoSize
+                        ? "Auto on: server picks output dimensions. Size controls are inactive."
+                        : "Auto off: you control output dimensions via Width and Height below."
                   }
                 >
                   Auto
