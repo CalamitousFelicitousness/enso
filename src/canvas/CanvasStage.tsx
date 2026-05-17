@@ -6,6 +6,7 @@ import { usePanZoom } from "./tools/usePanZoom";
 import { useMaskPaint } from "./tools/useMaskPaint";
 import { useImageTransform } from "./tools/useImageTransform";
 import { FrameLayer } from "./layers/FrameLayer";
+import { ReferenceImageLayer } from "./layers/ReferenceImageLayer";
 import { CompositeLayer } from "./layers/CompositeLayer";
 import { MaskLayer } from "./layers/MaskLayer";
 import { OutputLayer } from "./layers/OutputLayer";
@@ -183,12 +184,16 @@ export function CanvasStage({ layout, onPickImage }: CanvasStageProps) {
 
             <CompositeLayer trRef={trRef} displayScale={displayScale} />
 
-            <FrameLayer
-              displayScale={displayScale}
-              frameW={layout.inputFrameW}
-              frameH={layout.inputFrameH}
-              onPickImage={onPickImage ? () => onPickImage(-1) : undefined}
-            />
+            {layout.referenceFrames.length > 0 ? (
+              <ReferenceImageLayer frames={layout.referenceFrames} />
+            ) : (
+              <FrameLayer
+                displayScale={displayScale}
+                frameW={layout.inputFrameW}
+                frameH={layout.inputFrameH}
+                onPickImage={onPickImage ? () => onPickImage(-1) : undefined}
+              />
+            )}
 
             {inputRole !== "reference" && (
               <MaskLayer
