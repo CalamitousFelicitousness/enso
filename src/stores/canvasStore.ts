@@ -235,7 +235,36 @@ export const useCanvasStore = create<CanvasState>()(
       dropTargetReferenceId: null,
       dropInsertIndex: null,
 
-      setInputRole: (role) => set({ inputRole: role }),
+      setInputRole: (role) =>
+        set((s) => {
+          // Auto-migrate the user's current canvas image into referenceInputs
+          // the first time they enter Reference mode with a populated layer
+          // stack but an empty filmstrip. Picks the first visible ImageLayer
+          // so the wire order matches "the image I had in front of me." The
+          // original layer stays in `layers` - both representations coexist
+          // and the layer is what the user sees if they toggle back to
+          // Initial. A fresh objectUrl is created for the reference so
+          // removeReferenceInput can safely revokeObjectURL without
+          // affecting the layer's display.
+          if (role === "reference" && s.referenceInputs.length === 0) {
+            const firstImage = s.layers.find(
+              (l): l is ImageLayer => l.type === "image" && l.visible,
+            );
+            if (firstImage) {
+              const seedRef: ReferenceInput = {
+                id: crypto.randomUUID(),
+                file: firstImage.file,
+                base64: firstImage.base64,
+                imageData: URL.createObjectURL(firstImage.file),
+                naturalWidth: firstImage.naturalWidth,
+                naturalHeight: firstImage.naturalHeight,
+                filename: firstImage.name || firstImage.file.name || "image.png",
+              };
+              return { inputRole: role, referenceInputs: [seedRef] };
+            }
+          }
+          return { inputRole: role };
+        }),
 
       appendReferenceInput: (file, base64, objectUrl, w, h) => {
         const ref: ReferenceInput = {
