@@ -139,12 +139,16 @@ export function PromptsTab() {
     return parseSizeOptions(activeModel.supported_params ?? null) ?? GENERIC_CLOUD_PRESETS;
   }, [activeModel]);
 
-  // Auto button gating: when the model explicitly says allow_auto=false, the
-  // toggle is disabled. When size_constraint is null (unknown coverage) or
-  // allow_auto=true, the toggle stays active and sdnext's soft pre-flight
-  // (§11.10.12) catches mismatches via telemetry.
-  const autoAllowed = useMemo(() => {
-    if (!activeModel || activeModel.source !== "cloud") return false;
+  // Auto button is always clickable on cloud models. The provider is the
+  // source of truth about what `size` values it accepts; if our codified
+  // allow_auto is wrong (stale catalog, undocumented support), the user
+  // should still be able to try it and let the server respond. sdnext's
+  // soft pre-flight (§11.10.12) logs the mismatch via telemetry; the
+  // provider's 400 surfaces via the job-error path. autoAllowedHint is
+  // tooltip-only: when explicitly false, the tooltip warns that the
+  // model's catalog doesn't advertise auto support.
+  const autoAllowedHint = useMemo(() => {
+    if (!activeModel || activeModel.source !== "cloud") return true;
     const sc = activeModel.size_constraint;
     if (sc == null) return true;
     return sc.allow_auto;
@@ -186,10 +190,10 @@ export function PromptsTab() {
   const isCloud = activeModel != null && activeModel.source === "cloud";
   const referenceInactive =
     inputRole === "reference" && firstImage != null && activeModel != null && !isCloud;
-  // Auto only dims Size when both the user toggle is on AND the model actually
-  // accepts auto. Switching to a non-auto-supporting model leaves the toggle
-  // in its persisted state but treats it as inert for both UI and wire.
-  const autoInactive = isCloud && autoSize && autoAllowed;
+  // Auto dims Size whenever the user toggle is on (cloud). The provider may
+  // still reject the auto value at submission time; that's caught via the
+  // job-error path, not by client-side UI suppression.
+  const autoInactive = isCloud && autoSize;
   const sizeIsAdvisory = referenceInactive || autoInactive;
   const sizeTooltip = useMemo(() => {
     const base = "Output dimensions in pixels.";
@@ -383,17 +387,17 @@ export function PromptsTab() {
               )}
               {isCloud && (
                 <Button
-                  variant={autoSize && autoAllowed ? "default" : "outline"}
+                  variant={autoSize ? "default" : "outline"}
                   size="sm"
                   onClick={() => setAutoSize(!autoSize)}
-                  disabled={!autoAllowed}
                   className="h-5 px-1.5 text-3xs rounded"
                   title={
-                    !autoAllowed
-                      ? "Auto not supported by this model. Set explicit Width and Height below."
-                      : autoSize
-                        ? "Auto on: server picks output dimensions. Size controls are inactive."
-                        : "Auto off: you control output dimensions via Width and Height below."
+                    (autoSize
+                      ? "Auto on: server picks output dimensions. Size controls are inactive."
+                      : "Auto off: you control output dimensions via Width and Height below.") +
+                    (autoAllowedHint
+                      ? ""
+                      : " This model's catalog does not advertise Auto support; the request may be rejected.")
                   }
                 >
                   Auto
