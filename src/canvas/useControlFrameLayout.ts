@@ -14,6 +14,8 @@ import { resolveGenerationSize } from "@/lib/sizeCompute";
 export const REFERENCE_HEIGHT = 512;
 
 const FRAME_GAP = 48;
+/** Spacing between adjacent slots in the Reference filmstrip (display units). */
+export const FILMSTRIP_SLOT_GAP = 8;
 /** Spacing between a frame and its associated elements (processed image, floating panel) */
 export const ELEMENT_GAP = 16;
 /** Height of the per-unit processed image header bar (matches HEADER_HEIGHT in ControlFramePanel) */
@@ -32,6 +34,24 @@ export interface ControlFramePosition {
   width: number;
   height: number;
   processedSlots: ProcessedSlot[];
+}
+
+/** Position + size for one slot in the Reference filmstrip. Populated when
+ * inputRole === "reference" AND referenceInputs.length > 0. Coordinates are in
+ * display units (canvas-coord with displayScale applied), measured from the
+ * filmstrip's left edge at x=0. Consumer (FrameLayer / ReferenceFilmstripLayer)
+ * chooses between rendering this list and the single inputFrame based on
+ * whether the list is empty. */
+export interface ReferenceFramePosition {
+  refId: string;
+  x: number;
+  y: number;
+  /** Pixel-space dims passed to Konva (display = pixel * displayScale). */
+  frameW: number;
+  frameH: number;
+  /** Display-space dims for DOM overlay positioning. */
+  displayW: number;
+  displayH: number;
 }
 
 export interface CanvasLayout {
@@ -67,6 +87,11 @@ export interface CanvasLayout {
   outputFrameH: number;
   outputDisplayW: number;
   outputDisplayH: number;
+  /** Per-slot positions when the Reference filmstrip is populated. Empty array
+   * when inputRole !== "reference" or referenceInputs is empty; consumer falls
+   * back to the single inputFrame in that case. When non-empty, outputX is
+   * pushed right by the filmstrip's total width + FRAME_GAP. */
+  referenceFrames: ReferenceFramePosition[];
 }
 
 export function useControlFrameLayout(): CanvasLayout {
@@ -77,6 +102,7 @@ export function useControlFrameLayout(): CanvasLayout {
   const lastResult = useGenerationStore((s) => s.results[0]);
   const layers = useCanvasStore((s) => s.layers);
   const inputRole = useCanvasStore((s) => s.inputRole);
+  const referenceInputs = useCanvasStore((s) => s.referenceInputs);
   const hasLayers = layers.length > 0;
   const autoFitFrame = useUiStore((s) => s.autoFitFrame);
   const sizeMode = useImg2ImgStore((s) => s.sizeMode);
@@ -161,9 +187,50 @@ export function useControlFrameLayout(): CanvasLayout {
     const outputDisplayW = outputFrameW * ds;
     const outputDisplayH = outputFrameH * ds;
 
-    // Input frame always visible - always at x=0 (display units)
+    // Reference filmstrip: one frame per entry in referenceInputs when the user
+    // is in Reference mode and has populated the filmstrip. Each slot inherits
+    // the autoscale logic from the single inputFrame case - height locked to
+    // frameH (so displays at REFERENCE_HEIGHT), width follows image aspect.
+    // Slots are placed left-to-right with FILMSTRIP_SLOT_GAP between them.
+    // When empty, falls back to the single-inputFrame path so existing layer-
+    // backed Reference workflows keep working until G migrates them in.
+    const referenceFrames: ReferenceFramePosition[] = [];
+    if (inputRole === "reference" && referenceInputs.length > 0) {
+      let cursorDisplayX = 0;
+      for (const ref of referenceInputs) {
+        const aspect = ref.naturalHeight > 0 ? ref.naturalWidth / ref.naturalHeight : 1;
+        const slotFrameH = frameH;
+        const slotFrameW = frameH * aspect;
+        const slotDisplayW = slotFrameW * ds;
+        const slotDisplayH = REFERENCE_HEIGHT;
+        referenceFrames.push({
+          refId: ref.id,
+          x: cursorDisplayX,
+          y: 0,
+          frameW: slotFrameW,
+          frameH: slotFrameH,
+          displayW: slotDisplayW,
+          displayH: slotDisplayH,
+        });
+        cursorDisplayX += slotDisplayW + FILMSTRIP_SLOT_GAP;
+      }
+    }
+
+    // Total filmstrip width in display units. When non-empty, the last slot's
+    // right edge sits at (cursor - FILMSTRIP_SLOT_GAP) since the loop appended
+    // a trailing gap after each slot.
+    const filmstripDisplayW =
+      referenceFrames.length > 0
+        ? referenceFrames[referenceFrames.length - 1].x +
+          referenceFrames[referenceFrames.length - 1].displayW
+        : 0;
+
+    // Input frame always visible - always at x=0 (display units). The single
+    // inputFrame's right edge defines outputX when filmstrip is empty;
+    // otherwise the filmstrip's right edge does.
     const inputX = 0;
-    const outputX = inputDisplayW + FRAME_GAP;
+    const outputX =
+      referenceFrames.length > 0 ? filmstripDisplayW + FRAME_GAP : inputDisplayW + FRAME_GAP;
 
     // Processed composite frame: visible when backend composite or any per-unit processedImage exists
     const hasAnyProcessed =
@@ -242,6 +309,7 @@ export function useControlFrameLayout(): CanvasLayout {
       outputFrameH,
       outputDisplayW,
       outputDisplayH,
+      referenceFrames,
     };
   }, [
     units,
@@ -251,6 +319,7 @@ export function useControlFrameLayout(): CanvasLayout {
     lastResult,
     layers,
     inputRole,
+    referenceInputs,
     hasLayers,
     autoFitFrame,
     sizeMode,
