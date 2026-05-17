@@ -20,6 +20,10 @@ export interface ModelSupports {
   sampler: boolean;
   refine: boolean;
   scripts: boolean;
+  /** Whether the model accepts more than one input image. Drives the Reference
+   * filmstrip's multi-slot UI (when false, falls back to single-image
+   * Reference). Mirrors CloudModel.multi_image. */
+  multiImage: boolean;
 }
 
 export interface ModelCapabilities {
@@ -28,6 +32,10 @@ export interface ModelCapabilities {
   supports: ModelSupports;
   /** True when the named left-rail sub-tab should be visible for the active model. */
   showTab: (tabId: string) => boolean;
+  /** Cap on input image count for the active model. Null when no advertised
+   * limit. Filmstrip uses it to disable the AddSlot once at capacity. Lives
+   * outside ModelSupports because it's not a boolean. */
+  maxImages: number | null;
 }
 
 const LOCAL_SUPPORTS: ModelSupports = {
@@ -43,6 +51,11 @@ const LOCAL_SUPPORTS: ModelSupports = {
   sampler: true,
   refine: true,
   scripts: true,
+  // Local checkpoints don't multiplex multi-image through this surface;
+  // multi-input ControlNet/IP-Adapter has its own path. The filmstrip
+  // stays single-image-fallback for local; ControlTab is the multi-input
+  // home for local workflows.
+  multiImage: false,
 };
 
 // Local video models live in the Video view's own panel and don't touch any
@@ -61,6 +74,7 @@ const LOCAL_VIDEO_SUPPORTS: ModelSupports = {
   sampler: false,
   refine: false,
   scripts: false,
+  multiImage: false,
 };
 
 // Tabs gate on a specific `supports` flag. Tabs that are sdnext-only concepts
@@ -90,6 +104,7 @@ export function useModelCapabilities(): ModelCapabilities {
           const flag = TAB_TO_FLAG[tabId];
           return flag === undefined || flag === "always" || LOCAL_SUPPORTS[flag];
         },
+        maxImages: null,
       };
     }
     if (model.source === "local-video") {
@@ -101,6 +116,7 @@ export function useModelCapabilities(): ModelCapabilities {
         // via the "always" flag. Local-video models drive their own panel
         // and never reach the Images-side sub-tab gating in practice.
         showTab: (tabId: string) => TAB_TO_FLAG[tabId] === "always",
+        maxImages: null,
       };
     }
     const caps = model.capabilities;
@@ -121,6 +137,9 @@ export function useModelCapabilities(): ModelCapabilities {
       // Provider-advertised modalities.
       img2img: mods.includes("image-to-image"),
       inpaint: mods.includes("inpaint"),
+      // Multi-image capability surfaced in Phase 2.6. Defaults to false on
+      // older sdnext builds that don't advertise the field yet.
+      multiImage: model.multi_image ?? false,
     };
     return {
       kind: "cloud",
@@ -131,6 +150,7 @@ export function useModelCapabilities(): ModelCapabilities {
         if (flag === undefined || flag === "always") return true;
         return supports[flag];
       },
+      maxImages: model.max_images ?? null,
     };
   }, [model]);
 }

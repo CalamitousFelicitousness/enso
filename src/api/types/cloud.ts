@@ -118,6 +118,18 @@ export interface CloudModel {
    * builds or when the model's domain couldn't be codified (e.g. OpenRouter's
    * size-ignored providers, AIHubMix's image catalog without a per-model API). */
   size_constraint?: SizeConstraint | null;
+  /** Whether the model accepts more than one input image in a single request.
+   * Capability advertisement only; workflow type is still determined by
+   * image_via x modalities (per SPEC §11.11.5). Defaults to false on older
+   * sdnext builds. Populated by adapter.normalize_models() from either live
+   * extraction (NanoGPT's supported_parameters.max_images) or the curated
+   * multi_image_constraints.json. */
+  multi_image?: boolean;
+  /** Cap on the number of input images. Null when no advertised limit. UI
+   * uses it to gate the "+ Add" affordance once the filmstrip is full;
+   * sdnext-side soft pre-flight (cloud_image_count_validation) is the
+   * authoritative gate per SPEC §11.11.10 B7. */
+  max_images?: number | null;
 }
 
 export type LocalModel = SdModelV2 & { source: "local" };
@@ -187,7 +199,13 @@ export interface CloudImageJobParams {
   steps?: number;
   quality?: string;
   style?: string;
+  /** Single input image. Kept for one release of back-compat per SPEC §11.11.6
+   * B1 - V2 executor folds this into images[0] when only the singular is set.
+   * New callers should populate `images` instead. */
   image?: string;
+  /** Ordered list of input images for multi-image workflows. Wire order =
+   * sdnext-side init_images list order. When set, replaces `image`. */
+  images?: string[];
   mask?: string;
   strength?: number;
   extra_params?: Record<string, unknown>;
