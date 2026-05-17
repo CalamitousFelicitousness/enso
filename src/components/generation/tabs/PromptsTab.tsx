@@ -15,6 +15,7 @@ import { cn } from "@/lib/utils";
 import { resolveGenerationSize, formatMegapixels } from "@/lib/sizeCompute";
 import type { SizeMode } from "@/lib/sizeCompute";
 import type { ParamDescriptor } from "@/api/types/cloud";
+import type { GenerationInfo } from "@/api/types/generation";
 import { PromptEditor } from "../PromptEditor";
 import { ParamSlider } from "../ParamSlider";
 import { SectionLeader, SectionDivider } from "@/components/ui/section-leader";
@@ -148,6 +149,29 @@ export function PromptsTab() {
     if (sc == null) return true;
     return sc.allow_auto;
   }, [activeModel]);
+
+  // Echoed-size surfacing: when the server returns dims
+  // that differ from what was requested (auto resolution, align-snap, bucket
+  // resolve, local hires-fix output), show them so the user isn't confused
+  // about why their image is a different size than the controls say.
+  const lastResult = useGenerationStore((s) => s.results[0]);
+  const lastInfo = useMemo<GenerationInfo | null>(() => {
+    if (!lastResult?.info) return null;
+    try {
+      return JSON.parse(lastResult.info) as GenerationInfo;
+    } catch {
+      return null;
+    }
+  }, [lastResult]);
+  const lastResultSize = useMemo(() => {
+    if (!lastInfo) return null;
+    const w = lastInfo.width;
+    const h = lastInfo.height;
+    if (typeof w !== "number" || typeof h !== "number") return null;
+    if (w <= 0 || h <= 0) return null;
+    if (w === state.width && h === state.height) return null;
+    return { w, h };
+  }, [lastInfo, state.width, state.height]);
 
   // Reference mode on local models sends the source file raw via `inputs`. The
   // server's resize_init_images then overrides p.width/p.height to match the
@@ -577,6 +601,33 @@ export function PromptsTab() {
               <span className="opacity-70">
                 ({formatMegapixels(genSize.width, genSize.height)})
               </span>
+            </div>
+          )}
+
+          {/* Echoed size: surfaced when server returned dims that differ from
+              the current Width/Height. Covers auto resolution, align-snap,
+              bucket resolve, and local hires-fix output. */}
+          {lastResultSize && (
+            <div
+              className="text-3xs text-muted-foreground text-center flex items-center justify-center gap-1.5"
+              title="The last generation finished at these dimensions. Differs from the controls above when the server picks the size (Auto), snaps to alignment, resolves a symbolic bucket, or applies hires-fix."
+            >
+              <span>
+                Last:{" "}
+                <span className="font-mono">
+                  {lastResultSize.w}&times;{lastResultSize.h}
+                </span>
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  setWidth(lastResultSize.w);
+                  setHeight(lastResultSize.h);
+                }}
+                className="px-1.5 py-0 text-3xs rounded border border-border/40 hover:bg-accent hover:text-accent-foreground transition-colors"
+              >
+                Reuse
+              </button>
             </div>
           )}
         </div>
