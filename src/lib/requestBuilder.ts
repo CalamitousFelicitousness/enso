@@ -778,17 +778,13 @@ export async function buildCloudImageRequest(): Promise<CloudImageJobParams> {
     img2img.megapixelTarget,
   );
 
-  // Auto-size modifier: when on AND the model accepts auto, send size="auto"
-  // instead of WxH. sdnext's adapter translates per the model's
-  // size_constraint.auto_wire (literal/omit/default), so we deliver a single
-  // unified caller-side representation regardless of provider.
-  //
-  // Guard on size_constraint.allow_auto when known: when the model declares
-  // allow_auto=false, fall back to literal dims even if the user's persisted
-  // toggle is on. Unknown coverage (size_constraint=null) defers the decision
-  // to sdnext's soft pre-flight.
-  const autoEnabled =
-    img2img.autoSize && (model.size_constraint == null || model.size_constraint.allow_auto);
+  // Auto-size modifier: when on, send size="auto" regardless of the model's
+  // codified allow_auto value. sdnext's adapter translates per the model's
+  // size_constraint.auto_wire when present (literal/omit/default), and the
+  // provider is the source of truth about whether "auto" is accepted. Soft
+  // pre-flight logs the mismatch via telemetry but lets the
+  // request through so the user gets a real provider response.
+  const autoEnabled = img2img.autoSize;
   const sizeValue = autoEnabled ? "auto" : `${targetSize.width}x${targetSize.height}`;
 
   const request: CloudImageJobParams = {
