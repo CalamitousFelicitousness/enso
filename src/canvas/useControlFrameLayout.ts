@@ -5,6 +5,7 @@ import { useUiStore } from "@/stores/uiStore";
 import { useCanvasStore } from "@/stores/canvasStore";
 import type { ImageLayer } from "@/stores/canvasStore";
 import { useImg2ImgStore } from "@/stores/img2imgStore";
+import { useModelSelectionStore } from "@/stores/modelSelectionStore";
 import { resolveGenerationSize } from "@/lib/sizeCompute";
 
 /** Reference height for display-unit normalization: all frames are laid out as
@@ -45,7 +46,9 @@ export interface CanvasLayout {
   genSize: { width: number; height: number };
   /** Factor to convert pixel coords → display coords: displayCoord = pixelCoord * displayScale */
   displayScale: number;
-  /** Main (output) frame dimensions in display units */
+  /** User-set frame dimensions in display units. Tracks gen.width/height
+   * directly. Used by control frames (which size to the intended generation
+   * resolution regardless of Auto mode). */
   displayW: number;
   displayH: number;
   /** Input frame dimensions in pixel space. Equals gen.width/height in Initial
@@ -56,6 +59,14 @@ export interface CanvasLayout {
   /** Input frame dimensions in display units (inputFrameW/H * displayScale). */
   inputDisplayW: number;
   inputDisplayH: number;
+  /** Output frame dimensions. Equals gen.width/height when Auto is off; when
+   * Auto is on for a cloud model, predicts the server-chosen aspect from the
+   * last result's echoed dims, falling back to the model's size_constraint
+   * default. Lets the canvas show a plausible output shape before generation. */
+  outputFrameW: number;
+  outputFrameH: number;
+  outputDisplayW: number;
+  outputDisplayH: number;
 }
 
 export function useControlFrameLayout(): CanvasLayout {
@@ -63,6 +74,7 @@ export function useControlFrameLayout(): CanvasLayout {
   const compositeProcessed = useControlStore((s) => s.compositeProcessed);
   const frameW = useGenerationStore((s) => s.width);
   const frameH = useGenerationStore((s) => s.height);
+  const lastResult = useGenerationStore((s) => s.results[0]);
   const layers = useCanvasStore((s) => s.layers);
   const inputRole = useCanvasStore((s) => s.inputRole);
   const hasLayers = layers.length > 0;
@@ -70,6 +82,8 @@ export function useControlFrameLayout(): CanvasLayout {
   const sizeMode = useImg2ImgStore((s) => s.sizeMode);
   const scaleFactor = useImg2ImgStore((s) => s.scaleFactor);
   const megapixelTarget = useImg2ImgStore((s) => s.megapixelTarget);
+  const autoSize = useImg2ImgStore((s) => s.autoSize);
+  const activeModel = useModelSelectionStore((s) => s.activeModel);
 
   return useMemo(() => {
     const isAutoFit = hasLayers && autoFitFrame;
@@ -109,6 +123,44 @@ export function useControlFrameLayout(): CanvasLayout {
     const inputDisplayW = inputFrameW * ds;
     const inputDisplayH = inputFrameH * ds;
 
+    // Auto-aware output frame: when Auto is on for a cloud model, predict the
+    // server-chosen aspect from the most recent result's echoed dims, falling
+    // back to the model's size_constraint.default. Lets the canvas show a
+    // plausible output shape before the user generates rather than the
+    // possibly-stale user-set dims. Height stays at frameH so the output
+    // frame's display height matches REFERENCE_HEIGHT (header alignment).
+    const isCloudModel = activeModel?.source === "cloud";
+    const isAutoActive = autoSize && isCloudModel === true;
+    let predictedOutputAspect: number | null = null;
+    if (isAutoActive) {
+      if (lastResult?.info) {
+        try {
+          const info = JSON.parse(lastResult.info) as { width?: unknown; height?: unknown };
+          const w = info.width;
+          const h = info.height;
+          if (typeof w === "number" && typeof h === "number" && w > 0 && h > 0) {
+            predictedOutputAspect = w / h;
+          }
+        } catch {
+          // ignore; fall through to default
+        }
+      }
+      if (
+        predictedOutputAspect == null &&
+        activeModel?.source === "cloud" &&
+        activeModel.size_constraint?.default
+      ) {
+        const parts = activeModel.size_constraint.default.split("x").map((s) => parseInt(s, 10));
+        if (parts.length === 2 && parts[0] > 0 && parts[1] > 0) {
+          predictedOutputAspect = parts[0] / parts[1];
+        }
+      }
+    }
+    const outputFrameH = frameH;
+    const outputFrameW = predictedOutputAspect != null ? frameH * predictedOutputAspect : frameW;
+    const outputDisplayW = outputFrameW * ds;
+    const outputDisplayH = outputFrameH * ds;
+
     // Input frame always visible - always at x=0 (display units)
     const inputX = 0;
     const outputX = inputDisplayW + FRAME_GAP;
@@ -116,10 +168,10 @@ export function useControlFrameLayout(): CanvasLayout {
     // Processed composite frame: visible when backend composite or any per-unit processedImage exists
     const hasAnyProcessed =
       !!compositeProcessed || units.some((u) => u.enabled && !!u.processedImage);
-    const processedX = outputX + dw + FRAME_GAP;
+    const processedX = outputX + outputDisplayW + FRAME_GAP;
 
     // Rightmost edge of main frames (display units)
-    const mainMaxX = hasAnyProcessed ? processedX + dw : outputX + dw;
+    const mainMaxX = hasAnyProcessed ? processedX + outputDisplayW : outputX + outputDisplayW;
 
     // Control frames: only enabled units with imageSource === "separate"
     const activeControlIndices = units
@@ -163,7 +215,7 @@ export function useControlFrameLayout(): CanvasLayout {
     const minX = controlFrames.length > 0 ? controlFrames[controlFrames.length - 1].x : 0;
 
     // maxY: account for per-frame height + stacked processed slots (display units)
-    let maxY = Math.max(dh, inputDisplayH);
+    let maxY = Math.max(dh, inputDisplayH, outputDisplayH);
     for (const f of controlFrames) {
       const activeSlots = f.processedSlots.filter((s) => s.hasProcessed).length;
       const frameMaxY = f.height + activeSlots * (ELEMENT_GAP + PROCESSED_HEADER_HEIGHT + f.height);
@@ -186,12 +238,17 @@ export function useControlFrameLayout(): CanvasLayout {
       inputFrameH,
       inputDisplayW,
       inputDisplayH,
+      outputFrameW,
+      outputFrameH,
+      outputDisplayW,
+      outputDisplayH,
     };
   }, [
     units,
     compositeProcessed,
     frameW,
     frameH,
+    lastResult,
     layers,
     inputRole,
     hasLayers,
@@ -199,5 +256,7 @@ export function useControlFrameLayout(): CanvasLayout {
     sizeMode,
     scaleFactor,
     megapixelTarget,
+    autoSize,
+    activeModel,
   ]);
 }

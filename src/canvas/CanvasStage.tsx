@@ -49,16 +49,8 @@ export function CanvasStage({ layout, onPickImage }: CanvasStageProps) {
   const maskPaint = useMaskPaint({ stageRef, spaceHeld: panZoom.spaceHeld });
   const imageTransform = useImageTransform(stageRef, trRef);
 
-  const {
-    outputX,
-    processedX,
-    showProcessedFrame,
-    controlFrames,
-    totalBounds,
-    displayScale,
-    displayW,
-    displayH,
-  } = layout;
+  const { outputX, processedX, showProcessedFrame, controlFrames, totalBounds, displayScale } =
+    layout;
 
   // Container-responsive sizing
   useEffect(() => {
@@ -207,12 +199,16 @@ export function CanvasStage({ layout, onPickImage }: CanvasStageProps) {
             )}
             <OutputLayer
               offsetX={outputX}
-              placeholderWidth={displayW}
-              placeholderHeight={displayH}
+              placeholderWidth={layout.outputDisplayW}
+              placeholderHeight={layout.outputDisplayH}
             />
 
             {showProcessedFrame && (
-              <ProcessedCompositeLayer offsetX={processedX} width={displayW} height={displayH} />
+              <ProcessedCompositeLayer
+                offsetX={processedX}
+                width={layout.outputDisplayW}
+                height={layout.outputDisplayH}
+              />
             )}
           </Stage>
         </>
