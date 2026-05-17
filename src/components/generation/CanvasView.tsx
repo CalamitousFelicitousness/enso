@@ -14,6 +14,7 @@ import { fileToBase64 } from "@/lib/image";
 import { CanvasStage } from "@/canvas/CanvasStage";
 import { CanvasToolbar } from "@/canvas/CanvasToolbar";
 import { ControlFramePanels } from "@/canvas/ControlFramePanel";
+import { ReferenceFilmstripOverlay } from "@/canvas/filmstrip/ReferenceFilmstripOverlay";
 import { CanvasProgressOverlay } from "./CanvasProgressOverlay";
 import { useControlFrameLayout } from "@/canvas/useControlFrameLayout";
 import { getOrderedFrames } from "@/canvas/frameList";
@@ -325,6 +326,12 @@ export const CanvasView = memo(function CanvasView() {
           onClearImage={handleClearImage}
           onClearAll={handleClearAll}
         />
+        {/* Reference filmstrip - shown when in Reference mode. Renders an
+            empty AddSlot when no refs exist yet, switches to the slot row
+            once any reference is appended. */}
+        {inputRole === "reference" && (
+          <ReferenceFilmstripOverlay frames={layout.referenceFrames} height={layout.displayH} />
+        )}
       </div>
 
       {/* Single file input for both input frame and control frame picks */}

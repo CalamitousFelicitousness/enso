@@ -1110,15 +1110,20 @@ export function ControlFramePanels({
         });
       })}
 
-      <InputFramePanel
-        canvasX={layout.inputX}
-        frameW={displayW}
-        genSize={genSize}
-        viewport={viewport}
-        labelScale={labelScale}
-        onPickImage={() => onPickImage?.(-1)}
-        onClearAll={onClearAll}
-      />
+      {/* The legacy single-image Input panel hides when the multi-image
+          Reference filmstrip is populated; the filmstrip overlay (rendered
+          elsewhere) takes over the input-side chrome in that mode. */}
+      {layout.referenceFrames.length === 0 && (
+        <InputFramePanel
+          canvasX={layout.inputX}
+          frameW={displayW}
+          genSize={genSize}
+          viewport={viewport}
+          labelScale={labelScale}
+          onPickImage={() => onPickImage?.(-1)}
+          onClearAll={onClearAll}
+        />
+      )}
 
       <OutputFramePanel
         canvasX={layout.outputX}
