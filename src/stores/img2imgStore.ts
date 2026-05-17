@@ -21,6 +21,11 @@ interface Img2ImgState {
   megapixelTarget: number;
   resizeMethod: string;
 
+  // Auto-size modifier: when true, the cloud adapter receives size="auto" and the
+  // server picks output dimensions. Local img2img ignores this flag (resolution
+  // is determined by the input image and pipeline anyway).
+  autoSize: boolean;
+
   // Mask painting
   maskLines: MaskLine[];
 
@@ -41,6 +46,7 @@ interface Img2ImgState {
   setScaleFactor: (factor: number) => void;
   setMegapixelTarget: (target: number) => void;
   setResizeMethod: (method: string) => void;
+  setAutoSize: (v: boolean) => void;
   setMaskBlur: (blur: number) => void;
   setInpaintFullRes: (v: boolean) => void;
   setInpaintFullResPadding: (v: number) => void;
@@ -57,6 +63,7 @@ const defaultState = {
   scaleFactor: 1,
   megapixelTarget: 1,
   resizeMethod: "Resize Lanczos",
+  autoSize: false,
   maskLines: [] as MaskLine[],
   maskData: null as string | null,
   maskBlur: 4,
@@ -84,6 +91,7 @@ export const useImg2ImgStore = create<Img2ImgState>()(
       setScaleFactor: (factor) => _set({ scaleFactor: factor }),
       setMegapixelTarget: (target) => _set({ megapixelTarget: target }),
       setResizeMethod: (method) => _set({ resizeMethod: method }),
+      setAutoSize: (v) => _set({ autoSize: v }),
       setMaskBlur: (blur) => _set({ maskBlur: blur }),
       setInpaintFullRes: (v) => _set({ inpaintFullRes: v }),
       setInpaintFullResPadding: (v) => _set({ inpaintFullResPadding: v }),
@@ -103,6 +111,7 @@ export const useImg2ImgStore = create<Img2ImgState>()(
         scaleFactor,
         megapixelTarget,
         resizeMethod,
+        autoSize,
         maskBlur,
         inpaintFullRes,
         inpaintFullResPadding,
@@ -115,6 +124,7 @@ export const useImg2ImgStore = create<Img2ImgState>()(
         scaleFactor,
         megapixelTarget,
         resizeMethod,
+        autoSize,
         maskBlur,
         inpaintFullRes,
         inpaintFullResPadding,

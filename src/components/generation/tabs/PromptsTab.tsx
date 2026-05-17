@@ -94,6 +94,8 @@ export function PromptsTab() {
   const setMegapixelTarget = useImg2ImgStore((s) => s.setMegapixelTarget);
   const resizeMethod = useImg2ImgStore((s) => s.resizeMethod);
   const setResizeMethod = useImg2ImgStore((s) => s.setResizeMethod);
+  const autoSize = useImg2ImgStore((s) => s.autoSize);
+  const setAutoSize = useImg2ImgStore((s) => s.setAutoSize);
   const upscalerGroups = useUpscalerGroups({ excludeLatent: true });
   const { data: aspectOpts } = useOptionsSubset(["aspect_ratios"]);
   const activeModel = useModelSelectionStore((s) => s.activeModel);
@@ -115,22 +117,33 @@ export function PromptsTab() {
     () => layers.find((l): l is ImageLayer => l.type === "image" && l.visible) ?? null,
     [layers],
   );
-  const sizeIsAdvisory =
-    inputRole === "reference" &&
-    firstImage != null &&
-    activeModel != null &&
-    activeModel.source !== "cloud";
+  const isCloud = activeModel != null && activeModel.source === "cloud";
+  const referenceInactive =
+    inputRole === "reference" && firstImage != null && activeModel != null && !isCloud;
+  const autoInactive = isCloud && autoSize;
+  const sizeIsAdvisory = referenceInactive || autoInactive;
   const sizeTooltip = useMemo(() => {
     const base = "Output dimensions in pixels.";
-    if (!sizeIsAdvisory || !firstImage) return base;
+    const notes: string[] = [];
+    if (autoInactive) {
+      notes.push(
+        "Auto modifier is on &mdash; the server picks output dimensions. " +
+          "Turn Auto off to control output size.",
+      );
+    }
+    if (referenceInactive && firstImage) {
+      notes.push(
+        "Inactive in Reference mode on local models &mdash; " +
+          `output resolution is set by the input image ` +
+          `(${firstImage.naturalWidth}&times;${firstImage.naturalHeight}). ` +
+          "Switch to Initial to control output size.",
+      );
+    }
+    if (notes.length === 0) return base;
     return (
-      `${base}<br><br>` +
-      `<span style="opacity:0.7">Inactive in Reference mode on local models &mdash; ` +
-      `output resolution is set by the input image ` +
-      `(${firstImage.naturalWidth}&times;${firstImage.naturalHeight}). ` +
-      `Switch to Initial to control output size.</span>`
+      `${base}<br><br>` + notes.map((n) => `<span style="opacity:0.7">${n}</span>`).join("<br><br>")
     );
-  }, [sizeIsAdvisory, firstImage]);
+  }, [autoInactive, referenceInactive, firstImage]);
   const aspectPresets = useMemo(
     () =>
       parseAspectRatios(
@@ -282,20 +295,39 @@ export function PromptsTab() {
         collapsible
         tooltip={sizeTooltip}
         action={
-          isImg2Img ? (
-            <Button
-              variant={autoFitFrame ? "default" : "outline"}
-              size="sm"
-              onClick={() => setAutoFitFrame(!autoFitFrame)}
-              className="h-5 px-1.5 text-3xs rounded"
-              title={
-                autoFitFrame
-                  ? "Auto: dropping the first image onto an empty canvas resizes the frame to match that image's dimensions"
-                  : "Manual: frame stays at the width and height you set, regardless of image size"
-              }
-            >
-              Auto
-            </Button>
+          isImg2Img || isCloud ? (
+            <div className="flex items-center gap-1">
+              {isImg2Img && (
+                <Button
+                  variant={autoFitFrame ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setAutoFitFrame(!autoFitFrame)}
+                  className="h-5 px-1.5 text-3xs rounded"
+                  title={
+                    autoFitFrame
+                      ? "Fit on: dropping the first image onto an empty canvas resizes the frame to match that image's dimensions"
+                      : "Fit off: frame stays at the width and height you set, regardless of image size"
+                  }
+                >
+                  Fit
+                </Button>
+              )}
+              {isCloud && (
+                <Button
+                  variant={autoSize ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setAutoSize(!autoSize)}
+                  className="h-5 px-1.5 text-3xs rounded"
+                  title={
+                    autoSize
+                      ? "Auto on: server picks output dimensions. Size controls are inactive."
+                      : "Auto off: you control output dimensions via Width and Height below."
+                  }
+                >
+                  Auto
+                </Button>
+              )}
+            </div>
           ) : undefined
         }
       >

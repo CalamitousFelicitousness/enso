@@ -778,12 +778,17 @@ export async function buildCloudImageRequest(): Promise<CloudImageJobParams> {
     img2img.megapixelTarget,
   );
 
+  // Auto-size modifier: when on, send size="auto" instead of WxH. sdnext's adapter
+  // translates per the model's size_constraint.auto_wire (literal/omit/default), so
+  // we deliver a single unified caller-side representation regardless of provider.
+  const sizeValue = img2img.autoSize ? "auto" : `${targetSize.width}x${targetSize.height}`;
+
   const request: CloudImageJobParams = {
     type: "cloud_image",
     provider: model.provider,
     model: model.id,
     prompt: gen.prompt,
-    size: `${targetSize.width}x${targetSize.height}`,
+    size: sizeValue,
   };
 
   if (gen.negativePrompt) request.negative_prompt = gen.negativePrompt;
@@ -821,9 +826,12 @@ export async function buildCloudImageRequest(): Promise<CloudImageJobParams> {
     const imageRef = await uploadBlob(optimized.blob, filename);
     request.image = imageRef;
 
+    // Preserve "auto" through provider optimization; only overwrite size when caller
+    // wanted explicit dims and the optimizer adjusted them.
     if (
-      optimized.dimensions.width !== targetSize.width ||
-      optimized.dimensions.height !== targetSize.height
+      !img2img.autoSize &&
+      (optimized.dimensions.width !== targetSize.width ||
+        optimized.dimensions.height !== targetSize.height)
     ) {
       request.size = `${optimized.dimensions.width}x${optimized.dimensions.height}`;
     }
