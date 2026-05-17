@@ -2,6 +2,8 @@ import { useMemo, useState, useCallback } from "react";
 import { useGenerationStore } from "@/stores/generationStore";
 import { useUiStore } from "@/stores/uiStore";
 import { useImg2ImgStore } from "@/stores/img2imgStore";
+import { useCanvasStore } from "@/stores/canvasStore";
+import type { ImageLayer } from "@/stores/canvasStore";
 import { useIsImg2Img } from "@/hooks/useIsImg2Img";
 import { useModelSelectionStore } from "@/stores/modelSelectionStore";
 import { useShallow } from "zustand/react/shallow";
@@ -102,6 +104,33 @@ export function PromptsTab() {
     if (!activeModel || activeModel.source !== "cloud") return null;
     return parseSizeOptions(activeModel.supported_params ?? null) ?? GENERIC_CLOUD_PRESETS;
   }, [activeModel]);
+
+  // Reference mode on local models sends the source file raw via `inputs`. The
+  // server's resize_init_images then overrides p.width/p.height to match the
+  // image, so Size is informational here. Cloud models honor request.size
+  // independently of the image, so they're never advisory.
+  const layers = useCanvasStore((s) => s.layers);
+  const inputRole = useCanvasStore((s) => s.inputRole);
+  const firstImage = useMemo(
+    () => layers.find((l): l is ImageLayer => l.type === "image" && l.visible) ?? null,
+    [layers],
+  );
+  const sizeIsAdvisory =
+    inputRole === "reference" &&
+    firstImage != null &&
+    activeModel != null &&
+    activeModel.source !== "cloud";
+  const sizeTooltip = useMemo(() => {
+    const base = "Output dimensions in pixels.";
+    if (!sizeIsAdvisory || !firstImage) return base;
+    return (
+      `${base}<br><br>` +
+      `<span style="opacity:0.7">Inactive in Reference mode on local models &mdash; ` +
+      `output resolution is set by the input image ` +
+      `(${firstImage.naturalWidth}&times;${firstImage.naturalHeight}). ` +
+      `Switch to Initial to control output size.</span>`
+    );
+  }, [sizeIsAdvisory, firstImage]);
   const aspectPresets = useMemo(
     () =>
       parseAspectRatios(
@@ -251,6 +280,7 @@ export function PromptsTab() {
       <SectionLeader
         title="Size"
         collapsible
+        tooltip={sizeTooltip}
         action={
           isImg2Img ? (
             <Button
@@ -269,200 +299,207 @@ export function PromptsTab() {
           ) : undefined
         }
       >
-        {/* Size mode pill selector (img2img + auto-fit only) */}
-        {showSizeModes && (
-          <SegmentedControl
-            options={[
-              { value: "fixed", label: "Fixed" },
-              { value: "scale", label: "Scale" },
-              { value: "megapixel", label: "Megapixel" },
-            ]}
-            value={sizeMode}
-            onValueChange={(v) => setSizeMode(v)}
-            animated
-          />
-        )}
+        <div
+          className={cn("flex flex-col gap-2 transition-opacity", sizeIsAdvisory && "opacity-60")}
+          title={sizeIsAdvisory ? sizeTooltip.replace(/<[^>]*>/g, "") : undefined}
+        >
+          {/* Size mode pill selector (img2img + auto-fit only) */}
+          {showSizeModes && (
+            <SegmentedControl
+              options={[
+                { value: "fixed", label: "Fixed" },
+                { value: "scale", label: "Scale" },
+                { value: "megapixel", label: "Megapixel" },
+              ]}
+              value={sizeMode}
+              onValueChange={(v) => setSizeMode(v)}
+              animated
+            />
+          )}
 
-        {/* Width / Height row */}
-        <div data-param="width" className="flex items-center gap-2">
-          <ParamLabel className="text-2xs text-muted-foreground shrink-0">Width</ParamLabel>
-          <NumberInput
-            value={isFixed ? state.width : genSize.width}
-            onChange={setWidth}
-            step={8}
-            min={64}
-            max={4096}
-            fallback={512}
-            disabled={!isFixed}
-            className="flex-1 min-w-12 h-6 text-2xs text-center px-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-          />
+          {/* Width / Height row */}
+          <div data-param="width" className="flex items-center gap-2">
+            <ParamLabel className="text-2xs text-muted-foreground shrink-0">Width</ParamLabel>
+            <NumberInput
+              value={isFixed ? state.width : genSize.width}
+              onChange={setWidth}
+              step={8}
+              min={64}
+              max={4096}
+              fallback={512}
+              disabled={!isFixed}
+              className="flex-1 min-w-12 h-6 text-2xs text-center px-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+            />
 
-          <Popover open={aspectOpen} onOpenChange={setAspectOpen}>
-            <PopoverTrigger asChild>
-              <button
-                type="button"
-                disabled={!isFixed}
-                className={cn(
-                  "inline-flex items-center justify-center gap-0 h-6 shrink-0 rounded-md transition-colors",
-                  "hover:bg-accent hover:text-accent-foreground",
-                  "disabled:pointer-events-none disabled:opacity-50",
-                  aspectLocked ? "text-primary px-1" : "text-muted-foreground px-1",
-                  cloudSizePresets ? "w-auto min-w-9" : "w-9",
-                )}
-                title={
-                  cloudSizePresets
-                    ? aspectLocked
-                      ? `Size: ${activePreset}`
-                      : "Select output size"
-                    : aspectLocked
-                      ? `Aspect ratio locked to ${activePreset}`
-                      : "Select aspect ratio preset"
-                }
+            <Popover open={aspectOpen} onOpenChange={setAspectOpen}>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  disabled={!isFixed}
+                  className={cn(
+                    "inline-flex items-center justify-center gap-0 h-6 shrink-0 rounded-md transition-colors",
+                    "hover:bg-accent hover:text-accent-foreground",
+                    "disabled:pointer-events-none disabled:opacity-50",
+                    aspectLocked ? "text-primary px-1" : "text-muted-foreground px-1",
+                    cloudSizePresets ? "w-auto min-w-9" : "w-9",
+                  )}
+                  title={
+                    cloudSizePresets
+                      ? aspectLocked
+                        ? `Size: ${activePreset}`
+                        : "Select output size"
+                      : aspectLocked
+                        ? `Aspect ratio locked to ${activePreset}`
+                        : "Select aspect ratio preset"
+                  }
+                >
+                  {aspectLocked ? (
+                    <span className="text-3xs font-medium leading-none font-mono">
+                      {activePreset}
+                    </span>
+                  ) : cloudSizePresets ? (
+                    <span className="text-3xs font-medium leading-none font-mono">
+                      {state.width}x{state.height}
+                    </span>
+                  ) : (
+                    <Link2Off size={12} />
+                  )}
+                  <ChevronDown size={8} className="ml-0.5 opacity-60" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent
+                className={cn("p-1", cloudSizePresets ? "w-36" : "w-32")}
+                align="center"
+                sideOffset={6}
               >
-                {aspectLocked ? (
-                  <span className="text-3xs font-medium leading-none font-mono">
-                    {activePreset}
-                  </span>
-                ) : cloudSizePresets ? (
-                  <span className="text-3xs font-medium leading-none font-mono">
-                    {state.width}x{state.height}
-                  </span>
+                {cloudSizePresets ? (
+                  <>
+                    {cloudSizePresets.map((p) => (
+                      <button
+                        key={p.label}
+                        type="button"
+                        onClick={() => selectCloudSize(p)}
+                        className={cn(
+                          "w-full text-left text-2xs px-2 py-1 rounded-sm transition-colors font-mono",
+                          "hover:bg-accent hover:text-accent-foreground",
+                          (activePreset === p.label ||
+                            (!activePreset && state.width === p.w && state.height === p.h)) &&
+                            "text-primary font-medium",
+                        )}
+                      >
+                        {p.label}
+                      </button>
+                    ))}
+                  </>
                 ) : (
-                  <Link2Off size={12} />
-                )}
-                <ChevronDown size={8} className="ml-0.5 opacity-60" />
-              </button>
-            </PopoverTrigger>
-            <PopoverContent
-              className={cn("p-1", cloudSizePresets ? "w-36" : "w-32")}
-              align="center"
-              sideOffset={6}
-            >
-              {cloudSizePresets ? (
-                <>
-                  {cloudSizePresets.map((p) => (
+                  <>
                     <button
-                      key={p.label}
                       type="button"
-                      onClick={() => selectCloudSize(p)}
-                      className={cn(
-                        "w-full text-left text-2xs px-2 py-1 rounded-sm transition-colors font-mono",
-                        "hover:bg-accent hover:text-accent-foreground",
-                        (activePreset === p.label ||
-                          (!activePreset && state.width === p.w && state.height === p.h)) &&
-                          "text-primary font-medium",
-                      )}
-                    >
-                      {p.label}
-                    </button>
-                  ))}
-                </>
-              ) : (
-                <>
-                  <button
-                    type="button"
-                    onClick={() => selectPreset(null)}
-                    className={cn(
-                      "w-full text-left text-2xs px-2 py-1 rounded-sm transition-colors",
-                      "hover:bg-accent hover:text-accent-foreground",
-                      !aspectLocked && "text-primary font-medium",
-                    )}
-                  >
-                    Custom
-                  </button>
-                  {aspectPresets.map((p) => (
-                    <button
-                      key={p.label}
-                      type="button"
-                      onClick={() => selectPreset(p)}
+                      onClick={() => selectPreset(null)}
                       className={cn(
                         "w-full text-left text-2xs px-2 py-1 rounded-sm transition-colors",
                         "hover:bg-accent hover:text-accent-foreground",
-                        activePreset === p.label && "text-primary font-medium",
+                        !aspectLocked && "text-primary font-medium",
                       )}
                     >
-                      {p.label}
+                      Custom
                     </button>
-                  ))}
-                </>
-              )}
-            </PopoverContent>
-          </Popover>
-          <Button
-            variant="ghost"
-            size="icon-xs"
-            onClick={swapDimensions}
-            className="text-muted-foreground"
-            title="Swap width and height - switch between landscape and portrait"
-            disabled={!isFixed}
-          >
-            <ArrowLeftRight size={12} />
-          </Button>
-          <NumberInput
-            value={isFixed ? state.height : genSize.height}
-            onChange={setHeight}
-            step={8}
-            min={64}
-            max={4096}
-            fallback={512}
-            disabled={!isFixed}
-            className="flex-1 min-w-12 h-6 text-2xs text-center px-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-          />
-
-          <ParamLabel className="text-2xs text-muted-foreground shrink-0">Height</ParamLabel>
-        </div>
-
-        {/* Scale slider */}
-        {effectiveSizeMode === "scale" && (
-          <ParamSlider
-            label="Scale"
-            tooltip="Multiplier applied to the input image size to compute the generation resolution."
-            keywords={["resize", "factor", "multiplier", "img2img"]}
-            value={scaleFactor}
-            onChange={setScaleFactor}
-            min={0.25}
-            max={2}
-            step={0.05}
-          />
-        )}
-
-        {/* Megapixel slider */}
-        {effectiveSizeMode === "megapixel" && (
-          <ParamSlider
-            label="Target"
-            tooltip="Target output size in megapixels. Aspect ratio is preserved from the input image."
-            keywords={["megapixel", "size", "resolution", "img2img"]}
-            value={megapixelTarget}
-            onChange={setMegapixelTarget}
-            min={0.25}
-            max={4}
-            step={0.05}
-          />
-        )}
-
-        {/* Resize method (shown when scale/megapixel active) */}
-        {!isFixed && (
-          <div className="flex items-center gap-2">
-            <ParamLabel className="text-2xs text-muted-foreground w-16 flex-shrink-0">
-              Resize
-            </ParamLabel>
-            <Combobox
-              value={resizeMethod}
-              onValueChange={setResizeMethod}
-              groups={upscalerGroups}
-              className="h-6 text-2xs flex-1"
+                    {aspectPresets.map((p) => (
+                      <button
+                        key={p.label}
+                        type="button"
+                        onClick={() => selectPreset(p)}
+                        className={cn(
+                          "w-full text-left text-2xs px-2 py-1 rounded-sm transition-colors",
+                          "hover:bg-accent hover:text-accent-foreground",
+                          activePreset === p.label && "text-primary font-medium",
+                        )}
+                      >
+                        {p.label}
+                      </button>
+                    ))}
+                  </>
+                )}
+              </PopoverContent>
+            </Popover>
+            <Button
+              variant="ghost"
+              size="icon-xs"
+              onClick={swapDimensions}
+              className="text-muted-foreground"
+              title="Swap width and height - switch between landscape and portrait"
+              disabled={!isFixed}
+            >
+              <ArrowLeftRight size={12} />
+            </Button>
+            <NumberInput
+              value={isFixed ? state.height : genSize.height}
+              onChange={setHeight}
+              step={8}
+              min={64}
+              max={4096}
+              fallback={512}
+              disabled={!isFixed}
+              className="flex-1 min-w-12 h-6 text-2xs text-center px-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
             />
-          </div>
-        )}
 
-        {/* Info line: frame size → generation size */}
-        {!isFixed && (
-          <div className="text-3xs text-muted-foreground text-center">
-            {state.width}&times;{state.height} &rarr; {genSize.width}&times;
-            {genSize.height}{" "}
-            <span className="opacity-70">({formatMegapixels(genSize.width, genSize.height)})</span>
+            <ParamLabel className="text-2xs text-muted-foreground shrink-0">Height</ParamLabel>
           </div>
-        )}
+
+          {/* Scale slider */}
+          {effectiveSizeMode === "scale" && (
+            <ParamSlider
+              label="Scale"
+              tooltip="Multiplier applied to the input image size to compute the generation resolution."
+              keywords={["resize", "factor", "multiplier", "img2img"]}
+              value={scaleFactor}
+              onChange={setScaleFactor}
+              min={0.25}
+              max={2}
+              step={0.05}
+            />
+          )}
+
+          {/* Megapixel slider */}
+          {effectiveSizeMode === "megapixel" && (
+            <ParamSlider
+              label="Target"
+              tooltip="Target output size in megapixels. Aspect ratio is preserved from the input image."
+              keywords={["megapixel", "size", "resolution", "img2img"]}
+              value={megapixelTarget}
+              onChange={setMegapixelTarget}
+              min={0.25}
+              max={4}
+              step={0.05}
+            />
+          )}
+
+          {/* Resize method (shown when scale/megapixel active) */}
+          {!isFixed && (
+            <div className="flex items-center gap-2">
+              <ParamLabel className="text-2xs text-muted-foreground w-16 flex-shrink-0">
+                Resize
+              </ParamLabel>
+              <Combobox
+                value={resizeMethod}
+                onValueChange={setResizeMethod}
+                groups={upscalerGroups}
+                className="h-6 text-2xs flex-1"
+              />
+            </div>
+          )}
+
+          {/* Info line: frame size → generation size */}
+          {!isFixed && (
+            <div className="text-3xs text-muted-foreground text-center">
+              {state.width}&times;{state.height} &rarr; {genSize.width}&times;
+              {genSize.height}{" "}
+              <span className="opacity-70">
+                ({formatMegapixels(genSize.width, genSize.height)})
+              </span>
+            </div>
+          )}
+        </div>
       </SectionLeader>
 
       <SectionDivider />
