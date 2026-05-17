@@ -51,6 +51,47 @@ export interface ParamDescriptor {
   options?: string[];
 }
 
+/** Output-dimension domain of a cloud image model. Mirrors the Pydantic
+ * SizeConstraint discriminated union in sdnext's modules/cloud/protocol.py.
+ * Phase 2.5 contract; see SPEC §11.10.3 + §11.10.11 for schema rationale. */
+export interface SizeConstraintBase {
+  schema_version: number;
+  allow_auto: boolean;
+  auto_wire: "literal" | "omit" | "default" | null;
+  default: string | null;
+}
+
+/** Discrete WxH preset list. `options` never includes the literal "auto"
+ * string per SPEC §11.10.11 S1; auto support is signalled by `allow_auto`. */
+export interface SizeConstraintEnum extends SizeConstraintBase {
+  kind: "enum";
+  options: string[];
+}
+
+/** Symbolic-label sizing (e.g. "1k" / "2k" / "4k"). Wire requests carry the
+ * symbol (server resolves) per SPEC §11.10.11 A2; `resolve` is documentation
+ * for UI display so consumers can render "2k (~2048x2048)". */
+export interface SizeConstraintBucket extends SizeConstraintBase {
+  kind: "bucket";
+  options: string[];
+  resolve: Record<string, { w: number; h: number }>;
+}
+
+/** Continuous WxH with one or more bounds. Absent bounds are unconstrained.
+ * `align` may be a single int (both axes share alignment) or [width_align, height_align]. */
+export interface SizeConstraintFree extends SizeConstraintBase {
+  kind: "free";
+  min_pixel_count: number | null;
+  max_pixel_count: number | null;
+  min_longest_side: number | null;
+  max_longest_side: number | null;
+  aspect_ratio_min: number | null;
+  aspect_ratio_max: number | null;
+  align: number | [number, number] | null;
+}
+
+export type SizeConstraint = SizeConstraintEnum | SizeConstraintBucket | SizeConstraintFree;
+
 export type ImageFormat = "png" | "jpeg" | "webp";
 export type InputTransport = "multipart" | "base64";
 
@@ -73,6 +114,10 @@ export interface CloudModel {
   supported_params: ParamDescriptor[] | null;
   description: string | null;
   default_params: Record<string, unknown> | null;
+  /** Output-dimension constraint surfaced in Phase 2.5. Null on older sdnext
+   * builds or when the model's domain couldn't be codified (e.g. OpenRouter's
+   * size-ignored providers, AIHubMix's image catalog without a per-model API). */
+  size_constraint?: SizeConstraint | null;
 }
 
 export type LocalModel = SdModelV2 & { source: "local" };
