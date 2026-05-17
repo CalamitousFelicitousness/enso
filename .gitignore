@@ -37,6 +37,9 @@ cloud-providers.local.json
 # Working documents (local only)
 working-docs/
 
+# Work-in-progress design artifacts (mocks, sketches, scratch)
+wip/
+
 # MCP server (local dev tool)
 mcp/
 .playwright-mcp/
