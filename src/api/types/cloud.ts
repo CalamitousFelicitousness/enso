@@ -121,15 +121,16 @@ export interface CloudModel {
   /** Whether the model accepts more than one input image in a single request.
    * Capability advertisement only; workflow type is still determined by
    * image_via x modalities (per SPEC §11.11.5). Defaults to false on older
-   * sdnext builds. Populated by adapter.normalize_models() from either live
-   * extraction (NanoGPT's supported_parameters.max_images) or the curated
-   * multi_image_constraints.json. */
+   * sdnext builds. Populated by adapter.normalize_models() from the curated
+   * multi_image_constraints.json. (Live extraction of NanoGPT's
+   * supported_parameters.max_images was removed in sdnext c79dd3f23 - that
+   * field is the output-n cap, not the input-image cap; see SPEC §11.11.14.) */
   multi_image?: boolean;
   /** Cap on the number of input images. Null when no advertised limit. UI
    * uses it to gate the "+ Add" affordance once the filmstrip is full;
    * sdnext-side soft pre-flight (cloud_image_count_validation) is the
    * authoritative gate per SPEC §11.11.10 B7. */
-  max_images?: number | null;
+  max_input_images?: number | null;
 }
 
 export type LocalModel = SdModelV2 & { source: "local" };

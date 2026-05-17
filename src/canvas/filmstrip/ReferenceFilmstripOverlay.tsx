@@ -35,18 +35,19 @@ interface ReferenceFilmstripOverlayProps {
   frames: ReferenceFramePosition[];
   /** Display height for all slots (matches REFERENCE_HEIGHT in single-row mode). */
   height: number;
-  /** Cap from the active model (CloudModel.max_images). When set and
+  /** Cap from the active model (CloudModel.max_input_images). When set and
    * referenceInputs.length is at or above this number, the AddSlot is hidden
    * so the user can't pile on more refs than the provider will accept.
    * sdnext-side soft pre-flight (cloud_image_count_validation) is the
-   * authoritative gate per SPEC §11.11.10 B7. */
-  maxImages?: number | null;
+   * authoritative gate per SPEC §11.11.10 B7. Renamed from maxImages in
+   * sdnext c79dd3f23 to disambiguate from the output-n cap (SPEC §11.11.14). */
+  maxInputImages?: number | null;
 }
 
 export function ReferenceFilmstripOverlay({
   frames,
   height,
-  maxImages,
+  maxInputImages,
 }: ReferenceFilmstripOverlayProps) {
   const referenceInputs = useCanvasStore((s) => s.referenceInputs);
   const appendReferenceInput = useCanvasStore((s) => s.appendReferenceInput);
@@ -158,7 +159,7 @@ export function ReferenceFilmstripOverlay({
   // Position the AddSlot just past the last frame's right edge.
   const lastFrame = frames[frames.length - 1];
   const addSlotX = lastFrame.x + lastFrame.displayW + FILMSTRIP_SLOT_GAP;
-  const atCapacity = maxImages != null && referenceInputs.length >= maxImages;
+  const atCapacity = maxInputImages != null && referenceInputs.length >= maxInputImages;
 
   const slotIds = referenceInputs.map((r) => r.id);
 

@@ -338,7 +338,7 @@ export const CanvasView = memo(function CanvasView() {
           <ReferenceFilmstripOverlay
             frames={layout.referenceFrames}
             height={layout.displayH}
-            maxImages={capabilities.maxImages}
+            maxInputImages={capabilities.maxInputImages}
           />
         )}
       </div>
