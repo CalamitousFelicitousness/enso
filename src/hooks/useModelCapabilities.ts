@@ -34,8 +34,10 @@ export interface ModelCapabilities {
   showTab: (tabId: string) => boolean;
   /** Cap on input image count for the active model. Null when no advertised
    * limit. Filmstrip uses it to disable the AddSlot once at capacity. Lives
-   * outside ModelSupports because it's not a boolean. */
-  maxImages: number | null;
+   * outside ModelSupports because it's not a boolean. Mirrors
+   * CloudModel.max_input_images on the wire (renamed in sdnext c79dd3f23
+   * to disambiguate from NanoGPT's output-n cap). */
+  maxInputImages: number | null;
 }
 
 const LOCAL_SUPPORTS: ModelSupports = {
@@ -104,7 +106,7 @@ export function useModelCapabilities(): ModelCapabilities {
           const flag = TAB_TO_FLAG[tabId];
           return flag === undefined || flag === "always" || LOCAL_SUPPORTS[flag];
         },
-        maxImages: null,
+        maxInputImages: null,
       };
     }
     if (model.source === "local-video") {
@@ -116,7 +118,7 @@ export function useModelCapabilities(): ModelCapabilities {
         // via the "always" flag. Local-video models drive their own panel
         // and never reach the Images-side sub-tab gating in practice.
         showTab: (tabId: string) => TAB_TO_FLAG[tabId] === "always",
-        maxImages: null,
+        maxInputImages: null,
       };
     }
     const caps = model.capabilities;
@@ -150,7 +152,7 @@ export function useModelCapabilities(): ModelCapabilities {
         if (flag === undefined || flag === "always") return true;
         return supports[flag];
       },
-      maxImages: model.max_images ?? null,
+      maxInputImages: model.max_input_images ?? null,
     };
   }, [model]);
 }
