@@ -3,6 +3,7 @@ import { useControlStore } from "@/stores/controlStore";
 import { useGenerationStore } from "@/stores/generationStore";
 import { useUiStore } from "@/stores/uiStore";
 import { useCanvasStore } from "@/stores/canvasStore";
+import type { ImageLayer } from "@/stores/canvasStore";
 import { useImg2ImgStore } from "@/stores/img2imgStore";
 import { resolveGenerationSize } from "@/lib/sizeCompute";
 
@@ -44,9 +45,17 @@ export interface CanvasLayout {
   genSize: { width: number; height: number };
   /** Factor to convert pixel coords → display coords: displayCoord = pixelCoord * displayScale */
   displayScale: number;
-  /** Main frame dimensions in display units */
+  /** Main (output) frame dimensions in display units */
   displayW: number;
   displayH: number;
+  /** Input frame dimensions in pixel space. Equals gen.width/height in Initial
+   * mode; equals the source image's natural dims in Reference mode (since the
+   * image is sent at native resolution, not flattened to the frame). */
+  inputFrameW: number;
+  inputFrameH: number;
+  /** Input frame dimensions in display units (inputFrameW/H * displayScale). */
+  inputDisplayW: number;
+  inputDisplayH: number;
 }
 
 export function useControlFrameLayout(): CanvasLayout {
@@ -54,7 +63,9 @@ export function useControlFrameLayout(): CanvasLayout {
   const compositeProcessed = useControlStore((s) => s.compositeProcessed);
   const frameW = useGenerationStore((s) => s.width);
   const frameH = useGenerationStore((s) => s.height);
-  const hasLayers = useCanvasStore((s) => s.layers.length > 0);
+  const layers = useCanvasStore((s) => s.layers);
+  const inputRole = useCanvasStore((s) => s.inputRole);
+  const hasLayers = layers.length > 0;
   const autoFitFrame = useUiStore((s) => s.autoFitFrame);
   const sizeMode = useImg2ImgStore((s) => s.sizeMode);
   const scaleFactor = useImg2ImgStore((s) => s.scaleFactor);
@@ -77,9 +88,19 @@ export function useControlFrameLayout(): CanvasLayout {
     const dw = frameW * ds;
     const dh = REFERENCE_HEIGHT;
 
+    // In Reference mode the image is sent at native resolution, so the input
+    // frame represents the source image rather than the generation target.
+    // Initial mode keeps the input frame at gen dims (WYSIWYG flatten target).
+    const firstImage = layers.find((l): l is ImageLayer => l.type === "image" && l.visible) ?? null;
+    const isReferenceMode = inputRole === "reference" && firstImage !== null;
+    const inputFrameW = isReferenceMode ? firstImage.naturalWidth : frameW;
+    const inputFrameH = isReferenceMode ? firstImage.naturalHeight : frameH;
+    const inputDisplayW = inputFrameW * ds;
+    const inputDisplayH = inputFrameH * ds;
+
     // Input frame always visible - always at x=0 (display units)
     const inputX = 0;
-    const outputX = dw + FRAME_GAP;
+    const outputX = inputDisplayW + FRAME_GAP;
 
     // Processed composite frame: visible when backend composite or any per-unit processedImage exists
     const hasAnyProcessed =
@@ -131,7 +152,7 @@ export function useControlFrameLayout(): CanvasLayout {
     const minX = controlFrames.length > 0 ? controlFrames[controlFrames.length - 1].x : 0;
 
     // maxY: account for per-frame height + stacked processed slots (display units)
-    let maxY = dh;
+    let maxY = Math.max(dh, inputDisplayH);
     for (const f of controlFrames) {
       const activeSlots = f.processedSlots.filter((s) => s.hasProcessed).length;
       const frameMaxY = f.height + activeSlots * (ELEMENT_GAP + PROCESSED_HEADER_HEIGHT + f.height);
@@ -150,12 +171,18 @@ export function useControlFrameLayout(): CanvasLayout {
       displayScale: ds,
       displayW: dw,
       displayH: dh,
+      inputFrameW,
+      inputFrameH,
+      inputDisplayW,
+      inputDisplayH,
     };
   }, [
     units,
     compositeProcessed,
     frameW,
     frameH,
+    layers,
+    inputRole,
     hasLayers,
     autoFitFrame,
     sizeMode,

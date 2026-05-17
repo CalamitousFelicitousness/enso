@@ -27,9 +27,17 @@ export function CompositeLayer({ trRef, displayScale }: CompositeLayerProps) {
   const activeTool = useCanvasStore((s) => s.activeTool);
   const updateLayer = useCanvasStore((s) => s.updateLayer);
   const setActiveLayer = useCanvasStore((s) => s.setActiveLayer);
+  const inputRole = useCanvasStore((s) => s.inputRole);
   const frameW = useGenerationStore((s) => s.width);
   const frameH = useGenerationStore((s) => s.height);
   const snap = useSnap(frameW, frameH, trRef, 0, 0, displayScale);
+
+  // In Reference mode the source file is sent at native resolution and canvas
+  // transforms (position, scale, rotation) are not applied to the request.
+  // Render image layers at identity so the visual representation matches what
+  // ships on the wire. Persisted transforms stay in the store and are
+  // restored when the toggle flips back to Initial.
+  const isReferenceMode = inputRole === "reference";
 
   const maskVisible = useCanvasStore((s) => s.maskVisible);
   const maskColor = useCanvasStore((s) => s.maskColor);
@@ -73,7 +81,9 @@ export function CompositeLayer({ trRef, displayScale }: CompositeLayerProps) {
   // Attach transformer to active layer node (image or unlocked mask)
   useEffect(() => {
     if (!trRef.current) return;
-    if (activeLayerId && activeTool === "move") {
+    // Reference mode locks all image transforms; suppress the Transformer
+    // attachment so the move tool can't grab the active image's handles.
+    if (activeLayerId && activeTool === "move" && !isReferenceMode) {
       const activeLayer = layers.find((l) => l.id === activeLayerId);
       // Only attach transformer to unlocked layers
       if (activeLayer && !activeLayer.locked) {
@@ -87,7 +97,7 @@ export function CompositeLayer({ trRef, displayScale }: CompositeLayerProps) {
     }
     trRef.current.nodes([]);
     trRef.current.getLayer()?.batchDraw();
-  }, [activeLayerId, activeTool, trRef, layers]);
+  }, [activeLayerId, activeTool, trRef, layers, isReferenceMode]);
 
   const handleDragEnd = useCallback(
     (layerId: string, e: Konva.KonvaEventObject<DragEvent>) => {
@@ -141,14 +151,14 @@ export function CompositeLayer({ trRef, displayScale }: CompositeLayerProps) {
             key={layer.id}
             ref={(node) => setNodeRef(layer.id, node)}
             image={imageMap.current.get(layer.id)}
-            x={layer.x}
-            y={layer.y}
-            scaleX={layer.scaleX}
-            scaleY={layer.scaleY}
-            rotation={layer.rotation}
+            x={isReferenceMode ? 0 : layer.x}
+            y={isReferenceMode ? 0 : layer.y}
+            scaleX={isReferenceMode ? 1 : layer.scaleX}
+            scaleY={isReferenceMode ? 1 : layer.scaleY}
+            rotation={isReferenceMode ? 0 : layer.rotation}
             opacity={layer.opacity}
             visible={layer.visible}
-            draggable={activeTool === "move" && !layer.locked}
+            draggable={activeTool === "move" && !layer.locked && !isReferenceMode}
             onDragMove={snap.handleDragMove}
             onDragEnd={(e) => handleDragEnd(layer.id, e)}
             onTransformEnd={(e) => handleTransformEnd(layer.id, e)}
