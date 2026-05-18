@@ -4,7 +4,7 @@
 // transforms, or viewport. All compositing happens here on the client.
 //
 // IMPORTANT: The layer transform math here (translate, rotate, scale per layer) must
-// match the display rendering in CompositeLayer.tsx (Konva scene graph). Both codepaths
+// match the display rendering in InputFrameLayer.tsx (Konva scene graph). Both codepaths
 // independently implement the same transforms. Changes to one must update the other.
 
 import type { ImageLayer } from "@/stores/canvasStore";
