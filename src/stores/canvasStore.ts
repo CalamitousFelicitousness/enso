@@ -101,8 +101,6 @@ interface ViewportState {
 
 interface CanvasState {
   viewport: ViewportState;
-  layers: CanvasLayer[];
-  activeLayerId: string | null;
   activeTool: ToolType;
   brushSize: number;
   brushHardness: number;
@@ -111,60 +109,22 @@ interface CanvasState {
   selection: { x: number; y: number; width: number; height: number } | null;
   maskVisible: boolean;
   maskColor: string;
-  inputRole: "initial" | "reference";
   selectedControlFrame: number | null;
   /** Per-panel collapse override map, keyed by FrameId string. Keys take
    * the form `input:${uuid}` for Input frames, `"output"` for the Output
-   * panel, and `\`control:${unitIndex}\`` for ControlNet units. Phase 9
-   * Step 3 migrated this from numeric keys; the v1->v2 migration rebuilds
-   * the map's contents from any persisted numeric entries. */
+   * panel, and `\`control:${unitIndex}\`` for ControlNet units. */
   panelCollapsedOverrides: Map<string, boolean>;
   canvasMode: "focus" | "canvas";
   focusedFrameId: FrameId | null;
   focusFitTrigger: number;
   modeLocked: boolean;
-  /** Ordered list of reference images for multi-image cloud workflows.
-   * Index in the array is wire order. Used in Reference mode in place of
-   * the layer-stack-flatten path. Persisted to IndexedDB. */
-  referenceInputs: ReferenceInput[];
-  /** Ephemeral drag state for the filmstrip. Not persisted. */
-  draggingReferenceId: string | null;
-  dropTargetReferenceId: string | null;
-  dropInsertIndex: number | null;
 
-  setInputRole: (role: "initial" | "reference") => void;
-  appendReferenceInput: (
-    file: File,
-    base64: string,
-    objectUrl: string,
-    w: number,
-    h: number,
-  ) => void;
-  replaceReferenceInput: (
-    id: string,
-    file: File,
-    base64: string,
-    objectUrl: string,
-    w: number,
-    h: number,
-  ) => void;
-  removeReferenceInput: (id: string) => void;
-  reorderReferenceInput: (fromIndex: number, toIndex: number) => void;
-  setDraggingReference: (id: string | null) => void;
-  setDropTargetReference: (id: string | null) => void;
-  setDropInsertIndex: (index: number | null) => void;
-  clearReferenceInputs: () => void;
   setViewport: (viewport: Partial<ViewportState>) => void;
   setCanvasMode: (mode: "focus" | "canvas") => void;
   setFocusedFrame: (id: FrameId) => void;
   switchToCanvasMode: () => void;
   bumpFocusFitTrigger: () => void;
   setModeLocked: (locked: boolean) => void;
-  addLayer: (layer: CanvasLayer) => void;
-  addImageLayer: (file: File, base64: string, objectUrl: string, w: number, h: number) => void;
-  removeLayer: (id: string) => void;
-  updateLayer: (id: string, updates: Partial<CanvasLayer>) => void;
-  setActiveLayer: (id: string | null) => void;
   setActiveTool: (tool: ToolType) => void;
   setBrushSize: (size: number) => void;
   setBrushColor: (color: string) => void;
@@ -174,19 +134,11 @@ interface CanvasState {
   setMaskColor: (color: string) => void;
   setSelectedControlFrame: (index: number | null) => void;
   togglePanelCollapsed: (key: string, currentCollapsed: boolean) => void;
-  clearLayers: () => void;
-  restoreImageLayer: (base64: string, w: number, h: number) => void;
-  getImageLayers: () => ImageLayer[];
-  getMaskLayers: () => MaskObjectLayer[];
-  replaceMaskLayers: (newLayers: MaskObjectLayer[]) => void;
-  removeMaskLayers: () => void;
 
-  // ── Phase 2: per-Input-frame state ──────────────────────────────────────
-  // The new multi-Input-frame surface. Lives in parallel with the singular
-  // fields above (inputRole, layers, referenceInputs) until Phase 9 deletes
-  // the legacy surface. New code (InputFrameLayer, InputFramePanel, the
-  // refactored wire builder) uses these per-frame mutations; legacy code
-  // continues to read the singular fields.
+  // ── Per-Input-frame state ────────────────────────────────────────────
+  // The multi-Input-frame surface. Each frame carries its own layers,
+  // activeLayerId, mask state, and references. Mutations are scoped per
+  // frame; there is no global "current layer" or "current mask" concept.
 
   inputFrames: InputFrame[];
   activeInputFrameId: string | null;
@@ -200,10 +152,7 @@ interface CanvasState {
   setActiveInputFrame: (frameId: string | null) => void;
   setFrameMode: (frameId: string, mode: InputFrameMode) => void;
 
-  // Per-frame layer mutations (scoped variants of the singular versions
-  // above). Naming uses ToFrame/InFrame/FromFrame suffix during the
-  // transition so both surfaces can coexist; Phase 9 drops the legacy ones
-  // and (optionally) renames these to the bare names.
+  // Per-frame layer mutations
   addImageLayerToFrame: (
     frameId: string,
     file: File,
@@ -278,13 +227,13 @@ interface PersistedInputFrame {
   references: ReferenceInput[];
 }
 
-/** Serializable snapshot of canvas state stored in IndexedDB. */
+/** Serializable snapshot of canvas state stored in IndexedDB. The v2 shape
+ * after Phase 9 Step 12 - legacy singular fields (layers, activeLayerId,
+ * inputRole, referenceInputs) retire here; all input-side content lives
+ * inside inputFrames. */
 interface PersistedCanvasState {
   viewport: ViewportState;
-  layers: CanvasLayer[];
-  activeLayerId: string | null;
   activeTool: ToolType;
-  inputRole: "initial" | "reference";
   brushSize: number;
   brushHardness: number;
   brushColor: string;
@@ -295,8 +244,6 @@ interface PersistedCanvasState {
   canvasMode: "focus" | "canvas";
   focusedFrameId: FrameId | null;
   modeLocked: boolean;
-  referenceInputs: ReferenceInput[];
-  // Phase 2 additions
   inputFrames: PersistedInputFrame[];
   activeInputFrameId: string | null;
 }
@@ -431,15 +378,17 @@ function withFrame(
  *
  * Exported for testability: a snapshot of a v0 IDB blob can be replayed
  * through this function in isolation. */
-export function migrateCanvasV0toV1(v0: unknown): PersistedCanvasState {
+/** v0 -> v1 migration. Pre-Phase-3 blobs had singular `layers`,
+ * `inputRole`, `referenceInputs` fields that drove input rendering;
+ * v1 seeds a single InputFrame from those fields and v1->v2 strips
+ * them. Returns the intermediate v1 shape as unknown - it carries the
+ * legacy keys that v1->v2 will discard, plus the new inputFrames key
+ * that v1->v2 will pass through. */
+export function migrateCanvasV0toV1(v0: unknown): unknown {
   if (!v0 || typeof v0 !== "object") {
-    // Defensive: no usable persisted state, produce a fresh v1 default.
     return {
       viewport: { x: 0, y: 0, scale: 1 },
-      layers: [],
-      activeLayerId: null,
       activeTool: "move",
-      inputRole: "initial",
       brushSize: 20,
       brushHardness: 0.8,
       brushColor: "#ffffff",
@@ -450,22 +399,21 @@ export function migrateCanvasV0toV1(v0: unknown): PersistedCanvasState {
       canvasMode: "focus",
       focusedFrameId: null,
       modeLocked: false,
-      referenceInputs: [],
       inputFrames: [],
       activeInputFrameId: null,
     };
   }
 
-  const state = v0 as Partial<PersistedCanvasState>;
-  // Already migrated - pass through.
-  if (state.inputFrames !== undefined) {
-    return state as PersistedCanvasState;
+  const state = v0 as Record<string, unknown>;
+  if (state["inputFrames"] !== undefined) {
+    // Already at v1 (or later) shape.
+    return state;
   }
 
   const seedFrameId = crypto.randomUUID();
-  const layers = state.layers ?? [];
-  const referenceInputs = state.referenceInputs ?? [];
-  const inputRole = state.inputRole ?? "initial";
+  const layers = (state["layers"] as CanvasLayer[] | undefined) ?? [];
+  const referenceInputs = (state["referenceInputs"] as ReferenceInput[] | undefined) ?? [];
+  const inputRole = (state["inputRole"] as "initial" | "reference" | undefined) ?? "initial";
 
   let seedFrame: PersistedInputFrame;
   if (inputRole === "initial") {
@@ -473,7 +421,7 @@ export function migrateCanvasV0toV1(v0: unknown): PersistedCanvasState {
       id: seedFrameId,
       mode: "initial",
       layers,
-      activeLayerId: state.activeLayerId ?? null,
+      activeLayerId: (state["activeLayerId"] as string | null | undefined) ?? null,
       maskLines: [],
       maskData: null,
       references: [],
@@ -489,8 +437,6 @@ export function migrateCanvasV0toV1(v0: unknown): PersistedCanvasState {
       references: referenceInputs,
     };
   } else {
-    // Reference mode without persisted refs - seed from first visible
-    // ImageLayer if one exists; otherwise leave references empty.
     const firstImage = layers.find(
       (l): l is ImageLayer => l.type === "image" && (l as ImageLayer).visible,
     );
@@ -498,8 +444,6 @@ export function migrateCanvasV0toV1(v0: unknown): PersistedCanvasState {
       ? [
           {
             id: crypto.randomUUID(),
-            // file + imageData are left blank here; the merge step's
-            // rehydrateReferenceInput reconstructs both from base64.
             file: undefined as unknown as File,
             base64: firstImage.base64,
             imageData: "",
@@ -521,27 +465,61 @@ export function migrateCanvasV0toV1(v0: unknown): PersistedCanvasState {
   }
 
   return {
-    viewport: state.viewport ?? { x: 0, y: 0, scale: 1 },
-    layers,
-    activeLayerId: state.activeLayerId ?? null,
-    activeTool: state.activeTool ?? "move",
-    inputRole,
-    brushSize: state.brushSize ?? 20,
-    brushHardness: state.brushHardness ?? 0.8,
-    brushColor: state.brushColor ?? "#ffffff",
-    brushOpacity: state.brushOpacity ?? 1,
-    maskVisible: state.maskVisible ?? true,
-    maskColor: state.maskColor ?? "#ff000080",
+    viewport: state["viewport"] ?? { x: 0, y: 0, scale: 1 },
+    activeTool: state["activeTool"] ?? "move",
+    brushSize: state["brushSize"] ?? 20,
+    brushHardness: state["brushHardness"] ?? 0.8,
+    brushColor: state["brushColor"] ?? "#ffffff",
+    brushOpacity: state["brushOpacity"] ?? 1,
+    maskVisible: state["maskVisible"] ?? true,
+    maskColor: state["maskColor"] ?? "#ff000080",
     panelCollapsedOverrides: rekeyPanelCollapsedOverrides(
-      state.panelCollapsedOverrides,
+      state["panelCollapsedOverrides"] as ReadonlyArray<readonly [unknown, boolean]> | undefined,
       seedFrameId,
     ),
-    canvasMode: state.canvasMode ?? "focus",
-    focusedFrameId: state.focusedFrameId ?? null,
-    modeLocked: state.modeLocked ?? false,
-    referenceInputs,
+    canvasMode: state["canvasMode"] ?? "focus",
+    focusedFrameId: state["focusedFrameId"] ?? null,
+    modeLocked: state["modeLocked"] ?? false,
     inputFrames: [seedFrame],
     activeInputFrameId: seedFrameId,
+  };
+}
+
+/** v1 -> v2 migration. Strips the now-unused legacy fields if present,
+ * and rewrites the transitional `focusedFrameId: "input"` literal to
+ * `\`input:${first frame's id}\`` so the FrameId union can drop the
+ * bare `"input"` value. */
+export function migrateCanvasV1toV2(v1: unknown): PersistedCanvasState {
+  const state = (v1 as Record<string, unknown>) ?? {};
+  const inputFrames = (state["inputFrames"] as PersistedInputFrame[] | undefined) ?? [];
+  const firstFrameId = inputFrames[0]?.id ?? null;
+
+  // Read as unknown first so we can match the now-retired bare `"input"`
+  // literal that v1 blobs may have stored as the focusedFrameId.
+  const rawFocused = state["focusedFrameId"];
+  let focusedFrameId: FrameId | null;
+  if (rawFocused === "input") {
+    focusedFrameId = firstFrameId ? `input:${firstFrameId}` : null;
+  } else {
+    focusedFrameId = (rawFocused as FrameId | null | undefined) ?? null;
+  }
+
+  return {
+    viewport: (state["viewport"] as ViewportState | undefined) ?? { x: 0, y: 0, scale: 1 },
+    activeTool: (state["activeTool"] as ToolType | undefined) ?? "move",
+    brushSize: (state["brushSize"] as number | undefined) ?? 20,
+    brushHardness: (state["brushHardness"] as number | undefined) ?? 0.8,
+    brushColor: (state["brushColor"] as string | undefined) ?? "#ffffff",
+    brushOpacity: (state["brushOpacity"] as number | undefined) ?? 1,
+    maskVisible: (state["maskVisible"] as boolean | undefined) ?? true,
+    maskColor: (state["maskColor"] as string | undefined) ?? "#ff000080",
+    panelCollapsedOverrides:
+      (state["panelCollapsedOverrides"] as [string, boolean][] | undefined) ?? [],
+    canvasMode: (state["canvasMode"] as "focus" | "canvas" | undefined) ?? "focus",
+    focusedFrameId,
+    modeLocked: (state["modeLocked"] as boolean | undefined) ?? false,
+    inputFrames,
+    activeInputFrameId: (state["activeInputFrameId"] as string | null | undefined) ?? null,
   };
 }
 
@@ -557,8 +535,6 @@ export const useCanvasStore = create<CanvasState>()(
   persist(
     (set, get) => ({
       viewport: { x: 0, y: 0, scale: 1 },
-      layers: [],
-      activeLayerId: null,
       activeTool: "move",
       brushSize: 20,
       brushHardness: 0.8,
@@ -567,131 +543,17 @@ export const useCanvasStore = create<CanvasState>()(
       selection: null,
       maskVisible: true,
       maskColor: "#ff000080",
-      inputRole: "initial",
       selectedControlFrame: null,
       panelCollapsedOverrides: new Map<string, boolean>(),
       canvasMode: "focus",
       focusedFrameId: null,
       focusFitTrigger: 0,
       modeLocked: false,
-      referenceInputs: [],
-      draggingReferenceId: null,
-      dropTargetReferenceId: null,
-      dropInsertIndex: null,
       inputFrames: [seedFrame],
       activeInputFrameId: seedFrame.id,
       filmstripDrag: new Map<string, FilmstripDragState>(),
       inputFrameDrag: null,
 
-      setInputRole: (role) =>
-        set((s) => {
-          // Auto-migrate the user's current canvas image into referenceInputs
-          // the first time they enter Reference mode with a populated layer
-          // stack but an empty filmstrip. Picks the first visible ImageLayer
-          // so the wire order matches "the image I had in front of me." The
-          // original layer stays in `layers` - both representations coexist
-          // and the layer is what the user sees if they toggle back to
-          // Initial. A fresh objectUrl is created for the reference so
-          // removeReferenceInput can safely revokeObjectURL without
-          // affecting the layer's display.
-          if (role === "reference" && s.referenceInputs.length === 0) {
-            const firstImage = s.layers.find(
-              (l): l is ImageLayer => l.type === "image" && l.visible,
-            );
-            if (firstImage) {
-              const seedRef: ReferenceInput = {
-                id: crypto.randomUUID(),
-                file: firstImage.file,
-                base64: firstImage.base64,
-                imageData: URL.createObjectURL(firstImage.file),
-                naturalWidth: firstImage.naturalWidth,
-                naturalHeight: firstImage.naturalHeight,
-                filename: firstImage.name || firstImage.file.name || "image.png",
-              };
-              return { inputRole: role, referenceInputs: [seedRef] };
-            }
-          }
-          return { inputRole: role };
-        }),
-
-      appendReferenceInput: (file, base64, objectUrl, w, h) => {
-        const ref: ReferenceInput = {
-          id: crypto.randomUUID(),
-          file,
-          base64,
-          imageData: objectUrl,
-          naturalWidth: w,
-          naturalHeight: h,
-          filename: file.name,
-        };
-        set((s) => ({ referenceInputs: [...s.referenceInputs, ref] }));
-      },
-
-      replaceReferenceInput: (id, file, base64, objectUrl, w, h) => {
-        set((s) => ({
-          referenceInputs: s.referenceInputs.map((ref) => {
-            if (ref.id !== id) return ref;
-            URL.revokeObjectURL(ref.imageData);
-            return {
-              ...ref,
-              file,
-              base64,
-              imageData: objectUrl,
-              naturalWidth: w,
-              naturalHeight: h,
-              filename: file.name,
-            };
-          }),
-        }));
-      },
-
-      removeReferenceInput: (id) => {
-        set((s) => {
-          const target = s.referenceInputs.find((r) => r.id === id);
-          if (target) URL.revokeObjectURL(target.imageData);
-          return {
-            referenceInputs: s.referenceInputs.filter((r) => r.id !== id),
-            draggingReferenceId: s.draggingReferenceId === id ? null : s.draggingReferenceId,
-            dropTargetReferenceId: s.dropTargetReferenceId === id ? null : s.dropTargetReferenceId,
-          };
-        });
-      },
-
-      reorderReferenceInput: (fromIndex, toIndex) => {
-        set((s) => {
-          const next = s.referenceInputs.slice();
-          if (
-            fromIndex < 0 ||
-            fromIndex >= next.length ||
-            toIndex < 0 ||
-            toIndex > next.length ||
-            fromIndex === toIndex
-          ) {
-            return s;
-          }
-          const [moved] = next.splice(fromIndex, 1);
-          // toIndex was computed before the splice; account for the shift when
-          // moving forward in the array.
-          const insertAt = toIndex > fromIndex ? toIndex - 1 : toIndex;
-          next.splice(insertAt, 0, moved);
-          return { referenceInputs: next };
-        });
-      },
-
-      setDraggingReference: (id) => set({ draggingReferenceId: id }),
-      setDropTargetReference: (id) => set({ dropTargetReferenceId: id }),
-      setDropInsertIndex: (index) => set({ dropInsertIndex: index }),
-
-      clearReferenceInputs: () => {
-        const { referenceInputs } = get();
-        for (const ref of referenceInputs) URL.revokeObjectURL(ref.imageData);
-        set({
-          referenceInputs: [],
-          draggingReferenceId: null,
-          dropTargetReferenceId: null,
-          dropInsertIndex: null,
-        });
-      },
       setCanvasMode: (mode) =>
         set((s) => ({
           canvasMode: mode,
@@ -704,67 +566,6 @@ export const useCanvasStore = create<CanvasState>()(
       setModeLocked: (locked) => set({ modeLocked: locked }),
       setViewport: (viewport) => set((s) => ({ viewport: { ...s.viewport, ...viewport } })),
 
-      addLayer: (layer) => set((s) => ({ layers: [...s.layers, layer] })),
-
-      addImageLayer: (file, base64, objectUrl, w, h) => {
-        const gen = useGenerationStore.getState();
-        const { layers } = get();
-
-        // Auto-resize frame to match first image (snap to 8px grid)
-        const autoFit = useUiStore.getState().autoFitFrame;
-        if (layers.length === 0 && autoFit) {
-          const snapW = Math.round(w / 8) * 8;
-          const snapH = Math.round(h / 8) * 8;
-          gen.setParam("width", snapW);
-          gen.setParam("height", snapH);
-        }
-
-        // Use (potentially just-updated) frame dimensions for centering
-        const frameW = layers.length === 0 && autoFit ? Math.round(w / 8) * 8 : gen.width;
-        const frameH = layers.length === 0 && autoFit ? Math.round(h / 8) * 8 : gen.height;
-
-        const id = crypto.randomUUID();
-        const layer: ImageLayer = {
-          id,
-          type: "image",
-          name: file.name,
-          visible: true,
-          opacity: 1,
-          locked: false,
-          imageData: objectUrl,
-          base64,
-          file,
-          naturalWidth: w,
-          naturalHeight: h,
-          x: Math.round((frameW - w) / 2),
-          y: Math.round((frameH - h) / 2),
-          width: w,
-          height: h,
-          rotation: 0,
-          scaleX: 1,
-          scaleY: 1,
-        };
-        set((s) => ({ layers: [...s.layers, layer], activeLayerId: id }));
-      },
-
-      removeLayer: (id) =>
-        set((s) => {
-          const layer = s.layers.find((l) => l.id === id);
-          if (layer && (layer.type === "image" || layer.type === "mask")) {
-            URL.revokeObjectURL((layer as ImageLayer | MaskObjectLayer).imageData);
-          }
-          return {
-            layers: s.layers.filter((l) => l.id !== id),
-            activeLayerId: s.activeLayerId === id ? null : s.activeLayerId,
-          };
-        }),
-
-      updateLayer: (id, updates) =>
-        set((s) => ({
-          layers: s.layers.map((l) => (l.id === id ? { ...l, ...updates } : l)),
-        })),
-
-      setActiveLayer: (id) => set({ activeLayerId: id }),
       setActiveTool: (tool) => set({ activeTool: tool }),
       setBrushSize: (size) => set({ brushSize: size }),
       setBrushColor: (color) => set({ brushColor: color }),
@@ -781,79 +582,7 @@ export const useCanvasStore = create<CanvasState>()(
           return { panelCollapsedOverrides: newMap };
         }),
 
-      clearLayers: () => {
-        const { layers } = get();
-        for (const layer of layers) {
-          if (layer.type === "image" || layer.type === "mask") {
-            URL.revokeObjectURL((layer as ImageLayer | MaskObjectLayer).imageData);
-          }
-        }
-        set({ layers: [], activeLayerId: null });
-      },
-
-      restoreImageLayer: (base64, w, h) => {
-        // Clear existing layers first
-        const { layers } = get();
-        for (const layer of layers) {
-          if (layer.type === "image") {
-            URL.revokeObjectURL((layer as ImageLayer).imageData);
-          }
-        }
-        const blob = base64ToBlob(base64);
-        const objectUrl = URL.createObjectURL(blob);
-        const id = crypto.randomUUID();
-        const layer: ImageLayer = {
-          id,
-          type: "image",
-          name: "Restored input",
-          visible: true,
-          opacity: 1,
-          locked: false,
-          imageData: objectUrl,
-          base64,
-          file: new File([blob], "restored.png", { type: "image/png" }),
-          naturalWidth: w,
-          naturalHeight: h,
-          x: 0,
-          y: 0,
-          width: w,
-          height: h,
-          rotation: 0,
-          scaleX: 1,
-          scaleY: 1,
-        };
-        set({ layers: [layer], activeLayerId: id });
-      },
-
-      getImageLayers: () => get().layers.filter((l) => l.type === "image") as ImageLayer[],
-
-      getMaskLayers: () => get().layers.filter((l) => l.type === "mask") as MaskObjectLayer[],
-
-      replaceMaskLayers: (newLayers) => {
-        const { layers } = get();
-        for (const l of layers) {
-          if (l.type === "mask") URL.revokeObjectURL((l as MaskObjectLayer).imageData);
-        }
-        set((s) => ({
-          layers: [...s.layers.filter((l) => l.type !== "mask"), ...newLayers],
-        }));
-      },
-
-      removeMaskLayers: () => {
-        const { layers } = get();
-        for (const l of layers) {
-          if (l.type === "mask") URL.revokeObjectURL((l as MaskObjectLayer).imageData);
-        }
-        set((s) => ({
-          layers: s.layers.filter((l) => l.type !== "mask"),
-          activeLayerId:
-            s.activeLayerId && s.layers.find((l) => l.id === s.activeLayerId)?.type === "mask"
-              ? null
-              : s.activeLayerId,
-        }));
-      },
-
-      // ── Phase 2: per-Input-frame mutations ────────────────────────────
+      // ── Per-Input-frame mutations ─────────────────────────────────────
 
       addInputFrame: (opts = {}) => {
         const mode: InputFrameMode = opts.mode ?? "initial";
@@ -1355,31 +1084,21 @@ export const useCanvasStore = create<CanvasState>()(
     {
       name: "enso-canvas",
       storage: createJSONStorage(() => canvasIdbStorage),
-      version: 1,
+      version: 2,
       migrate: (persistedState, fromVersion) => {
         // Persist middleware fires migrate only when fromVersion <
-        // config.version. Pre-Phase-3 blobs have no version field and are
-        // treated as version 0; this branch derives inputFrames from the
-        // singular legacy fields. Future migrations chain via additional
-        // version checks here.
-        if (fromVersion < 1) return migrateCanvasV0toV1(persistedState);
-        return persistedState;
+        // config.version. v0 is the pre-Phase-3 shape with singular
+        // `layers`/`inputRole`/`referenceInputs`; v1 seeded inputFrames
+        // from those and kept the singular fields. v2 (Phase 9 Step 12)
+        // strips the singular fields and rewrites `focusedFrameId: "input"`
+        // to `\`input:${first frame's id}\``.
+        let state = persistedState;
+        if (fromVersion < 1) state = migrateCanvasV0toV1(state);
+        if (fromVersion < 2) state = migrateCanvasV1toV2(state);
+        return state;
       },
       partialize: (state): PersistedCanvasState => ({
         viewport: state.viewport,
-        inputRole: state.inputRole,
-        layers: state.layers.map((layer) => {
-          if (layer.type === "image") {
-            const { file: _file, imageData: _url, ...rest } = layer as ImageLayer;
-            return { ...rest, imageData: "", file: undefined } as unknown as CanvasLayer;
-          }
-          if (layer.type === "mask") {
-            const { imageData: _url, ...rest } = layer as MaskObjectLayer;
-            return { ...rest, imageData: "" } as unknown as CanvasLayer;
-          }
-          return layer;
-        }),
-        activeLayerId: state.activeLayerId,
         activeTool: state.activeTool,
         brushSize: state.brushSize,
         brushHardness: state.brushHardness,
@@ -1391,12 +1110,6 @@ export const useCanvasStore = create<CanvasState>()(
         canvasMode: state.canvasMode,
         focusedFrameId: state.focusedFrameId,
         modeLocked: state.modeLocked,
-        referenceInputs: state.referenceInputs.map((ref) => {
-          // Strip File + object URL for storage; base64 + dims + filename
-          // are enough to rehydrate on next load.
-          const { file: _file, imageData: _url, ...rest } = ref;
-          return { ...rest, imageData: "", file: undefined } as unknown as ReferenceInput;
-        }),
         inputFrames: state.inputFrames.map((frame) => ({
           id: frame.id,
           mode: frame.mode,
@@ -1414,9 +1127,7 @@ export const useCanvasStore = create<CanvasState>()(
         return {
           ...current,
           viewport: saved.viewport ?? current.viewport,
-          activeLayerId: saved.activeLayerId ?? current.activeLayerId,
           activeTool: saved.activeTool ?? current.activeTool,
-          inputRole: saved.inputRole ?? "initial",
           brushSize: saved.brushSize ?? current.brushSize,
           brushHardness: saved.brushHardness ?? current.brushHardness,
           brushColor: saved.brushColor ?? current.brushColor,
@@ -1429,10 +1140,6 @@ export const useCanvasStore = create<CanvasState>()(
           canvasMode: saved.canvasMode ?? "focus",
           focusedFrameId: saved.focusedFrameId ?? null,
           modeLocked: saved.modeLocked ?? false,
-          layers: saved.layers ? saved.layers.map(rehydrateLayer) : current.layers,
-          referenceInputs: saved.referenceInputs
-            ? saved.referenceInputs.map(rehydrateReferenceInput)
-            : current.referenceInputs,
           inputFrames: saved.inputFrames
             ? saved.inputFrames.map((frame) => ({
                 id: frame.id,
