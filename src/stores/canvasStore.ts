@@ -426,14 +426,13 @@ export const useCanvasStore = create<CanvasState>()(
             fromIndex < 0 ||
             fromIndex >= next.length ||
             toIndex < 0 ||
-            toIndex > next.length ||
+            toIndex >= next.length ||
             fromIndex === toIndex
           ) {
             return s;
           }
           const [moved] = next.splice(fromIndex, 1);
-          const insertAt = toIndex > fromIndex ? toIndex - 1 : toIndex;
-          next.splice(insertAt, 0, moved);
+          next.splice(toIndex, 0, moved);
           return { inputFrames: next };
         }),
 
@@ -750,14 +749,13 @@ export const useCanvasStore = create<CanvasState>()(
             fromIndex < 0 ||
             fromIndex >= next.length ||
             toIndex < 0 ||
-            toIndex > next.length ||
+            toIndex >= next.length ||
             fromIndex === toIndex
           ) {
             return s;
           }
           const [moved] = next.splice(fromIndex, 1);
-          const insertAt = toIndex > fromIndex ? toIndex - 1 : toIndex;
-          next.splice(insertAt, 0, moved);
+          next.splice(toIndex, 0, moved);
           return {
             inputFrames: withFrame(s.inputFrames, frameId, (f) => ({
               ...f,
