@@ -19,12 +19,12 @@ export const useModelSelectionStore = create<ModelSelectionState>()(
     }),
     {
       name: "enso-model-selection",
-      version: 1,
-      // Strip the old `isCloud` / `cloudModelId` / `cloudProvider` / `localModelTitle`
-      // fields that earlier versions persisted. `activeModel.source` is now the sole
-      // discriminator. v1 also discards any persisted activeModel whose source
-      // isn't one of the three known kinds, so a downgraded session can't
-      // poison rehydrate by leaving an unknown shape behind.
+      version: 2,
+      // Defensive shape check on rehydrate: discard any persisted activeModel
+      // whose `source` isn't one of the three known discriminator values, so
+      // a stale session can't poison the rehydrate with an unknown union
+      // member that downstream `switch(activeModel.source)` reads would not
+      // handle. Runs on every load (merge), independent of version bumps.
       merge: (persisted, current) => {
         const p = persisted as Partial<ModelSelectionState> | undefined;
         const candidate = p?.activeModel;
