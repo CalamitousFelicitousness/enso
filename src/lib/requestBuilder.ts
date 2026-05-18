@@ -10,7 +10,7 @@ import type { GenerationResult, GenerationState } from "@/stores/generationStore
 import { useScriptStore } from "@/stores/scriptStore";
 import { useControlStore, resolveUnitImage } from "@/stores/controlStore";
 import { useImg2ImgStore } from "@/stores/img2imgStore";
-import { useCanvasStore, type ImageLayer } from "@/stores/canvasStore";
+import { useCanvasStore, type ImageLayer, type MaskObjectLayer } from "@/stores/canvasStore";
 import { useUiStore } from "@/stores/uiStore";
 import { exportMask } from "@/lib/exportMask";
 import { flattenCanvas, compositeControlImage, compositeFitImage } from "@/lib/flattenCanvas";
@@ -58,17 +58,17 @@ export async function buildControlRequest(): Promise<BuildResult> {
   const canvas = useCanvasStore.getState();
   const ui = useUiStore.getState();
 
-  // Phase 8: read input state from the first inputFrame (single-Initial /
-  // single-Reference on the local SD.Next path - multi-Initial out of scope
-  // per plan, multi-Reference falls through to the first Reference frame
-  // until the local backend grows a multi-image surface). The legacy
-  // canvas.layers + canvas.inputRole still mirror the migrated v0 state
-  // but are no longer the source of truth post-Phase-7 chrome swap.
+  // Read input state from the first inputFrame (single-Initial /
+  // single-Reference on the local SD.Next path - multi-Initial out of
+  // scope per plan, multi-Reference falls through to the first Reference
+  // frame until the local backend grows a multi-image surface).
   const primaryFrame = canvas.inputFrames[0] ?? null;
   const primaryLayers =
     primaryFrame?.layers.filter((l): l is ImageLayer => l.type === "image" && l.visible) ?? [];
-  const primaryMaskLines = primaryFrame?.maskLines ?? img2img.maskLines;
-  const primaryMaskData = primaryFrame?.maskData ?? img2img.maskData;
+  const primaryMaskLines = primaryFrame?.maskLines ?? [];
+  const primaryMaskData = primaryFrame?.maskData ?? null;
+  const primaryMaskObjects =
+    primaryFrame?.layers.filter((l): l is MaskObjectLayer => l.type === "mask") ?? [];
   const primaryReferences = primaryFrame?.references ?? [];
   const hasInputImage = primaryLayers.length > 0;
   const inputRole = primaryFrame?.mode ?? "initial";
@@ -411,14 +411,11 @@ export async function buildControlRequest(): Promise<BuildResult> {
       request.resize_name_before = img2img.resizeMethod;
     }
 
-    // Export mask from the primary frame's mask state. Phase 13 will
-    // fully migrate mask painting per-frame; for now Phase 8 sources
-    // maskLines + maskData from primaryFrame (with img2imgStore fallback
-    // for the transitional window where painting still writes to the
-    // legacy store).
+    // Export mask from the primary frame's per-frame mask state.
+    // primaryMaskData (a pre-rendered dataURL) wins if present; otherwise
+    // composite the frame's mask objects + any uncommitted stroke buffer.
     let maskBlob: Blob | null;
     if (primaryMaskData) {
-      // dataURL or bare base64; convert to Blob and upload
       const resp = await fetch(
         primaryMaskData.startsWith("data:")
           ? primaryMaskData
@@ -426,10 +423,7 @@ export async function buildControlRequest(): Promise<BuildResult> {
       );
       maskBlob = await resp.blob();
     } else {
-      // exportMask composites mask objects + any pending strokes; the
-      // legacy signature reads getMaskLayers globally - Phase 13 will
-      // narrow it to take per-frame mask objects directly.
-      maskBlob = await exportMask(primaryMaskLines, frameW, frameH);
+      maskBlob = await exportMask(primaryMaskObjects, primaryMaskLines, frameW, frameH);
     }
     if (maskBlob) {
       request.mask = await uploadBlob(maskBlob, "mask.png");
@@ -750,17 +744,22 @@ export function restoreFromResult(result: GenerationResult): void {
   const p = result.parameters;
   const num = (v: unknown, fallback: number) => (typeof v === "number" ? v : fallback);
 
-  // Restore input image and mask if present (img2img history)
+  // Restore input image and mask if present (img2img history). Target the
+  // focused Input frame so the user can compare against their current
+  // working state; falls back to the first Input frame if none focused.
   if (result.inputImage) {
     const w = num(p.width_before ?? p.width, 1024);
     const h = num(p.height_before ?? p.height, 1024);
-    useCanvasStore.getState().restoreImageLayer(result.inputImage, w, h);
+    const canvas = useCanvasStore.getState();
+    const targetFrameId = canvas.activeInputFrameId ?? canvas.inputFrames[0]?.id ?? null;
+    if (targetFrameId) {
+      canvas.restoreImageLayerToFrame(targetFrameId, result.inputImage, w, h);
 
-    if (result.inputMask && result.inputMask.length > 0) {
-      const img2imgState = useImg2ImgStore.getState();
-      img2imgState.clearMask();
-      for (const line of result.inputMask) {
-        img2imgState.addMaskLine(line);
+      if (result.inputMask && result.inputMask.length > 0) {
+        canvas.clearMaskLinesInFrame(targetFrameId);
+        for (const line of result.inputMask) {
+          canvas.addMaskLineToFrame(targetFrameId, line);
+        }
       }
     }
   }
@@ -914,10 +913,12 @@ export async function buildCloudImageRequest(): Promise<CloudImageJobParams> {
     // Strength + mask apply when an Initial frame contributes; mask pairs
     // with the primary Initial frame's first slot (SPEC §11.11.6 B6).
     request.strength = gen.denoisingStrength;
-    const maskLines =
-      firstInitialFrame.maskLines.length > 0 ? firstInitialFrame.maskLines : img2img.maskLines;
-    if (maskLines.length > 0) {
-      let maskBlob = await exportMask(maskLines, frameW, frameH);
+    const maskLines = firstInitialFrame.maskLines;
+    const maskObjects = firstInitialFrame.layers.filter(
+      (l): l is MaskObjectLayer => l.type === "mask",
+    );
+    if (maskLines.length > 0 || maskObjects.length > 0) {
+      let maskBlob = await exportMask(maskObjects, maskLines, frameW, frameH);
       const needsResize = targetSize.width !== frameW || targetSize.height !== frameH;
       if (maskBlob && needsResize) {
         maskBlob = await resizeBlob(maskBlob, targetSize.width, targetSize.height);
