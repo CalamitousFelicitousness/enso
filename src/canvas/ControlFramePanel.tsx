@@ -44,7 +44,6 @@ export const INPUT_COLOR_REFERENCE = "#38bdf8";
 export const INPUT_COLOR_INACTIVE = "#6b7280";
 export const OUTPUT_COLOR = "#60a5fa";
 const PROCESSED_COLOR = "#c084fc";
-const OUTPUT_PANEL_KEY = -2;
 
 // Glass dock styling
 const GLASS_BORDER = "rgba(42,42,62,0.5)";
@@ -453,7 +452,7 @@ function UnitPanel({
               size="icon-xs"
               onClick={(e) => {
                 e.stopPropagation();
-                togglePanelCollapsed(unitIndex, collapsed);
+                togglePanelCollapsed(`control:${unitIndex}`, collapsed);
               }}
               title={collapsed ? "Expand settings" : "Collapse settings"}
               className="text-muted-foreground hover:bg-white/5"
@@ -557,7 +556,7 @@ function ControlFrameStack({ frame, genSize, onPickImage, onClearImage }: Contro
   if (!ownerUnit) return null;
 
   const ownerHasImage = ownerUnit.image !== null;
-  const ownerOverride = panelCollapsedOverrides.get(frame.unitIndex);
+  const ownerOverride = panelCollapsedOverrides.get(`control:${frame.unitIndex}`);
   const ownerCollapsed = ownerOverride !== undefined ? ownerOverride : !ownerHasImage;
 
   const isReference = ownerUnit.unitType === "reference";
@@ -566,7 +565,7 @@ function ControlFrameStack({ frame, genSize, onPickImage, onClearImage }: Contro
   return (
     <div style={containerStyle} className="z-50">
       {referencingSlots.map((slot) => {
-        const override = panelCollapsedOverrides.get(slot.unitIndex);
+        const override = panelCollapsedOverrides.get(`control:${slot.unitIndex}`);
         const isCollapsed = override !== undefined ? override : true;
         return (
           <UnitPanel
@@ -634,7 +633,7 @@ function OutputFramePanel({
     }
   }, [selectedResult]);
 
-  const override = panelCollapsedOverrides.get(OUTPUT_PANEL_KEY);
+  const override = panelCollapsedOverrides.get("output");
   const collapsed = override !== undefined ? override : !hasSelectedImage;
 
   const handleSendToInput = useCallback(async () => {
@@ -745,7 +744,7 @@ function OutputFramePanel({
       tabBar={tabBar}
       drawer={drawer}
       collapsed={collapsed}
-      onToggleCollapsed={() => togglePanelCollapsed(OUTPUT_PANEL_KEY, collapsed)}
+      onToggleCollapsed={() => togglePanelCollapsed("output", collapsed)}
     />
   );
 }

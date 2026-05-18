@@ -113,7 +113,12 @@ interface CanvasState {
   maskColor: string;
   inputRole: "initial" | "reference";
   selectedControlFrame: number | null;
-  panelCollapsedOverrides: Map<number, boolean>; // explicit user overrides
+  /** Per-panel collapse override map, keyed by FrameId string. Keys take
+   * the form `input:${uuid}` for Input frames, `"output"` for the Output
+   * panel, and `\`control:${unitIndex}\`` for ControlNet units. 
+   * migrated this from numeric keys; the v1->v2 migration rebuilds
+   * the map's contents from any persisted numeric entries. */
+  panelCollapsedOverrides: Map<string, boolean>;
   canvasMode: "focus" | "canvas";
   focusedFrameId: FrameId | null;
   focusFitTrigger: number;
@@ -168,7 +173,7 @@ interface CanvasState {
   setMaskVisible: (visible: boolean) => void;
   setMaskColor: (color: string) => void;
   setSelectedControlFrame: (index: number | null) => void;
-  togglePanelCollapsed: (index: number, currentCollapsed: boolean) => void;
+  togglePanelCollapsed: (key: string, currentCollapsed: boolean) => void;
   clearLayers: () => void;
   restoreImageLayer: (base64: string, w: number, h: number) => void;
   getImageLayers: () => ImageLayer[];
@@ -286,7 +291,7 @@ interface PersistedCanvasState {
   brushOpacity: number;
   maskVisible: boolean;
   maskColor: string;
-  panelCollapsedOverrides: [number, boolean][];
+  panelCollapsedOverrides: [string, boolean][];
   canvasMode: "focus" | "canvas";
   focusedFrameId: FrameId | null;
   modeLocked: boolean;
@@ -349,6 +354,39 @@ function stripLayerForPersist(layer: CanvasLayer): CanvasLayer {
 function stripReferenceInputForPersist(ref: ReferenceInput): ReferenceInput {
   const { file: _file, imageData: _url, ...rest } = ref;
   return { ...rest, imageData: "", file: undefined } as unknown as ReferenceInput;
+}
+
+/** Convert legacy numeric-keyed panelCollapsedOverrides entries to the
+ * string-FrameId scheme. The pre-Phase-9 keying used `-1` for the
+ * singular Input panel, `-2` for the Output panel, and unit indices for
+ * ControlNet stacks. 's v0->v1 migration calls this with the seed
+ * frame's UUID so existing user overrides survive the rename.
+ *
+ * Unknown numeric values + non-numeric / non-numeric-string entries are
+ * dropped silently. Already-string entries pass through unchanged. */
+function rekeyPanelCollapsedOverrides(
+  entries: ReadonlyArray<readonly [unknown, boolean]> | undefined,
+  seedFrameId: string,
+): [string, boolean][] {
+  if (!entries) return [];
+  const out: [string, boolean][] = [];
+  for (const entry of entries) {
+    if (!Array.isArray(entry) || entry.length < 2) continue;
+    const [rawKey, value] = entry;
+    if (typeof value !== "boolean") continue;
+    if (typeof rawKey === "string") {
+      out.push([rawKey, value]);
+      continue;
+    }
+    if (typeof rawKey === "number") {
+      if (rawKey === -1) out.push([`input:${seedFrameId}`, value]);
+      else if (rawKey === -2) out.push(["output", value]);
+      else if (Number.isFinite(rawKey) && rawKey >= 0) {
+        out.push([`control:${rawKey}`, value]);
+      }
+    }
+  }
+  return out;
 }
 
 /** Apply a transform to one InputFrame in the array, returning a new slice
@@ -494,7 +532,10 @@ export function migrateCanvasV0toV1(v0: unknown): PersistedCanvasState {
     brushOpacity: state.brushOpacity ?? 1,
     maskVisible: state.maskVisible ?? true,
     maskColor: state.maskColor ?? "#ff000080",
-    panelCollapsedOverrides: state.panelCollapsedOverrides ?? [],
+    panelCollapsedOverrides: rekeyPanelCollapsedOverrides(
+      state.panelCollapsedOverrides,
+      seedFrameId,
+    ),
     canvasMode: state.canvasMode ?? "focus",
     focusedFrameId: state.focusedFrameId ?? null,
     modeLocked: state.modeLocked ?? false,
@@ -528,7 +569,7 @@ export const useCanvasStore = create<CanvasState>()(
       maskColor: "#ff000080",
       inputRole: "initial",
       selectedControlFrame: null,
-      panelCollapsedOverrides: new Map<number, boolean>(),
+      panelCollapsedOverrides: new Map<string, boolean>(),
       canvasMode: "focus",
       focusedFrameId: null,
       focusFitTrigger: 0,
@@ -733,10 +774,10 @@ export const useCanvasStore = create<CanvasState>()(
       setMaskColor: (color) => set({ maskColor: color }),
       setSelectedControlFrame: (index) => set({ selectedControlFrame: index }),
 
-      togglePanelCollapsed: (index, currentCollapsed: boolean) =>
+      togglePanelCollapsed: (key, currentCollapsed: boolean) =>
         set((s) => {
           const newMap = new Map(s.panelCollapsedOverrides);
-          newMap.set(index, !currentCollapsed);
+          newMap.set(key, !currentCollapsed);
           return { panelCollapsedOverrides: newMap };
         }),
 
