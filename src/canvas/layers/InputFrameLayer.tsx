@@ -34,10 +34,10 @@ interface InputFrameLayerProps {
   /** Called when an empty Initial frame is clicked - opens the file picker
    * targeted at that frame. leaves this optional so CanvasStage can
    * mount the layer dormantly; a follow-up wires it up. */
-  onPickInputFile?: (frameId: string) => void;
+  onPickInputFile?: ((frameId: string) => void) | undefined;
   /** Called when a Reference mother's +Add cell is clicked, or when an
    * empty Reference mother is clicked. */
-  onAddReferenceChild?: (frameId: string) => void;
+  onAddReferenceChild?: ((frameId: string) => void) | undefined;
 }
 
 export function InputFrameLayer({

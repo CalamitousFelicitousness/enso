@@ -1,13 +1,10 @@
-import { useMemo, useCallback, useEffect, useState, type ReactNode } from "react";
-import { useCanvasStore, type ImageLayer } from "@/stores/canvasStore";
+import { useMemo, useCallback, useState, type ReactNode } from "react";
+import { useCanvasStore } from "@/stores/canvasStore";
 import { useControlStore } from "@/stores/controlStore";
 import { UNIT_TYPE_LABELS } from "@/api/types/control";
 import { useGenerationStore } from "@/stores/generationStore";
 import { useUiStore } from "@/stores/uiStore";
-import { useServerInfo } from "@/api/hooks/useServer";
 import { ControlUnitControls } from "@/components/generation/tabs/control/ControlUnitControls";
-import { LayerPanel } from "@/components/generation/LayerPanel";
-import { MaskParams } from "@/components/generation/MaskParams";
 import {
   ChevronUp,
   ChevronDown,
@@ -25,12 +22,10 @@ import {
 } from "lucide-react";
 import type { FitMode } from "@/lib/image";
 import { Button } from "@/components/ui/button";
-import { ParamSlider } from "@/components/generation/ParamSlider";
 import { KeepAlivePanel } from "@/components/ui/keep-alive";
 import { downloadImage, generateImageFilename, resolveImageSrc } from "@/lib/utils";
 import type { GenerationInfo } from "@/api/types/generation";
 import { fileToBase64 } from "@/lib/image";
-import { toast } from "sonner";
 import {
   ELEMENT_GAP,
   PROCESSED_HEADER_HEIGHT,
@@ -49,7 +44,6 @@ export const INPUT_COLOR_REFERENCE = "#38bdf8";
 export const INPUT_COLOR_INACTIVE = "#6b7280";
 export const OUTPUT_COLOR = "#60a5fa";
 const PROCESSED_COLOR = "#c084fc";
-const INPUT_PANEL_KEY = -1;
 const OUTPUT_PANEL_KEY = -2;
 
 // Glass dock styling
@@ -597,224 +591,6 @@ function ControlFrameStack({ frame, genSize, onPickImage, onClearImage }: Contro
   );
 }
 
-// ─── Input frame panel (uses FrameHeader in panel mode) ─────────────────────
-
-function InputFramePanel({
-  canvasX,
-  frameW,
-  genSize,
-  viewport,
-  labelScale,
-  onPickImage,
-  onClearAll,
-}: {
-  canvasX: number;
-  frameW: number;
-  genSize: { width: number; height: number };
-  viewport: { x: number; y: number; scale: number };
-  labelScale: number;
-  onPickImage?: (() => void) | undefined;
-  onClearAll?: (() => void) | undefined;
-}) {
-  const layers = useCanvasStore((s) => s.layers);
-  const inputRole = useCanvasStore((s) => s.inputRole);
-  const setInputRole = useCanvasStore((s) => s.setInputRole);
-  const panelCollapsedOverrides = useCanvasStore((s) => s.panelCollapsedOverrides);
-  const togglePanelCollapsed = useCanvasStore((s) => s.togglePanelCollapsed);
-  const denoisingStrength = useGenerationStore((s) => s.denoisingStrength);
-  const setParam = useGenerationStore((s) => s.setParam);
-  const pixelW = useGenerationStore((s) => s.width);
-  const pixelH = useGenerationStore((s) => s.height);
-  const hasLayers = layers.length > 0;
-  const isReference = inputRole === "reference";
-  const supportsStrength = useServerInfo().data?.model?.supports_strength ?? true;
-  const [activeTab, setActiveTab] = useState<"info" | "params">("info");
-
-  // Auto-switch to reference when model doesn't support strength
-  useEffect(() => {
-    if (!supportsStrength && inputRole === "initial") {
-      setInputRole("reference");
-    }
-  }, [supportsStrength]); // eslint-disable-line react-hooks/exhaustive-deps -- only react to model capability changes
-
-  const handleRoleChange = useCallback(
-    (role: "initial" | "reference") => {
-      if (role === inputRole) return;
-      if (role === "initial" && !supportsStrength) {
-        toast.info("This model uses the image as a reference - denoising strength has no effect.");
-      }
-      setInputRole(role);
-    },
-    [inputRole, setInputRole, supportsStrength],
-  );
-
-  const firstImage = layers.find((l): l is ImageLayer => l.type === "image");
-
-  const override = panelCollapsedOverrides.get(INPUT_PANEL_KEY);
-  const collapsed = override !== undefined ? override : !hasLayers;
-
-  const baseSizeText = firstImage
-    ? `${firstImage.naturalWidth}\u00d7${firstImage.naturalHeight}`
-    : `${pixelW}\u00d7${pixelH}`;
-  // Reference mode sends the source file at native resolution, so the "input
-  // dims arrow gen dims" hint is misleading. Show native dims alone.
-  const sizeText =
-    !isReference && (genSize.width !== pixelW || genSize.height !== pixelH)
-      ? `${baseSizeText} \u2192 ${genSize.width}\u00d7${genSize.height}`
-      : baseSizeText;
-
-  const handleDenoising = useCallback((v: number) => setParam("denoisingStrength", v), [setParam]);
-
-  const inputColor = !hasLayers
-    ? INPUT_COLOR_INACTIVE
-    : isReference
-      ? INPUT_COLOR_REFERENCE
-      : INPUT_COLOR_ACTIVE;
-
-  const actions = hasLayers ? (
-    <>
-      <Button
-        variant="ghost"
-        size="icon-xs"
-        onClick={() => onPickImage?.()}
-        title="Add image"
-        className="text-muted-foreground hover:bg-white/5"
-      >
-        <ImagePlus size={14} />
-      </Button>
-      <Button
-        variant="ghost"
-        size="icon-xs"
-        onClick={() => onClearAll?.()}
-        title="Clear all"
-        className="text-muted-foreground hover:bg-white/5"
-      >
-        <Trash2 size={14} />
-      </Button>
-    </>
-  ) : undefined;
-
-  const label = isReference ? "Input 1 (Reference)" : "Input 1 (Initial)";
-
-  const roleToggle = (
-    <div className="flex items-center gap-0.5 rounded-md p-0.5 bg-white/5">
-      <button
-        onClick={(e) => {
-          e.stopPropagation();
-          handleRoleChange("initial");
-        }}
-        title="Initial: canvas flattened at frame size, used as img2img target with denoising."
-        className="px-2 py-0.5 text-[10px] font-medium rounded-sm transition-colors"
-        style={{
-          backgroundColor: !isReference ? `${inputColor}26` : "transparent",
-          color: !isReference ? inputColor : "var(--muted-foreground)",
-        }}
-      >
-        Initial
-      </button>
-      <button
-        onClick={(e) => {
-          e.stopPropagation();
-          handleRoleChange("reference");
-        }}
-        title="Reference: source file sent at native resolution. For edit models (Klein, Kontext, Qwen Edit) and cloud reference workflows. Canvas transforms (position, scale, rotation) are not applied."
-        className="px-2 py-0.5 text-[10px] font-medium rounded-sm transition-colors"
-        style={{
-          backgroundColor: isReference ? `${inputColor}26` : "transparent",
-          color: isReference ? inputColor : "var(--muted-foreground)",
-        }}
-      >
-        Reference
-      </button>
-    </div>
-  );
-
-  const tabBar = (
-    <>
-      <DockTab
-        active={activeTab === "info"}
-        label="Info"
-        icon={Layers}
-        accent={inputColor}
-        onClick={() => setActiveTab("info")}
-      />
-      <DockTab
-        active={activeTab === "params"}
-        label="Options"
-        icon={SlidersHorizontal}
-        accent={inputColor}
-        onClick={() => setActiveTab("params")}
-      />
-    </>
-  );
-
-  // Both panels stay mounted across info/params toggles so LayerPanel and
-  // MaskParams retain their internal state. `lazy` defers the heavier params
-  // panel until first reveal. activeClassName="" so the panel takes its
-  // content height inside the drawer's overflow-auto wrapper.
-  const drawer = (
-    <>
-      <KeepAlivePanel
-        id="info"
-        active={activeTab === "info"}
-        activeClassName=""
-        hiddenClassName="hidden"
-      >
-        <div className="flex flex-col gap-2">
-          {roleToggle}
-          <InfoRow label="Resolution" value={sizeText} mono />
-          {firstImage && (
-            <InfoRow
-              label="Source"
-              value={`${firstImage.naturalWidth}\u00d7${firstImage.naturalHeight}`}
-              mono
-            />
-          )}
-        </div>
-      </KeepAlivePanel>
-      <KeepAlivePanel
-        id="params"
-        active={activeTab === "params"}
-        lazy
-        activeClassName=""
-        hiddenClassName="hidden"
-      >
-        {!isReference && (
-          <ParamSlider
-            label="Denoise"
-            value={denoisingStrength}
-            onChange={handleDenoising}
-            min={0}
-            max={1}
-            step={0.05}
-            disabled={!hasLayers}
-          />
-        )}
-        <LayerPanel />
-        {!isReference && <MaskParams />}
-      </KeepAlivePanel>
-    </>
-  );
-
-  return (
-    <FrameHeader
-      mode="panel"
-      color={inputColor}
-      label={label}
-      sizeText={sizeText}
-      canvasX={canvasX}
-      frameW={frameW}
-      viewport={viewport}
-      labelScale={labelScale}
-      actions={actions}
-      tabBar={tabBar}
-      drawer={drawer}
-      collapsed={collapsed}
-      onToggleCollapsed={() => togglePanelCollapsed(INPUT_PANEL_KEY, collapsed)}
-    />
-  );
-}
-
 // ─── Output frame panel (uses FrameHeader in panel mode) ────────────────────
 
 function OutputFramePanel({
@@ -1045,12 +821,7 @@ interface ControlFramePanelsProps {
   onClearAll?: () => void;
 }
 
-export function ControlFramePanels({
-  layout,
-  onPickImage,
-  onClearImage,
-  onClearAll,
-}: ControlFramePanelsProps) {
+export function ControlFramePanels({ layout, onPickImage, onClearImage }: ControlFramePanelsProps) {
   const viewport = useCanvasStore((s) => s.viewport);
   const labelScale = useUiStore((s) => s.canvasLabelScale);
   const units = useControlStore((s) => s.units);
@@ -1115,20 +886,9 @@ export function ControlFramePanels({
         });
       })}
 
-      {/* The legacy single-image Input panel hides when the multi-image
-          Reference filmstrip is populated; the filmstrip overlay (rendered
-          elsewhere) takes over the input-side chrome in that mode. */}
-      {layout.referenceFrames.length === 0 && (
-        <InputFramePanel
-          canvasX={layout.inputX}
-          frameW={displayW}
-          genSize={genSize}
-          viewport={viewport}
-          labelScale={labelScale}
-          onPickImage={() => onPickImage?.(-1)}
-          onClearAll={onClearAll}
-        />
-      )}
+      {/* The singular Input panel mount is dropped. The new
+          per-frame InputFramePanels orchestrator (mounted from
+          CanvasView) renders one panel per frame in inputFrames. */}
 
       <OutputFramePanel
         canvasX={layout.outputX}
