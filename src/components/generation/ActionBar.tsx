@@ -6,7 +6,6 @@ import {
   selectPendingCount,
 } from "@/stores/jobStore";
 import { useCanvasStore } from "@/stores/canvasStore";
-import { useImg2ImgStore } from "@/stores/img2imgStore";
 import {
   buildControlRequest,
   buildCloudImageRequest,
@@ -94,12 +93,13 @@ export const ActionBar = memo(function ActionBar() {
       };
     }
 
-    const isImg2Img = useCanvasStore
-      .getState()
-      .inputFrames.some((f) => f.mode === "initial" && f.layers.some((l) => l.type === "image"));
+    const canvasState = useCanvasStore.getState();
+    const primaryFrame = canvasState.inputFrames[0] ?? null;
+    const isImg2Img =
+      primaryFrame?.mode === "initial" && primaryFrame.layers.some((l) => l.type === "image");
     const { request, inputBlob } = await buildControlRequest();
     const inputImage = isImg2Img && inputBlob ? await blobToBase64(inputBlob) : undefined;
-    const maskLines = useImg2ImgStore.getState().maskLines;
+    const maskLines = primaryFrame?.mode === "initial" ? primaryFrame.maskLines : [];
     const inputMask = isImg2Img && maskLines.length > 0 ? maskLines.slice() : undefined;
     const controlUnits = await snapshotUnits();
     clearSelection();
