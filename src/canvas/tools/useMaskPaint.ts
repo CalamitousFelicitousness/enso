@@ -1,36 +1,40 @@
 import { useCallback, useRef } from "react";
 import { useCanvasStore } from "@/stores/canvasStore";
-import { useImg2ImgStore } from "@/stores/img2imgStore";
-import { useGenerationStore } from "@/stores/generationStore";
-import { REFERENCE_HEIGHT } from "@/canvas/useControlFrameLayout";
 import { bakeMaskStrokes } from "@/lib/bakeMask";
 import type { MaskLine } from "@/stores/img2imgStore";
+import type { CanvasLayout } from "@/canvas/useControlFrameLayout";
 import type Konva from "konva";
 
 interface UseMaskPaintOptions {
   stageRef: React.RefObject<Konva.Stage | null>;
   spaceHeld: React.RefObject<boolean>;
-}
-
-/** Compute displayScale imperatively from the store (no reactive dep). */
-function getDisplayScale(): number {
-  const h = useGenerationStore.getState().height;
-  return h > 0 ? REFERENCE_HEIGHT / h : 1;
+  /** Canvas layout; used to hit-test Initial frames on pointerdown and to
+   * project pointer coords into the pinned frame's local pixel space. */
+  layout: CanvasLayout;
 }
 
 /**
- * Imperative mask painting. During a stroke, points are pushed into a
- * mutable buffer and flushed straight to a Konva Line node - zero React
- * state updates, zero re-renders. React only sees a change on mouseUp
- * when the finished stroke commits to the Zustand store.
+ * Imperative mask painting, per Input frame. On pointerdown the stroke
+ * hit-tests `layout.inputFrames`, pins to the first Initial frame the
+ * pointer lands inside, and projects subsequent points into that frame's
+ * local pixel space. The active <Line> + <Circle> Konva nodes live
+ * inside the pinned (= focused) frame's displayScale group, so the
+ * stroke renders pixel-for-pixel with what eventually commits to
+ * `frame.maskLines`.
+ *
+ * Pin-on-pointerdown invariant: the pinned frame is captured at stroke
+ * start and never re-resolved mid-drag. A stroke that drags off-frame
+ * keeps attaching to the original frame.
  */
-export function useMaskPaint({ stageRef, spaceHeld }: UseMaskPaintOptions) {
+export function useMaskPaint({ stageRef, spaceHeld, layout }: UseMaskPaintOptions) {
   const isDrawing = useRef(false);
   const pointsBuffer = useRef<number[]>([]);
   const toolRef = useRef<MaskLine["tool"]>("brush");
   const strokeWidthRef = useRef(20);
+  const pinnedFrameId = useRef<string | null>(null);
 
-  // Konva node refs - MaskLayer attaches these via callback setters
+  // Konva node refs - InputFrameLayer attaches the active line + cursor
+  // for the focused frame via these callback setters.
   const activeLineRef = useRef<Konva.Line | null>(null);
   const cursorRef = useRef<Konva.Circle | null>(null);
 
@@ -42,18 +46,70 @@ export function useMaskPaint({ stageRef, spaceHeld }: UseMaskPaintOptions) {
     cursorRef.current = node;
   }, []);
 
-  const getCanvasPos = useCallback((stage: Konva.Stage): { x: number; y: number } | null => {
-    const pointer = stage.getPointerPosition();
-    if (!pointer) return null;
-    const { width: frameW, height: frameH } = useGenerationStore.getState();
-    if (frameW <= 0 || frameH <= 0) return null;
-    // screen → stage (display units) → pixel space
-    const ds = getDisplayScale();
-    return {
-      x: Math.max(0, Math.min(frameW, (pointer.x - stage.x()) / stage.scaleX() / ds)),
-      y: Math.max(0, Math.min(frameH, (pointer.y - stage.y()) / stage.scaleY() / ds)),
-    };
-  }, []);
+  const hitTestInitialFrame = useCallback(
+    (stage: Konva.Stage): { frameId: string; x: number; y: number } | null => {
+      const pointer = stage.getPointerPosition();
+      if (!pointer) return null;
+      const stx = (pointer.x - stage.x()) / stage.scaleX();
+      const sty = (pointer.y - stage.y()) / stage.scaleY();
+      for (const f of layout.inputFrames) {
+        if (f.kind !== "initial") continue;
+        if (stx >= f.x && stx < f.x + f.displayW && sty >= f.y && sty < f.y + f.displayH) {
+          const ds = layout.displayScale;
+          return {
+            frameId: f.frameId,
+            x: (stx - f.x) / ds,
+            y: (sty - f.y) / ds,
+          };
+        }
+      }
+      return null;
+    },
+    [layout],
+  );
+
+  const projectToPinnedFrame = useCallback(
+    (stage: Konva.Stage): { x: number; y: number } | null => {
+      const pinId = pinnedFrameId.current;
+      if (!pinId) return null;
+      const pinned = layout.inputFrames.find((f) => f.kind === "initial" && f.frameId === pinId);
+      if (!pinned || pinned.kind !== "initial") return null;
+      const pointer = stage.getPointerPosition();
+      if (!pointer) return null;
+      const stx = (pointer.x - stage.x()) / stage.scaleX();
+      const sty = (pointer.y - stage.y()) / stage.scaleY();
+      const ds = layout.displayScale;
+      return {
+        x: (stx - pinned.x) / ds,
+        y: (sty - pinned.y) / ds,
+      };
+    },
+    [layout],
+  );
+
+  const projectToFocusedFrame = useCallback(
+    (stage: Konva.Stage): { x: number; y: number } | null => {
+      const focusedId = useCanvasStore.getState().activeInputFrameId;
+      let targetId: string | null = focusedId;
+      if (!targetId) {
+        const firstInitial = layout.inputFrames.find((f) => f.kind === "initial");
+        if (firstInitial) targetId = firstInitial.frameId;
+      }
+      if (!targetId) return null;
+      const target = layout.inputFrames.find((f) => f.kind === "initial" && f.frameId === targetId);
+      if (!target || target.kind !== "initial") return null;
+      const pointer = stage.getPointerPosition();
+      if (!pointer) return null;
+      const stx = (pointer.x - stage.x()) / stage.scaleX();
+      const sty = (pointer.y - stage.y()) / stage.scaleY();
+      const ds = layout.displayScale;
+      return {
+        x: (stx - target.x) / ds,
+        y: (sty - target.y) / ds,
+      };
+    },
+    [layout],
+  );
 
   const isMaskTool = useCallback(() => {
     const tool = useCanvasStore.getState().activeTool;
@@ -65,19 +121,20 @@ export function useMaskPaint({ stageRef, spaceHeld }: UseMaskPaintOptions) {
       if (!isMaskTool() || e.evt.button !== 0 || spaceHeld.current) return;
       const stage = stageRef.current;
       if (!stage) return;
-      const pos = getCanvasPos(stage);
-      if (!pos) return;
+      const hit = hitTestInitialFrame(stage);
+      if (!hit) return;
 
-      const { activeTool, brushSize } = useCanvasStore.getState();
+      const { activeTool, brushSize, setActiveInputFrame } = useCanvasStore.getState();
+      pinnedFrameId.current = hit.frameId;
+      setActiveInputFrame(hit.frameId);
       toolRef.current = activeTool === "maskEraser" ? "eraser" : "brush";
       strokeWidthRef.current = brushSize;
-      pointsBuffer.current = [pos.x, pos.y];
+      pointsBuffer.current = [hit.x, hit.y];
       isDrawing.current = true;
 
-      // Configure the active line node imperatively
       const line = activeLineRef.current;
       if (line) {
-        line.points([pos.x, pos.y]);
+        line.points([hit.x, hit.y]);
         line.strokeWidth(brushSize);
         line.globalCompositeOperation(
           toolRef.current === "eraser" ? "destination-out" : "source-over",
@@ -86,7 +143,7 @@ export function useMaskPaint({ stageRef, spaceHeld }: UseMaskPaintOptions) {
         line.getLayer()?.batchDraw();
       }
     },
-    [stageRef, spaceHeld, getCanvasPos, isMaskTool],
+    [stageRef, spaceHeld, hitTestInitialFrame, isMaskTool],
   );
 
   const handleMouseMove = useCallback(
@@ -95,11 +152,10 @@ export function useMaskPaint({ stageRef, spaceHeld }: UseMaskPaintOptions) {
       if (!stage) return;
 
       if (isMaskTool()) {
-        const pos = getCanvasPos(stage);
+        const pos = isDrawing.current ? projectToPinnedFrame(stage) : projectToFocusedFrame(stage);
         const cursor = cursorRef.current;
         if (cursor && pos) {
-          // Combined scale: viewport.scale * displayScale (cursor is inside Group)
-          const combinedScale = stage.scaleX() * getDisplayScale();
+          const combinedScale = stage.scaleX() * layout.displayScale;
           cursor.x(pos.x);
           cursor.y(pos.y);
           cursor.radius(useCanvasStore.getState().brushSize / 2);
@@ -115,7 +171,6 @@ export function useMaskPaint({ stageRef, spaceHeld }: UseMaskPaintOptions) {
           cursor?.getLayer()?.batchDraw();
         }
       } else {
-        // Switched away from mask tool - restore cursor and hide the circle
         const cursor = cursorRef.current;
         if (cursor?.visible()) {
           cursor.visible(false);
@@ -127,7 +182,7 @@ export function useMaskPaint({ stageRef, spaceHeld }: UseMaskPaintOptions) {
       }
 
       if (!isDrawing.current) return;
-      const pos = getCanvasPos(stage);
+      const pos = projectToPinnedFrame(stage);
       if (!pos) return;
 
       pointsBuffer.current.push(pos.x, pos.y);
@@ -138,21 +193,22 @@ export function useMaskPaint({ stageRef, spaceHeld }: UseMaskPaintOptions) {
         line.getLayer()?.batchDraw();
       }
     },
-    [stageRef, getCanvasPos, isMaskTool],
+    [stageRef, isMaskTool, projectToPinnedFrame, projectToFocusedFrame, layout],
   );
 
   const commitLine = useCallback(() => {
     if (!isDrawing.current) return;
     isDrawing.current = false;
+    const frameId = pinnedFrameId.current;
+    pinnedFrameId.current = null;
 
-    if (pointsBuffer.current.length >= 2) {
-      useImg2ImgStore.getState().addMaskLine({
+    if (frameId && pointsBuffer.current.length >= 2) {
+      useCanvasStore.getState().addMaskLineToFrame(frameId, {
         points: pointsBuffer.current.slice(),
         strokeWidth: strokeWidthRef.current,
         tool: toolRef.current,
       });
-      // Bake strokes into mask objects (async, fire-and-forget)
-      void bakeMaskStrokes();
+      void bakeMaskStrokes(frameId);
     }
 
     const line = activeLineRef.current;

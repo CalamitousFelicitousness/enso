@@ -1,6 +1,5 @@
 import { useCallback } from "react";
 import { useCanvasStore } from "@/stores/canvasStore";
-import { useImg2ImgStore } from "@/stores/img2imgStore";
 import { useShortcut } from "@/hooks/useShortcut";
 import { Move, Paintbrush, Eraser, Eye, EyeOff, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -14,8 +13,26 @@ export function CanvasToolbar() {
   const setBrushSize = useCanvasStore((s) => s.setBrushSize);
   const maskVisible = useCanvasStore((s) => s.maskVisible);
   const setMaskVisible = useCanvasStore((s) => s.setMaskVisible);
-  const clearMask = useImg2ImgStore((s) => s.clearMask);
-  const maskLineCount = useImg2ImgStore((s) => s.maskLines.length);
+  const inputFrames = useCanvasStore((s) => s.inputFrames);
+  const activeInputFrameId = useCanvasStore((s) => s.activeInputFrameId);
+  const clearMaskLinesInFrame = useCanvasStore((s) => s.clearMaskLinesInFrame);
+  const removeMaskLayersInFrame = useCanvasStore((s) => s.removeMaskLayersInFrame);
+  // Aggregate "any active or baked mask anywhere" — disables Clear when
+  // every Initial frame is mask-free. Per-frame clear targets the focused
+  // frame so the user only wipes the one they're looking at.
+  const maskLineCount = inputFrames.reduce(
+    (n, f) =>
+      f.mode === "initial"
+        ? n + f.maskLines.length + f.layers.filter((l) => l.type === "mask").length
+        : n,
+    0,
+  );
+  const clearMask = useCallback(() => {
+    const target = activeInputFrameId ?? inputFrames.find((f) => f.mode === "initial")?.id ?? null;
+    if (!target) return;
+    clearMaskLinesInFrame(target);
+    removeMaskLayersInFrame(target);
+  }, [activeInputFrameId, inputFrames, clearMaskLinesInFrame, removeMaskLayersInFrame]);
 
   const toggleBrush = useCallback(() => {
     setActiveTool(activeTool === "maskBrush" ? "move" : "maskBrush");

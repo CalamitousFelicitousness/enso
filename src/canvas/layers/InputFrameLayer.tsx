@@ -10,7 +10,16 @@
 // whichever node corresponds to the focused frame's activeLayerId.
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Group, Image as KonvaImage, Layer, Line, Rect, Text, Transformer } from "react-konva";
+import {
+  Circle as KonvaCircle,
+  Group,
+  Image as KonvaImage,
+  Layer,
+  Line,
+  Rect,
+  Text,
+  Transformer,
+} from "react-konva";
 import {
   INPUT_COLOR_ACTIVE,
   INPUT_COLOR_INACTIVE,
@@ -35,6 +44,13 @@ interface InputFrameLayerProps {
    * rendered here so it can attach to per-frame image/mask nodes within
    * this Layer's draw scope. */
   trRef: React.RefObject<Konva.Transformer | null>;
+  /** useMaskPaint callbacks for the active stroke `<Line>` and the brush
+   * cursor `<Circle>`. The nodes get attached inside the focused Initial
+   * frame's displayScale group, so coords live in that frame's pixel
+   * space and render lines up with what eventually commits to
+   * `frame.maskLines`. */
+  setActiveLineNode?: ((node: Konva.Line | null) => void) | undefined;
+  setCursorNode?: ((node: Konva.Circle | null) => void) | undefined;
   /** Called when an empty Initial frame is clicked - opens the file picker
    * targeted at that frame. */
   onPickInputFile?: ((frameId: string) => void) | undefined;
@@ -47,6 +63,8 @@ export function InputFrameLayer({
   frames,
   displayScale,
   trRef,
+  setActiveLineNode,
+  setCursorNode,
   onPickInputFile,
   onAddReferenceChild,
 }: InputFrameLayerProps) {
@@ -56,6 +74,10 @@ export function InputFrameLayer({
   const setActiveLayerInFrame = useCanvasStore((s) => s.setActiveLayerInFrame);
   const updateLayerInFrame = useCanvasStore((s) => s.updateLayerInFrame);
   const activeTool = useCanvasStore((s) => s.activeTool);
+  const maskVisible = useCanvasStore((s) => s.maskVisible);
+  const maskColor = useCanvasStore((s) => s.maskColor);
+  const maskColorRgb = maskColor.slice(0, 7);
+  const maskColorAlpha = maskColor.length > 7 ? parseInt(maskColor.slice(7, 9), 16) / 255 : 1;
 
   // Per-image-layer Konva node map, keyed `${frameId}:${layerId}`. The
   // Transformer attaches via this map so its target is unambiguous when
@@ -252,6 +274,11 @@ export function InputFrameLayer({
               onLayerClick={handleLayerClick}
               onLayerDragEnd={handleLayerDragEnd}
               onLayerTransformEnd={handleLayerTransformEnd}
+              maskVisible={maskVisible}
+              maskColorRgb={maskColorRgb}
+              maskColorAlpha={maskColorAlpha}
+              setActiveLineNode={setActiveLineNode}
+              setCursorNode={setCursorNode}
             />
           );
         }
@@ -313,6 +340,11 @@ interface InitialFrameFragmentProps {
   onLayerClick: (frameId: string, layerId: string, e: Konva.KonvaEventObject<MouseEvent>) => void;
   onLayerDragEnd: (frameId: string, layerId: string, e: Konva.KonvaEventObject<DragEvent>) => void;
   onLayerTransformEnd: (frameId: string, layerId: string, e: Konva.KonvaEventObject<Event>) => void;
+  maskVisible: boolean;
+  maskColorRgb: string;
+  maskColorAlpha: number;
+  setActiveLineNode?: ((node: Konva.Line | null) => void) | undefined;
+  setCursorNode?: ((node: Konva.Circle | null) => void) | undefined;
 }
 
 function InitialFrameFragment({
@@ -328,6 +360,11 @@ function InitialFrameFragment({
   onLayerClick,
   onLayerDragEnd,
   onLayerTransformEnd,
+  maskVisible,
+  maskColorRgb,
+  maskColorAlpha,
+  setActiveLineNode,
+  setCursorNode,
 }: InitialFrameFragmentProps) {
   const visibleImages = storeFrame.layers.filter(
     (l: CanvasLayer): l is ImageLayer => l.type === "image" && l.visible,
@@ -411,6 +448,42 @@ function InitialFrameFragment({
             />
           );
         })}
+        {/* Active mask paint stroke + brush cursor live inside the focused
+         *  frame's group so their pixel-space coords match what useMaskPaint
+         *  commits to frame.maskLines. Clipped to the frame's pixel bounds
+         *  so a stroke that drags off-frame doesn't visually overflow. */}
+        {isFocused && maskVisible && setActiveLineNode && (
+          <Group
+            clipFunc={(ctx) => {
+              ctx.rect(0, 0, frame.frameW, frame.frameH);
+            }}
+          >
+            <Line
+              ref={setActiveLineNode}
+              points={[]}
+              stroke={maskColorRgb}
+              strokeWidth={20}
+              opacity={maskColorAlpha}
+              lineJoin="round"
+              lineCap="round"
+              visible={false}
+              listening={false}
+            />
+          </Group>
+        )}
+        {isFocused && setCursorNode && (
+          <KonvaCircle
+            ref={setCursorNode}
+            x={0}
+            y={0}
+            radius={10}
+            stroke="#fff"
+            strokeWidth={1 / displayScale}
+            dash={[4 / displayScale, 4 / displayScale]}
+            visible={false}
+            listening={false}
+          />
+        )}
       </Group>
 
       {/* Empty-state placeholder text (display-space so font size stays

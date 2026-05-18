@@ -2,7 +2,7 @@ import { findConnectedComponents } from "@/lib/connectedComponents";
 import { blobToBase64 } from "@/lib/image";
 import { useCanvasStore, type MaskObjectLayer } from "@/stores/canvasStore";
 import { useGenerationStore } from "@/stores/generationStore";
-import { useImg2ImgStore, type MaskLine } from "@/stores/img2imgStore";
+import type { MaskLine } from "@/stores/img2imgStore";
 
 /** Render new (uncommitted) mask strokes as white-on-transparent. */
 function renderStrokes(ctx: CanvasRenderingContext2D, lines: MaskLine[]) {
@@ -44,12 +44,10 @@ function colorizeRegion(region: HTMLCanvasElement, rgb: string): HTMLCanvasEleme
   canvas.height = h;
   const ctx = canvas.getContext("2d")!;
 
-  // Parse "#rrggbb" to components
   const r = parseInt(rgb.slice(1, 3), 16);
   const g = parseInt(rgb.slice(3, 5), 16);
   const b = parseInt(rgb.slice(5, 7), 16);
 
-  // Copy source to get alpha channel
   ctx.drawImage(region, 0, 0);
   const imgData = ctx.getImageData(0, 0, w, h);
   const data = imgData.data;
@@ -59,7 +57,6 @@ function colorizeRegion(region: HTMLCanvasElement, rgb: string): HTMLCanvasEleme
       data[i] = r;
       data[i + 1] = g;
       data[i + 2] = b;
-      // alpha stays as-is
     }
   }
 
@@ -80,10 +77,6 @@ function canvasToBase64(canvas: HTMLCanvasElement): Promise<string> {
   });
 }
 
-/**
- * Check whether two bounding boxes overlap (used to match old mask objects
- * to new regions for preserving lock/visible state).
- */
 function rectsOverlap(
   a: { x: number; y: number; w: number; h: number },
   b: { x: number; y: number; w: number; h: number },
@@ -92,32 +85,32 @@ function rectsOverlap(
 }
 
 /**
- * Bake current mask strokes into mask objects.
+ * Bake the target Input frame's mask strokes into mask object layers.
  *
- * 1. Renders existing mask objects + new strokes onto a full-frame canvas
+ * 1. Renders existing mask objects (from `frame.layers`) + new strokes
+ *    (from `frame.maskLines`) onto a full-frame canvas
  * 2. Runs connected-component labeling to find separate regions
  * 3. Creates colored MaskObjectLayers for each region
  * 4. Preserves lock/visible from old objects via bbox overlap
- * 5. Replaces old mask layers and clears strokes
+ * 5. Replaces the frame's mask layers and clears its strokes
  */
-export async function bakeMaskStrokes(): Promise<void> {
+export async function bakeMaskStrokes(frameId: string): Promise<void> {
+  const frame = useCanvasStore.getState().inputFrames.find((f) => f.id === frameId);
+  if (!frame || frame.mode !== "initial") return;
+
   const { width: frameW, height: frameH } = useGenerationStore.getState();
   if (frameW <= 0 || frameH <= 0) return;
 
-  const maskLines = useImg2ImgStore.getState().maskLines;
-  const oldMasks = useCanvasStore.getState().getMaskLayers();
+  const maskLines = frame.maskLines;
+  const oldMasks = useCanvasStore.getState().getMaskLayersInFrame(frameId);
 
-  // Nothing to bake
   if (maskLines.length === 0 && oldMasks.length === 0) return;
 
-  // 1. Composite everything onto a white-on-transparent canvas
   const canvas = document.createElement("canvas");
   canvas.width = frameW;
   canvas.height = frameH;
   const ctx = canvas.getContext("2d")!;
 
-  // Render existing mask objects first (white-on-transparent)
-  // We need to load each object's image synchronously, so we pre-load them
   if (oldMasks.length > 0) {
     const loadedImages = await Promise.all(
       oldMasks.map(
@@ -140,7 +133,6 @@ export async function bakeMaskStrokes(): Promise<void> {
       ctx.restore();
     }
 
-    // Convert whatever color was drawn to white, preserving alpha
     const imgData = ctx.getImageData(0, 0, frameW, frameH);
     const data = imgData.data;
     for (let i = 0; i < data.length; i += 4) {
@@ -153,23 +145,19 @@ export async function bakeMaskStrokes(): Promise<void> {
     ctx.putImageData(imgData, 0, 0);
   }
 
-  // Render new strokes on top
   if (maskLines.length > 0) {
     renderStrokes(ctx, maskLines);
   }
 
-  // 2. Connected-component labeling
   const fullImageData = ctx.getImageData(0, 0, frameW, frameH);
   const regions = findConnectedComponents(fullImageData);
 
   if (regions.length === 0) {
-    // All mask data was erased
-    useCanvasStore.getState().removeMaskLayers();
-    useImg2ImgStore.setState({ maskLines: [] });
+    useCanvasStore.getState().removeMaskLayersInFrame(frameId);
+    useCanvasStore.getState().clearMaskLinesInFrame(frameId);
     return;
   }
 
-  // 3. Create new MaskObjectLayers
   const maskColor = useCanvasStore.getState().maskColor;
   const rgb = maskColor.slice(0, 7);
 
@@ -182,8 +170,7 @@ export async function bakeMaskStrokes(): Promise<void> {
       );
       const objectUrl = blob ? URL.createObjectURL(blob) : "";
 
-      // Match against old masks to preserve lock/visible state
-      let locked = true; // default: locked
+      let locked = true;
       let visible = true;
       for (const old of oldMasks) {
         const oldRect = {
@@ -220,7 +207,6 @@ export async function bakeMaskStrokes(): Promise<void> {
     }),
   );
 
-  // 4. Replace old mask layers and clear strokes
-  useCanvasStore.getState().replaceMaskLayers(newLayers);
-  useImg2ImgStore.setState({ maskLines: [] });
+  useCanvasStore.getState().replaceMaskLayersInFrame(frameId, newLayers);
+  useCanvasStore.getState().clearMaskLinesInFrame(frameId);
 }
