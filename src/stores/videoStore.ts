@@ -194,35 +194,7 @@ export const useVideoStore = create<VideoState>()(
     }),
     {
       name: "enso-video",
-      version: 4,
-      migrate: (persisted, version) => {
-        if (!persisted || typeof persisted !== "object") return persisted;
-        const p = persisted as Record<string, unknown>;
-        if (version < 1) {
-          if ("_historyLimit" in p) {
-            p["historyLimit"] = p["_historyLimit"];
-            delete p["_historyLimit"];
-          }
-        }
-        if (version < 2) {
-          // activeVideoTab moved to uiStore.panelSelections.videoSubTab in v2.
-          delete p["activeVideoTab"];
-        }
-        // v3: introduces cloudAspectRatio + cloudDuration. No migration step
-        // needed — the zustand initializer spreads defaultParams so missing
-        // keys default in cleanly on rehydrate.
-        if (version < 4) {
-          // v4: engine / model / fpVariant / ltxModel moved to
-          // modelSelectionStore.activeModel (typed as LocalVideoModel). Drop
-          // the persisted strings — they have no consumer in the new
-          // architecture and would just sit as dead bytes.
-          delete p["engine"];
-          delete p["model"];
-          delete p["fpVariant"];
-          delete p["ltxModel"];
-        }
-        return p;
-      },
+      version: 5,
       partialize: (state) => {
         const p: Record<string, unknown> = {};
         for (const key of defaultParamKeys) {

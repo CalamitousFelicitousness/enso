@@ -378,74 +378,7 @@ export const useGenerationStore = create<GenerationState>()(
     }),
     {
       name: "enso-generation",
-      version: 2,
-      migrate: (persisted, version) => {
-        if (!persisted || typeof persisted !== "object") return persisted;
-        const p = persisted as Record<string, unknown>;
-        if (version < 1) {
-          // Coerce detailerModels: string[] → DetailerModelEntry[]
-          const oldModels = p["detailerModels"];
-          if (
-            Array.isArray(oldModels) &&
-            oldModels.length > 0 &&
-            typeof oldModels[0] === "string"
-          ) {
-            p["detailerModels"] = oldModels.map((name) => ({ name: name as string }));
-          }
-          // Fold flat detailer* fields into a defaults block
-          p["detailerDefaults"] = {
-            strength: p["detailerStrength"],
-            steps: p["detailerSteps"],
-            resolution: p["detailerResolution"],
-            padding: p["detailerPadding"],
-            blur: p["detailerBlur"],
-            conf: p["detailerConfidence"],
-            iou: p["detailerIou"],
-            min_size: p["detailerMinSize"],
-            max_size: p["detailerMaxSize"],
-            max: p["detailerMaxDetected"],
-            sigma_adjust: p["detailerRenoise"],
-            sigma_adjust_max: p["detailerRenoiseEnd"],
-            segmentation: p["detailerSegmentation"],
-            include_detections: p["detailerIncludeDetections"],
-            merge: p["detailerMerge"],
-            sort: p["detailerSort"],
-            classes: p["detailerClasses"],
-            prompt: p["detailerPrompt"],
-            negative: p["detailerNegative"],
-          };
-          for (const k of [
-            "detailerStrength",
-            "detailerSteps",
-            "detailerResolution",
-            "detailerPadding",
-            "detailerBlur",
-            "detailerConfidence",
-            "detailerIou",
-            "detailerMinSize",
-            "detailerMaxSize",
-            "detailerMaxDetected",
-            "detailerRenoise",
-            "detailerRenoiseEnd",
-            "detailerSegmentation",
-            "detailerIncludeDetections",
-            "detailerMerge",
-            "detailerSort",
-            "detailerClasses",
-            "detailerPrompt",
-            "detailerNegative",
-          ]) {
-            delete p[k];
-          }
-        }
-        if (version < 2) {
-          if ("_historyLimit" in p) {
-            p["historyLimit"] = p["_historyLimit"];
-            delete p["_historyLimit"];
-          }
-        }
-        return p;
-      },
+      version: 3,
       partialize: (state) => {
         const p: Record<string, unknown> = {};
         for (const key of defaultParamKeys) p[key] = state[key];

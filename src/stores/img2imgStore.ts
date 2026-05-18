@@ -87,22 +87,7 @@ export const useImg2ImgStore = create<Img2ImgState>()(
     }),
     {
       name: "enso-img2img",
-      version: 1,
-      // v0 -> v1: mask content (maskLines, maskData) lived here; it now
-      // lives per-Input-frame on canvasStore. The v0 -> v1 migration in
-      // canvasStore preserves any pre-existing mask data; here we just
-      // strip the keys so the persisted shape matches the current
-      // interface.
-      migrate: (state: unknown, fromVersion: number) => {
-        if (typeof state !== "object" || state === null) return state;
-        if (fromVersion < 1) {
-          const next = { ...(state as Record<string, unknown>) };
-          delete next["maskLines"];
-          delete next["maskData"];
-          return next;
-        }
-        return state;
-      },
+      version: 2,
       partialize: ({
         resizeMode,
         sizeMode,
