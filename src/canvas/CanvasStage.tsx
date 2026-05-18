@@ -51,7 +51,6 @@ export function CanvasStage({
   // Note: setSelectedControlFrame removed - panels are now persistent
   const frameW = useGenerationStore((s) => s.width);
   const frameH = useGenerationStore((s) => s.height);
-  const inputRole = useCanvasStore((s) => s.inputRole);
   const canvasMode = useCanvasStore((s) => s.canvasMode);
   const focusedFrameId = useCanvasStore((s) => s.focusedFrameId);
   const focusFitTrigger = useCanvasStore((s) => s.focusFitTrigger);
@@ -210,7 +209,7 @@ export function CanvasStage({
 
             <CompositeLayer trRef={trRef} displayScale={displayScale} />
 
-            {inputRole !== "reference" && (
+            {layout.inputFrames.some((f) => f.kind === "initial") && (
               <MaskLayer
                 displayScale={displayScale}
                 setActiveLineNode={maskPaint.setActiveLineNode}
