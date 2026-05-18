@@ -46,8 +46,14 @@ export function CompositeLayer({ trRef, displayScale }: CompositeLayerProps) {
   const imageMap = useRef<Map<string, HTMLImageElement>>(new Map());
   const nodeMap = useRef<Map<string, Konva.Image>>(new Map());
 
+  // image layers are rendered by InputFrameLayer now (reads
+  // from inputFrames). CompositeLayer keeps the imageLayers slice for
+  // Transformer attachment + the mask layers slice for the on-canvas
+  // mask paint surface, but the imageLayers themselves are no longer
+  // drawn here - InputFrameLayer would double-render them otherwise.
   const imageLayers = layers.filter((l) => l.type === "image") as ImageLayerType[];
   const maskLayers = layers.filter((l) => l.type === "mask") as MaskObjectLayer[];
+  const RENDER_LEGACY_IMAGE_LAYERS = false;
 
   // Load/unload HTMLImageElements as layers change (images + masks)
   useEffect(() => {
@@ -146,34 +152,35 @@ export function CompositeLayer({ trRef, displayScale }: CompositeLayerProps) {
     <Layer>
       <Group scaleX={displayScale} scaleY={displayScale}>
         {/* eslint-disable-next-line react-hooks/refs -- imageMap synced with imageLayers in effect above */}
-        {imageLayers.map((layer) => {
-          // Reference autoscale: each image is fit to the input frame's pixel
-          // height (= frameH after useControlFrameLayout's normalization), so
-          // every layer shows at the same visual height regardless of native
-          // pixel dims. Width follows the layer's aspect. Persisted transforms
-          // in the store stay untouched; only the rendered transforms differ.
-          const refScale =
-            isReferenceMode && layer.naturalHeight > 0 ? frameH / layer.naturalHeight : 1;
-          return (
-            <KonvaImage
-              key={layer.id}
-              ref={(node) => setNodeRef(layer.id, node)}
-              image={imageMap.current.get(layer.id)}
-              x={isReferenceMode ? 0 : layer.x}
-              y={isReferenceMode ? 0 : layer.y}
-              scaleX={isReferenceMode ? refScale : layer.scaleX}
-              scaleY={isReferenceMode ? refScale : layer.scaleY}
-              rotation={isReferenceMode ? 0 : layer.rotation}
-              opacity={layer.opacity}
-              visible={layer.visible}
-              draggable={activeTool === "move" && !layer.locked && !isReferenceMode}
-              onDragMove={snap.handleDragMove}
-              onDragEnd={(e) => handleDragEnd(layer.id, e)}
-              onTransformEnd={(e) => handleTransformEnd(layer.id, e)}
-              onClick={(e) => handleClick(layer.id, e)}
-            />
-          );
-        })}
+        {RENDER_LEGACY_IMAGE_LAYERS &&
+          imageLayers.map((layer) => {
+            // Reference autoscale: each image is fit to the input frame's pixel
+            // height (= frameH after useControlFrameLayout's normalization), so
+            // every layer shows at the same visual height regardless of native
+            // pixel dims. Width follows the layer's aspect. Persisted transforms
+            // in the store stay untouched; only the rendered transforms differ.
+            const refScale =
+              isReferenceMode && layer.naturalHeight > 0 ? frameH / layer.naturalHeight : 1;
+            return (
+              <KonvaImage
+                key={layer.id}
+                ref={(node) => setNodeRef(layer.id, node)}
+                image={imageMap.current.get(layer.id)}
+                x={isReferenceMode ? 0 : layer.x}
+                y={isReferenceMode ? 0 : layer.y}
+                scaleX={isReferenceMode ? refScale : layer.scaleX}
+                scaleY={isReferenceMode ? refScale : layer.scaleY}
+                rotation={isReferenceMode ? 0 : layer.rotation}
+                opacity={layer.opacity}
+                visible={layer.visible}
+                draggable={activeTool === "move" && !layer.locked && !isReferenceMode}
+                onDragMove={snap.handleDragMove}
+                onDragEnd={(e) => handleDragEnd(layer.id, e)}
+                onTransformEnd={(e) => handleTransformEnd(layer.id, e)}
+                onClick={(e) => handleClick(layer.id, e)}
+              />
+            );
+          })}
         {/* eslint-disable react-hooks/refs -- imageMap synced with maskLayers in effect above */}
         {maskVisible &&
           maskLayers.map((layer) => (
