@@ -129,12 +129,14 @@ export function InputFramePanel({
   const handleClear = () => onClearFrame?.(frame.frameId);
   const handleRemove = () => onRemoveFrame?.(frame.frameId);
 
-  // ── Mode toggle pill (Initial / Reference) ───────────────────────────
+  // Mode toggle pill (Initial / Reference). Lives in the drawer body
+  // rather than the header so the cramped 320px header isn't competing
+  // with the dot + label + size text + action buttons + chevron.
   const modeToggle = (
-    <div className="flex items-center gap-0.5 rounded-md bg-white/5 p-0.5">
+    <div className="flex items-stretch gap-0.5 rounded-md bg-white/5 p-0.5">
       <button
         onClick={() => handleModeSwitch("initial")}
-        className="rounded-sm px-2 py-0.5 text-[10px] font-medium transition-colors"
+        className="flex-1 rounded-sm px-3 py-1 text-[10px] font-medium transition-colors"
         style={{
           backgroundColor: !isReference ? `${INPUT_COLOR_ACTIVE}26` : "transparent",
           color: !isReference ? INPUT_COLOR_ACTIVE : "var(--muted-foreground)",
@@ -146,7 +148,7 @@ export function InputFramePanel({
       </button>
       <button
         onClick={() => handleModeSwitch("reference")}
-        className="rounded-sm px-2 py-0.5 text-[10px] font-medium transition-colors"
+        className="flex-1 rounded-sm px-3 py-1 text-[10px] font-medium transition-colors"
         style={{
           backgroundColor: isReference ? `${INPUT_COLOR_REFERENCE}26` : "transparent",
           color: isReference ? INPUT_COLOR_REFERENCE : "var(--muted-foreground)",
@@ -176,7 +178,6 @@ export function InputFramePanel({
   const actions = (
     <>
       {dragHandleEl}
-      {modeToggle}
       <Button
         variant="ghost"
         size="icon-xs"
@@ -226,7 +227,8 @@ export function InputFramePanel({
   );
 
   const drawer = !collapsed && (
-    <div className="border-t border-white/5 px-3 py-2">
+    <div className="flex flex-col gap-2 border-t border-white/5 px-3 py-2">
+      {modeToggle}
       <KeepAliveSwitch active={activeTab}>
         <KeepAlivePanel id="info">
           <div className="space-y-1 text-[10px]">
