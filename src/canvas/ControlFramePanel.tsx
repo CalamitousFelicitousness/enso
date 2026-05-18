@@ -609,7 +609,7 @@ function OutputFramePanel({
   const selectedResultId = useGenerationStore((s) => s.selectedResultId);
   const selectedImageIndex = useGenerationStore((s) => s.selectedImageIndex);
   const results = useGenerationStore((s) => s.results);
-  const addImageLayer = useCanvasStore((s) => s.addImageLayer);
+  const addImageLayerToFrame = useCanvasStore((s) => s.addImageLayerToFrame);
   const panelCollapsedOverrides = useCanvasStore((s) => s.panelCollapsedOverrides);
   const togglePanelCollapsed = useCanvasStore((s) => s.togglePanelCollapsed);
   const [activeTab, setActiveTab] = useState<"info" | "params">("info");
@@ -651,8 +651,12 @@ function OutputFramePanel({
     await new Promise<void>((r) => {
       img.onload = () => r();
     });
-    addImageLayer(file, base64, objectUrl, img.naturalWidth, img.naturalHeight);
-  }, [selectedResult, selectedImageIndex, addImageLayer]);
+    const state = useCanvasStore.getState();
+    const target = state.activeInputFrameId ?? state.inputFrames[0]?.id;
+    if (target) {
+      addImageLayerToFrame(target, file, base64, objectUrl, img.naturalWidth, img.naturalHeight);
+    }
+  }, [selectedResult, selectedImageIndex, addImageLayerToFrame]);
 
   const handleDownload = useCallback(() => {
     if (!selectedResult || selectedImageIndex === null) return;
