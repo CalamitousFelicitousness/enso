@@ -2,13 +2,8 @@ import type { CanvasLayout } from "./useControlFrameLayout";
 
 /** A canvas frame identifier. Used by focus mode + panelCollapsedOverrides
  * keys + per-frame state lookups. Input frames carry their UUID; output and
- * processed are singular; ControlNet units are indexed.
- *
- * The bare `"input"` literal remains in the union as a transitional value
- * for persisted state from canvasStore v1 (single-Input legacy). 's
- * v1->v2 migration converts those to `input:${id}` form; the bare literal
- * is removed from the union in the canvasStore capstone step. */
-export type FrameId = "input" | `input:${string}` | "output" | "processed" | `control:${number}`;
+ * processed are singular; ControlNet units are indexed. */
+export type FrameId = `input:${string}` | "output" | "processed" | `control:${number}`;
 
 export interface FrameBounds {
   id: FrameId;
@@ -23,9 +18,6 @@ export function inputFrameId(uuid: string): FrameId {
   return `input:${uuid}`;
 }
 
-/** Discriminated representation of a FrameId. The bare legacy `"input"`
- * surfaces here as `{ kind: "input", id: "" }` so callers can detect and
- * handle stale persisted state without a separate branch. */
 export type ParsedFrameId =
   | { kind: "input"; id: string }
   | { kind: "output" }
@@ -35,7 +27,6 @@ export type ParsedFrameId =
 export function parseFrameId(fid: FrameId): ParsedFrameId {
   if (fid === "output") return { kind: "output" };
   if (fid === "processed") return { kind: "processed" };
-  if (fid === "input") return { kind: "input", id: "" };
   if (fid.startsWith("input:")) return { kind: "input", id: fid.slice(6) };
   if (fid.startsWith("control:")) {
     const n = Number(fid.slice(8));
