@@ -1,5 +1,10 @@
 import { useCallback, useRef } from "react";
-import { useCanvasStore, type ImageLayer, type MaskObjectLayer } from "@/stores/canvasStore";
+import {
+  useCanvasStore,
+  type CanvasLayer,
+  type ImageLayer,
+  type MaskObjectLayer,
+} from "@/stores/canvasStore";
 import { useGenerationStore } from "@/stores/generationStore";
 import { fileToBase64 } from "@/lib/image";
 import { Eye, EyeOff, X, Plus, Frame, Lock, Unlock } from "lucide-react";
@@ -32,14 +37,32 @@ function LayerDims({ layer }: { layer: ImageLayer }) {
 }
 
 export function LayerPanel() {
-  const layers = useCanvasStore((s) => s.layers);
-  const activeLayerId = useCanvasStore((s) => s.activeLayerId);
-  const setActiveLayer = useCanvasStore((s) => s.setActiveLayer);
-  const updateLayer = useCanvasStore((s) => s.updateLayer);
-  const removeLayer = useCanvasStore((s) => s.removeLayer);
-  const addImageLayer = useCanvasStore((s) => s.addImageLayer);
+  // Phase 9: source layer state from the focused inputFrame instead of
+  // the global state.layers. Mutations route through the per-frame
+  // canvasStore API; legacy state.layers stays for read-side back-compat
+  // until all consumers have migrated.
+  const inputFrames = useCanvasStore((s) => s.inputFrames);
+  const activeInputFrameId = useCanvasStore((s) => s.activeInputFrameId);
+  const focusedFrame =
+    inputFrames.find((f) => f.id === activeInputFrameId) ?? inputFrames[0] ?? null;
+  const layers = focusedFrame?.layers ?? [];
+  const activeLayerId = focusedFrame?.activeLayerId ?? null;
+  const setActiveLayerInFrame = useCanvasStore((s) => s.setActiveLayerInFrame);
+  const updateLayerInFrame = useCanvasStore((s) => s.updateLayerInFrame);
+  const removeLayerFromFrame = useCanvasStore((s) => s.removeLayerFromFrame);
+  const addImageLayerToFrame = useCanvasStore((s) => s.addImageLayerToFrame);
   const setParam = useGenerationStore((s) => s.setParam);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const setActiveLayer = (id: string | null) => {
+    if (focusedFrame) setActiveLayerInFrame(focusedFrame.id, id);
+  };
+  const updateLayer = (id: string, updates: Partial<CanvasLayer>) => {
+    if (focusedFrame) updateLayerInFrame(focusedFrame.id, id, updates);
+  };
+  const removeLayer = (id: string) => {
+    if (focusedFrame) removeLayerFromFrame(focusedFrame.id, id);
+  };
 
   const imageLayers = layers.filter((l) => l.type === "image") as ImageLayer[];
   const maskLayers = layers.filter((l) => l.type === "mask") as MaskObjectLayer[];
@@ -54,9 +77,13 @@ export function LayerPanel() {
       await new Promise<void>((r) => {
         img.onload = () => r();
       });
-      addImageLayer(file, base64, objectUrl, img.naturalWidth, img.naturalHeight);
+      const state = useCanvasStore.getState();
+      const target = state.activeInputFrameId ?? state.inputFrames[0]?.id;
+      if (target) {
+        addImageLayerToFrame(target, file, base64, objectUrl, img.naturalWidth, img.naturalHeight);
+      }
     },
-    [addImageLayer],
+    [addImageLayerToFrame],
   );
 
   const handleFileInput = useCallback(
