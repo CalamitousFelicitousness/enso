@@ -191,23 +191,21 @@ export function CanvasStage({
           >
             <ControlFrameLayer frames={controlFrames} onPickImage={onPickImage} />
 
-            {/* Phase 7 chrome swap: the new InputFrameLayer renders all
-              Input frames (Initial + Reference) as canvas-native chrome
-              with mode-tinted borders, corner brackets, and per-Reference-
-              frame child grids. Replaces the legacy FrameLayer +
-              ReferenceImageLayer pair that drew the singular Input frame.
-              CompositeLayer + MaskLayer stay mounted through Phase 12;
-              they own the Transformer and the active mask paint stroke
-              and continue to read legacy state until Phase 13 absorbs
-              them into per-frame InputFrameLayer rendering. */}
+            {/* InputFrameLayer renders all Input frames (Initial + Reference)
+              as canvas-native chrome and owns the Transformer + per-frame
+              image-layer interaction (drag, scale, rotate, select). The
+              CompositeLayer below keeps the legacy mask-objects render
+              alive until Step 10; MaskLayer keeps the active paint stroke
+              and cursor until Step 8 routes them through per-frame state. */}
             <InputFrameLayer
               frames={layout.inputFrames}
               displayScale={displayScale}
+              trRef={trRef}
               onPickInputFile={onPickInputFile}
               onAddReferenceChild={onAddReferenceChild}
             />
 
-            <CompositeLayer trRef={trRef} displayScale={displayScale} />
+            <CompositeLayer displayScale={displayScale} />
 
             {layout.inputFrames.some((f) => f.kind === "initial") && (
               <MaskLayer
