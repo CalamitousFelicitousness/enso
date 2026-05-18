@@ -7,7 +7,6 @@ import { useMaskPaint } from "./tools/useMaskPaint";
 import { useImageTransform } from "./tools/useImageTransform";
 import { InputFrameLayer } from "./layers/InputFrameLayer";
 import { CompositeLayer } from "./layers/CompositeLayer";
-import { MaskLayer } from "./layers/MaskLayer";
 import { OutputLayer } from "./layers/OutputLayer";
 import { ProcessedCompositeLayer } from "./layers/ProcessedCompositeLayer";
 import { ControlFrameLayer } from "./layers/ControlFrameLayer";
@@ -56,7 +55,7 @@ export function CanvasStage({
   const focusFitTrigger = useCanvasStore((s) => s.focusFitTrigger);
 
   const panZoom = usePanZoom(stageRef, undefined, mainViewportBus);
-  const maskPaint = useMaskPaint({ stageRef, spaceHeld: panZoom.spaceHeld });
+  const maskPaint = useMaskPaint({ stageRef, spaceHeld: panZoom.spaceHeld, layout });
   const imageTransform = useImageTransform(stageRef, trRef);
 
   const { outputX, processedX, showProcessedFrame, controlFrames, totalBounds, displayScale } =
@@ -192,28 +191,24 @@ export function CanvasStage({
             <ControlFrameLayer frames={controlFrames} onPickImage={onPickImage} />
 
             {/* InputFrameLayer renders all Input frames (Initial + Reference)
-              as canvas-native chrome and owns the Transformer + per-frame
-              image-layer interaction (drag, scale, rotate, select). The
-              CompositeLayer below keeps the legacy mask-objects render
-              alive until Step 10; MaskLayer keeps the active paint stroke
-              and cursor until Step 8 routes them through per-frame state. */}
+              as canvas-native chrome and owns the Transformer, per-frame
+              image-layer interaction (drag, scale, rotate, select), and the
+              active mask paint stroke + brush cursor (rendered inside the
+              focused frame's group). CompositeLayer below stays mounted for
+              the legacy canvasStore.layers mask-objects render until Step
+              10 deletes the file. */}
             <InputFrameLayer
               frames={layout.inputFrames}
               displayScale={displayScale}
               trRef={trRef}
+              setActiveLineNode={maskPaint.setActiveLineNode}
+              setCursorNode={maskPaint.setCursorNode}
               onPickInputFile={onPickInputFile}
               onAddReferenceChild={onAddReferenceChild}
             />
 
             <CompositeLayer displayScale={displayScale} />
 
-            {layout.inputFrames.some((f) => f.kind === "initial") && (
-              <MaskLayer
-                displayScale={displayScale}
-                setActiveLineNode={maskPaint.setActiveLineNode}
-                setCursorNode={maskPaint.setCursorNode}
-              />
-            )}
             <OutputLayer
               offsetX={outputX}
               placeholderWidth={layout.outputDisplayW}
