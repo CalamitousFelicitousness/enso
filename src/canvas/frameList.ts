@@ -1,6 +1,14 @@
 import type { CanvasLayout } from "./useControlFrameLayout";
 
-export type FrameId = "input" | "output" | "processed" | `control:${number}`;
+/** A canvas frame identifier. Used by focus mode + panelCollapsedOverrides
+ * keys + per-frame state lookups. Input frames carry their UUID; output and
+ * processed are singular; ControlNet units are indexed.
+ *
+ * The bare `"input"` literal remains in the union as a transitional value
+ * for persisted state from canvasStore v1 (single-Input legacy). Phase 9's
+ * v1->v2 migration converts those to `input:${id}` form; the bare literal
+ * is removed from the union in the canvasStore capstone step. */
+export type FrameId = "input" | `input:${string}` | "output" | "processed" | `control:${number}`;
 
 export interface FrameBounds {
   id: FrameId;
@@ -10,6 +18,32 @@ export interface FrameBounds {
   height: number;
 }
 
+/** Build a per-Input-frame FrameId from an InputFrame.id. */
+export function inputFrameId(uuid: string): FrameId {
+  return `input:${uuid}`;
+}
+
+/** Discriminated representation of a FrameId. The bare legacy `"input"`
+ * surfaces here as `{ kind: "input", id: "" }` so callers can detect and
+ * handle stale persisted state without a separate branch. */
+export type ParsedFrameId =
+  | { kind: "input"; id: string }
+  | { kind: "output" }
+  | { kind: "processed" }
+  | { kind: "control"; index: number };
+
+export function parseFrameId(fid: FrameId): ParsedFrameId {
+  if (fid === "output") return { kind: "output" };
+  if (fid === "processed") return { kind: "processed" };
+  if (fid === "input") return { kind: "input", id: "" };
+  if (fid.startsWith("input:")) return { kind: "input", id: fid.slice(6) };
+  if (fid.startsWith("control:")) {
+    const n = Number(fid.slice(8));
+    if (Number.isFinite(n)) return { kind: "control", index: n };
+  }
+  throw new Error(`unknown FrameId: ${fid as string}`);
+}
+
 const PADDING = 40;
 /** Reserve space above frame for an expanded glass dock panel (header + tabs + drawer + gap) */
 const LABEL_HEIGHT = 160;
@@ -17,14 +51,18 @@ const LABEL_HEIGHT = 160;
 const TOOLBAR_RESERVE = 56;
 
 /**
- * Returns all visible frames sorted left-to-right.
- * Order: control frames (reversed — they accumulate rightmost-first in layout),
- * input, output, processed (if visible).
+ * Returns all visible frames in canvas-mode focus-nav order.
+ *
+ * Order: control frames left-to-right (reversed since the layout accumulates
+ * negative-X-first), then Input frames top-to-bottom from layout.inputFrames,
+ * then output, then processed if visible. Bounds come from each layout entry's
+ * display-space dimensions; Reference-mode Input frames use motherW/motherH,
+ * Initial-mode use displayW/displayH.
  */
 export function getOrderedFrames(layout: CanvasLayout): FrameBounds[] {
   const frames: FrameBounds[] = [];
 
-  // Control frames are laid out with negative X, last entry is leftmost
+  // Control frames are laid out with negative X, last entry is leftmost.
   const reversed = [...layout.controlFrames].reverse();
   for (const cf of reversed) {
     frames.push({
@@ -36,14 +74,26 @@ export function getOrderedFrames(layout: CanvasLayout): FrameBounds[] {
     });
   }
 
-  // Input frame
-  frames.push({
-    id: "input",
-    x: layout.inputX,
-    y: 0,
-    width: layout.displayW,
-    height: layout.displayH,
-  });
+  // Input frames in store order (top-to-bottom vertical stack).
+  for (const f of layout.inputFrames) {
+    if (f.kind === "initial") {
+      frames.push({
+        id: inputFrameId(f.frameId),
+        x: f.x,
+        y: f.y,
+        width: f.displayW,
+        height: f.displayH,
+      });
+    } else {
+      frames.push({
+        id: inputFrameId(f.frameId),
+        x: f.x,
+        y: f.y,
+        width: f.motherW,
+        height: f.motherH,
+      });
+    }
+  }
 
   // Output frame
   frames.push({
