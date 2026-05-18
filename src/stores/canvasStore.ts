@@ -366,6 +366,144 @@ function withFrame(
   return next;
 }
 
+/** Migrate a persisted v0 canvasStore blob to v1.
+ *
+ * v0 (pre-Phase-2): singular `inputRole + layers + referenceInputs`.
+ * v1 (Phase 2+): adds `inputFrames + activeInputFrameId` derived from the
+ * legacy singular fields. Exactly one InputFrame is produced, mirroring
+ * what the user had on the canvas before the upgrade.
+ *
+ * Three v0 shapes map to v1 frames:
+ *
+ *   - inputRole === "initial"
+ *       → one Initial frame containing the legacy layers
+ *   - inputRole === "reference" && referenceInputs.length > 0
+ *       → one Reference frame containing those references (layers kept on
+ *         the frame so a flip back to Initial restores them)
+ *   - inputRole === "reference" && referenceInputs.length === 0 &&
+ *     layers.length > 0
+ *       → one Reference frame seeded with the first visible ImageLayer
+ *         wrapped as a ReferenceInput, mirroring the legacy setInputRole
+ *         auto-migration
+ *
+ * The seed ReferenceInput's `file` is left as undefined; the persist
+ * middleware's `merge` reconstructs it from base64 via
+ * `rehydrateReferenceInput` before the store sees it. Legacy fields stay
+ * populated so Phase 2-8 consumers still find them; Phase 9 deletes them.
+ *
+ * Exported for testability: a snapshot of a v0 IDB blob can be replayed
+ * through this function in isolation. */
+export function migrateCanvasV0toV1(v0: unknown): PersistedCanvasState {
+  if (!v0 || typeof v0 !== "object") {
+    // Defensive: no usable persisted state, produce a fresh v1 default.
+    return {
+      viewport: { x: 0, y: 0, scale: 1 },
+      layers: [],
+      activeLayerId: null,
+      activeTool: "move",
+      inputRole: "initial",
+      brushSize: 20,
+      brushHardness: 0.8,
+      brushColor: "#ffffff",
+      brushOpacity: 1,
+      maskVisible: true,
+      maskColor: "#ff000080",
+      panelCollapsedOverrides: [],
+      canvasMode: "focus",
+      focusedFrameId: null,
+      modeLocked: false,
+      referenceInputs: [],
+      inputFrames: [],
+      activeInputFrameId: null,
+    };
+  }
+
+  const state = v0 as Partial<PersistedCanvasState>;
+  // Already migrated - pass through.
+  if (state.inputFrames !== undefined) {
+    return state as PersistedCanvasState;
+  }
+
+  const seedFrameId = crypto.randomUUID();
+  const layers = state.layers ?? [];
+  const referenceInputs = state.referenceInputs ?? [];
+  const inputRole = state.inputRole ?? "initial";
+
+  let seedFrame: PersistedInputFrame;
+  if (inputRole === "initial") {
+    seedFrame = {
+      id: seedFrameId,
+      mode: "initial",
+      layers,
+      activeLayerId: state.activeLayerId ?? null,
+      maskLines: [],
+      maskData: null,
+      references: [],
+    };
+  } else if (referenceInputs.length > 0) {
+    seedFrame = {
+      id: seedFrameId,
+      mode: "reference",
+      layers,
+      activeLayerId: null,
+      maskLines: [],
+      maskData: null,
+      references: referenceInputs,
+    };
+  } else {
+    // Reference mode without persisted refs - seed from first visible
+    // ImageLayer if one exists; otherwise leave references empty.
+    const firstImage = layers.find(
+      (l): l is ImageLayer => l.type === "image" && (l as ImageLayer).visible,
+    );
+    const seededRefs: ReferenceInput[] = firstImage
+      ? [
+          {
+            id: crypto.randomUUID(),
+            // file + imageData are left blank here; the merge step's
+            // rehydrateReferenceInput reconstructs both from base64.
+            file: undefined as unknown as File,
+            base64: firstImage.base64,
+            imageData: "",
+            naturalWidth: firstImage.naturalWidth,
+            naturalHeight: firstImage.naturalHeight,
+            filename: firstImage.name || "image.png",
+          },
+        ]
+      : [];
+    seedFrame = {
+      id: seedFrameId,
+      mode: "reference",
+      layers,
+      activeLayerId: null,
+      maskLines: [],
+      maskData: null,
+      references: seededRefs,
+    };
+  }
+
+  return {
+    viewport: state.viewport ?? { x: 0, y: 0, scale: 1 },
+    layers,
+    activeLayerId: state.activeLayerId ?? null,
+    activeTool: state.activeTool ?? "move",
+    inputRole,
+    brushSize: state.brushSize ?? 20,
+    brushHardness: state.brushHardness ?? 0.8,
+    brushColor: state.brushColor ?? "#ffffff",
+    brushOpacity: state.brushOpacity ?? 1,
+    maskVisible: state.maskVisible ?? true,
+    maskColor: state.maskColor ?? "#ff000080",
+    panelCollapsedOverrides: state.panelCollapsedOverrides ?? [],
+    canvasMode: state.canvasMode ?? "focus",
+    focusedFrameId: state.focusedFrameId ?? null,
+    modeLocked: state.modeLocked ?? false,
+    referenceInputs,
+    inputFrames: [seedFrame],
+    activeInputFrameId: seedFrameId,
+  };
+}
+
 // Default seed frame for a fresh canvas. Lives at module scope so the
 // (set, get) => ({...}) initializer can reference both [seedFrame] and
 // seedFrame.id without needing a function-block return. On HMR re-eval a
@@ -1176,6 +1314,16 @@ export const useCanvasStore = create<CanvasState>()(
     {
       name: "enso-canvas",
       storage: createJSONStorage(() => canvasIdbStorage),
+      version: 1,
+      migrate: (persistedState, fromVersion) => {
+        // Persist middleware fires migrate only when fromVersion <
+        // config.version. Pre-Phase-3 blobs have no version field and are
+        // treated as version 0; this branch derives inputFrames from the
+        // singular legacy fields. Future migrations chain via additional
+        // version checks here.
+        if (fromVersion < 1) return migrateCanvasV0toV1(persistedState);
+        return persistedState;
+      },
       partialize: (state): PersistedCanvasState => ({
         viewport: state.viewport,
         inputRole: state.inputRole,
