@@ -3,7 +3,6 @@ import { useGenerationStore } from "@/stores/generationStore";
 import { useUiStore } from "@/stores/uiStore";
 import { useImg2ImgStore } from "@/stores/img2imgStore";
 import { useCanvasStore } from "@/stores/canvasStore";
-import type { ImageLayer } from "@/stores/canvasStore";
 import { useIsImg2Img } from "@/hooks/useIsImg2Img";
 import { useModelSelectionStore } from "@/stores/modelSelectionStore";
 import { useShallow } from "zustand/react/shallow";
@@ -180,16 +179,28 @@ export function PromptsTab() {
   // Reference mode on local models sends the source file raw via `inputs`. The
   // server's resize_init_images then overrides p.width/p.height to match the
   // image, so Size is informational here. Cloud models honor request.size
-  // independently of the image, so they're never advisory.
-  const layers = useCanvasStore((s) => s.layers);
-  const inputRole = useCanvasStore((s) => s.inputRole);
-  const firstImage = useMemo(
-    () => layers.find((l): l is ImageLayer => l.type === "image" && l.visible) ?? null,
-    [layers],
+  // independently of the image, so they're never advisory. With multi-Input
+  // frames the advisory only fires when every populated frame is Reference -
+  // a single Initial frame is enough to honor the user-set Size.
+  const inputFrames = useCanvasStore((s) => s.inputFrames);
+  const firstReferenceImage = useMemo(() => {
+    for (const f of inputFrames) {
+      if (f.mode === "reference" && f.references.length > 0) {
+        return f.references[0];
+      }
+    }
+    return null;
+  }, [inputFrames]);
+  const hasAnyInitialImage = useMemo(
+    () =>
+      inputFrames.some(
+        (f) => f.mode === "initial" && f.layers.some((l) => l.type === "image" && l.visible),
+      ),
+    [inputFrames],
   );
   const isCloud = activeModel != null && activeModel.source === "cloud";
   const referenceInactive =
-    inputRole === "reference" && firstImage != null && activeModel != null && !isCloud;
+    firstReferenceImage != null && !hasAnyInitialImage && activeModel != null && !isCloud;
   // Auto dims Size whenever the user toggle is on (cloud). The provider may
   // still reject the auto value at submission time; that's caught via the
   // job-error path, not by client-side UI suppression.
@@ -204,11 +215,11 @@ export function PromptsTab() {
           "Turn Auto off to control output size.",
       );
     }
-    if (referenceInactive && firstImage) {
+    if (referenceInactive && firstReferenceImage) {
       notes.push(
         "Inactive in Reference mode on local models &mdash; " +
           `output resolution is set by the input image ` +
-          `(${firstImage.naturalWidth}&times;${firstImage.naturalHeight}). ` +
+          `(${firstReferenceImage.naturalWidth}&times;${firstReferenceImage.naturalHeight}). ` +
           "Switch to Initial to control output size.",
       );
     }
@@ -216,7 +227,7 @@ export function PromptsTab() {
     return (
       `${base}<br><br>` + notes.map((n) => `<span style="opacity:0.7">${n}</span>`).join("<br><br>")
     );
-  }, [autoInactive, referenceInactive, firstImage]);
+  }, [autoInactive, referenceInactive, firstReferenceImage]);
   const aspectPresets = useMemo(
     () =>
       parseAspectRatios(

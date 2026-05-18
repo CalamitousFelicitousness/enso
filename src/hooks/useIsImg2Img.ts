@@ -1,7 +1,9 @@
 import { useCanvasStore } from "@/stores/canvasStore";
 
 export function useIsImg2Img() {
-  const hasLayers = useCanvasStore((s) => s.layers.length > 0);
-  const inputRole = useCanvasStore((s) => s.inputRole);
-  return hasLayers && inputRole === "initial";
+  return useCanvasStore((s) =>
+    s.inputFrames.some(
+      (f) => f.mode === "initial" && f.layers.some((l) => l.type === "image" && l.visible),
+    ),
+  );
 }
