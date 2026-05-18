@@ -65,7 +65,7 @@ const GLASS_STYLE: React.CSSProperties = {
 
 // ─── DockTab ────────────────────────────────────────────────────────────────
 
-interface DockTabProps {
+export interface DockTabProps {
   active: boolean;
   label: string;
   icon: React.ComponentType<{ size?: number }>;
@@ -73,7 +73,7 @@ interface DockTabProps {
   onClick: () => void;
 }
 
-function DockTab({ active, label, icon: Icon, accent, onClick }: DockTabProps) {
+export function DockTab({ active, label, icon: Icon, accent, onClick }: DockTabProps) {
   return (
     <button
       onClick={(e) => {
@@ -194,8 +194,13 @@ export function FrameHeader({
         pointerEvents: "auto" as const,
       };
     }
+    // Panel mode anchors above the frame's top-left. canvasY honors the
+    // frame's actual y on the canvas (defaults to 0 for legacy callers like
+    // the singular InputFramePanel + OutputFramePanel; per-Input-frame
+    // panels in the multi-Input-frame stack pass their own y).
     const screenLeftX = (canvasX - STROKE_HALF) * viewport.scale + viewport.x;
-    const screenTopY = STROKE_HALF * viewport.scale + viewport.y - ELEMENT_GAP * viewport.scale;
+    const screenTopY =
+      (canvasY + STROKE_HALF) * viewport.scale + viewport.y - ELEMENT_GAP * viewport.scale;
     return {
       position: "absolute",
       left: `${screenLeftX}px`,
