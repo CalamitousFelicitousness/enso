@@ -7,6 +7,21 @@ import type { ImageLayer } from "@/stores/canvasStore";
 import { useImg2ImgStore } from "@/stores/img2imgStore";
 import { useModelSelectionStore } from "@/stores/modelSelectionStore";
 import { resolveGenerationSize } from "@/lib/sizeCompute";
+import { enumerateWireSlots } from "@/canvas/inputFrames";
+import {
+  INPUT_FRAME_GAP,
+  REFERENCE_CHILD_GAP,
+  REFERENCE_MIN_CELL_HEIGHT,
+  REFERENCE_MOTHER_PADDING,
+  computeReferenceGridColumns,
+  computeReferenceGridRows,
+} from "@/canvas/inputFrameLayout";
+import type {
+  InitialFramePosition,
+  InputFramePosition,
+  ReferenceChildPosition,
+  ReferenceFramePosition as MotherFramePosition,
+} from "@/canvas/inputFrameTypes";
 
 /** Reference height for display-unit normalization: all frames are laid out as
  * if the main frame were this many units tall. Keeps UI panels consistently
@@ -92,6 +107,16 @@ export interface CanvasLayout {
    * back to the single inputFrame in that case. When non-empty, outputX is
    * pushed right by the filmstrip's total width + FRAME_GAP. */
   referenceFrames: ReferenceFramePosition[];
+  /** per-Input-frame layout positions for the multi-Input-frame
+   * stack. One entry per frame in `canvasStore.inputFrames` in store order.
+   * Vertical stack with INPUT_FRAME_GAP spacing. Lives in parallel with the
+   * legacy singular `referenceFrames`/`inputX`/`inputDisplayW` fields until
+   * swaps consumers over and removes the legacy ones. */
+  inputFrames: InputFramePosition[];
+  /** Bottom edge of the input column (display units). Y position immediately
+   * below the last Input frame, useful for placing the +Add Input Frame
+   * affordance and computing canvas-mode totalBounds. */
+  inputColumnBottom: number;
 }
 
 export function useControlFrameLayout(): CanvasLayout {
@@ -103,6 +128,7 @@ export function useControlFrameLayout(): CanvasLayout {
   const layers = useCanvasStore((s) => s.layers);
   const inputRole = useCanvasStore((s) => s.inputRole);
   const referenceInputs = useCanvasStore((s) => s.referenceInputs);
+  const storeInputFrames = useCanvasStore((s) => s.inputFrames);
   const hasLayers = layers.length > 0;
   const autoFitFrame = useUiStore((s) => s.autoFitFrame);
   const sizeMode = useImg2ImgStore((s) => s.sizeMode);
@@ -289,6 +315,112 @@ export function useControlFrameLayout(): CanvasLayout {
       if (frameMaxY > maxY) maxY = frameMaxY;
     }
 
+    // ── multi-Input-frame positions ────────────────────────────
+    // One InputFramePosition per frame in canvasStore.inputFrames, stacked
+    // vertically. Reference frames render as a mother frame with a grid of
+    // child cells per the user's mockup. The wireIndex on each entry comes
+    // from enumerateWireSlots so the panel header and child badges show
+    // the global wire position, not within-frame indexing.
+    const activeMaxInputImages =
+      activeModel?.source === "cloud" ? (activeModel.max_input_images ?? null) : null;
+    const inputFramesPositions: InputFramePosition[] = [];
+    const wireSlots = enumerateWireSlots(storeInputFrames);
+    let stackY = 0;
+    for (const storeFrame of storeInputFrames) {
+      if (storeFrame.mode === "initial") {
+        const wireIndex = wireSlots.find((s) => s.frameId === storeFrame.id)?.globalIndex ?? null;
+        const f: InitialFramePosition = {
+          kind: "initial",
+          frameId: storeFrame.id,
+          x: 0,
+          y: stackY,
+          frameW,
+          frameH,
+          displayW: dw,
+          displayH: dh,
+          wireIndex,
+        };
+        inputFramesPositions.push(f);
+        stackY += dh + INPUT_FRAME_GAP;
+      } else {
+        // Reference mode: mother frame with grid of children. Mother width
+        // matches Initial frames in the same column (dw) so the input
+        // column has uniform width regardless of frame mode.
+        const refs = storeFrame.references;
+        const atCapacity = activeMaxInputImages != null && refs.length >= activeMaxInputImages;
+        const includeAddCell = !atCapacity;
+        const cols = computeReferenceGridColumns(refs.length);
+        const rows = computeReferenceGridRows(refs.length, cols, includeAddCell);
+        const motherW = dw;
+        const motherContentW = motherW - REFERENCE_MOTHER_PADDING * 2;
+        const cellW = Math.max(
+          0,
+          (motherContentW - REFERENCE_CHILD_GAP * (cols - 1)) / Math.max(1, cols),
+        );
+        // Cells are square-ish but floored at REFERENCE_MIN_CELL_HEIGHT so
+        // an empty grid still renders legibly. Konva contain-fit within the
+        // cell preserves each image's aspect ratio.
+        const cellH = Math.max(cellW, REFERENCE_MIN_CELL_HEIGHT);
+        const motherH =
+          REFERENCE_MOTHER_PADDING * 2 + rows * cellH + REFERENCE_CHILD_GAP * (rows - 1);
+        const motherX = 0;
+        const motherY = stackY;
+        const contentX = motherX + REFERENCE_MOTHER_PADDING;
+        const contentY = motherY + REFERENCE_MOTHER_PADDING;
+        const children: ReferenceChildPosition[] = refs.map((ref, i) => {
+          const col = i % cols;
+          const row = Math.floor(i / cols);
+          const wireIndex =
+            wireSlots.find((s) => s.frameId === storeFrame.id && s.refId === ref.id)?.globalIndex ??
+            -1;
+          return {
+            refId: ref.id,
+            x: contentX + col * (cellW + REFERENCE_CHILD_GAP),
+            y: contentY + row * (cellH + REFERENCE_CHILD_GAP),
+            displayW: cellW,
+            displayH: cellH,
+            wireIndex,
+          };
+        });
+        let addCellPosition: { x: number; y: number; w: number; h: number } | null = null;
+        if (includeAddCell) {
+          const i = refs.length;
+          const col = i % cols;
+          const row = Math.floor(i / cols);
+          addCellPosition = {
+            x: contentX + col * (cellW + REFERENCE_CHILD_GAP),
+            y: contentY + row * (cellH + REFERENCE_CHILD_GAP),
+            w: cellW,
+            h: cellH,
+          };
+        }
+        const firstChildWireIndex =
+          wireSlots.find((s) => s.frameId === storeFrame.id)?.globalIndex ?? null;
+        const f: MotherFramePosition = {
+          kind: "reference",
+          frameId: storeFrame.id,
+          x: motherX,
+          y: motherY,
+          motherW,
+          motherH,
+          children,
+          addCellPosition,
+          firstChildWireIndex,
+        };
+        inputFramesPositions.push(f);
+        stackY += motherH + INPUT_FRAME_GAP;
+      }
+    }
+    // stackY trailed by an extra INPUT_FRAME_GAP after the last frame; back
+    // it out for the column bottom.
+    const inputColumnBottom = inputFramesPositions.length > 0 ? stackY - INPUT_FRAME_GAP : 0;
+
+    // Extend totalBounds.maxY to include the input column bottom so canvas-
+    // mode auto-fit accommodates multiple stacked frames. Legacy frame
+    // heights (dh, inputDisplayH, outputDisplayH) still drive the floor for
+    // single-frame canvases.
+    const maxYWithInputColumn = Math.max(maxY, inputColumnBottom);
+
     return {
       showInputFrame: true,
       inputX,
@@ -296,7 +428,7 @@ export function useControlFrameLayout(): CanvasLayout {
       processedX,
       showProcessedFrame: hasAnyProcessed,
       controlFrames,
-      totalBounds: { minX, maxX: mainMaxX, maxY },
+      totalBounds: { minX, maxX: mainMaxX, maxY: maxYWithInputColumn },
       genSize,
       displayScale: ds,
       displayW: dw,
@@ -310,6 +442,8 @@ export function useControlFrameLayout(): CanvasLayout {
       outputDisplayW,
       outputDisplayH,
       referenceFrames,
+      inputFrames: inputFramesPositions,
+      inputColumnBottom,
     };
   }, [
     units,
@@ -320,6 +454,7 @@ export function useControlFrameLayout(): CanvasLayout {
     layers,
     inputRole,
     referenceInputs,
+    storeInputFrames,
     hasLayers,
     autoFitFrame,
     sizeMode,
