@@ -25,9 +25,8 @@ export const CanvasView = memo(function CanvasView() {
   const visible = useKeepAliveVisible();
   useShortcutScope("canvas", visible);
   const setViewport = useCanvasStore((s) => s.setViewport);
-  // file-input handlers route to per-frame mutations on the
-  // focused inputFrame. Legacy state.layers is no longer the source of
-  // truth post-chrome-swap; deletes the legacy mutations.
+  // File-input handlers route to per-frame mutations on the focused
+  // inputFrame.
   const inputFrames = useCanvasStore((s) => s.inputFrames);
   const activeInputFrameId = useCanvasStore((s) => s.activeInputFrameId);
   const focusedFrame = useMemo(
