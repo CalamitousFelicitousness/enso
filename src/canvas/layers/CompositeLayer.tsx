@@ -151,7 +151,7 @@ export function CompositeLayer({ trRef, displayScale }: CompositeLayerProps) {
   return (
     <Layer>
       <Group scaleX={displayScale} scaleY={displayScale}>
-        {/* eslint-disable-next-line react-hooks/refs -- imageMap synced with imageLayers in effect above */}
+        {/* eslint-disable react-hooks/refs -- imageMap synced with imageLayers in effect above */}
         {RENDER_LEGACY_IMAGE_LAYERS &&
           imageLayers.map((layer) => {
             // Reference autoscale: each image is fit to the input frame's pixel
@@ -181,6 +181,7 @@ export function CompositeLayer({ trRef, displayScale }: CompositeLayerProps) {
               />
             );
           })}
+        {/* eslint-enable react-hooks/refs */}
         {/* eslint-disable react-hooks/refs -- imageMap synced with maskLayers in effect above */}
         {maskVisible &&
           maskLayers.map((layer) => (
