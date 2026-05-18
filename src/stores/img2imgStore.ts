@@ -1,13 +1,13 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { useCanvasStore } from "@/stores/canvasStore";
 import type { SizeMode } from "@/lib/sizeCompute";
 
 export type { SizeMode };
 
-// MaskLine moved to canvasStore (per-frame mask state). Imported + re-exported
-// here so existing consumers keep working; the re-export will be removed in
-// when mask state fully migrates off this store.
+// Canonical MaskLine type lives on canvasStore now. Re-exported here for
+// the small set of consumers that imported it from this module before
+// the per-frame migration; future code should import directly from
+// canvasStore.
 import type { MaskLine } from "@/stores/canvasStore";
 export type { MaskLine };
 
@@ -26,11 +26,7 @@ interface Img2ImgState {
   // is determined by the input image and pipeline anyway).
   autoSize: boolean;
 
-  // Mask painting
-  maskLines: MaskLine[];
-
-  // Mask params
-  maskData: string | null;
+  // Mask params (mask content itself lives per-Input-frame on canvasStore)
   maskBlur: number;
   inpaintFullRes: boolean;
   inpaintFullResPadding: number;
@@ -39,8 +35,6 @@ interface Img2ImgState {
   inpaintingMaskWeight: number;
 
   // Actions
-  addMaskLine: (line: MaskLine) => void;
-  clearMask: () => void;
   setResizeMode: (mode: number) => void;
   setSizeMode: (mode: SizeMode) => void;
   setScaleFactor: (factor: number) => void;
@@ -53,7 +47,6 @@ interface Img2ImgState {
   setInpaintingMaskInvert: (v: boolean) => void;
   setMaskApplyOverlay: (v: boolean) => void;
   setInpaintingMaskWeight: (v: number) => void;
-  hasLayers: () => boolean;
   reset: () => void;
 }
 
@@ -64,8 +57,6 @@ const defaultState = {
   megapixelTarget: 1,
   resizeMethod: "Resize Lanczos",
   autoSize: false,
-  maskLines: [] as MaskLine[],
-  maskData: null as string | null,
   maskBlur: 4,
   inpaintFullRes: false,
   inpaintFullResPadding: 32,
@@ -78,13 +69,6 @@ export const useImg2ImgStore = create<Img2ImgState>()(
   persist(
     (_set) => ({
       ...defaultState,
-
-      addMaskLine: (line) => _set((s) => ({ maskLines: [...s.maskLines, line] })),
-
-      clearMask: () => {
-        _set({ maskLines: [], maskData: null });
-        useCanvasStore.getState().removeMaskLayers();
-      },
 
       setResizeMode: (mode) => _set({ resizeMode: mode }),
       setSizeMode: (mode) => _set({ sizeMode: mode }),
@@ -99,12 +83,26 @@ export const useImg2ImgStore = create<Img2ImgState>()(
       setMaskApplyOverlay: (v) => _set({ maskApplyOverlay: v }),
       setInpaintingMaskWeight: (v) => _set({ inpaintingMaskWeight: v }),
 
-      hasLayers: () => useCanvasStore.getState().layers.length > 0,
-
       reset: () => _set(defaultState),
     }),
     {
       name: "enso-img2img",
+      version: 1,
+      // v0 -> v1: mask content (maskLines, maskData) lived here; it now
+      // lives per-Input-frame on canvasStore. The v0 -> v1 migration in
+      // canvasStore preserves any pre-existing mask data; here we just
+      // strip the keys so the persisted shape matches the current
+      // interface.
+      migrate: (state: unknown, fromVersion: number) => {
+        if (typeof state !== "object" || state === null) return state;
+        if (fromVersion < 1) {
+          const next = { ...(state as Record<string, unknown>) };
+          delete next["maskLines"];
+          delete next["maskData"];
+          return next;
+        }
+        return state;
+      },
       partialize: ({
         resizeMode,
         sizeMode,

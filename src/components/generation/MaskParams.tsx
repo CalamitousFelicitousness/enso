@@ -8,7 +8,12 @@ import { Switch } from "@/components/ui/switch";
 import { ParamLabel } from "./ParamLabel";
 
 export function MaskParams() {
-  const maskLineCount = useImg2ImgStore((s) => s.maskLines.length);
+  const maskLineCount = useCanvasStore((s) =>
+    s.inputFrames.reduce(
+      (count, f) => (f.mode === "initial" ? count + f.maskLines.length : count),
+      0,
+    ),
+  );
   const maskObjectCount = useCanvasStore((s) =>
     s.inputFrames.reduce(
       (count, f) =>

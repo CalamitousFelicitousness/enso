@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useRef, useState, memo } from "react";
 import { useCanvasStore } from "@/stores/canvasStore";
 import { mainViewportBus } from "@/canvas/viewportBus";
 import { useControlStore } from "@/stores/controlStore";
-import { useImg2ImgStore } from "@/stores/img2imgStore";
 import { useUiStore } from "@/stores/uiStore";
 import { useShortcutScope } from "@/hooks/useShortcutScope";
 import { useShortcut } from "@/hooks/useShortcut";
@@ -44,7 +43,6 @@ export const CanvasView = memo(function CanvasView() {
       (f.mode === "reference" && f.references.length > 0),
   );
   const labelScale = useUiStore((s) => s.canvasLabelScale ?? 1);
-  const clearMask = useImg2ImgStore((s) => s.clearMask);
   const canvasMode = useCanvasStore((s) => s.canvasMode);
   const focusedFrameId = useCanvasStore((s) => s.focusedFrameId);
   const setCanvasMode = useCanvasStore((s) => s.setCanvasMode);
@@ -269,9 +267,10 @@ export const CanvasView = memo(function CanvasView() {
     for (const frame of state.inputFrames) {
       state.clearLayersInFrame(frame.id);
       state.clearReferencesInFrame(frame.id);
+      state.clearMaskLinesInFrame(frame.id);
+      state.removeMaskLayersInFrame(frame.id);
     }
-    clearMask();
-  }, [clearMask]);
+  }, []);
 
   const viewport = useCanvasStore((s) => s.viewport);
   const handlePickInputFile = useCallback((_frameId: string) => {
