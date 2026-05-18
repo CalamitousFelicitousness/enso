@@ -1,4 +1,4 @@
-import { useCallback, useRef, useEffect, memo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, memo } from "react";
 import { useCanvasStore } from "@/stores/canvasStore";
 import { mainViewportBus } from "@/canvas/viewportBus";
 import { useControlStore } from "@/stores/controlStore";
@@ -14,8 +14,7 @@ import { fileToBase64 } from "@/lib/image";
 import { CanvasStage } from "@/canvas/CanvasStage";
 import { CanvasToolbar } from "@/canvas/CanvasToolbar";
 import { ControlFramePanels } from "@/canvas/ControlFramePanel";
-import { ReferenceFilmstripOverlay } from "@/canvas/filmstrip/ReferenceFilmstripOverlay";
-import { useModelCapabilities } from "@/hooks/useModelCapabilities";
+import { InputFramePanels } from "@/canvas/panels/InputFramePanels";
 import { CanvasProgressOverlay } from "./CanvasProgressOverlay";
 import { useControlFrameLayout } from "@/canvas/useControlFrameLayout";
 import { getOrderedFrames } from "@/canvas/frameList";
@@ -27,10 +26,24 @@ export const CanvasView = memo(function CanvasView() {
   const visible = useKeepAliveVisible();
   useShortcutScope("canvas", visible);
   const setViewport = useCanvasStore((s) => s.setViewport);
-  const addImageLayer = useCanvasStore((s) => s.addImageLayer);
-  const clearLayers = useCanvasStore((s) => s.clearLayers);
-  const hasLayers = useCanvasStore((s) => s.layers.length > 0);
-  const inputRole = useCanvasStore((s) => s.inputRole);
+  // Phase 7: file-input handlers route to per-frame mutations on the
+  // focused inputFrame. Legacy state.layers is no longer the source of
+  // truth post-chrome-swap; Phase 9 deletes the legacy mutations.
+  const inputFrames = useCanvasStore((s) => s.inputFrames);
+  const activeInputFrameId = useCanvasStore((s) => s.activeInputFrameId);
+  const focusedFrame = useMemo(
+    () => inputFrames.find((f) => f.id === activeInputFrameId) ?? inputFrames[0] ?? null,
+    [inputFrames, activeInputFrameId],
+  );
+  const focusedFrameInitialHasImages =
+    focusedFrame?.mode === "initial" &&
+    focusedFrame.layers.some((l) => l.type === "image" && l.visible);
+  const hasAnyContent = inputFrames.some(
+    (f) =>
+      (f.mode === "initial" && f.layers.length > 0) ||
+      (f.mode === "reference" && f.references.length > 0),
+  );
+  const labelScale = useUiStore((s) => s.canvasLabelScale ?? 1);
   const clearMask = useImg2ImgStore((s) => s.clearMask);
   const canvasMode = useCanvasStore((s) => s.canvasMode);
   const focusedFrameId = useCanvasStore((s) => s.focusedFrameId);
@@ -47,22 +60,46 @@ export const CanvasView = memo(function CanvasView() {
   const [pendingUnitIndex, setPendingUnitIndex] = useState<number | null>(null);
 
   const layout = useControlFrameLayout();
-  const capabilities = useModelCapabilities();
 
-  const handleFile = useCallback(
-    async (file: File) => {
-      if (!file.type.startsWith("image/")) return;
-      const base64 = await fileToBase64(file);
-      const objectUrl = URL.createObjectURL(file);
-      const img = new window.Image();
-      img.src = objectUrl;
-      await new Promise<void>((r) => {
-        img.onload = () => r();
-      });
-      addImageLayer(file, base64, objectUrl, img.naturalWidth, img.naturalHeight);
-    },
-    [addImageLayer],
-  );
+  // Route a single dropped/pasted/picked image into the focused inputFrame
+  // (falling back to inputFrames[0] when nothing's explicitly focused).
+  // Initial-mode targets receive a new ImageLayer; Reference-mode targets
+  // get a new reference child. Empty-frames-list short-circuits silently;
+  // Phase 10 wires the drag-onto-empty-canvas path that creates a new
+  // frame on demand.
+  const handleFile = useCallback(async (file: File) => {
+    if (!file.type.startsWith("image/")) return;
+    const base64 = await fileToBase64(file);
+    const objectUrl = URL.createObjectURL(file);
+    const img = new window.Image();
+    img.src = objectUrl;
+    await new Promise<void>((r) => {
+      img.onload = () => r();
+    });
+    const state = useCanvasStore.getState();
+    const target = state.activeInputFrameId ?? state.inputFrames[0]?.id;
+    if (!target) return;
+    const frame = state.inputFrames.find((f) => f.id === target);
+    if (frame?.mode === "reference") {
+      state.appendReferenceToFrame(
+        target,
+        file,
+        base64,
+        objectUrl,
+        img.naturalWidth,
+        img.naturalHeight,
+      );
+    } else {
+      state.addImageLayerToFrame(
+        target,
+        file,
+        base64,
+        objectUrl,
+        img.naturalWidth,
+        img.naturalHeight,
+      );
+    }
+  }, []);
 
   // Hit-test control frames, returning the unitIndex or -1 for canvas
   const hitTestControlFrame = useCallback(
@@ -228,9 +265,32 @@ export const CanvasView = memo(function CanvasView() {
   }, []);
 
   const handleClearAll = useCallback(() => {
-    clearLayers();
+    const state = useCanvasStore.getState();
+    for (const frame of state.inputFrames) {
+      state.clearLayersInFrame(frame.id);
+      state.clearReferencesInFrame(frame.id);
+    }
     clearMask();
-  }, [clearLayers, clearMask]);
+  }, [clearMask]);
+
+  const viewport = useCanvasStore((s) => s.viewport);
+  const handlePickInputFile = useCallback((_frameId: string) => {
+    // The new chrome's click handler already called setActiveInputFrame
+    // before this runs, so handleFile (which reads activeInputFrameId on
+    // input change) routes the picked file to the clicked frame.
+    setPendingUnitIndex(-1);
+    if (fileInputRef.current) {
+      fileInputRef.current.multiple = true;
+      fileInputRef.current.click();
+    }
+  }, []);
+  const handleAddReferenceChild = useCallback((_frameId: string) => {
+    setPendingUnitIndex(-1);
+    if (fileInputRef.current) {
+      fileInputRef.current.multiple = true;
+      fileInputRef.current.click();
+    }
+  }, []);
 
   const handlePaste = useCallback(
     (e: React.ClipboardEvent) => {
@@ -270,7 +330,12 @@ export const CanvasView = memo(function CanvasView() {
       // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- paste target needs focus
       tabIndex={0}
     >
-      <CanvasStage layout={layout} onPickImage={handlePickImage} />
+      <CanvasStage
+        layout={layout}
+        onPickImage={handlePickImage}
+        onPickInputFile={handlePickInputFile}
+        onAddReferenceChild={handleAddReferenceChild}
+      />
 
       {/* Top-right utility buttons */}
       <div className="absolute top-2 right-2 flex items-center gap-1.5">
@@ -298,12 +363,12 @@ export const CanvasView = memo(function CanvasView() {
         >
           <RotateCcw size={12} />
         </Button>
-        {hasLayers && (
+        {hasAnyContent && (
           <Button
             variant="secondary"
             size="icon-xs"
             onClick={handleClearAll}
-            title="Clear all layers and mask"
+            title="Clear all input frames"
             className="bg-background/80 backdrop-blur-sm"
           >
             <X size={12} />
@@ -311,8 +376,11 @@ export const CanvasView = memo(function CanvasView() {
         )}
       </div>
 
-      {/* Canvas toolbar for mask painting - only in initial mode with images */}
-      {hasLayers && inputRole !== "reference" && <CanvasToolbar />}
+      {/* Mask painting toolbar gates on the focused frame: shows only when
+        the focused frame is Initial and has at least one visible image.
+        Phase 13 will rewire mask painting to be per-frame entirely; for
+        now the toolbar still drives the global mask paint flow. */}
+      {focusedFrameInitialHasImages && <CanvasToolbar />}
 
       {/* Generation progress overlay — not affected by pan/zoom */}
       <CanvasProgressOverlay />
@@ -328,19 +396,19 @@ export const CanvasView = memo(function CanvasView() {
           onClearImage={handleClearImage}
           onClearAll={handleClearAll}
         />
-        {/* Reference filmstrip - shown in Reference mode when the active model
-            advertises multi-image capability (sdnext's CloudModel.multi_image
-            per SPEC §11.11.3). Single-image-only models fall back to the
-            legacy InputFramePanel render. Renders an empty AddSlot when no
-            refs exist yet; switches to the slot row once any reference is
-            appended. */}
-        {inputRole === "reference" && capabilities.supports.multiImage && (
-          <ReferenceFilmstripOverlay
-            frames={layout.referenceFrames}
-            height={layout.displayH}
-            maxInputImages={capabilities.maxInputImages}
-          />
-        )}
+        {/* Phase 7: per-Input-frame DOM chrome. Replaces the singular
+            InputFramePanel (dropped from ControlFramePanels) and the
+            multi-image ReferenceFilmstripOverlay (legacy, deleted in
+            Phase 9). Mode toggle, action buttons, drawer, +Add Input
+            Frame placeholder, and per-Reference-child X-button overlays
+            all live here. */}
+        <InputFramePanels
+          layout={layout}
+          viewport={viewport}
+          labelScale={labelScale}
+          onPickImage={handlePickInputFile}
+          onAddReferenceChild={handleAddReferenceChild}
+        />
       </div>
 
       {/* Single file input for both input frame and control frame picks */}

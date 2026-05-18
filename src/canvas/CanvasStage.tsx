@@ -5,8 +5,7 @@ import { useGenerationStore } from "@/stores/generationStore";
 import { usePanZoom } from "./tools/usePanZoom";
 import { useMaskPaint } from "./tools/useMaskPaint";
 import { useImageTransform } from "./tools/useImageTransform";
-import { FrameLayer } from "./layers/FrameLayer";
-import { ReferenceImageLayer } from "./layers/ReferenceImageLayer";
+import { InputFrameLayer } from "./layers/InputFrameLayer";
 import { CompositeLayer } from "./layers/CompositeLayer";
 import { MaskLayer } from "./layers/MaskLayer";
 import { OutputLayer } from "./layers/OutputLayer";
@@ -29,9 +28,20 @@ const LABEL_HEIGHT = 19;
 interface CanvasStageProps {
   layout: CanvasLayout;
   onPickImage?: (unitIndex: number) => void;
+  /** Phase 7: open the file picker scoped to a specific Initial-mode
+   * Input frame (empty-frame click target). */
+  onPickInputFile?: (frameId: string) => void;
+  /** Phase 7: open the file picker scoped to a Reference frame's +Add
+   * cell - appends a new child reference. */
+  onAddReferenceChild?: (frameId: string) => void;
 }
 
-export function CanvasStage({ layout, onPickImage }: CanvasStageProps) {
+export function CanvasStage({
+  layout,
+  onPickImage,
+  onPickInputFile,
+  onAddReferenceChild,
+}: CanvasStageProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<Konva.Stage>(null);
   const trRef = useRef<Konva.Transformer>(null);
@@ -182,18 +192,23 @@ export function CanvasStage({ layout, onPickImage }: CanvasStageProps) {
           >
             <ControlFrameLayer frames={controlFrames} onPickImage={onPickImage} />
 
-            <CompositeLayer trRef={trRef} displayScale={displayScale} />
+            {/* Phase 7 chrome swap: the new InputFrameLayer renders all
+              Input frames (Initial + Reference) as canvas-native chrome
+              with mode-tinted borders, corner brackets, and per-Reference-
+              frame child grids. Replaces the legacy FrameLayer +
+              ReferenceImageLayer pair that drew the singular Input frame.
+              CompositeLayer + MaskLayer stay mounted through Phase 12;
+              they own the Transformer and the active mask paint stroke
+              and continue to read legacy state until Phase 13 absorbs
+              them into per-frame InputFrameLayer rendering. */}
+            <InputFrameLayer
+              frames={layout.inputFrames}
+              displayScale={displayScale}
+              onPickInputFile={onPickInputFile}
+              onAddReferenceChild={onAddReferenceChild}
+            />
 
-            {layout.referenceFrames.length > 0 ? (
-              <ReferenceImageLayer frames={layout.referenceFrames} />
-            ) : (
-              <FrameLayer
-                displayScale={displayScale}
-                frameW={layout.inputFrameW}
-                frameH={layout.inputFrameH}
-                onPickImage={onPickImage ? () => onPickImage(-1) : undefined}
-              />
-            )}
+            <CompositeLayer trRef={trRef} displayScale={displayScale} />
 
             {inputRole !== "reference" && (
               <MaskLayer
