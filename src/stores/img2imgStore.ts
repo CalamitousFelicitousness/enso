@@ -5,11 +5,11 @@ import type { SizeMode } from "@/lib/sizeCompute";
 
 export type { SizeMode };
 
-export interface MaskLine {
-  points: number[]; // flat [x1,y1,x2,y2,...] in image-space pixels
-  strokeWidth: number;
-  tool: "brush" | "eraser";
-}
+// MaskLine moved to canvasStore (per-frame mask state). Imported + re-exported
+// here so existing consumers keep working; the re-export will be removed in
+// Phase 13 when mask state fully migrates off this store.
+import type { MaskLine } from "@/stores/canvasStore";
+export type { MaskLine };
 
 interface Img2ImgState {
   // Resize mode

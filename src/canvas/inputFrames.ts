@@ -12,8 +12,7 @@
 // frame shape (the inactive arm sits empty), so toggling back and forth
 // preserves both kinds of content. See plan: ethereal-swimming-hippo.md.
 
-import type { CanvasLayer, ImageLayer, ReferenceInput } from "@/stores/canvasStore";
-import type { MaskLine } from "@/stores/img2imgStore";
+import type { CanvasLayer, ImageLayer, MaskLine, ReferenceInput } from "@/stores/canvasStore";
 
 export type InputFrameMode = "initial" | "reference";
 
