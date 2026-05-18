@@ -9,7 +9,8 @@
 // function, this file's local symbol can be renamed back.
 
 import { useMemo, useState } from "react";
-import { useSortable } from "@dnd-kit/sortable";
+import { DndContext, PointerSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
+import { SortableContext, horizontalListSortingStrategy, useSortable } from "@dnd-kit/sortable";
 import { GripVertical, ImagePlus, Info, Settings, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { KeepAlivePanel, KeepAliveSwitch } from "@/components/ui/keep-alive";
@@ -283,13 +284,46 @@ function InputFramePanelV2({
         onToggleCollapsed={() => setCollapsed((c) => !c)}
         tabBar={tabBar}
       />
-      {/* Per-reference-child X-button hover overlays. Mount only for
-       *  Reference frames; one absolute-positioned <div> per child. The
-       *  wrapper has pointer-events: none so it doesn't block clicks on
-       *  the Konva cell; pointer-events: auto only applies on the X
-       *  button itself so the rest of the cell stays interactive. */}
-      {frame.kind === "reference" &&
-        frame.children.map((child) => (
+      {/* Per-reference-child overlays for Reference mode. Each child has
+       *  a transparent div positioned over its Konva cell that hosts the
+       *  X-button hover affordance and the dnd-kit drag activator. The
+       *  nested DndContext + SortableContext (horizontal strategy though
+       *  the grid wraps, since the dnd-kit hit-test doesn't care about
+       *  visual layout direction) handles child reorder via
+       *  reorderReferenceInFrame. PointerSensor activation distance
+       *  matches the outer frame-reorder context so a stray click on a
+       *  cell doesn't trigger drag. */}
+      {frame.kind === "reference" && (
+        <ReferenceChildrenSortable frame={frame} viewport={viewport} />
+      )}
+    </>
+  );
+}
+
+interface ReferenceChildrenSortableProps {
+  frame: Extract<InputFramePosition, { kind: "reference" }>;
+  viewport: ViewportState;
+}
+
+function ReferenceChildrenSortable({ frame, viewport }: ReferenceChildrenSortableProps) {
+  const reorderReferenceInFrame = useCanvasStore((s) => s.reorderReferenceInFrame);
+  const storeFrame = useCanvasStore((s) => s.inputFrames.find((f) => f.id === frame.frameId));
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
+
+  const childIds = frame.children.map((c) => c.refId);
+
+  const handleDragEnd = (e: DragEndEvent) => {
+    if (!e.over || e.active.id === e.over.id || !storeFrame) return;
+    const fromIndex = storeFrame.references.findIndex((r) => r.id === e.active.id);
+    const toIndex = storeFrame.references.findIndex((r) => r.id === e.over!.id);
+    if (fromIndex < 0 || toIndex < 0) return;
+    reorderReferenceInFrame(frame.frameId, fromIndex, toIndex);
+  };
+
+  return (
+    <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
+      <SortableContext items={childIds} strategy={horizontalListSortingStrategy}>
+        {frame.children.map((child) => (
           <ReferenceChildOverlay
             key={child.refId}
             frameId={frame.frameId}
@@ -297,7 +331,8 @@ function InputFramePanelV2({
             viewport={viewport}
           />
         ))}
-    </>
+      </SortableContext>
+    </DndContext>
   );
 }
 
@@ -324,6 +359,11 @@ interface ReferenceChildOverlayProps {
 
 function ReferenceChildOverlay({ frameId, child, viewport }: ReferenceChildOverlayProps) {
   const removeReferenceFromFrame = useCanvasStore((s) => s.removeReferenceFromFrame);
+  // useSortable binds this overlay to the parent SortableContext's items
+  // list. Listeners are spread on the overlay wrapper so a pointer-down
+  // anywhere on the cell starts a drag; the X button uses
+  // stopPropagation so it stays clickable.
+  const { attributes, listeners, setNodeRef } = useSortable({ id: child.refId });
 
   const style = useMemo<React.CSSProperties>(() => {
     const left = child.x * viewport.scale + viewport.x;
@@ -336,15 +376,21 @@ function ReferenceChildOverlay({ frameId, child, viewport }: ReferenceChildOverl
       top: `${top}px`,
       width: `${width}px`,
       height: `${height}px`,
-      pointerEvents: "none",
+      pointerEvents: "auto",
+      cursor: "grab",
+      touchAction: "none",
     };
   }, [child.x, child.y, child.displayW, child.displayH, viewport.scale, viewport.x, viewport.y]);
 
   return (
-    <div style={style} className="group">
+    <div ref={setNodeRef} style={style} className="group" {...attributes} {...listeners}>
       <button
         type="button"
-        onClick={() => removeReferenceFromFrame(frameId, child.refId)}
+        onClick={(e) => {
+          e.stopPropagation();
+          removeReferenceFromFrame(frameId, child.refId);
+        }}
+        onPointerDown={(e) => e.stopPropagation()}
         title="Remove reference"
         className="absolute right-1 top-1 grid h-5 w-5 place-items-center rounded-full bg-black/60 text-white opacity-0 transition-opacity hover:bg-black/80 group-hover:opacity-100"
         style={{ pointerEvents: "auto" }}
