@@ -8,8 +8,9 @@
 // here as the bare `InputFramePanel`. After deletes the legacy
 // function, this file's local symbol can be renamed back.
 
-import { useMemo, useState, type ReactNode } from "react";
-import { ImagePlus, Info, Settings, Trash2, X } from "lucide-react";
+import { useMemo, useState } from "react";
+import { useSortable } from "@dnd-kit/sortable";
+import { GripVertical, ImagePlus, Info, Settings, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { KeepAlivePanel, KeepAliveSwitch } from "@/components/ui/keep-alive";
 import {
@@ -52,10 +53,6 @@ interface InputFramePanelProps {
    * remains (canRemove === false). */
   onRemoveFrame?: ((frameId: string) => void) | undefined;
   canRemove?: boolean | undefined;
-  /** Drag handle JSX provided by the orchestrator (a follow-up wires dnd-kit
-   * listeners through this slot; leaves it as a non-interactive
-   * GripVertical placeholder). */
-  dragHandle?: ReactNode | undefined;
 }
 
 function InputFramePanelV2({
@@ -69,10 +66,16 @@ function InputFramePanelV2({
   onClearFrame,
   onRemoveFrame,
   canRemove = true,
-  dragHandle,
 }: InputFramePanelProps) {
   const storeFrame = useCanvasStore((s) => s.inputFrames.find((f) => f.id === frame.frameId));
   const setFrameMode = useCanvasStore((s) => s.setFrameMode);
+
+  // dnd-kit Sortable for whole-frame vertical reorder. The drag activator
+  // is the GripVertical handle inside the panel header - pointer-down on
+  // the rest of the header focuses the frame instead. Activation distance
+  // is set on the orchestrator's PointerSensor (4px) so a stray click
+  // doesn't trigger drag.
+  const { attributes, listeners } = useSortable({ id: frame.frameId });
 
   const [activeTab, setActiveTab] = useState<"info" | "options">("info");
   const [collapsed, setCollapsed] = useState(true);
@@ -159,8 +162,22 @@ function InputFramePanelV2({
   );
 
   // ── Header action buttons ────────────────────────────────────────────
+  const dragHandleEl = (
+    <button
+      type="button"
+      title="Drag to reorder this Input frame"
+      className="grid h-5 w-5 place-items-center rounded text-muted-foreground transition-colors hover:bg-white/5 hover:text-foreground"
+      style={{ cursor: "grab", touchAction: "none" }}
+      {...attributes}
+      {...listeners}
+    >
+      <GripVertical size={12} />
+    </button>
+  );
+
   const actions = (
     <>
+      {dragHandleEl}
       {modeToggle}
       <Button
         variant="ghost"
@@ -260,16 +277,7 @@ function InputFramePanelV2({
         frameW={frameW}
         viewport={viewport}
         labelScale={labelScale}
-        actions={
-          dragHandle ? (
-            <>
-              {dragHandle}
-              {actions}
-            </>
-          ) : (
-            actions
-          )
-        }
+        actions={actions}
         drawer={drawer}
         collapsed={collapsed}
         onToggleCollapsed={() => setCollapsed((c) => !c)}
