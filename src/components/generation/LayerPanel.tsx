@@ -37,10 +37,9 @@ function LayerDims({ layer }: { layer: ImageLayer }) {
 }
 
 export function LayerPanel() {
-  // Phase 9: source layer state from the focused inputFrame instead of
-  // the global state.layers. Mutations route through the per-frame
-  // canvasStore API; legacy state.layers stays for read-side back-compat
-  // until all consumers have migrated.
+  // Layer state comes from the focused Input frame. Mutations route
+  // through the per-frame canvasStore API (setActiveLayerInFrame /
+  // updateLayerInFrame / removeLayerFromFrame / addImageLayerToFrame).
   const inputFrames = useCanvasStore((s) => s.inputFrames);
   const activeInputFrameId = useCanvasStore((s) => s.activeInputFrameId);
   const focusedFrame =
