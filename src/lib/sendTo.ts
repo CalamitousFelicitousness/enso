@@ -114,9 +114,18 @@ export async function sendImageToCanvas(file: File) {
   await new Promise<void>((r) => {
     img.onload = () => r();
   });
-  useCanvasStore
-    .getState()
-    .addImageLayer(file, base64, objectUrl, img.naturalWidth, img.naturalHeight);
+  const state = useCanvasStore.getState();
+  const target = state.activeInputFrameId ?? state.inputFrames[0]?.id;
+  if (target) {
+    state.addImageLayerToFrame(
+      target,
+      file,
+      base64,
+      objectUrl,
+      img.naturalWidth,
+      img.naturalHeight,
+    );
+  }
   useUiStore.getState().setNavView("images");
 }
 
