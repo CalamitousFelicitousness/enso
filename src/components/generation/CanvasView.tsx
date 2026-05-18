@@ -292,6 +292,15 @@ export const CanvasView = memo(function CanvasView() {
     }
   }, []);
 
+  // Phase 10: +Add Input Frame from the column-bottom DOM button.
+  // Creates a new Initial frame and focuses it so subsequent picks /
+  // drops route there.
+  const handleAddInputFrame = useCallback(() => {
+    const state = useCanvasStore.getState();
+    const newId = state.addInputFrame({ mode: "initial" });
+    state.setActiveInputFrame(newId);
+  }, []);
+
   const handlePaste = useCallback(
     (e: React.ClipboardEvent) => {
       const items = e.clipboardData.items;
@@ -408,6 +417,7 @@ export const CanvasView = memo(function CanvasView() {
           labelScale={labelScale}
           onPickImage={handlePickInputFile}
           onAddReferenceChild={handleAddReferenceChild}
+          onAddInputFrame={handleAddInputFrame}
         />
       </div>
 
