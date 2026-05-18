@@ -5,14 +5,12 @@
 // KonvaImages in pixel-space; Reference frames render as a "mother frame
 // with grid of children" per the user's mockup.
 //
-// Mounted in Phase 5 below the legacy FrameLayer + ReferenceImageLayer +
-// CompositeLayer so the legacy chrome still draws on top and visible
-// behavior is unchanged. Phase 7 removes the legacy mounts and this layer
-// becomes the only input-side chrome. Phase 13 absorbs CompositeLayer's
-// Transformer + the active mask stroke into this layer.
+// Phase 9 Step 7: this layer now owns the Transformer + image-layer
+// interaction (drag, scale, rotate, select). The Transformer attaches to
+// whichever node corresponds to the focused frame's activeLayerId.
 
-import { useCallback, useEffect, useState } from "react";
-import { Group, Image as KonvaImage, Layer, Rect, Text } from "react-konva";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Group, Image as KonvaImage, Layer, Line, Rect, Text, Transformer } from "react-konva";
 import {
   INPUT_COLOR_ACTIVE,
   INPUT_COLOR_INACTIVE,
@@ -21,19 +19,24 @@ import {
 import { CornerBrackets } from "@/canvas/layers/ControlFrameLayer";
 import { useCanvasStore } from "@/stores/canvasStore";
 import type { CanvasLayer, ImageLayer, MaskObjectLayer } from "@/stores/canvasStore";
+import { useSnap } from "@/canvas/tools/useSnap";
 import type { InputFrame } from "@/canvas/inputFrames";
 import type {
   InitialFramePosition,
   InputFramePosition,
   ReferenceFramePosition,
 } from "@/canvas/inputFrameTypes";
+import type Konva from "konva";
 
 interface InputFrameLayerProps {
   frames: InputFramePosition[];
   displayScale: number;
+  /** Transformer ref owned by CanvasStage. The Transformer node itself is
+   * rendered here so it can attach to per-frame image/mask nodes within
+   * this Layer's draw scope. */
+  trRef: React.RefObject<Konva.Transformer | null>;
   /** Called when an empty Initial frame is clicked - opens the file picker
-   * targeted at that frame. Phase 5 leaves this optional so CanvasStage can
-   * mount the layer dormantly; Phase 7 wires it up. */
+   * targeted at that frame. */
   onPickInputFile?: ((frameId: string) => void) | undefined;
   /** Called when a Reference mother's +Add cell is clicked, or when an
    * empty Reference mother is clicked. */
@@ -43,22 +46,81 @@ interface InputFrameLayerProps {
 export function InputFrameLayer({
   frames,
   displayScale,
+  trRef,
   onPickInputFile,
   onAddReferenceChild,
 }: InputFrameLayerProps) {
   const storeFrames = useCanvasStore((s) => s.inputFrames);
   const focusedInputFrameId = useCanvasStore((s) => s.activeInputFrameId);
   const setActiveInputFrame = useCanvasStore((s) => s.setActiveInputFrame);
+  const setActiveLayerInFrame = useCanvasStore((s) => s.setActiveLayerInFrame);
+  const updateLayerInFrame = useCanvasStore((s) => s.updateLayerInFrame);
+  const activeTool = useCanvasStore((s) => s.activeTool);
+
+  // Per-image-layer Konva node map, keyed `${frameId}:${layerId}`. The
+  // Transformer attaches via this map so its target is unambiguous when
+  // multiple Input frames each carry their own active layer.
+  const nodeMap = useRef<Map<string, Konva.Image>>(new Map());
+  const setNodeRef = useCallback((frameId: string, layerId: string, node: Konva.Image | null) => {
+    const key = `${frameId}:${layerId}`;
+    if (node) nodeMap.current.set(key, node);
+    else nodeMap.current.delete(key);
+  }, []);
+
+  const focusedFrame =
+    storeFrames.find((f) => f.id === focusedInputFrameId) ?? storeFrames[0] ?? null;
+  const focusedFramePosition =
+    focusedFrame && focusedFrame.mode === "initial"
+      ? (frames.find((f) => f.kind === "initial" && f.frameId === focusedFrame.id) as
+          | InitialFramePosition
+          | undefined)
+      : undefined;
+  const focusedActiveLayerId = focusedFrame?.mode === "initial" ? focusedFrame.activeLayerId : null;
+
+  // Snap targets the focused Initial frame's bounds in pixel space. Using
+  // (frame.x / ds, frame.y / ds) re-expresses the display-space frame
+  // origin in pixel-space so it aligns with the per-image x/y which are
+  // already in pixel-space relative to that origin.
+  const snap = useSnap(
+    focusedFramePosition?.frameW ?? 0,
+    focusedFramePosition?.frameH ?? 0,
+    trRef,
+    focusedFramePosition ? focusedFramePosition.x / displayScale : 0,
+    focusedFramePosition ? focusedFramePosition.y / displayScale : 0,
+    displayScale,
+  );
+
+  // Attach Transformer to the focused frame's active layer when move tool
+  // is active. Locked layers and Reference-mode frames suppress attachment.
+  useEffect(() => {
+    if (!trRef.current) return;
+    if (activeTool !== "move" || !focusedFrame || focusedFrame.mode !== "initial") {
+      trRef.current.nodes([]);
+      trRef.current.getLayer()?.batchDraw();
+      return;
+    }
+    if (!focusedActiveLayerId) {
+      trRef.current.nodes([]);
+      trRef.current.getLayer()?.batchDraw();
+      return;
+    }
+    const layer = focusedFrame.layers.find((l) => l.id === focusedActiveLayerId);
+    if (!layer || layer.locked) {
+      trRef.current.nodes([]);
+      trRef.current.getLayer()?.batchDraw();
+      return;
+    }
+    const node = nodeMap.current.get(`${focusedFrame.id}:${focusedActiveLayerId}`);
+    if (node) {
+      trRef.current.nodes([node]);
+      trRef.current.getLayer()?.batchDraw();
+    } else {
+      trRef.current.nodes([]);
+      trRef.current.getLayer()?.batchDraw();
+    }
+  }, [activeTool, focusedFrame, focusedActiveLayerId, trRef, storeFrames]);
 
   // Preload HTMLImageElement for every visible image across every frame.
-  // The store already owns the object URLs (imageData fields are populated
-  // by addImageLayer / appendReferenceToFrame and revoked by their remove
-  // counterparts), so this hook only manages the HTMLImageElement preload
-  // cache - no URL lifecycle.
-  //
-  // Idempotent diff against the current imageMap: when expected ids equal
-  // cached ids the effect short-circuits, preventing the [storeFrames,
-  // imageMap] dependency pair from looping.
   const [imageMap, setImageMap] = useState<Map<string, HTMLImageElement>>(new Map());
 
   useEffect(() => {
@@ -130,6 +192,42 @@ export function InputFrameLayer({
     [onAddReferenceChild],
   );
 
+  const handleLayerClick = useCallback(
+    (frameId: string, layerId: string, e: Konva.KonvaEventObject<MouseEvent>) => {
+      if (e.evt.button !== 0 || activeTool !== "move") return;
+      e.cancelBubble = true;
+      setActiveInputFrame(frameId);
+      setActiveLayerInFrame(frameId, layerId);
+    },
+    [activeTool, setActiveInputFrame, setActiveLayerInFrame],
+  );
+
+  const handleLayerDragEnd = useCallback(
+    (frameId: string, layerId: string, e: Konva.KonvaEventObject<DragEvent>) => {
+      snap.clearGuides();
+      updateLayerInFrame(frameId, layerId, {
+        x: e.target.x(),
+        y: e.target.y(),
+      } as Partial<ImageLayer>);
+    },
+    [snap, updateLayerInFrame],
+  );
+
+  const handleLayerTransformEnd = useCallback(
+    (frameId: string, layerId: string, e: Konva.KonvaEventObject<Event>) => {
+      snap.clearGuides();
+      const node = e.target as Konva.Image;
+      updateLayerInFrame(frameId, layerId, {
+        x: node.x(),
+        y: node.y(),
+        scaleX: node.scaleX(),
+        scaleY: node.scaleY(),
+        rotation: node.rotation(),
+      } as Partial<ImageLayer>);
+    },
+    [snap, updateLayerInFrame],
+  );
+
   if (frames.length === 0) return null;
 
   return (
@@ -147,7 +245,13 @@ export function InputFrameLayer({
               displayScale={displayScale}
               imageMap={imageMap}
               isFocused={isFocused}
+              activeTool={activeTool}
+              setNodeRef={setNodeRef}
+              snapDragMove={snap.handleDragMove}
               onClick={handleInitialClick}
+              onLayerClick={handleLayerClick}
+              onLayerDragEnd={handleLayerDragEnd}
+              onLayerTransformEnd={handleLayerTransformEnd}
             />
           );
         }
@@ -163,6 +267,33 @@ export function InputFrameLayer({
           />
         );
       })}
+
+      <Transformer
+        ref={trRef}
+        keepRatio={false}
+        enabledAnchors={[
+          "top-left",
+          "top-right",
+          "bottom-left",
+          "bottom-right",
+          "top-center",
+          "bottom-center",
+          "middle-left",
+          "middle-right",
+        ]}
+        onTransform={snap.handleTransform}
+      />
+
+      {snap.guides.map((g, i) => (
+        <Line
+          key={i}
+          points={g.orientation === "v" ? [g.pos, -5000, g.pos, 5000] : [-5000, g.pos, 5000, g.pos]}
+          stroke="#22d3ee"
+          strokeWidth={1}
+          strokeScaleEnabled={false}
+          listening={false}
+        />
+      ))}
     </Layer>
   );
 }
@@ -175,7 +306,13 @@ interface InitialFrameFragmentProps {
   displayScale: number;
   imageMap: Map<string, HTMLImageElement>;
   isFocused: boolean;
+  activeTool: string;
+  setNodeRef: (frameId: string, layerId: string, node: Konva.Image | null) => void;
+  snapDragMove: (e: Konva.KonvaEventObject<DragEvent>) => void;
   onClick: (frameId: string, hasLayers: boolean) => void;
+  onLayerClick: (frameId: string, layerId: string, e: Konva.KonvaEventObject<MouseEvent>) => void;
+  onLayerDragEnd: (frameId: string, layerId: string, e: Konva.KonvaEventObject<DragEvent>) => void;
+  onLayerTransformEnd: (frameId: string, layerId: string, e: Konva.KonvaEventObject<Event>) => void;
 }
 
 function InitialFrameFragment({
@@ -184,7 +321,13 @@ function InitialFrameFragment({
   displayScale,
   imageMap,
   isFocused,
+  activeTool,
+  setNodeRef,
+  snapDragMove,
   onClick,
+  onLayerClick,
+  onLayerDragEnd,
+  onLayerTransformEnd,
 }: InitialFrameFragmentProps) {
   const visibleImages = storeFrame.layers.filter(
     (l: CanvasLayer): l is ImageLayer => l.type === "image" && l.visible,
@@ -225,6 +368,7 @@ function InitialFrameFragment({
           return (
             <KonvaImage
               key={layer.id}
+              ref={(node) => setNodeRef(frame.frameId, layer.id, node)}
               image={img}
               x={layer.x}
               y={layer.y}
@@ -234,7 +378,11 @@ function InitialFrameFragment({
               scaleY={layer.scaleY}
               rotation={layer.rotation}
               opacity={layer.opacity}
-              listening={false}
+              draggable={activeTool === "move" && !layer.locked}
+              onDragMove={snapDragMove}
+              onDragEnd={(e) => onLayerDragEnd(frame.frameId, layer.id, e)}
+              onTransformEnd={(e) => onLayerTransformEnd(frame.frameId, layer.id, e)}
+              onClick={(e) => onLayerClick(frame.frameId, layer.id, e)}
             />
           );
         })}
@@ -244,6 +392,7 @@ function InitialFrameFragment({
           return (
             <KonvaImage
               key={mask.id}
+              ref={(node) => setNodeRef(frame.frameId, mask.id, node)}
               image={img}
               x={mask.x}
               y={mask.y}
@@ -253,7 +402,12 @@ function InitialFrameFragment({
               scaleY={mask.scaleY}
               rotation={mask.rotation}
               opacity={mask.opacity}
-              listening={false}
+              listening={!mask.locked}
+              draggable={activeTool === "move" && !mask.locked}
+              onDragMove={snapDragMove}
+              onDragEnd={(e) => onLayerDragEnd(frame.frameId, mask.id, e)}
+              onTransformEnd={(e) => onLayerTransformEnd(frame.frameId, mask.id, e)}
+              onClick={(e) => onLayerClick(frame.frameId, mask.id, e)}
             />
           );
         })}
