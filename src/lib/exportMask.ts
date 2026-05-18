@@ -6,7 +6,7 @@
 // MKS2021 resize pipeline - backend-side resize quality may differ slightly at
 // mask boundaries.
 
-import { useCanvasStore, type MaskObjectLayer } from "@/stores/canvasStore";
+import type { MaskObjectLayer } from "@/stores/canvasStore";
 import type { MaskLine } from "@/stores/img2imgStore";
 
 /**
@@ -96,20 +96,19 @@ function renderStrokes(ctx: CanvasRenderingContext2D, lines: MaskLine[]) {
 
 /**
  * Export the complete mask (objects + any pending strokes) as a PNG Blob.
- * White = inpaint, black = keep.
+ * White = inpaint, black = keep. Caller passes the owning frame's mask
+ * objects + uncommitted stroke buffer; no global state read.
  */
 export async function exportMask(
+  maskObjects: MaskObjectLayer[],
   lines: MaskLine[],
   width: number,
   height: number,
 ): Promise<Blob | null> {
   if (width <= 0 || height <= 0) return null;
 
-  const maskObjects = useCanvasStore
-    .getState()
-    .getMaskLayers()
-    .filter((m) => m.visible);
-  if (maskObjects.length === 0 && lines.length === 0) return null;
+  const visibleObjects = maskObjects.filter((m) => m.visible);
+  if (visibleObjects.length === 0 && lines.length === 0) return null;
 
   const canvas = document.createElement("canvas");
   canvas.width = width;
@@ -117,14 +116,11 @@ export async function exportMask(
   const ctx = canvas.getContext("2d");
   if (!ctx) return null;
 
-  // Fill with black (keep)
   ctx.fillStyle = "#000";
   ctx.fillRect(0, 0, width, height);
 
-  // Render mask objects as white regions
-  await renderMaskObjects(ctx, maskObjects);
+  await renderMaskObjects(ctx, visibleObjects);
 
-  // Render any pending strokes (normally empty after baking)
   if (lines.length > 0) {
     renderStrokes(ctx, lines);
   }
