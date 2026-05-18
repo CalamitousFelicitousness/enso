@@ -205,9 +205,13 @@ export function InputFramePanel({
     </>
   );
 
-  // ── Drawer tabs + content ────────────────────────────────────────────
+  // Drawer tabs + content. FrameHeader wraps the tabBar slot in its own
+  // flex row with px-3 padding, and the drawer slot in p-3, so we pass
+  // naked content here to avoid double-wrapping (which had caused an 8px
+  // indent mismatch with the subheader) and skip an extra border-t (which
+  // had cluttered the divider between tab bar and tab content).
   const tabBar = !collapsed && (
-    <div className="flex items-center gap-1 border-t border-white/5 px-2 py-1">
+    <>
       <DockTab
         active={activeTab === "info"}
         label="Info"
@@ -222,45 +226,39 @@ export function InputFramePanel({
         accent={accent}
         onClick={() => setActiveTab("options")}
       />
-    </div>
+    </>
   );
 
   const drawer = !collapsed && (
-    <div className="border-t border-white/5 px-3 py-2">
-      <KeepAliveSwitch active={activeTab}>
-        <KeepAlivePanel id="info">
-          <div className="space-y-1 text-[10px]">
-            {isReference ? (
-              <>
-                <InfoLine label="References" value={String(refCount)} />
-                <InfoLine label="Wire" value={wireIndex != null ? `image ${wireIndex}+` : "—"} />
-              </>
-            ) : (
-              <>
-                <InfoLine label="Layers" value={String(layerCount)} />
-                <InfoLine label="Mask strokes" value={String(maskLineCount)} />
-                <InfoLine
-                  label="Dimensions"
-                  value={layerCount > 0 ? `${genSize.width}×${genSize.height}` : "—"}
-                />
-                <InfoLine label="Wire" value={wireIndex != null ? `image ${wireIndex}` : "—"} />
-              </>
-            )}
-          </div>
-        </KeepAlivePanel>
-        <KeepAlivePanel id="options" lazy>
-          {/* Phase 6 placeholder: Initial mode would host the denoise slider
-            + LayerPanel(frameId) + MaskParams(frameId) here. Those legacy
-            components don't accept frameId yet - Phase 9 plumbs the prop
-            through. */}
-          <div className="text-[10px] text-muted-foreground italic">
-            {isReference
-              ? "Reference frames have no extra options yet."
-              : "Layer + mask params will live here (Phase 9 wiring)."}
-          </div>
-        </KeepAlivePanel>
-      </KeepAliveSwitch>
-    </div>
+    <KeepAliveSwitch active={activeTab}>
+      <KeepAlivePanel id="info">
+        <div className="space-y-1 text-[10px]">
+          {isReference ? (
+            <>
+              <InfoLine label="References" value={String(refCount)} />
+              <InfoLine label="Wire" value={wireIndex != null ? `image ${wireIndex}+` : "—"} />
+            </>
+          ) : (
+            <>
+              <InfoLine label="Layers" value={String(layerCount)} />
+              <InfoLine label="Mask strokes" value={String(maskLineCount)} />
+              <InfoLine
+                label="Dimensions"
+                value={layerCount > 0 ? `${genSize.width}×${genSize.height}` : "—"}
+              />
+              <InfoLine label="Wire" value={wireIndex != null ? `image ${wireIndex}` : "—"} />
+            </>
+          )}
+        </div>
+      </KeepAlivePanel>
+      <KeepAlivePanel id="options" lazy>
+        <div className="text-[10px] text-muted-foreground italic">
+          {isReference
+            ? "Reference frames have no extra options yet."
+            : "Layer + mask params will live here."}
+        </div>
+      </KeepAlivePanel>
+    </KeepAliveSwitch>
   );
 
   return (
