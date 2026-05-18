@@ -152,6 +152,9 @@ export interface FrameHeaderProps {
   collapsed?: boolean | undefined;
   onToggleCollapsed?: (() => void) | undefined;
   tabBar?: ReactNode;
+  /** Optional content between the top separator and the tab bar. Used by
+   * InputFramePanel to host the Initial/Reference mode toggle. */
+  subheader?: ReactNode;
 }
 
 export function FrameHeader({
@@ -169,6 +172,7 @@ export function FrameHeader({
   collapsed,
   onToggleCollapsed,
   tabBar,
+  subheader,
 }: FrameHeaderProps) {
   const combinedScale = viewport.scale * labelScale;
 
@@ -207,7 +211,7 @@ export function FrameHeader({
 
   const isPanel = mode === "panel";
   const showChevron = isPanel && drawer !== undefined && onToggleCollapsed;
-  const showExpandedSection = isPanel && !collapsed && (tabBar || drawer);
+  const showExpandedSection = isPanel && !collapsed && (subheader || tabBar || drawer);
 
   return (
     <div style={style} className="z-50">
@@ -248,9 +252,10 @@ export function FrameHeader({
           </div>
         </div>
 
-        {/* Expandable section: tabs + drawer */}
+        {/* Expandable section: subheader + tabs + drawer */}
         {showExpandedSection && (
           <div style={{ borderTop: `1px solid ${GLASS_BORDER_SUBTLE}` }}>
+            {subheader && <div className="px-3 pt-2">{subheader}</div>}
             {tabBar && <div className="flex items-center gap-1 px-3 pt-2 pb-1">{tabBar}</div>}
             {drawer && (
               <div
