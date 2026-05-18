@@ -42,7 +42,9 @@ export const ActionBar = memo(function ActionBar() {
   const detailerEnabled = useGenerationStore((s) => s.detailerEnabled);
   const detailerOnly = useGenerationStore((s) => s.detailerOnly);
   const detailerModelCount = useGenerationStore((s) => s.detailerModels.length);
-  const hasInputImage = useCanvasStore((s) => s.layers.some((l) => l.type === "image"));
+  const hasInputImage = useCanvasStore((s) =>
+    s.inputFrames.some((f) => f.mode === "initial" && f.layers.some((l) => l.type === "image")),
+  );
 
   const isActive = useJobQueueStore(selectGenerateActive);
   const runningJob = useJobQueueStore(selectRunningJob);
@@ -92,7 +94,9 @@ export const ActionBar = memo(function ActionBar() {
       };
     }
 
-    const isImg2Img = useCanvasStore.getState().layers.length > 0;
+    const isImg2Img = useCanvasStore
+      .getState()
+      .inputFrames.some((f) => f.mode === "initial" && f.layers.some((l) => l.type === "image"));
     const { request, inputBlob } = await buildControlRequest();
     const inputImage = isImg2Img && inputBlob ? await blobToBase64(inputBlob) : undefined;
     const maskLines = useImg2ImgStore.getState().maskLines;

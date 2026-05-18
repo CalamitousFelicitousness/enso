@@ -1,5 +1,6 @@
 import { useGenerationStore } from "@/stores/generationStore";
 import { useCanvasStore } from "@/stores/canvasStore";
+import type { ImageLayer } from "@/stores/canvasStore";
 import { usePromptEnhanceStore } from "@/stores/promptEnhanceStore";
 import { usePromptEnhance } from "@/api/hooks/usePromptEnhance";
 import { flattenCanvas } from "@/lib/flattenCanvas";
@@ -42,7 +43,14 @@ export function PromptEditor() {
     let image: string | undefined;
     if (enhanceStore.useVision) {
       const { width, height } = useGenerationStore.getState();
-      const layers = useCanvasStore.getState().getImageLayers();
+      const inputFrames = useCanvasStore.getState().inputFrames;
+      const firstInitial = inputFrames.find(
+        (f) => f.mode === "initial" && f.layers.some((l) => l.type === "image"),
+      );
+      const layers: ImageLayer[] =
+        firstInitial && firstInitial.mode === "initial"
+          ? firstInitial.layers.filter((l): l is ImageLayer => l.type === "image")
+          : [];
       const blob = await flattenCanvas(layers, width, height);
       if (blob) image = await uploadBlob(blob, "vision.png");
     }

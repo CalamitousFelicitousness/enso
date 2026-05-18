@@ -198,7 +198,7 @@ export function useControlFrameLayout(): CanvasLayout {
       cursorX -= size.width + FRAME_GAP;
       controlFrames.push({
         unitIndex: entry.index,
-        unifiedIndex: entry.index + 2,
+        unifiedIndex: storeInputFrames.length + 1 + entry.index,
         x: cursorX,
         y: 0,
         width: size.width,

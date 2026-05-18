@@ -16,15 +16,20 @@ const UNIT_TYPE_OPTIONS: { value: ControlUnitType; label: string }[] = (
   Object.entries(UNIT_TYPE_LABELS) as [ControlUnitType, string][]
 ).map(([value, label]) => ({ value, label }));
 
-function CanvasInputRow() {
-  const inputRole = useCanvasStore((s) => s.inputRole);
-  const label = inputRole === "reference" ? "Reference" : "Initial";
+function CanvasInputRows() {
+  const inputFrames = useCanvasStore((s) => s.inputFrames);
   return (
-    <div className="flex items-center gap-1.5 p-2 rounded-md border border-border">
-      <span className="text-2xs text-muted-foreground font-mono w-4 shrink-0">1</span>
-      <span className="text-2xs flex-1">{label}</span>
-      <span className="text-2xs text-muted-foreground">Input frame</span>
-    </div>
+    <>
+      {inputFrames.map((f, i) => (
+        <div key={f.id} className="flex items-center gap-1.5 p-2 rounded-md border border-border">
+          <span className="text-2xs text-muted-foreground font-mono w-4 shrink-0">{i + 1}</span>
+          <span className="text-2xs flex-1">
+            {f.mode === "reference" ? "Reference" : "Initial"}
+          </span>
+          <span className="text-2xs text-muted-foreground">Input frame</span>
+        </div>
+      ))}
+    </>
   );
 }
 
@@ -89,6 +94,7 @@ function AddInputPopover({ availableSubTypes, onAdd, disabled }: AddInputPopover
 export function ControlTab() {
   const { availableControlSubTypes } = useUnifiedInputs();
   const units = useControlStore((s) => s.units);
+  const inputFramesCount = useCanvasStore((s) => s.inputFrames.length);
   const addUnitWithType = useControlStore((s) => s.addUnitWithType);
   const reprocessOnGenerate = useUiStore((s) => s.reprocessOnGenerate);
   const setAutoUpdateProcessed = useUiStore((s) => s.setAutoUpdateProcessed);
@@ -106,12 +112,13 @@ export function ControlTab() {
       </div>
 
       <div className="flex flex-col gap-1.5">
-        <CanvasInputRow />
+        <CanvasInputRows />
         {units.map((unit, i) => (
           <ControlUnitRow
             key={unit.id}
             index={i}
-            unifiedIndex={i + 2}
+            unifiedIndex={inputFramesCount + 1 + i}
+            inputFramesCount={inputFramesCount}
             canRemove={units.length > 1}
           />
         ))}
@@ -129,10 +136,11 @@ export function ControlTab() {
 interface ControlUnitRowProps {
   index: number;
   unifiedIndex: number;
+  inputFramesCount: number;
   canRemove: boolean;
 }
 
-function ControlUnitRow({ index, unifiedIndex, canRemove }: ControlUnitRowProps) {
+function ControlUnitRow({ index, unifiedIndex, inputFramesCount, canRemove }: ControlUnitRowProps) {
   const unit = useControlStore((s) => s.units[index]);
   const units = useControlStore((s) => s.units);
   const setUnitParam = useControlStore((s) => s.setUnitParam);
@@ -164,12 +172,12 @@ function ControlUnitRow({ index, unifiedIndex, canRemove }: ControlUnitRowProps)
       if (i !== index && u.imageSource === "separate") {
         opts.push({
           value: `unit:${i}`,
-          label: `Input ${i + 2} (${UNIT_TYPE_LABELS[u.unitType] ?? u.unitType}) image`,
+          label: `Input ${inputFramesCount + 1 + i} (${UNIT_TYPE_LABELS[u.unitType] ?? u.unitType}) image`,
         });
       }
     });
     return opts;
-  }, [units, index]);
+  }, [units, index, inputFramesCount]);
 
   const handleEditOnCanvas = useCallback(() => {
     const match = unit.imageSource.match(/^unit:(\d+)$/);
