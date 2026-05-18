@@ -6,7 +6,6 @@ import { usePanZoom } from "./tools/usePanZoom";
 import { useMaskPaint } from "./tools/useMaskPaint";
 import { useImageTransform } from "./tools/useImageTransform";
 import { InputFrameLayer } from "./layers/InputFrameLayer";
-import { CompositeLayer } from "./layers/CompositeLayer";
 import { OutputLayer } from "./layers/OutputLayer";
 import { ProcessedCompositeLayer } from "./layers/ProcessedCompositeLayer";
 import { ControlFrameLayer } from "./layers/ControlFrameLayer";
@@ -192,11 +191,9 @@ export function CanvasStage({
 
             {/* InputFrameLayer renders all Input frames (Initial + Reference)
               as canvas-native chrome and owns the Transformer, per-frame
-              image-layer interaction (drag, scale, rotate, select), and the
-              active mask paint stroke + brush cursor (rendered inside the
-              focused frame's group). CompositeLayer below stays mounted for
-              the legacy canvasStore.layers mask-objects render until Step
-              10 deletes the file. */}
+              image-layer interaction (drag, scale, rotate, select), per-
+              frame mask object rendering, and the active mask paint stroke
+              + brush cursor (rendered inside the focused frame's group). */}
             <InputFrameLayer
               frames={layout.inputFrames}
               displayScale={displayScale}
@@ -206,8 +203,6 @@ export function CanvasStage({
               onPickInputFile={onPickInputFile}
               onAddReferenceChild={onAddReferenceChild}
             />
-
-            <CompositeLayer displayScale={displayScale} />
 
             <OutputLayer
               offsetX={outputX}
