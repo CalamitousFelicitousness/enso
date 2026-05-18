@@ -1,12 +1,9 @@
 // Per-frame DOM chrome for the multi-Input-frame stack. Renders the panel
 // above the frame (mode toggle, label, action buttons, expandable drawer
 // with Info/Options KeepAlive tabs) plus per-reference-child X-button
-// hover overlays in Reference mode.
-//
-// Named `InputFramePanelV2` internally to avoid a collision with the
-// legacy `InputFramePanel` in `src/canvas/ControlFramePanel.tsx`; exported
-// here as the bare `InputFramePanel`. After deletes the legacy
-// function, this file's local symbol can be renamed back.
+// hover overlays in Reference mode. Each panel is a sortable dnd-kit
+// item under the orchestrator's vertical DndContext, and Reference
+// frames host a nested DndContext for child reorder.
 
 import { useMemo, useState } from "react";
 import { DndContext, PointerSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
@@ -56,7 +53,7 @@ interface InputFramePanelProps {
   canRemove?: boolean | undefined;
 }
 
-function InputFramePanelV2({
+export function InputFramePanel({
   frame,
   wireIndex,
   viewport,
@@ -335,8 +332,6 @@ function ReferenceChildrenSortable({ frame, viewport }: ReferenceChildrenSortabl
     </DndContext>
   );
 }
-
-export { InputFramePanelV2 as InputFramePanel };
 
 // ── InfoLine ─────────────────────────────────────────────────────────
 
