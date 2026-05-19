@@ -153,13 +153,25 @@ class ResBulkJobV2(BaseModel):
     affected: int
 
 
+VideoMode = Literal["t2v", "i2v", "flf2v", "vace", "animate"]
+"""Video pipeline mode. Mirrors the TS ``VideoMode`` literal in
+``src/api/types/video.ts``."""
+
+
 class VideoModelEnriched(BaseModel):
+    """An entry of GET /sdapi/v2/video/engines/{engine}/models.
+
+    All fields required: the route at ``routes.py`` always passes them
+    with derived values, so making them required tells the codegen the
+    truth and removes the consumer-side coercion in ``useVideo.ts``.
+    """
+
     name: str
-    repo: str = ""
-    url: str = ""
-    cached: bool = False
-    loaded: bool = False
-    mode: str = "t2v"
+    repo: str
+    url: str
+    cached: bool
+    loaded: bool
+    mode: VideoMode
 
 
 class VideoEngine(BaseModel):
@@ -251,7 +263,7 @@ class ItemSamplerV2(BaseModel):
     name: str = Field(title="Name")
     group: str = Field(title="Group", description="Standard, FlowMatch, or Res4Lyf")
     compatible: bool | None = Field(default=None, title="Compatible", description="null if no model loaded")
-    options: dict = Field(default_factory=dict, title="Options")
+    options: dict = Field(title="Options")
 
 
 class ItemHistoryV2(BaseModel):
@@ -609,11 +621,11 @@ class ResTaggerV2(BaseModel):
 
 class ItemVlmModelV2(BaseModel):
     name: str = Field(title="Name")
-    group: str = Field(default="Other", title="Group", description="Architecture family")
+    group: str = Field(title="Group", description="Architecture family")
     repo: str = Field(title="Repository")
     prompts: list[str] = Field(title="Prompts")
     capabilities: list[str] = Field(title="Capabilities")
-    cached: bool = Field(default=False, title="Cached", description="Model is available in local HF cache")
+    cached: bool = Field(title="Cached", description="Model is available in local HF cache")
 
 
 class ItemTaggerModelV2(BaseModel):
@@ -699,10 +711,10 @@ class ItemJobTypeV2(BaseModel):
 
 class ItemPromptEnhanceModelV2(BaseModel):
     name: str = Field(title="Name")
-    group: str = Field(default="Other", title="Group", description="Architecture family")
+    group: str = Field(title="Group", description="Architecture family")
     vision: bool = Field(title="Vision", description="Supports image input")
     thinking: bool = Field(title="Thinking", description="Supports reasoning mode")
-    cached: bool = Field(default=False, title="Cached", description="Model is available in local HF cache")
+    cached: bool = Field(title="Cached", description="Model is available in local HF cache")
 
 
 class ReqPromptEnhanceV2(BaseModel):
