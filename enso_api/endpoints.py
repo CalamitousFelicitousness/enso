@@ -273,7 +273,7 @@ async def get_extra_networks_v2(
 # --- Options ---
 
 
-@router.get("/options", tags=["Server"])
+@router.get("/options", response_model=dict[str, Any], tags=["Server"])
 async def get_options_v2(
     keys: str | None = Query(default=None, description="Comma-separated list of keys to return"),
 ) -> dict[str, Any]:
