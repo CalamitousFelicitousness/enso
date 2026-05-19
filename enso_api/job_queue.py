@@ -7,6 +7,13 @@ import threading
 from concurrent.futures import ThreadPoolExecutor
 
 from enso_api.job_store import JobStore
+from enso_api.ws_models import (
+    WsEventCompleted,
+    WsEventError,
+    WsEventProgress,
+    WsEventStages,
+    WsEventStatus,
+)
 
 # Maps SD.Next state.job labels → user-facing stage name
 STAGE_MAP: dict[str, str] = {
@@ -87,7 +94,7 @@ class JobQueue:
                     pass
             else:
                 self.store.update_status(job_id, "cancelled", completed_at=JobStore.now())
-                self.push_progress(job_id, {"type": "status", "status": "cancelled"})
+                self.push_progress(job_id, WsEventStatus(status="cancelled").model_dump(exclude_none=True))
             return True
         if job["status"] == "pending":
             return self.store.cancel(job_id)
@@ -192,14 +199,14 @@ class JobQueue:
         self._current_job_id = job_id
         log.info(f"Job queue: executing id={job_id} type={job_type}")
         self.store.update_status(job_id, "running", started_at=JobStore.now())
-        self.push_progress(job_id, {"type": "status", "status": "running"})
+        self.push_progress(job_id, WsEventStatus(status="running").model_dump(exclude_none=True))
 
         raw_params = job.get("params", {})
         if isinstance(raw_params, str):
             raw_params = json.loads(raw_params)
         stages = compute_stages(job_type, raw_params)
         if stages:
-            self.push_progress(job_id, {"type": "stages", "stages": stages})
+            self.push_progress(job_id, WsEventStages(stages=stages).model_dump(exclude_none=True))
 
         poller_stop = threading.Event()
         poller = threading.Thread(target=self._progress_poller, args=(job_id, poller_stop, stages), daemon=True, name=f"v2-progress-{job_id[:8]}")
@@ -212,7 +219,7 @@ class JobQueue:
                 if job_id in self._cancel_ids:
                     self._cancel_ids.discard(job_id)
                     self.store.update_status(job_id, "cancelled", completed_at=JobStore.now())
-                    self.push_progress(job_id, {"type": "status", "status": "cancelled"})
+                    self.push_progress(job_id, WsEventStatus(status="cancelled").model_dump(exclude_none=True))
                     return
                 params = job.get("params", {})
                 if isinstance(params, str):
@@ -220,7 +227,7 @@ class JobQueue:
                 result = executor_fn(params, job_id)
             result_json = json.dumps(result, default=str)
             self.store.update_status(job_id, "completed", completed_at=JobStore.now(), result=result_json)
-            self.push_progress(job_id, {"type": "completed", "result": result})
+            self.push_progress(job_id, WsEventCompleted(result=result).model_dump(exclude_none=True))
             log.info(f"Job queue: completed id={job_id}")
         except Exception as e:
             from modules import errors
@@ -228,11 +235,11 @@ class JobQueue:
             errors.display(e, f"Job queue: {job_type}")
             error_msg = f"{type(e).__name__}: {e}"
             self.store.update_status(job_id, "failed", completed_at=JobStore.now(), error=error_msg)
-            self.push_progress(job_id, {"type": "error", "error": error_msg})
+            self.push_progress(job_id, WsEventError(error=error_msg).model_dump(exclude_none=True))
             if job_id in self._cancel_ids:
                 self._cancel_ids.discard(job_id)
                 self.store.update_status(job_id, "cancelled", completed_at=JobStore.now())
-                self.push_progress(job_id, {"type": "status", "status": "cancelled"})
+                self.push_progress(job_id, WsEventStatus(status="cancelled").model_dump(exclude_none=True))
         finally:
             poller_stop.set()
             poller.join(timeout=2.0)
@@ -245,7 +252,7 @@ class JobQueue:
 
         job_id = job["id"]
         log.info(f"Job queue: cloud executing id={job_id} type={job_type}")
-        self.push_progress(job_id, {"type": "status", "status": "running"})
+        self.push_progress(job_id, WsEventStatus(status="running").model_dump(exclude_none=True))
 
         try:
             params = job.get("params", {})
@@ -254,13 +261,13 @@ class JobQueue:
             result = executor_fn(params, job_id)
             result_json = json.dumps(result, default=str)
             self.store.update_status(job_id, "completed", completed_at=JobStore.now(), result=result_json)
-            self.push_progress(job_id, {"type": "completed", "result": result})
+            self.push_progress(job_id, WsEventCompleted(result=result).model_dump(exclude_none=True))
             log.info(f"Job queue: cloud completed id={job_id}")
         except Exception as e:
             log.error(f"Job queue: cloud failed id={job_id} {type(e).__name__}: {e}")
             error_msg = f"{type(e).__name__}: {e}"
             self.store.update_status(job_id, "failed", completed_at=JobStore.now(), error=error_msg)
-            self.push_progress(job_id, {"type": "error", "error": error_msg})
+            self.push_progress(job_id, WsEventError(error=error_msg).model_dump(exclude_none=True))
 
     def _progress_poller(self, job_id: str, stop_event: threading.Event, stages: list[str] | None = None) -> None:
         from modules import shared
@@ -303,23 +310,21 @@ class JobQueue:
                     steps = state.sampling_steps
                     progress_val = status.progress if hasattr(status, "progress") else 0
                     eta_val = status.eta if hasattr(status, "eta") else None
-                    progress_data = {
-                        "type": "progress",
-                        "step": step,
-                        "steps": steps,
-                        "progress": progress_val,
-                        "eta": eta_val,
-                        "task": current_job,
-                        "textinfo": current_textinfo,
-                    }
-                    if stages:
-                        progress_data["stage"] = stage_index
-                        progress_data["stage_name"] = stage_name
-                        progress_data["stage_count"] = len(stages)
-                        progress_data["phase"] = phase
+                    progress_event = WsEventProgress(
+                        step=step,
+                        steps=steps,
+                        progress=progress_val,
+                        eta=eta_val,
+                        task=current_job,
+                        textinfo=current_textinfo,
+                        stage=stage_index if stages else None,
+                        stage_name=stage_name if stages else None,
+                        stage_count=len(stages) if stages else None,
+                        phase=phase if stages else None,
+                    )
                     if self.store is not None:
                         self.store.update_progress(job_id, progress_val, step, steps)
-                    self.push_progress(job_id, progress_data)
+                    self.push_progress(job_id, progress_event.model_dump(exclude_none=True))
                     # Decode current latent into a preview image (bypasses the api guard in set_current_image)
                     state.do_set_current_image()
                     # Send preview image as binary if available

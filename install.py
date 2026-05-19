@@ -47,12 +47,12 @@ def run():
 
     if needs_install:
         print("Enso: installing npm dependencies...")
-        subprocess.run([npm, "install"], cwd=ext_root, check=True, capture_output=True)
+        subprocess.run([npm, "install"], cwd=ext_root, check=True)
         needs_build = True  # deps changed, rebuild
 
     if needs_build:
         print("Enso: building frontend...")
-        subprocess.run([npm, "run", "build"], cwd=ext_root, check=True, capture_output=True)
+        subprocess.run([npm, "run", "build"], cwd=ext_root, check=True)
         with open(stamp, "w", encoding="utf-8"):
             pass
 

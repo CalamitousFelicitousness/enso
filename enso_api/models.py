@@ -30,6 +30,8 @@ class ImageRef(BaseModel):
     height: int
     format: str
     size: int
+    data: str | None = None
+    """Base64-encoded image bytes; populated only when ``shared.opts.api_v2_base64`` is enabled."""
 
 
 class JobResult(BaseModel):
