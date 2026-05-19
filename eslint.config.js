@@ -17,7 +17,14 @@ import { defineConfig, globalIgnores } from "eslint/config";
 const a11yConfig = fixupConfigRules(jsxA11y.flatConfigs.recommended);
 
 export default defineConfig([
-  globalIgnores(["dist", "dev-dist", "mcp", "working-docs", "src/lib/*.generated.ts"]),
+  globalIgnores([
+    "dist",
+    "dev-dist",
+    "mcp",
+    "working-docs",
+    "src/lib/*.generated.ts",
+    "src/lib/openapi-generated/",
+  ]),
   {
     files: ["**/*.{ts,tsx}"],
     extends: [
