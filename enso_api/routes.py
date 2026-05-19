@@ -44,9 +44,11 @@ def job_to_response(job: dict) -> JobResponse:
                 result = None
         if isinstance(result, dict):
             images = [ImageRef(**img) for img in result.get("images", [])]
+            processed = [ImageRef(**img) for img in result.get("processed", [])]
             videos = [VideoRef(**vid) for vid in result.get("videos", [])]
             job_result = JobResult(
                 images=images,
+                processed=processed,
                 videos=videos,
                 info=result.get("info", {}),
                 params=result.get("params", {}),
