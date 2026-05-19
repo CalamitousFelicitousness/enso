@@ -24,7 +24,7 @@ function loraSource(ctx: CompletionContext): CompletionResult | null {
     options: loras.map((l) => ({
       label: l.name,
       displayLabel: l.name.split("/").pop() || l.name,
-      detail: l.tags?.[0] ?? undefined,
+      detail: l.tags?.[0] ?? "",
       type: "lora",
       apply: `${l.name}:1>`,
     })),

@@ -35,7 +35,7 @@ export function itemPath(item: NetworkItem): string {
 }
 
 export function itemHasTag(item: ExtraNetworkV2, tag: string): boolean {
-  return item.tags.some((t) => t.toLowerCase() === tag.toLowerCase());
+  return (item.tags ?? []).some((t) => t.toLowerCase() === tag.toLowerCase());
 }
 
 /* ─── LoRA prompt utilities ────────────────────────────────── */

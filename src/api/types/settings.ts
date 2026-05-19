@@ -1,3 +1,18 @@
+import type {
+  ItemSectionInfoV2 as GenSectionMeta,
+  OptionUpdateItemV2 as GenOptionUpdateItem,
+} from "@/lib/openapi-generated/types.gen";
+
+export type SectionMeta = GenSectionMeta;
+export type OptionUpdateItem = GenOptionUpdateItem;
+
+// OptionInfoMeta + OptionsInfoResponse stay hand-written. The Pydantic
+// side uses `type: str` and `component: str` because SD.Next's options
+// registry is dynamic; the TS-side narrows to the literal unions actually
+// emitted. Aliasing from generated would cascade `string` through every
+// consumer's switch-on-type and switch-on-component, losing the narrowing
+// that buildSettingDef and friends rely on.
+
 export type OptionsMap = Record<string, unknown>;
 
 export interface OptionInfoMeta {
@@ -30,20 +45,9 @@ export interface OptionInfoMeta {
   is_secret: boolean;
 }
 
-export interface SectionMeta {
-  id: string;
-  title: string;
-  hidden: boolean;
-}
-
 export interface OptionsInfoResponse {
   options: Record<string, OptionInfoMeta>;
   sections: SectionMeta[];
-}
-
-export interface OptionUpdateItem {
-  key: string;
-  changed: boolean;
 }
 
 export interface SetOptionsResponse {

@@ -94,7 +94,7 @@ export function useNetworkFiltering(
           localItems.push(item);
         }
         if (isDiff) hasDiffusers = true;
-        if (isRef && item.tags.length === 0) hasReference = true;
+        if (isRef && (item.tags ?? []).length === 0) hasReference = true;
         for (const cat of TAG_CATEGORIES) {
           if (itemHasTag(item, cat.toLowerCase())) tagHits.set(cat.toLowerCase(), true);
         }
@@ -157,7 +157,8 @@ export function useNetworkFiltering(
         );
       } else if (selectedSubfolder === "Reference") {
         items = filtered.filter(
-          (item) => isExtraNetwork(item) && isReferenceName(item.name) && item.tags.length === 0,
+          (item) =>
+            isExtraNetwork(item) && isReferenceName(item.name) && (item.tags ?? []).length === 0,
         );
       } else {
         const tagCat = TAG_CATEGORIES.find((c) => c === selectedSubfolder);
@@ -270,7 +271,7 @@ export function useNetworkFiltering(
         const isDiff = item.name.startsWith("Diffusers/");
         if (!isRef && !isDiff) localCount++;
         if (isDiff) diffusersCount++;
-        if (isRef && item.tags.length === 0) referenceCount++;
+        if (isRef && (item.tags ?? []).length === 0) referenceCount++;
         for (const cat of TAG_CATEGORIES) {
           if (itemHasTag(item, cat.toLowerCase()))
             tagCounts.set(cat, (tagCounts.get(cat) ?? 0) + 1);
