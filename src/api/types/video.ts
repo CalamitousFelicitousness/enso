@@ -1,5 +1,18 @@
 import type { VideoWireParams } from "./wireParams";
 
+export type {
+  VideoEngine,
+  VideoLoadResponse,
+  VideoModel as VideoEngineModel,
+  VideoModelEnriched as VideoModelDetail,
+} from "@/lib/openapi-generated/types.gen";
+
+// Local UI types — not in OpenAPI by design.
+//
+// VideoResult is a store shape composed after the wire response arrives;
+// it pulls in VideoWireParams (legacy alias scaffolding for PNG-metadata
+// restore) plus the camelCase fields the UI store uses.
+
 export interface VideoResult {
   id: string;
   videoUrl: string;
@@ -17,30 +30,3 @@ export interface VideoResult {
 }
 
 export type VideoMode = "t2v" | "i2v" | "flf2v" | "vace" | "animate";
-
-export interface VideoModelDetail {
-  name: string;
-  repo: string;
-  url: string;
-  cached: boolean;
-  loaded: boolean;
-  mode: VideoMode;
-}
-
-export interface VideoEngineModel {
-  name: string;
-  repo: string;
-  url: string;
-}
-
-export interface VideoEngine {
-  engine: string;
-  models: string[];
-  model_details: VideoModelDetail[];
-}
-
-export interface VideoLoadResponse {
-  engine: string;
-  model: string;
-  messages: string[];
-}

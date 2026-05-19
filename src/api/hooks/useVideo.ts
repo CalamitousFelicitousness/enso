@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "../client";
-import type { VideoEngine, VideoLoadResponse } from "../types/video";
+import type { VideoEngine, VideoLoadResponse, VideoMode } from "../types/video";
 import type { LocalVideoModel } from "../types/cloud";
 import { engineToKind } from "@/lib/videoModel";
 
@@ -79,9 +79,12 @@ export function useLocalVideoModels(): LocalVideoModel[] {
           model: detail.name,
           name: detail.name,
           title: `local-video:${eng.engine}:${detail.name}`,
-          mode: detail.mode,
-          cached: detail.cached,
-          loaded: detail.loaded,
+          // VideoModelEnriched.mode/cached/loaded are defaulted on the Pydantic
+          // side (server always emits them). TODO: tighten Pydantic to remove
+          // defaults and type mode as Literal, then drop these coercions.
+          mode: (detail.mode ?? "t2v") as VideoMode,
+          cached: detail.cached ?? false,
+          loaded: detail.loaded ?? false,
           kind: engineToKind(eng.engine),
         });
       }

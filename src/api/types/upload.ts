@@ -1,10 +1,1 @@
-export interface UploadRef {
-  ref: string;
-  url: string;
-  name: string;
-  size: number;
-}
-
-export interface UploadResponse {
-  uploads: UploadRef[];
-}
+export type { UploadRef, UploadResponse } from "@/lib/openapi-generated/types.gen";
