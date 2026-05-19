@@ -4659,6 +4659,7 @@
         "type": "object"
       },
       "JobResponse": {
+        "description": "A job row as returned by the GET /jobs/{id} and /jobs endpoints.\n\nprogress/step/steps are required because the server always emits them\n(zeroed on pending jobs). Nullable fields (started_at, completed_at,\nerror, eta, result) stay optional to model the genuine null case.",
         "properties": {
           "completed_at": {
             "anyOf": [
@@ -4702,7 +4703,6 @@
             "type": "string"
           },
           "progress": {
-            "default": 0,
             "title": "Progress",
             "type": "number"
           },
@@ -4728,16 +4728,21 @@
             "title": "Started At"
           },
           "status": {
+            "enum": [
+              "pending",
+              "running",
+              "completed",
+              "failed",
+              "cancelled"
+            ],
             "title": "Status",
             "type": "string"
           },
           "step": {
-            "default": 0,
             "title": "Step",
             "type": "integer"
           },
           "steps": {
-            "default": 0,
             "title": "Steps",
             "type": "integer"
           },
@@ -4750,12 +4755,16 @@
           "id",
           "type",
           "status",
+          "progress",
+          "step",
+          "steps",
           "created_at"
         ],
         "title": "JobResponse",
         "type": "object"
       },
       "JobResult": {
+        "description": "The result payload attached to a completed JobResponse.\n\nAll list / dict fields are required because the server always emits\nthem. Empty collections still serialize correctly; the requirement\nis that the field is present in the payload.",
         "properties": {
           "images": {
             "items": {
@@ -4789,6 +4798,13 @@
             "type": "array"
           }
         },
+        "required": [
+          "images",
+          "processed",
+          "videos",
+          "info",
+          "params"
+        ],
         "title": "JobResult",
         "type": "object"
       },
