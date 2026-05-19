@@ -513,22 +513,22 @@ def post_lora_extract(req: ReqLoraExtractV2):
 
 def register_api():
     api = shared.api
-    # 
+    #
     api.add_api_route("/sdapi/v2/model/analyze", get_analyze, methods=["GET"], tags=["Models"])
     api.add_api_route("/sdapi/v2/model/save", post_save, methods=["POST"], tags=["Models"])
     api.add_api_route("/sdapi/v2/model/list-detail", get_list_detail, methods=["GET"], tags=["Models"])
     api.add_api_route("/sdapi/v2/model/update-hashes", post_update_hashes, methods=["POST"], tags=["Models"])
-    # 
+    #
     api.add_api_route("/sdapi/v2/model/hf/search", get_hf_search, methods=["GET"], tags=["Models"])
     api.add_api_route("/sdapi/v2/model/hf/download", post_hf_download, methods=["POST"], tags=["Models"])
     api.add_api_route("/sdapi/v2/model/civitai/download", post_civitai_download, methods=["POST"], tags=["Models"])
     api.add_api_route("/sdapi/v2/model/metadata/scan", post_metadata_scan, methods=["POST"], tags=["Models"])
     api.add_api_route("/sdapi/v2/model/metadata/update", post_metadata_update, methods=["POST"], tags=["Models"])
-    # 
+    #
     api.add_api_route("/sdapi/v2/model/merge/methods", get_merge_methods, methods=["GET"], tags=["Models"])
     api.add_api_route("/sdapi/v2/model/merge", post_merge, methods=["POST"], tags=["Models"])
     api.add_api_route("/sdapi/v2/model/replace", post_replace, methods=["POST"], tags=["Models"])
-    # 
+    #
     api.add_api_route("/sdapi/v2/model/loader/pipelines", get_loader_pipelines, methods=["GET"], tags=["Models"])
     api.add_api_route("/sdapi/v2/model/loader/components", post_loader_components, methods=["POST"], tags=["Models"])
     api.add_api_route("/sdapi/v2/model/loader/load", post_loader_load, methods=["POST"], tags=["Models"])

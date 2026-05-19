@@ -1,3 +1,4 @@
+import type { VideoModelEnriched } from "@/lib/openapi-generated/types.gen";
 import type { VideoWireParams } from "./wireParams";
 
 export type {
@@ -6,6 +7,10 @@ export type {
   VideoModel as VideoEngineModel,
   VideoModelEnriched as VideoModelDetail,
 } from "@/lib/openapi-generated/types.gen";
+
+// Derived from VideoModelEnriched.mode so the narrowing is always in
+// lockstep with the Pydantic-side Literal in enso_api/models.py.
+export type VideoMode = VideoModelEnriched["mode"];
 
 // Local UI types - not in OpenAPI by design.
 //
@@ -28,5 +33,3 @@ export interface VideoResult {
   domain: "video" | "framepack" | "ltx";
   timestamp: number;
 }
-
-export type VideoMode = "t2v" | "i2v" | "flf2v" | "vace" | "animate";

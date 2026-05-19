@@ -60,7 +60,7 @@ export function OverviewSubTab() {
 
       {serverInfo && (
         <Section title="Server">
-          <Row label="Version" value={serverInfo.version?.app} />
+          <Row label="Version" value={serverInfo.version.app ?? ""} />
 
           <Row label="Backend" value={serverInfo.backend} />
           <Row label="Platform" value={serverInfo.platform} />

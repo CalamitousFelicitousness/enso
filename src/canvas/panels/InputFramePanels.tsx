@@ -4,7 +4,7 @@
 // wires onDragEnd; leaves it as a no-op), and renders the
 // +Add Input Frame placeholder at the bottom of the input column.
 //
-// commits this file without mounting it in CanvasView; 
+// commits this file without mounting it in CanvasView;
 // adds the <InputFramePanels /> mount and drops the legacy
 // ReferenceFilmstripOverlay + ControlFramePanels InputFramePanel mount.
 

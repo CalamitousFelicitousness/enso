@@ -1,4 +1,4 @@
-// 
+//
 
 export interface ModelModule {
   name: string;
@@ -40,7 +40,7 @@ export interface ModelListDetail {
   mtime: string | null;
 }
 
-// 
+//
 
 export interface HfModelResult {
   id: string;
@@ -88,7 +88,7 @@ export interface CivitMetadataUpdateResult {
   status: string | null;
 }
 
-// 
+//
 
 export interface MergeMethodsInfo {
   methods: string[];
@@ -155,7 +155,7 @@ export interface ReplaceRequest {
   debug?: boolean | undefined;
 }
 
-// 
+//
 
 export interface LoaderComponent {
   id: number;

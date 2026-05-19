@@ -393,7 +393,7 @@ export async function buildControlRequest(): Promise<BuildResult> {
     request.height_before = genSize.height;
     request.input_type = 1;
 
-    // Flatten the primary frame's image layers at full frame size. 
+    // Flatten the primary frame's image layers at full frame size.
     // sources layers from inputFrames[0].layers; multi-Initial on the
     // local SD.Next path is out of scope per plan.
     const flattenedBlob = await flattenCanvas(primaryLayers, frameW, frameH);
