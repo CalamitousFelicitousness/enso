@@ -4228,13 +4228,11 @@
       "ItemPromptEnhanceModelV2": {
         "properties": {
           "cached": {
-            "default": false,
             "description": "Model is available in local HF cache",
             "title": "Cached",
             "type": "boolean"
           },
           "group": {
-            "default": "Other",
             "description": "Architecture family",
             "title": "Group",
             "type": "string"
@@ -4256,8 +4254,10 @@
         },
         "required": [
           "name",
+          "group",
           "vision",
-          "thinking"
+          "thinking",
+          "cached"
         ],
         "title": "ItemPromptEnhanceModelV2",
         "type": "object"
@@ -4403,7 +4403,8 @@
         },
         "required": [
           "name",
-          "group"
+          "group",
+          "options"
         ],
         "title": "ItemSamplerV2",
         "type": "object"
@@ -4584,7 +4585,6 @@
       "ItemVlmModelV2": {
         "properties": {
           "cached": {
-            "default": false,
             "description": "Model is available in local HF cache",
             "title": "Cached",
             "type": "boolean"
@@ -4597,7 +4597,6 @@
             "type": "array"
           },
           "group": {
-            "default": "Other",
             "description": "Architecture family",
             "title": "Group",
             "type": "string"
@@ -4620,9 +4619,11 @@
         },
         "required": [
           "name",
+          "group",
           "repo",
           "prompts",
-          "capabilities"
+          "capabilities",
+          "cached"
         ],
         "title": "ItemVlmModelV2",
         "type": "object"
@@ -7938,19 +7939,24 @@
         "type": "object"
       },
       "VideoModelEnriched": {
+        "description": "An entry of GET /sdapi/v2/video/engines/{engine}/models.\n\nAll fields required: the route at ``routes.py`` always passes them\nwith derived values, so making them required tells the codegen the\ntruth and removes the consumer-side coercion in ``useVideo.ts``.",
         "properties": {
           "cached": {
-            "default": false,
             "title": "Cached",
             "type": "boolean"
           },
           "loaded": {
-            "default": false,
             "title": "Loaded",
             "type": "boolean"
           },
           "mode": {
-            "default": "t2v",
+            "enum": [
+              "t2v",
+              "i2v",
+              "flf2v",
+              "vace",
+              "animate"
+            ],
             "title": "Mode",
             "type": "string"
           },
@@ -7959,18 +7965,21 @@
             "type": "string"
           },
           "repo": {
-            "default": "",
             "title": "Repo",
             "type": "string"
           },
           "url": {
-            "default": "",
             "title": "Url",
             "type": "string"
           }
         },
         "required": [
-          "name"
+          "name",
+          "repo",
+          "url",
+          "cached",
+          "loaded",
+          "mode"
         ],
         "title": "VideoModelEnriched",
         "type": "object"
