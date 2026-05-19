@@ -3122,6 +3122,17 @@
       },
       "ImageRef": {
         "properties": {
+          "data": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data"
+          },
           "format": {
             "title": "Format",
             "type": "string"
@@ -8178,6 +8189,332 @@
         "title": "VideoRef",
         "type": "object"
       },
+      "WsEventAck": {
+        "additionalProperties": false,
+        "description": "Acknowledgement of a client command (``interrupt`` or ``skip``).",
+        "properties": {
+          "command": {
+            "title": "Command",
+            "type": "string"
+          },
+          "type": {
+            "const": "ack",
+            "default": "ack",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "command"
+        ],
+        "title": "WsEventAck",
+        "type": "object"
+      },
+      "WsEventCancelled": {
+        "additionalProperties": false,
+        "description": "Terminal event signalling job cancellation.",
+        "properties": {
+          "type": {
+            "const": "cancelled",
+            "default": "cancelled",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "title": "WsEventCancelled",
+        "type": "object"
+      },
+      "WsEventCloudProgress": {
+        "additionalProperties": false,
+        "description": "Phase-based progress for cloud executors (no fine-grained step counter).",
+        "properties": {
+          "detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail"
+          },
+          "elapsed": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Elapsed"
+          },
+          "phase": {
+            "enum": [
+              "submitted",
+              "queued_remote",
+              "processing",
+              "downloading"
+            ],
+            "title": "Phase",
+            "type": "string"
+          },
+          "position": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Position"
+          },
+          "progress": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Progress"
+          },
+          "type": {
+            "const": "cloud_progress",
+            "default": "cloud_progress",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "phase"
+        ],
+        "title": "WsEventCloudProgress",
+        "type": "object"
+      },
+      "WsEventCompleted": {
+        "additionalProperties": false,
+        "description": "Terminal event carrying the :class:`JobResult` payload.",
+        "properties": {
+          "result": {
+            "$ref": "#/components/schemas/JobResult"
+          },
+          "type": {
+            "const": "completed",
+            "default": "completed",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "result"
+        ],
+        "title": "WsEventCompleted",
+        "type": "object"
+      },
+      "WsEventError": {
+        "additionalProperties": false,
+        "description": "Terminal event signalling job failure with an error message.",
+        "properties": {
+          "error": {
+            "title": "Error",
+            "type": "string"
+          },
+          "type": {
+            "const": "error",
+            "default": "error",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "error"
+        ],
+        "title": "WsEventError",
+        "type": "object"
+      },
+      "WsEventPing": {
+        "additionalProperties": false,
+        "description": "Keepalive sent every 30 seconds when no other event is queued.",
+        "properties": {
+          "type": {
+            "const": "ping",
+            "default": "ping",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "title": "WsEventPing",
+        "type": "object"
+      },
+      "WsEventProgress": {
+        "additionalProperties": false,
+        "description": "Sampling-step progress emitted ~10x/sec from the local-executor poller.",
+        "properties": {
+          "eta": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Eta"
+          },
+          "phase": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Phase"
+          },
+          "progress": {
+            "title": "Progress",
+            "type": "number"
+          },
+          "stage": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stage"
+          },
+          "stage_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stage Count"
+          },
+          "stage_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stage Name"
+          },
+          "step": {
+            "title": "Step",
+            "type": "integer"
+          },
+          "steps": {
+            "title": "Steps",
+            "type": "integer"
+          },
+          "task": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Task"
+          },
+          "textinfo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Textinfo"
+          },
+          "type": {
+            "const": "progress",
+            "default": "progress",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "step",
+          "steps",
+          "progress"
+        ],
+        "title": "WsEventProgress",
+        "type": "object"
+      },
+      "WsEventStages": {
+        "additionalProperties": false,
+        "description": "Predicted pipeline stages, sent once at the start of a generation job.",
+        "properties": {
+          "stages": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Stages",
+            "type": "array"
+          },
+          "type": {
+            "const": "stages",
+            "default": "stages",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "stages"
+        ],
+        "title": "WsEventStages",
+        "type": "object"
+      },
+      "WsEventStatus": {
+        "additionalProperties": false,
+        "description": "Lifecycle transition: status snapshot pushed when a job enters a new state.",
+        "properties": {
+          "progress": {
+            "default": 0,
+            "title": "Progress",
+            "type": "number"
+          },
+          "status": {
+            "enum": [
+              "pending",
+              "running",
+              "completed",
+              "failed",
+              "cancelled"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "type": {
+            "const": "status",
+            "default": "status",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "WsEventStatus",
+        "type": "object"
+      },
       "XyzAxisInfo": {
         "properties": {
           "category": {
@@ -12487,6 +12824,72 @@
         "tags": [
           "v2",
           "Jobs"
+        ]
+      }
+    },
+    "/sdapi/v2/jobs/ws-events": {
+      "get": {
+        "description": "Documentation endpoint: returns the schema for events on the per-job WebSocket.\n\nThe per-job WebSocket at ``/sdapi/v2/jobs/{job_id}/ws`` is not part of the\nOpenAPI spec (WebSockets aren't), but its event payloads are typed by\n:data:`enso_api.ws_models.WsEvent`. This HTTP route exists so the\n``WsEvent`` discriminated union and every variant schema land in\n``#/components/schemas`` for codegen consumers. The live response is a\nrepresentative ping event for inspection.",
+        "operationId": "get_ws_event_schema_sdapi_v2_jobs_ws_events_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "discriminator": {
+                    "mapping": {
+                      "ack": "#/components/schemas/WsEventAck",
+                      "cancelled": "#/components/schemas/WsEventCancelled",
+                      "cloud_progress": "#/components/schemas/WsEventCloudProgress",
+                      "completed": "#/components/schemas/WsEventCompleted",
+                      "error": "#/components/schemas/WsEventError",
+                      "ping": "#/components/schemas/WsEventPing",
+                      "progress": "#/components/schemas/WsEventProgress",
+                      "stages": "#/components/schemas/WsEventStages",
+                      "status": "#/components/schemas/WsEventStatus"
+                    },
+                    "propertyName": "type"
+                  },
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/WsEventStatus"
+                    },
+                    {
+                      "$ref": "#/components/schemas/WsEventProgress"
+                    },
+                    {
+                      "$ref": "#/components/schemas/WsEventCloudProgress"
+                    },
+                    {
+                      "$ref": "#/components/schemas/WsEventStages"
+                    },
+                    {
+                      "$ref": "#/components/schemas/WsEventCompleted"
+                    },
+                    {
+                      "$ref": "#/components/schemas/WsEventError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/WsEventCancelled"
+                    },
+                    {
+                      "$ref": "#/components/schemas/WsEventPing"
+                    },
+                    {
+                      "$ref": "#/components/schemas/WsEventAck"
+                    }
+                  ],
+                  "title": "Response Get Ws Event Schema Sdapi V2 Jobs Ws Events Get"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Ws Event Schema",
+        "tags": [
+          "v2",
+          "WebSocket"
         ]
       }
     },
