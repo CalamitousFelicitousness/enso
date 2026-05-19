@@ -176,7 +176,7 @@ export function CaptionPanel() {
           image: ref,
           model: s.model,
           question: s.task,
-          prompt: CUSTOM_PROMPT_TASKS.includes(s.task) ? s.customPrompt : undefined,
+          prompt: CUSTOM_PROMPT_TASKS.includes(s.task) ? s.customPrompt : null,
           system: s.system,
           include_annotated: true,
           max_tokens: s.maxTokens,

@@ -192,7 +192,7 @@ export function VideoPanel() {
       toast.warning("Enter a prompt first");
       return;
     }
-    let image: string | undefined;
+    let image: string | null = null;
     if (enhanceStore.useVision) {
       const initImg = useVideoStore.getState().initImage;
       if (initImg) image = await uploadBlob(initImg, "vision.png");
@@ -200,22 +200,22 @@ export function VideoPanel() {
     const req: PromptEnhanceRequest = {
       prompt,
       type: "video",
-      model: enhanceStore.model || undefined,
-      system_prompt: enhanceStore.systemPrompt || undefined,
-      prefix: enhanceStore.prefix || undefined,
-      suffix: enhanceStore.suffix || undefined,
+      model: enhanceStore.model || null,
+      system_prompt: enhanceStore.systemPrompt || null,
+      prefix: enhanceStore.prefix || null,
+      suffix: enhanceStore.suffix || null,
       nsfw: enhanceStore.nsfw,
       seed: enhanceStore.seed,
       do_sample: enhanceStore.doSample,
       max_tokens: enhanceStore.maxTokens,
       temperature: enhanceStore.temperature,
       repetition_penalty: enhanceStore.repetitionPenalty,
-      top_k: enhanceStore.topK || undefined,
-      top_p: enhanceStore.topP || undefined,
+      top_k: enhanceStore.topK || null,
+      top_p: enhanceStore.topP || null,
       thinking: enhanceStore.thinking,
       keep_thinking: enhanceStore.keepThinking,
       use_vision: enhanceStore.useVision,
-      prefill: enhanceStore.prefill || undefined,
+      prefill: enhanceStore.prefill || null,
       keep_prefill: enhanceStore.keepPrefill,
       image,
     };

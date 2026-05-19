@@ -79,7 +79,7 @@ export function PromptEnhancePanel() {
         value: m.name,
         label: m.name.split("/").pop() ?? m.name,
       };
-      (buckets[m.group] ??= []).push(opt);
+      (buckets[m.group ?? ""] ??= []).push(opt);
     }
     for (const opts of Object.values(buckets))
       opts.sort((a, b) => {

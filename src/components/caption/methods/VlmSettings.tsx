@@ -58,7 +58,7 @@ export function VlmSettings() {
     ];
 
     const buckets: Record<string, string[]> = {};
-    for (const m of models) (buckets[m.group] ??= []).push(m.name);
+    for (const m of models) (buckets[m.group ?? ""] ??= []).push(m.name);
     for (const opts of Object.values(buckets))
       opts.sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
     return order
