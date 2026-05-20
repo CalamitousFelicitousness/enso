@@ -30,6 +30,14 @@ const thumbSemaphore = new Semaphore(16);
 /** Module-level set shared between visible loader and background preloader. */
 const inflightIds = new Set<string>();
 
+/**
+ * Session-scoped negative cache: file IDs whose backend fetch succeeded but
+ * returned no usable thumb (broken/corrupt source file). Prevents the viewport
+ * from re-firing the same request on every scroll. Transient failures (network,
+ * abort) are NOT recorded, so they remain retryable on the next viewport change.
+ */
+const failedIds = new Set<string>();
+
 export function useBrowserFolders() {
   return useQuery({
     queryKey: ["browser", "folders"],
@@ -448,18 +456,20 @@ export function useBrowserFiles(folder: string | null) {
 /**
  * Fetch a single thumbnail. Checks IndexedDB FIRST (no semaphore needed),
  * only falls back to the API on cache miss.
+ *
+ * Returns null when the backend responded successfully but had no thumb data
+ * (broken/corrupt source file). Network/abort errors are thrown so the caller
+ * can distinguish transient failures from server-acknowledged empty results.
  */
 export async function fetchThumb(file: GalleryFile): Promise<CachedThumb | null> {
   try {
-    // Check IndexedDB cache first - no semaphore, no API call
     const hash = await computeThumbHash(file.fullPath);
     const cached = await getThumb(hash);
     if (cached) return cached;
   } catch {
-    // IndexedDB errors are non-fatal, fall through to API
+    // IndexedDB read errors are non-fatal, fall through to API
   }
 
-  // Cache miss - fetch from backend (uses semaphore to limit concurrency)
   await thumbSemaphore.acquire();
   try {
     const resp = await api.get<BrowserThumb>("/sdapi/v2/browser/thumb", { file: file.fullPath });
@@ -476,13 +486,8 @@ export async function fetchThumb(file: GalleryFile): Promise<CachedThumb | null>
       mtime: resp.mtime,
       exif: resp.exif ?? "",
     };
-
-    // Store in IndexedDB (fire and forget)
     putThumb(entry).catch(() => {});
-
     return entry;
-  } catch {
-    return null;
   } finally {
     thumbSemaphore.release();
   }
@@ -522,21 +527,32 @@ function scheduleThumbFlush() {
   }
 }
 
-/** Dispatch a single thumbnail fetch if not already cached or in-flight. */
+/** Dispatch a single thumbnail fetch if not already cached, in-flight, or known-failed. */
 function dispatchThumb(file: GalleryFile) {
-  if (inflightIds.has(file.id) || useGalleryStore.getState().thumbs.has(file.id)) return;
+  if (
+    inflightIds.has(file.id) ||
+    failedIds.has(file.id) ||
+    useGalleryStore.getState().thumbs.has(file.id)
+  )
+    return;
   inflightIds.add(file.id);
   // Capture folder at dispatch time - not completion time - so the thumb
   // updates the correct folder cache even if the user navigates away
   const folder = useGalleryStore.getState().activeFolder;
-  void fetchThumb(file).then((thumb) => {
-    inflightIds.delete(file.id);
-    if (thumb) {
-      thumbBatchBuffer.push([file.id, thumb]);
-      if (folder) folderCacheBatchBuffer.push([folder, [[file.id, thumb]]]);
-      scheduleThumbFlush();
-    }
-  });
+  fetchThumb(file)
+    .then((thumb) => {
+      inflightIds.delete(file.id);
+      if (thumb) {
+        thumbBatchBuffer.push([file.id, thumb]);
+        if (folder) folderCacheBatchBuffer.push([folder, [[file.id, thumb]]]);
+        scheduleThumbFlush();
+      } else {
+        failedIds.add(file.id);
+      }
+    })
+    .catch(() => {
+      inflightIds.delete(file.id);
+    });
 }
 
 /**
