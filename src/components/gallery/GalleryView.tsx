@@ -1,11 +1,13 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   useBrowserFiles,
   useDeleteFiles,
   useMoveFiles,
   useDownloadFiles,
+  refreshFolder,
 } from "@/api/hooks/useGallery";
 import { useGalleryStore } from "@/stores/galleryStore";
+import { useJobQueueStore } from "@/stores/jobStore";
 import { useShortcut } from "@/hooks/useShortcut";
 import { useShortcutScope } from "@/hooks/useShortcutScope";
 import { useKeepAliveVisible } from "@/components/ui/keep-alive";
@@ -45,6 +47,45 @@ export function GalleryView() {
   useBrowserFiles(activeFolder);
   const visible = useKeepAliveVisible();
   useShortcutScope("gallery", visible);
+
+  // Auto-refresh: when a tracked job transitions into a terminal status, the
+  // active folder may now have new outputs (or removals from cleanup). The
+  // mtime check inside refreshFolder is cheap and no-ops when nothing changed,
+  // so we fire on every completion rather than trying to match output paths
+  // (JobResult.images carries url, not filesystem path).
+  useEffect(() => {
+    if (!visible || !activeFolder) return;
+    const unsub = useJobQueueStore.subscribe((state, prev) => {
+      if (state.jobs === prev.jobs) return;
+      for (const [id, job] of state.jobs) {
+        const before = prev.jobs.get(id);
+        const wasTerminal =
+          before &&
+          (before.status === "completed" ||
+            before.status === "failed" ||
+            before.status === "cancelled");
+        const isTerminal =
+          job.status === "completed" || job.status === "failed" || job.status === "cancelled";
+        if (isTerminal && !wasTerminal) {
+          void refreshFolder(activeFolder);
+          return;
+        }
+      }
+    });
+    return unsub;
+  }, [visible, activeFolder]);
+
+  // Mtime poll backstop: catches out-of-band file changes (CLI, file manager,
+  // sync from another device) while the gallery is visible. Paused when the
+  // KeepAlive wrapper hides this view.
+  useEffect(() => {
+    if (!visible || !activeFolder) return;
+    const folder = activeFolder;
+    const id = setInterval(() => {
+      void refreshFolder(folder);
+    }, 10_000);
+    return () => clearInterval(id);
+  }, [visible, activeFolder]);
   useShortcut("gallery-toggle-info", () => useGalleryStore.getState().toggleMetadataPanel());
   useShortcut("gallery-select-all", (e) => {
     e.preventDefault();

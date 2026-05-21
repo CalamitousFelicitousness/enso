@@ -1,5 +1,7 @@
 import { useCallback, useRef, useState, useEffect, useMemo } from "react";
 import { useGalleryStore } from "@/stores/galleryStore";
+import { useGalleryRefresh } from "@/api/hooks/useGallery";
+import { useRegisterCommand } from "@/lib/commandRegistry";
 import type { GallerySortField, GallerySortDir } from "@/api/types/gallery";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -16,6 +18,7 @@ import {
   XSquare,
   LayoutGrid,
   Rows3,
+  RefreshCw,
 } from "lucide-react";
 
 const SORT_OPTIONS: { value: string; label: string }[] = [
@@ -58,6 +61,16 @@ export function GalleryToolbar({
   const selectionCount = useGalleryStore((s) => s.selectedIds.size);
   const selectAll = useGalleryStore((s) => s.selectAll);
   const deselectAll = useGalleryStore((s) => s.deselectAll);
+  const { refresh, isRefreshing, canRefresh } = useGalleryRefresh();
+
+  useRegisterCommand({
+    id: "gallery:refresh",
+    label: "Refresh gallery",
+    group: "Gallery",
+    keywords: ["reload", "rescan", "sync", "update"],
+    icon: RefreshCw,
+    run: refresh,
+  });
 
   const [localSearch, setLocalSearch] = useState("");
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -174,6 +187,17 @@ export function GalleryToolbar({
             className="h-6 text-2xs pl-7"
           />
         </div>
+
+        <Button
+          variant="ghost"
+          size="icon-xs"
+          onClick={refresh}
+          disabled={!canRefresh}
+          title="Refresh folder"
+          aria-label="Refresh folder"
+        >
+          <RefreshCw size={13} className={isRefreshing ? "animate-spin" : undefined} />
+        </Button>
 
         <Combobox
           value={sortValue}

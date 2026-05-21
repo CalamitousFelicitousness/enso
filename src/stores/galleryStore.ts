@@ -47,6 +47,7 @@ interface GalleryState {
 
   files: GalleryFile[];
   isLoadingFiles: boolean;
+  isRefreshing: boolean;
   loadProgress: { loaded: number; total: number | null };
 
   thumbs: Map<string, CachedThumb>;
@@ -71,6 +72,7 @@ interface GalleryState {
   setFiles: (files: GalleryFile[]) => void;
   appendFile: (file: GalleryFile) => void;
   setLoadingFiles: (loading: boolean) => void;
+  setRefreshing: (refreshing: boolean) => void;
   setLoadProgress: (loaded: number, total: number | null) => void;
   setThumb: (id: string, thumb: CachedThumb) => void;
   setThumbsBatch: (entries: [string, CachedThumb][]) => void;
@@ -96,6 +98,7 @@ export const useGalleryStore = create<GalleryState>()((set) => ({
   activeFolder: null,
   files: [],
   isLoadingFiles: false,
+  isRefreshing: false,
   loadProgress: { loaded: 0, total: null },
   thumbs: new Map(),
   sortedFiles: [],
@@ -123,6 +126,7 @@ export const useGalleryStore = create<GalleryState>()((set) => ({
         selectedIds: new Set<string>(),
         selectionAnchor: null,
         isLoadingFiles: false,
+        isRefreshing: false,
         loadProgress: { loaded: 0, total: null },
       });
     }
@@ -138,6 +142,7 @@ export const useGalleryStore = create<GalleryState>()((set) => ({
         selectedIds: new Set<string>(),
         selectionAnchor: null,
         isLoadingFiles: false,
+        isRefreshing: false,
         loadProgress: { loaded: cached.files.length, total: cached.files.length },
       });
     }
@@ -151,6 +156,7 @@ export const useGalleryStore = create<GalleryState>()((set) => ({
       selectedIds: new Set<string>(),
       selectionAnchor: null,
       isLoadingFiles: false,
+      isRefreshing: false,
       loadProgress: { loaded: 0, total: null },
     });
   },
@@ -161,6 +167,7 @@ export const useGalleryStore = create<GalleryState>()((set) => ({
       loadProgress: { loaded: s.loadProgress.loaded + 1, total: s.loadProgress.total },
     })),
   setLoadingFiles: (loading) => set({ isLoadingFiles: loading }),
+  setRefreshing: (refreshing) => set({ isRefreshing: refreshing }),
   setLoadProgress: (loaded, total) => set({ loadProgress: { loaded, total } }),
   setThumb: (id, thumb) =>
     set((s) => {
@@ -244,6 +251,7 @@ export const useGalleryStore = create<GalleryState>()((set) => ({
       activeFolder: null,
       files: [],
       isLoadingFiles: false,
+      isRefreshing: false,
       loadProgress: { loaded: 0, total: null },
       thumbs: new Map(),
       sortedFiles: [],
