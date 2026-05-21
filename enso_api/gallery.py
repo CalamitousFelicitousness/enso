@@ -190,7 +190,9 @@ def register_api(app: FastAPI):  # register api
                 "mtime": stat_mtime.timestamp() * 1000,  # JS timestamps use milliseconds
             }
         except Exception as e:
-            log.error(f'Gallery video: file="{filepath}" {e}')
+            # modules.video.get_video_params already logs the open failure at ERROR;
+            # keep a debug trail here for less-common failures (PIL convert, stat).
+            log.debug(f'Gallery video: file="{filepath}" {e}')
             return broken_thumbnail(filepath, str(e))
 
     def get_image_thumbnail(filepath):
