@@ -229,6 +229,37 @@ async function streamFiles(
 // Background refresh - check if folder changed, update if needed
 // ---------------------------------------------------------------------------
 
+/**
+ * Per-folder AbortControllers for refresh-in-flight. Concurrent calls to
+ * refreshFolder(folder) abort the prior one so only one stream is open per
+ * folder at a time. Cross-folder refreshes are independent.
+ */
+const activeRefreshes = new Map<string, AbortController>();
+
+/**
+ * Manually trigger a background refresh for `folder`. Aborts any in-flight
+ * refresh for the same folder. While refreshing, exposes `isRefreshing=true`
+ * on the gallery store iff `folder` is still the active folder.
+ *
+ * Cheap to over-call: the underlying mtime check no-ops when nothing changed.
+ */
+export async function refreshFolder(folder: string): Promise<void> {
+  activeRefreshes.get(folder)?.abort();
+  const ac = new AbortController();
+  activeRefreshes.set(folder, ac);
+  const store = useGalleryStore.getState();
+  if (store.activeFolder === folder) store.setRefreshing(true);
+  try {
+    await backgroundRefresh(folder, ac.signal);
+  } finally {
+    if (activeRefreshes.get(folder) === ac) activeRefreshes.delete(folder);
+    const after = useGalleryStore.getState();
+    if (after.activeFolder === folder && !activeRefreshes.has(folder)) {
+      after.setRefreshing(false);
+    }
+  }
+}
+
 async function backgroundRefresh(folder: string, signal: AbortSignal) {
   try {
     const info = await api.get<{ mtime: number }>("/sdapi/v2/browser/folder-info", { folder });
@@ -410,7 +441,7 @@ export function useBrowserFiles(folder: string | null) {
 
     if (cached) {
       // ---- Cache hit: files already restored by setActiveFolder ----
-      void backgroundRefresh(folder, ac.signal);
+      void refreshFolder(folder);
     } else {
       // ---- Cache miss: stream from backend ----
       const store = useGalleryStore.getState();
@@ -444,9 +475,33 @@ export function useBrowserFiles(folder: string | null) {
 
     return () => {
       ac.abort();
+      // Also abort any in-flight refresh for the folder we're leaving, so a
+      // rapid folder switch does not leave an orphan WS stream open.
+      activeRefreshes.get(folder)?.abort();
       abortRef.current = null;
     };
   }, [folder]);
+}
+
+/**
+ * Hook for the toolbar refresh button. Returns a callback that re-checks the
+ * active folder's mtime and re-streams the file list if it changed, plus a
+ * pending flag for the spinning icon. Disabled while a folder is still on its
+ * initial load.
+ */
+export function useGalleryRefresh() {
+  const activeFolder = useGalleryStore((s) => s.activeFolder);
+  const isLoadingFiles = useGalleryStore((s) => s.isLoadingFiles);
+  const isRefreshing = useGalleryStore((s) => s.isRefreshing);
+  const refresh = useCallback(() => {
+    if (!activeFolder) return;
+    void refreshFolder(activeFolder);
+  }, [activeFolder]);
+  return {
+    refresh,
+    isRefreshing,
+    canRefresh: !!activeFolder && !isLoadingFiles,
+  };
 }
 
 // ---------------------------------------------------------------------------
