@@ -30,6 +30,14 @@ const thumbSemaphore = new Semaphore(16);
 /** Module-level set shared between visible loader and background preloader. */
 const inflightIds = new Set<string>();
 
+/**
+ * Session-scoped negative cache: file IDs whose backend fetch succeeded but
+ * returned no usable thumb (broken/corrupt source file). Prevents the viewport
+ * from re-firing the same request on every scroll. Transient failures (network,
+ * abort) are NOT recorded, so they remain retryable on the next viewport change.
+ */
+const failedIds = new Set<string>();
+
 export function useBrowserFolders() {
   return useQuery({
     queryKey: ["browser", "folders"],
@@ -221,6 +229,37 @@ async function streamFiles(
 // Background refresh - check if folder changed, update if needed
 // ---------------------------------------------------------------------------
 
+/**
+ * Per-folder AbortControllers for refresh-in-flight. Concurrent calls to
+ * refreshFolder(folder) abort the prior one so only one stream is open per
+ * folder at a time. Cross-folder refreshes are independent.
+ */
+const activeRefreshes = new Map<string, AbortController>();
+
+/**
+ * Manually trigger a background refresh for `folder`. Aborts any in-flight
+ * refresh for the same folder. While refreshing, exposes `isRefreshing=true`
+ * on the gallery store iff `folder` is still the active folder.
+ *
+ * Cheap to over-call: the underlying mtime check no-ops when nothing changed.
+ */
+export async function refreshFolder(folder: string): Promise<void> {
+  activeRefreshes.get(folder)?.abort();
+  const ac = new AbortController();
+  activeRefreshes.set(folder, ac);
+  const store = useGalleryStore.getState();
+  if (store.activeFolder === folder) store.setRefreshing(true);
+  try {
+    await backgroundRefresh(folder, ac.signal);
+  } finally {
+    if (activeRefreshes.get(folder) === ac) activeRefreshes.delete(folder);
+    const after = useGalleryStore.getState();
+    if (after.activeFolder === folder && !activeRefreshes.has(folder)) {
+      after.setRefreshing(false);
+    }
+  }
+}
+
 async function backgroundRefresh(folder: string, signal: AbortSignal) {
   try {
     const info = await api.get<{ mtime: number }>("/sdapi/v2/browser/folder-info", { folder });
@@ -402,7 +441,7 @@ export function useBrowserFiles(folder: string | null) {
 
     if (cached) {
       // ---- Cache hit: files already restored by setActiveFolder ----
-      void backgroundRefresh(folder, ac.signal);
+      void refreshFolder(folder);
     } else {
       // ---- Cache miss: stream from backend ----
       const store = useGalleryStore.getState();
@@ -436,9 +475,33 @@ export function useBrowserFiles(folder: string | null) {
 
     return () => {
       ac.abort();
+      // Also abort any in-flight refresh for the folder we're leaving, so a
+      // rapid folder switch does not leave an orphan WS stream open.
+      activeRefreshes.get(folder)?.abort();
       abortRef.current = null;
     };
   }, [folder]);
+}
+
+/**
+ * Hook for the toolbar refresh button. Returns a callback that re-checks the
+ * active folder's mtime and re-streams the file list if it changed, plus a
+ * pending flag for the spinning icon. Disabled while a folder is still on its
+ * initial load.
+ */
+export function useGalleryRefresh() {
+  const activeFolder = useGalleryStore((s) => s.activeFolder);
+  const isLoadingFiles = useGalleryStore((s) => s.isLoadingFiles);
+  const isRefreshing = useGalleryStore((s) => s.isRefreshing);
+  const refresh = useCallback(() => {
+    if (!activeFolder) return;
+    void refreshFolder(activeFolder);
+  }, [activeFolder]);
+  return {
+    refresh,
+    isRefreshing,
+    canRefresh: !!activeFolder && !isLoadingFiles,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -448,18 +511,20 @@ export function useBrowserFiles(folder: string | null) {
 /**
  * Fetch a single thumbnail. Checks IndexedDB FIRST (no semaphore needed),
  * only falls back to the API on cache miss.
+ *
+ * Returns null when the backend responded successfully but had no thumb data
+ * (broken/corrupt source file). Network/abort errors are thrown so the caller
+ * can distinguish transient failures from server-acknowledged empty results.
  */
 export async function fetchThumb(file: GalleryFile): Promise<CachedThumb | null> {
   try {
-    // Check IndexedDB cache first - no semaphore, no API call
     const hash = await computeThumbHash(file.fullPath);
     const cached = await getThumb(hash);
     if (cached) return cached;
   } catch {
-    // IndexedDB errors are non-fatal, fall through to API
+    // IndexedDB read errors are non-fatal, fall through to API
   }
 
-  // Cache miss - fetch from backend (uses semaphore to limit concurrency)
   await thumbSemaphore.acquire();
   try {
     const resp = await api.get<BrowserThumb>("/sdapi/v2/browser/thumb", { file: file.fullPath });
@@ -476,13 +541,8 @@ export async function fetchThumb(file: GalleryFile): Promise<CachedThumb | null>
       mtime: resp.mtime,
       exif: resp.exif ?? "",
     };
-
-    // Store in IndexedDB (fire and forget)
     putThumb(entry).catch(() => {});
-
     return entry;
-  } catch {
-    return null;
   } finally {
     thumbSemaphore.release();
   }
@@ -522,21 +582,32 @@ function scheduleThumbFlush() {
   }
 }
 
-/** Dispatch a single thumbnail fetch if not already cached or in-flight. */
+/** Dispatch a single thumbnail fetch if not already cached, in-flight, or known-failed. */
 function dispatchThumb(file: GalleryFile) {
-  if (inflightIds.has(file.id) || useGalleryStore.getState().thumbs.has(file.id)) return;
+  if (
+    inflightIds.has(file.id) ||
+    failedIds.has(file.id) ||
+    useGalleryStore.getState().thumbs.has(file.id)
+  )
+    return;
   inflightIds.add(file.id);
   // Capture folder at dispatch time - not completion time - so the thumb
   // updates the correct folder cache even if the user navigates away
   const folder = useGalleryStore.getState().activeFolder;
-  void fetchThumb(file).then((thumb) => {
-    inflightIds.delete(file.id);
-    if (thumb) {
-      thumbBatchBuffer.push([file.id, thumb]);
-      if (folder) folderCacheBatchBuffer.push([folder, [[file.id, thumb]]]);
-      scheduleThumbFlush();
-    }
-  });
+  fetchThumb(file)
+    .then((thumb) => {
+      inflightIds.delete(file.id);
+      if (thumb) {
+        thumbBatchBuffer.push([file.id, thumb]);
+        if (folder) folderCacheBatchBuffer.push([folder, [[file.id, thumb]]]);
+        scheduleThumbFlush();
+      } else {
+        failedIds.add(file.id);
+      }
+    })
+    .catch(() => {
+      inflightIds.delete(file.id);
+    });
 }
 
 /**

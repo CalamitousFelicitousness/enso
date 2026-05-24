@@ -5,6 +5,15 @@ import json
 from fastapi import WebSocket, WebSocketDisconnect
 from modules.logger import log
 
+from enso_api.ws_models import (
+    WsEventAck,
+    WsEventCancelled,
+    WsEventCompleted,
+    WsEventError,
+    WsEventPing,
+    WsEventStatus,
+)
+
 
 async def ws_job_endpoint(ws: WebSocket, job_id: str):
     from modules import shared
@@ -32,7 +41,7 @@ async def ws_job_endpoint(ws: WebSocket, job_id: str):
 
     try:
         # Send current state immediately
-        await ws.send_json({"type": "status", "status": job["status"], "progress": job.get("progress", 0)})
+        await ws.send_json(WsEventStatus(status=job["status"], progress=job.get("progress", 0.0)).model_dump(exclude_none=True))
 
         # If already terminal, send result and close
         if job["status"] in ("completed", "failed", "cancelled"):
@@ -40,11 +49,11 @@ async def ws_job_endpoint(ws: WebSocket, job_id: str):
                 result = job["result"]
                 if isinstance(result, str):
                     result = json.loads(result)
-                await ws.send_json({"type": "completed", "result": result})
+                await ws.send_json(WsEventCompleted(result=result).model_dump(exclude_none=True))
             elif job["status"] == "failed":
-                await ws.send_json({"type": "error", "error": job.get("error", "")})
+                await ws.send_json(WsEventError(error=job.get("error", "")).model_dump(exclude_none=True))
             elif job["status"] == "cancelled":
-                await ws.send_json({"type": "cancelled"})
+                await ws.send_json(WsEventCancelled().model_dump(exclude_none=True))
             await ws.close()
             return
 
@@ -58,12 +67,12 @@ async def ws_job_endpoint(ws: WebSocket, job_id: str):
                         from modules import shared
 
                         shared.state.interrupt()
-                        await ws.send_json({"type": "ack", "command": "interrupt"})
+                        await ws.send_json(WsEventAck(command="interrupt").model_dump(exclude_none=True))
                     elif msg_type == "skip":
                         from modules import shared
 
                         shared.state.skip()
-                        await ws.send_json({"type": "ack", "command": "skip"})
+                        await ws.send_json(WsEventAck(command="skip").model_dump(exclude_none=True))
             except (WebSocketDisconnect, Exception):
                 pass
 
@@ -75,7 +84,7 @@ async def ws_job_endpoint(ws: WebSocket, job_id: str):
                 try:
                     msg = await asyncio.wait_for(queue.get(), timeout=30.0)
                 except asyncio.TimeoutError:
-                    await ws.send_json({"type": "ping"})
+                    await ws.send_json(WsEventPing().model_dump(exclude_none=True))
                     continue
 
                 if isinstance(msg, bytes):

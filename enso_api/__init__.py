@@ -112,6 +112,8 @@ def register_api(app, dependencies=None):
                 "/sdapi/v2/options": -1,
                 "/sdapi/v2/options-info": -1,
                 "/sdapi/v2/browser/thumb": -1,
+                "/sdapi/v2/browser/folder-info": -1,
+                "/sdapi/v2/browser/subdirs": -1,
                 "/sdapi/v2/loaded-models": -1,
                 "/sdapi/v2/jobs/stats": -1,
                 "/sdapi/v2/jobs/bulk": -1,

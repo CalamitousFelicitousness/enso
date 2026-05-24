@@ -1223,6 +1223,7 @@ def execute_loader_load(params: dict, job_id: str) -> dict:  # pylint: disable=u
     """
     from modules import shared
 
+    from enso_api.models import ReqLoaderLoadV2
     from enso_api.models_ops import post_loader_load
 
     model_type = params.get("model_type", "")
@@ -1230,9 +1231,11 @@ def execute_loader_load(params: dict, job_id: str) -> dict:  # pylint: disable=u
     if not model_type or not repo:
         raise ValueError("Loader requires model_type and repo")
 
+    req = ReqLoaderLoadV2.model_validate({"model_type": model_type, "repo": repo, "components": params.get("components")})
+
     jobid = shared.state.begin("Load", api=True)
     try:
-        result = post_loader_load(model_type, repo, params.get("components"))
+        result = post_loader_load(req)
     finally:
         shared.state.end(jobid)
 

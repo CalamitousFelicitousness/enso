@@ -18,12 +18,31 @@ export function parseGenerationInfo(raw: string | null | undefined): ParsedGener
   if (negIdx >= 0) {
     result.prompt = raw.slice(0, negIdx).trim();
     const afterNeg = raw.slice(negIdx + "Negative prompt:".length);
+
+    // SD.Next infotext (modules/processing_info.py) lays out:
+    //   {prompt}\nNegative prompt: {neg}[\nTemplate: {t}][\nNegative template: {nt}]\n{params}
+    // Template lines hold comma-separated prompt source from script extensions and
+    // would shred the param regex, so slice them out before parseParams sees the tail.
+    const templateIdx = afterNeg.search(/\nTemplate:\s/);
+    const negTemplateIdx = afterNeg.search(/\nNegative template:\s/);
     const paramsStart = afterNeg.search(/\nSteps:\s/);
+    const stops = [templateIdx, negTemplateIdx, paramsStart].filter((i) => i >= 0);
+    const negEnd = stops.length ? Math.min(...stops) : -1;
+    result.negativePrompt = (negEnd >= 0 ? afterNeg.slice(0, negEnd) : afterNeg).trim();
+
+    if (templateIdx >= 0) {
+      const start = templateIdx + "\nTemplate:".length;
+      const laterStops = [negTemplateIdx, paramsStart].filter((i) => i > templateIdx);
+      const end = laterStops.length ? Math.min(...laterStops) : afterNeg.length;
+      result.params["Template"] = afterNeg.slice(start, end).trim();
+    }
+    if (negTemplateIdx >= 0) {
+      const start = negTemplateIdx + "\nNegative template:".length;
+      const end = paramsStart > negTemplateIdx ? paramsStart : afterNeg.length;
+      result.params["Negative template"] = afterNeg.slice(start, end).trim();
+    }
     if (paramsStart >= 0) {
-      result.negativePrompt = afterNeg.slice(0, paramsStart).trim();
       parseParams(afterNeg.slice(paramsStart).trim(), result.params);
-    } else {
-      result.negativePrompt = afterNeg.trim();
     }
   } else if (stepsIdx >= 0) {
     result.prompt = raw.slice(0, stepsIdx).trim();

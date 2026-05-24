@@ -27,6 +27,7 @@ from enso_api.models import (
     VideoModel,
     VideoModelEnriched,
 )
+from enso_api.ws_models import WsEvent, WsEventPing
 
 router = APIRouter(prefix="/sdapi/v2", tags=["v2"])
 
@@ -179,6 +180,20 @@ async def delete_job(job_id: str):
     return {"id": job_id, "status": status}
 
 
+@router.get("/jobs/ws-events", response_model=WsEvent, tags=["WebSocket"])
+async def get_ws_event_schema():
+    """Documentation endpoint: returns the schema for events on the per-job WebSocket.
+
+    The per-job WebSocket at ``/sdapi/v2/jobs/{job_id}/ws`` is not part of the
+    OpenAPI spec (WebSockets aren't), but its event payloads are typed by
+    :data:`enso_api.ws_models.WsEvent`. This HTTP route exists so the
+    ``WsEvent`` discriminated union and every variant schema land in
+    ``#/components/schemas`` for codegen consumers. The live response is a
+    representative ping event for inspection.
+    """
+    return WsEventPing()
+
+
 def embed_base64(job: dict, resp: JobResponse) -> None:
     import base64
 
@@ -186,7 +201,7 @@ def embed_base64(job: dict, resp: JobResponse) -> None:
         file_path = get_ref_path(job, "images", img_ref.index)
         if file_path and os.path.isfile(file_path):
             with open(file_path, "rb") as f:
-                img_ref.__dict__["data"] = base64.b64encode(f.read()).decode("ascii")
+                img_ref.data = base64.b64encode(f.read()).decode("ascii")
 
 
 def get_ref_path(job: dict, key: str, index: int) -> str | None:

@@ -124,6 +124,46 @@ class ConnectionManager:
 ### api definitions
 
 
+# Placeholder SVG returned when a thumbnail cannot be generated. Returning a real
+# data URL (rather than {}) lets the client cache the failure on the success path
+# so scrolling does not re-request the same broken file.
+PLACEHOLDER_BROKEN_SVG = (
+    "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'>"
+    "<rect width='64' height='64' fill='#1a1a1a'/>"
+    "<rect x='8' y='14' width='48' height='36' rx='2' "
+    "stroke='#404040' stroke-width='2' fill='none'/>"
+    "<polygon points='27,24 27,40 41,32' fill='#404040'/>"
+    "<line x1='12' y1='12' x2='52' y2='52' "
+    "stroke='#7f1d1d' stroke-width='3' stroke-linecap='round'/>"
+    "</svg>"
+)
+PLACEHOLDER_BROKEN_DATA_URL = f"data:image/svg+xml;base64,{base64.b64encode(PLACEHOLDER_BROKEN_SVG.encode('ascii')).decode('ascii')}"
+
+
+def broken_thumbnail(filepath: str, reason: str) -> dict:
+    """Build a cacheable placeholder response for files we cannot thumbnail.
+
+    Returning a real data URL instead of `{}` collapses the failure into the
+    success path on the client: it cached like any other thumb (Zustand map +
+    IndexedDB), so subsequent viewport scrolls do not re-issue the request.
+    """
+    try:
+        stat_size, stat_mtime = modelstats.stat(filepath)
+        mtime_ms = stat_mtime.timestamp() * 1000
+    except Exception:
+        stat_size = 0
+        mtime_ms = 0
+    size = shared.opts.extra_networks_card_size
+    return {
+        "exif": f"Broken file: {reason}",
+        "data": PLACEHOLDER_BROKEN_DATA_URL,
+        "width": size,
+        "height": size,
+        "size": stat_size,
+        "mtime": mtime_ms,
+    }
+
+
 def register_api(app: FastAPI):  # register api
     manager = ConnectionManager()
 
@@ -150,8 +190,10 @@ def register_api(app: FastAPI):  # register api
                 "mtime": stat_mtime.timestamp() * 1000,  # JS timestamps use milliseconds
             }
         except Exception as e:
-            log.error(f'Gallery video: file="{filepath}" {e}')
-            return {}
+            # modules.video.get_video_params already logs the open failure at ERROR;
+            # keep a debug trail here for less-common failures (PIL convert, stat).
+            log.debug(f'Gallery video: file="{filepath}" {e}')
+            return broken_thumbnail(filepath, str(e))
 
     def get_image_thumbnail(filepath):
         try:
@@ -177,7 +219,7 @@ def register_api(app: FastAPI):  # register api
             }
         except Exception as e:
             log.error(f'Gallery image: file="{filepath}" {e}')
-            return {}
+            return broken_thumbnail(filepath, str(e))
 
     # @app.get('/sdapi/v1/browser/folders', response_model=List[str])
     def get_folders():
