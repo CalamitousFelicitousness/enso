@@ -10,6 +10,17 @@ import os
 from modules import shared
 from modules.logger import log
 
+from enso_api.models import (
+    ReqCivitaiDownloadV2,
+    ReqHfDownloadV2,
+    ReqLoaderComponentsV2,
+    ReqLoaderLoadV2,
+    ReqLoraExtractV2,
+    ReqMergeV2,
+    ReqModelSaveV2,
+    ReqReplaceV2,
+)
+
 
 def jsonable(obj):
     """Recursively convert a nested dict/list so all values are JSON-serializable."""
@@ -63,7 +74,7 @@ def get_analyze():
     }
 
 
-def post_save(name: str, path: str = None, shard: str = None, overwrite: bool = False):
+def post_save(req: ReqModelSaveV2):
     """
     Save the currently loaded model to disk.
 
@@ -73,7 +84,7 @@ def post_save(name: str, path: str = None, shard: str = None, overwrite: bool = 
     """
     from modules import sd_models
 
-    result = sd_models.save_model(name=name, path=path, shard=shard, overwrite=overwrite)
+    result = sd_models.save_model(name=req.name, path=req.path, shard=req.shard, overwrite=req.overwrite)
     return {"status": result}
 
 
@@ -157,7 +168,7 @@ def get_hf_search(keyword: str = ""):
     return [{"id": r[0], "pipeline_tag": r[1], "tags": r[2], "downloads": r[3], "last_modified": r[4], "url": r[5]} for r in results]
 
 
-def post_hf_download(hub_id: str, token: str = "", variant: str = "", revision: str = "", mirror: str = "", custom_pipeline: str = ""):
+def post_hf_download(req: ReqHfDownloadV2):
     """
     Download a model from HuggingFace Hub.
 
@@ -166,11 +177,11 @@ def post_hf_download(hub_id: str, token: str = "", variant: str = "", revision: 
     """
     from modules import models_hf
 
-    result = models_hf.hf_download_model(hub_id, token, variant, revision, mirror, custom_pipeline)
+    result = models_hf.hf_download_model(req.hub_id, req.token, req.variant, req.revision, req.mirror, req.custom_pipeline)
     return {"status": result}
 
 
-def post_civitai_download(url: str, name: str = "", path: str = "", model_type: str = "", token: str = None):
+def post_civitai_download(req: ReqCivitaiDownloadV2):
     """
     Download a model from CivitAI.
 
@@ -184,29 +195,29 @@ def post_civitai_download(url: str, name: str = "", path: str = "", model_type: 
         from modules.api.security import is_confined_to, validate_download_url
     except ImportError:
         from enso_api.security_stubs import is_confined_to, validate_download_url
-    if not url:
+    if not req.url:
         return {"status": "Error: no url provided"}
-    validate_download_url(url)
-    if not path:
-        folder = str(get_type_folder(model_type or "Checkpoint"))
-    elif os.path.isabs(path):
-        folder = path
+    validate_download_url(req.url)
+    if not req.path:
+        folder = str(get_type_folder(req.model_type or "Checkpoint"))
+    elif os.path.isabs(req.path):
+        folder = req.path
     else:
         from modules import paths
 
-        folder = os.path.join(paths.models_path, path)
+        folder = os.path.join(paths.models_path, req.path)
     from modules import paths
 
     if not is_confined_to(folder, [paths.models_path]):
         return {"status": "Error: path outside models directory"}
     item = download_manager.enqueue(
-        url=url,
+        url=req.url,
         folder=folder,
-        filename=name or "Unknown",
-        model_type=model_type,
-        token=token,
+        filename=req.name or "Unknown",
+        model_type=req.model_type,
+        token=req.token,
     )
-    return {"status": "queued", "download_id": item.id, "url": url}
+    return {"status": "queued", "download_id": item.id, "url": req.url}
 
 
 def post_metadata_scan():
@@ -284,38 +295,7 @@ def get_merge_methods():
     }
 
 
-def post_merge(  # pylint: disable=unused-argument
-    custom_name: str,
-    primary_model_name: str,
-    secondary_model_name: str,
-    merge_mode: str,
-    tertiary_model_name: str = None,
-    alpha: float = 0.5,
-    beta: float = 0.5,
-    alpha_preset: str = None,
-    alpha_preset_lambda: float = None,
-    alpha_base: str = None,
-    alpha_in_blocks: str = None,
-    alpha_mid_block: str = None,
-    alpha_out_blocks: str = None,
-    beta_preset: str = None,
-    beta_preset_lambda: float = None,
-    beta_base: str = None,
-    beta_in_blocks: str = None,
-    beta_mid_block: str = None,
-    beta_out_blocks: str = None,
-    precision: str = "fp16",
-    checkpoint_format: str = "safetensors",
-    save_metadata: bool = True,
-    weights_clip: bool = False,
-    prune: bool = False,
-    re_basin: bool = False,
-    re_basin_iterations: int = 0,
-    device: str = "cpu",
-    unload: bool = True,
-    overwrite: bool = False,
-    bake_in_vae: str = None,
-):
+def post_merge(req: ReqMergeV2):
     """
     Merge two or three checkpoint models.
 
@@ -325,11 +305,11 @@ def post_merge(  # pylint: disable=unused-argument
     """
     from modules import errors, extras, sd_models
 
-    kwargs = {k: v for k, v in locals().items() if v not in [None, "None", "", 0, []]}
-    if not custom_name:
+    if not req.custom_name:
         return {"status": "Error: no output model name specified"}
-    if not primary_model_name or not secondary_model_name:
+    if not req.primary_model_name or not req.secondary_model_name:
         return {"status": "Error: primary and secondary models are required"}
+    kwargs = {k: v for k, v in req.model_dump().items() if v not in (None, "None", "", 0, [])}
     try:
         results = extras.run_modelmerger(None, **kwargs)
         status = results[-1] if isinstance(results, list) else str(results)
@@ -340,28 +320,7 @@ def post_merge(  # pylint: disable=unused-argument
     return {"status": status}
 
 
-def post_replace(
-    model_type: str,
-    model_name: str,
-    custom_name: str,
-    comp_unet: str = "",
-    comp_vae: str = "",
-    comp_te1: str = "",
-    comp_te2: str = "",
-    precision: str = "fp16",
-    comp_scheduler: str = "",
-    comp_prediction: str = "",
-    comp_lora: str = "",
-    comp_fuse: float = 0.0,
-    meta_author: str = "",
-    meta_version: str = "",
-    meta_license: str = "",
-    meta_desc: str = "",
-    meta_hint: str = "",
-    create_diffusers: bool = True,
-    create_safetensors: bool = False,
-    debug: bool = False,
-):
+def post_replace(req: ReqReplaceV2):
     """
     Replace model components and save as a new model.
 
@@ -373,27 +332,27 @@ def post_replace(
 
     status = "Unknown"
     for msg in extras.run_model_modules(
-        model_type,
-        model_name,
-        custom_name,
-        comp_unet,
-        comp_vae,
-        comp_te1,
-        comp_te2,
-        precision,
-        comp_scheduler,
-        comp_prediction,
-        comp_lora,
-        comp_fuse,
-        meta_author,
-        meta_version,
-        meta_license,
-        meta_desc,
-        meta_hint,
+        req.model_type,
+        req.model_name,
+        req.custom_name,
+        req.comp_unet,
+        req.comp_vae,
+        req.comp_te1,
+        req.comp_te2,
+        req.precision,
+        req.comp_scheduler,
+        req.comp_prediction,
+        req.comp_lora,
+        req.comp_fuse,
+        req.meta_author,
+        req.meta_version,
+        req.meta_license,
+        req.meta_desc,
+        req.meta_hint,
         None,  # meta_thumbnail (PIL image - not applicable via API)
-        create_diffusers,
-        create_safetensors,
-        debug,
+        req.create_diffusers,
+        req.create_safetensors,
+        req.debug,
     ):
         status = msg
     return {"status": status}
@@ -418,13 +377,11 @@ def get_loader_pipelines():
     return {"pipelines": names}
 
 
-def post_loader_components(model_type: str):
-    """
-    Inspect pipeline components for a given model type.
+def collect_loader_components(model_type: str) -> dict:
+    """Populate ``ui_models_load.components`` for ``model_type`` and return the introspection payload.
 
-    Returns the pipeline class name, default HuggingFace repo, and a list of
-    loadable components with their IDs, class names, local/remote paths,
-    dtype, and quantization settings.
+    Shared by the /model/loader/components route and /model/loader/load,
+    which needs the same setup before applying overrides.
     """
     import diffusers as _diffusers
     from modules import shared_items, ui_models_load
@@ -437,7 +394,6 @@ def post_loader_components(model_type: str):
         cls = _diffusers.AutoPipelineForText2Image
     name = cls.__name__
     repo = shared_items.get_repo(name) or shared_items.get_repo(model_type)
-    # Build components via signature inspection
     ui_models_load.components.clear()
     signature = inspect.signature(cls.__init__, follow_wrapped=True)
     for param in signature.parameters.values():
@@ -463,7 +419,18 @@ def post_loader_components(model_type: str):
     return {"class": name, "repo": repo, "components": result}
 
 
-def post_loader_load(model_type: str, repo: str, components: list = None):
+def post_loader_components(req: ReqLoaderComponentsV2):
+    """
+    Inspect pipeline components for a given model type.
+
+    Returns the pipeline class name, default HuggingFace repo, and a list of
+    loadable components with their IDs, class names, local/remote paths,
+    dtype, and quantization settings.
+    """
+    return collect_loader_components(req.model_type)
+
+
+def post_loader_load(req: ReqLoaderLoadV2):
     """
     Load a model with custom component configuration.
 
@@ -474,39 +441,38 @@ def post_loader_load(model_type: str, repo: str, components: list = None):
     from modules import ui_models_load
 
     cls_name = None
-    # Ensure components are populated - call post_loader_components first
     if not ui_models_load.components:
-        info = post_loader_components(model_type)
+        info = collect_loader_components(req.model_type)
         cls_name = info.get("class")
     if cls_name is None:
         import diffusers as _diffusers
         from modules import shared_items
 
-        if model_type == "Current":
+        if req.model_type == "Current":
             cls = shared.sd_model.__class__ if shared.sd_loaded else None
         else:
-            cls = shared_items.pipelines.get(model_type, None)
+            cls = shared_items.pipelines.get(req.model_type, None)
         if cls is None:
             cls = _diffusers.AutoPipelineForText2Image
         cls_name = cls.__name__
-    # Update components from provided data
-    if components:
-        for comp_data in components:
-            matches = [c for c in ui_models_load.components if c.id == comp_data.get("id")]
-            if matches:
-                c = matches[0]
-                if "local" in comp_data:
-                    c.local = (comp_data["local"] or "").strip()
-                if "remote" in comp_data:
-                    c.remote = (comp_data["remote"] or "").strip()
-                    if c.remote:
-                        c.repo, c.subfolder, c.local, c.download = ui_models_load.process_huggingface_url(c.remote)
-                if "dtype" in comp_data:
-                    c.dtype = comp_data["dtype"]
-                if "quant" in comp_data:
-                    c.quant = comp_data["quant"]
+    if req.components:
+        for comp in req.components:
+            matches = [c for c in ui_models_load.components if c.id == comp.id]
+            if not matches:
+                continue
+            c = matches[0]
+            if comp.local is not None:
+                c.local = comp.local.strip()
+            if comp.remote is not None:
+                c.remote = comp.remote.strip()
+                if c.remote:
+                    c.repo, c.subfolder, c.local, c.download = ui_models_load.process_huggingface_url(c.remote)
+            if comp.dtype is not None:
+                c.dtype = comp.dtype
+            if comp.quant is not None:
+                c.quant = comp.quant
     dataframes = [c.dataframe() for c in ui_models_load.components]
-    result = ui_models_load.load_model(model_type, cls_name, repo, dataframes)
+    result = ui_models_load.load_model(req.model_type, cls_name, req.repo, dataframes)
     return {"status": result}
 
 
@@ -524,7 +490,7 @@ def get_lora_loaded():
     return {"loras": result}
 
 
-def post_lora_extract(filename: str, max_rank: int = 64, auto_rank: bool = False, rank_ratio: float = 0.5, modules: list = None, overwrite: bool = False):
+def post_lora_extract(req: ReqLoraExtractV2):
     """
     Extract a LoRA from the currently loaded model.
 
@@ -534,10 +500,8 @@ def post_lora_extract(filename: str, max_rank: int = 64, auto_rank: bool = False
     """
     from modules.lora import lora_extract
 
-    if modules is None:
-        modules = ["te", "unet"]
     status = "Unknown"
-    for msg in lora_extract.make_lora(filename, max_rank, auto_rank, rank_ratio, modules, overwrite):
+    for msg in lora_extract.make_lora(req.filename, req.max_rank, req.auto_rank, req.rank_ratio, req.modules, req.overwrite):
         status = msg
     return {"status": status}
 

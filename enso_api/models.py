@@ -744,3 +744,131 @@ class ResPromptEnhanceV2(BaseModel):
     ok: bool = Field(title="OK")
     prompt: str = Field(title="Prompt", description="Enhanced prompt")
     seed: int = Field(title="Seed", description="Seed used")
+
+
+# --- Model operations request bodies (v2) ---
+
+
+class ReqModelSaveV2(StrictBaseModel):
+    """POST /sdapi/v2/model/save body."""
+
+    name: str = Field(title="Name", description="Output model name")
+    path: str | None = Field(default=None, title="Path", description="Output directory override")
+    shard: str | None = Field(default=None, title="Shard", description="Shard size for large model splits")
+    overwrite: bool = Field(default=False, title="Overwrite", description="Allow replacing an existing file")
+
+
+class ReqHfDownloadV2(StrictBaseModel):
+    """POST /sdapi/v2/model/hf/download body."""
+
+    hub_id: str = Field(title="Hub ID", description="HuggingFace repo ID (e.g. stabilityai/stable-diffusion-xl-base-1.0)")
+    token: str = Field(default="", title="Token", description="HF access token; blank uses the server-saved token")
+    variant: str = Field(default="", title="Variant", description="Optional variant tag (e.g. fp16)")
+    revision: str = Field(default="", title="Revision", description="Optional branch or commit SHA")
+    mirror: str = Field(default="", title="Mirror", description="Optional mirror URL")
+    custom_pipeline: str = Field(default="", title="Custom Pipeline", description="Optional custom pipeline name")
+
+
+class ReqCivitaiDownloadV2(StrictBaseModel):
+    """POST /sdapi/v2/model/civitai/download body."""
+
+    url: str = Field(title="URL", description="CivitAI download URL")
+    name: str = Field(default="", title="Name", description="Optional output filename")
+    path: str = Field(default="", title="Path", description="Optional destination directory")
+    model_type: str = Field(default="", title="Model Type", description="Type folder (e.g. Checkpoint, Lora)")
+    token: str | None = Field(default=None, title="Token", description="Optional CivitAI API token")
+
+
+class ReqMergeV2(StrictBaseModel):
+    """POST /sdapi/v2/model/merge body."""
+
+    custom_name: str = Field(title="Custom Name")
+    primary_model_name: str = Field(title="Primary Model")
+    secondary_model_name: str = Field(title="Secondary Model")
+    merge_mode: str = Field(title="Merge Mode")
+    tertiary_model_name: str | None = Field(default=None, title="Tertiary Model")
+    alpha: float = Field(default=0.5, title="Alpha")
+    beta: float = Field(default=0.5, title="Beta")
+    alpha_preset: str | None = Field(default=None, title="Alpha Preset")
+    alpha_preset_lambda: float | None = Field(default=None, title="Alpha Preset Lambda")
+    alpha_base: str | None = Field(default=None, title="Alpha Base")
+    alpha_in_blocks: str | None = Field(default=None, title="Alpha In Blocks")
+    alpha_mid_block: str | None = Field(default=None, title="Alpha Mid Block")
+    alpha_out_blocks: str | None = Field(default=None, title="Alpha Out Blocks")
+    beta_preset: str | None = Field(default=None, title="Beta Preset")
+    beta_preset_lambda: float | None = Field(default=None, title="Beta Preset Lambda")
+    beta_base: str | None = Field(default=None, title="Beta Base")
+    beta_in_blocks: str | None = Field(default=None, title="Beta In Blocks")
+    beta_mid_block: str | None = Field(default=None, title="Beta Mid Block")
+    beta_out_blocks: str | None = Field(default=None, title="Beta Out Blocks")
+    precision: str = Field(default="fp16", title="Precision")
+    checkpoint_format: str = Field(default="safetensors", title="Checkpoint Format")
+    save_metadata: bool = Field(default=True, title="Save Metadata")
+    weights_clip: bool = Field(default=False, title="Weights Clip")
+    prune: bool = Field(default=False, title="Prune")
+    re_basin: bool = Field(default=False, title="Re-Basin")
+    re_basin_iterations: int = Field(default=0, title="Re-Basin Iterations")
+    device: str = Field(default="cpu", title="Device")
+    unload: bool = Field(default=True, title="Unload")
+    overwrite: bool = Field(default=False, title="Overwrite")
+    bake_in_vae: str | None = Field(default=None, title="Bake-in VAE")
+
+
+class ReqReplaceV2(StrictBaseModel):
+    """POST /sdapi/v2/model/replace body."""
+
+    model_type: str = Field(title="Model Type")
+    model_name: str = Field(title="Model Name")
+    custom_name: str = Field(title="Custom Name")
+    comp_unet: str = Field(default="", title="UNET Component")
+    comp_vae: str = Field(default="", title="VAE Component")
+    comp_te1: str = Field(default="", title="Text Encoder 1")
+    comp_te2: str = Field(default="", title="Text Encoder 2")
+    precision: str = Field(default="fp16", title="Precision")
+    comp_scheduler: str = Field(default="", title="Scheduler")
+    comp_prediction: str = Field(default="", title="Prediction Type")
+    comp_lora: str = Field(default="", title="LoRA")
+    comp_fuse: float = Field(default=0.0, title="LoRA Fuse Weight")
+    meta_author: str = Field(default="", title="Author")
+    meta_version: str = Field(default="", title="Version")
+    meta_license: str = Field(default="", title="License")
+    meta_desc: str = Field(default="", title="Description")
+    meta_hint: str = Field(default="", title="Hint")
+    create_diffusers: bool = Field(default=True, title="Create Diffusers")
+    create_safetensors: bool = Field(default=False, title="Create Safetensors")
+    debug: bool = Field(default=False, title="Debug")
+
+
+class ReqLoaderComponentsV2(StrictBaseModel):
+    """POST /sdapi/v2/model/loader/components body."""
+
+    model_type: str = Field(title="Model Type", description="Pipeline class name, or 'Current'")
+
+
+class LoaderComponentOverrideV2(StrictBaseModel):
+    """One element of the components list in ReqLoaderLoadV2."""
+
+    id: int = Field(title="ID")
+    local: str | None = Field(default=None, title="Local Path")
+    remote: str | None = Field(default=None, title="Remote URL")
+    dtype: str | None = Field(default=None, title="Dtype")
+    quant: bool | None = Field(default=None, title="Quant")
+
+
+class ReqLoaderLoadV2(StrictBaseModel):
+    """POST /sdapi/v2/model/loader/load body."""
+
+    model_type: str = Field(title="Model Type")
+    repo: str = Field(title="Repo", description="HuggingFace repo ID or local path")
+    components: list[LoaderComponentOverrideV2] | None = Field(default=None, title="Components")
+
+
+class ReqLoraExtractV2(StrictBaseModel):
+    """POST /sdapi/v2/model/lora/extract body."""
+
+    filename: str = Field(title="Filename")
+    max_rank: int = Field(default=64, title="Max Rank")
+    auto_rank: bool = Field(default=False, title="Auto Rank")
+    rank_ratio: float = Field(default=0.5, title="Rank Ratio")
+    modules: list[str] = Field(default_factory=lambda: ["te", "unet"], title="Modules")
+    overwrite: bool = Field(default=False, title="Overwrite")

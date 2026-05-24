@@ -179,7 +179,12 @@ export function HuggingfaceSubTab() {
             {hfDownload.isPending && <Loader2 className="h-3 w-3 animate-spin mr-1" />}
             Download
           </Button>
-          {hfDownload.data && (
+          {hfDownload.isError && (
+            <p className="text-2xs text-destructive break-words">
+              {hfDownload.error instanceof Error ? hfDownload.error.message : "Download failed"}
+            </p>
+          )}
+          {hfDownload.data && !hfDownload.isError && (
             <p className="text-2xs text-muted-foreground">{hfDownload.data.status}</p>
           )}
         </div>
