@@ -1,28 +1,6 @@
 {
   "components": {
     "schemas": {
-      "Body_post_loader_load_sdapi_v2_model_loader_load_post": {
-        "properties": {
-          "components": {
-            "items": {},
-            "title": "Components",
-            "type": "array"
-          }
-        },
-        "title": "Body_post_loader_load_sdapi_v2_model_loader_load_post",
-        "type": "object"
-      },
-      "Body_post_lora_extract_sdapi_v2_model_lora_extract_post": {
-        "properties": {
-          "modules": {
-            "items": {},
-            "title": "Modules",
-            "type": "array"
-          }
-        },
-        "title": "Body_post_lora_extract_sdapi_v2_model_lora_extract_post",
-        "type": "object"
-      },
       "Body_upload_files_sdapi_v2_upload_post": {
         "properties": {
           "files": {
@@ -4809,6 +4787,65 @@
         "title": "JobResult",
         "type": "object"
       },
+      "LoaderComponentOverrideV2": {
+        "additionalProperties": false,
+        "description": "One element of the components list in ReqLoaderLoadV2.",
+        "properties": {
+          "dtype": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dtype"
+          },
+          "id": {
+            "title": "ID",
+            "type": "integer"
+          },
+          "local": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Local Path"
+          },
+          "quant": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quant"
+          },
+          "remote": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Remote URL"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "title": "LoaderComponentOverrideV2",
+        "type": "object"
+      },
       "LoaderLoadParams": {
         "additionalProperties": false,
         "description": "Load a model with custom component configuration.",
@@ -5879,6 +5916,52 @@
         "title": "ReqBulkJobV2",
         "type": "object"
       },
+      "ReqCivitaiDownloadV2": {
+        "additionalProperties": false,
+        "description": "POST /sdapi/v2/model/civitai/download body.",
+        "properties": {
+          "model_type": {
+            "default": "",
+            "description": "Type folder (e.g. Checkpoint, Lora)",
+            "title": "Model Type",
+            "type": "string"
+          },
+          "name": {
+            "default": "",
+            "description": "Optional output filename",
+            "title": "Name",
+            "type": "string"
+          },
+          "path": {
+            "default": "",
+            "description": "Optional destination directory",
+            "title": "Path",
+            "type": "string"
+          },
+          "token": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional CivitAI API token",
+            "title": "Token"
+          },
+          "url": {
+            "description": "CivitAI download URL",
+            "title": "URL",
+            "type": "string"
+          }
+        },
+        "required": [
+          "url"
+        ],
+        "title": "ReqCivitaiDownloadV2",
+        "type": "object"
+      },
       "ReqDelete": {
         "properties": {
           "files": {
@@ -5931,6 +6014,52 @@
         "title": "ReqFramePackLoadV2",
         "type": "object"
       },
+      "ReqHfDownloadV2": {
+        "additionalProperties": false,
+        "description": "POST /sdapi/v2/model/hf/download body.",
+        "properties": {
+          "custom_pipeline": {
+            "default": "",
+            "description": "Optional custom pipeline name",
+            "title": "Custom Pipeline",
+            "type": "string"
+          },
+          "hub_id": {
+            "description": "HuggingFace repo ID (e.g. stabilityai/stable-diffusion-xl-base-1.0)",
+            "title": "Hub ID",
+            "type": "string"
+          },
+          "mirror": {
+            "default": "",
+            "description": "Optional mirror URL",
+            "title": "Mirror",
+            "type": "string"
+          },
+          "revision": {
+            "default": "",
+            "description": "Optional branch or commit SHA",
+            "title": "Revision",
+            "type": "string"
+          },
+          "token": {
+            "default": "",
+            "description": "HF access token; blank uses the server-saved token",
+            "title": "Token",
+            "type": "string"
+          },
+          "variant": {
+            "default": "",
+            "description": "Optional variant tag (e.g. fp16)",
+            "title": "Variant",
+            "type": "string"
+          }
+        },
+        "required": [
+          "hub_id"
+        ],
+        "title": "ReqHfDownloadV2",
+        "type": "object"
+      },
       "ReqHuggingFaceSettingsV2": {
         "additionalProperties": false,
         "description": "Set or clear the HuggingFace Hub access token.",
@@ -5949,6 +6078,389 @@
           }
         },
         "title": "ReqHuggingFaceSettingsV2",
+        "type": "object"
+      },
+      "ReqLoaderComponentsV2": {
+        "additionalProperties": false,
+        "description": "POST /sdapi/v2/model/loader/components body.",
+        "properties": {
+          "model_type": {
+            "description": "Pipeline class name, or 'Current'",
+            "title": "Model Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "model_type"
+        ],
+        "title": "ReqLoaderComponentsV2",
+        "type": "object"
+      },
+      "ReqLoaderLoadV2": {
+        "additionalProperties": false,
+        "description": "POST /sdapi/v2/model/loader/load body.",
+        "properties": {
+          "components": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/LoaderComponentOverrideV2"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Components"
+          },
+          "model_type": {
+            "title": "Model Type",
+            "type": "string"
+          },
+          "repo": {
+            "description": "HuggingFace repo ID or local path",
+            "title": "Repo",
+            "type": "string"
+          }
+        },
+        "required": [
+          "model_type",
+          "repo"
+        ],
+        "title": "ReqLoaderLoadV2",
+        "type": "object"
+      },
+      "ReqLoraExtractV2": {
+        "additionalProperties": false,
+        "description": "POST /sdapi/v2/model/lora/extract body.",
+        "properties": {
+          "auto_rank": {
+            "default": false,
+            "title": "Auto Rank",
+            "type": "boolean"
+          },
+          "filename": {
+            "title": "Filename",
+            "type": "string"
+          },
+          "max_rank": {
+            "default": 64,
+            "title": "Max Rank",
+            "type": "integer"
+          },
+          "modules": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Modules",
+            "type": "array"
+          },
+          "overwrite": {
+            "default": false,
+            "title": "Overwrite",
+            "type": "boolean"
+          },
+          "rank_ratio": {
+            "default": 0.5,
+            "title": "Rank Ratio",
+            "type": "number"
+          }
+        },
+        "required": [
+          "filename"
+        ],
+        "title": "ReqLoraExtractV2",
+        "type": "object"
+      },
+      "ReqMergeV2": {
+        "additionalProperties": false,
+        "description": "POST /sdapi/v2/model/merge body.",
+        "properties": {
+          "alpha": {
+            "default": 0.5,
+            "title": "Alpha",
+            "type": "number"
+          },
+          "alpha_base": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Alpha Base"
+          },
+          "alpha_in_blocks": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Alpha In Blocks"
+          },
+          "alpha_mid_block": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Alpha Mid Block"
+          },
+          "alpha_out_blocks": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Alpha Out Blocks"
+          },
+          "alpha_preset": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Alpha Preset"
+          },
+          "alpha_preset_lambda": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Alpha Preset Lambda"
+          },
+          "bake_in_vae": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bake-in VAE"
+          },
+          "beta": {
+            "default": 0.5,
+            "title": "Beta",
+            "type": "number"
+          },
+          "beta_base": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Beta Base"
+          },
+          "beta_in_blocks": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Beta In Blocks"
+          },
+          "beta_mid_block": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Beta Mid Block"
+          },
+          "beta_out_blocks": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Beta Out Blocks"
+          },
+          "beta_preset": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Beta Preset"
+          },
+          "beta_preset_lambda": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Beta Preset Lambda"
+          },
+          "checkpoint_format": {
+            "default": "safetensors",
+            "title": "Checkpoint Format",
+            "type": "string"
+          },
+          "custom_name": {
+            "title": "Custom Name",
+            "type": "string"
+          },
+          "device": {
+            "default": "cpu",
+            "title": "Device",
+            "type": "string"
+          },
+          "merge_mode": {
+            "title": "Merge Mode",
+            "type": "string"
+          },
+          "overwrite": {
+            "default": false,
+            "title": "Overwrite",
+            "type": "boolean"
+          },
+          "precision": {
+            "default": "fp16",
+            "title": "Precision",
+            "type": "string"
+          },
+          "primary_model_name": {
+            "title": "Primary Model",
+            "type": "string"
+          },
+          "prune": {
+            "default": false,
+            "title": "Prune",
+            "type": "boolean"
+          },
+          "re_basin": {
+            "default": false,
+            "title": "Re-Basin",
+            "type": "boolean"
+          },
+          "re_basin_iterations": {
+            "default": 0,
+            "title": "Re-Basin Iterations",
+            "type": "integer"
+          },
+          "save_metadata": {
+            "default": true,
+            "title": "Save Metadata",
+            "type": "boolean"
+          },
+          "secondary_model_name": {
+            "title": "Secondary Model",
+            "type": "string"
+          },
+          "tertiary_model_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tertiary Model"
+          },
+          "unload": {
+            "default": true,
+            "title": "Unload",
+            "type": "boolean"
+          },
+          "weights_clip": {
+            "default": false,
+            "title": "Weights Clip",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "custom_name",
+          "primary_model_name",
+          "secondary_model_name",
+          "merge_mode"
+        ],
+        "title": "ReqMergeV2",
+        "type": "object"
+      },
+      "ReqModelSaveV2": {
+        "additionalProperties": false,
+        "description": "POST /sdapi/v2/model/save body.",
+        "properties": {
+          "name": {
+            "description": "Output model name",
+            "title": "Name",
+            "type": "string"
+          },
+          "overwrite": {
+            "default": false,
+            "description": "Allow replacing an existing file",
+            "title": "Overwrite",
+            "type": "boolean"
+          },
+          "path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Output directory override",
+            "title": "Path"
+          },
+          "shard": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Shard size for large model splits",
+            "title": "Shard"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "ReqModelSaveV2",
         "type": "object"
       },
       "ReqMove": {
@@ -6301,6 +6813,116 @@
           "prompt"
         ],
         "title": "ReqPromptEnhanceV2",
+        "type": "object"
+      },
+      "ReqReplaceV2": {
+        "additionalProperties": false,
+        "description": "POST /sdapi/v2/model/replace body.",
+        "properties": {
+          "comp_fuse": {
+            "default": 0,
+            "title": "LoRA Fuse Weight",
+            "type": "number"
+          },
+          "comp_lora": {
+            "default": "",
+            "title": "LoRA",
+            "type": "string"
+          },
+          "comp_prediction": {
+            "default": "",
+            "title": "Prediction Type",
+            "type": "string"
+          },
+          "comp_scheduler": {
+            "default": "",
+            "title": "Scheduler",
+            "type": "string"
+          },
+          "comp_te1": {
+            "default": "",
+            "title": "Text Encoder 1",
+            "type": "string"
+          },
+          "comp_te2": {
+            "default": "",
+            "title": "Text Encoder 2",
+            "type": "string"
+          },
+          "comp_unet": {
+            "default": "",
+            "title": "UNET Component",
+            "type": "string"
+          },
+          "comp_vae": {
+            "default": "",
+            "title": "VAE Component",
+            "type": "string"
+          },
+          "create_diffusers": {
+            "default": true,
+            "title": "Create Diffusers",
+            "type": "boolean"
+          },
+          "create_safetensors": {
+            "default": false,
+            "title": "Create Safetensors",
+            "type": "boolean"
+          },
+          "custom_name": {
+            "title": "Custom Name",
+            "type": "string"
+          },
+          "debug": {
+            "default": false,
+            "title": "Debug",
+            "type": "boolean"
+          },
+          "meta_author": {
+            "default": "",
+            "title": "Author",
+            "type": "string"
+          },
+          "meta_desc": {
+            "default": "",
+            "title": "Description",
+            "type": "string"
+          },
+          "meta_hint": {
+            "default": "",
+            "title": "Hint",
+            "type": "string"
+          },
+          "meta_license": {
+            "default": "",
+            "title": "License",
+            "type": "string"
+          },
+          "meta_version": {
+            "default": "",
+            "title": "Version",
+            "type": "string"
+          },
+          "model_name": {
+            "title": "Model Name",
+            "type": "string"
+          },
+          "model_type": {
+            "title": "Model Type",
+            "type": "string"
+          },
+          "precision": {
+            "default": "fp16",
+            "title": "Precision",
+            "type": "string"
+          }
+        },
+        "required": [
+          "model_type",
+          "model_name",
+          "custom_name"
+        ],
+        "title": "ReqReplaceV2",
         "type": "object"
       },
       "ReqSetCheckpointV2": {
@@ -9595,7 +10217,7 @@
   "info": {
     "description": "SD.Next",
     "title": "SD.Next",
-    "version": "0.0.949c489"
+    "version": "0.0.97627e4"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -13339,56 +13961,16 @@
       "post": {
         "description": "Download a model from CivitAI.\n\nQueues the download and returns the download ID for progress tracking via\nthe WebSocket or ``GET /sdapi/v1/civitai/download/status``.",
         "operationId": "post_civitai_download_sdapi_v2_model_civitai_download_post",
-        "parameters": [
-          {
-            "in": "query",
-            "name": "url",
-            "required": true,
-            "schema": {
-              "title": "Url",
-              "type": "string"
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReqCivitaiDownloadV2"
+              }
             }
           },
-          {
-            "in": "query",
-            "name": "name",
-            "required": false,
-            "schema": {
-              "default": "",
-              "title": "Name",
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "path",
-            "required": false,
-            "schema": {
-              "default": "",
-              "title": "Path",
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "model_type",
-            "required": false,
-            "schema": {
-              "default": "",
-              "title": "Model Type",
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "token",
-            "required": false,
-            "schema": {
-              "title": "Token",
-              "type": "string"
-            }
-          }
-        ],
+          "required": true
+        },
         "responses": {
           "200": {
             "content": {
@@ -13419,67 +14001,16 @@
       "post": {
         "description": "Download a model from HuggingFace Hub.\n\nDownloads the model identified by ``hub_id``. Optional parameters control\nauthentication token, variant (e.g., fp16), revision, mirror URL, and custom pipeline.",
         "operationId": "post_hf_download_sdapi_v2_model_hf_download_post",
-        "parameters": [
-          {
-            "in": "query",
-            "name": "hub_id",
-            "required": true,
-            "schema": {
-              "title": "Hub Id",
-              "type": "string"
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReqHfDownloadV2"
+              }
             }
           },
-          {
-            "in": "query",
-            "name": "token",
-            "required": false,
-            "schema": {
-              "default": "",
-              "title": "Token",
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "variant",
-            "required": false,
-            "schema": {
-              "default": "",
-              "title": "Variant",
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "revision",
-            "required": false,
-            "schema": {
-              "default": "",
-              "title": "Revision",
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "mirror",
-            "required": false,
-            "schema": {
-              "default": "",
-              "title": "Mirror",
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "custom_pipeline",
-            "required": false,
-            "schema": {
-              "default": "",
-              "title": "Custom Pipeline",
-              "type": "string"
-            }
-          }
-        ],
+          "required": true
+        },
         "responses": {
           "200": {
             "content": {
@@ -13572,17 +14103,16 @@
       "post": {
         "description": "Inspect pipeline components for a given model type.\n\nReturns the pipeline class name, default HuggingFace repo, and a list of\nloadable components with their IDs, class names, local/remote paths,\ndtype, and quantization settings.",
         "operationId": "post_loader_components_sdapi_v2_model_loader_components_post",
-        "parameters": [
-          {
-            "in": "query",
-            "name": "model_type",
-            "required": true,
-            "schema": {
-              "title": "Model Type",
-              "type": "string"
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReqLoaderComponentsV2"
+              }
             }
-          }
-        ],
+          },
+          "required": true
+        },
         "responses": {
           "200": {
             "content": {
@@ -13613,34 +14143,15 @@
       "post": {
         "description": "Load a model with custom component configuration.\n\nLoads the pipeline for ``model_type`` from ``repo``, optionally overriding\nindividual component paths, dtypes, and quantization via the ``components`` list.\nCall loader/components first to discover available components.",
         "operationId": "post_loader_load_sdapi_v2_model_loader_load_post",
-        "parameters": [
-          {
-            "in": "query",
-            "name": "model_type",
-            "required": true,
-            "schema": {
-              "title": "Model Type",
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "repo",
-            "required": true,
-            "schema": {
-              "title": "Repo",
-              "type": "string"
-            }
-          }
-        ],
         "requestBody": {
           "content": {
-            "multipart/form-data": {
+            "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/Body_post_loader_load_sdapi_v2_model_loader_load_post"
+                "$ref": "#/components/schemas/ReqLoaderLoadV2"
               }
             }
-          }
+          },
+          "required": true
         },
         "responses": {
           "200": {
@@ -13692,65 +14203,15 @@
       "post": {
         "description": "Extract a LoRA from the currently loaded model.\n\nCreates a LoRA file by comparing the current model weights against the base.\n``max_rank`` controls decomposition rank, ``modules`` selects which parts\nto extract (defaults to [\"te\", \"unet\"]).",
         "operationId": "post_lora_extract_sdapi_v2_model_lora_extract_post",
-        "parameters": [
-          {
-            "in": "query",
-            "name": "filename",
-            "required": true,
-            "schema": {
-              "title": "Filename",
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "max_rank",
-            "required": false,
-            "schema": {
-              "default": 64,
-              "title": "Max Rank",
-              "type": "integer"
-            }
-          },
-          {
-            "in": "query",
-            "name": "auto_rank",
-            "required": false,
-            "schema": {
-              "default": false,
-              "title": "Auto Rank",
-              "type": "boolean"
-            }
-          },
-          {
-            "in": "query",
-            "name": "rank_ratio",
-            "required": false,
-            "schema": {
-              "default": 0.5,
-              "title": "Rank Ratio",
-              "type": "number"
-            }
-          },
-          {
-            "in": "query",
-            "name": "overwrite",
-            "required": false,
-            "schema": {
-              "default": false,
-              "title": "Overwrite",
-              "type": "boolean"
-            }
-          }
-        ],
         "requestBody": {
           "content": {
-            "multipart/form-data": {
+            "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/Body_post_lora_extract_sdapi_v2_model_lora_extract_post"
+                "$ref": "#/components/schemas/ReqLoraExtractV2"
               }
             }
-          }
+          },
+          "required": true
         },
         "responses": {
           "200": {
@@ -13802,290 +14263,16 @@
       "post": {
         "description": "Merge two or three checkpoint models.\n\nCombines ``primary_model_name`` and ``secondary_model_name`` using the specified\n``merge_mode``. Supports block-weight presets, precision control, re-basin\nalignment, and optional VAE bake-in. Saves the result as ``custom_name``.",
         "operationId": "post_merge_sdapi_v2_model_merge_post",
-        "parameters": [
-          {
-            "in": "query",
-            "name": "custom_name",
-            "required": true,
-            "schema": {
-              "title": "Custom Name",
-              "type": "string"
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReqMergeV2"
+              }
             }
           },
-          {
-            "in": "query",
-            "name": "primary_model_name",
-            "required": true,
-            "schema": {
-              "title": "Primary Model Name",
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "secondary_model_name",
-            "required": true,
-            "schema": {
-              "title": "Secondary Model Name",
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "merge_mode",
-            "required": true,
-            "schema": {
-              "title": "Merge Mode",
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "tertiary_model_name",
-            "required": false,
-            "schema": {
-              "title": "Tertiary Model Name",
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "alpha",
-            "required": false,
-            "schema": {
-              "default": 0.5,
-              "title": "Alpha",
-              "type": "number"
-            }
-          },
-          {
-            "in": "query",
-            "name": "beta",
-            "required": false,
-            "schema": {
-              "default": 0.5,
-              "title": "Beta",
-              "type": "number"
-            }
-          },
-          {
-            "in": "query",
-            "name": "alpha_preset",
-            "required": false,
-            "schema": {
-              "title": "Alpha Preset",
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "alpha_preset_lambda",
-            "required": false,
-            "schema": {
-              "title": "Alpha Preset Lambda",
-              "type": "number"
-            }
-          },
-          {
-            "in": "query",
-            "name": "alpha_base",
-            "required": false,
-            "schema": {
-              "title": "Alpha Base",
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "alpha_in_blocks",
-            "required": false,
-            "schema": {
-              "title": "Alpha In Blocks",
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "alpha_mid_block",
-            "required": false,
-            "schema": {
-              "title": "Alpha Mid Block",
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "alpha_out_blocks",
-            "required": false,
-            "schema": {
-              "title": "Alpha Out Blocks",
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "beta_preset",
-            "required": false,
-            "schema": {
-              "title": "Beta Preset",
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "beta_preset_lambda",
-            "required": false,
-            "schema": {
-              "title": "Beta Preset Lambda",
-              "type": "number"
-            }
-          },
-          {
-            "in": "query",
-            "name": "beta_base",
-            "required": false,
-            "schema": {
-              "title": "Beta Base",
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "beta_in_blocks",
-            "required": false,
-            "schema": {
-              "title": "Beta In Blocks",
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "beta_mid_block",
-            "required": false,
-            "schema": {
-              "title": "Beta Mid Block",
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "beta_out_blocks",
-            "required": false,
-            "schema": {
-              "title": "Beta Out Blocks",
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "precision",
-            "required": false,
-            "schema": {
-              "default": "fp16",
-              "title": "Precision",
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "checkpoint_format",
-            "required": false,
-            "schema": {
-              "default": "safetensors",
-              "title": "Checkpoint Format",
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "save_metadata",
-            "required": false,
-            "schema": {
-              "default": true,
-              "title": "Save Metadata",
-              "type": "boolean"
-            }
-          },
-          {
-            "in": "query",
-            "name": "weights_clip",
-            "required": false,
-            "schema": {
-              "default": false,
-              "title": "Weights Clip",
-              "type": "boolean"
-            }
-          },
-          {
-            "in": "query",
-            "name": "prune",
-            "required": false,
-            "schema": {
-              "default": false,
-              "title": "Prune",
-              "type": "boolean"
-            }
-          },
-          {
-            "in": "query",
-            "name": "re_basin",
-            "required": false,
-            "schema": {
-              "default": false,
-              "title": "Re Basin",
-              "type": "boolean"
-            }
-          },
-          {
-            "in": "query",
-            "name": "re_basin_iterations",
-            "required": false,
-            "schema": {
-              "default": 0,
-              "title": "Re Basin Iterations",
-              "type": "integer"
-            }
-          },
-          {
-            "in": "query",
-            "name": "device",
-            "required": false,
-            "schema": {
-              "default": "cpu",
-              "title": "Device",
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "unload",
-            "required": false,
-            "schema": {
-              "default": true,
-              "title": "Unload",
-              "type": "boolean"
-            }
-          },
-          {
-            "in": "query",
-            "name": "overwrite",
-            "required": false,
-            "schema": {
-              "default": false,
-              "title": "Overwrite",
-              "type": "boolean"
-            }
-          },
-          {
-            "in": "query",
-            "name": "bake_in_vae",
-            "required": false,
-            "schema": {
-              "title": "Bake In Vae",
-              "type": "string"
-            }
-          }
-        ],
+          "required": true
+        },
         "responses": {
           "200": {
             "content": {
@@ -14176,205 +14363,16 @@
       "post": {
         "description": "Replace model components and save as a new model.\n\nSwap UNET, VAE, text encoders, scheduler, or fuse a LoRA into the base model.\nSaves the result as ``custom_name`` in Diffusers and/or safetensors format\nwith optional metadata (author, version, license, description).",
         "operationId": "post_replace_sdapi_v2_model_replace_post",
-        "parameters": [
-          {
-            "in": "query",
-            "name": "model_type",
-            "required": true,
-            "schema": {
-              "title": "Model Type",
-              "type": "string"
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReqReplaceV2"
+              }
             }
           },
-          {
-            "in": "query",
-            "name": "model_name",
-            "required": true,
-            "schema": {
-              "title": "Model Name",
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "custom_name",
-            "required": true,
-            "schema": {
-              "title": "Custom Name",
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "comp_unet",
-            "required": false,
-            "schema": {
-              "default": "",
-              "title": "Comp Unet",
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "comp_vae",
-            "required": false,
-            "schema": {
-              "default": "",
-              "title": "Comp Vae",
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "comp_te1",
-            "required": false,
-            "schema": {
-              "default": "",
-              "title": "Comp Te1",
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "comp_te2",
-            "required": false,
-            "schema": {
-              "default": "",
-              "title": "Comp Te2",
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "precision",
-            "required": false,
-            "schema": {
-              "default": "fp16",
-              "title": "Precision",
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "comp_scheduler",
-            "required": false,
-            "schema": {
-              "default": "",
-              "title": "Comp Scheduler",
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "comp_prediction",
-            "required": false,
-            "schema": {
-              "default": "",
-              "title": "Comp Prediction",
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "comp_lora",
-            "required": false,
-            "schema": {
-              "default": "",
-              "title": "Comp Lora",
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "comp_fuse",
-            "required": false,
-            "schema": {
-              "default": 0,
-              "title": "Comp Fuse",
-              "type": "number"
-            }
-          },
-          {
-            "in": "query",
-            "name": "meta_author",
-            "required": false,
-            "schema": {
-              "default": "",
-              "title": "Meta Author",
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "meta_version",
-            "required": false,
-            "schema": {
-              "default": "",
-              "title": "Meta Version",
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "meta_license",
-            "required": false,
-            "schema": {
-              "default": "",
-              "title": "Meta License",
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "meta_desc",
-            "required": false,
-            "schema": {
-              "default": "",
-              "title": "Meta Desc",
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "meta_hint",
-            "required": false,
-            "schema": {
-              "default": "",
-              "title": "Meta Hint",
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "create_diffusers",
-            "required": false,
-            "schema": {
-              "default": true,
-              "title": "Create Diffusers",
-              "type": "boolean"
-            }
-          },
-          {
-            "in": "query",
-            "name": "create_safetensors",
-            "required": false,
-            "schema": {
-              "default": false,
-              "title": "Create Safetensors",
-              "type": "boolean"
-            }
-          },
-          {
-            "in": "query",
-            "name": "debug",
-            "required": false,
-            "schema": {
-              "default": false,
-              "title": "Debug",
-              "type": "boolean"
-            }
-          }
-        ],
+          "required": true
+        },
         "responses": {
           "200": {
             "content": {
@@ -14405,45 +14403,16 @@
       "post": {
         "description": "Save the currently loaded model to disk.\n\nSaves the active pipeline under ``name``. Optional ``path`` overrides the output\ndirectory, ``shard`` sets the shard size, and ``overwrite`` allows replacing\nan existing file.",
         "operationId": "post_save_sdapi_v2_model_save_post",
-        "parameters": [
-          {
-            "in": "query",
-            "name": "name",
-            "required": true,
-            "schema": {
-              "title": "Name",
-              "type": "string"
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReqModelSaveV2"
+              }
             }
           },
-          {
-            "in": "query",
-            "name": "path",
-            "required": false,
-            "schema": {
-              "title": "Path",
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "shard",
-            "required": false,
-            "schema": {
-              "title": "Shard",
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "overwrite",
-            "required": false,
-            "schema": {
-              "default": false,
-              "title": "Overwrite",
-              "type": "boolean"
-            }
-          }
-        ],
+          "required": true
+        },
         "responses": {
           "200": {
             "content": {
