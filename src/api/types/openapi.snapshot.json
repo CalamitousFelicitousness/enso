@@ -1,6 +1,35 @@
 {
   "components": {
     "schemas": {
+      "AddProviderRequest": {
+        "properties": {
+          "base_url": {
+            "title": "Base URL",
+            "type": "string"
+          },
+          "key": {
+            "default": "",
+            "title": "API key",
+            "type": "string"
+          },
+          "name": {
+            "title": "Display name",
+            "type": "string"
+          },
+          "preset": {
+            "description": "openrouter, openai, nanogpt, aihubmix, ollama, or custom",
+            "title": "Preset type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "preset",
+          "base_url"
+        ],
+        "title": "AddProviderRequest",
+        "type": "object"
+      },
       "Body_upload_files_sdapi_v2_upload_post": {
         "properties": {
           "files": {
@@ -4638,7 +4667,6 @@
         "type": "object"
       },
       "JobResponse": {
-        "description": "A job row as returned by the GET /jobs/{id} and /jobs endpoints.\n\nprogress/step/steps are required because the server always emits them\n(zeroed on pending jobs). Nullable fields (started_at, completed_at,\nerror, eta, result) stay optional to model the genuine null case.",
         "properties": {
           "completed_at": {
             "anyOf": [
@@ -4682,6 +4710,7 @@
             "type": "string"
           },
           "progress": {
+            "default": 0,
             "title": "Progress",
             "type": "number"
           },
@@ -4707,21 +4736,16 @@
             "title": "Started At"
           },
           "status": {
-            "enum": [
-              "pending",
-              "running",
-              "completed",
-              "failed",
-              "cancelled"
-            ],
             "title": "Status",
             "type": "string"
           },
           "step": {
+            "default": 0,
             "title": "Step",
             "type": "integer"
           },
           "steps": {
+            "default": 0,
             "title": "Steps",
             "type": "integer"
           },
@@ -4734,16 +4758,12 @@
           "id",
           "type",
           "status",
-          "progress",
-          "step",
-          "steps",
           "created_at"
         ],
         "title": "JobResponse",
         "type": "object"
       },
       "JobResult": {
-        "description": "The result payload attached to a completed JobResponse.\n\nAll list / dict fields are required because the server always emits\nthem. Empty collections still serialize correctly; the requirement\nis that the field is present in the payload.",
         "properties": {
           "images": {
             "items": {
@@ -4768,22 +4788,8 @@
             },
             "title": "Processed",
             "type": "array"
-          },
-          "videos": {
-            "items": {
-              "$ref": "#/components/schemas/VideoRef"
-            },
-            "title": "Videos",
-            "type": "array"
           }
         },
-        "required": [
-          "images",
-          "processed",
-          "videos",
-          "info",
-          "params"
-        ],
         "title": "JobResult",
         "type": "object"
       },
@@ -8301,6 +8307,56 @@
         "title": "StatusResponse",
         "type": "object"
       },
+      "UpdateProviderRequest": {
+        "properties": {
+          "base_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Base Url"
+          },
+          "enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Enabled"
+          },
+          "key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Key"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          }
+        },
+        "title": "UpdateProviderRequest",
+        "type": "object"
+      },
       "UploadRef": {
         "properties": {
           "name": {
@@ -8773,67 +8829,6 @@
           "prompt"
         ],
         "title": "VideoParams",
-        "type": "object"
-      },
-      "VideoRef": {
-        "description": "One cloud-generated video plus its sibling thumbnail.\n\n`thumbnail_url` is populated when the upstream orchestrator wrote a\n`<video_path>.thumb.png` (best-effort, may be absent on extraction failure).\nThe video file itself is served from `url`; the thumbnail (when present)\nfrom `thumbnail_url`. The Python-side stored ref dict also carries `path`\nand `thumbnail_path` fields that the file-serving handlers read; those\nare intentionally absent from this response model.",
-        "properties": {
-          "duration": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Duration"
-          },
-          "format": {
-            "default": "mp4",
-            "title": "Format",
-            "type": "string"
-          },
-          "height": {
-            "default": 0,
-            "title": "Height",
-            "type": "integer"
-          },
-          "index": {
-            "title": "Index",
-            "type": "integer"
-          },
-          "size": {
-            "default": 0,
-            "title": "Size",
-            "type": "integer"
-          },
-          "thumbnail_url": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Thumbnail Url"
-          },
-          "url": {
-            "title": "Url",
-            "type": "string"
-          },
-          "width": {
-            "default": 0,
-            "title": "Width",
-            "type": "integer"
-          }
-        },
-        "required": [
-          "index",
-          "url"
-        ],
-        "title": "VideoRef",
         "type": "object"
       },
       "WsEventAck": {
@@ -12239,6 +12234,270 @@
         ]
       }
     },
+    "/sdapi/v2/cloud/providers": {
+      "get": {
+        "operationId": "list_providers_sdapi_v2_cloud_providers_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Providers",
+        "tags": [
+          "Cloud"
+        ]
+      },
+      "post": {
+        "operationId": "add_provider_sdapi_v2_cloud_providers_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddProviderRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Add Provider",
+        "tags": [
+          "Cloud"
+        ]
+      }
+    },
+    "/sdapi/v2/cloud/providers/{provider_id}": {
+      "delete": {
+        "operationId": "remove_provider_sdapi_v2_cloud_providers__provider_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "provider_id",
+            "required": true,
+            "schema": {
+              "title": "Provider Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Remove Provider",
+        "tags": [
+          "Cloud"
+        ]
+      },
+      "put": {
+        "operationId": "update_provider_sdapi_v2_cloud_providers__provider_id__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "provider_id",
+            "required": true,
+            "schema": {
+              "title": "Provider Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateProviderRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Provider",
+        "tags": [
+          "Cloud"
+        ]
+      }
+    },
+    "/sdapi/v2/cloud/providers/{provider_id}/models": {
+      "get": {
+        "operationId": "get_provider_models_sdapi_v2_cloud_providers__provider_id__models_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "provider_id",
+            "required": true,
+            "schema": {
+              "title": "Provider Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Provider Models",
+        "tags": [
+          "Cloud"
+        ]
+      }
+    },
+    "/sdapi/v2/cloud/providers/{provider_id}/refresh": {
+      "post": {
+        "operationId": "refresh_provider_models_sdapi_v2_cloud_providers__provider_id__refresh_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "provider_id",
+            "required": true,
+            "schema": {
+              "title": "Provider Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Refresh Provider Models",
+        "tags": [
+          "Cloud"
+        ]
+      }
+    },
+    "/sdapi/v2/cloud/providers/{provider_id}/validate": {
+      "post": {
+        "operationId": "validate_provider_sdapi_v2_cloud_providers__provider_id__validate_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "provider_id",
+            "required": true,
+            "schema": {
+              "title": "Provider Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Validate Provider",
+        "tags": [
+          "Cloud"
+        ]
+      }
+    },
     "/sdapi/v2/control-models": {
       "get": {
         "description": "List available models for a given control unit type.",
@@ -13718,106 +13977,6 @@
           }
         },
         "summary": "Get Job Processed",
-        "tags": [
-          "v2",
-          "Jobs"
-        ]
-      }
-    },
-    "/sdapi/v2/jobs/{job_id}/videos/{index}": {
-      "get": {
-        "operationId": "get_job_video_sdapi_v2_jobs__job_id__videos__index__get",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "job_id",
-            "required": true,
-            "schema": {
-              "title": "Job Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "index",
-            "required": true,
-            "schema": {
-              "title": "Index",
-              "type": "integer"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Get Job Video",
-        "tags": [
-          "v2",
-          "Jobs"
-        ]
-      }
-    },
-    "/sdapi/v2/jobs/{job_id}/videos/{index}/thumbnail": {
-      "get": {
-        "operationId": "get_job_video_thumbnail_sdapi_v2_jobs__job_id__videos__index__thumbnail_get",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "job_id",
-            "required": true,
-            "schema": {
-              "title": "Job Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "index",
-            "required": true,
-            "schema": {
-              "title": "Index",
-              "type": "integer"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Get Job Video Thumbnail",
         "tags": [
           "v2",
           "Jobs"
