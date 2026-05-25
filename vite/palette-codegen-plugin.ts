@@ -16,7 +16,7 @@ export function paletteCodegenPlugin(): Plugin {
         );
       }
       if (result.changed) {
-        console.log(`[paramMap codegen] regenerated (${result.params.length} entries) — ${reason}`);
+        console.log(`[paramMap codegen] regenerated (${result.params.length} entries) - ${reason}`);
       }
     } catch (err) {
       lastError = err;

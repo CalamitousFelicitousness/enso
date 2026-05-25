@@ -56,7 +56,7 @@ export function BatchDialog({ open, onOpenChange, buildRequest }: BatchDialogPro
         });
       }
       toast.success(`Queued ${count} jobs`, {
-        description: `Seeds ${resolvedBase}–${resolvedBase + count - 1}`,
+        description: `Seeds ${resolvedBase}-${resolvedBase + count - 1}`,
       });
       onOpenChange(false);
     } catch (err) {

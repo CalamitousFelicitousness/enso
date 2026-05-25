@@ -5,9 +5,7 @@ import { useGenerationStore } from "@/stores/generationStore";
 import { usePanZoom } from "./tools/usePanZoom";
 import { useMaskPaint } from "./tools/useMaskPaint";
 import { useImageTransform } from "./tools/useImageTransform";
-import { FrameLayer } from "./layers/FrameLayer";
-import { CompositeLayer } from "./layers/CompositeLayer";
-import { MaskLayer } from "./layers/MaskLayer";
+import { InputFrameLayer } from "./layers/InputFrameLayer";
 import { OutputLayer } from "./layers/OutputLayer";
 import { ProcessedCompositeLayer } from "./layers/ProcessedCompositeLayer";
 import { ControlFrameLayer } from "./layers/ControlFrameLayer";
@@ -28,9 +26,20 @@ const LABEL_HEIGHT = 19;
 interface CanvasStageProps {
   layout: CanvasLayout;
   onPickImage?: (unitIndex: number) => void;
+  /** open the file picker scoped to a specific Initial-mode
+   * Input frame (empty-frame click target). */
+  onPickInputFile?: (frameId: string) => void;
+  /** open the file picker scoped to a Reference frame's +Add
+   * cell - appends a new child reference. */
+  onAddReferenceChild?: (frameId: string) => void;
 }
 
-export function CanvasStage({ layout, onPickImage }: CanvasStageProps) {
+export function CanvasStage({
+  layout,
+  onPickImage,
+  onPickInputFile,
+  onAddReferenceChild,
+}: CanvasStageProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<Konva.Stage>(null);
   const trRef = useRef<Konva.Transformer>(null);
@@ -40,25 +49,16 @@ export function CanvasStage({ layout, onPickImage }: CanvasStageProps) {
   // Note: setSelectedControlFrame removed - panels are now persistent
   const frameW = useGenerationStore((s) => s.width);
   const frameH = useGenerationStore((s) => s.height);
-  const inputRole = useCanvasStore((s) => s.inputRole);
   const canvasMode = useCanvasStore((s) => s.canvasMode);
   const focusedFrameId = useCanvasStore((s) => s.focusedFrameId);
   const focusFitTrigger = useCanvasStore((s) => s.focusFitTrigger);
 
   const panZoom = usePanZoom(stageRef, undefined, mainViewportBus);
-  const maskPaint = useMaskPaint({ stageRef, spaceHeld: panZoom.spaceHeld });
+  const maskPaint = useMaskPaint({ stageRef, spaceHeld: panZoom.spaceHeld, layout });
   const imageTransform = useImageTransform(stageRef, trRef);
 
-  const {
-    outputX,
-    processedX,
-    showProcessedFrame,
-    controlFrames,
-    totalBounds,
-    displayScale,
-    displayW,
-    displayH,
-  } = layout;
+  const { outputX, processedX, showProcessedFrame, controlFrames, totalBounds, displayScale } =
+    layout;
 
   // Container-responsive sizing
   useEffect(() => {
@@ -189,28 +189,33 @@ export function CanvasStage({ layout, onPickImage }: CanvasStageProps) {
           >
             <ControlFrameLayer frames={controlFrames} onPickImage={onPickImage} />
 
-            <CompositeLayer trRef={trRef} displayScale={displayScale} />
-
-            <FrameLayer
+            {/* InputFrameLayer renders all Input frames (Initial + Reference)
+              as canvas-native chrome and owns the Transformer, per-frame
+              image-layer interaction (drag, scale, rotate, select), per-
+              frame mask object rendering, and the active mask paint stroke
+              + brush cursor (rendered inside the focused frame's group). */}
+            <InputFrameLayer
+              frames={layout.inputFrames}
               displayScale={displayScale}
-              onPickImage={onPickImage ? () => onPickImage(-1) : undefined}
+              trRef={trRef}
+              setActiveLineNode={maskPaint.setActiveLineNode}
+              setCursorNode={maskPaint.setCursorNode}
+              onPickInputFile={onPickInputFile}
+              onAddReferenceChild={onAddReferenceChild}
             />
 
-            {inputRole !== "reference" && (
-              <MaskLayer
-                displayScale={displayScale}
-                setActiveLineNode={maskPaint.setActiveLineNode}
-                setCursorNode={maskPaint.setCursorNode}
-              />
-            )}
             <OutputLayer
               offsetX={outputX}
-              placeholderWidth={displayW}
-              placeholderHeight={displayH}
+              placeholderWidth={layout.outputDisplayW}
+              placeholderHeight={layout.outputDisplayH}
             />
 
             {showProcessedFrame && (
-              <ProcessedCompositeLayer offsetX={processedX} width={displayW} height={displayH} />
+              <ProcessedCompositeLayer
+                offsetX={processedX}
+                width={layout.outputDisplayW}
+                height={layout.outputDisplayH}
+              />
             )}
           </Stage>
         </>

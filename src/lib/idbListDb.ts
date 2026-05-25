@@ -3,11 +3,11 @@
  *
  * Sibling primitive to `createIdbStorage` in `idbStorage.ts`:
  * - `createIdbStorage` adapts Zustand persist middleware to IDB via a single
- *   keyed blob (whole-state-blob serialization, debounced).
+ * keyed blob (whole-state-blob serialization, debounced).
  * - `createIdbListDb` exposes typed per-record CRUD over an indexed object
- *   store. Used by stores whose records are large enough that whole-state
- *   serialization on every change would be catastrophic (e.g. generation
- *   results carrying multi-MB base64 inputImage / controlUnits).
+ * store. Used by stores whose records are large enough that whole-state
+ * serialization on every change would be catastrophic (e.g. generation
+ * results carrying multi-MB base64 inputImage / controlUnits).
  *
  * Each factory call memoizes one `dbPromise`. Error rejections always emit a
  * non-null Error (project convention from commit cb661f5).

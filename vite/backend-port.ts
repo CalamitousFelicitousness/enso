@@ -45,10 +45,10 @@ function probePort(port: number, timeout = 500): Promise<boolean> {
 
 /**
  * Resolve the SD.Next backend port. Priority order:
- *   1. `envPort` (typically `process.env.BACKEND_PORT`) - always wins
- *   2. `.sdnext.port` file in CWD or `$HOME` - trusted even if SD.Next is offline
- *   3. Probe candidates 7855, 7860..7865 via `/sdapi/v1/cmd-flags` - discovery
- *   4. Fallback `"7860"` when nothing is reachable
+ * 1. `envPort` (typically `process.env.BACKEND_PORT`) - always wins
+ * 2. `.sdnext.port` file in CWD or `$HOME` - trusted even if SD.Next is offline
+ * 3. Probe candidates 7855, 7860..7865 via `/sdapi/v1/cmd-flags` - discovery
+ * 4. Fallback `"7860"` when nothing is reachable
  *
  * Used by both `vite.config.ts` (proxy setup) and snapshot scripts in
  * `scripts/openapi-*.ts` (live `/openapi.json` fetch).

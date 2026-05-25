@@ -55,11 +55,11 @@ function parseLine(raw: string, id: number): ParsedLine {
 
 // Tokenize log message into highlighted spans
 // Patterns matched (in priority order):
-//   1. Quoted strings: 'value' or "value"
-//   2. Key=value pairs: key=number, key=word, key='quoted'
-//   3. Standalone numbers (with optional units like MB, GB, s)
-//   4. HTTP methods: GET, POST, PUT, DELETE, PATCH
-//   5. URL paths: /sdapi/v2/... or http://...
+// 1. Quoted strings: 'value' or "value"
+// 2. Key=value pairs: key=number, key=word, key='quoted'
+// 3. Standalone numbers (with optional units like MB, GB, s)
+// 4. HTTP methods: GET, POST, PUT, DELETE, PATCH
+// 5. URL paths: /sdapi/v2/... or http://...
 const MSG_TOKEN_RE =
   /('[^']*'|"[^"]*")|(\b\w+=(?:'[^']*'|"[^"]*"|\[[^\]]*\]|\{[^}]*\}|[\w./:~-]+))|(\b(?:GET|POST|PUT|DELETE|PATCH)\b)|((?:https?:\/\/|\/(?:sdapi|enso|home))\S+)|(\b\d+(?:\.\d+)?(?:\/\d+(?:\.\d+)?)?(?:\s*(?:MB|GB|KB|ms|s|px))?\b)/g;
 
@@ -204,8 +204,8 @@ export function ConsoleTab() {
           onClick={cycleLevel}
           title={
             minLevel === 0
-              ? "All levels — click to filter (shift-click to cycle backward)"
-              : `Filter: ${LEVEL_ORDER[minLevel]}+ — click to raise, shift-click to lower`
+              ? "All levels - click to filter (shift-click to cycle backward)"
+              : `Filter: ${LEVEL_ORDER[minLevel]}+ - click to raise, shift-click to lower`
           }
         >
           <Filter className="h-3.5 w-3.5" />

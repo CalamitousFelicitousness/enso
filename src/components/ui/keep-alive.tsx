@@ -26,7 +26,7 @@ const KeepAliveSwitchContext = createContext<string | null>(null);
  * Defaults to true outside any KeepAlive boundary so consumers can call this
  * hook unconditionally.
  *
- * Use it to gate work that should pause while hidden — pass to React Query
+ * Use it to gate work that should pause while hidden - pass to React Query
  * `enabled`, gate `refetchInterval`, pause animations, or fire imperative
  * work (e.g. `view.requestMeasure()`) on the hidden→visible transition.
  */
@@ -38,7 +38,7 @@ export function useKeepAliveVisible(): boolean {
 
 interface KeepAlivePanelProps {
   /**
-   * Stable identifier — required when used inside KeepAliveSwitch (the switch
+   * Stable identifier - required when used inside KeepAliveSwitch (the switch
    * uses it to track visited state and resolve which panel is active).
    * Optional when used standalone with an explicit `active` prop.
    */
@@ -71,7 +71,7 @@ interface KeepAlivePanelProps {
  * retain state (CodeMirror cursor, scroll, drafts, undo) while being removed
  * from layout, focus order, and the accessibility tree.
  *
- * Visibility AND-combines with any ancestor KeepAlivePanel — see
+ * Visibility AND-combines with any ancestor KeepAlivePanel - see
  * useKeepAliveVisible.
  */
 export function KeepAlivePanel({
@@ -117,7 +117,7 @@ interface KeepAliveSwitchProps {
   active: string;
   /**
    * Optional ids to mount on first render in addition to `active`.
-   * Use sparingly — only when a specific panel benefits from being warmed
+   * Use sparingly - only when a specific panel benefits from being warmed
    * up before its first visit.
    */
   initiallyMounted?: readonly string[];
@@ -135,7 +135,7 @@ interface KeepAliveSwitchProps {
  * Lazy first mount: a panel mounts on its first visit and stays in the tree
  * for the lifetime of the switch.
  *
- * Unknown `active` ids are tolerated — no panel is shown and the visited set
+ * Unknown `active` ids are tolerated - no panel is shown and the visited set
  * is unchanged, so a transient bad id (e.g. during gating fallback) doesn't
  * pollute state.
  */

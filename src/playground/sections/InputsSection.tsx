@@ -63,7 +63,7 @@ export function InputsSection() {
         </div>
       </div>
 
-      {/* Combobox — flat */}
+      {/* Combobox - flat */}
       <div className="space-y-4">
         <span className="text-3xs text-muted-foreground/60 uppercase tracking-wider">Combobox</span>
 

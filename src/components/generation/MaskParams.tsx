@@ -8,8 +8,19 @@ import { Switch } from "@/components/ui/switch";
 import { ParamLabel } from "./ParamLabel";
 
 export function MaskParams() {
-  const maskLineCount = useImg2ImgStore((s) => s.maskLines.length);
-  const maskObjectCount = useCanvasStore((s) => s.layers.filter((l) => l.type === "mask").length);
+  const maskLineCount = useCanvasStore((s) =>
+    s.inputFrames.reduce(
+      (count, f) => (f.mode === "initial" ? count + f.maskLines.length : count),
+      0,
+    ),
+  );
+  const maskObjectCount = useCanvasStore((s) =>
+    s.inputFrames.reduce(
+      (count, f) =>
+        f.mode === "initial" ? count + f.layers.filter((l) => l.type === "mask").length : count,
+      0,
+    ),
+  );
   const maskBlur = useImg2ImgStore((s) => s.maskBlur);
   const inpaintFullRes = useImg2ImgStore((s) => s.inpaintFullRes);
   const inpaintFullResPadding = useImg2ImgStore((s) => s.inpaintFullResPadding);

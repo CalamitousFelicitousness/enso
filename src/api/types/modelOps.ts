@@ -1,4 +1,4 @@
-// Phase 1
+//
 
 export interface ModelModule {
   name: string;
@@ -40,7 +40,7 @@ export interface ModelListDetail {
   mtime: string | null;
 }
 
-// Phase 2
+//
 
 export interface HfModelResult {
   id: string;
@@ -88,7 +88,7 @@ export interface CivitMetadataUpdateResult {
   status: string | null;
 }
 
-// Phase 3
+//
 
 export interface MergeMethodsInfo {
   methods: string[];
@@ -155,7 +155,7 @@ export interface ReplaceRequest {
   debug?: boolean | undefined;
 }
 
-// Phase 4
+//
 
 export interface LoaderComponent {
   id: number;

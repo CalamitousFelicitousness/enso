@@ -2,12 +2,12 @@ import type { ExtraNetworksResponse, PromptStyleV2 } from "@/api/types/models";
 
 /** Realistic mock data for NetworksTab playground rendering. */
 
-// Deterministic placeholder images — picsum with seed so they're stable across reloads
+// Deterministic placeholder images - picsum with seed so they're stable across reloads
 const img = (seed: number) => `https://picsum.photos/seed/${seed}/300/400`;
 
 export const mockExtraNetworks: ExtraNetworksResponse = {
   items: [
-    // Models — varying name lengths
+    // Models - varying name lengths
     {
       name: "sd_xl_base_1.0",
       type: "model",
@@ -87,7 +87,7 @@ export const mockExtraNetworks: ExtraNetworksResponse = {
       size: 2_130_000_000,
       mtime: "2024-10-05T09:00:00Z",
     },
-    // LoRAs — varying name lengths
+    // LoRAs - varying name lengths
     {
       name: "xl",
       type: "lora",
@@ -168,7 +168,7 @@ export const mockExtraNetworks: ExtraNetworksResponse = {
       size: 8_400_000,
       mtime: "2024-12-01T10:00:00Z",
     },
-    // Embeddings — short and long
+    // Embeddings - short and long
     {
       name: "ng",
       type: "embedding",

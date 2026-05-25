@@ -57,7 +57,7 @@ export function QuickInterrogateDialog({ open, onOpenChange, file }: QuickInterr
             image: ref,
             model: s.model,
             question: s.task,
-            prompt: CUSTOM_PROMPT_TASKS.includes(s.task) ? s.customPrompt : undefined,
+            prompt: CUSTOM_PROMPT_TASKS.includes(s.task) ? s.customPrompt : null,
             system: s.system,
             max_tokens: s.maxTokens,
             temperature: s.temperature,
@@ -66,7 +66,7 @@ export function QuickInterrogateDialog({ open, onOpenChange, file }: QuickInterr
             num_beams: s.numBeams,
             do_sample: s.doSample,
           });
-          result = res.answer;
+          result = res.answer ?? undefined;
         } else if (method === "openclip") {
           const s = settings.openclip;
           const res = await openclipMut.mutateAsync({
@@ -82,7 +82,7 @@ export function QuickInterrogateDialog({ open, onOpenChange, file }: QuickInterr
             flavor_count: s.flavorCount,
             num_beams: s.numBeams,
           });
-          result = res.caption;
+          result = res.caption ?? undefined;
         } else {
           const s = settings.tagger;
           const res = await taggerMut.mutateAsync({

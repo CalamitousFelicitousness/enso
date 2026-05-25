@@ -24,7 +24,7 @@ interface ResubmitOptions {
 /**
  * Submit an existing JobRequest as a new job, tracking it in the queue store
  * and persisting its payload for future retries. Used by QueueTab retry/
- * duplicate and HistoryTab retry — the call sites differ only in toast copy.
+ * duplicate and HistoryTab retry - the call sites differ only in toast copy.
  */
 export function useResubmitJob() {
   const submitJob = useSubmitJob();

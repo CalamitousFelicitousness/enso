@@ -75,7 +75,9 @@ export function CaptionView() {
         ? (result.caption ?? "")
         : result?.type === "tagger"
           ? (result.tags ?? "")
-          : "";
+          : result?.type === "cloud"
+            ? result.text
+            : "";
 
   const hasAnalysis =
     result?.type === "openclip" &&
@@ -291,7 +293,7 @@ export function CaptionView() {
                               <div key={tag} className="flex items-center justify-between">
                                 <span className="text-foreground">{tag}</span>
                                 <span className="text-muted-foreground text-xs font-mono tabular-nums">
-                                  {score.toFixed(3)}
+                                  {(score as number).toFixed(3)}
                                 </span>
                               </div>
                             ))}

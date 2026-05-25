@@ -1,5 +1,6 @@
 import { useGenerationStore } from "@/stores/generationStore";
 import { useCanvasStore } from "@/stores/canvasStore";
+import type { ImageLayer } from "@/stores/canvasStore";
 import { usePromptEnhanceStore } from "@/stores/promptEnhanceStore";
 import { usePromptEnhance } from "@/api/hooks/usePromptEnhance";
 import { flattenCanvas } from "@/lib/flattenCanvas";
@@ -16,6 +17,7 @@ import { KeepAlivePanel } from "@/components/ui/keep-alive";
 import { ChevronDown, ChevronRight, Sparkles, Loader2, Settings2 } from "lucide-react";
 import { toast } from "sonner";
 import { PromptEnhanceWorkspace } from "./PromptEnhanceWorkspace";
+import { CloudEnhanceButton } from "./CloudEnhanceButton";
 import type { PromptEnhanceRequest } from "@/api/types/promptEnhance";
 
 export function PromptEditor() {
@@ -38,32 +40,39 @@ export function PromptEditor() {
       toast.warning("Enter a prompt first");
       return;
     }
-    let image: string | undefined;
+    let image: string | null = null;
     if (enhanceStore.useVision) {
       const { width, height } = useGenerationStore.getState();
-      const layers = useCanvasStore.getState().getImageLayers();
+      const inputFrames = useCanvasStore.getState().inputFrames;
+      const firstInitial = inputFrames.find(
+        (f) => f.mode === "initial" && f.layers.some((l) => l.type === "image"),
+      );
+      const layers: ImageLayer[] =
+        firstInitial && firstInitial.mode === "initial"
+          ? firstInitial.layers.filter((l): l is ImageLayer => l.type === "image")
+          : [];
       const blob = await flattenCanvas(layers, width, height);
       if (blob) image = await uploadBlob(blob, "vision.png");
     }
     const req: PromptEnhanceRequest = {
       prompt,
       type: "text",
-      model: enhanceStore.model || undefined,
-      system_prompt: enhanceStore.systemPrompt || undefined,
-      prefix: enhanceStore.prefix || undefined,
-      suffix: enhanceStore.suffix || undefined,
+      model: enhanceStore.model || null,
+      system_prompt: enhanceStore.systemPrompt || null,
+      prefix: enhanceStore.prefix || null,
+      suffix: enhanceStore.suffix || null,
       nsfw: enhanceStore.nsfw,
       seed: enhanceStore.seed,
       do_sample: enhanceStore.doSample,
       max_tokens: enhanceStore.maxTokens,
       temperature: enhanceStore.temperature,
       repetition_penalty: enhanceStore.repetitionPenalty,
-      top_k: enhanceStore.topK || undefined,
-      top_p: enhanceStore.topP || undefined,
+      top_k: enhanceStore.topK || null,
+      top_p: enhanceStore.topP || null,
       thinking: enhanceStore.thinking,
       keep_thinking: enhanceStore.keepThinking,
       use_vision: enhanceStore.useVision,
-      prefill: enhanceStore.prefill || undefined,
+      prefill: enhanceStore.prefill || null,
       keep_prefill: enhanceStore.keepPrefill,
       image,
     };
@@ -112,6 +121,7 @@ export function PromptEditor() {
                 <Sparkles size={14} />
               )}
             </button>
+            <CloudEnhanceButton />
             <Popover open={enhanceOpen} onOpenChange={setEnhanceOpen}>
               <PopoverTrigger asChild>
                 <button

@@ -4,9 +4,12 @@ import { useProcessStore } from "@/stores/processStore";
 import { useGenerationStore } from "@/stores/generationStore";
 import { useCanvasStore } from "@/stores/canvasStore";
 import { useUiStore } from "@/stores/uiStore";
+import { useModelSelectionStore } from "@/stores/modelSelectionStore";
 import { fileToBase64, base64ToFile } from "@/lib/image";
 import { resolveImageSrc } from "@/lib/utils";
+import { engineToKind } from "@/lib/videoModel";
 import type { DragPayload } from "@/stores/dragStore";
+import type { LocalVideoModel } from "@/api/types/cloud";
 import type { VideoWireParams } from "@/api/types/wireParams";
 
 export function extractFrameFromVideo(videoUrl: string, time: number): Promise<Blob> {
@@ -111,9 +114,18 @@ export async function sendImageToCanvas(file: File) {
   await new Promise<void>((r) => {
     img.onload = () => r();
   });
-  useCanvasStore
-    .getState()
-    .addImageLayer(file, base64, objectUrl, img.naturalWidth, img.naturalHeight);
+  const state = useCanvasStore.getState();
+  const target = state.activeInputFrameId ?? state.inputFrames[0]?.id;
+  if (target) {
+    state.addImageLayerToFrame(
+      target,
+      file,
+      base64,
+      objectUrl,
+      img.naturalWidth,
+      img.naturalHeight,
+    );
+  }
   useUiStore.getState().setNavView("images");
 }
 
@@ -145,8 +157,6 @@ export function restoreVideoSettings(params: VideoWireParams) {
   type WireMap = Record<string, (p: VideoWireParams) => unknown>;
 
   const sharedKeyMap: WireMap = {
-    engine: (p) => str(p.engine),
-    model: (p) => str(p.model),
     prompt: (p) => str(p.prompt),
     negative: (p) => str(p.negative),
     width: (p) => num(p.width),
@@ -176,7 +186,6 @@ export function restoreVideoSettings(params: VideoWireParams) {
   };
 
   const fpKeyMap: WireMap = {
-    fpVariant: (p) => str(p.fp_variant),
     fpResolution: (p) => num(p.fp_resolution),
     fpDuration: (p) => num(p.fp_duration),
     fpLatentWindowSize: (p) => num(p.fp_latent_window_size),
@@ -199,7 +208,6 @@ export function restoreVideoSettings(params: VideoWireParams) {
   };
 
   const ltxKeyMap: WireMap = {
-    ltxModel: (p) => str(p.ltx_model),
     ltxSteps: (p) => num(p.ltx_steps),
     ltxDecodeTimestep: (p) => num(p.ltx_decode_timestep),
     ltxNoiseScale: (p) => num(p.ltx_noise_scale),
@@ -226,6 +234,39 @@ export function restoreVideoSettings(params: VideoWireParams) {
 
   if (Object.keys(updates).length > 0) {
     useVideoStore.getState().setParams(updates);
+  }
+
+  // Restore the engine/model selection too. The wire payload identifies the
+  // model by engine + model (generic), fp_variant (FramePack), or ltx_model
+  // (LTX). Synthesise a LocalVideoModel and set it as activeModel so the
+  // top-level selector + Video panel both reflect the historical choice.
+  // mode/cached/loaded aren't on the wire - they default to safe values and
+  // get refreshed if the user re-picks the same model from the dropdown.
+  let engineName: string | undefined;
+  let modelName: string | undefined;
+  if (domain === "framepack") {
+    engineName = "FramePack";
+    modelName = str(params.fp_variant);
+  } else if (domain === "ltx") {
+    engineName = "LTX Video";
+    modelName = str(params.ltx_model);
+  } else {
+    engineName = str(params.engine);
+    modelName = str(params.model);
+  }
+  if (engineName && modelName) {
+    const synthetic: LocalVideoModel = {
+      source: "local-video",
+      engine: engineName,
+      model: modelName,
+      name: modelName,
+      title: `local-video:${engineName}:${modelName}`,
+      mode: "t2v",
+      cached: false,
+      loaded: false,
+      kind: engineToKind(engineName),
+    };
+    useModelSelectionStore.getState().setActiveModel(synthetic);
   }
 }
 

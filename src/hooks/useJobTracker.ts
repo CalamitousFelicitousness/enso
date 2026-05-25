@@ -53,23 +53,49 @@ function routeResult(domain: JobDomain, result: JobResult, snapshot: TrackedJob[
         .replaceProcessedImages(`${api.getBaseUrl()}${result.processed[0].url}`);
     }
   } else if (domain === "video" || domain === "framepack" || domain === "ltx") {
-    const vid = result.images[0];
-    if (vid) {
-      const thumb = result.images[1];
+    // Cloud video executor populates result.videos with a single VideoRef
+    // carrying its own thumbnail_url (sibling.thumb.png written by sdnext
+    // core). Local pipelines still place [video, thumbnail] into result.images.
+    // Prefer the cloud shape when present; fall back to the local shape so
+    // existing Wan/Hunyuan/FramePack/LTX flows keep working unchanged.
+    const cloudVid = result.videos?.[0];
+    if (cloudVid) {
       useVideoStore.getState().addResult({
         id: crypto.randomUUID(),
-        videoUrl: `${api.getBaseUrl()}${vid.url}`,
-        thumbnailUrl: thumb ? `${api.getBaseUrl()}${thumb.url}` : undefined,
-        width: vid.width,
-        height: vid.height,
-        format: vid.format,
-        size: vid.size,
+        videoUrl: `${api.getBaseUrl()}${cloudVid.url}`,
+        thumbnailUrl: cloudVid.thumbnail_url
+          ? `${api.getBaseUrl()}${cloudVid.thumbnail_url}`
+          : undefined,
+        width: cloudVid.width,
+        height: cloudVid.height,
+        format: cloudVid.format,
+        size: cloudVid.size,
+        duration: cloudVid.duration,
         // Server returns snake_case JSON; the structural assignment to
         // VideoWireParams here crosses the wire-contract boundary.
         params: result.params,
         domain: domain,
         timestamp: Date.now(),
       });
+    } else {
+      const vid = result.images[0];
+      if (vid) {
+        const thumb = result.images[1];
+        useVideoStore.getState().addResult({
+          id: crypto.randomUUID(),
+          videoUrl: `${api.getBaseUrl()}${vid.url}`,
+          thumbnailUrl: thumb ? `${api.getBaseUrl()}${thumb.url}` : undefined,
+          width: vid.width,
+          height: vid.height,
+          format: vid.format,
+          size: vid.size,
+          // Server returns snake_case JSON; the structural assignment to
+          // VideoWireParams here crosses the wire-contract boundary.
+          params: result.params,
+          domain: domain,
+          timestamp: Date.now(),
+        });
+      }
     }
   } else if (domain === "upscale" || domain === "rembg") {
     const img = result.images[0];

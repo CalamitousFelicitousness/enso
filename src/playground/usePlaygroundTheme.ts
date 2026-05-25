@@ -27,7 +27,7 @@ export function usePlaygroundTheme() {
   const systemDark = useSyncExternalStore(subscribeSystemTheme, getSystemDark);
   const resolvedTheme = colorMode === "system" ? (systemDark ? "dark" : "light") : colorMode;
 
-  // Color mode — set/remove data-theme on <html>
+  // Color mode - set/remove data-theme on <html>
   useEffect(() => {
     if (resolvedTheme === "light") {
       document.documentElement.dataset["theme"] = "light";
@@ -39,7 +39,7 @@ export function usePlaygroundTheme() {
     };
   }, [resolvedTheme]);
 
-  // Accent color — set CSS custom properties
+  // Accent color - set CSS custom properties
   const accentProps = useMemo(() => {
     const fg = contrastText(accentColor);
     return {
@@ -65,7 +65,7 @@ export function usePlaygroundTheme() {
     };
   }, [accentProps]);
 
-  // UI scale — set root font size
+  // UI scale - set root font size
   useEffect(() => {
     document.documentElement.style.fontSize = `${uiScale}px`;
     return () => {

@@ -6,7 +6,6 @@ import {
   selectPendingCount,
 } from "@/stores/jobStore";
 import { useCanvasStore } from "@/stores/canvasStore";
-import { useImg2ImgStore } from "@/stores/img2imgStore";
 import {
   buildControlRequest,
   buildCloudImageRequest,
@@ -16,7 +15,7 @@ import {
 import { blobToBase64 } from "@/lib/image";
 import { snapshotUnits } from "@/stores/controlStore";
 import { useModelSelectionStore } from "@/stores/modelSelectionStore";
-import { useSubmitToQueue } from "@/hooks/useSubmitToQueue";
+import { useSubmitToQueue, UserAbortError } from "@/hooks/useSubmitToQueue";
 import { sendToJob } from "@/hooks/useJobTracker";
 import { useCancelJob } from "@/api/hooks/useJobs";
 import { Play, Square, SkipForward, History, ChevronDown, Layers, Grid3X3 } from "lucide-react";
@@ -42,7 +41,9 @@ export const ActionBar = memo(function ActionBar() {
   const detailerEnabled = useGenerationStore((s) => s.detailerEnabled);
   const detailerOnly = useGenerationStore((s) => s.detailerOnly);
   const detailerModelCount = useGenerationStore((s) => s.detailerModels.length);
-  const hasInputImage = useCanvasStore((s) => s.layers.some((l) => l.type === "image"));
+  const hasInputImage = useCanvasStore((s) =>
+    s.inputFrames.some((f) => f.mode === "initial" && f.layers.some((l) => l.type === "image")),
+  );
 
   const isActive = useJobQueueStore(selectGenerateActive);
   const runningJob = useJobQueueStore(selectRunningJob);
@@ -62,9 +63,17 @@ export const ActionBar = memo(function ActionBar() {
   const cancelJob = useCancelJob();
 
   const buildRequest = useCallback(async () => {
-    const { isCloud } = useModelSelectionStore.getState();
+    const { activeModel } = useModelSelectionStore.getState();
 
-    if (isCloud) {
+    // Active model belongs to the Video panel - refuse to build an image
+    // request from it. UserAbortError tells useSubmitToQueue to skip the
+    // "Failed to submit job" toast since we already surfaced guidance.
+    if (activeModel?.source === "local-video") {
+      toast.warning("Switch to Video view to use this model");
+      throw new UserAbortError("local-video model active on Images view");
+    }
+
+    if (activeModel?.source === "cloud") {
       const cloudRequest = await buildCloudImageRequest();
       clearSelection();
       return {
@@ -84,10 +93,13 @@ export const ActionBar = memo(function ActionBar() {
       };
     }
 
-    const isImg2Img = useCanvasStore.getState().layers.length > 0;
+    const canvasState = useCanvasStore.getState();
+    const primaryFrame = canvasState.inputFrames[0] ?? null;
+    const isImg2Img =
+      primaryFrame?.mode === "initial" && primaryFrame.layers.some((l) => l.type === "image");
     const { request, inputBlob } = await buildControlRequest();
     const inputImage = isImg2Img && inputBlob ? await blobToBase64(inputBlob) : undefined;
-    const maskLines = useImg2ImgStore.getState().maskLines;
+    const maskLines = primaryFrame?.mode === "initial" ? primaryFrame.maskLines : [];
     const inputMask = isImg2Img && maskLines.length > 0 ? maskLines.slice() : undefined;
     const controlUnits = await snapshotUnits();
     clearSelection();
@@ -141,7 +153,7 @@ export const ActionBar = memo(function ActionBar() {
   });
   useShortcut("skip", handleSkip);
 
-  // Command Palette entries — captured at mount, dispatched via current closure refs
+  // Command Palette entries - captured at mount, dispatched via current closure refs
   useRegisterCommand({
     id: "actions:generate",
     label: "Generate",

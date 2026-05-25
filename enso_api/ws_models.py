@@ -17,13 +17,7 @@ from typing import Annotated, Literal
 
 from pydantic import Field
 
-from enso_api.models import JobResult, StrictBaseModel
-
-JobStatus = Literal["pending", "running", "completed", "failed", "cancelled"]
-"""Job lifecycle state. Mirrors the TS ``JobStatus`` union in ``v2.ts``."""
-
-CloudJobPhase = Literal["submitted", "queued_remote", "processing", "downloading"]
-"""Cloud-executor progress phase. Mirrors ``CloudJobPhase`` in ``cloud.ts``."""
+from enso_api.models import CloudJobPhase, JobResult, JobStatus, StrictBaseModel
 
 
 class WsEventStatus(StrictBaseModel):
@@ -117,7 +111,7 @@ if __name__ == "__main__":
         WsEventProgress(step=5, steps=20, progress=0.25, eta=12.5, task="Base", stage=0, stage_name="Generate", stage_count=2, phase=None),
         WsEventCloudProgress(phase="processing", detail="Polling NanoGPT", progress=0.5, position=3, elapsed=8.0),
         WsEventStages(stages=["Generate", "Hires", "Detailer"]),
-        WsEventCompleted(result=JobResult()),
+        WsEventCompleted(result=JobResult(images=[], processed=[], videos=[], info={}, params={})),
         WsEventError(error="ValueError: bad input"),
         WsEventCancelled(),
         WsEventPing(),

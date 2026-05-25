@@ -17,6 +17,19 @@ class StrictBaseModel(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
+# --- Shared literal types ---
+
+
+JobStatus = Literal["pending", "running", "completed", "failed", "cancelled"]
+"""Job lifecycle state. Used by JobResponse, WsEventStatus, and any
+status-narrowing consumer on both sides of the wire."""
+
+
+CloudJobPhase = Literal["submitted", "queued_remote", "processing", "downloading"]
+"""Cloud-executor progress phase. Used by WsEventCloudProgress and the
+TS side's CloudJobPhase mirror in src/api/types/cloud.ts."""
+
+
 # --- Job request types live in enso_api/job_models.py and enso_api/cloud/models.py ---
 
 
@@ -34,20 +47,54 @@ class ImageRef(BaseModel):
     """Base64-encoded image bytes; populated only when ``shared.opts.api_v2_base64`` is enabled."""
 
 
+class VideoRef(BaseModel):
+    """One cloud-generated video plus its sibling thumbnail.
+
+    `thumbnail_url` is populated when the upstream orchestrator wrote a
+    `<video_path>.thumb.png` (best-effort, may be absent on extraction failure).
+    The video file itself is served from `url`; the thumbnail (when present)
+    from `thumbnail_url`. The Python-side stored ref dict also carries `path`
+    and `thumbnail_path` fields that the file-serving handlers read; those
+    are intentionally absent from this response model.
+    """
+
+    index: int
+    url: str
+    thumbnail_url: str | None = None
+    width: int = 0
+    height: int = 0
+    format: str = "mp4"
+    size: int = 0
+    duration: float | None = None
+
+
 class JobResult(BaseModel):
-    images: list[ImageRef] = Field(default_factory=list)
-    processed: list[ImageRef] = Field(default_factory=list)
-    info: dict = Field(default_factory=dict)
-    params: dict = Field(default_factory=dict)
+    """The result payload attached to a completed JobResponse.
+
+    All list / dict fields are required because the server always emits
+    them. Empty collections still serialize correctly; the requirement
+    is that the field is present in the payload."""
+
+    images: list[ImageRef]
+    processed: list[ImageRef]
+    videos: list[VideoRef]
+    info: dict
+    params: dict
 
 
 class JobResponse(BaseModel):
+    """A job row as returned by the GET /jobs/{id} and /jobs endpoints.
+
+    progress/step/steps are required because the server always emits them
+    (zeroed on pending jobs). Nullable fields (started_at, completed_at,
+    error, eta, result) stay optional to model the genuine null case."""
+
     id: str
     type: str
-    status: str
-    progress: float = 0
-    step: int = 0
-    steps: int = 0
+    status: JobStatus
+    progress: float
+    step: int
+    steps: int
     eta: float | None = None
     created_at: str
     started_at: str | None = None

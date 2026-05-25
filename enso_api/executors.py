@@ -40,7 +40,7 @@ DETAILER_OVERRIDE_FIELDS = (
     # Mirrors p.detailer_* attributes that YoloRestorer reads via either
     # direct p.detailer_X access or detailer_opt(p, 'detailer_X'). Patching
     # any of these between iterations sticks for that iteration's detect/
-    # inpaint pass. Note: cfg_scale is intentionally excluded — there is no
+    # inpaint pass. Note: cfg_scale is intentionally excluded - there is no
     # p.detailer_cfg_scale; YoloRestorer only injects it via the colon-string
     # args.update path which V2 escapes by design.
     "strength",

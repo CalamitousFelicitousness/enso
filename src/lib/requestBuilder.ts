@@ -10,11 +10,11 @@ import type { GenerationResult, GenerationState } from "@/stores/generationStore
 import { useScriptStore } from "@/stores/scriptStore";
 import { useControlStore, resolveUnitImage } from "@/stores/controlStore";
 import { useImg2ImgStore } from "@/stores/img2imgStore";
-import { useCanvasStore, type ImageLayer } from "@/stores/canvasStore";
+import { useCanvasStore, type ImageLayer, type MaskObjectLayer } from "@/stores/canvasStore";
 import { useUiStore } from "@/stores/uiStore";
 import { exportMask } from "@/lib/exportMask";
 import { flattenCanvas, compositeControlImage, compositeFitImage } from "@/lib/flattenCanvas";
-import { uploadFiles, uploadBlob } from "@/lib/upload";
+import { uploadFiles, uploadBlob, uploadFile } from "@/lib/upload";
 import { REFERENCE_HEIGHT } from "@/canvas/useControlFrameLayout";
 import { resolveGenerationSize } from "@/lib/sizeCompute";
 import type { SizeMode } from "@/lib/sizeCompute";
@@ -29,7 +29,7 @@ export interface BuildResult {
 }
 
 /** Strip undefined-valued keys so the wire payload stays minimal.
- * Empty-string text fields are treated as "inherit" too — the V2 schema
+ * Empty-string text fields are treated as "inherit" too - the V2 schema
  * uses absence to mean inheritance, and an empty override is meaningless. */
 function stripUndefined<T extends object>(obj: T): Partial<T> {
   const out: Record<string, unknown> = {};
@@ -58,8 +58,20 @@ export async function buildControlRequest(): Promise<BuildResult> {
   const canvas = useCanvasStore.getState();
   const ui = useUiStore.getState();
 
-  const hasInputImage = canvas.getImageLayers().length > 0;
-  const inputRole = canvas.inputRole;
+  // Read input state from the first inputFrame (single-Initial /
+  // single-Reference on the local SD.Next path - multi-Initial out of
+  // scope per plan, multi-Reference falls through to the first Reference
+  // frame until the local backend grows a multi-image surface).
+  const primaryFrame = canvas.inputFrames[0] ?? null;
+  const primaryLayers =
+    primaryFrame?.layers.filter((l): l is ImageLayer => l.type === "image" && l.visible) ?? [];
+  const primaryMaskLines = primaryFrame?.maskLines ?? [];
+  const primaryMaskData = primaryFrame?.maskData ?? null;
+  const primaryMaskObjects =
+    primaryFrame?.layers.filter((l): l is MaskObjectLayer => l.type === "mask") ?? [];
+  const primaryReferences = primaryFrame?.references ?? [];
+  const hasInputImage = primaryLayers.length > 0;
+  const inputRole = primaryFrame?.mode ?? "initial";
   const isImg2Img = hasInputImage && inputRole === "initial";
 
   const request: ControlRequest = {
@@ -337,16 +349,30 @@ export async function buildControlRequest(): Promise<BuildResult> {
     );
   }
 
-  // Reference mode: flatten layers → upload → init_control (no denoising, no mask)
+  // Reference mode: upload source file raw via inputs - no flatten, no resize.
+  // Server-side resize_init_images snaps to VAE alignment and overrides p.width/p.height
+  // to the image's dimensions, so edit models (Klein/Kontext/Qwen Edit) and img2img
+  // pipelines all receive the image at native resolution. init_control would silently
+  // discard the image when no control units are active.
   let inputBlob: Blob | undefined;
-  if (hasInputImage && inputRole === "reference") {
-    const imageLayers = canvas.layers.filter((l): l is ImageLayer => l.type === "image");
-    const flattenedBlob = await flattenCanvas(imageLayers, gen.width, gen.height);
-    if (flattenedBlob) {
-      inputBlob = flattenedBlob;
-      const ref = await uploadBlob(flattenedBlob, "input.png");
-      request.init_control = [...(request.init_control ?? []), ref];
-    }
+  if (inputRole === "reference" && primaryReferences.length > 0) {
+    // Reference mode: upload each reference child raw. Local SD.Next
+    // typically consumes the first via inputs[0]; multi-reference on the
+    // local backend isn't generally supported, but emitting all refs in
+    // wire order keeps the door open for backends that grow it.
+    const refIds = await Promise.all(primaryReferences.map((r) => uploadFile(r.file)));
+    request.inputs = refIds;
+    request.input_type = 1;
+    inputBlob = primaryReferences[0].file;
+  } else if (inputRole === "reference" && hasInputImage) {
+    // Reference mode with empty filmstrip but a visible image layer
+    // (legacy fallback during the transitional window). Upload the
+    // first layer's File raw.
+    const layer = primaryLayers[0];
+    const ref = await uploadFile(layer.file);
+    inputBlob = layer.file;
+    request.inputs = [ref];
+    request.input_type = 1;
   }
 
   // img2img: add inputs, mask, inpainting params
@@ -367,9 +393,10 @@ export async function buildControlRequest(): Promise<BuildResult> {
     request.height_before = genSize.height;
     request.input_type = 1;
 
-    // Flatten all image layers at full frame size
-    const imageLayers = canvas.layers.filter((l): l is ImageLayer => l.type === "image");
-    const flattenedBlob = await flattenCanvas(imageLayers, frameW, frameH);
+    // Flatten the primary frame's image layers at full frame size.
+    // sources layers from inputFrames[0].layers; multi-Initial on the
+    // local SD.Next path is out of scope per plan.
+    const flattenedBlob = await flattenCanvas(primaryLayers, frameW, frameH);
     if (flattenedBlob) {
       inputBlob = flattenedBlob;
       const ref = await uploadBlob(flattenedBlob, "input.png");
@@ -384,15 +411,19 @@ export async function buildControlRequest(): Promise<BuildResult> {
       request.resize_name_before = img2img.resizeMethod;
     }
 
-    // Export mask from mask objects + painted strokes if no explicit maskData
+    // Export mask from the primary frame's per-frame mask state.
+    // primaryMaskData (a pre-rendered dataURL) wins if present; otherwise
+    // composite the frame's mask objects + any uncommitted stroke buffer.
     let maskBlob: Blob | null;
-    if (img2img.maskData) {
-      // maskData is already a base64 string from external source - convert to Blob and upload
-      const resp = await fetch(`data:image/png;base64,${img2img.maskData}`);
+    if (primaryMaskData) {
+      const resp = await fetch(
+        primaryMaskData.startsWith("data:")
+          ? primaryMaskData
+          : `data:image/png;base64,${primaryMaskData}`,
+      );
       maskBlob = await resp.blob();
     } else {
-      // exportMask composites mask objects + any pending strokes
-      maskBlob = await exportMask(img2img.maskLines, frameW, frameH);
+      maskBlob = await exportMask(primaryMaskObjects, primaryMaskLines, frameW, frameH);
     }
     if (maskBlob) {
       request.mask = await uploadBlob(maskBlob, "mask.png");
@@ -427,7 +458,10 @@ export async function buildDetailRequest(): Promise<BuildDetailResult> {
   const gen = useGenerationStore.getState();
   const canvas = useCanvasStore.getState();
 
-  const imageLayers = canvas.layers.filter((l): l is ImageLayer => l.type === "image");
+  // Detail-only sources the first Initial frame's layers (matches the
+  // chrome's focused-frame model).
+  const primaryFrame = canvas.inputFrames[0] ?? null;
+  const imageLayers = primaryFrame?.layers.filter((l): l is ImageLayer => l.type === "image") ?? [];
   if (imageLayers.length === 0) {
     throw new Error("Detail only requires an image on the canvas");
   }
@@ -710,17 +744,22 @@ export function restoreFromResult(result: GenerationResult): void {
   const p = result.parameters;
   const num = (v: unknown, fallback: number) => (typeof v === "number" ? v : fallback);
 
-  // Restore input image and mask if present (img2img history)
+  // Restore input image and mask if present (img2img history). Target the
+  // focused Input frame so the user can compare against their current
+  // working state; falls back to the first Input frame if none focused.
   if (result.inputImage) {
     const w = num(p.width_before ?? p.width, 1024);
     const h = num(p.height_before ?? p.height, 1024);
-    useCanvasStore.getState().restoreImageLayer(result.inputImage, w, h);
+    const canvas = useCanvasStore.getState();
+    const targetFrameId = canvas.activeInputFrameId ?? canvas.inputFrames[0]?.id ?? null;
+    if (targetFrameId) {
+      canvas.restoreImageLayerToFrame(targetFrameId, result.inputImage, w, h);
 
-    if (result.inputMask && result.inputMask.length > 0) {
-      const img2imgState = useImg2ImgStore.getState();
-      img2imgState.clearMask();
-      for (const line of result.inputMask) {
-        img2imgState.addMaskLine(line);
+      if (result.inputMask && result.inputMask.length > 0) {
+        canvas.clearMaskLinesInFrame(targetFrameId);
+        for (const line of result.inputMask) {
+          canvas.addMaskLineToFrame(targetFrameId, line);
+        }
       }
     }
   }
@@ -757,8 +796,23 @@ export async function buildCloudImageRequest(): Promise<CloudImageJobParams> {
   const frameW = gen.width;
   const frameH = gen.height;
 
-  const imageLayers = canvas.layers.filter((l): l is ImageLayer => l.type === "image" && l.visible);
-  const isImg2Img = imageLayers.length > 0;
+  // walk inputFrames in order, building the wire images list.
+  // Initial frames with visible images contribute one flattened+optimized
+  // blob each; Reference frames contribute N raw-uploaded refs (no flatten,
+  // no provider optimization). The primary (first contributing Initial)
+  // frame determines strength + mask. Mixed Initial+Reference works -
+  // user's "paint Image 1, point at Image 2 as reference" workflow.
+
+  // Resolve the primary Initial frame up front so size + autoSize gating
+  // can lock to the user's intent. Reference-only generations don't have
+  // a strength surface, so isImg2Img is false in that case.
+  const firstInitialFrame =
+    canvas.inputFrames.find(
+      (f) =>
+        f.mode === "initial" &&
+        f.layers.some((l) => l.type === "image" && (l as ImageLayer).visible),
+    ) ?? null;
+  const isImg2Img = firstInitialFrame !== null;
 
   const effectiveSizeMode: SizeMode = isImg2Img ? img2img.sizeMode : "fixed";
   const targetSize = resolveGenerationSize(
@@ -769,12 +823,21 @@ export async function buildCloudImageRequest(): Promise<CloudImageJobParams> {
     img2img.megapixelTarget,
   );
 
+  // Auto-size modifier: when on, send size="auto" regardless of the model's
+  // codified allow_auto value. sdnext's adapter translates per the model's
+  // size_constraint.auto_wire when present (literal/omit/default), and the
+  // provider is the source of truth about whether "auto" is accepted. Soft
+  // pre-flight logs the mismatch via telemetry but lets the
+  // request through so the user gets a real provider response.
+  const autoEnabled = img2img.autoSize;
+  const sizeValue = autoEnabled ? "auto" : `${targetSize.width}x${targetSize.height}`;
+
   const request: CloudImageJobParams = {
     type: "cloud_image",
     provider: model.provider,
     model: model.id,
     prompt: gen.prompt,
-    size: `${targetSize.width}x${targetSize.height}`,
+    size: sizeValue,
   };
 
   if (gen.negativePrompt) request.negative_prompt = gen.negativePrompt;
@@ -783,46 +846,93 @@ export async function buildCloudImageRequest(): Promise<CloudImageJobParams> {
   if (gen.cfgScale !== 7) request.guidance = gen.cfgScale;
   if (gen.steps !== 20) request.steps = gen.steps;
 
-  if (isImg2Img) {
+  // Track the primary Initial frame's optimized dimensions for mask resize.
+  let primaryOptimizedDims: { width: number; height: number } | null = null;
+  const imageRefs: string[] = [];
+
+  for (const frame of canvas.inputFrames) {
+    if (frame.mode === "initial") {
+      const visible = frame.layers.filter((l): l is ImageLayer => l.type === "image" && l.visible);
+      if (visible.length === 0) continue;
+      // Flatten + optimize + upload this Initial frame's layers.
+      let imageBlob = await flattenCanvas(visible, frameW, frameH);
+      if (!imageBlob) continue;
+      const needsResize = targetSize.width !== frameW || targetSize.height !== frameH;
+      if (needsResize) {
+        imageBlob = await resizeBlob(imageBlob, targetSize.width, targetSize.height);
+      }
+      const limits = getInputLimits(model.provider, model.id);
+      const optimized = await optimizeImageForProvider(imageBlob, limits, model.provider);
+      const filename = `cloud-input.${optimized.format}`;
+      const ref = await uploadBlob(optimized.blob, filename);
+      imageRefs.push(ref);
+      if (frame === firstInitialFrame) {
+        primaryOptimizedDims = optimized.dimensions;
+        // The first Initial frame's optimized dimensions can differ from the
+        // user-set size when the provider's input limits clip aspect or
+        // longest-side. Echo those dims into request.size unless the caller
+        // explicitly asked for size="auto".
+        if (
+          !autoEnabled &&
+          (optimized.dimensions.width !== targetSize.width ||
+            optimized.dimensions.height !== targetSize.height)
+        ) {
+          request.size = `${optimized.dimensions.width}x${optimized.dimensions.height}`;
+        }
+      }
+    } else {
+      // Reference frame: raw-upload each child in wire order (no flatten,
+      // no optimization - sdnext's adapter dispatches per-provider).
+      for (const refInput of frame.references) {
+        const ref = await uploadFile(refInput.file);
+        imageRefs.push(ref);
+      }
+      // Reference frame with no refs but a visible image layer (legacy
+      // fallback during the transitional window after toggling to
+      // Reference but before the user appended any refs).
+      if (frame.references.length === 0) {
+        const fallbackImage = frame.layers.find(
+          (l): l is ImageLayer => l.type === "image" && l.visible,
+        );
+        if (fallbackImage) {
+          const ref = await uploadFile(fallbackImage.file);
+          imageRefs.push(ref);
+        }
+      }
+    }
+  }
+
+  if (imageRefs.length === 0) {
+    // No input images - pure txt2img. Return without setting image/images.
+    return request;
+  }
+
+  request.images = imageRefs;
+
+  if (firstInitialFrame) {
+    // Strength + mask apply when an Initial frame contributes; mask pairs
+    // with the primary Initial frame's first slot.
     request.strength = gen.denoisingStrength;
-
-    let imageBlob = await flattenCanvas(imageLayers, frameW, frameH);
-    if (!imageBlob) return request;
-
-    const needsResize = targetSize.width !== frameW || targetSize.height !== frameH;
-    if (needsResize) {
-      imageBlob = await resizeBlob(imageBlob, targetSize.width, targetSize.height);
-    }
-
-    const limits = getInputLimits(model.provider, model.id);
-    const optimized = await optimizeImageForProvider(imageBlob, limits, model.provider);
-
-    const filename = `cloud-input.${optimized.format}`;
-    const imageRef = await uploadBlob(optimized.blob, filename);
-    request.image = imageRef;
-
-    if (
-      optimized.dimensions.width !== targetSize.width ||
-      optimized.dimensions.height !== targetSize.height
-    ) {
-      request.size = `${optimized.dimensions.width}x${optimized.dimensions.height}`;
-    }
-
-    const maskLines = img2img.maskLines;
-    if (maskLines.length > 0) {
-      let maskBlob = await exportMask(maskLines, frameW, frameH);
+    const maskLines = firstInitialFrame.maskLines;
+    const maskObjects = firstInitialFrame.layers.filter(
+      (l): l is MaskObjectLayer => l.type === "mask",
+    );
+    if (maskLines.length > 0 || maskObjects.length > 0) {
+      let maskBlob = await exportMask(maskObjects, maskLines, frameW, frameH);
+      const needsResize = targetSize.width !== frameW || targetSize.height !== frameH;
       if (maskBlob && needsResize) {
         maskBlob = await resizeBlob(maskBlob, targetSize.width, targetSize.height);
       }
       if (
         maskBlob &&
-        (optimized.dimensions.width !== targetSize.width ||
-          optimized.dimensions.height !== targetSize.height)
+        primaryOptimizedDims &&
+        (primaryOptimizedDims.width !== targetSize.width ||
+          primaryOptimizedDims.height !== targetSize.height)
       ) {
         maskBlob = await resizeBlob(
           maskBlob,
-          optimized.dimensions.width,
-          optimized.dimensions.height,
+          primaryOptimizedDims.width,
+          primaryOptimizedDims.height,
         );
       }
       if (maskBlob) {
@@ -830,6 +940,37 @@ export async function buildCloudImageRequest(): Promise<CloudImageJobParams> {
         request.mask = maskRef;
       }
     }
+  }
+
+  return request;
+}
+
+// --- Cloud video request builder ---
+
+import { useVideoStore } from "@/stores/videoStore";
+import { supportsImageToVideo } from "@/lib/cloudVideo";
+import type { CloudVideoJobParams } from "@/api/types/cloud";
+
+export async function buildCloudVideoRequest(): Promise<CloudVideoJobParams> {
+  const { activeModel } = useModelSelectionStore.getState();
+  const video = useVideoStore.getState();
+  // VideoPanel.canGenerate guards entry on isCloudVideoModel(activeModel), so
+  // the cast is safe here. If we're called with a non-cloud-video model,
+  // payload.provider/model end up empty and the backend rejects with 4xx.
+  const model = activeModel as CloudModel;
+
+  const request: CloudVideoJobParams = {
+    type: "cloud_video",
+    provider: model.provider,
+    model: model.id,
+    prompt: video.prompt,
+  };
+
+  if (video.cloudAspectRatio) request.aspect_ratio = video.cloudAspectRatio;
+  if (video.cloudDuration > 0) request.duration = video.cloudDuration;
+
+  if (video.initImage && supportsImageToVideo(model)) {
+    request.image = await uploadFile(video.initImage);
   }
 
   return request;

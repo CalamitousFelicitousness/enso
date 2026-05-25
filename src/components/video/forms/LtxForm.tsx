@@ -1,19 +1,13 @@
-import { useMemo, useCallback } from "react";
-import { Loader2 } from "lucide-react";
-import { toast } from "sonner";
 import { useVideoStore } from "@/stores/videoStore";
-import { useVideoEngines, useLoadVideoModel } from "@/api/hooks/useVideo";
 import { ParamSlider } from "@/components/generation/ParamSlider";
 import { ParamGrid } from "@/components/generation/ParamRow";
 import { SectionLeader } from "@/components/ui/section-leader";
-import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { Combobox } from "@/components/ui/combobox";
 import { VideoOutputSection } from "./VideoOutputSection";
 import { VideoPresetSelector } from "../VideoPresetSelector";
 
-export function LtxVideoTab() {
-  const ltxModel = useVideoStore((s) => s.ltxModel);
+// LTX-specific form. Model is picked in the top-level ModelSelector (Video
+// view); this form owns the LTX param surface only.
+export function LtxForm() {
   const width = useVideoStore((s) => s.width);
   const height = useVideoStore((s) => s.height);
   const frames = useVideoStore((s) => s.frames);
@@ -29,53 +23,9 @@ export function LtxVideoTab() {
   const ltxAudioEnable = useVideoStore((s) => s.ltxAudioEnable);
   const setParam = useVideoStore((s) => s.setParam);
 
-  const { data: engines } = useVideoEngines();
-  const loadModel = useLoadVideoModel();
-
-  const ltxModels = useMemo(() => {
-    if (!engines) return [];
-    const eng = engines.find((e) => e.engine === "LTX Video");
-    return eng?.models ?? [];
-  }, [engines]);
-
-  const handleLoad = useCallback(() => {
-    if (!ltxModel) return;
-    loadModel.mutate(
-      { engine: "LTX Video", model: ltxModel },
-      {
-        onSuccess: () => toast.success(`Loaded ${ltxModel}`),
-        onError: (err) => toast.error("Failed to load LTX model", { description: err.message }),
-      },
-    );
-  }, [ltxModel, loadModel]);
-
   return (
     <div className="space-y-1">
       <VideoPresetSelector domain="ltx" />
-      <SectionLeader title="Model" collapsible>
-        <div className="space-y-1.5">
-          <div className="flex items-center gap-2">
-            <Label className="text-2xs text-muted-foreground w-16 shrink-0">Model</Label>
-            <Combobox
-              value={ltxModel}
-              onValueChange={(v) => setParam("ltxModel", v)}
-              options={ltxModels}
-              placeholder="Select LTX model..."
-              className="h-6 text-2xs flex-1"
-            />
-          </div>
-          <Button
-            size="sm"
-            variant="secondary"
-            onClick={handleLoad}
-            disabled={!ltxModel || loadModel.isPending}
-            className="w-full"
-          >
-            {loadModel.isPending ? <Loader2 size={14} className="animate-spin" /> : null}
-            Load Model
-          </Button>
-        </div>
-      </SectionLeader>
 
       <SectionLeader title="Size" collapsible defaultCollapsed>
         <ParamGrid>

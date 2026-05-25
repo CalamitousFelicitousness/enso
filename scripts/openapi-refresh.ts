@@ -3,10 +3,10 @@
  *
  * Run with `npm run codegen:refresh` after changing any Pydantic model in
  * `enso_api/`. The script:
- *   1. Resolves the backend port via {@link detectBackendPort}.
- *   2. Fetches `/openapi.json`.
- *   3. Filters to `/sdapi/v2/*` paths, prunes unreferenced schemas, sorts keys.
- *   4. Writes the snapshot if it changed (no-op if identical).
+ * 1. Resolves the backend port via {@link detectBackendPort}.
+ * 2. Fetches `/openapi.json`.
+ * 3. Filters to `/sdapi/v2/*` paths, prunes unreferenced schemas, sorts keys.
+ * 4. Writes the snapshot if it changed (no-op if identical).
  *
  * The snapshot IS committed to the repo. The downstream `vite/codegen-openapi.ts`
  * step regenerates `src/lib/openapi-generated/` (gitignored) on every dev/build.

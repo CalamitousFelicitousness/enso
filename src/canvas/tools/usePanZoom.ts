@@ -55,7 +55,7 @@ export function usePanZoom(
       const newX = pointer.x - mousePointTo.x * newScale;
       const newY = pointer.y - mousePointTo.y * newScale;
 
-      // Imperative Konva update — no React re-render
+      // Imperative Konva update - no React re-render
       stage.x(newX);
       stage.y(newY);
       stage.scaleX(newScale);
@@ -109,7 +109,7 @@ export function usePanZoom(
       const newX = stage.x() + dx;
       const newY = stage.y() + dy;
 
-      // Imperative Konva update — no React re-render
+      // Imperative Konva update - no React re-render
       stage.x(newX);
       stage.y(newY);
       stage.batchDraw();

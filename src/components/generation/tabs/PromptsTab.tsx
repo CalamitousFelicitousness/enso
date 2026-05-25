@@ -2,6 +2,7 @@ import { useMemo, useState, useCallback } from "react";
 import { useGenerationStore } from "@/stores/generationStore";
 import { useUiStore } from "@/stores/uiStore";
 import { useImg2ImgStore } from "@/stores/img2imgStore";
+import { useCanvasStore } from "@/stores/canvasStore";
 import { useIsImg2Img } from "@/hooks/useIsImg2Img";
 import { useModelSelectionStore } from "@/stores/modelSelectionStore";
 import { useShallow } from "zustand/react/shallow";
@@ -12,7 +13,8 @@ import { Link2Off, ArrowLeftRight, ChevronDown, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { resolveGenerationSize, formatMegapixels } from "@/lib/sizeCompute";
 import type { SizeMode } from "@/lib/sizeCompute";
-import type { CloudModel, ParamDescriptor } from "@/api/types/cloud";
+import type { ParamDescriptor } from "@/api/types/cloud";
+import type { GenerationInfo } from "@/api/types/generation";
 import { PromptEditor } from "../PromptEditor";
 import { ParamSlider } from "../ParamSlider";
 import { SectionLeader, SectionDivider } from "@/components/ui/section-leader";
@@ -92,18 +94,140 @@ export function PromptsTab() {
   const setMegapixelTarget = useImg2ImgStore((s) => s.setMegapixelTarget);
   const resizeMethod = useImg2ImgStore((s) => s.resizeMethod);
   const setResizeMethod = useImg2ImgStore((s) => s.setResizeMethod);
+  const autoSize = useImg2ImgStore((s) => s.autoSize);
+  const setAutoSize = useImg2ImgStore((s) => s.setAutoSize);
   const upscalerGroups = useUpscalerGroups({ excludeLatent: true });
   const { data: aspectOpts } = useOptionsSubset(["aspect_ratios"]);
-  const { isCloud, activeModel } = useModelSelectionStore(
-    useShallow((s) => ({ isCloud: s.isCloud, activeModel: s.activeModel })),
-  );
+  const activeModel = useModelSelectionStore((s) => s.activeModel);
   const cloudSizePresets = useMemo(() => {
-    if (!isCloud) return null;
+    // Narrow inside the closure so `.supported_params` and `.size_constraint`
+    // access is type-safe and doesn't leak into non-cloud model branches
+    // (local-video has no such fields).
+    if (!activeModel || activeModel.source !== "cloud") return null;
+
+    //.5: size_constraint is authoritative when present.
+    const sc = activeModel.size_constraint;
+    if (sc?.kind === "enum" && sc.options.length > 0) {
+      const presets: AbsoluteSizePreset[] = [];
+      for (const opt of sc.options) {
+        const [w, h] = opt.split("x").map(Number);
+        if (w > 0 && h > 0) presets.push({ label: opt, w, h });
+      }
+      return presets.length > 0 ? presets : null;
+    }
+    if (sc?.kind === "bucket" && sc.options.length > 0) {
+      // Bucket: labels are symbolic; resolve provides display hints.
+      // TODO: send the symbolic label on the wire instead of the resolved WxH
+      //. Requires plumbing an activeBucketSymbol state
+      // through to buildCloudImageRequest. No priority models use bucket today
+      // (NanoGPT catalogue codifies as enum), so deferred.
+      const presets: AbsoluteSizePreset[] = [];
+      for (const opt of sc.options) {
+        const resolved = sc.resolve[opt];
+        if (resolved) presets.push({ label: opt, w: resolved.w, h: resolved.h });
+      }
+      return presets.length > 0 ? presets : null;
+    }
+    if (sc?.kind === "free") {
+      // Free: no preset list. Width/Height inputs only.
+      // TODO: surface min/max/align validation indicators when a model uses this shape.
+      return null;
+    }
+
+    // Pre-Phase-2.5 fallback: supported_params enum, then GENERIC list.
+    return parseSizeOptions(activeModel.supported_params ?? null) ?? GENERIC_CLOUD_PRESETS;
+  }, [activeModel]);
+
+  // Auto button is always clickable on cloud models. The provider is the
+  // source of truth about what `size` values it accepts; if our codified
+  // allow_auto is wrong (stale catalog, undocumented support), the user
+  // should still be able to try it and let the server respond. sdnext's
+  // soft pre-flight logs the mismatch via telemetry; the
+  // provider's 400 surfaces via the job-error path. autoAllowedHint is
+  // tooltip-only: when explicitly false, the tooltip warns that the
+  // model's catalog doesn't advertise auto support.
+  const autoAllowedHint = useMemo(() => {
+    if (!activeModel || activeModel.source !== "cloud") return true;
+    const sc = activeModel.size_constraint;
+    if (sc == null) return true;
+    return sc.allow_auto;
+  }, [activeModel]);
+
+  // Echoed-size surfacing: when the server returns dims
+  // that differ from what was requested (auto resolution, align-snap, bucket
+  // resolve, local hires-fix output), show them so the user isn't confused
+  // about why their image is a different size than the controls say.
+  const lastResult = useGenerationStore((s) => s.results[0]);
+  const lastInfo = useMemo<GenerationInfo | null>(() => {
+    if (!lastResult?.info) return null;
+    try {
+      return JSON.parse(lastResult.info) as GenerationInfo;
+    } catch {
+      return null;
+    }
+  }, [lastResult]);
+  const lastResultSize = useMemo(() => {
+    if (!lastInfo) return null;
+    const w = lastInfo.width;
+    const h = lastInfo.height;
+    if (typeof w !== "number" || typeof h !== "number") return null;
+    if (w <= 0 || h <= 0) return null;
+    if (w === state.width && h === state.height) return null;
+    return { w, h };
+  }, [lastInfo, state.width, state.height]);
+
+  // Reference mode on local models sends the source file raw via `inputs`. The
+  // server's resize_init_images then overrides p.width/p.height to match the
+  // image, so Size is informational here. Cloud models honor request.size
+  // independently of the image, so they're never advisory. With multi-Input
+  // frames the advisory only fires when every populated frame is Reference -
+  // a single Initial frame is enough to honor the user-set Size.
+  const inputFrames = useCanvasStore((s) => s.inputFrames);
+  const firstReferenceImage = useMemo(() => {
+    for (const f of inputFrames) {
+      if (f.mode === "reference" && f.references.length > 0) {
+        return f.references[0];
+      }
+    }
+    return null;
+  }, [inputFrames]);
+  const hasAnyInitialImage = useMemo(
+    () =>
+      inputFrames.some(
+        (f) => f.mode === "initial" && f.layers.some((l) => l.type === "image" && l.visible),
+      ),
+    [inputFrames],
+  );
+  const isCloud = activeModel != null && activeModel.source === "cloud";
+  const referenceInactive =
+    firstReferenceImage != null && !hasAnyInitialImage && activeModel != null && !isCloud;
+  // Auto dims Size whenever the user toggle is on (cloud). The provider may
+  // still reject the auto value at submission time; that's caught via the
+  // job-error path, not by client-side UI suppression.
+  const autoInactive = isCloud && autoSize;
+  const sizeIsAdvisory = referenceInactive || autoInactive;
+  const sizeTooltip = useMemo(() => {
+    const base = "Output dimensions in pixels.";
+    const notes: string[] = [];
+    if (autoInactive) {
+      notes.push(
+        "Auto modifier is on &mdash; the server picks output dimensions. " +
+          "Turn Auto off to control output size.",
+      );
+    }
+    if (referenceInactive && firstReferenceImage) {
+      notes.push(
+        "Inactive in Reference mode on local models &mdash; " +
+          `output resolution is set by the input image ` +
+          `(${firstReferenceImage.naturalWidth}&times;${firstReferenceImage.naturalHeight}). ` +
+          "Switch to Initial to control output size.",
+      );
+    }
+    if (notes.length === 0) return base;
     return (
-      parseSizeOptions((activeModel as CloudModel)?.supported_params ?? null) ??
-      GENERIC_CLOUD_PRESETS
+      `${base}<br><br>` + notes.map((n) => `<span style="opacity:0.7">${n}</span>`).join("<br><br>")
     );
-  }, [isCloud, activeModel]);
+  }, [autoInactive, referenceInactive, firstReferenceImage]);
   const aspectPresets = useMemo(
     () =>
       parseAspectRatios(
@@ -253,218 +377,275 @@ export function PromptsTab() {
       <SectionLeader
         title="Size"
         collapsible
+        tooltip={sizeTooltip}
         action={
-          isImg2Img ? (
-            <Button
-              variant={autoFitFrame ? "default" : "outline"}
-              size="sm"
-              onClick={() => setAutoFitFrame(!autoFitFrame)}
-              className="h-5 px-1.5 text-3xs rounded"
-              title={
-                autoFitFrame
-                  ? "Auto: dropping the first image onto an empty canvas resizes the frame to match that image's dimensions"
-                  : "Manual: frame stays at the width and height you set, regardless of image size"
-              }
-            >
-              Auto
-            </Button>
+          isImg2Img || isCloud ? (
+            <div className="flex items-center gap-1">
+              {isImg2Img && (
+                <Button
+                  variant={autoFitFrame ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setAutoFitFrame(!autoFitFrame)}
+                  className="h-5 px-1.5 text-3xs rounded"
+                  title={
+                    autoFitFrame
+                      ? "Fit on: dropping the first image onto an empty canvas resizes the frame to match that image's dimensions"
+                      : "Fit off: frame stays at the width and height you set, regardless of image size"
+                  }
+                >
+                  Fit
+                </Button>
+              )}
+              {isCloud && (
+                <Button
+                  variant={autoSize ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setAutoSize(!autoSize)}
+                  className="h-5 px-1.5 text-3xs rounded"
+                  title={
+                    (autoSize
+                      ? "Auto on: server picks output dimensions. Size controls are inactive."
+                      : "Auto off: you control output dimensions via Width and Height below.") +
+                    (autoAllowedHint
+                      ? ""
+                      : " This model's catalog does not advertise Auto support; the request may be rejected.")
+                  }
+                >
+                  Auto
+                </Button>
+              )}
+            </div>
           ) : undefined
         }
       >
-        {/* Size mode pill selector (img2img + auto-fit only) */}
-        {showSizeModes && (
-          <SegmentedControl
-            options={[
-              { value: "fixed", label: "Fixed" },
-              { value: "scale", label: "Scale" },
-              { value: "megapixel", label: "Megapixel" },
-            ]}
-            value={sizeMode}
-            onValueChange={(v) => setSizeMode(v)}
-            animated
-          />
-        )}
+        <div
+          className={cn("flex flex-col gap-2 transition-opacity", sizeIsAdvisory && "opacity-60")}
+          title={sizeIsAdvisory ? sizeTooltip.replace(/<[^>]*>/g, "") : undefined}
+        >
+          {/* Size mode pill selector (img2img + auto-fit only) */}
+          {showSizeModes && (
+            <SegmentedControl
+              options={[
+                { value: "fixed", label: "Fixed" },
+                { value: "scale", label: "Scale" },
+                { value: "megapixel", label: "Megapixel" },
+              ]}
+              value={sizeMode}
+              onValueChange={(v) => setSizeMode(v)}
+              animated
+            />
+          )}
 
-        {/* Width / Height row */}
-        <div data-param="width" className="flex items-center gap-2">
-          <ParamLabel className="text-2xs text-muted-foreground shrink-0">Width</ParamLabel>
-          <NumberInput
-            value={isFixed ? state.width : genSize.width}
-            onChange={setWidth}
-            step={8}
-            min={64}
-            max={4096}
-            fallback={512}
-            disabled={!isFixed}
-            className="flex-1 min-w-12 h-6 text-2xs text-center px-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-          />
+          {/* Width / Height row */}
+          <div data-param="width" className="flex items-center gap-2">
+            <ParamLabel className="text-2xs text-muted-foreground shrink-0">Width</ParamLabel>
+            <NumberInput
+              value={isFixed ? state.width : genSize.width}
+              onChange={setWidth}
+              step={8}
+              min={64}
+              max={4096}
+              fallback={512}
+              disabled={!isFixed}
+              className="flex-1 min-w-12 h-6 text-2xs text-center px-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+            />
 
-          <Popover open={aspectOpen} onOpenChange={setAspectOpen}>
-            <PopoverTrigger asChild>
-              <button
-                type="button"
-                disabled={!isFixed}
-                className={cn(
-                  "inline-flex items-center justify-center gap-0 h-6 shrink-0 rounded-md transition-colors",
-                  "hover:bg-accent hover:text-accent-foreground",
-                  "disabled:pointer-events-none disabled:opacity-50",
-                  aspectLocked ? "text-primary px-1" : "text-muted-foreground px-1",
-                  cloudSizePresets ? "w-auto min-w-9" : "w-9",
-                )}
-                title={
-                  cloudSizePresets
-                    ? aspectLocked
-                      ? `Size: ${activePreset}`
-                      : "Select output size"
-                    : aspectLocked
-                      ? `Aspect ratio locked to ${activePreset}`
-                      : "Select aspect ratio preset"
-                }
+            <Popover open={aspectOpen} onOpenChange={setAspectOpen}>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  disabled={!isFixed}
+                  className={cn(
+                    "inline-flex items-center justify-center gap-0 h-6 shrink-0 rounded-md transition-colors",
+                    "hover:bg-accent hover:text-accent-foreground",
+                    "disabled:pointer-events-none disabled:opacity-50",
+                    aspectLocked ? "text-primary px-1" : "text-muted-foreground px-1",
+                    cloudSizePresets ? "w-auto min-w-9" : "w-9",
+                  )}
+                  title={
+                    cloudSizePresets
+                      ? aspectLocked
+                        ? `Size: ${activePreset}`
+                        : "Select output size"
+                      : aspectLocked
+                        ? `Aspect ratio locked to ${activePreset}`
+                        : "Select aspect ratio preset"
+                  }
+                >
+                  {aspectLocked ? (
+                    <span className="text-3xs font-medium leading-none font-mono">
+                      {activePreset}
+                    </span>
+                  ) : cloudSizePresets ? (
+                    <span className="text-3xs font-medium leading-none font-mono">
+                      {state.width}x{state.height}
+                    </span>
+                  ) : (
+                    <Link2Off size={12} />
+                  )}
+                  <ChevronDown size={8} className="ml-0.5 opacity-60" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent
+                className={cn("p-1", cloudSizePresets ? "w-36" : "w-32")}
+                align="center"
+                sideOffset={6}
               >
-                {aspectLocked ? (
-                  <span className="text-3xs font-medium leading-none font-mono">
-                    {activePreset}
-                  </span>
-                ) : cloudSizePresets ? (
-                  <span className="text-3xs font-medium leading-none font-mono">
-                    {state.width}x{state.height}
-                  </span>
+                {cloudSizePresets ? (
+                  <>
+                    {cloudSizePresets.map((p) => (
+                      <button
+                        key={p.label}
+                        type="button"
+                        onClick={() => selectCloudSize(p)}
+                        className={cn(
+                          "w-full text-left text-2xs px-2 py-1 rounded-sm transition-colors font-mono",
+                          "hover:bg-accent hover:text-accent-foreground",
+                          (activePreset === p.label ||
+                            (!activePreset && state.width === p.w && state.height === p.h)) &&
+                            "text-primary font-medium",
+                        )}
+                      >
+                        {p.label}
+                      </button>
+                    ))}
+                  </>
                 ) : (
-                  <Link2Off size={12} />
-                )}
-                <ChevronDown size={8} className="ml-0.5 opacity-60" />
-              </button>
-            </PopoverTrigger>
-            <PopoverContent
-              className={cn("p-1", cloudSizePresets ? "w-36" : "w-32")}
-              align="center"
-              sideOffset={6}
-            >
-              {cloudSizePresets ? (
-                <>
-                  {cloudSizePresets.map((p) => (
+                  <>
                     <button
-                      key={p.label}
                       type="button"
-                      onClick={() => selectCloudSize(p)}
-                      className={cn(
-                        "w-full text-left text-2xs px-2 py-1 rounded-sm transition-colors font-mono",
-                        "hover:bg-accent hover:text-accent-foreground",
-                        (activePreset === p.label ||
-                          (!activePreset && state.width === p.w && state.height === p.h)) &&
-                          "text-primary font-medium",
-                      )}
-                    >
-                      {p.label}
-                    </button>
-                  ))}
-                </>
-              ) : (
-                <>
-                  <button
-                    type="button"
-                    onClick={() => selectPreset(null)}
-                    className={cn(
-                      "w-full text-left text-2xs px-2 py-1 rounded-sm transition-colors",
-                      "hover:bg-accent hover:text-accent-foreground",
-                      !aspectLocked && "text-primary font-medium",
-                    )}
-                  >
-                    Custom
-                  </button>
-                  {aspectPresets.map((p) => (
-                    <button
-                      key={p.label}
-                      type="button"
-                      onClick={() => selectPreset(p)}
+                      onClick={() => selectPreset(null)}
                       className={cn(
                         "w-full text-left text-2xs px-2 py-1 rounded-sm transition-colors",
                         "hover:bg-accent hover:text-accent-foreground",
-                        activePreset === p.label && "text-primary font-medium",
+                        !aspectLocked && "text-primary font-medium",
                       )}
                     >
-                      {p.label}
+                      Custom
                     </button>
-                  ))}
-                </>
-              )}
-            </PopoverContent>
-          </Popover>
-          <Button
-            variant="ghost"
-            size="icon-xs"
-            onClick={swapDimensions}
-            className="text-muted-foreground"
-            title="Swap width and height - switch between landscape and portrait"
-            disabled={!isFixed}
-          >
-            <ArrowLeftRight size={12} />
-          </Button>
-          <NumberInput
-            value={isFixed ? state.height : genSize.height}
-            onChange={setHeight}
-            step={8}
-            min={64}
-            max={4096}
-            fallback={512}
-            disabled={!isFixed}
-            className="flex-1 min-w-12 h-6 text-2xs text-center px-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-          />
-
-          <ParamLabel className="text-2xs text-muted-foreground shrink-0">Height</ParamLabel>
-        </div>
-
-        {/* Scale slider */}
-        {effectiveSizeMode === "scale" && (
-          <ParamSlider
-            label="Scale"
-            tooltip="Multiplier applied to the input image size to compute the generation resolution."
-            keywords={["resize", "factor", "multiplier", "img2img"]}
-            value={scaleFactor}
-            onChange={setScaleFactor}
-            min={0.25}
-            max={2}
-            step={0.05}
-          />
-        )}
-
-        {/* Megapixel slider */}
-        {effectiveSizeMode === "megapixel" && (
-          <ParamSlider
-            label="Target"
-            tooltip="Target output size in megapixels. Aspect ratio is preserved from the input image."
-            keywords={["megapixel", "size", "resolution", "img2img"]}
-            value={megapixelTarget}
-            onChange={setMegapixelTarget}
-            min={0.25}
-            max={4}
-            step={0.05}
-          />
-        )}
-
-        {/* Resize method (shown when scale/megapixel active) */}
-        {!isFixed && (
-          <div className="flex items-center gap-2">
-            <ParamLabel className="text-2xs text-muted-foreground w-16 flex-shrink-0">
-              Resize
-            </ParamLabel>
-            <Combobox
-              value={resizeMethod}
-              onValueChange={setResizeMethod}
-              groups={upscalerGroups}
-              className="h-6 text-2xs flex-1"
+                    {aspectPresets.map((p) => (
+                      <button
+                        key={p.label}
+                        type="button"
+                        onClick={() => selectPreset(p)}
+                        className={cn(
+                          "w-full text-left text-2xs px-2 py-1 rounded-sm transition-colors",
+                          "hover:bg-accent hover:text-accent-foreground",
+                          activePreset === p.label && "text-primary font-medium",
+                        )}
+                      >
+                        {p.label}
+                      </button>
+                    ))}
+                  </>
+                )}
+              </PopoverContent>
+            </Popover>
+            <Button
+              variant="ghost"
+              size="icon-xs"
+              onClick={swapDimensions}
+              className="text-muted-foreground"
+              title="Swap width and height - switch between landscape and portrait"
+              disabled={!isFixed}
+            >
+              <ArrowLeftRight size={12} />
+            </Button>
+            <NumberInput
+              value={isFixed ? state.height : genSize.height}
+              onChange={setHeight}
+              step={8}
+              min={64}
+              max={4096}
+              fallback={512}
+              disabled={!isFixed}
+              className="flex-1 min-w-12 h-6 text-2xs text-center px-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
             />
-          </div>
-        )}
 
-        {/* Info line: frame size → generation size */}
-        {!isFixed && (
-          <div className="text-3xs text-muted-foreground text-center">
-            {state.width}&times;{state.height} &rarr; {genSize.width}&times;
-            {genSize.height}{" "}
-            <span className="opacity-70">({formatMegapixels(genSize.width, genSize.height)})</span>
+            <ParamLabel className="text-2xs text-muted-foreground shrink-0">Height</ParamLabel>
           </div>
-        )}
+
+          {/* Scale slider */}
+          {effectiveSizeMode === "scale" && (
+            <ParamSlider
+              label="Scale"
+              tooltip="Multiplier applied to the input image size to compute the generation resolution."
+              keywords={["resize", "factor", "multiplier", "img2img"]}
+              value={scaleFactor}
+              onChange={setScaleFactor}
+              min={0.25}
+              max={2}
+              step={0.05}
+            />
+          )}
+
+          {/* Megapixel slider */}
+          {effectiveSizeMode === "megapixel" && (
+            <ParamSlider
+              label="Target"
+              tooltip="Target output size in megapixels. Aspect ratio is preserved from the input image."
+              keywords={["megapixel", "size", "resolution", "img2img"]}
+              value={megapixelTarget}
+              onChange={setMegapixelTarget}
+              min={0.25}
+              max={4}
+              step={0.05}
+            />
+          )}
+
+          {/* Resize method (shown when scale/megapixel active) */}
+          {!isFixed && (
+            <div className="flex items-center gap-2">
+              <ParamLabel className="text-2xs text-muted-foreground w-16 flex-shrink-0">
+                Resize
+              </ParamLabel>
+              <Combobox
+                value={resizeMethod}
+                onValueChange={setResizeMethod}
+                groups={upscalerGroups}
+                className="h-6 text-2xs flex-1"
+              />
+            </div>
+          )}
+
+          {/* Info line: frame size → generation size */}
+          {!isFixed && (
+            <div className="text-3xs text-muted-foreground text-center">
+              {state.width}&times;{state.height} &rarr; {genSize.width}&times;
+              {genSize.height}{" "}
+              <span className="opacity-70">
+                ({formatMegapixels(genSize.width, genSize.height)})
+              </span>
+            </div>
+          )}
+
+          {/* Echoed size: surfaced when server returned dims that differ from
+              the current Width/Height. Covers auto resolution, align-snap,
+              bucket resolve, and local hires-fix output. */}
+          {lastResultSize && (
+            <div
+              className="text-3xs text-muted-foreground text-center flex items-center justify-center gap-1.5"
+              title="The last generation finished at these dimensions. Differs from the controls above when the server picks the size (Auto), snaps to alignment, resolves a symbolic bucket, or applies hires-fix."
+            >
+              <span>
+                Last:{" "}
+                <span className="font-mono">
+                  {lastResultSize.w}&times;{lastResultSize.h}
+                </span>
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  setWidth(lastResultSize.w);
+                  setHeight(lastResultSize.h);
+                }}
+                className="px-1.5 py-0 text-3xs rounded border border-border/40 hover:bg-accent hover:text-accent-foreground transition-colors"
+              >
+                Reuse
+              </button>
+            </div>
+          )}
+        </div>
       </SectionLeader>
 
       <SectionDivider />

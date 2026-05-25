@@ -9,7 +9,7 @@ import type { LucideIcon } from "lucide-react";
  * imperative actions (Generate, Interrupt, Skip) that the palette should be
  * able to invoke directly rather than just scroll to.
  *
- * Convention: ids are namespaced — "actions:generate", "image:open-png-info",
+ * Convention: ids are namespaced - "actions:generate", "image:open-png-info",
  * "system:restart", "models:merge". The prefix groups related commands and
  * keeps id collisions trivial to spot.
  */

@@ -20,14 +20,14 @@ export function formatDuration(seconds: number): string {
   return `${mins}m ${secs.toFixed(0)}s`;
 }
 
-/** Strip Font Awesome Private Use Area characters (U+F000–U+F8FF) that the backend embeds in model names. */
+/** Strip Font Awesome Private Use Area characters (U+F000-U+F8FF) that the backend embeds in model names. */
 export function stripPua(s: string): string {
   return s.replace(/[\uF000-\uF8FF]/g, "").trimEnd();
 }
 
 /** Coerce an unknown value to a display string. Plain objects/arrays are
- *  JSON-encoded so they don't render as "[object Object]"; null/undefined
- *  return the fallback. */
+ * JSON-encoded so they don't render as "[object Object]"; null/undefined
+ * return the fallback. */
 export function toDisplayString(value: unknown, fallback = ""): string {
   if (value == null) return fallback;
   if (typeof value === "object") return JSON.stringify(value) ?? fallback;

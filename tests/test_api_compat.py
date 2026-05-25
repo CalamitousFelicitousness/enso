@@ -198,7 +198,7 @@ def main():
     print("=" * 80)
 
     if failed:
-        print("\n  SERVER ERRORS (500) — likely broken imports or missing attributes:\n")
+        print("\n  SERVER ERRORS (500) - likely broken imports or missing attributes:\n")
         for r in failed:
             print(f"    {r.method:4s} {r.path}")
             print(f"         {r.desc}")
@@ -218,7 +218,7 @@ def main():
             print()
 
     if client_err:
-        print("\n  CLIENT ERRORS (4xx) — may be expected for endpoints needing params:\n")
+        print("\n  CLIENT ERRORS (4xx) - may be expected for endpoints needing params:\n")
         for r in client_err:
             print(f"    {r.method:4s} {r.path}  →  {r.status}")
 

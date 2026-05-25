@@ -26,6 +26,7 @@ from enso_api.models import (
     VideoLoadResponse,
     VideoModel,
     VideoModelEnriched,
+    VideoRef,
 )
 from enso_api.ws_models import WsEvent, WsEventPing
 
@@ -43,7 +44,15 @@ def job_to_response(job: dict) -> JobResponse:
                 result = None
         if isinstance(result, dict):
             images = [ImageRef(**img) for img in result.get("images", [])]
-            job_result = JobResult(images=images, info=result.get("info", {}), params=result.get("params", {}))
+            processed = [ImageRef(**img) for img in result.get("processed", [])]
+            videos = [VideoRef(**vid) for vid in result.get("videos", [])]
+            job_result = JobResult(
+                images=images,
+                processed=processed,
+                videos=videos,
+                info=result.get("info", {}),
+                params=result.get("params", {}),
+            )
     return JobResponse(
         id=job["id"],
         type=job["type"],
@@ -219,12 +228,14 @@ def get_ref_path(job: dict, key: str, index: int) -> str | None:
     return items[index].get("path")
 
 
-def serve_job_file(job: dict, key: str, index: int):
-    file_path = get_ref_path(job, key, index)
-    if file_path is None:
-        raise HTTPException(status_code=404, detail=f"{key} index {index} out of range")
-    if not os.path.isfile(file_path):
-        raise HTTPException(status_code=404, detail="File not found on disk")
+def confine_or_403(file_path: str) -> None:
+    """Apply path confinement to `file_path` against the allowed outdir set.
+
+    Centralised so any new ref-style file route picks up the same allow-list
+    (cloud video thumbnail subroute, future audio routes, etc.) without
+    duplicating the attr list. The list mirrors sdnext's modules.paths
+    resolution targets plus the cloud-specific outdirs.
+    """
     from modules import shared
 
     try:
@@ -239,6 +250,8 @@ def serve_job_file(job: dict, key: str, index: int):
         "outdir_img2img_samples",
         "outdir_control_samples",
         "outdir_extras_samples",
+        "outdir_cloud_image",
+        "outdir_cloud_video",
     ]
     from enso_api.temp_store import get_staging_dir
 
@@ -248,9 +261,50 @@ def serve_job_file(job: dict, key: str, index: int):
         allowed.append(staging)
     if allowed and not is_confined_to(file_path, allowed):
         raise HTTPException(status_code=403, detail="Access denied")
+
+
+MEDIA_TYPES = {
+    "png": "image/png",
+    "jpeg": "image/jpeg",
+    "jpg": "image/jpeg",
+    "webp": "image/webp",
+    "jxl": "image/jxl",
+    "mp4": "video/mp4",
+    "webm": "video/webm",
+    "gif": "image/gif",
+}
+
+
+def serve_file_path(file_path: str):
+    if not os.path.isfile(file_path):
+        raise HTTPException(status_code=404, detail="File not found on disk")
+    confine_or_403(file_path)
     ext = os.path.splitext(file_path)[1].lstrip(".").lower()
-    media_types = {"png": "image/png", "jpeg": "image/jpeg", "jpg": "image/jpeg", "webp": "image/webp", "jxl": "image/jxl", "mp4": "video/mp4", "webm": "video/webm", "gif": "image/gif"}
-    return FileResponse(file_path, media_type=media_types.get(ext, "application/octet-stream"))
+    return FileResponse(file_path, media_type=MEDIA_TYPES.get(ext, "application/octet-stream"))
+
+
+def serve_job_file(job: dict, key: str, index: int):
+    file_path = get_ref_path(job, key, index)
+    if file_path is None:
+        raise HTTPException(status_code=404, detail=f"{key} index {index} out of range")
+    return serve_file_path(file_path)
+
+
+def get_ref_field(job: dict, key: str, index: int, field: str) -> str | None:
+    """Read an arbitrary field from a stored ref dict (e.g. `thumbnail_path`)."""
+    result = job.get("result")
+    if isinstance(result, str):
+        try:
+            result = json.loads(result)
+        except (json.JSONDecodeError, TypeError):
+            return None
+    if not isinstance(result, dict):
+        return None
+    items = result.get(key, [])
+    if index < 0 or index >= len(items):
+        return None
+    value = items[index].get(field)
+    return value if isinstance(value, str) else None
 
 
 def get_completed_job(job_id: str):
@@ -272,6 +326,20 @@ async def get_job_image(job_id: str, index: int):
 @router.get("/jobs/{job_id}/processed/{index}", tags=["Jobs"])
 async def get_job_processed(job_id: str, index: int):
     return serve_job_file(get_completed_job(job_id), "processed", index)
+
+
+@router.get("/jobs/{job_id}/videos/{index}", tags=["Jobs"])
+async def get_job_video(job_id: str, index: int):
+    return serve_job_file(get_completed_job(job_id), "videos", index)
+
+
+@router.get("/jobs/{job_id}/videos/{index}/thumbnail", tags=["Jobs"])
+async def get_job_video_thumbnail(job_id: str, index: int):
+    job = get_completed_job(job_id)
+    thumb_path = get_ref_field(job, "videos", index, "thumbnail_path")
+    if thumb_path is None:
+        raise HTTPException(status_code=404, detail="Thumbnail not available")
+    return serve_file_path(thumb_path)
 
 
 def parse_video_mode(name: str) -> str:

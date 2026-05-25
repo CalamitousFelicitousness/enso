@@ -1,22 +1,18 @@
-import { useMemo, useCallback, type ReactNode } from "react";
-import { Loader2 } from "lucide-react";
-import { toast } from "sonner";
 import { useVideoStore } from "@/stores/videoStore";
-import { useVideoEngines, useLoadVideoModel } from "@/api/hooks/useVideo";
 import { SectionLeader } from "@/components/ui/section-leader";
 import { ParamSlider } from "@/components/generation/ParamSlider";
 import { ParamGrid } from "@/components/generation/ParamRow";
 import { Combobox } from "@/components/ui/combobox";
-import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { VideoOutputSection } from "./VideoOutputSection";
 import { VideoPresetSelector } from "../VideoPresetSelector";
-import type { VideoModelDetail } from "@/api/types/video";
 
-export function ModelsVideoTab() {
-  const engine = useVideoStore((s) => s.engine);
-  const model = useVideoStore((s) => s.model);
+// Generic Wan/Hunyuan/etc. video form. Engine + model are picked in the
+// top-level ModelSelector (Video view); this form only owns the operational
+// param surface (sampling, size, conditioning, VAE) plus the shared
+// VideoOutputSection.
+export function WanHunyuanForm() {
   const width = useVideoStore((s) => s.width);
   const height = useVideoStore((s) => s.height);
   const frames = useVideoStore((s) => s.frames);
@@ -31,119 +27,9 @@ export function ModelsVideoTab() {
   const vaeTileFrames = useVideoStore((s) => s.vaeTileFrames);
   const setParam = useVideoStore((s) => s.setParam);
 
-  const { data: engines } = useVideoEngines();
-  const loadModel = useLoadVideoModel();
-
-  const engineNames = useMemo(() => engines?.map((e) => e.engine) ?? [], [engines]);
-  const modelNames = useMemo(() => {
-    if (!engines || !engine) return [];
-    const eng = engines.find((e) => e.engine === engine);
-    return eng?.models ?? [];
-  }, [engines, engine]);
-
-  const modelDetailsMap = useMemo(() => {
-    const map = new Map<string, VideoModelDetail>();
-    if (!engines) return map;
-    for (const eng of engines) {
-      for (const d of eng.model_details ?? []) {
-        map.set(d.name, d);
-      }
-    }
-    return map;
-  }, [engines]);
-
-  const loadedModelName = useMemo(() => {
-    if (!engines) return null;
-    for (const eng of engines) {
-      for (const d of eng.model_details ?? []) {
-        if (d.loaded) return d.name;
-      }
-    }
-    return null;
-  }, [engines]);
-
-  const renderModelLabel = useCallback(
-    (_value: string, label: string): ReactNode => {
-      const detail = modelDetailsMap.get(_value);
-      if (!detail) return label;
-      return (
-        <span className="flex items-center gap-1.5">
-          {detail.loaded ? (
-            <span className="w-2 h-2 rounded-full bg-blue-500 shrink-0" title="Loaded" />
-          ) : detail.cached ? (
-            <span className="w-2 h-2 rounded-full bg-green-500 shrink-0" title="Cached" />
-          ) : null}
-          <span className="truncate">{label}</span>
-          {detail.mode !== "t2v" && (
-            <span className="text-4xs font-medium uppercase bg-muted px-1 rounded shrink-0">
-              {detail.mode}
-            </span>
-          )}
-        </span>
-      );
-    },
-    [modelDetailsMap],
-  );
-
-  const handleLoad = useCallback(() => {
-    if (!engine || !model) return;
-    loadModel.mutate(
-      { engine, model },
-      {
-        onSuccess: () => toast.success(`Loaded ${model}`),
-        onError: (err) => toast.error("Failed to load model", { description: err.message }),
-      },
-    );
-  }, [engine, model, loadModel]);
-
   return (
     <div className="space-y-1">
       <VideoPresetSelector domain="video" />
-      <SectionLeader title="Model" collapsible>
-        <div className="space-y-1.5">
-          <div className="flex items-center gap-2">
-            <Label className="text-2xs text-muted-foreground w-16 shrink-0">Engine</Label>
-            <Combobox
-              value={engine}
-              onValueChange={(v) => {
-                setParam("engine", v);
-                setParam("model", "");
-              }}
-              options={engineNames}
-              placeholder="Select engine..."
-              className="h-6 text-2xs flex-1"
-            />
-          </div>
-          <div className="flex items-center gap-2">
-            <Label className="text-2xs text-muted-foreground w-16 shrink-0">Model</Label>
-            <Combobox
-              value={model}
-              onValueChange={(v) => setParam("model", v)}
-              options={modelNames}
-              placeholder={engine ? "Select model..." : "Select engine first"}
-              className="h-6 text-2xs flex-1"
-              renderLabel={renderModelLabel}
-            />
-          </div>
-          {loadedModelName && (
-            <div className="flex items-center gap-1.5 text-3xs text-muted-foreground">
-              <span className="w-2 h-2 rounded-full bg-blue-500 shrink-0" />
-
-              <span className="truncate">Loaded: {loadedModelName}</span>
-            </div>
-          )}
-          <Button
-            size="sm"
-            variant="secondary"
-            onClick={handleLoad}
-            disabled={!engine || !model || loadModel.isPending}
-            className="w-full"
-          >
-            {loadModel.isPending ? <Loader2 size={14} className="animate-spin" /> : null}
-            Load Model
-          </Button>
-        </div>
-      </SectionLeader>
 
       <SectionLeader title="Parameters" collapsible defaultCollapsed>
         <ParamGrid>

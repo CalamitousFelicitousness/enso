@@ -6,7 +6,7 @@ export function GalleryProgress() {
   const fileCount = useGalleryStore((s) => s.files.length);
   const thumbCount = useGalleryStore((s) => s.thumbs.size);
 
-  // Phase 1: file list streaming via WebSocket
+  // file list streaming via WebSocket
   if (isLoadingFiles) {
     const loaded = loadProgress.loaded;
     const total = loadProgress.total;
@@ -31,7 +31,7 @@ export function GalleryProgress() {
     );
   }
 
-  // Phase 2: thumbnail generation
+  // thumbnail generation
   if (fileCount > 0 && thumbCount < fileCount) {
     const pct = Math.min(100, (thumbCount / fileCount) * 100);
     return (

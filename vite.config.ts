@@ -35,11 +35,11 @@ export default defineConfig(({ mode }) => {
           skipWaiting: true,
           clientsClaim: true,
           // Don't precache anything - Vite already content-hashes JS/CSS bundles so the
-          // browser cache alone keeps them fresh.  Precaching caused stale index.html to be
+          // browser cache alone keeps them fresh. Precaching caused stale index.html to be
           // served from the SW cache on normal refreshes, requiring Shift+Ctrl+R.
           globPatterns: [],
           // Explicitly disable navigateFallback - it requires the URL to be in precache,
-          // which conflicts with globPatterns: [].  SPA navigation is handled by the
+          // which conflicts with globPatterns: []. SPA navigation is handled by the
           // backend serving index.html for /enso/* routes, and the NetworkFirst rule below.
           navigateFallback: null,
           cleanupOutdatedCaches: true,

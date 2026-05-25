@@ -264,7 +264,7 @@ export function NetworksTab() {
         </div>
       </div>
 
-      {/* Filter panel — portaled to body, anchored to left edge of this container */}
+      {/* Filter panel - portaled to body, anchored to left edge of this container */}
       <FilterPanel
         open={filterOpen}
         sidebarGroups={sidebarGroups}

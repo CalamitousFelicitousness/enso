@@ -135,7 +135,7 @@ export function GalleryMetadata() {
 
   return (
     <div className="flex flex-col h-full">
-      {/* Preview — fills available space, shrinks as sections open */}
+      {/* Preview - fills available space, shrinks as sections open */}
       <div className="flex-1 min-h-20 p-3 pb-0">
         <div className="rounded-md overflow-hidden border border-border bg-muted h-full">
           {isVideo ? (
@@ -152,7 +152,7 @@ export function GalleryMetadata() {
         </div>
       </div>
 
-      {/* Metadata — scrolls if it exceeds remaining space */}
+      {/* Metadata - scrolls if it exceeds remaining space */}
       <ScrollArea className="min-h-0 shrink">
         <div className="p-3 space-y-3">
           {/* File info */}

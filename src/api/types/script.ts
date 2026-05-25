@@ -1,3 +1,9 @@
+// Hand-written: ItemScriptV2.args in OpenAPI is `Array<unknown>` (Pydantic
+// `list = Field(default_factory=list)`), which doesn't carry the ScriptArg
+// shape consumers rely on. Tightening Pydantic side (adding a ScriptArg model
+// and typing ItemScriptV2.args as list[ScriptArg]) is a follow-up that would
+// unlock a generated mirror here.
+
 export interface ScriptArg {
   label: string;
   value: unknown;

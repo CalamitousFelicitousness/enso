@@ -10,9 +10,9 @@ export const videoHistoryDb = createIdbListDb<VideoResult>({
 });
 
 interface VideoState {
-  // Shared
-  engine: string;
-  model: string;
+  // Shared. Engine + model are not stored here - they live on
+  // modelSelectionStore.activeModel as a LocalVideoModel (or a CloudModel
+  // for cloud video) and the Video panel reads them from there.
   prompt: string;
   negative: string;
   width: number;
@@ -43,8 +43,7 @@ interface VideoState {
   initImage: File | null;
   lastImage: File | null;
 
-  // FramePack
-  fpVariant: string;
+  // FramePack. fpVariant lives on activeModel; the rest are tunables.
   fpResolution: number;
   fpDuration: number;
   fpLatentWindowSize: number;
@@ -65,8 +64,7 @@ interface VideoState {
   fpAttention: string;
   fpVaeType: string;
 
-  // LTX
-  ltxModel: string;
+  // LTX. ltxModel lives on activeModel; the rest are tunables.
   ltxSteps: number;
   ltxDecodeTimestep: number;
   ltxNoiseScale: number;
@@ -76,6 +74,11 @@ interface VideoState {
   ltxRefineStrength: number;
   ltxConditionStrength: number;
   ltxAudioEnable: boolean;
+
+  // Cloud video. Provider + model come from modelSelectionStore.activeModel;
+  // these are the operational params the form binds to.
+  cloudAspectRatio: string;
+  cloudDuration: number;
 
   // Result history
   results: VideoResult[];
@@ -92,8 +95,6 @@ interface VideoState {
 }
 
 const defaultParams = {
-  engine: "",
-  model: "",
   prompt: "",
   negative: "",
   width: 848,
@@ -123,7 +124,6 @@ const defaultParams = {
   initImage: null as File | null,
   lastImage: null as File | null,
 
-  fpVariant: "bi-directional",
   fpResolution: 640,
   fpDuration: 4,
   fpLatentWindowSize: 9,
@@ -144,7 +144,6 @@ const defaultParams = {
   fpAttention: "Default",
   fpVaeType: "Full",
 
-  ltxModel: "",
   ltxSteps: 50,
   ltxDecodeTimestep: 0.05,
   ltxNoiseScale: 0.025,
@@ -154,6 +153,9 @@ const defaultParams = {
   ltxRefineStrength: 0.4,
   ltxConditionStrength: 0.8,
   ltxAudioEnable: false,
+
+  cloudAspectRatio: "16:9",
+  cloudDuration: 5,
 };
 
 const defaultParamKeys = Object.keys(defaultParams) as (keyof typeof defaultParams)[];
@@ -192,22 +194,7 @@ export const useVideoStore = create<VideoState>()(
     }),
     {
       name: "enso-video",
-      version: 2,
-      migrate: (persisted, version) => {
-        if (!persisted || typeof persisted !== "object") return persisted;
-        const p = persisted as Record<string, unknown>;
-        if (version < 1) {
-          if ("_historyLimit" in p) {
-            p["historyLimit"] = p["_historyLimit"];
-            delete p["_historyLimit"];
-          }
-        }
-        if (version < 2) {
-          // activeVideoTab moved to uiStore.panelSelections.videoSubTab in v2
-          delete p["activeVideoTab"];
-        }
-        return p;
-      },
+      version: 5,
       partialize: (state) => {
         const p: Record<string, unknown> = {};
         for (const key of defaultParamKeys) {

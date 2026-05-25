@@ -71,7 +71,7 @@ export function extractParamsFromTabFile(filePath: string, sourceText: string): 
         warnings.push({
           file: filePath,
           line: node.getStartLineNumber(),
-          message: `<${tagName}> has dynamic label — skipped`,
+          message: `<${tagName}> has dynamic label - skipped`,
         });
         return;
       }
@@ -82,7 +82,7 @@ export function extractParamsFromTabFile(filePath: string, sourceText: string): 
         warnings.push({
           file: filePath,
           line: node.getStartLineNumber(),
-          message: `<${tagName} label="${label}"> has no enclosing <SectionLeader> — skipped`,
+          message: `<${tagName} label="${label}"> has no enclosing <SectionLeader> - skipped`,
         });
         return;
       }
@@ -93,7 +93,7 @@ export function extractParamsFromTabFile(filePath: string, sourceText: string): 
         warnings.push({
           file: filePath,
           line: node.getStartLineNumber(),
-          message: `<${tagName} label="${label}"> has dynamic keywords — defaulted to []`,
+          message: `<${tagName} label="${label}"> has dynamic keywords - defaulted to []`,
         });
       }
 
@@ -125,7 +125,7 @@ export function extractParamsFromTabFile(filePath: string, sourceText: string): 
       warnings.push({
         file: filePath,
         line: node.getStartLineNumber(),
-        message: `<... data-param="${dataParam}"> has no enclosing <SectionLeader> — skipped`,
+        message: `<... data-param="${dataParam}"> has no enclosing <SectionLeader> - skipped`,
       });
       return;
     }
@@ -220,7 +220,7 @@ function findEnclosingSectionTitle(
           warnings.push({
             file,
             line: opening.getStartLineNumber(),
-            message: `<SectionLeader> has dynamic title — entry will be skipped`,
+            message: `<SectionLeader> has dynamic title - entry will be skipped`,
           });
           return null;
         }
@@ -350,7 +350,7 @@ export function enrichKeywords(
   const ordered = new Set<string>(explicit);
   for (const k of labelTokens) ordered.add(k);
   for (const k of expanded) ordered.add(k);
-  // Drop the section/tab tokens — they're already in the action's group/target.
+  // Drop the section/tab tokens - they're already in the action's group/target.
   ordered.delete(entry.section.toLowerCase());
   ordered.delete(entry.tab.toLowerCase());
   return Array.from(ordered);

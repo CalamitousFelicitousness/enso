@@ -1,319 +1,272 @@
-"""Cloud job executors and async thread pool setup.
+"""V2 job-queue executor wiring for cloud job types.
 
-Each executor bridges the sync job queue worker thread to the async adapter.
-Cloud worker threads maintain a persistent event loop for efficient connection reuse.
+Cloud generation primitives live in ``modules.cloud`` (sdnext core). The
+V2 cloud worker (``ThreadPoolExecutor`` in ``enso_api.job_queue``) is a
+sync thread, so it can call into ``modules.cloud.*`` directly with no
+event-loop bridging. Each executor here translates the V2 request shape
+(``enso_api.cloud.models.Cloud*Params``) to the kwargs the core entry
+point expects, dispatches, then shapes the result into the V2 job-result
+contract (``images`` / ``processed`` / ``info`` / ``params`` dict that
+``serve_job_file`` reads).
+
+cloud_chat is exposed via the V1 ``/sdapi/v1/cloud/prompt-enhance``
+endpoint; the V2 job-type stub remains until removed from
+``JobRequest`` / ``EXECUTORS``. cloud_tts and cloud_stt are stubs until
+sdnext core ships ``modules.cloud.audio``.
 """
 
-import asyncio
-import threading
+import base64
+import os
 import time
+from pathlib import Path
 
 from modules.logger import log
 
-from enso_api.cloud.protocol import ProgressCallback
 
-_thread_loops: dict[int, asyncio.AbstractEventLoop] = {}
-_loops_lock = threading.Lock()
+def resolve_ref(ref):
+    """Resolve a V2 image / mask ref to raw bytes.
+
+    Supported forms:
+    - ``upload:<id>`` - frontend-supplied reference from POST /sdapi/v2/upload
+    - bare base64 string - direct embedding
+    - bytes - passthrough
+    - None / empty - returns None
+    """
+    if ref is None or ref == "":
+        return None
+    if isinstance(ref, bytes):
+        return ref
+    if isinstance(ref, str) and ref.startswith("upload:"):
+        from enso_api.upload import get_upload_store
+
+        ref_id = ref.split(":", 1)[1]
+        entry = get_upload_store().get(ref_id)
+        if entry is None:
+            raise ValueError(f"Upload reference not found or expired: {ref}")
+        return Path(entry.path).read_bytes()
+    if isinstance(ref, str):
+        return base64.b64decode(ref)
+    raise TypeError(f"Unsupported ref type: {type(ref).__name__}")
 
 
-def _get_thread_event_loop() -> asyncio.AbstractEventLoop:
-    tid = threading.current_thread().ident
-    with _loops_lock:
-        if tid in _thread_loops:
-            return _thread_loops[tid]
-        loop = asyncio.new_event_loop()
-        _thread_loops[tid] = loop
-        return loop
+def parse_size(size_str, fallback_width, fallback_height):
+    """Parse a 'WxH' string. Falls back to the provided width/height or 1024x1024."""
+    if isinstance(size_str, str) and "x" in size_str.lower():
+        try:
+            w_str, h_str = size_str.lower().split("x", 1)
+            return int(w_str), int(h_str)
+        except ValueError:
+            pass
+    return fallback_width or 1024, fallback_height or 1024
 
 
-def _make_progress_callback(job_id: str) -> ProgressCallback:
-    def on_progress(data: dict):
+def make_progress_callback(job_id):
+    """Build a sdnext-core progress callback that pushes to the V2 job WS.
+
+    sdnext core emits ``{"phase": "..."}`` events; this wrapper stamps the
+    V2 WS event type so the frontend's existing ``cloud_progress`` handler
+    in ``useJobTracker`` lights up.
+    """
+
+    def on_progress(event: dict) -> None:
         from enso_api.job_queue import job_queue
 
-        job_queue.push_progress(job_id, data)
+        payload = {"type": "cloud_progress", **event}
+        job_queue.push_progress(job_id, payload)
 
     return on_progress
 
 
 def execute_cloud_image(params: dict, job_id: str) -> dict:
-    loop = _get_thread_event_loop()
-    return loop.run_until_complete(_async_cloud_image(params, job_id))
-
-
-async def _async_cloud_image(params: dict, job_id: str) -> dict:
-    from enso_api.cloud import get_adapter
-
-    adapter = get_adapter(params["provider"])
-    on_progress = _make_progress_callback(job_id)
+    from modules.cloud.errors import CloudError
+    from modules.cloud.image import generate_image
 
     t0 = time.time()
+    provider = params.get("provider", "")
+    model = params.get("model", "")
+
+    # SPEC when the caller emits images: [...] (multi-image
+    # Reference mode), resolve all refs to bytes and pass init_images list to
+    # generate_image. When only the singular image is set (legacy Reference
+    # fallback, current img2img path), keep the existing init_image kwarg
+    # call - sdnext folds it into init_images=[init_image] per the alias.
+    images_param = params.get("images")
+    init_images = None
+    if isinstance(images_param, list) and images_param:
+        init_images = [resolve_ref(ref) for ref in images_param]
+    init_image = resolve_ref(params.get("image"))
+    has_any_image = bool(init_images) or bool(init_image)
+    image_count = len(init_images) if init_images else (1 if init_image else 0)
+
+    # detect size="auto" before parse_size silently coerces it
+    # to fallback dims. When auto, pass ask_auto=True with width/height=0
+    # sentinels so generate_image's resolve_auto_dispatch can consult the
+    # model's auto_wire and shape the adapter params accordingly. Explicit
+    # WxH continues through the existing parse_size path.
+    raw_size = params.get("size")
+    ask_auto = isinstance(raw_size, str) and raw_size.strip().lower() == "auto"
+    if ask_auto:
+        width, height = 0, 0
+    else:
+        width, height = parse_size(raw_size, params.get("width"), params.get("height"))
+    mask = resolve_ref(params.get("mask"))
+
+    size_str = "auto" if ask_auto else f"{width}x{height}"
+    mode_str = "img2img" if has_any_image else "txt2img"
+    image_count_str = f" images={image_count}" if image_count > 1 else ""
+    log.info(f"Cloud: cloud_image executing job_id={job_id} provider={provider} model={model} {size_str} mode={mode_str}{image_count_str}")
+
     try:
-        result = await adapter.generate_image(params, on_progress)
-        saved = _save_image_result(result, job_id, params)
-        cost = result.usage.cost if result.usage else None
-        log.info(f"Cloud: job done type=image job_id={job_id} provider={params.get('provider')} model={params.get('model')} images={len(saved.get('images', []))} cost={cost} time={time.time() - t0:.2f}s")
-        return saved
-    except Exception as e:
-        log.error(f"Cloud: job failed type=image job_id={job_id} provider={params.get('provider')} model={params.get('model')} time={time.time() - t0:.2f}s: {type(e).__name__}: {e}")
-        raise
-
-
-def execute_cloud_chat(params: dict, job_id: str) -> dict:
-    loop = _get_thread_event_loop()
-    return loop.run_until_complete(_async_cloud_chat(params, job_id))
-
-
-async def _async_cloud_chat(params: dict, job_id: str) -> dict:
-    from enso_api.cloud import get_adapter
-
-    adapter = get_adapter(params["provider"])
-    on_progress = _make_progress_callback(job_id)
-
-    t0 = time.time()
-    try:
-        result = await adapter.chat(params, on_progress)
-    except Exception as e:
-        log.error(f"Cloud: job failed type=chat job_id={job_id} provider={params.get('provider')} model={params.get('model')} time={time.time() - t0:.2f}s: {type(e).__name__}: {e}")
-        raise
-    cost = result.usage.cost if result.usage else None
-    log.info(f"Cloud: job done type=chat job_id={job_id} provider={params.get('provider')} model={params.get('model')} chars={len(result.content or '')} finish={result.finish_reason} cost={cost} time={time.time() - t0:.2f}s")
-    return {
-        "images": [],
-        "processed": [],
-        "info": {
-            "cloud_provider": params.get("provider"),
-            "cloud_model": params.get("model"),
-            "cloud_cost": cost,
-        },
-        "params": params,
-        "text": result.content,
-        "tool_calls": result.tool_calls,
-        "finish_reason": result.finish_reason,
-        "usage": vars(result.usage) if result.usage else None,
-    }
-
-
-def execute_cloud_tts(params: dict, job_id: str) -> dict:
-    loop = _get_thread_event_loop()
-    return loop.run_until_complete(_async_cloud_tts(params, job_id))
-
-
-async def _async_cloud_tts(params: dict, job_id: str) -> dict:
-    from enso_api.cloud import get_adapter
-
-    adapter = get_adapter(params["provider"])
-
-    t0 = time.time()
-    try:
-        result = await adapter.tts(params)
-    except Exception as e:
-        log.error(f"Cloud: job failed type=tts job_id={job_id} provider={params.get('provider')} model={params.get('model')} time={time.time() - t0:.2f}s: {type(e).__name__}: {e}")
-        raise
-    audio_path = _save_audio_result(result, job_id)
-    log.info(f"Cloud: job done type=tts job_id={job_id} provider={params.get('provider')} model={params.get('model')} bytes={len(result.data)} duration={result.duration} time={time.time() - t0:.2f}s")
-    return {
-        "images": [],
-        "processed": [],
-        "info": {
-            "cloud_provider": params.get("provider"),
-            "cloud_model": params.get("model"),
-        },
-        "params": params,
-        "audio": {
-            "url": f"/sdapi/v2/jobs/{job_id}/audio",
-            "format": result.format,
-            "duration": result.duration,
-            "size": len(result.data),
-            "path": audio_path,
-        },
-    }
-
-
-def execute_cloud_stt(params: dict, job_id: str) -> dict:
-    loop = _get_thread_event_loop()
-    return loop.run_until_complete(_async_cloud_stt(params, job_id))
-
-
-async def _async_cloud_stt(params: dict, _job_id: str) -> dict:
-    from enso_api.cloud import get_adapter
-
-    adapter = get_adapter(params["provider"])
-
-    t0 = time.time()
-    try:
-        result = await adapter.transcribe(params)
-    except Exception as e:
-        log.error(f"Cloud: job failed type=stt job_id={_job_id} provider={params.get('provider')} model={params.get('model')} time={time.time() - t0:.2f}s: {type(e).__name__}: {e}")
-        raise
-    log.info(f"Cloud: job done type=stt job_id={_job_id} provider={params.get('provider')} model={params.get('model')} chars={len(result.text or '')} language={result.language} time={time.time() - t0:.2f}s")
-    return {
-        "images": [],
-        "processed": [],
-        "info": {
-            "cloud_provider": params.get("provider"),
-            "cloud_model": params.get("model"),
-        },
-        "params": params,
-        "text": result.text,
-        "language": result.language,
-        "segments": result.segments,
-        "duration": result.duration,
-    }
-
-
-def execute_cloud_video(params: dict, job_id: str) -> dict:
-    loop = _get_thread_event_loop()
-    return loop.run_until_complete(_async_cloud_video(params, job_id))
-
-
-async def _async_cloud_video(params: dict, job_id: str) -> dict:
-    from enso_api.cloud import get_adapter
-
-    adapter = get_adapter(params["provider"])
-    on_progress = _make_progress_callback(job_id)
-
-    t0 = time.time()
-    try:
-        result = await adapter.generate_video(params, on_progress)
-    except Exception as e:
-        log.error(f"Cloud: job failed type=video job_id={job_id} provider={params.get('provider')} model={params.get('model')} time={time.time() - t0:.2f}s: {type(e).__name__}: {e}")
-        raise
-    video_path = _save_video_result(result, job_id)
-    log.info(f"Cloud: job done type=video job_id={job_id} provider={params.get('provider')} model={params.get('model')} bytes={len(result.data)} duration={result.duration} time={time.time() - t0:.2f}s")
-    return {
-        "images": [],
-        "processed": [],
-        "info": {
-            "cloud_provider": params.get("provider"),
-            "cloud_model": params.get("model"),
-        },
-        "params": params,
-        "video": {
-            "url": f"/sdapi/v2/jobs/{job_id}/video",
-            "format": result.format,
-            "duration": result.duration,
-            "size": len(result.data),
-            "path": video_path,
-        },
-    }
-
-
-# --- Result storage helpers ---
-
-
-def _build_pnginfo(result, params: dict) -> str:
-    # Match SD.Next's PNG `parameters` chunk shape so the gallery info dialog and
-    # any external PNG-info parser can extract these fields. First line is the
-    # prompt, second is the negative prompt, third is the comma-separated key-value
-    # block. Cloud-specific keys are namespaced with "Cloud " to make their origin
-    # obvious.
-    prompt = params.get("prompt", "") or ""
-    negative = params.get("negative_prompt", "") or ""
-    cost = result.usage.cost if result.usage else None
-    parts = [
-        f"Cloud provider: {params.get('provider')}",
-        f"Cloud model: {params.get('model')}",
-    ]
-    if params.get("seed") is not None:
-        parts.append(f"Seed: {params['seed']}")
-    if params.get("width") and params.get("height"):
-        parts.append(f"Size: {params['width']}x{params['height']}")
-    if cost is not None:
-        parts.append(f"Cloud cost: {cost}")
-    if result.revised_prompt:
-        parts.append(f"Revised prompt: {result.revised_prompt}")
-    return f"{prompt}\nNegative prompt: {negative}\n{', '.join(parts)}"
-
-
-def _save_image_result(result, job_id: str, params: dict) -> dict:
-    import io
-
-    from modules import images as img_module
-    from modules import shared
-    from modules.paths import resolve_output_path
-    from PIL import Image
-
-    has_image = bool(params.get("image"))
-    output_dir = resolve_output_path(
-        shared.opts.outdir_samples,
-        shared.opts.outdir_img2img_samples if has_image else shared.opts.outdir_txt2img_samples,
-    )
-    pnginfo = _build_pnginfo(result, params)
-
-    images = []
-    for i, img_bytes in enumerate(result.images):
-        pil_img = Image.open(io.BytesIO(img_bytes))
-        pil_img.load()
-        # save_image returns (image_path, txt_sidecar_path, exifinfo). Inherits
-        # SD.Next's FilenameGenerator, save_to_dirs, gallery cache registration, and
-        # writes the PNG parameters chunk so cloud results are indistinguishable
-        # from local ones.
-        path_info = img_module.save_image(
-            pil_img,
-            output_dir,
-            "",
-            seed=params.get("seed", -1),
-            prompt=params.get("prompt", ""),
-            info=pnginfo,
+        result = generate_image(
+            params.get("prompt", ""),
+            provider,
+            model,
+            negative_prompt=params.get("negative_prompt") or "",
+            width=width,
+            height=height,
+            n=params.get("n") or 1,
+            seed=params.get("seed") if params.get("seed") is not None else -1,
+            steps=params.get("steps") or 28,
+            guidance_scale=params.get("guidance") or 7.5,
+            quality=params.get("quality") or "standard",
+            style=params.get("style"),
+            init_image=init_image,
+            init_images=init_images,
+            mask=mask,
+            strength=params.get("strength") or 0.75,
+            extra_params=params.get("extra_params") or None,
+            save_to_disk=True,
+            ask_auto=ask_auto,
+            on_progress=make_progress_callback(job_id),
         )
-        image_path = path_info[0] if isinstance(path_info, (list, tuple)) and path_info else None
-        if not image_path:
-            continue
-        import os
+    except CloudError as e:
+        log.error(f"Cloud: cloud_image failed job_id={job_id} provider={provider} model={model} time={time.time() - t0:.2f}s: {type(e).__name__}: {e}")
+        raise
 
-        images.append(
+    images_refs = []
+    for i, path in enumerate(result.saved_paths):
+        ext = os.path.splitext(path)[1].lstrip(".").lower() or "png"
+        try:
+            file_size = os.path.getsize(path)
+        except OSError:
+            file_size = len(result.images[i]) if i < len(result.images) else 0
+        images_refs.append(
             {
                 "index": i,
-                "path": image_path,
+                "path": path,
                 "url": f"/sdapi/v2/jobs/{job_id}/images/{i}",
-                "width": pil_img.width,
-                "height": pil_img.height,
-                "format": os.path.splitext(image_path)[1].lstrip(".").lower() or "png",
-                "size": os.path.getsize(image_path),
+                "width": result.width,
+                "height": result.height,
+                "format": ext,
+                "size": file_size,
             }
         )
 
+    cost = result.usage.cost if result.usage else None
+    log.info(f"Cloud: cloud_image done job_id={job_id} provider={provider} model={model} images={len(images_refs)} cost={cost} time={time.time() - t0:.2f}s")
+
     return {
-        "images": images,
+        "images": images_refs,
         "processed": [],
         "info": {
-            "cloud_provider": params.get("provider"),
-            "cloud_model": params.get("model"),
-            "cloud_cost": result.usage.cost if result.usage else None,
+            "cloud_provider": result.provider or provider,
+            "cloud_model": result.model or model,
+            "cloud_cost": cost,
             "revised_prompt": result.revised_prompt,
             "prompt": params.get("prompt"),
             "negative_prompt": params.get("negative_prompt"),
-            "seed": params.get("seed"),
-            "width": params.get("width"),
-            "height": params.get("height"),
+            "seed": result.seed,
+            "width": result.width,
+            "height": result.height,
         },
         "params": params,
     }
 
 
-def _save_audio_result(result, job_id: str) -> str:
-    # SD.Next doesn't ship an outdir option for audio; fall back to outdir_samples
-    # so it lives alongside other generated artifacts.
-    import os
-
-    from modules import shared
-
-    output_dir = shared.opts.outdir_samples or shared.opts.outdir_txt2img_samples
-    os.makedirs(output_dir, exist_ok=True)
-    filepath = os.path.join(output_dir, f"cloud_{job_id}.{result.format}")
-    with open(filepath, "wb") as f:
-        f.write(result.data)
-    return filepath
+def execute_cloud_chat(params: dict, job_id: str) -> dict:
+    raise NotImplementedError("cloud_chat is not exposed via the V2 job queue; use POST /sdapi/v1/cloud/prompt-enhance for the synchronous text surface")
 
 
-def _save_video_result(result, job_id: str) -> str:
-    import os
+def execute_cloud_tts(params: dict, job_id: str) -> dict:
+    raise NotImplementedError("cloud_tts executor stubbed; modules.cloud.audio.tts not yet wired")
 
-    from modules import shared
 
-    output_dir = shared.opts.outdir_video or shared.opts.outdir_samples
-    os.makedirs(output_dir, exist_ok=True)
-    filepath = os.path.join(output_dir, f"cloud_{job_id}.{result.format}")
-    with open(filepath, "wb") as f:
-        f.write(result.data)
-    return filepath
+def execute_cloud_stt(params: dict, job_id: str) -> dict:
+    raise NotImplementedError("cloud_stt executor stubbed; modules.cloud.audio.stt not yet wired")
+
+
+def execute_cloud_video(params: dict, job_id: str) -> dict:
+    from modules.cloud.errors import CloudError
+    from modules.cloud.video import generate_video
+
+    t0 = time.time()
+    provider = params.get("provider", "")
+    model = params.get("model", "")
+    has_image = bool(params.get("image"))
+
+    init_image = resolve_ref(params.get("image"))
+
+    log.info(f"Cloud: cloud_video executing job_id={job_id} provider={provider} model={model} mode={'i2v' if has_image else 't2v'} duration={params.get('duration')} aspect={params.get('aspect_ratio')} size={params.get('size')}")
+
+    try:
+        result = generate_video(
+            params.get("prompt", ""),
+            provider,
+            model,
+            aspect_ratio=params.get("aspect_ratio"),
+            duration=params.get("duration"),
+            size=params.get("size"),
+            init_image=init_image,
+            seed=params.get("seed") if params.get("seed") is not None else -1,
+            extra_params=params.get("extra_params") or None,
+            save_to_disk=True,
+            on_progress=make_progress_callback(job_id),
+        )
+    except CloudError as e:
+        log.error(f"Cloud: cloud_video failed job_id={job_id} provider={provider} model={model} time={time.time() - t0:.2f}s: {type(e).__name__}: {e}")
+        raise
+
+    videos_refs: list[dict] = []
+    if result.saved_path:
+        # sdnext's modules.cloud.video.write_thumbnail writes the PNG to
+        # <video_path>.thumb.png; reference that path directly so the
+        # /thumbnail subroute can serve it under the same path-confinement.
+        thumb_path: str | None = f"{result.saved_path}.thumb.png" if result.thumbnail else None
+        try:
+            file_size = os.path.getsize(result.saved_path)
+        except OSError:
+            file_size = len(result.video) if result.video else 0
+        if thumb_path and not os.path.isfile(thumb_path):
+            thumb_path = None
+        videos_refs.append(
+            {
+                "index": 0,
+                "path": result.saved_path,
+                "thumbnail_path": thumb_path,
+                "url": f"/sdapi/v2/jobs/{job_id}/videos/0",
+                "thumbnail_url": f"/sdapi/v2/jobs/{job_id}/videos/0/thumbnail" if thumb_path else None,
+                "format": result.format,
+                "size": file_size,
+                "duration": result.duration,
+            }
+        )
+
+    cost = result.usage.cost if result.usage else None
+    log.info(f"Cloud: cloud_video done job_id={job_id} provider={provider} model={model} videos={len(videos_refs)} cost={cost} time={time.time() - t0:.2f}s")
+
+    return {
+        "videos": videos_refs,
+        "info": {
+            "cloud_provider": result.provider or provider,
+            "cloud_model": result.model or model,
+            "cloud_cost": cost,
+            "prompt": params.get("prompt"),
+            "seed": result.seed,
+            "duration": result.duration,
+            "aspect_ratio": params.get("aspect_ratio"),
+            "size": params.get("size"),
+            "format": result.format,
+            "is_i2v": has_image,
+        },
+        "params": params,
+    }

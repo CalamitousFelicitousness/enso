@@ -1,4 +1,1 @@
-export interface DetailerModel {
-  name: string;
-  path: string | null;
-}
+export type { ItemDetailerV2 as DetailerModel } from "@/lib/openapi-generated/types.gen";

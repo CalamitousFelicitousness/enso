@@ -6,7 +6,7 @@ interface PlaygroundPanelProps {
   tag?: string;
   width?: number;
   /** Fixed height. Use for panels that manage their own internal scroll (h-full + overflow-y-auto).
-   *  When set, the panel body gets this exact height and no overflow — the child handles scrolling. */
+   * When set, the panel body gets this exact height and no overflow - the child handles scrolling. */
   height?: number;
   children: React.ReactNode;
   className?: string;

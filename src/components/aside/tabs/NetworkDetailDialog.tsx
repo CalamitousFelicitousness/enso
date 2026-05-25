@@ -457,7 +457,7 @@ export function NetworkDetailDialog({
             {/* Body */}
             <div className="flex-1 min-h-0 overflow-y-auto p-5">
               {!network ? (
-                <StyleDialogBody item={item as PromptStyleV2} />
+                <StyleDialogBody item={item} />
               ) : isLoading ? (
                 <div className="flex items-center gap-2 text-sm text-muted-foreground py-8 justify-center">
                   <Loader2 className="h-4 w-4 animate-spin" />

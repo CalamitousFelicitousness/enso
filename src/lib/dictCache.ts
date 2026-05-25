@@ -83,7 +83,7 @@ export async function setCachedDict(name: string, tags: DictTag[], version: stri
   try {
     await idbPut(name, { tags, version, cachedAt: Date.now() });
   } catch {
-    // silently fail — cache is best-effort
+    // silently fail - cache is best-effort
   }
 }
 

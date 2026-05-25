@@ -166,7 +166,7 @@ export function UpdateSubTab() {
             <ul className="list-disc pl-5 space-y-1">
               {rebase && (
                 <li>
-                  <span className="font-medium">Rebase</span> — local changes will be stashed before
+                  <span className="font-medium">Rebase</span> - local changes will be stashed before
                   pulling.
                 </li>
               )}

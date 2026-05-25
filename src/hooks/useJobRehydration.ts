@@ -16,6 +16,12 @@ const JOB_TYPE_TO_DOMAIN: Record<string, JobDomain> = {
   framepack: "framepack",
   ltx: "ltx",
   "xyz-grid": "xyz-grid",
+  // Cloud executors piggyback on the local domains: cloud_image renders in
+  // the images flow, cloud_video in the video flow. Discriminated downstream
+  // by JobRequest.type. Without these entries, rehydrated cloud jobs fall
+  // through to the "generate" default and land in the wrong card group.
+  cloud_image: "generate",
+  cloud_video: "video",
 };
 
 function jobToDomain(type: string): JobDomain {

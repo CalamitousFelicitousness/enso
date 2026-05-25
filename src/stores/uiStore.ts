@@ -36,14 +36,12 @@ type SystemSubTab =
   | "System Info"
   | "Benchmark";
 
-type CaptionSubTab = "vlm" | "openclip" | "tagger" | "default";
-type VideoSubTab = "models" | "framepack" | "ltx";
+type CaptionSubTab = "vlm" | "openclip" | "tagger" | "cloud" | "default";
 
 interface PanelSelections {
   modelsSubTab: ModelsSubTab;
   systemSubTab: SystemSubTab;
   captionSubTab: CaptionSubTab;
-  videoSubTab: VideoSubTab;
   /** Free-form because backend Settings sections are dynamic. The synthetic
    * Connection / Appearance ids and any backend section id are valid; null
    * falls back to whichever section SettingsView resolves first. */
@@ -137,7 +135,6 @@ export type {
   ModelsSubTab,
   SystemSubTab,
   CaptionSubTab,
-  VideoSubTab,
   PanelSelections,
 };
 
@@ -145,7 +142,6 @@ const DEFAULT_PANEL_SELECTIONS: PanelSelections = {
   modelsSubTab: "Current",
   systemSubTab: "Overview",
   captionSubTab: "vlm",
-  videoSubTab: "models",
   settingsSection: null,
 };
 
@@ -214,15 +210,7 @@ export const useUiStore = create<UiState>()(
     }),
     {
       name: "enso-ui",
-      version: 3,
-      migrate: (persisted, version) => {
-        if (!persisted || typeof persisted !== "object") return persisted;
-        const p = persisted as Record<string, unknown>;
-        if (version < 3 && !("panelSelections" in p)) {
-          p["panelSelections"] = { ...DEFAULT_PANEL_SELECTIONS };
-        }
-        return p;
-      },
+      version: 5,
       partialize: (state) => {
         const {
           pendingSettingsSearch: _pending,
