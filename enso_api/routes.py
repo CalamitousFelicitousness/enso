@@ -10,7 +10,6 @@ from modules.logger import log
 from enso_api.job_models import JobRequest
 from enso_api.models import (
     FramePackLoadResponse,
-    ImageRef,
     JobListResponse,
     JobResponse,
     JobResult,
@@ -26,7 +25,6 @@ from enso_api.models import (
     VideoLoadResponse,
     VideoModel,
     VideoModelEnriched,
-    VideoRef,
 )
 from enso_api.ws_models import WsEvent, WsEventPing
 
@@ -43,16 +41,7 @@ def job_to_response(job: dict) -> JobResponse:
             except (json.JSONDecodeError, TypeError):
                 result = None
         if isinstance(result, dict):
-            images = [ImageRef(**img) for img in result.get("images", [])]
-            processed = [ImageRef(**img) for img in result.get("processed", [])]
-            videos = [VideoRef(**vid) for vid in result.get("videos", [])]
-            job_result = JobResult(
-                images=images,
-                processed=processed,
-                videos=videos,
-                info=result.get("info", {}),
-                params=result.get("params", {}),
-            )
+            job_result = JobResult.from_result_dict(result)
     return JobResponse(
         id=job["id"],
         type=job["type"],

@@ -71,15 +71,34 @@ class VideoRef(BaseModel):
 class JobResult(BaseModel):
     """The result payload attached to a completed JobResponse.
 
-    All list / dict fields are required because the server always emits
-    them. Empty collections still serialize correctly; the requirement
-    is that the field is present in the payload."""
+    All list / dict fields are required. Every producer normalizes the raw
+    executor dict through `from_result_dict`, which fills the keys an
+    executor leaves out (most return only `images`, sometimes `processed`,
+    and only the video executors set `videos`). Empty collections still
+    serialize; the contract is that each field is present in the payload."""
 
     images: list[ImageRef]
     processed: list[ImageRef]
     videos: list[VideoRef]
     info: dict
     params: dict
+
+    @classmethod
+    def from_result_dict(cls, result: dict) -> "JobResult":
+        """Build a complete JobResult from a raw executor result dict.
+
+        Executors return only the keys their output produces, so `videos`
+        and often `processed` are absent. Default the missing keys and let
+        the model coerce each list item into ImageRef / VideoRef. This is
+        the single construction path shared by the GET /jobs response and
+        every WsEventCompleted emission, so the two cannot drift."""
+        return cls(
+            images=result.get("images", []),
+            processed=result.get("processed", []),
+            videos=result.get("videos", []),
+            info=result.get("info", {}),
+            params=result.get("params", {}),
+        )
 
 
 class JobResponse(BaseModel):

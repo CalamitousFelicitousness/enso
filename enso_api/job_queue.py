@@ -7,6 +7,7 @@ import threading
 from concurrent.futures import ThreadPoolExecutor
 
 from enso_api.job_store import JobStore
+from enso_api.models import JobResult
 from enso_api.ws_models import (
     WsEventCompleted,
     WsEventError,
@@ -227,7 +228,7 @@ class JobQueue:
                 result = executor_fn(params, job_id)
             result_json = json.dumps(result, default=str)
             self.store.update_status(job_id, "completed", completed_at=JobStore.now(), result=result_json)
-            self.push_progress(job_id, WsEventCompleted(result=result).model_dump(exclude_none=True))
+            self.push_progress(job_id, WsEventCompleted(result=JobResult.from_result_dict(result)).model_dump(exclude_none=True))
             log.info(f"Job queue: completed id={job_id}")
         except Exception as e:
             from modules import errors
@@ -261,7 +262,7 @@ class JobQueue:
             result = executor_fn(params, job_id)
             result_json = json.dumps(result, default=str)
             self.store.update_status(job_id, "completed", completed_at=JobStore.now(), result=result_json)
-            self.push_progress(job_id, WsEventCompleted(result=result).model_dump(exclude_none=True))
+            self.push_progress(job_id, WsEventCompleted(result=JobResult.from_result_dict(result)).model_dump(exclude_none=True))
             log.info(f"Job queue: cloud completed id={job_id}")
         except Exception as e:
             log.error(f"Job queue: cloud failed id={job_id} {type(e).__name__}: {e}")

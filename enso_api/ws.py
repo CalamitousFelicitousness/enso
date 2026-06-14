@@ -5,6 +5,7 @@ import json
 from fastapi import WebSocket, WebSocketDisconnect
 from modules.logger import log
 
+from enso_api.models import JobResult
 from enso_api.ws_models import (
     WsEventAck,
     WsEventCancelled,
@@ -49,7 +50,7 @@ async def ws_job_endpoint(ws: WebSocket, job_id: str):
                 result = job["result"]
                 if isinstance(result, str):
                     result = json.loads(result)
-                await ws.send_json(WsEventCompleted(result=result).model_dump(exclude_none=True))
+                await ws.send_json(WsEventCompleted(result=JobResult.from_result_dict(result)).model_dump(exclude_none=True))
             elif job["status"] == "failed":
                 await ws.send_json(WsEventError(error=job.get("error", "")).model_dump(exclude_none=True))
             elif job["status"] == "cancelled":
