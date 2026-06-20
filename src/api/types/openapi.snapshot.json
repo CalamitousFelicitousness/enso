@@ -4394,7 +4394,7 @@
             "title": "Compatible"
           },
           "group": {
-            "description": "Standard, FlowMatch, or Res4Lyf",
+            "description": "Solver-family section label from the dropdown order, e.g. Euler, DPM / DPM++, Res4Lyf: ABNorsett",
             "title": "Group",
             "type": "string"
           },

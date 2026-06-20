@@ -21,8 +21,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import type { GenerationInfo } from "@/api/types/generation";
 
-const SAMPLER_GROUP_ORDER = ["Standard", "FlowMatch", "Res4Lyf"] as const;
-
 export function SamplerTab() {
   const state = useGenerationStore(
     useShallow((s) => ({
@@ -54,19 +52,21 @@ export function SamplerTab() {
   const { data: checkpoint } = useCurrentCheckpoint();
   const { data: samplers } = useSamplerList(checkpoint?.type);
 
+  // Preserve the backend's order: it mirrors the sdnext dropdown's curated
+  // solver-family ordering and section labels. Group by consecutive runs of the
+  // same section rather than re-sorting, so the dropdown matches sdnext exactly.
   const samplerGroups = useMemo<ComboboxGroup[]>(() => {
     if (!samplers) return [];
-    const buckets: Record<string, string[]> = {};
+    const groups: { heading: string; options: string[] }[] = [];
+    let current: { heading: string; options: string[] } | null = null;
     for (const s of samplers) {
-      (buckets[s.group] ??= []).push(s.name);
+      if (!current || current.heading !== s.group) {
+        current = { heading: s.group, options: [] };
+        groups.push(current);
+      }
+      current.options.push(s.name);
     }
-    for (const names of Object.values(buckets)) {
-      names.sort((a, b) => a.localeCompare(b));
-    }
-    return SAMPLER_GROUP_ORDER.filter((g) => buckets[g]?.length).map((g) => ({
-      heading: g,
-      options: buckets[g],
-    }));
+    return groups;
   }, [samplers]);
 
   const lastInfo = useMemo<GenerationInfo | null>(() => {

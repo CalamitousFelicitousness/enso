@@ -438,8 +438,6 @@ async def get_sd_models_v2(
 
 # --- Samplers ---
 
-RES4LYF_KEYS = {"shift", "base_shift", "max_shift"}
-
 
 @router.get("/samplers", response_model=list[ItemSamplerV2], tags=["Enumerators"])
 async def get_samplers_v2(
@@ -462,22 +460,35 @@ async def get_samplers_v2(
                 compat[name] = cap["flow"]
             else:
                 compat[name] = not cap["is_flow_only"]
+    # Mirror the sdnext dropdown's order and sections. samplers_data_diffusers
+    # is hand-ordered into solver families; section dividers are SamplerData
+    # sentinels whose name starts with U+2500 box-drawing dashes (-- Section --),
+    # with a 4-dash fence (---- Res4Lyf ----) wrapping the experimental
+    # sub-sections. Track the running section and emit real samplers in order.
+    sep = "─"  # box-drawing dash that prefixes divider sentinel names
     result = []
-    for k, v in sd_samplers_diffusers.config.items():
-        if k in ("All", "Default", "Res4Lyf"):
+    fence = None
+    section = None
+    for sd in sd_samplers_diffusers.samplers_data_diffusers:
+        name = sd.name
+        if name.startswith(sep):
+            label = name.strip(sep).strip()
+            if name.startswith(sep * 4):  # parent fence, e.g. Res4Lyf
+                fence = label
+                section = None
+            else:  # section divider; nest under the open fence if any
+                section = f"{fence}: {label}" if fence else label
             continue
-        if "FlowMatch" in k:
-            sampler_group = "FlowMatch"
-        elif RES4LYF_KEYS.issubset(set(v.keys())):
-            sampler_group = "Res4Lyf"
-        else:
-            sampler_group = "Standard"
+        if name in ("All", "Default"):
+            continue
+        sampler_group = section or fence or "Standard"
         if group and sampler_group != group:
             continue
-        compatible = compat.get(k) if compat else None
+        compatible = compat.get(name) if compat else None
         if model_type and compatible is False:
             continue
-        result.append(ItemSamplerV2(name=k, group=sampler_group, compatible=compatible, options=v))
+        options = sd_samplers_diffusers.config.get(name, {})
+        result.append(ItemSamplerV2(name=name, group=sampler_group, compatible=compatible, options=options))
     return result
 
 

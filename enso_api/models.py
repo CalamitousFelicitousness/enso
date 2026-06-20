@@ -280,7 +280,7 @@ class ResModelsV2(BaseModel):
 
 class ItemSamplerV2(BaseModel):
     name: str = Field(title="Name")
-    group: str = Field(title="Group", description="Standard, FlowMatch, or Res4Lyf")
+    group: str = Field(title="Group", description="Solver-family section label from the dropdown order, e.g. Euler, DPM / DPM++, Res4Lyf: ABNorsett")
     compatible: bool | None = Field(default=None, title="Compatible", description="null if no model loaded")
     options: dict = Field(title="Options")
 
