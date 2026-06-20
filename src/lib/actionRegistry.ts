@@ -47,6 +47,26 @@ for (const t of IMAGES_SUB_TABS) TAB_ICONS[t.id] = t.icon;
 const TAB_LABELS: Record<string, string> = {};
 for (const t of IMAGES_SUB_TABS) TAB_LABELS[t.id] = t.label;
 
+/** Title-case a lowercase section name: "hires fix" -> "Hires Fix". */
+function titleCaseSection(section: string): string {
+  return section.replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+// Labels that repeat within a single tab group (e.g. Refine has a "Steps" in
+// both the "hires fix" and "refiner" sections). These need the section appended
+// so the palette rows are distinguishable instead of looking like duplicates.
+const COLLIDING_PARAM_LABELS: Set<string> = (() => {
+  const counts = new Map<string, number>();
+  for (const entry of PARAM_MAP) {
+    const group = TAB_LABELS[entry.tab] ?? entry.tab;
+    const key = `${group} ${entry.label.toLowerCase()}`;
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+  }
+  const collisions = new Set<string>();
+  for (const [key, n] of counts) if (n > 1) collisions.add(key);
+  return collisions;
+})();
+
 export function buildActions(commands?: PaletteCommand[]): PaletteAction[] {
   const cmds = commands ?? getAllCommands();
   const actions: PaletteAction[] = [];
@@ -151,10 +171,17 @@ export function buildActions(commands?: PaletteCommand[]): PaletteAction[] {
   for (const entry of PARAM_MAP) {
     const tabLabel = TAB_LABELS[entry.tab] ?? entry.tab;
     const icon = TAB_ICONS[entry.tab] ?? Settings;
+    // Section is part of the id so params that share a name across sections of
+    // the same tab (Refine's "Steps", "Scale", etc.) get distinct ids. A shared
+    // id collides the React key and the cmdk selection value, which highlights
+    // every matching row at once.
+    const sectionSlug = entry.section.replace(/\s+/g, "-");
+    const collides = COLLIDING_PARAM_LABELS.has(`${tabLabel} ${entry.label.toLowerCase()}`);
+    const label = collides ? `${entry.label} (${titleCaseSection(entry.section)})` : entry.label;
     actions.push({
       kind: "navigate",
-      id: `param-${entry.tab}-${entry.param}`,
-      label: entry.label,
+      id: `param-${entry.tab}-${sectionSlug}-${entry.param}`,
+      label,
       icon,
       group: tabLabel,
       keywords: [...entry.keywords, entry.param, entry.section],

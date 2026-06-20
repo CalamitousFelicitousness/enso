@@ -51,8 +51,15 @@ export function CommandPalette() {
         "label",
         "keywords",
         "id",
-        // Cap help excerpt matches at CONTAINS so they never outrank label/keyword hits.
-        { key: "helpExcerpt", maxRanking: matchSorter.rankings.CONTAINS },
+        // Help excerpt is a real-substring match only (threshold CONTAINS), not
+        // match-sorter's fuzzy letters-in-order rank - otherwise a common word
+        // like "steps" pulls in every param whose help prose happens to contain
+        // those letters. Capped so help hits never outrank label/keyword hits.
+        {
+          key: "helpExcerpt",
+          threshold: matchSorter.rankings.CONTAINS,
+          maxRanking: matchSorter.rankings.CONTAINS,
+        },
       ],
     });
   }, [actions, search]);
@@ -64,7 +71,11 @@ export function CommandPalette() {
         "label",
         "keywords",
         "id",
-        { key: "helpExcerpt", maxRanking: matchSorter.rankings.CONTAINS },
+        {
+          key: "helpExcerpt",
+          threshold: matchSorter.rankings.CONTAINS,
+          maxRanking: matchSorter.rankings.CONTAINS,
+        },
       ],
     });
   }, [recentActions, search]);
