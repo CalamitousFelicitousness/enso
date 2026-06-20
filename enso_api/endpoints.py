@@ -479,13 +479,15 @@ async def get_samplers_v2(
             else:  # section divider; nest under the open fence if any
                 section = f"{fence}: {label}" if fence else label
             continue
-        if name in ("All", "Default"):
+        if name == "All":  # not a selectable sampler, meaningless in the dropdown
             continue
-        sampler_group = section or fence or "Standard"
+        # Default precedes every divider, so it has no section: emit it ungrouped
+        # at the top and keep it pinned there regardless of model compatibility.
+        sampler_group = section or fence or ""
         if group and sampler_group != group:
             continue
         compatible = compat.get(name) if compat else None
-        if model_type and compatible is False:
+        if name != "Default" and model_type and compatible is False:
             continue
         options = sd_samplers_diffusers.config.get(name, {})
         result.append(ItemSamplerV2(name=name, group=sampler_group, compatible=compatible, options=options))

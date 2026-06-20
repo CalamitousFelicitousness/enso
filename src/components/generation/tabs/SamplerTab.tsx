@@ -57,11 +57,14 @@ export function SamplerTab() {
   // same section rather than re-sorting, so the dropdown matches sdnext exactly.
   const samplerGroups = useMemo<ComboboxGroup[]>(() => {
     if (!samplers) return [];
-    const groups: { heading: string; options: string[] }[] = [];
-    let current: { heading: string; options: string[] } | null = null;
+    const groups: { heading?: string; options: string[] }[] = [];
+    let current: { heading?: string; options: string[] } | null = null;
     for (const s of samplers) {
-      if (!current || current.heading !== s.group) {
-        current = { heading: s.group, options: [] };
+      // Empty group is the ungrouped top section (Default) - render it headless
+      // (the heading prop must be absent, not undefined, under exactOptional).
+      const heading = s.group || undefined;
+      if (!current || current.heading !== heading) {
+        current = heading ? { heading, options: [] } : { options: [] };
         groups.push(current);
       }
       current.options.push(s.name);
