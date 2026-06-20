@@ -136,15 +136,24 @@ export function SamplerTab() {
         </ParamGrid>
         <SectionDivider label="Options" />
         <div className="flex items-center gap-4">
-          <label className="flex items-center gap-1.5 text-2xs text-muted-foreground cursor-pointer">
+          <label
+            data-param="low order"
+            className="flex items-center gap-1.5 text-2xs text-muted-foreground cursor-pointer"
+          >
             <Checkbox checked={state.lowOrder} onCheckedChange={set.lowOrder} />
             <ParamLabel className="text-2xs text-muted-foreground">Low order</ParamLabel>
           </label>
-          <label className="flex items-center gap-1.5 text-2xs text-muted-foreground cursor-pointer">
+          <label
+            data-param="thresholding"
+            className="flex items-center gap-1.5 text-2xs text-muted-foreground cursor-pointer"
+          >
             <Checkbox checked={state.thresholding} onCheckedChange={set.thresholding} />
             <ParamLabel className="text-2xs text-muted-foreground">Thresholding</ParamLabel>
           </label>
-          <label className="flex items-center gap-1.5 text-2xs text-muted-foreground cursor-pointer">
+          <label
+            data-param="rescale"
+            className="flex items-center gap-1.5 text-2xs text-muted-foreground cursor-pointer"
+          >
             <Checkbox checked={state.rescale} onCheckedChange={set.rescale} />
             <ParamLabel className="text-2xs text-muted-foreground">Rescale</ParamLabel>
           </label>
@@ -281,7 +290,7 @@ export function SamplerTab() {
           disabled={state.dynamic}
         />
 
-        <div className="flex items-center gap-2">
+        <div data-param="dynamic shift" className="flex items-center gap-2">
           <ParamLabel
             className="text-2xs text-muted-foreground flex-shrink-0"
             tooltip="Dynamic shifting automatically adjusts the denoising schedule based on your image resolution.<br><br>The scheduler interpolates between base_shift and max_shift based on actual image resolution.<br><br>Enabling disables static Flow shift."

@@ -343,7 +343,10 @@ export function DetailTab() {
 
           <SectionLeader title="Options" collapsible defaultCollapsed>
             <div className="grid grid-cols-2 gap-2">
-              <label className="flex items-center gap-1.5 text-2xs text-muted-foreground cursor-pointer">
+              <label
+                data-param="use segmentation"
+                className="flex items-center gap-1.5 text-2xs text-muted-foreground cursor-pointer"
+              >
                 <Checkbox
                   checked={d.segmentation ?? false}
                   onCheckedChange={set.defaultSegmentation}
@@ -356,7 +359,10 @@ export function DetailTab() {
                   Segmentation
                 </ParamLabel>
               </label>
-              <label className="flex items-center gap-1.5 text-2xs text-muted-foreground cursor-pointer">
+              <label
+                data-param="include detections"
+                className="flex items-center gap-1.5 text-2xs text-muted-foreground cursor-pointer"
+              >
                 <Checkbox
                   checked={d.include_detections ?? false}
                   onCheckedChange={set.defaultIncludeDetections}
@@ -366,7 +372,10 @@ export function DetailTab() {
                   Include detections
                 </ParamLabel>
               </label>
-              <label className="flex items-center gap-1.5 text-2xs text-muted-foreground cursor-pointer">
+              <label
+                data-param="merge detailers"
+                className="flex items-center gap-1.5 text-2xs text-muted-foreground cursor-pointer"
+              >
                 <Checkbox
                   checked={d.merge ?? false}
                   onCheckedChange={set.defaultMerge}
@@ -379,7 +388,10 @@ export function DetailTab() {
                   Merge
                 </ParamLabel>
               </label>
-              <label className="flex items-center gap-1.5 text-2xs text-muted-foreground cursor-pointer">
+              <label
+                data-param="sort detections"
+                className="flex items-center gap-1.5 text-2xs text-muted-foreground cursor-pointer"
+              >
                 <Checkbox
                   checked={d.sort ?? false}
                   onCheckedChange={set.defaultSort}

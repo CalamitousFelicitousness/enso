@@ -197,7 +197,7 @@ export function ColorTab() {
           tooltip="Centers chrominance channels (1-3) during mid-stage denoising (timestep 600-900).<br><br>Each channel's spatial mean is subtracted, scaled by this value. At 1.0, the mean is fully removed (zero-centering). At 4.0 (max), it over-corrects - useful for desaturating color casts.<br><br>The total correction is spread evenly across all active steps in the range."
         />
 
-        <div className="flex items-center gap-2">
+        <div data-param="hdr clamp" className="flex items-center gap-2">
           <ParamLabel
             className="text-2xs text-muted-foreground w-16 flex-shrink-0"
             tooltip={getParamHelp("hdr clamp")}
@@ -232,7 +232,7 @@ export function ColorTab() {
           />
         </ParamGrid>
 
-        <div className="flex items-center gap-2">
+        <div data-param="hdr maximize" className="flex items-center gap-2">
           <ParamLabel
             className="text-2xs text-muted-foreground w-16 flex-shrink-0"
             tooltip={getParamHelp("hdr maximize")}
@@ -284,7 +284,7 @@ export function ColorTab() {
           step={0.05}
         />
 
-        <div className="flex items-center gap-2">
+        <div data-param="apply to hires" className="flex items-center gap-2">
           <ParamLabel
             className="text-2xs text-muted-foreground w-16 flex-shrink-0"
             tooltip={getParamHelp("apply to hires")}

@@ -297,7 +297,10 @@ export function RefineTab() {
             />
           </ParamGrid>
 
-          <label className="flex items-center gap-1.5 text-2xs text-muted-foreground cursor-pointer">
+          <label
+            data-param="force hires"
+            className="flex items-center gap-1.5 text-2xs text-muted-foreground cursor-pointer"
+          >
             <Checkbox checked={state.hiresForce} onCheckedChange={set.hiresForce} />
             Force hires
           </label>
