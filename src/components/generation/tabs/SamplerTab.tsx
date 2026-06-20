@@ -157,7 +157,7 @@ export function SamplerTab() {
         <ParamGrid>
           <ParamRow
             label="Sigma"
-            tooltip="Controls how noise levels (sigmas) are distributed across diffusion steps. Options:<br>- default: the model default<br>- karras: smoother noise schedule, higher quality with fewer steps<br>- beta: based on beta schedule values<br>- exponential: exponential decay of noise<br>- lambdas: experimental, balances signal-to-noise<br>- flowmatch: tuned for flow-matching models"
+            tooltip="Controls how noise levels (sigmas) are distributed across diffusion steps.<br><b>Default</b>: use the scheduler's built-in sigma method.<br><b>Karras</b>: smoother schedule that emphasizes later steps where fine details emerge; generally higher quality with fewer steps.<br><b>Betas</b>: derive sigmas directly from the model's beta schedule (classic <i>DDPM</i> behavior).<br><b>Exponential</b>: exponential decay of noise across steps; aggressive denoising early, slower refinement later.<br><b>Lambdas</b>: Lu's lambdas method from the <i>DPM-Solver</i> paper, specific to the <b>DPM++</b> family.<br><b>Flowmatch</b>: sigma schedule tuned for flow-matching models (<i>Flux</i>, <i>SD3</i>, video models)."
             keywords={["scheduler", "karras", "exponential", "sigma method"]}
           >
             <Combobox
@@ -169,7 +169,7 @@ export function SamplerTab() {
           </ParamRow>
           <ParamRow
             label="Spacing"
-            tooltip="Determines how timesteps are spaced across the diffusion process. Options:<br>- default: the model default<br>- leading: creates evenly spaced steps<br>- linspace: includes the first and last steps and evenly selects the remaining intermediate steps<br>- trailing: only includes the last step and evenly selects the remaining intermediate steps starting from the end"
+            tooltip="Determines how timesteps are spaced across the diffusion process. Options:<br>- <b>default</b>: the model default<br>- <b>leading</b>: creates evenly spaced steps<br>- <b>linspace</b>: includes the first and last steps and evenly selects the remaining intermediate steps<br>- <b>trailing</b>: only includes the last step and evenly selects the remaining intermediate steps starting from the end"
             keywords={["scheduler", "linspace", "leading", "trailing", "timestep spacing"]}
           >
             <Combobox
@@ -181,7 +181,7 @@ export function SamplerTab() {
           </ParamRow>
           <ParamRow
             label="Beta"
-            tooltip="Defines how beta (noise strength per step) grows. Options:<br>- default: the model default<br>- linear: evenly decays noise per step<br>- scaled: squared version of linear, used only by Stable Diffusion<br>- cosine: smoother decay, often better results with fewer steps<br>- sigmoid: sharp transition, experimental"
+            tooltip="Defines how beta (noise strength per step) grows. Options:<br>- <b>default</b>: the model default<br>- <b>linear</b>: evenly decays noise per step<br>- <b>scaled</b>: squared version of linear, used only by Stable Diffusion<br>- <b>cosine</b>: smoother decay, often better results with fewer steps<br>- <b>sigmoid</b>: sharp transition, experimental"
             keywords={["scheduler", "linear", "sigmoid", "beta schedule"]}
           >
             <Combobox
@@ -193,7 +193,7 @@ export function SamplerTab() {
           </ParamRow>
           <ParamRow
             label="Prediction"
-            tooltip="Defines what the model predicts at each step. Options:<br>- default: the model default<br>- epsilon: noise (most common for Stable Diffusion)<br>- sample: direct denoised image prediction, also called as x0 prediction<br>- v_prediction: velocity prediction, used by CosXL and NoobAI VPred models<br>- flow_prediction: used with newer flow-matching models like SD3 and Flux"
+            tooltip="Defines what the model predicts at each step. Options:<br>- <b>default</b>: the model default<br>- <b>epsilon</b>: noise (most common for Stable Diffusion)<br>- <b>sample</b>: direct denoised image prediction, also called as x0 prediction<br>- <b>v_prediction</b>: velocity prediction, used by <i>CosXL</i> and <i>NoobAI</i> VPred models<br>- <b>flow_prediction</b>: used with newer flow-matching models like <i>SD3</i> and <i>Flux</i>"
             keywords={["scheduler", "epsilon", "v_prediction", "flow", "prediction method"]}
           >
             <Combobox
@@ -220,7 +220,7 @@ export function SamplerTab() {
           </ParamRow>
           <ParamRow
             label="Override"
-            tooltip="Manually specify exact timestep values as a comma-separated descending list (e.g. 999,850,700,550,400). When set, the Steps count and timestep spacing settings are ignored."
+            tooltip="Comma- or space-separated list of integer timesteps in the 0-999 range, listed from highest (most noisy) to lowest (cleanest). When set, this list completely replaces the scheduler's normal timestep schedule and forces the step count to match the list length, ignoring the main Steps slider.<br><br>Requires at least 3 values to take effect; shorter inputs are silently ignored. Not all samplers support arbitrary timestep injection. If the active sampler doesn't, a warning is logged and the override is skipped. Selecting a preset from Timesteps presets fills this field automatically.<br><br>Useful for advanced users experimenting with custom schedules. Most users should leave this blank.<br><br>Clear the field to disable.<br>Empty by default."
             keywords={["timesteps", "custom", "override"]}
           >
             <Input
@@ -235,7 +235,7 @@ export function SamplerTab() {
         <ParamGrid>
           <ParamSlider
             label="Start"
-            tooltip="Starting step when sigma adjust occurs"
+            tooltip="Lower bound of the denoising window where Sigma adjust is active, as a fraction of the noise schedule (1.0 = pure noise, 0.0 = clean image).<br>The adjustment stops once denoising progresses past this point, so higher values end the effect earlier.<br><br>Default 0.2 leaves the final ~20% of the schedule unmodified."
             keywords={["sigma", "adjust", "adjust start"]}
             value={state.sigmaAdjustStart}
             onChange={set.sigmaAdjustStart}
@@ -245,7 +245,7 @@ export function SamplerTab() {
           />
           <ParamSlider
             label="End"
-            tooltip="Ending step when sigma adjust occurs"
+            tooltip="Upper bound of the denoising window where Sigma adjust is active, as a fraction of the noise schedule (1.0 = pure noise, 0.0 = clean image).<br>The adjustment only begins once denoising has progressed past this point, so lower values delay the effect further into the run.<br><br>Default 0.8 leaves the first ~20% of the schedule unmodified."
             keywords={["sigma", "adjust", "adjust end"]}
             value={state.sigmaAdjustEnd}
             onChange={set.sigmaAdjustEnd}
@@ -256,7 +256,7 @@ export function SamplerTab() {
         </ParamGrid>
         <ParamSlider
           label="Adjust"
-          tooltip="Adjust sampler sigma value"
+          tooltip="Multiplier applied to the sampler's step size during the active timestep window. (Sigma is the amount of noise the sampler removes at each step.)<br>Values below 1.0 shrink the step for smoother, more conservative denoising. Values above 1.0 enlarge it for sharper, more aggressive sampling.<br><br>Default 1.0 disables the adjustment entirely. Use Start and End to define the timestep range where the multiplier takes effect."
           keywords={["sigma", "sigma adjust"]}
           value={state.sigmaAdjust}
           onChange={set.sigmaAdjust}

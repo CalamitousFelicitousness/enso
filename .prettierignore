@@ -13,6 +13,9 @@ src/lib/openapi-generated/
 # Committed OpenAPI snapshot (raw JSON, sorted deterministically by scripts/openapi-shared.ts)
 src/api/types/openapi.snapshot.json
 
+# Committed SD.Next locale snapshot (verbatim upstream JSON, byte-compared by scripts/locale-check.ts)
+src/data/locale_en.snapshot.json
+
 # Separate sub-projects
 mcp
 working-docs

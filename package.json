@@ -7,8 +7,8 @@
     "node": "^20.19.0 || >=22.12.0"
   },
   "scripts": {
-    "dev": "tsx vite/codegen-openapi.ts && tsx vite/codegen-paramMap.ts && vite",
-    "prebuild": "tsx vite/codegen-openapi.ts && tsx vite/codegen-paramMap.ts",
+    "dev": "tsx vite/codegen-openapi.ts && tsx vite/codegen-locale.ts && tsx vite/codegen-paramMap.ts && vite",
+    "prebuild": "tsx vite/codegen-openapi.ts && tsx vite/codegen-locale.ts && tsx vite/codegen-paramMap.ts",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "typecheck": "tsc -b",
@@ -23,6 +23,8 @@
     "format:py:check": "venv/bin/ruff format --check",
     "codegen:refresh": "tsx scripts/openapi-refresh.ts",
     "codegen:check": "tsx scripts/openapi-check.ts",
+    "locale:refresh": "tsx scripts/locale-refresh.ts",
+    "locale:check": "tsx scripts/locale-check.ts",
     "check": "npm run typecheck && npm run lint && npm run format:check && npm run format:py:check"
   },
   "dependencies": {

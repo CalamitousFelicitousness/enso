@@ -405,7 +405,7 @@ export function ColorTab() {
 
           <ParamSlider
             label="CLAHE clip"
-            tooltip="Clip limit for Contrast Limited Adaptive Histogram Equalization (CLAHE). Higher values allow more local contrast enhancement. 0 disables CLAHE entirely."
+            tooltip="Clip limit for Contrast Limited Adaptive Histogram Equalization.<br>Higher values allow more local contrast enhancement, which brings out detail in flat regions.<br><br>Set to 0 to disable. Typical values are 1.0-3.0. Very high values can introduce noise amplification."
             keywords={["clahe", "adaptive", "histogram", "contrast"]}
             value={state.gradingClaheClip}
             onChange={set.gradingClaheClip}
@@ -416,7 +416,7 @@ export function ColorTab() {
 
           <ParamSlider
             label="CLAHE grid"
-            tooltip="Grid size for CLAHE tile regions. Smaller grids (2-4) produce more localized contrast enhancement, larger grids (8-16) produce a more global effect."
+            tooltip="Grid size for CLAHE tile regions.<br>Smaller grids (e.g., 2-4) produce coarser, more global equalization.<br>Larger grids (e.g., 12-16) enhance finer local detail but may amplify noise.<br><br>Default is 8. Only active when CLAHE clip is above 0."
             keywords={["clahe", "grid", "tiles"]}
             value={state.gradingClaheGrid}
             onChange={set.gradingClaheGrid}
@@ -460,7 +460,7 @@ export function ColorTab() {
           min={0}
           max={1}
           step={0.05}
-          tooltip="Controls the crossover point between shadow and highlight tinting. 0 shifts the effect entirely toward shadows, 1 shifts it entirely toward highlights. 0.5 is an even split."
+          tooltip="Controls the crossover point between shadow and highlight tinting.<br>Values below 0.5 extend the shadow tint into midtones. Values above 0.5 extend the highlight tint into midtones.<br><br>Default 0.5 splits evenly at the midpoint."
         />
       </SectionLeader>
 
@@ -537,7 +537,7 @@ export function ColorTab() {
           max={2}
           step={0.05}
           disabled={!hasLut}
-          tooltip="Controls the intensity of the LUT color grading. 1.0 applies the LUT at full strength. Values below 1.0 blend with the original colors, values above 1.0 amplify the effect."
+          tooltip="Controls the intensity of the applied LUT.<br>1.0 applies the LUT at full strength. Values below 1.0 blend toward the original colors, values above 1.0 amplify the effect.<br><br>Only active when a .cube LUT file is loaded."
         />
       </SectionLeader>
     </div>

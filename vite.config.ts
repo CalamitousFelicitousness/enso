@@ -5,6 +5,7 @@ import tailwindcss from "@tailwindcss/vite";
 import { VitePWA } from "vite-plugin-pwa";
 import { paletteCodegenPlugin } from "./vite/palette-codegen-plugin.ts";
 import { openapiCodegenPlugin } from "./vite/openapi-codegen-plugin.ts";
+import { localeCodegenPlugin } from "./vite/locale-codegen-plugin.ts";
 import { detectBackendPort } from "./vite/backend-port.ts";
 
 const detectedPort = await detectBackendPort(process.env.BACKEND_PORT);
@@ -22,6 +23,7 @@ export default defineConfig(({ mode }) => {
     base: mode === "production" && !isVercel ? "/enso/" : "/",
     plugins: [
       openapiCodegenPlugin(),
+      localeCodegenPlugin(),
       paletteCodegenPlugin(),
       react(),
       tailwindcss(),

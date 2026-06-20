@@ -212,7 +212,7 @@ export function DetailTab() {
             <ParamGrid>
               <ParamSlider
                 label="Steps"
-                tooltip="Number of steps to run for detailer process"
+                tooltip="Number of sampling steps used for each detailer inpaint pass.<br>Independent of the main generation steps. Higher values give cleaner detail but cost more time per detected region.<br><br>Set to <b>0</b> to inherit the main generation step count.<br>Default 10."
                 keywords={["detailer", "inpaint"]}
                 value={d.steps ?? 10}
                 onChange={set.defaultSteps}
@@ -222,7 +222,7 @@ export function DetailTab() {
               />
               <ParamSlider
                 label="Strength"
-                tooltip="Denoising strength of detailer process"
+                tooltip="Denoising strength of the detailer inpaint pass.<br>Higher values regenerate more aggressively (more change to the detected region, more reliance on the prompt). Lower values stay closer to the original detection, only refining detail.<br>Typical range 0.2 to 0.5: enough to fix distortions without losing identity. Above 0.7 the face/object can drift noticeably from the original.<br><br>Set to <b>0</b> to skip the detailer pass entirely.<br>Default 0.30."
                 keywords={["detailer", "denoising"]}
                 value={d.strength ?? 0.3}
                 onChange={set.defaultStrength}
@@ -234,7 +234,7 @@ export function DetailTab() {
             </ParamGrid>
             <ParamSlider
               label="Resolution"
-              tooltip="Resolution at which each detected region is re-generated. Higher values capture more detail but take longer."
+              tooltip="Working resolution for the detailer inpaint pass. Each detected region is cropped (with <b><i>Padding</i></b>) and resized to this resolution before inpainting.<br>Higher values give finer detail in the regenerated region but use more VRAM and time per detection. Match the model's native resolution for best results: 1024 for <i>SDXL</i>/<i>SD3</i>/<i>Flux</i>, 512 for <i>SD 1.5</i>.<br><br>Default 1024."
               keywords={["detailer", "size"]}
               value={d.resolution ?? 1024}
               onChange={set.defaultResolution}
@@ -251,7 +251,7 @@ export function DetailTab() {
             <ParamGrid>
               <ParamSlider
                 label="Confidence"
-                tooltip="Minimum confidence in detected item"
+                tooltip="Minimum <i>YOLO</i> detection score required for a region to be processed.<br>Higher values keep only confident detections (fewer false positives but may miss real subjects in difficult lighting). Lower values include more candidates including weak ones.<br>Tune with <b><i>Include detections</i></b> on so you can see what is being kept and dropped.<br><br>Default 0.6."
                 keywords={["detailer", "threshold", "min confidence"]}
                 value={d.conf ?? 0.6}
                 onChange={set.defaultConfidence}
@@ -262,7 +262,7 @@ export function DetailTab() {
               />
               <ParamSlider
                 label="IoU"
-                tooltip="Maximum overlap between two detected items before one is discarded"
+                tooltip="IOU threshold for non-maximum suppression: if two detections overlap by more than this fraction, the lower-scoring one is dropped.<br>Lower values are stricter (less overlap allowed; fewer duplicate detections of the same subject). Higher values let near-duplicates through, which is rarely useful.<br><br>Default 0.5."
                 keywords={["detailer", "overlap", "max overlap"]}
                 value={d.iou ?? 0.5}
                 onChange={set.defaultIou}
@@ -273,7 +273,7 @@ export function DetailTab() {
               />
               <ParamSlider
                 label="Min size"
-                tooltip="Minimum size of detected object as percentage of overal image"
+                tooltip="Minimum detection size as a fraction of the image's shorter edge. Detections smaller than this are dropped.<br>Use to filter out tiny background objects (e.g., faces in a crowd that aren't worth detailing). At 0.1, a face must occupy at least 10% of the image dimension to qualify.<br><br>Set to 0 to disable the lower bound.<br>Default 0."
                 keywords={["detailer", "minimum"]}
                 value={d.min_size ?? 0.0}
                 onChange={set.defaultMinSize}
@@ -284,7 +284,7 @@ export function DetailTab() {
               />
               <ParamSlider
                 label="Max size"
-                tooltip="Maximum size of detected object as percentage of overal image"
+                tooltip="Maximum detection size as a fraction of the image's shorter edge. Detections larger than this are dropped.<br>Use to skip cases where the detector grabs the whole image (e.g., a person detector returning a near full-frame box that the inpaint pass would just regenerate).<br><br>Set to 1.0 to disable the upper bound.<br>Default 0.75."
                 keywords={["detailer", "maximum"]}
                 value={d.max_size ?? 1.0}
                 onChange={set.defaultMaxSize}
@@ -295,7 +295,7 @@ export function DetailTab() {
               />
               <ParamSlider
                 label="Padding"
-                tooltip="Extra pixels added around each detected region before processing. Gives the model more context for seamless blending."
+                tooltip="Pixels added around each detection's bounding box when cropping the region for inpaint.<br>Padding gives the inpaint pass surrounding context so the regenerated content can blend smoothly with the rest of the image. Too little causes hard seams; too much wastes resolution on areas that won't change.<br><br>Default 20."
                 keywords={["detailer", "margin"]}
                 value={d.padding ?? 20}
                 onChange={set.defaultPadding}
@@ -305,7 +305,7 @@ export function DetailTab() {
               />
               <ParamSlider
                 label="Blur"
-                tooltip="Blur applied to the edges of each detected region's mask. Softens transitions between the re-generated area and the surrounding image."
+                tooltip="Pixel radius of the Gaussian blur applied to the inpaint mask edge.<br>Softens the boundary between the regenerated region and the rest of the image so the paste-back blends instead of cutting hard.<br><br>Set to 0 to disable.<br>Default 10."
                 keywords={["detailer", "mask", "soften"]}
                 value={d.blur ?? 10}
                 onChange={set.defaultBlur}
@@ -316,7 +316,7 @@ export function DetailTab() {
             </ParamGrid>
             <ParamSlider
               label="Max detect"
-              tooltip="Maximum number of detected objects to run detailer on"
+              tooltip="Cap on how many detections per model are processed.<br>Detections beyond this count are dropped (in detection score order, highest first). Use to keep detailer time bounded on busy scenes.<br><br>Default 2."
               keywords={["detailer", "limit", "count", "max detected"]}
               value={d.max ?? 2}
               onChange={set.defaultMaxDetected}
@@ -326,7 +326,7 @@ export function DetailTab() {
             />
             <ParamRow
               label="Classes"
-              tooltip="Specify specific classes to use if selected detailer model is a multi-class model"
+              tooltip="Comma-separated list of class names to keep when the selected detailer model is multi-class (e.g., a <i>YOLO</i> model that detects faces, eyes, and hands all in one file).<br>Only detections matching these labels are processed; everything else is dropped. Leave empty to accept all classes.<br><br>Names must match the model's class names exactly (case-insensitive). Single-class models like a face-only detector ignore this field."
               keywords={["detailer", "person", "face"]}
             >
               <Input
@@ -401,7 +401,7 @@ export function DetailTab() {
             <ParamGrid>
               <ParamSlider
                 label="Renoise"
-                tooltip="Apply additional noise during detailing"
+                tooltip="Multiplier applied to the sampler's step size during the detailer pass. Same mechanism as the <b><i>Adjust</i></b> slider in the Sampler tab, scoped to detailer only.<br>Values below 1.0 shrink each step for smoother, more conservative refinement (good for keeping faces stable). Values above 1.0 enlarge each step for sharper, more aggressive resampling.<br><br>Default 1.0 disables the adjustment."
                 keywords={["detailer", "noise"]}
                 value={d.sigma_adjust ?? 1.0}
                 onChange={set.defaultRenoise}
@@ -412,7 +412,7 @@ export function DetailTab() {
               />
               <ParamSlider
                 label="End"
-                tooltip="Final step when renoise is applied"
+                tooltip="Upper bound of the denoising window where <b>Renoise</b> is active within the detailer pass, as a fraction of the noise schedule (1.0 = pure noise, 0.0 = clean image).<br>Lower values restrict renoise to the very first steps (gentler intervention); higher values let it act further into the run.<br><br>Default 1.0 keeps renoise active across the full pass."
                 keywords={["detailer", "renoise", "end"]}
                 value={d.sigma_adjust_max ?? 1.0}
                 onChange={set.defaultRenoiseEnd}
