@@ -10,8 +10,12 @@ export interface NavigateTarget {
   param?: string;
 }
 
-function waitForElement(selector: string, timeout = 500): Promise<Element | null> {
-  const existing = document.querySelector(selector);
+function waitForElement(
+  selector: string,
+  timeout = 500,
+  root: ParentNode = document,
+): Promise<Element | null> {
+  const existing = root.querySelector(selector);
   if (existing) return Promise.resolve(existing);
   return new Promise((resolve) => {
     const timer = setTimeout(() => {
@@ -19,7 +23,7 @@ function waitForElement(selector: string, timeout = 500): Promise<Element | null
       resolve(null);
     }, timeout);
     const observer = new MutationObserver(() => {
-      const el = document.querySelector(selector);
+      const el = root.querySelector(selector);
       if (el) {
         clearTimeout(timer);
         observer.disconnect();
@@ -59,16 +63,25 @@ export async function navigateToParam(target: NavigateTarget) {
   // 4. If no param specified (tab-only navigation), we're done
   if (!target.param) return;
 
+  // Scope the lookup to the target tab's KeepAlive panel. Hidden tabs stay
+  // mounted, so the same data-param (or data-section) can exist in several
+  // panels at once - an unscoped query could match and scroll a hidden tab's
+  // copy instead of the one we just switched to. The panel id equals the tab id.
+  const scope = target.tab
+    ? await waitForElement(`[data-panel-id="${target.tab}"]`)
+    : document.body;
+  if (!scope) return;
+
   // 5. Expand section if specified
   if (target.section) {
-    await waitForElement(`[data-section="${target.section}"]`, 300);
+    await waitForElement(`[data-section="${target.section}"]`, 300, scope);
     document.dispatchEvent(
       new CustomEvent("param-section-expand", { detail: { section: target.section } }),
     );
   }
 
-  // 6. Wait for the param element to appear
-  const el = await waitForElement(`[data-param="${target.param}"]`, 500);
+  // 6. Wait for the param element to appear within the target panel
+  const el = await waitForElement(`[data-param="${target.param}"]`, 500, scope);
   if (!el) return;
 
   // 7. Scroll into view
