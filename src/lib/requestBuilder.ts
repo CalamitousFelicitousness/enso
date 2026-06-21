@@ -364,15 +364,6 @@ export async function buildControlRequest(): Promise<BuildResult> {
     request.inputs = refIds;
     request.input_type = 1;
     inputBlob = primaryReferences[0].file;
-  } else if (inputRole === "reference" && hasInputImage) {
-    // Reference mode with empty filmstrip but a visible image layer
-    // (legacy fallback during the transitional window). Upload the
-    // first layer's File raw.
-    const layer = primaryLayers[0];
-    const ref = await uploadFile(layer.file);
-    inputBlob = layer.file;
-    request.inputs = [ref];
-    request.input_type = 1;
   }
 
   // img2img: add inputs, mask, inpainting params
@@ -882,22 +873,12 @@ export async function buildCloudImageRequest(): Promise<CloudImageJobParams> {
       }
     } else {
       // Reference frame: raw-upload each child in wire order (no flatten,
-      // no optimization - sdnext's adapter dispatches per-provider).
+      // no optimization - sdnext's adapter dispatches per-provider). Only
+      // the active Reference arm contributes; the dormant Initial-arm
+      // layers stay untouched so toggling back restores the paint target.
       for (const refInput of frame.references) {
         const ref = await uploadFile(refInput.file);
         imageRefs.push(ref);
-      }
-      // Reference frame with no refs but a visible image layer (legacy
-      // fallback during the transitional window after toggling to
-      // Reference but before the user appended any refs).
-      if (frame.references.length === 0) {
-        const fallbackImage = frame.layers.find(
-          (l): l is ImageLayer => l.type === "image" && l.visible,
-        );
-        if (fallbackImage) {
-          const ref = await uploadFile(fallbackImage.file);
-          imageRefs.push(ref);
-        }
       }
     }
   }
