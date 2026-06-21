@@ -11,7 +11,7 @@ import {
   resolveImageSrc,
 } from "@/lib/utils";
 import { useDragSource } from "@/hooks/useDragSource";
-import { memo, useCallback, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Download, FolderDown, Trash2, Minus, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -54,6 +54,26 @@ export const ResultGallery = memo(function ResultGallery() {
   const [compareCandidate, setCompareCandidate] = useState<CompareCandidate | null>(null);
   const [comparePickMode, setComparePickMode] = useState(false);
   const contextRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const hasResults = results.length > 0;
+
+  // Translate vertical wheel into horizontal scroll across the result strip. A
+  // native non-passive listener is required because React registers onWheel as
+  // passive, which silently no-ops preventDefault(). Re-runs when the strip
+  // mounts so the listener attaches once the first result arrives.
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const handler = (e: WheelEvent) => {
+      if (el.scrollWidth <= el.clientWidth) return;
+      // Leave an explicit horizontal intent (trackpad / shift+wheel) to native scroll.
+      if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
+      el.scrollLeft += e.deltaY;
+      e.preventDefault();
+    };
+    el.addEventListener("wheel", handler, { passive: false });
+    return () => el.removeEventListener("wheel", handler);
+  }, [hasResults]);
 
   const handleClick = useCallback(
     (e: React.MouseEvent, resultId: string, imageIndex: number) => {
@@ -270,7 +290,7 @@ export const ResultGallery = memo(function ResultGallery() {
           </button>
         </div>
       </div>
-      <div className="flex gap-1.5 overflow-x-auto">
+      <div ref={scrollRef} className="flex gap-1.5 overflow-x-auto">
         {allImages.map((item) => {
           const result = results.find((r) => r.id === item.resultId)!;
           return (
