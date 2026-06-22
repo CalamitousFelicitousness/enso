@@ -244,12 +244,6 @@ def execute_generate(params: dict, job_id: str) -> dict:
     run_args = {k: v for k, v in params.items() if k in valid_params and k not in skip_keys}
     run_args["sampler_index"] = sampler_index
     run_args["is_generator"] = True
-    # Montage grids are a Gradio-UI artifact: when the global return_grid option
-    # is on, SD.Next inserts a composite grid at index 0 of the result images.
-    # control_run does not surface index_of_first_image, so the grid cannot be
-    # filtered downstream. The V2 API returns individual images only, so force
-    # the grid off regardless of the global option.
-    run_args["return_grid"] = False
     run_args["inputs"] = inputs
     run_args["inits"] = inits
     run_args["mask"] = mask
@@ -260,9 +254,14 @@ def execute_generate(params: dict, job_id: str) -> dict:
     extra = params.get("extra", {}) or {}
     run_args["extra"] = extra
 
+    # The V2 executor is the sole image saver: it writes each returned image
+    # once (preserving the pipeline's infotext) and serves those paths. Let the
+    # pipeline skip its own sample and grid saves so files are not written twice
+    # to disk. Montage grids are a Gradio-UI artifact and are never returned by
+    # the V2 API.
     extra_p_args = {
-        "do_not_save_grid": not save_images,
-        "do_not_save_samples": not save_images,
+        "do_not_save_grid": True,
+        "do_not_save_samples": True,
         **ip_adapter_args,
     }
 
@@ -354,7 +353,8 @@ def execute_generate(params: dict, job_id: str) -> dict:
 
                 try:
                     output_dir = resolve_output_path(shared.opts.outdir_samples, shared.opts.outdir_txt2img_samples if not inits else shared.opts.outdir_img2img_samples)
-                    path_info = img_module.save_image(img, output_dir, "", seed=params.get("seed", -1), prompt=params.get("prompt", ""))
+                    img_info = img.info.get("parameters") if isinstance(getattr(img, "info", None), dict) else None
+                    path_info = img_module.save_image(img, output_dir, "", seed=params.get("seed", -1), prompt=params.get("prompt", ""), info=img_info)
                     if path_info and len(path_info) > 0:
                         fpath = path_info[0] if isinstance(path_info, (list, tuple)) else str(path_info)
                         if os.path.isfile(str(fpath)):
@@ -627,8 +627,10 @@ def execute_detail(params: dict, job_id: str) -> dict:
         height=params.get("height", image.height),
         init_images=[image],
         denoising_strength=0.0,
-        do_not_save_grid=not save_images,
-        do_not_save_samples=not save_images,
+        # The executor saves the returned image once itself; skip the pipeline's
+        # own save to avoid writing each file to disk twice.
+        do_not_save_grid=True,
+        do_not_save_samples=True,
         detailer_enabled=True,
         override_settings=params.get("override_settings") or None,
     )
@@ -677,7 +679,8 @@ def execute_detail(params: dict, job_id: str) -> dict:
 
                 try:
                     output_dir = resolve_output_path(shared.opts.outdir_samples, shared.opts.outdir_img2img_samples)
-                    path_info = img_module.save_image(img, output_dir, "", seed=params.get("seed", -1), prompt=params.get("prompt", ""))
+                    img_info = img.info.get("parameters") if isinstance(getattr(img, "info", None), dict) else None
+                    path_info = img_module.save_image(img, output_dir, "", seed=params.get("seed", -1), prompt=params.get("prompt", ""), info=img_info)
                     if path_info and len(path_info) > 0:
                         fpath = path_info[0] if isinstance(path_info, (list, tuple)) else str(path_info)
                         if os.path.isfile(str(fpath)):
