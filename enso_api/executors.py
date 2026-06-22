@@ -244,6 +244,12 @@ def execute_generate(params: dict, job_id: str) -> dict:
     run_args = {k: v for k, v in params.items() if k in valid_params and k not in skip_keys}
     run_args["sampler_index"] = sampler_index
     run_args["is_generator"] = True
+    # Montage grids are a Gradio-UI artifact: when the global return_grid option
+    # is on, SD.Next inserts a composite grid at index 0 of the result images.
+    # control_run does not surface index_of_first_image, so the grid cannot be
+    # filtered downstream. The V2 API returns individual images only, so force
+    # the grid off regardless of the global option.
+    run_args["return_grid"] = False
     run_args["inputs"] = inputs
     run_args["inits"] = inits
     run_args["mask"] = mask
