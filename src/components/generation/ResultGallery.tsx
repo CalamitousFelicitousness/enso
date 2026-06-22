@@ -11,10 +11,12 @@ import {
   resolveImageSrc,
 } from "@/lib/utils";
 import { useDragSource } from "@/hooks/useDragSource";
-import { memo, useCallback, useEffect, useRef, useState } from "react";
+import { useHorizontalWheel } from "@/hooks/useHorizontalWheel";
+import { memo, useCallback, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Download, FolderDown, Trash2, Minus, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Slider } from "@/components/ui/slider";
 import {
   Dialog,
@@ -57,23 +59,7 @@ export const ResultGallery = memo(function ResultGallery() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const hasResults = results.length > 0;
 
-  // Translate vertical wheel into horizontal scroll across the result strip. A
-  // native non-passive listener is required because React registers onWheel as
-  // passive, which silently no-ops preventDefault(). Re-runs when the strip
-  // mounts so the listener attaches once the first result arrives.
-  useEffect(() => {
-    const el = scrollRef.current;
-    if (!el) return;
-    const handler = (e: WheelEvent) => {
-      if (el.scrollWidth <= el.clientWidth) return;
-      // Leave an explicit horizontal intent (trackpad / shift+wheel) to native scroll.
-      if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
-      el.scrollLeft += e.deltaY;
-      e.preventDefault();
-    };
-    el.addEventListener("wheel", handler, { passive: false });
-    return () => el.removeEventListener("wheel", handler);
-  }, [hasResults]);
+  useHorizontalWheel(scrollRef, hasResults);
 
   const handleClick = useCallback(
     (e: React.MouseEvent, resultId: string, imageIndex: number) => {
@@ -224,16 +210,6 @@ export const ResultGallery = memo(function ResultGallery() {
     );
   }
 
-  const allImages = results.flatMap((r) =>
-    r.images.map((img, ii) => ({
-      resultId: r.id,
-      imageIndex: ii,
-      image: img,
-      key: `${r.id}-${ii}`,
-      hasBaseImage: !!r.baseImage,
-    })),
-  );
-
   return (
     <div data-tour="result-gallery" className="flex flex-col gap-1">
       <div className="flex items-center gap-1 justify-between">
@@ -291,20 +267,36 @@ export const ResultGallery = memo(function ResultGallery() {
         </div>
       </div>
       <div ref={scrollRef} className="flex gap-1.5 overflow-x-auto">
-        {allImages.map((item) => {
-          const result = results.find((r) => r.id === item.resultId)!;
-          return (
-            <ResultThumb
-              key={item.key}
-              item={item}
+        {results.map((result) =>
+          result.images.length > 1 ? (
+            <BatchTile
+              key={result.id}
               result={result}
               size={thumbSize}
-              selected={
-                item.resultId === selectedResultId && item.imageIndex === selectedImageIndex
-              }
+              selectedResultId={selectedResultId}
+              selectedImageIndex={selectedImageIndex}
+              compareCandidate={compareCandidate}
+              comparePickMode={comparePickMode}
+              onClick={handleClick}
+              onDoubleClick={handleDoubleClick}
+              onContextMenu={handleContextMenu}
+              onCompare={handleCompareFromThumb}
+            />
+          ) : (
+            <ResultThumb
+              key={result.id}
+              item={{
+                resultId: result.id,
+                imageIndex: 0,
+                image: result.images[0],
+                key: `${result.id}-0`,
+                hasBaseImage: !!result.baseImage,
+              }}
+              result={result}
+              size={thumbSize}
+              selected={result.id === selectedResultId && selectedImageIndex === 0}
               isCompareCandidate={
-                compareCandidate?.resultId === item.resultId &&
-                compareCandidate?.imageIndex === item.imageIndex
+                compareCandidate?.resultId === result.id && compareCandidate?.imageIndex === 0
               }
               comparePickMode={comparePickMode}
               onClick={handleClick}
@@ -312,8 +304,8 @@ export const ResultGallery = memo(function ResultGallery() {
               onContextMenu={handleContextMenu}
               onCompare={handleCompareFromThumb}
             />
-          );
-        })}
+          ),
+        )}
       </div>
 
       <Dialog
@@ -416,6 +408,131 @@ export const ResultGallery = memo(function ResultGallery() {
         result={diffResult}
       />
     </div>
+  );
+});
+
+// Thumb size inside the expanded batch popover - larger than the strip so the
+// popover reads as a "wide film strip".
+const POPOVER_THUMB = 128;
+
+interface BatchTileProps {
+  result: GenerationResult;
+  size: number;
+  selectedResultId: string | null;
+  selectedImageIndex: number | null;
+  compareCandidate: CompareCandidate | null;
+  comparePickMode: boolean;
+  onClick: (e: React.MouseEvent, resultId: string, imageIndex: number) => void;
+  onDoubleClick: (resultId: string) => void;
+  onContextMenu: (e: React.MouseEvent, resultId: string, imageIndex: number) => void;
+  onCompare: (resultId: string, imageIndex: number) => void;
+}
+
+const BatchTile = memo(function BatchTile({
+  result,
+  size,
+  selectedResultId,
+  selectedImageIndex,
+  compareCandidate,
+  comparePickMode,
+  onClick,
+  onDoubleClick,
+  onContextMenu,
+  onCompare,
+}: BatchTileProps) {
+  const [open, setOpen] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  useHorizontalWheel(scrollRef, open);
+
+  const count = result.images.length;
+  const isSelected = result.id === selectedResultId;
+  // Mirror the canvas selection: show the picked frame as the cover when this
+  // batch owns the current selection, otherwise the first image.
+  const coverIndex = isSelected && selectedImageIndex !== null ? selectedImageIndex : 0;
+  const coverSrc = resolveImageSrc(result.images[coverIndex]);
+
+  // Shift-click builds a compare pair across batches, so keep the popover open;
+  // any other pick selects onto the canvas and dismisses it.
+  const onPick = (e: React.MouseEvent, resultId: string, imageIndex: number) => {
+    onClick(e, resultId, imageIndex);
+    if (!e.shiftKey) setOpen(false);
+  };
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <div
+          role="button"
+          tabIndex={0}
+          title={`Batch of ${count} - click to expand`}
+          onContextMenu={(e) => onContextMenu(e, result.id, coverIndex)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              setOpen((o) => !o);
+            }
+          }}
+          className="relative flex-shrink-0 cursor-pointer outline-none"
+          style={{ width: size + 6, height: size }}
+        >
+          {/* Layered card backs peeking on the right hint at more frames. */}
+          <div
+            className="absolute top-1.5 bottom-1.5 right-0 rounded-sm border border-border/60 bg-muted"
+            style={{ width: size }}
+          />
+          <div
+            className="absolute top-1 bottom-1 rounded border border-border/60 bg-muted"
+            style={{ width: size, right: 3 }}
+          />
+          {/* Cover */}
+          <div
+            className={cn(
+              "absolute left-0 top-0 overflow-hidden rounded border-2 transition-colors",
+              isSelected ? "border-primary" : "border-transparent hover:border-muted-foreground/30",
+            )}
+            style={{ width: size, height: size }}
+          >
+            <img src={coverSrc} alt="Batch cover" className="h-full w-full object-cover" />
+            <span className="absolute bottom-0.5 right-0.5 rounded bg-black/70 px-1 text-3xs leading-tight text-white tabular-nums">
+              ×{count}
+            </span>
+          </div>
+        </div>
+      </PopoverTrigger>
+      <PopoverContent
+        side="top"
+        align="start"
+        sideOffset={8}
+        collisionPadding={16}
+        className="w-auto max-w-[calc(100vw-2rem)] p-2"
+      >
+        <div ref={scrollRef} className="flex gap-1.5 overflow-x-auto">
+          {result.images.map((img, ii) => (
+            <ResultThumb
+              key={`${result.id}-${ii}`}
+              item={{
+                resultId: result.id,
+                imageIndex: ii,
+                image: img,
+                key: `${result.id}-${ii}`,
+                hasBaseImage: !!result.baseImage,
+              }}
+              result={result}
+              size={POPOVER_THUMB}
+              selected={isSelected && selectedImageIndex === ii}
+              isCompareCandidate={
+                compareCandidate?.resultId === result.id && compareCandidate?.imageIndex === ii
+              }
+              comparePickMode={comparePickMode}
+              onClick={onPick}
+              onDoubleClick={onDoubleClick}
+              onContextMenu={onContextMenu}
+              onCompare={onCompare}
+            />
+          ))}
+        </div>
+      </PopoverContent>
+    </Popover>
   );
 });
 
