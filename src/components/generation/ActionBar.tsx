@@ -15,6 +15,7 @@ import {
 import { blobToBase64 } from "@/lib/image";
 import { snapshotUnits } from "@/stores/controlStore";
 import { useModelSelectionStore } from "@/stores/modelSelectionStore";
+import { usePromptHistoryStore } from "@/stores/promptHistoryStore";
 import { useSubmitToQueue, UserAbortError } from "@/hooks/useSubmitToQueue";
 import { sendToJob } from "@/hooks/useJobTracker";
 import { useCancelJob } from "@/api/hooks/useJobs";
@@ -72,6 +73,21 @@ export const ActionBar = memo(function ActionBar() {
       toast.warning("Switch to Video view to use this model");
       throw new UserAbortError("local-video model active on Images view");
     }
+
+    // Record the prompt being generated into the prompt-history popover.
+    const submitted = useGenerationStore.getState();
+    usePromptHistoryStore.getState().addEntry({
+      prompt: submitted.prompt,
+      negative: submitted.negativePrompt,
+      model: activeModel
+        ? activeModel.source === "local"
+          ? activeModel.model_name
+          : activeModel.name
+        : "",
+      width: submitted.width,
+      height: submitted.height,
+      steps: submitted.steps,
+    });
 
     if (activeModel?.source === "cloud") {
       const cloudRequest = await buildCloudImageRequest();

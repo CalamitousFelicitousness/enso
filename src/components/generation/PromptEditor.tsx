@@ -14,9 +14,18 @@ import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { KeepAlivePanel } from "@/components/ui/keep-alive";
-import { ChevronDown, ChevronRight, Sparkles, Loader2, Settings2 } from "lucide-react";
+import {
+  ChevronDown,
+  ChevronRight,
+  Sparkles,
+  Loader2,
+  Settings2,
+  CalendarClock,
+} from "lucide-react";
 import { toast } from "sonner";
+import { useRegisterCommand } from "@/lib/commandRegistry";
 import { PromptEnhanceWorkspace } from "./PromptEnhanceWorkspace";
+import { PromptHistoryPopover } from "./PromptHistoryPopover";
 import { CloudEnhanceButton } from "./CloudEnhanceButton";
 import type { PromptEnhanceRequest } from "@/api/types/promptEnhance";
 
@@ -26,6 +35,7 @@ export function PromptEditor() {
   const setParam = useGenerationStore((s) => s.setParam);
   const [showNegative, setShowNegative] = useState(false);
   const [enhanceOpen, setEnhanceOpen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
 
   const promptAutocomplete = useUiStore((s) => s.promptAutocomplete);
   const setPromptAutocomplete = useUiStore((s) => s.setPromptAutocomplete);
@@ -92,6 +102,15 @@ export function PromptEditor() {
     });
   }, [prompt, enhanceStore, enhanceMutation, setPendingResult]);
 
+  useRegisterCommand({
+    id: "prompt:open-history",
+    label: "Open prompt history",
+    group: "Prompt",
+    keywords: ["recent prompts", "previous prompts", "history", "reuse prompt"],
+    icon: CalendarClock,
+    run: () => setHistoryOpen(true),
+  });
+
   return (
     <div className="flex flex-col gap-2">
       {/* Positive prompt */}
@@ -99,6 +118,21 @@ export function PromptEditor() {
         <div className="flex items-center justify-between mb-1">
           <Label className="text-2xs text-muted-foreground">Prompt</Label>
           <div className="flex items-center gap-0.5">
+            <Popover open={historyOpen} onOpenChange={setHistoryOpen}>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  className="p-0.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground data-[state=open]:text-primary transition-colors mr-0.5"
+                  title="Prompt history"
+                  aria-label="Prompt history"
+                >
+                  <CalendarClock size={14} />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent side="bottom" align="end" className="w-[21rem] p-0">
+                <PromptHistoryPopover onClose={() => setHistoryOpen(false)} />
+              </PopoverContent>
+            </Popover>
             <Button
               variant={promptAutocomplete ? "default" : "outline"}
               size="sm"
