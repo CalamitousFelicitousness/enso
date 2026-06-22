@@ -110,7 +110,7 @@ export function Combobox({
             className,
           )}
         >
-          <span className="break-words text-left">
+          <span className="min-w-0 truncate text-left" title={value ? currentLabel : undefined}>
             {value ? (renderLabel ? renderLabel(value, currentLabel) : currentLabel) : placeholder}
           </span>
           <ChevronDown size={12} className="shrink-0 opacity-50" />
