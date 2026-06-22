@@ -59,6 +59,7 @@ interface UiState {
   leftPanelCollapsed: boolean;
   leftPanelWidth: number;
   rightPanelCollapsed: boolean;
+  rightPanelWidth: number;
 
   // Right tabs
   activeRightTab: RightTab;
@@ -110,6 +111,7 @@ interface UiState {
   toggleLeftPanel: () => void;
   setLeftPanelWidth: (width: number) => void;
   toggleRightPanel: () => void;
+  setRightPanelWidth: (width: number) => void;
   setRightTab: (tab: RightTab) => void;
   openRightTab: (tab: RightTab) => void;
   setPanelSelection: <K extends keyof PanelSelections>(key: K, value: PanelSelections[K]) => void;
@@ -155,6 +157,7 @@ export const useUiStore = create<UiState>()(
       leftPanelCollapsed: false,
       leftPanelWidth: 380,
       rightPanelCollapsed: true,
+      rightPanelWidth: 420,
       activeRightTab: "networks",
       panelSelections: { ...DEFAULT_PANEL_SELECTIONS },
       resultThumbSize: 56,
@@ -185,6 +188,7 @@ export const useUiStore = create<UiState>()(
       toggleLeftPanel: () => set((s) => ({ leftPanelCollapsed: !s.leftPanelCollapsed })),
       setLeftPanelWidth: (width) => set({ leftPanelWidth: Math.max(280, Math.min(600, width)) }),
       toggleRightPanel: () => set((s) => ({ rightPanelCollapsed: !s.rightPanelCollapsed })),
+      setRightPanelWidth: (width) => set({ rightPanelWidth: Math.max(280, Math.min(720, width)) }),
       setRightTab: (tab) => set({ activeRightTab: tab }),
       openRightTab: (tab) => set({ activeRightTab: tab, rightPanelCollapsed: false }),
       setPanelSelection: (key, value) =>
