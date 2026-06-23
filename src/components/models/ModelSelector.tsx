@@ -109,6 +109,17 @@ export function ModelSelector() {
 
   const pipelineClass = isLocalImage ? formatPipelineClass(checkpoint?.class_name) : null;
 
+  // Whether the selected model is the one the backend currently has loaded.
+  // Drives the merged Load/Reload control: matched -> reload it, mismatched ->
+  // load the selection. Local image compares against the loaded checkpoint;
+  // local video carries its own loaded flag.
+  const selectedIsLoaded =
+    activeModel?.source === "local"
+      ? !!checkpoint?.loaded && checkpoint.title === activeModel.title
+      : activeModel?.source === "local-video"
+        ? activeModel.loaded
+        : false;
+
   function handleSelectLocal(model: NonNullable<typeof models>[number]) {
     setOpen(false);
     const localModel: LocalModel = { ...model, source: "local" };
@@ -142,31 +153,20 @@ export function ModelSelector() {
 
   // --- Action row dispatch -------------------------------------------------
 
-  // Load button: dispatches per source. Cloud is a no-op (selection is the
-  // configuration). FramePack uses its dedicated endpoint with the current
-  // fpAttention from videoStore as the default.
-  function handleLoad() {
+  // Single Load/Reload control. When the selected model is already the loaded
+  // one, re-pull it from disk via sdnext's dedicated reload endpoint; when a
+  // different model is selected, load that one instead. Cloud is a no-op
+  // (selection is the configuration). Local video has no separate reload
+  // route, so re-firing its load both loads and reloads; FramePack uses its
+  // dedicated endpoint with the current fpAttention from videoStore.
+  function handleLoadOrReload() {
     if (!activeModel) return;
     if (activeModel.source === "local") {
-      loadModel.mutate(activeModel.title);
-    } else if (activeModel.source === "local-video") {
-      if (activeModel.kind === "framepack") {
-        const attention = useVideoStore.getState().fpAttention;
-        loadFramePack.mutate({ variant: activeModel.model, attention });
+      if (selectedIsLoaded) {
+        reloadModel.mutate(undefined);
       } else {
-        loadVideoModel.mutate({ engine: activeModel.engine, model: activeModel.model });
+        loadModel.mutate(activeModel.title);
       }
-    }
-  }
-
-  // Reload re-fires the appropriate load. For sdnext, the dedicated reload
-  // endpoint re-pulls the currently-loaded checkpoint. For local video, we
-  // fire load with the active model again - there's no separate /reload
-  // route, and re-firing load achieves the "re-pull from disk" effect.
-  function handleReload() {
-    if (!activeModel) return;
-    if (activeModel.source === "local") {
-      reloadModel.mutate(undefined);
     } else if (activeModel.source === "local-video") {
       if (activeModel.kind === "framepack") {
         const attention = useVideoStore.getState().fpAttention;
@@ -384,28 +384,19 @@ export function ModelSelector() {
       {isCloud && <span className="text-3xs text-sky-400 whitespace-nowrap">Cloud</span>}
       {isLocalVideo && <span className="text-3xs text-emerald-400 whitespace-nowrap">Video</span>}
 
-      {/* Unified action row: always visible. Load/Reload/Unload mute when
-          they wouldn't do anything (cloud active, or Unload on a
-          generic/LTX video model where no unload endpoint exists). Refresh
-          stays active everywhere since invalidating list queries is a
+      {/* Unified action row: always visible. The Load/Reload control and
+          Unload mute when they wouldn't do anything (cloud active, or Unload
+          on a generic/LTX video model where no unload endpoint exists).
+          Refresh stays active everywhere since invalidating list queries is a
           context-free escape hatch. */}
       <Button
         variant="ghost"
         size="icon-sm"
-        title="Load selected model"
+        title={selectedIsLoaded ? "Reload current model" : "Load selected model"}
         disabled={!canLoadOrReload || anyLoadActionPending}
-        onClick={handleLoad}
+        onClick={handleLoadOrReload}
       >
-        <Upload size={14} />
-      </Button>
-      <Button
-        variant="ghost"
-        size="icon-sm"
-        title="Reload current model"
-        disabled={!canLoadOrReload || anyLoadActionPending}
-        onClick={handleReload}
-      >
-        <RotateCw size={14} />
+        {selectedIsLoaded ? <RotateCw size={14} /> : <Upload size={14} />}
       </Button>
       <Button
         variant="ghost"

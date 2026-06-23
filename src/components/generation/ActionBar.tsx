@@ -19,6 +19,10 @@ import { usePromptHistoryStore } from "@/stores/promptHistoryStore";
 import { useSubmitToQueue, UserAbortError } from "@/hooks/useSubmitToQueue";
 import { sendToJob } from "@/hooks/useJobTracker";
 import { useCancelJob } from "@/api/hooks/useJobs";
+import { useLoadModel } from "@/api/hooks/useModels";
+import { api } from "@/api/client";
+import type { CheckpointInfoV2 } from "@/api/types/models";
+import { useQueryClient } from "@tanstack/react-query";
 import { Play, Square, SkipForward, History, ChevronDown, Layers, Grid3X3 } from "lucide-react";
 import { ProgressRing } from "@/components/ui/progress-ring";
 import { useState, useCallback, useMemo, memo } from "react";
@@ -62,6 +66,8 @@ export const ActionBar = memo(function ActionBar() {
   const [xyzOpen, setXyzOpen] = useState(false);
   const [diffOpen, setDiffOpen] = useState(false);
   const cancelJob = useCancelJob();
+  const loadModel = useLoadModel();
+  const queryClient = useQueryClient();
 
   const buildRequest = useCallback(async () => {
     const { activeModel } = useModelSelectionStore.getState();
@@ -72,6 +78,24 @@ export const ActionBar = memo(function ActionBar() {
     if (activeModel?.source === "local-video") {
       toast.warning("Switch to Video view to use this model");
       throw new UserAbortError("local-video model active on Images view");
+    }
+
+    // Selecting a local model only updates the store (manual-load semantics),
+    // so the backend may still have a different checkpoint loaded. Load the
+    // selected one before queueing or the job runs on the wrong model. Going
+    // through the shared ["checkpoint"] query and load mutation refreshes the
+    // dropdown's loaded-model label and dedupes a single load across the
+    // batch/xyz paths, which call buildRequest once.
+    if (activeModel?.source === "local") {
+      const loaded = await queryClient.fetchQuery({
+        queryKey: ["checkpoint"],
+        queryFn: () => api.get<CheckpointInfoV2>("/sdapi/v2/checkpoint"),
+        staleTime: 30_000,
+      });
+      if (!loaded.loaded || loaded.title !== activeModel.title) {
+        toast.info("Loading model", { description: activeModel.title });
+        await loadModel.mutateAsync(activeModel.title);
+      }
     }
 
     // Record the prompt being generated into the prompt-history popover.
@@ -123,7 +147,7 @@ export const ActionBar = memo(function ActionBar() {
       payload: { type: "generate" as const, ...request },
       snapshot: { kind: "control" as const, inputImage, inputMask, controlUnits },
     };
-  }, [clearSelection]);
+  }, [clearSelection, loadModel, queryClient]);
 
   const { submit, isSubmitting } = useSubmitToQueue(
     useMemo(() => ({ domain: "generate" as const, buildRequest }), [buildRequest]),
