@@ -261,15 +261,23 @@ export const CanvasView = memo(function CanvasView() {
     });
   }, []);
 
-  const handleClearAll = useCallback(() => {
+  const handleClearFrame = useCallback((frameId: string) => {
     const state = useCanvasStore.getState();
-    for (const frame of state.inputFrames) {
-      state.clearLayersInFrame(frame.id);
-      state.clearReferencesInFrame(frame.id);
-      state.clearMaskLinesInFrame(frame.id);
-      state.removeMaskLayersInFrame(frame.id);
-    }
+    state.clearLayersInFrame(frameId);
+    state.clearReferencesInFrame(frameId);
+    state.clearMaskLinesInFrame(frameId);
+    state.removeMaskLayersInFrame(frameId);
   }, []);
+
+  const handleRemoveFrame = useCallback((frameId: string) => {
+    useCanvasStore.getState().removeInputFrame(frameId);
+  }, []);
+
+  const handleClearAll = useCallback(() => {
+    for (const frame of useCanvasStore.getState().inputFrames) {
+      handleClearFrame(frame.id);
+    }
+  }, [handleClearFrame]);
 
   const viewport = useCanvasStore((s) => s.viewport);
   const handlePickInputFile = useCallback((_frameId: string) => {
@@ -414,6 +422,8 @@ export const CanvasView = memo(function CanvasView() {
           labelScale={labelScale}
           onPickImage={handlePickInputFile}
           onAddReferenceChild={handleAddReferenceChild}
+          onClearFrame={handleClearFrame}
+          onRemoveFrame={handleRemoveFrame}
           onAddInputFrame={handleAddInputFrame}
         />
       </div>
