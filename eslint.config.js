@@ -11,9 +11,9 @@ import { defineConfig, globalIgnores } from "eslint/config";
 // jsx-a11y has not released ESLint 10 support (PRs #1081, #1079 stalled
 // since Feb 2026). fixupConfigRules wraps each rule through the official
 // ESLint-team compat layer so removed v10 context APIs are back-filled.
-// The npm "overrides" entry in package.json handles the install-time
-// peer-dep gap. Both pieces should be removed once jsx-a11y publishes a
-// release that declares ESLint 10 support.
+// pnpm resolves the plugin's eslint peer to the root eslint 10 on its own, so
+// no package-manager override is needed. Remove this shim once jsx-a11y
+// publishes a release that declares ESLint 10 support.
 const a11yConfig = fixupConfigRules(jsxA11y.flatConfigs.recommended);
 
 export default defineConfig([

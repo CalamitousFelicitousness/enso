@@ -8,7 +8,7 @@
  * preferred over upstream. `getParamHelp` returns the override when present,
  * otherwise the baseline.
  *
- * To pull new upstream hints, run `npm run locale:refresh` (updates the snapshot);
+ * To pull new upstream hints, run `pnpm run locale:refresh` (updates the snapshot);
  * the baseline regenerates on the next dev/build. Add an entry here only to keep an
  * Enso-specific hint that should not track upstream.
  *

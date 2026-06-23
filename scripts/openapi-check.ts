@@ -2,9 +2,9 @@
  * Drift check: fail if `src/api/types/openapi.snapshot.json` doesn't match
  * the live SD.Next backend's `/openapi.json`.
  *
- * Run with `npm run codegen:check`. Used by developers locally (and by CI
+ * Run with `pnpm run codegen:check`. Used by developers locally (and by CI
  * once a workflow exists) to catch the case where a Pydantic change shipped
- * without a corresponding `npm run codegen:refresh`.
+ * without a corresponding `pnpm run codegen:refresh`.
  *
  * On drift, exits nonzero with a unified-diff hint pointing the developer
  * at the refresh command.
@@ -59,7 +59,7 @@ async function main() {
     committed = fs.readFileSync(SNAPSHOT_PATH, "utf-8");
   } catch {
     process.stderr.write(
-      `codegen:check failed - snapshot file missing.\n  Expected: ${SNAPSHOT_PATH}\n  Run \`npm run codegen:refresh\` to create it.\n`,
+      `codegen:check failed - snapshot file missing.\n  Expected: ${SNAPSHOT_PATH}\n  Run \`pnpm run codegen:refresh\` to create it.\n`,
     );
     process.exit(1);
   }
@@ -76,7 +76,7 @@ async function main() {
     process.stderr.write(`    committed: ${diff.aLine.slice(0, 200)}\n`);
     process.stderr.write(`    live:      ${diff.bLine.slice(0, 200)}\n`);
   }
-  process.stderr.write("\n  Run `npm run codegen:refresh` to update the snapshot, then commit.\n");
+  process.stderr.write("\n  Run `pnpm run codegen:refresh` to update the snapshot, then commit.\n");
   process.exit(1);
 }
 

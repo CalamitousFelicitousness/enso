@@ -1,0 +1,4 @@
+# pnpm gates dependency build scripts by default. esbuild needs its postinstall
+# to wire up the platform binary, so approve it explicitly.
+allowBuilds:
+  esbuild: true

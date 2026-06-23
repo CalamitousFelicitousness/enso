@@ -25,4 +25,4 @@ working-docs
 !README.md
 
 # Lockfiles
-package-lock.json
+pnpm-lock.yaml

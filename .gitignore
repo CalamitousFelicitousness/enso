@@ -8,11 +8,15 @@ pnpm-debug.log*
 lerna-debug.log*
 
 node_modules
-dist
 dist-ssr
 dev-dist
 *.local
 .sdnext.port
+
+# The built frontend ships prebuilt in the repo (see install.py), so dist/ is
+# tracked. Source maps stay local: large, and only useful to contributors who
+# build their own bundle.
+dist/**/*.map
 
 # Python
 venv/
