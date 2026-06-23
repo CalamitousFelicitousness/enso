@@ -409,7 +409,6 @@ export const CanvasView = memo(function CanvasView() {
           layout={layout}
           onPickImage={handlePickImage}
           onClearImage={handleClearImage}
-          onClearAll={handleClearAll}
         />
         {/* Per-Input-frame DOM chrome. Replaces the singular
             InputFramePanel (dropped from ControlFramePanels) and the

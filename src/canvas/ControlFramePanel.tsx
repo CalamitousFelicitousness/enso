@@ -826,7 +826,6 @@ interface ControlFramePanelsProps {
   layout: CanvasLayout;
   onPickImage?: (unitIndex: number) => void;
   onClearImage?: (unitIndex: number) => void;
-  onClearAll?: () => void;
 }
 
 export function ControlFramePanels({ layout, onPickImage, onClearImage }: ControlFramePanelsProps) {
