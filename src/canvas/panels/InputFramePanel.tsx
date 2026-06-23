@@ -11,6 +11,7 @@ import { SortableContext, horizontalListSortingStrategy, useSortable } from "@dn
 import { GripVertical, ImagePlus, Info, Settings, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { KeepAlivePanel, KeepAliveSwitch } from "@/components/ui/keep-alive";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   DockTab,
   FrameHeader,
@@ -22,6 +23,21 @@ import { useCanvasStore } from "@/stores/canvasStore";
 import type { ImageLayer } from "@/stores/canvasStore";
 import type { InputFrameMode } from "@/canvas/inputFrames";
 import type { InputFramePosition, ReferenceChildPosition } from "@/canvas/inputFrameTypes";
+
+// HTML hints for the Initial / Reference mode toggle, rendered through the
+// styled Tooltip path (matte glass + <b>/<i>/<br> formatting) rather than the
+// native title attribute.
+const INITIAL_MODE_HINT =
+  "<b>Initial</b> sends the canvas as an <i>img2img</i> init image.<br><br>" +
+  "All visible layers are flattened at the frame's generation size, then " +
+  "denoising strength controls how far the result departs from it. Mask " +
+  "painting (inpaint) applies in this mode.<br><br>Holds a single composited image.";
+
+const REFERENCE_MODE_HINT =
+  "<b>Reference</b> sends source files at their native resolution, not flattened " +
+  "or resized to the frame.<br><br>Used by any model that accepts multiple image " +
+  "inputs, local (<i>Klein</i>, <i>Kontext</i>, <i>Qwen Edit</i>) or cloud.<br><br>" +
+  "A Reference frame can hold a grid of several images.";
 
 interface ViewportState {
   x: number;
@@ -133,30 +149,42 @@ export function InputFramePanel({
   // FrameHeader's subheader slot, above the Info/Options tab bar.
   const modeToggle = (
     <div className="inline-flex items-center gap-0.5 rounded-md bg-white/5 p-0.5">
-      <button
-        onClick={() => handleModeSwitch("initial")}
-        className="rounded-sm px-2.5 py-0.5 text-[10px] font-medium transition-colors"
-        style={{
-          backgroundColor: !isReference ? `${INPUT_COLOR_ACTIVE}26` : "transparent",
-          color: !isReference ? INPUT_COLOR_ACTIVE : "var(--muted-foreground)",
-          boxShadow: !isReference ? `inset 0 0 0 1px ${INPUT_COLOR_ACTIVE}66` : "none",
-        }}
-        title="Initial: canvas flattened at frame size, used as img2img target with denoising."
-      >
-        Initial
-      </button>
-      <button
-        onClick={() => handleModeSwitch("reference")}
-        className="rounded-sm px-2.5 py-0.5 text-[10px] font-medium transition-colors"
-        style={{
-          backgroundColor: isReference ? `${INPUT_COLOR_REFERENCE}26` : "transparent",
-          color: isReference ? INPUT_COLOR_REFERENCE : "var(--muted-foreground)",
-          boxShadow: isReference ? `inset 0 0 0 1px ${INPUT_COLOR_REFERENCE}66` : "none",
-        }}
-        title="Reference: source files sent at native resolution. Grid of N references for multi-image cloud workflows."
-      >
-        Reference
-      </button>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button
+            onClick={() => handleModeSwitch("initial")}
+            className="rounded-sm px-2.5 py-0.5 text-[10px] font-medium transition-colors"
+            style={{
+              backgroundColor: !isReference ? `${INPUT_COLOR_ACTIVE}26` : "transparent",
+              color: !isReference ? INPUT_COLOR_ACTIVE : "var(--muted-foreground)",
+              boxShadow: !isReference ? `inset 0 0 0 1px ${INPUT_COLOR_ACTIVE}66` : "none",
+            }}
+          >
+            Initial
+          </button>
+        </TooltipTrigger>
+        <TooltipContent side="top">
+          <span dangerouslySetInnerHTML={{ __html: INITIAL_MODE_HINT }} />
+        </TooltipContent>
+      </Tooltip>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button
+            onClick={() => handleModeSwitch("reference")}
+            className="rounded-sm px-2.5 py-0.5 text-[10px] font-medium transition-colors"
+            style={{
+              backgroundColor: isReference ? `${INPUT_COLOR_REFERENCE}26` : "transparent",
+              color: isReference ? INPUT_COLOR_REFERENCE : "var(--muted-foreground)",
+              boxShadow: isReference ? `inset 0 0 0 1px ${INPUT_COLOR_REFERENCE}66` : "none",
+            }}
+          >
+            Reference
+          </button>
+        </TooltipTrigger>
+        <TooltipContent side="top">
+          <span dangerouslySetInnerHTML={{ __html: REFERENCE_MODE_HINT }} />
+        </TooltipContent>
+      </Tooltip>
     </div>
   );
 
