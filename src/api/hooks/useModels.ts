@@ -132,7 +132,10 @@ export function useReloadModel() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationKey: MODEL_MUTATION_KEY,
-    mutationFn: () => api.post("/sdapi/v2/checkpoint/reload"),
+    // force=true unloads before reloading. Without it the backend skips the
+    // reload entirely when the same checkpoint is already loaded, which is
+    // exactly the case the Reload button is used in.
+    mutationFn: () => api.post("/sdapi/v2/checkpoint/reload?force=true"),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["options"] });
       void queryClient.invalidateQueries({ queryKey: ["checkpoint"] });
