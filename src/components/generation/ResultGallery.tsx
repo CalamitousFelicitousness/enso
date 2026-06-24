@@ -12,7 +12,7 @@ import {
 } from "@/lib/utils";
 import { useDragSource } from "@/hooks/useDragSource";
 import { useHorizontalWheel } from "@/hooks/useHorizontalWheel";
-import { memo, useCallback, useRef, useState } from "react";
+import { memo, useCallback, useLayoutEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Download, FolderDown, Trash2, Minus, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -134,6 +134,21 @@ export const ResultGallery = memo(function ResultGallery() {
     },
     [],
   );
+
+  // The filmstrip sits at the bottom edge, so a menu anchored at the raw click
+  // point overflows the viewport (under the taskbar). Measure once it mounts
+  // and shift it back inside before paint - useLayoutEffect avoids a flash.
+  useLayoutEffect(() => {
+    if (!contextMenu) return;
+    const el = contextRef.current;
+    if (!el) return;
+    const { width, height } = el.getBoundingClientRect();
+    const margin = 8;
+    const left = Math.max(margin, Math.min(contextMenu.x, window.innerWidth - width - margin));
+    const top = Math.max(margin, Math.min(contextMenu.y, window.innerHeight - height - margin));
+    el.style.left = `${left}px`;
+    el.style.top = `${top}px`;
+  }, [contextMenu]);
 
   const handleContextAction = useCallback(
     (action: "restore" | "compare" | "compareWith" | "beforeAfter") => {
