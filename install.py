@@ -34,7 +34,9 @@ def run():
         print("Enso: npm not found, skipping frontend build")
         return
 
-    # npm install if node_modules missing or package.json changed
+    # npm ci (not install) if node_modules missing or package.json changed.
+    # ci is read-only against package-lock.json; npm install rewrites it, and the
+    # resulting dirty tree makes SD.Next's extension updater report "local changes detected".
     pkg_json = os.path.join(ext_root, "package.json")
     pkg_lock = os.path.join(node_modules, ".package-lock.json")
     needs_install = not os.path.isdir(node_modules) or not os.path.isfile(pkg_lock) or os.path.getmtime(pkg_json) > os.path.getmtime(pkg_lock)
@@ -47,7 +49,7 @@ def run():
 
     if needs_install:
         print("Enso: installing npm dependencies...")
-        subprocess.run([npm, "install"], cwd=ext_root, check=True)
+        subprocess.run([npm, "ci"], cwd=ext_root, check=True)
         needs_build = True  # deps changed, rebuild
 
     if needs_build:
