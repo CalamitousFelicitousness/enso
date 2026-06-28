@@ -75,6 +75,15 @@ export interface CivitModel {
   allowCommercialUse: string[];
   allowDerivatives: boolean;
   allowDifferentLicense: boolean;
+  // Availability/status: null for normal models, "Archived" or "TakenDown"
+  // when Civitai has restricted the model (a taken-down model has its files
+  // stripped and cannot be downloaded).
+  mode: string | null;
+  // Content/safety flags. Civitai serializes these as null on some endpoints;
+  // the backend coerces null to false before it reaches us.
+  poi: boolean;
+  minor: boolean;
+  sfwOnly: boolean;
 }
 
 export interface CivitSearchMetadata {

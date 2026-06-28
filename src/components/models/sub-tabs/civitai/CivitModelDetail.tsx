@@ -17,6 +17,9 @@ import {
   Image as ImageIcon,
   Send,
   Sparkles,
+  Search,
+  ExternalLink,
+  Copy,
 } from "lucide-react";
 import { toast } from "sonner";
 import { toDisplayString } from "@/lib/utils";
@@ -49,6 +52,14 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import {
+  ContextMenu,
+  ContextMenuTrigger,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+} from "@/components/ui/context-menu";
+import { CivitFlags } from "./CivitFlags";
+import {
   fetchRemoteImage,
   sendImageToCanvas,
   sendFrameToVideoInit,
@@ -60,6 +71,7 @@ import {
 interface CivitModelDetailProps {
   modelId: number | null;
   onClose: () => void;
+  onSearchCreator: (creatorName: string) => void;
 }
 
 function formatSize(sizeKB: number): string {
@@ -671,7 +683,7 @@ function ImageLightbox({
   );
 }
 
-export function CivitModelDetail({ modelId, onClose }: CivitModelDetailProps) {
+export function CivitModelDetail({ modelId, onClose, onSearchCreator }: CivitModelDetailProps) {
   const { data: model, isLoading } = useCivitModel(modelId);
   const { data: bookmarks } = useCivitBookmarks();
   const { data: banned } = useCivitBanned();
@@ -707,6 +719,20 @@ export function CivitModelDetail({ modelId, onClose }: CivitModelDetailProps) {
 
   const isBookmarked = model ? (bookmarks?.some((b) => b.name === model.name) ?? false) : false;
   const isBanned = model ? (banned?.some((b) => b.name === model.name) ?? false) : false;
+
+  const creatorName = model?.creator.username ?? "";
+  // "Unknown" is the backend's fallback for deleted/anonymous creators, which
+  // has no real profile page and nothing to search for.
+  const canLinkCreator = Boolean(creatorName) && creatorName !== "Unknown";
+  const creatorUrl = `https://civitai.com/user/${encodeURIComponent(creatorName)}`;
+  const searchCreator = useCallback(
+    (name: string) => {
+      // Close the detail so the refiltered results are visible underneath.
+      onSearchCreator(name);
+      onClose();
+    },
+    [onSearchCreator, onClose],
+  );
 
   // Collect all non-video images from all versions for the hero strip
   // Limit to 10 per version - the version API only returns ~10 images with metadata,
@@ -807,6 +833,7 @@ export function CivitModelDetail({ modelId, onClose }: CivitModelDetailProps) {
               <Badge variant="outline" className="text-3xs px-1.5 py-0.5 shrink-0">
                 {model.type}
               </Badge>
+              <CivitFlags model={model} />
               <div className="flex items-center gap-1 shrink-0 ml-2">
                 <Button
                   size="icon"
@@ -856,7 +883,48 @@ export function CivitModelDetail({ modelId, onClose }: CivitModelDetailProps) {
               <div className="p-5 space-y-5">
                 {/* Creator + stats */}
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-sm text-muted-foreground">by {model.creator.username}</span>
+                  <span className="text-sm text-muted-foreground">
+                    by{" "}
+                    {canLinkCreator ? (
+                      <ContextMenu>
+                        <ContextMenuTrigger asChild>
+                          <span
+                            role="button"
+                            tabIndex={0}
+                            onClick={() => searchCreator(creatorName)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") searchCreator(creatorName);
+                            }}
+                            className="cursor-pointer hover:text-foreground hover:underline transition-colors"
+                            title={`Search ${creatorName}'s models · right-click for more`}
+                          >
+                            {creatorName}
+                          </span>
+                        </ContextMenuTrigger>
+                        <ContextMenuContent className="w-52">
+                          <ContextMenuItem onClick={() => searchCreator(creatorName)}>
+                            <Search size={14} /> Search this creator
+                          </ContextMenuItem>
+                          <ContextMenuItem
+                            onClick={() => window.open(creatorUrl, "_blank", "noopener,noreferrer")}
+                          >
+                            <ExternalLink size={14} /> Open Civitai profile
+                          </ContextMenuItem>
+                          <ContextMenuSeparator />
+                          <ContextMenuItem
+                            onClick={() => {
+                              void navigator.clipboard.writeText(creatorName);
+                              toast.success("Username copied", { description: creatorName });
+                            }}
+                          >
+                            <Copy size={14} /> Copy username
+                          </ContextMenuItem>
+                        </ContextMenuContent>
+                      </ContextMenu>
+                    ) : (
+                      creatorName
+                    )}
+                  </span>
                   <span className="text-muted-foreground/40">·</span>
                   <StatsRow stats={model.stats} />
                 </div>

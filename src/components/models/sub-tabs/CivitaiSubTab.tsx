@@ -67,6 +67,16 @@ export function CivitaiSubTab() {
     }
   }
 
+  const handleSearchCreator = useCallback((creatorName: string) => {
+    // favorites overrides username, and free-text would narrow the results, so
+    // clear both to show everything by this creator.
+    setCreator(creatorName);
+    setQuery("");
+    setTag("");
+    setFavorites(false);
+    setSearchEnabled(true);
+  }, []);
+
   return (
     <div className="space-y-3">
       <CivitSettings />
@@ -111,9 +121,14 @@ export function CivitaiSubTab() {
         isFetchingNextPage={infiniteSearch.isFetchingNextPage}
         fetchNextPage={() => void infiniteSearch.fetchNextPage()}
         onSelectModel={setSelectedModelId}
+        onSearchCreator={handleSearchCreator}
       />
 
-      <CivitModelDetail modelId={selectedModelId} onClose={() => setSelectedModelId(null)} />
+      <CivitModelDetail
+        modelId={selectedModelId}
+        onClose={() => setSelectedModelId(null)}
+        onSearchCreator={handleSearchCreator}
+      />
 
       <CivitDownloadQueue />
     </div>

@@ -12,6 +12,7 @@ interface CivitResultListProps {
   isFetchingNextPage: boolean;
   fetchNextPage: () => void;
   onSelectModel: (modelId: number) => void;
+  onSearchCreator: (creatorName: string) => void;
 }
 
 export function CivitResultList({
@@ -20,6 +21,7 @@ export function CivitResultList({
   isFetchingNextPage,
   fetchNextPage,
   onSelectModel,
+  onSearchCreator,
 }: CivitResultListProps) {
   const models = useMemo(() => pages?.pages.flatMap((p) => p.items) ?? [], [pages]);
 
@@ -49,6 +51,7 @@ export function CivitResultList({
             model={m}
             localFiles={localFiles}
             onClick={() => onSelectModel(m.id)}
+            onSearchCreator={onSearchCreator}
           />
         ))}
       </div>

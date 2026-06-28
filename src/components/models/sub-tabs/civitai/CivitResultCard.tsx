@@ -1,5 +1,6 @@
 import { useMemo } from "react";
-import { Download, Bookmark, Ban, Check } from "lucide-react";
+import { Download, Bookmark, Ban, Check, Search, ExternalLink, Copy } from "lucide-react";
+import { toast } from "sonner";
 import type { CivitModel } from "@/api/types/civitai";
 import {
   useCivitBookmarks,
@@ -10,11 +11,20 @@ import {
   useCivitRemoveBanned,
 } from "@/api/hooks/useCivitai";
 import { Badge } from "@/components/ui/badge";
+import {
+  ContextMenu,
+  ContextMenuTrigger,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+} from "@/components/ui/context-menu";
+import { CivitFlags } from "./CivitFlags";
 
 interface CivitResultCardProps {
   model: CivitModel;
   localFiles: Record<string, { filename: string; type: string }>;
   onClick: () => void;
+  onSearchCreator: (creatorName: string) => void;
 }
 
 function civitThumbnail(url: string, width = 80): string {
@@ -39,7 +49,12 @@ function formatCount(n: number): string {
   return String(n);
 }
 
-export function CivitResultCard({ model, localFiles, onClick }: CivitResultCardProps) {
+export function CivitResultCard({
+  model,
+  localFiles,
+  onClick,
+  onSearchCreator,
+}: CivitResultCardProps) {
   const preview = getPreviewUrl(model);
   const { data: bookmarks } = useCivitBookmarks();
   const { data: banned } = useCivitBanned();
@@ -65,6 +80,12 @@ export function CivitResultCard({ model, localFiles, onClick }: CivitResultCardP
   const hasAll = totalFiles > 0 && downloadedCount === totalFiles;
   const hasSome = downloadedCount > 0 && !hasAll;
 
+  const creatorName = model.creator.username;
+  // "Unknown" is the backend's fallback for deleted/anonymous creators, which
+  // has no real profile page, so skip the link for it.
+  const canLinkCreator = Boolean(creatorName) && creatorName !== "Unknown";
+  const creatorUrl = `https://civitai.com/user/${encodeURIComponent(creatorName)}`;
+
   return (
     <button
       type="button"
@@ -89,7 +110,52 @@ export function CivitResultCard({ model, localFiles, onClick }: CivitResultCardP
               {model.modelVersions[0].baseModel}
             </Badge>
           )}
-          <span className="truncate">{model.creator.username}</span>
+          <CivitFlags model={model} compact />
+          {canLinkCreator ? (
+            <ContextMenu>
+              <ContextMenuTrigger asChild>
+                <span
+                  role="button"
+                  tabIndex={0}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onSearchCreator(creatorName);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.stopPropagation();
+                      onSearchCreator(creatorName);
+                    }
+                  }}
+                  className="truncate cursor-pointer hover:text-foreground hover:underline transition-colors"
+                  title={`Search ${creatorName}'s models · right-click for more`}
+                >
+                  {creatorName}
+                </span>
+              </ContextMenuTrigger>
+              <ContextMenuContent className="w-52">
+                <ContextMenuItem onClick={() => onSearchCreator(creatorName)}>
+                  <Search size={14} /> Search this creator
+                </ContextMenuItem>
+                <ContextMenuItem
+                  onClick={() => window.open(creatorUrl, "_blank", "noopener,noreferrer")}
+                >
+                  <ExternalLink size={14} /> Open Civitai profile
+                </ContextMenuItem>
+                <ContextMenuSeparator />
+                <ContextMenuItem
+                  onClick={() => {
+                    void navigator.clipboard.writeText(creatorName);
+                    toast.success("Username copied", { description: creatorName });
+                  }}
+                >
+                  <Copy size={14} /> Copy username
+                </ContextMenuItem>
+              </ContextMenuContent>
+            </ContextMenu>
+          ) : (
+            <span className="truncate">{creatorName}</span>
+          )}
           <span className="flex items-center gap-0.5">
             <Download className="h-2.5 w-2.5" />
             {formatCount(model.stats.downloadCount)}
