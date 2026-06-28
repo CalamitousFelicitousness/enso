@@ -83,6 +83,7 @@ export async function buildControlRequest(): Promise<BuildResult> {
     height_before: gen.height,
     cfg_scale: gen.cfgScale,
     save_images: true,
+    live_previews: ui.livePreviews,
     cfg_end: gen.cfgEnd,
     diffusers_guidance_rescale: gen.guidanceRescale,
     image_cfg_scale: gen.imageCfgScale,

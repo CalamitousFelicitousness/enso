@@ -77,6 +77,9 @@ interface UiState {
   // Model defaults
   autoApplyModelDefaults: boolean;
 
+  // Generation behavior
+  livePreviews: boolean;
+
   // Command palette
   recentCommandIds: string[];
 
@@ -108,6 +111,7 @@ interface UiState {
   setAutoFitFrame: (enabled: boolean) => void;
   setAutoUpdateProcessed: (enabled: boolean) => void;
   setAutoApplyModelDefaults: (enabled: boolean) => void;
+  setLivePreviews: (enabled: boolean) => void;
   toggleLeftPanel: () => void;
   setLeftPanelWidth: (width: number) => void;
   toggleRightPanel: () => void;
@@ -164,6 +168,7 @@ export const useUiStore = create<UiState>()(
       autoFitFrame: true,
       reprocessOnGenerate: true,
       autoApplyModelDefaults: false,
+      livePreviews: true,
       recentCommandIds: [],
       pendingSettingsSearch: null,
       quickSettingsKeys: null,
@@ -185,6 +190,7 @@ export const useUiStore = create<UiState>()(
       setAutoFitFrame: (enabled) => set({ autoFitFrame: enabled }),
       setAutoUpdateProcessed: (enabled) => set({ reprocessOnGenerate: enabled }),
       setAutoApplyModelDefaults: (enabled) => set({ autoApplyModelDefaults: enabled }),
+      setLivePreviews: (enabled) => set({ livePreviews: enabled }),
       toggleLeftPanel: () => set((s) => ({ leftPanelCollapsed: !s.leftPanelCollapsed })),
       setLeftPanelWidth: (width) => set({ leftPanelWidth: Math.max(280, Math.min(600, width)) }),
       toggleRightPanel: () => set((s) => ({ rightPanelCollapsed: !s.rightPanelCollapsed })),

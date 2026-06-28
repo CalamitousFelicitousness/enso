@@ -13,6 +13,8 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { KeepAlivePanel, KeepAliveSwitch } from "@/components/ui/keep-alive";
 import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
+import { Switch } from "@/components/ui/switch";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { cn, toDisplayString } from "@/lib/utils";
 import { Save, RotateCcw, Search, ListRestart, Plug, Unplug, Check } from "lucide-react";
@@ -25,6 +27,7 @@ import { queryClient } from "@/main";
 
 const CONNECTION_SECTION_ID = "__connection";
 const APPEARANCE_SECTION_ID = "__appearance";
+const BEHAVIOR_SECTION_ID = "__behavior";
 
 // Hoist panel JSX to module scope so React element references stay stable
 // across re-renders. `lazy` on the Connection panel defers its mount-time
@@ -48,6 +51,14 @@ const STATIC_PANELS = [
     hiddenClassName="hidden"
   >
     <AppearancePanel />
+  </KeepAlivePanel>,
+  <KeepAlivePanel
+    key={BEHAVIOR_SECTION_ID}
+    id={BEHAVIOR_SECTION_ID}
+    activeClassName=""
+    hiddenClassName="hidden"
+  >
+    <BehaviorPanel />
   </KeepAlivePanel>,
 ];
 
@@ -170,17 +181,30 @@ function buildSettingDef(
 function SettingRow({
   label,
   description,
+  tooltip,
   inline,
   children,
 }: {
   label: string;
   description?: string;
+  tooltip?: string;
   inline?: boolean;
   children: React.ReactNode;
 }) {
+  const labelText = tooltip ? (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span className="text-xs font-medium cursor-help">{label}</span>
+      </TooltipTrigger>
+      <TooltipContent>{tooltip}</TooltipContent>
+    </Tooltip>
+  ) : (
+    <span className="text-xs font-medium">{label}</span>
+  );
+
   const labelBlock = (
     <div className="flex flex-col gap-0.5">
-      <span className="text-xs font-medium">{label}</span>
+      {labelText}
       {description && (
         <span className="text-3xs text-muted-foreground leading-tight">{description}</span>
       )}
@@ -308,6 +332,26 @@ function AppearancePanel() {
             onValueChange={setCanvasBackground}
             animated
           />
+        </SettingRow>
+      </div>
+    </div>
+  );
+}
+
+function BehaviorPanel() {
+  const livePreviews = useUiStore((s) => s.livePreviews);
+  const setLivePreviews = useUiStore((s) => s.setLivePreviews);
+
+  return (
+    <div>
+      <h3 className="text-sm font-medium mb-4">Behavior</h3>
+      <div className="space-y-4">
+        <SettingRow
+          label="Live previews"
+          tooltip="Stream the in-progress image over WebSocket while generating. Turning this off skips the per-step preview decode, which speeds generation up slightly."
+          inline
+        >
+          <Switch checked={livePreviews} onCheckedChange={setLivePreviews} />
         </SettingRow>
       </div>
     </div>
@@ -604,6 +648,7 @@ export function SettingsView({ onDirtyChange }: SettingsViewProps = {}) {
   const resolvedActive = useMemo(() => {
     if (activeSection === CONNECTION_SECTION_ID) return CONNECTION_SECTION_ID;
     if (activeSection === APPEARANCE_SECTION_ID) return APPEARANCE_SECTION_ID;
+    if (activeSection === BEHAVIOR_SECTION_ID) return BEHAVIOR_SECTION_ID;
     if (activeSection && allSections.some((s) => s.id === activeSection)) return activeSection;
     // When backend is ready, default to the first backend section;
     // otherwise show Connection so users can fix the URL
@@ -805,6 +850,22 @@ export function SettingsView({ onDirtyChange }: SettingsViewProps = {}) {
               >
                 Appearance
               </button>
+              <button
+                onClick={() => {
+                  setActiveSection(BEHAVIOR_SECTION_ID);
+                  setSearchQuery("");
+                }}
+                className={cn(
+                  "w-full text-left text-xs px-2 py-1.5 rounded-md transition-colors",
+                  "hover:bg-accent hover:text-accent-foreground",
+                  resolvedActive === BEHAVIOR_SECTION_ID &&
+                    !searchQuery &&
+                    "bg-accent text-accent-foreground font-medium",
+                  matchingSectionIds && "opacity-30",
+                )}
+              >
+                Behavior
+              </button>
             </div>
           </div>
         </ScrollArea>
@@ -855,6 +916,7 @@ export function SettingsView({ onDirtyChange }: SettingsViewProps = {}) {
 
           {resolvedActive !== CONNECTION_SECTION_ID &&
             resolvedActive !== APPEARANCE_SECTION_ID &&
+            resolvedActive !== BEHAVIOR_SECTION_ID &&
             (!backendReady ? (
               <div className="flex items-center justify-center h-32 text-muted-foreground text-sm">
                 Loading settings...

@@ -194,6 +194,7 @@ class JobQueue:
                 self._job_event.set()
 
     def _run_local_job(self, job: dict, executor_fn, job_type: str) -> None:
+        from modules import shared
         from modules.logger import log
 
         job_id = job["id"]
@@ -208,6 +209,11 @@ class JobQueue:
         stages = compute_stages(job_type, raw_params)
         if stages:
             self.push_progress(job_id, WsEventStages(stages=stages).model_dump(exclude_none=True))
+
+        # When the client opts out of live previews, disable_preview is the single
+        # chokepoint: do_set_current_image() short-circuits before the latent decode,
+        # which silences the poller below, the global /ws push, and nextjob() at once.
+        shared.state.disable_preview = not raw_params.get("live_previews", True)
 
         poller_stop = threading.Event()
         poller = threading.Thread(target=self._progress_poller, args=(job_id, poller_stop, stages), daemon=True, name=f"v2-progress-{job_id[:8]}")
@@ -244,6 +250,7 @@ class JobQueue:
         finally:
             poller_stop.set()
             poller.join(timeout=2.0)
+            shared.state.disable_preview = False
             self._current_job_id = None
             if self.store.next_pending():
                 self._job_event.set()

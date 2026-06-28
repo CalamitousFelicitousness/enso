@@ -185,6 +185,7 @@ export interface ControlRequest {
   script_args?: unknown[] | undefined;
   send_images?: boolean | undefined;
   save_images?: boolean | undefined;
+  live_previews?: boolean | undefined;
   alwayson_scripts?: Record<string, unknown> | undefined;
 }
 

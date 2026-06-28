@@ -90,6 +90,7 @@ class JobBase(StrictBaseModel):
     """Common header on every job submission."""
 
     priority: int = Field(default=0, description="Higher runs first; 0 is normal priority")
+    live_previews: bool = Field(default=True, description="Stream live latent previews over WebSocket; set false to skip the per-step preview decode")
 
 
 class GuidanceMixin(StrictBaseModel):
