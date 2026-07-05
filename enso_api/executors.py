@@ -8,7 +8,7 @@ identical results:
     v2 upscale   -> modules.postprocessing.run_extras()        (same as v1 /extra-single-image)
     v2 caption   -> modules.api.caption.do_vqa/openclip/tagger (same as v1 /vqa, /openclip, /tagger)
     v2 enhance   -> scripts.prompt_enhance.enhance()           (same as v1 /prompt-enhance)
-    v2 detect    -> shared.yolo.predict()                      (same as v1 /detect)
+    v2 detect    -> shared.detailer.predict()                  (same as v1 /detect)
     v2 preprocess-> modules.control.processors.Processor       (same as v1 /preprocess)
     v2 model-load-> modules.sd_models.reload_model_weights()   (v2-only, replaces v1 poll-based reload)
     v2 model-merge  -> modules.extras.run_modelmerger()        (v2-only, job-based merge)
@@ -31,17 +31,17 @@ from modules.logger import log
 # --- Detailer V2 per-model override helpers ---------------------------------
 # The V2 detailer schema (DetailerMixin in job_models.py) replaces the V1 flat
 # detailer_* fields with detailer_defaults + detailer_models, where each model
-# entry can override any default. SD.Next's detailer.detail() iterates models
-# off p.detailer_models with one shared set of p.detailer_* attrs, so we
-# temporarily monkey-patch detailer.detail to drive that loop ourselves with
-# per-iteration p attribute swapping.
+# entry can override any default. SD.Next's shared.detailer.restore() iterates
+# models off p.detailer_models with one shared set of p.detailer_* attrs, so we
+# temporarily monkey-patch shared.detailer.restore to drive that loop ourselves
+# with per-iteration p attribute swapping.
 
 DETAILER_OVERRIDE_FIELDS = (
-    # Mirrors p.detailer_* attributes that YoloRestorer reads via either
-    # direct p.detailer_X access or detailer_opt(p, 'detailer_X'). Patching
-    # any of these between iterations sticks for that iteration's detect/
-    # inpaint pass. Note: cfg_scale is intentionally excluded - there is no
-    # p.detailer_cfg_scale; YoloRestorer only injects it via the colon-string
+    # Mirrors p.detailer_* attributes that the detailer restore pass reads via
+    # either direct p.detailer_X access or detailer_opt(p, 'detailer_X').
+    # Patching any of these between iterations sticks for that iteration's
+    # detect/inpaint pass. Note: cfg_scale is intentionally excluded - there is
+    # no p.detailer_cfg_scale; restore() only injects it via the colon-string
     # args.update path which V2 escapes by design.
     "strength",
     "steps",
@@ -91,27 +91,27 @@ def apply_detailer_defaults(p, defaults):
 
 
 def install_detailer_per_model_patch(model_entries):
-    """Replace modules.detailer.detail with a per-model loop wrapper.
+    """Replace shared.detailer.restore with a per-model loop wrapper.
 
     The wrapper iterates ``model_entries``, snapshots p.detailer_*,
     patches with this entry's overrides (or restores defaults for unset
     fields), sets p.detailer_models to a single-element list, resets
     p.detailer_active so the per-model cap doesn't saturate, calls the
-    real detailer.detail, then restores. Returns a ``restore()``
-    callable to undo the monkey-patch and restore shared.opts state.
+    real restore, then reverts p. Returns a ``restore()`` callable to
+    undo the monkey-patch and restore shared.opts state.
 
     Also temporarily blanks shared.opts.data['detailer_args'] because
-    YoloRestorer reads it before falling through to p.detailer_models
-    (yolo.py:302-308); leaving it set would override our per-model
-    intent. This is the exact failure mode that prompted V2.
+    Detailer.restore reads it before falling through to p.detailer_models
+    (modules/detailer/detailer.py); leaving it set would override our
+    per-model intent. This is the exact failure mode that prompted V2.
 
     Caller is responsible for invoking ``restore()`` in a finally block.
     Safe under serialized execution (the job queue holds
     modules.call_queue.queue_lock).
     """
-    from modules import detailer, shared
+    from modules import shared
 
-    original_detail = detailer.detail
+    original_detail = shared.detailer.restore
     saved_args = shared.opts.data.get("detailer_args", "")
     shared.opts.data["detailer_args"] = ""
     entries = list(model_entries or [])
@@ -119,10 +119,10 @@ def install_detailer_per_model_patch(model_entries):
     def patched(sample, p_inner):
         if not entries:
             return sample
-        # YoloRestorer.restore always returns a list -- [image_array] or
+        # Detailer.restore returns a list -- [image_array] or
         # [image_array, annotation_overlay] when include_detections is set
-        # (yolo.py:478-481). The next iteration must receive the bare image
-        # array, so we unwrap between calls. Annotations from later
+        # (modules/detailer/detailer.py). The next iteration must receive the
+        # bare image array, so we unwrap between calls. Annotations from later
         # iterations supersede earlier ones (process_samples only inspects
         # sample[1], so we can only surface one).
         last_extras: list = []
@@ -150,16 +150,16 @@ def install_detailer_per_model_patch(model_entries):
             elif result is not None:
                 sample = result
                 last_extras = []
-        # Mirror YoloRestorer's list-shaped return so process_samples'
+        # Mirror the detailer restore's list-shaped return so process_samples'
         # isinstance(sample, list) branch still picks up annotations.
         if last_extras:
             return [sample, *last_extras]
         return sample
 
-    detailer.detail = patched
+    shared.detailer.restore = patched
 
     def restore():
-        detailer.detail = original_detail
+        shared.detailer.restore = original_detail
         shared.opts.data["detailer_args"] = saved_args
 
     return restore
@@ -292,7 +292,7 @@ def execute_generate(params: dict, job_id: str) -> dict:
     # the flat detailer_* kwargs control_run expects, then install the per-model
     # patch around the call. control_run builds p itself and forwards detailer_*
     # to the StableDiffusionProcessing constructor; the patch then reroutes the
-    # detailer.detail invocation inside process_samples to iterate our entries.
+    # shared.detailer.restore invocation inside process_samples to iterate our entries.
     detailer_defaults = params.get("detailer_defaults") or {}
     detailer_entries = normalize_detailer_models(params.get("detailer_models"))
     for k, v in detailer_defaults.items():
@@ -732,14 +732,16 @@ def execute_detail(params: dict, job_id: str) -> dict:
 def execute_detect(params: dict, job_id: str) -> dict:  # pylint: disable=unused-argument
     from modules import shared
     from modules.api import helpers
-    from modules.shared import yolo
 
     image = helpers.decode_base64_to_image(params.get("image", ""))
     model = params.get("model")
 
     jobid = shared.state.begin("API-V2-DET", api=True)
     try:
-        items = yolo.predict(model, image)
+        # predict(name, model, image): name drives the LocateAnything-vs-YOLO
+        # dispatch, model is loaded by name inside yolo.predict. Mirror v1
+        # /detect. Empty name (model=None) routes to YOLO's default detector.
+        items = shared.detailer.predict(model or "", model, image)
         detections = []
         for item in items:
             detections.append(

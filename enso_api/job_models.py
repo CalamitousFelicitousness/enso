@@ -343,7 +343,7 @@ class DetailerMixin(StrictBaseModel):
     object that sets specific fields per model. ``detailer_defaults``
     holds the inherited base values. The executor loops ``detailer_models``
     and patches ``p.detailer_*`` per-iteration via a temporary
-    ``modules.detailer.detail`` wrapper, so SD.Next's pipeline is
+    ``shared.detailer.restore`` wrapper, so SD.Next's pipeline is
     unmodified and per-model overrides come for free.
 
     Shared between :class:`GenerateParams` (where the detailer runs as a

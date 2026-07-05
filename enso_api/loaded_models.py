@@ -261,9 +261,9 @@ def enumerate_upscalers() -> list[ItemLoadedModel]:
 def enumerate_detailer() -> list[ItemLoadedModel]:
     items = []
     try:
-        yolo = getattr(shared, "yolo", None)
-        if yolo is not None:
-            models_cache = getattr(yolo, "models", None)
+        detailer = getattr(shared, "detailer", None)
+        if detailer is not None:
+            models_cache = getattr(detailer, "models", None)
             if isinstance(models_cache, dict):
                 for name, model in models_cache.items():
                     if model is not None:

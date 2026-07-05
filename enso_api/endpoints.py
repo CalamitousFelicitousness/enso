@@ -854,8 +854,8 @@ async def get_extensions_v2():
 @router.get("/detailers", response_model=list[ItemDetailerV2], tags=["Enumerators"])
 async def get_detailers_v2():
     """List available detailer (YOLO) models for face/object detection and inpainting."""
-    shared.yolo.enumerate()
-    return [ItemDetailerV2(name=k, path=v) for k, v in shared.yolo.list.items()]
+    shared.detailer.enumerate()
+    return [ItemDetailerV2(name=k, path=v) for k, v in shared.detailer.list.items()]
 
 
 # --- Job Types ---
