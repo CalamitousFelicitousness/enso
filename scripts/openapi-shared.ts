@@ -112,7 +112,12 @@ export function buildSnapshot(raw: JsonObject): JsonObject {
 
   const snapshot: JsonObject = {
     openapi: raw.openapi ?? "3.1.0",
-    info: raw.info ?? { title: "Enso V2 API", version: "0.0.0" },
+    // Pin info to a stable constant instead of passing raw.info through.
+    // SD.Next's info.version is a volatile build id (git sha) and its
+    // title/description are app-level metadata; none of it is part of the
+    // v2 wire contract or read by codegen, but passing it through drifted
+    // the codegen:check gate on every backend update.
+    info: { title: "Enso V2 API", version: "0.0.0" },
     paths: keptPaths,
     components: { schemas: keptSchemas },
   };
