@@ -309,12 +309,16 @@ def register_api(app: FastAPI):  # register api
         """
         Get directory modification time for cache invalidation.
 
-        Returns the latest mtime across all files in the folder (recursive).
+        Returns the latest directory mtime across the folder tree (recursive).
         Clients can poll this to detect when new images have been saved.
         """
         try:
             decoded = unquote(folder).replace("%3A", ":")
-            mtime = files_cache.directory_mtime(decoded, recursive=True)
+            # files_cache.directory_mtime is shallow for a single path: it returns
+            # only the top directory's own mtime, which does not change when files
+            # land in existing subdirectories (dated output folders). Walk the tree
+            # and take the max so subdirectory changes are visible to polling clients.
+            mtime = max((d.mtime for d in files_cache.walk(decoded, recurse=True)), default=0.0)
             return JSONResponse(content={"mtime": mtime})
         except Exception as e:
             shared.log.error(f'Gallery folder-info: folder="{folder}" {e}')

@@ -264,20 +264,29 @@ async function backgroundRefresh(folder: string, signal: AbortSignal) {
   try {
     const info = await api.get<{ mtime: number }>("/sdapi/v2/browser/folder-info", { folder });
     const cached = getCachedFolder(folder);
-    if (!cached || info.mtime === cached.serverMtime) return;
+    if (cached && info.mtime === cached.serverMtime) return;
 
-    // Mtime differs - re-stream file list silently
+    // A missing snapshot (invalidated after delete/move, or LRU-evicted) must
+    // still re-stream - bailing out would leave refresh dead for this folder.
+    // Seed the diff from the store, which holds the current list when active.
+    const current = useGalleryStore.getState();
+    const prevFiles = cached?.files ?? (current.activeFolder === folder ? current.files : []);
+    const prevThumbs =
+      cached?.thumbs ??
+      (current.activeFolder === folder ? current.thumbs : new Map<string, CachedThumb>());
+
+    // Mtime differs or snapshot missing - re-stream file list silently
     const { files: newFiles } = await streamFiles(folder, signal);
     if (signal.aborted) return;
 
     // Diff: find files only in newFiles (added)
-    const oldIds = new Set(cached.files.map((f) => f.id));
+    const oldIds = new Set(prevFiles.map((f) => f.id));
     const addedFiles = newFiles.filter((f) => !oldIds.has(f.id));
 
     // Build new thumb map: carry over existing thumbs, drop removed files
     const newIds = new Set(newFiles.map((f) => f.id));
     const newThumbs = new Map<string, CachedThumb>();
-    for (const [id, thumb] of cached.thumbs) {
+    for (const [id, thumb] of prevThumbs) {
       if (newIds.has(id)) newThumbs.set(id, thumb);
     }
 
@@ -309,6 +318,14 @@ function startFileStream(folder: string, ac: AbortController, hasChildSeed: bool
   const buffer: GalleryFile[] = [];
   let flushTimer: ReturnType<typeof setTimeout> | null = null;
   const allFiles: GalleryFile[] = [];
+
+  // Capture the folder mtime before streaming: a file written mid-stream keeps
+  // the snapshot stale so the next refresh picks it up, instead of a post-stream
+  // mtime recording it as already seen. Falls back to 0 so revisit is instant.
+  const mtimePromise = api
+    .get<{ mtime: number }>("/sdapi/v2/browser/folder-info", { folder })
+    .then((info) => info.mtime)
+    .catch(() => 0);
 
   const flush = () => {
     if (buffer.length === 0) return;
@@ -382,18 +399,11 @@ function startFileStream(folder: string, ac: AbortController, hasChildSeed: bool
         endStore.setLoadingFiles(false);
         ws.close();
 
-        // Save to folder cache - fetch mtime for staleness tracking
-        api
-          .get<{ mtime: number }>("/sdapi/v2/browser/folder-info", { folder })
-          .then((info) => {
-            const thumbs = new Map(useGalleryStore.getState().thumbs);
-            setCachedFolder(folder, allFiles, thumbs, info.mtime);
-          })
-          .catch(() => {
-            // Still cache with mtime=0 so revisit is instant
-            const thumbs = new Map(useGalleryStore.getState().thumbs);
-            setCachedFolder(folder, allFiles, thumbs, 0);
-          });
+        // Save to folder cache with the pre-stream mtime
+        void mtimePromise.then((mtime) => {
+          const thumbs = new Map(useGalleryStore.getState().thumbs);
+          setCachedFolder(folder, allFiles, thumbs, mtime);
+        });
 
         // Batch-read IndexedDB for parent-context files - finds thumbs
         // from child folder browsing since IndexedDB keys on fullPath hash
