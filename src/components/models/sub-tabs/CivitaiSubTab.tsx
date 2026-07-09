@@ -115,6 +115,8 @@ export function CivitaiSubTab() {
         onFavoritesChange={handleFavoritesChange}
       />
 
+      <CivitDownloadQueue />
+
       <CivitResultList
         pages={infiniteSearch.data}
         hasNextPage={!!infiniteSearch.hasNextPage}
@@ -129,8 +131,6 @@ export function CivitaiSubTab() {
         onClose={() => setSelectedModelId(null)}
         onSearchCreator={handleSearchCreator}
       />
-
-      <CivitDownloadQueue />
     </div>
   );
 }
