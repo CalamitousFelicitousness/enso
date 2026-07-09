@@ -102,6 +102,10 @@ interface UiState {
   dictKeepUnderscores: boolean;
   dictAppendComma: boolean;
 
+  // Civitai browse preferences
+  civitaiNsfw: boolean;
+  civitaiFavorites: boolean;
+
   // Actions
   toggleLeftRail: () => void;
   setNavView: (view: NavView) => void;
@@ -131,6 +135,8 @@ interface UiState {
   setDictMinChars: (n: number) => void;
   setDictKeepUnderscores: (enabled: boolean) => void;
   setDictAppendComma: (enabled: boolean) => void;
+  setCivitaiNsfw: (enabled: boolean) => void;
+  setCivitaiFavorites: (enabled: boolean) => void;
 }
 
 export type {
@@ -181,6 +187,8 @@ export const useUiStore = create<UiState>()(
       dictMinChars: 3,
       dictKeepUnderscores: false,
       dictAppendComma: true,
+      civitaiNsfw: false,
+      civitaiFavorites: false,
 
       toggleLeftRail: () => set((s) => ({ leftRailCollapsed: !s.leftRailCollapsed })),
       setNavView: (view) => set({ activeNavView: view }),
@@ -217,6 +225,8 @@ export const useUiStore = create<UiState>()(
       setDictMinChars: (n) => set({ dictMinChars: Math.max(2, Math.min(6, n)) }),
       setDictKeepUnderscores: (enabled) => set({ dictKeepUnderscores: enabled }),
       setDictAppendComma: (enabled) => set({ dictAppendComma: enabled }),
+      setCivitaiNsfw: (enabled) => set({ civitaiNsfw: enabled }),
+      setCivitaiFavorites: (enabled) => set({ civitaiFavorites: enabled }),
     }),
     {
       name: "enso-ui",

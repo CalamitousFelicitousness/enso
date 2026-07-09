@@ -176,10 +176,23 @@ export interface CivitSettingsUpdate {
   discard_hash_mismatch?: boolean | undefined;
 }
 
+// Filters recorded with a history entry; the backend only stores
+// non-default values, so every field is optional.
+export interface CivitHistoryParams {
+  types?: string;
+  sort?: string;
+  period?: string;
+  base_models?: string;
+  nsfw?: boolean;
+  username?: string;
+  favorites?: boolean;
+}
+
 export interface CivitHistoryEntry {
   type: string;
   term: string;
   timestamp: string;
+  params?: CivitHistoryParams | null;
 }
 
 export interface CivitBookmarkEntry {

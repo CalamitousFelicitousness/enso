@@ -5,7 +5,8 @@ import {
   useCivitSettings,
   useCivitMe,
 } from "@/api/hooks/useCivitai";
-import type { CivitSearchParams } from "@/api/types/civitai";
+import type { CivitHistoryEntry, CivitSearchParams } from "@/api/types/civitai";
+import { useUiStore } from "@/stores/uiStore";
 import { CivitSettings } from "./civitai/CivitSettings";
 import { CivitSearchBar } from "./civitai/CivitSearchBar";
 import { CivitFilters } from "./civitai/CivitFilters";
@@ -21,8 +22,10 @@ export function CivitaiSubTab() {
   const [period, setPeriod] = useState("");
   const [baseModel, setBaseModel] = useState("");
   const [creator, setCreator] = useState("");
-  const [nsfw, setNsfw] = useState(false);
-  const [favorites, setFavorites] = useState(false);
+  const nsfw = useUiStore((s) => s.civitaiNsfw);
+  const favorites = useUiStore((s) => s.civitaiFavorites);
+  const setNsfw = useUiStore((s) => s.setCivitaiNsfw);
+  const setFavorites = useUiStore((s) => s.setCivitaiFavorites);
   const [searchEnabled, setSearchEnabled] = useState(false);
   const [selectedModelId, setSelectedModelId] = useState<number | null>(null);
 
@@ -54,9 +57,20 @@ export function CivitaiSubTab() {
     }
   }, [searchEnabled, infiniteSearch]);
 
-  function handleHistorySelect(q: string, t: string) {
-    setQuery(q);
-    setTag(t);
+  function handleHistorySelect(e: CivitHistoryEntry) {
+    setQuery(e.type === "query" ? e.term : "");
+    setTag(e.type === "tag" ? e.term : "");
+    const p = e.params;
+    setType(p?.types ?? "");
+    setSort(p?.sort ?? "");
+    setPeriod(p?.period ?? "");
+    setBaseModel(p?.base_models ?? "");
+    setNsfw(p?.nsfw ?? false);
+    const fav = p?.favorites ?? false;
+    setFavorites(fav);
+    // With favorites on, the recorded username is the account's own name,
+    // not a creator filter the user typed.
+    setCreator(fav ? "" : (p?.username ?? ""));
     setSearchEnabled(true);
   }
 
@@ -67,15 +81,18 @@ export function CivitaiSubTab() {
     }
   }
 
-  const handleSearchCreator = useCallback((creatorName: string) => {
-    // favorites overrides username, and free-text would narrow the results, so
-    // clear both to show everything by this creator.
-    setCreator(creatorName);
-    setQuery("");
-    setTag("");
-    setFavorites(false);
-    setSearchEnabled(true);
-  }, []);
+  const handleSearchCreator = useCallback(
+    (creatorName: string) => {
+      // favorites overrides username, and free-text would narrow the results, so
+      // clear both to show everything by this creator.
+      setCreator(creatorName);
+      setQuery("");
+      setTag("");
+      setFavorites(false);
+      setSearchEnabled(true);
+    },
+    [setFavorites],
+  );
 
   return (
     <div className="space-y-3">

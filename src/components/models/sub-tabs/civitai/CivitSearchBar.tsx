@@ -1,6 +1,7 @@
 import { useState, useRef } from "react";
 import { ChevronDown, ChevronRight, History, Loader2, Search, X } from "lucide-react";
 import { useCivitTags, useCivitHistory, useCivitClearHistory } from "@/api/hooks/useCivitai";
+import type { CivitHistoryEntry } from "@/api/types/civitai";
 import { useDebounce } from "@/hooks/useDebounce";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -12,8 +13,23 @@ interface CivitSearchBarProps {
   onQueryChange: (v: string) => void;
   onTagChange: (v: string) => void;
   onSearch: () => void;
-  onHistorySelect: (query: string, tag: string) => void;
+  onHistorySelect: (entry: CivitHistoryEntry) => void;
   isLoading: boolean;
+}
+
+function historyTitle(e: CivitHistoryEntry): string | undefined {
+  const p = e.params;
+  if (!p) return undefined;
+  const parts = [
+    p.types,
+    p.base_models,
+    p.period,
+    p.sort,
+    p.username ? `by ${p.username}` : null,
+    p.nsfw ? "nsfw" : null,
+    p.favorites ? "favorites" : null,
+  ].filter(Boolean);
+  return parts.length ? `Restores: ${parts.join(" · ")}` : undefined;
 }
 
 export function CivitSearchBar({
@@ -141,12 +157,8 @@ export function CivitSearchBar({
                   key={`${e.type}-${e.term}`}
                   variant="secondary"
                   className="text-2xs cursor-pointer hover:bg-muted"
-                  onClick={() => {
-                    onHistorySelect(
-                      e.type === "query" ? e.term : "",
-                      e.type === "tag" ? e.term : "",
-                    );
-                  }}
+                  title={historyTitle(e)}
+                  onClick={() => onHistorySelect(e)}
                 >
                   {e.type === "tag" ? `#${e.term}` : e.term}
                 </Badge>
