@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { Download, Bookmark, Ban, Check, Search, ExternalLink, Copy } from "lucide-react";
+import { Download, Bookmark, Ban, Check, Search, ExternalLink, Copy, Zap } from "lucide-react";
 import { toast } from "sonner";
 import type { CivitModel } from "@/api/types/civitai";
 import {
@@ -19,6 +19,7 @@ import {
   ContextMenuSeparator,
 } from "@/components/ui/context-menu";
 import { CivitFlags } from "./CivitFlags";
+import { civitaiUserUrl } from "@/lib/civitai";
 
 interface CivitResultCardProps {
   model: CivitModel;
@@ -79,12 +80,13 @@ export function CivitResultCard({
   }, [model.modelVersions, localFiles]);
   const hasAll = totalFiles > 0 && downloadedCount === totalFiles;
   const hasSome = downloadedCount > 0 && !hasAll;
+  const hasEarlyAccess = model.modelVersions.some((v) => v.availability === "EarlyAccess");
 
   const creatorName = model.creator.username;
   // "Unknown" is the backend's fallback for deleted/anonymous creators, which
   // has no real profile page, so skip the link for it.
   const canLinkCreator = Boolean(creatorName) && creatorName !== "Unknown";
-  const creatorUrl = `https://civitai.com/user/${encodeURIComponent(creatorName)}`;
+  const creatorUrl = civitaiUserUrl(creatorName);
 
   return (
     <button
@@ -160,6 +162,11 @@ export function CivitResultCard({
             <Download className="h-2.5 w-2.5" />
             {formatCount(model.stats.downloadCount)}
           </span>
+          {hasEarlyAccess && (
+            <span title="Has an early access version - downloading it requires a Buzz purchase">
+              <Zap className="h-3 w-3 text-amber-500 shrink-0" />
+            </span>
+          )}
           {hasAll && <Check className="h-3 w-3 text-green-500 shrink-0" />}
           {hasSome && <Check className="h-3 w-3 text-yellow-500 shrink-0" />}
         </div>

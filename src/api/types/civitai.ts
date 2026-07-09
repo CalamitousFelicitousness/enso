@@ -38,6 +38,19 @@ export interface CivitStats {
   rating: number;
 }
 
+// Early-access pricing set by the model creator. Only present on per-version
+// endpoint payloads; the model endpoint signals early access via
+// version.availability === "EarlyAccess" but carries no config.
+export interface CivitEarlyAccessConfig {
+  timeframe?: number;
+  downloadPrice?: number;
+  generationPrice?: number;
+  chargeForDownload?: boolean;
+  chargeForGeneration?: boolean;
+  donationGoalEnabled?: boolean;
+  donationGoal?: number;
+}
+
 export interface CivitVersion {
   id: number;
   modelId: number;
@@ -45,6 +58,8 @@ export interface CivitVersion {
   baseModel: string;
   publishedAt: string | null;
   availability: string;
+  earlyAccessEndsAt?: string | null;
+  earlyAccessConfig?: CivitEarlyAccessConfig | null;
   description: string | null;
   trainedWords: string[];
   stats: CivitStats;

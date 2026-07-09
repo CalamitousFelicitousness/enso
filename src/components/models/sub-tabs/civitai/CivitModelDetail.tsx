@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useEffect } from "react";
+import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import {
   Check,
@@ -20,6 +20,8 @@ import {
   Search,
   ExternalLink,
   Copy,
+  Zap,
+  AlertCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 import { toDisplayString } from "@/lib/utils";
@@ -35,11 +37,19 @@ import {
   useCivitAddBanned,
   useCivitRemoveBanned,
   useCivitCheckLocal,
+  useCivitVersion,
   useCivitVersionImages,
 } from "@/api/hooks/useCivitai";
 import { useDownloadStore } from "@/stores/downloadStore";
 import type { CivitVersion, CivitFile, CivitImage, CivitStats } from "@/api/types/civitai";
-import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle,
+  DialogDescription,
+  DialogHeader,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -59,6 +69,7 @@ import {
   ContextMenuSeparator,
 } from "@/components/ui/context-menu";
 import { CivitFlags } from "./CivitFlags";
+import { civitaiModelUrl, civitaiUserUrl } from "@/lib/civitai";
 import {
   fetchRemoteImage,
   sendImageToCanvas,
@@ -84,6 +95,15 @@ function formatCount(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
   if (n >= 1_000) return `${(n / 1_000).toFixed(1)}k`;
   return String(n);
+}
+
+function formatFreeIn(endsAt: string): string | null {
+  const ms = new Date(endsAt).getTime() - Date.now();
+  if (!Number.isFinite(ms) || ms <= 0) return null;
+  const days = Math.round(ms / 86_400_000);
+  if (days >= 2) return `in ~${days} days`;
+  const hours = Math.max(1, Math.round(ms / 3_600_000));
+  return hours === 1 ? "in ~1 hour" : `in ~${hours} hours`;
 }
 
 function civitThumbnail(url: string, width = 450): string {
@@ -185,6 +205,7 @@ interface VersionSectionProps {
   modelNsfw: boolean;
   localFiles: Record<string, { filename: string; type: string }>;
   activeDownloads: Set<string>;
+  failedDownloads: Map<string, string>;
   onImageClick?: (image: CivitImage) => void;
 }
 
@@ -197,11 +218,23 @@ function VersionSection({
   modelNsfw,
   localFiles,
   activeDownloads,
+  failedDownloads,
   onImageClick,
 }: VersionSectionProps) {
   const [open, setOpen] = useState(false);
   const [showTriggers, setShowTriggers] = useState(false);
+  const [confirmFile, setConfirmFile] = useState<CivitFile | null>(null);
   const download = useCivitDownload();
+
+  const isEarlyAccess = version.availability === "EarlyAccess";
+  // The Buzz price lives only on the per-version endpoint (the model payload
+  // carries availability but no config), so fetch it lazily once an
+  // early-access section is expanded.
+  const { data: eaVersion } = useCivitVersion(open && isEarlyAccess ? version.id : null);
+  const eaConfig = eaVersion?.earlyAccessConfig;
+  const buzzPrice = eaConfig?.chargeForDownload ? (eaConfig.downloadPrice ?? null) : null;
+  const eaEndsAt = eaVersion?.earlyAccessEndsAt ?? null;
+  const freeIn = eaEndsAt ? formatFreeIn(eaEndsAt) : null;
 
   const resolveParams = useMemo(
     () => ({
@@ -272,6 +305,16 @@ function VersionSection({
         <Badge variant="outline" className="text-3xs px-1.5 py-0.5 shrink-0">
           {version.baseModel}
         </Badge>
+        {isEarlyAccess && (
+          <Badge
+            variant="outline"
+            className="text-3xs px-1.5 py-0.5 shrink-0 gap-1 border-amber-500/40 text-amber-500"
+            title="Must be purchased on Civitai until early access ends"
+          >
+            <Zap className="h-2.5 w-2.5" />
+            Early Access
+          </Badge>
+        )}
         {hasAll && (
           <span title={`All ${totalFiles} file${totalFiles > 1 ? "s" : ""} downloaded`}>
             <Check className="h-4 w-4 shrink-0 text-green-500" />
@@ -354,16 +397,17 @@ function VersionSection({
             <div className="rounded-md border border-border/30 overflow-hidden">
               {version.files.map((f, i) => {
                 const localMatch = f.hashes.SHA256 ? localFiles[f.hashes.SHA256] : undefined;
+                const failedError = !localMatch ? failedDownloads.get(f.name) : undefined;
                 return (
                   <div
                     key={f.id}
-                    className={`grid grid-cols-[1fr_5rem_2.5rem] items-center gap-2 px-3 py-2 text-xs ${i > 0 ? "border-t border-border/20" : ""}`}
+                    className={`grid ${isEarlyAccess || failedError ? "grid-cols-[1fr_5rem_auto]" : "grid-cols-[1fr_5rem_2.5rem]"} items-center gap-2 px-3 py-2 text-xs ${i > 0 ? "border-t border-border/20" : ""}`}
                   >
                     <span className="truncate min-w-0" title={f.name}>
                       {f.name}
                     </span>
                     <span className="text-muted-foreground text-right">{formatSize(f.sizeKB)}</span>
-                    <span className="flex justify-center">
+                    <span className="flex items-center justify-center gap-1.5">
                       {localMatch ? (
                         <span title={`Downloaded: ${localMatch.filename}`}>
                           <Check className="h-4 w-4 text-green-500" />
@@ -371,15 +415,36 @@ function VersionSection({
                       ) : activeDownloads.has(f.name) ? (
                         <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
                       ) : (
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="h-7 w-7"
-                          onClick={() => handleDownload(f)}
-                          disabled={download.isPending}
-                        >
-                          <Download className="h-3.5 w-3.5" />
-                        </Button>
+                        <>
+                          {failedError && (
+                            <span title={`Last attempt failed: ${failedError}`}>
+                              <AlertCircle className="h-4 w-4 text-red-500" />
+                            </span>
+                          )}
+                          {isEarlyAccess ? (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-7 gap-1 px-2 text-3xs border-amber-500/40 text-amber-500 hover:bg-amber-500/10 hover:text-amber-400"
+                              onClick={() => setConfirmFile(f)}
+                              disabled={download.isPending}
+                              title="Early access version - must be purchased on Civitai before download"
+                            >
+                              <Zap className="h-3 w-3" />
+                              {buzzPrice != null ? `${buzzPrice} Buzz` : "Early Access"}
+                            </Button>
+                          ) : (
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-7 w-7"
+                              onClick={() => handleDownload(f)}
+                              disabled={download.isPending}
+                            >
+                              <Download className="h-3.5 w-3.5" />
+                            </Button>
+                          )}
+                        </>
                       )}
                     </span>
                   </div>
@@ -396,6 +461,74 @@ function VersionSection({
           )}
         </div>
       )}
+
+      {/* Early-access purchase confirmation */}
+      <Dialog
+        open={confirmFile !== null}
+        onOpenChange={(o) => {
+          if (!o) setConfirmFile(null);
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Zap className="h-4 w-4 text-amber-500" />
+              Early Access download
+            </DialogTitle>
+            <DialogDescription className="truncate" title={confirmFile?.name}>
+              {confirmFile?.name}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 text-sm">
+            {buzzPrice != null ? (
+              <p>
+                This version requires an early-access purchase of{" "}
+                <span className="font-medium text-amber-500">{buzzPrice} Buzz</span>. Purchases are
+                made on the Civitai site; without one the download is rejected.
+              </p>
+            ) : (
+              <p>
+                This version is in early access; the download is rejected unless it has been
+                purchased on Civitai.
+              </p>
+            )}
+            {freeIn && eaEndsAt && (
+              <p className="text-xs text-muted-foreground">
+                It becomes free {freeIn} (
+                {new Date(eaEndsAt).toLocaleDateString(undefined, {
+                  month: "short",
+                  day: "numeric",
+                })}
+                ).
+              </p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setConfirmFile(null)}>
+              Cancel
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() =>
+                window.open(civitaiModelUrl(modelId, version.id), "_blank", "noopener,noreferrer")
+              }
+            >
+              <ExternalLink className="h-3.5 w-3.5" />
+              Open on Civitai
+            </Button>
+            <Button
+              className="bg-amber-600 text-white hover:bg-amber-500"
+              onClick={() => {
+                if (confirmFile) handleDownload(confirmFile);
+                setConfirmFile(null);
+              }}
+            >
+              <Zap className="h-3.5 w-3.5" />
+              Download
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -717,6 +850,36 @@ export function CivitModelDetail({ modelId, onClose, onSearchCreator }: CivitMod
     return names;
   }, [wsItems, dlStatus]);
 
+  // Latest outcome per filename; a retry that succeeds clears the failure.
+  const failedDownloads = useMemo(() => {
+    const latest = new Map<string, string | null>();
+    for (const item of dlStatus?.completed ?? []) {
+      latest.set(item.filename, item.status === "failed" ? (item.error ?? "failed") : null);
+    }
+    const failed = new Map<string, string>();
+    for (const [name, err] of latest) {
+      if (err !== null) failed.set(name, err);
+    }
+    return failed;
+  }, [dlStatus]);
+
+  // Toast new failures; seed silently so mount doesn't replay old ones.
+  const seenFailed = useRef<Set<string> | null>(null);
+  useEffect(() => {
+    if (!dlStatus) return;
+    const failed = dlStatus.completed.filter((d) => d.status === "failed");
+    if (seenFailed.current === null) {
+      seenFailed.current = new Set(failed.map((d) => d.id));
+      return;
+    }
+    for (const d of failed) {
+      if (!seenFailed.current.has(d.id)) {
+        seenFailed.current.add(d.id);
+        toast.error(`Download failed: ${d.filename}`, { description: d.error ?? undefined });
+      }
+    }
+  }, [dlStatus]);
+
   const isBookmarked = model ? (bookmarks?.some((b) => b.name === model.name) ?? false) : false;
   const isBanned = model ? (banned?.some((b) => b.name === model.name) ?? false) : false;
 
@@ -724,7 +887,7 @@ export function CivitModelDetail({ modelId, onClose, onSearchCreator }: CivitMod
   // "Unknown" is the backend's fallback for deleted/anonymous creators, which
   // has no real profile page and nothing to search for.
   const canLinkCreator = Boolean(creatorName) && creatorName !== "Unknown";
-  const creatorUrl = `https://civitai.com/user/${encodeURIComponent(creatorName)}`;
+  const creatorUrl = civitaiUserUrl(creatorName);
   const searchCreator = useCallback(
     (name: string) => {
       // Close the detail so the refiltered results are visible underneath.
@@ -965,6 +1128,7 @@ export function CivitModelDetail({ modelId, onClose, onSearchCreator }: CivitMod
                       modelNsfw={model.nsfw}
                       localFiles={localFiles}
                       activeDownloads={activeDownloads}
+                      failedDownloads={failedDownloads}
                       onImageClick={(img) => {
                         const idx = allImages.findIndex((a) => a.url === img.url);
                         if (idx >= 0) setLightboxIndex(idx);

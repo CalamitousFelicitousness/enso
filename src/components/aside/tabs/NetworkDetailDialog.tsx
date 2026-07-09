@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { useNetworkDetail } from "@/api/hooks/useNetworks";
 import { useCivitVersionImages } from "@/api/hooks/useCivitai";
 import { useGenerationStore } from "@/stores/generationStore";
+import { civitaiModelUrl } from "@/lib/civitai";
 import { insertAtCursor } from "@/lib/promptCursor";
 import { sendPromptToGeneration, sendPromptToVideo } from "@/lib/sendTo";
 import { toDisplayString } from "@/lib/utils";
@@ -339,7 +340,7 @@ function NetworkDialogBody({
               <div className="flex items-center gap-2">
                 <span className="text-xs font-medium">CivitAI</span>
                 <a
-                  href={`https://civitai.com/models/${civit.id}`}
+                  href={civitaiModelUrl(civit.id)}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-muted-foreground hover:text-foreground transition-colors"
