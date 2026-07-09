@@ -242,17 +242,26 @@ const activeRefreshes = new Map<string, AbortController>();
  * on the gallery store iff `folder` is still the active folder.
  *
  * Cheap to over-call: the underlying mtime check no-ops when nothing changed.
+ * `minSpinMs` keeps the spinner visible at least that long - the manual button
+ * passes it so a millisecond no-op check still reads as a response, while the
+ * poll and job triggers leave it at 0 to stay invisible when nothing changed.
  */
-export async function refreshFolder(folder: string): Promise<void> {
+export async function refreshFolder(folder: string, minSpinMs = 0): Promise<void> {
   activeRefreshes.get(folder)?.abort();
   const ac = new AbortController();
   activeRefreshes.set(folder, ac);
   const store = useGalleryStore.getState();
-  if (store.activeFolder === folder) store.setRefreshing(true);
+  const showSpinner = store.activeFolder === folder;
+  if (showSpinner) store.setRefreshing(true);
+  const started = performance.now();
   try {
     await backgroundRefresh(folder, ac.signal);
   } finally {
     if (activeRefreshes.get(folder) === ac) activeRefreshes.delete(folder);
+    if (showSpinner && minSpinMs > 0) {
+      const remaining = minSpinMs - (performance.now() - started);
+      if (remaining > 0) await new Promise((resolve) => setTimeout(resolve, remaining));
+    }
     const after = useGalleryStore.getState();
     if (after.activeFolder === folder && !activeRefreshes.has(folder)) {
       after.setRefreshing(false);
@@ -493,6 +502,9 @@ export function useBrowserFiles(folder: string | null) {
   }, [folder]);
 }
 
+/** Minimum spinner hold for user-initiated refreshes, so the acknowledgment registers. */
+const MANUAL_REFRESH_SPIN_MS = 500;
+
 /**
  * Hook for the toolbar refresh button. Returns a callback that re-checks the
  * active folder's mtime and re-streams the file list if it changed, plus a
@@ -505,7 +517,7 @@ export function useGalleryRefresh() {
   const isRefreshing = useGalleryStore((s) => s.isRefreshing);
   const refresh = useCallback(() => {
     if (!activeFolder) return;
-    void refreshFolder(activeFolder);
+    void refreshFolder(activeFolder, MANUAL_REFRESH_SPIN_MS);
   }, [activeFolder]);
   return {
     refresh,
