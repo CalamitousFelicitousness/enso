@@ -787,6 +787,13 @@ class ReqModelAuditV2(StrictBaseModel):
     limit: int = Field(default=0, title="Limit", description="Page size; 0 returns all findings")
 
 
+class ReqModelAuditFixV2(StrictBaseModel):
+    """POST /sdapi/v2/model/audit/fix body."""
+
+    paths: list[str] | None = Field(default=None, title="Paths", description="Restrict fixes to these files; all model roots when omitted")
+    apply: bool = Field(default=False, title="Apply", description="Perform the renames; false returns the plan only")
+
+
 class ReqHfDownloadV2(StrictBaseModel):
     """POST /sdapi/v2/model/hf/download body."""
 

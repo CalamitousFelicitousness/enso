@@ -277,3 +277,22 @@ export interface ModelAuditRequest {
   offset?: number | undefined;
   limit?: number | undefined;
 }
+
+export interface ModelAuditFixRename {
+  path: string;
+  to: string;
+  claimed: string;
+  actual: string;
+  files: string[];
+}
+
+export interface ModelAuditFixResponse {
+  applied: boolean;
+  count: number;
+  renames: ModelAuditFixRename[];
+}
+
+export interface ModelAuditFixRequest {
+  paths?: string[] | undefined;
+  apply?: boolean | undefined;
+}

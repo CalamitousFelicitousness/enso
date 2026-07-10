@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { Loader2, ScanSearch } from "lucide-react";
-import { useModelAudit } from "@/api/hooks/useModelOps";
-import type { ModelAuditFile } from "@/api/types/modelOps";
+import { Loader2, ScanSearch, Wrench } from "lucide-react";
+import { toast } from "sonner";
+import { useModelAudit, useModelAuditFix } from "@/api/hooks/useModelOps";
+import type { ModelAuditFile, ModelAuditFixResponse } from "@/api/types/modelOps";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -27,10 +28,40 @@ function precisionLabel(f: ModelAuditFile): string {
 
 export function AuditSubTab() {
   const audit = useModelAudit();
+  const fix = useModelAuditFix();
   const [issuesOnly, setIssuesOnly] = useState(true);
+  const [fixPlan, setFixPlan] = useState<ModelAuditFixResponse | null>(null);
   const data = audit.data;
   const files = data?.files ?? [];
   const shown = issuesOnly ? files.filter(hasIssues) : files;
+  const precisionIssues = files.some((f) =>
+    f.mismatches.some((m) => m.kind === "filename_precision"),
+  );
+
+  function planFix() {
+    fix.mutate(
+      {},
+      {
+        onSuccess: (plan) => {
+          setFixPlan(plan);
+          if (plan.count === 0) toast.info("No precision suffixes need fixing");
+        },
+      },
+    );
+  }
+
+  function applyFix() {
+    fix.mutate(
+      { apply: true },
+      {
+        onSuccess: (result) => {
+          setFixPlan(null);
+          toast.success(`Renamed ${result.count} models`);
+          audit.mutate({});
+        },
+      },
+    );
+  }
 
   return (
     <div className="space-y-3">
@@ -51,11 +82,42 @@ export function AuditSubTab() {
         >
           Force rescan
         </Button>
+        {precisionIssues && (
+          <Button size="sm" variant="outline" onClick={planFix} disabled={fix.isPending}>
+            <Wrench className="h-3.5 w-3.5" />
+            Fix names
+          </Button>
+        )}
         <div className="flex items-center gap-2">
           <Switch id="audit-issues-only" checked={issuesOnly} onCheckedChange={setIssuesOnly} />
           <Label htmlFor="audit-issues-only">Issues only</Label>
         </div>
       </div>
+
+      {fixPlan && fixPlan.count > 0 && (
+        <div className="space-y-2 rounded-md border border-amber-500/30 bg-muted/20 p-3">
+          <span className="text-xs font-medium">
+            Rename {fixPlan.count} model{fixPlan.count > 1 ? "s" : ""} to match probed precision
+          </span>
+          <div className="space-y-0.5 text-2xs font-mono">
+            {fixPlan.renames.map((r) => (
+              <div key={r.path} className="truncate" title={r.path}>
+                {r.path.split("/").pop()} &rarr; {r.to}
+                <span className="text-muted-foreground"> ({r.files.length} files)</span>
+              </div>
+            ))}
+          </div>
+          <div className="flex items-center gap-2">
+            <Button size="sm" onClick={applyFix} disabled={fix.isPending}>
+              {fix.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+              Apply renames
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => setFixPlan(null)}>
+              Cancel
+            </Button>
+          </div>
+        </div>
+      )}
 
       {data && (
         <>

@@ -18,6 +18,8 @@ import type {
   ModelProbe,
   ModelAuditRequest,
   ModelAuditResponse,
+  ModelAuditFixRequest,
+  ModelAuditFixResponse,
 } from "../types/modelOps";
 
 //
@@ -59,6 +61,13 @@ export function useModelAudit() {
   return useMutation({
     mutationFn: (req: ModelAuditRequest) =>
       api.post<ModelAuditResponse>("/sdapi/v2/model/audit", req),
+  });
+}
+
+export function useModelAuditFix() {
+  return useMutation({
+    mutationFn: (req: ModelAuditFixRequest) =>
+      api.post<ModelAuditFixResponse>("/sdapi/v2/model/audit/fix", req),
   });
 }
 

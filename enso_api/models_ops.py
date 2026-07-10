@@ -17,6 +17,7 @@ from enso_api.models import (
     ReqLoaderLoadV2,
     ReqLoraExtractV2,
     ReqMergeV2,
+    ReqModelAuditFixV2,
     ReqModelAuditV2,
     ReqModelSaveV2,
     ReqReplaceV2,
@@ -229,8 +230,9 @@ FOLDER_KINDS = {
     "VAE": "vae",
     "Text-encoder": "text-encoder",
 }
-FILENAME_PRECISIONS = ("fp8", "fp16", "bf16", "fp32", "int8")
-DTYPE_PRECISIONS = {"F32": "fp32", "F16": "fp16", "BF16": "bf16", "F8_E4M3": "fp8", "F8_E5M2": "fp8"}
+# ordered longest-first so substrings (fp8 in mxfp8) cannot shadow the claim
+FILENAME_PRECISIONS = ("nvfp4", "mxfp8", "int8", "fp16", "bf16", "fp32", "nf4", "fp8")
+ROLE_NAME_SUFFIXES = ("high-noise", "low-noise", "uncond")
 
 
 def get_model_probe(path: str):
@@ -269,14 +271,10 @@ def audit_mismatches(path: str, root: str, probe: dict) -> list:
         mismatches.append({"kind": "folder_vs_arch", "claimed": implied, "actual": kind})
     basename = os.path.basename(path).lower()
     claimed_fp = next((p for p in FILENAME_PRECISIONS if p in basename), None)
-    quant = probe.get("quant", {})
     if claimed_fp:
-        if quant.get("scheme") == "comfy_quant":
-            actual_fp = "int8" if quant.get("format") == "int8_tensorwise" else "fp8"
-        elif quant.get("scheme") == "gguf":
-            actual_fp = None
-        else:
-            actual_fp = DTYPE_PRECISIONS.get(probe.get("dominant_dtype") or "")
+        from modules.model_probe import precision_token
+
+        actual_fp = precision_token(probe)
         if actual_fp and claimed_fp != actual_fp:
             mismatches.append({"kind": "filename_precision", "claimed": claimed_fp, "actual": actual_fp})
     rel = os.path.relpath(path, root)
@@ -361,6 +359,87 @@ def post_model_audit(req: ReqModelAuditV2):
         "from_cache": from_cache,
         "elapsed": round(time.time() - start, 3),
         "total": total,
+    }
+
+
+def audit_fix_plans(paths):
+    """Renames correcting a trailing precision suffix token against probed
+    truth. Only the suffix changes; canonical stems and role tokens stay."""
+    import glob
+    import re
+
+    from modules import files_cache, model_probe
+    from modules.civitai.filemanage_civitai import iter_type_roots
+
+    try:
+        from modules.api.security import is_confined_to
+    except ImportError:
+        from enso_api.security_stubs import is_confined_to
+    roots = [str(r) for r in iter_type_roots()]
+    if paths:
+        candidates = [p for p in paths if is_confined_to(p, roots) and os.path.isfile(p)]
+    else:
+        candidates = [p for root in sorted(roots) for p in files_cache.list_files(root, ext_filter=[".safetensors"])]
+    token_re = re.compile(rf"-({'|'.join(FILENAME_PRECISIONS)})$")
+    plans = []
+    for path in candidates:
+        probe = model_probe.probe_file(path)
+        if not probe.get("ok"):
+            continue
+        truth = model_probe.precision_token(probe)
+        if not truth:
+            continue
+        stem, ext = os.path.splitext(os.path.basename(path))
+        roles = ""
+        for role in ROLE_NAME_SUFFIXES:
+            if stem.endswith(f"-{role}"):
+                stem = stem[: -len(role) - 1]
+                roles = f"-{role}{roles}"
+        m = token_re.search(stem)
+        if not m or m.group(1) == truth:
+            continue
+        new_stem = f"{stem[: m.start()]}-{truth}{roles}"
+        folder = os.path.dirname(path)
+        old_stem = os.path.splitext(os.path.basename(path))[0]
+        renames = []
+        for comp in sorted(glob.glob(os.path.join(glob.escape(folder), glob.escape(old_stem) + ".*"))):
+            target = os.path.join(folder, new_stem + os.path.basename(comp)[len(old_stem):])
+            renames.append((comp, target))
+        if any(os.path.exists(t) for _, t in renames):
+            continue
+        plans.append({"path": path, "to": new_stem + ext, "claimed": m.group(1), "actual": truth, "renames": renames})
+    return plans
+
+
+def post_audit_fix(req: ReqModelAuditFixV2):
+    """
+    Correct filename precision suffixes against probed truth.
+
+    Dry-run by default: returns the rename plan. With ``apply`` set, performs
+    the renames including same-stem sidecar files.
+    """
+    from modules import model_probe
+
+    plans = audit_fix_plans(req.paths)
+    if req.apply:
+        for plan in plans:
+            for src, dst in plan["renames"]:
+                os.rename(src, dst)
+        model_probe.save_probe_cache()
+        log.info(f'Model audit fix: renamed={len(plans)}')
+    return {
+        "applied": req.apply,
+        "count": len(plans),
+        "renames": [
+            {
+                "path": p["path"],
+                "to": p["to"],
+                "claimed": p["claimed"],
+                "actual": p["actual"],
+                "files": [os.path.basename(s) for s, _ in p["renames"]],
+            }
+            for p in plans
+        ],
     }
 
 
@@ -664,6 +743,7 @@ def register_api():
     api.add_api_route("/sdapi/v2/model/update-hashes", post_update_hashes, methods=["POST"], tags=["Models"])
     api.add_api_route("/sdapi/v2/model/probe", get_model_probe, methods=["GET"], tags=["Models"])
     api.add_api_route("/sdapi/v2/model/audit", post_model_audit, methods=["POST"], tags=["Models"])
+    api.add_api_route("/sdapi/v2/model/audit/fix", post_audit_fix, methods=["POST"], tags=["Models"])
     #
     api.add_api_route("/sdapi/v2/model/hf/search", get_hf_search, methods=["GET"], tags=["Models"])
     api.add_api_route("/sdapi/v2/model/hf/download", post_hf_download, methods=["POST"], tags=["Models"])
