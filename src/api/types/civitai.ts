@@ -1,3 +1,5 @@
+import type { ModelProbe } from "./modelOps";
+
 export interface CivitImage {
   id: number;
   url: string;
@@ -185,6 +187,16 @@ export interface CivitSettingsUpdate {
   save_subfolder_enabled?: boolean | undefined;
   save_subfolder?: string | undefined;
   discard_hash_mismatch?: boolean | undefined;
+}
+
+// Same ProbeResult shape the local model endpoints use.
+export type CivitProbe = ModelProbe;
+
+export interface CivitPeekResponse {
+  metadata: Record<string, string> | null;
+  tensors?: number;
+  probe?: CivitProbe;
+  error?: string;
 }
 
 // Filters recorded with a history entry; the backend only stores

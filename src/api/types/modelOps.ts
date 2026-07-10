@@ -197,3 +197,83 @@ export interface LoraExtractRequest {
   modules?: string[] | undefined;
   overwrite?: boolean | undefined;
 }
+
+//
+
+export interface ModelProbeArch {
+  kind: string;
+  family: string;
+  display: string;
+  confidence: number;
+  variant: string | null;
+  matched_markers: string[];
+}
+
+export interface ModelProbeQuant {
+  scheme: string | null;
+  format: string | null;
+}
+
+// Mirror of the ProbeResult dict from sdnext modules/model_probe.py.
+export interface ModelProbe {
+  ok: boolean;
+  error: string | null;
+  container: string;
+  tensors: number;
+  params: number;
+  dtypes: Record<string, number>;
+  dominant_dtype: string | null;
+  arch: ModelProbeArch;
+  quant: ModelProbeQuant;
+  metadata: Record<string, string>;
+  metadata_present: boolean;
+  flags: string[];
+}
+
+export interface ModelAuditMismatch {
+  kind: string;
+  claimed: string;
+  actual: string;
+}
+
+export interface ModelAuditFile {
+  path: string;
+  root: string;
+  size: number;
+  mtime: number;
+  kind: string;
+  family: string;
+  display: string;
+  confidence: number;
+  variant: string | null;
+  dominant_dtype: string | null;
+  quant: ModelProbeQuant;
+  metadata_present: boolean;
+  flags: string[];
+  error: string | null;
+  mismatches: ModelAuditMismatch[];
+}
+
+export interface ModelAuditSummary {
+  by_family: Record<string, number>;
+  by_scheme: Record<string, number>;
+  mismatch_count: number;
+  corrupt_count: number;
+}
+
+export interface ModelAuditResponse {
+  files: ModelAuditFile[];
+  summary: ModelAuditSummary;
+  scanned: number;
+  from_cache: number;
+  elapsed: number;
+  total: number;
+}
+
+export interface ModelAuditRequest {
+  roots?: string[] | undefined;
+  exts?: string[] | undefined;
+  force?: boolean | undefined;
+  offset?: number | undefined;
+  limit?: number | undefined;
+}

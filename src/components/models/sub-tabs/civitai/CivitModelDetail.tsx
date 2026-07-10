@@ -1,5 +1,7 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
+import { useQueries } from "@tanstack/react-query";
+import { api } from "@/api/client";
 import {
   Check,
   ChevronDown,
@@ -42,7 +44,15 @@ import {
   useCivitVersionImages,
 } from "@/api/hooks/useCivitai";
 import { useDownloadStore } from "@/stores/downloadStore";
-import type { CivitVersion, CivitFile, CivitImage, CivitStats } from "@/api/types/civitai";
+import { buildTrainingRows, topTrainingTags } from "@/lib/trainingMeta";
+import type {
+  CivitVersion,
+  CivitFile,
+  CivitImage,
+  CivitStats,
+  CivitPeekResponse,
+  CivitProbe,
+} from "@/api/types/civitai";
 import {
   Dialog,
   DialogContent,
@@ -73,8 +83,13 @@ import { CivitFlags } from "./CivitFlags";
 import {
   civitaiModelUrl,
   civitaiUserUrl,
+  civitBaseFamily,
   civitFileSaveName,
   civitFileVariant,
+  civitFileRole,
+  civitFilePeekTargets,
+  civitRoleFromMetadata,
+  precisionFromDtype,
 } from "@/lib/civitai";
 import {
   fetchRemoteImage,
@@ -115,6 +130,7 @@ function formatFreeIn(endsAt: string): string | null {
 function civitThumbnail(url: string, width = 450): string {
   return url.replace(/\/(width=\d+|original=true)\//, `/width=${width}/`);
 }
+
 
 function ImageStrip({
   images,
@@ -229,8 +245,51 @@ function VersionSection({
 }: VersionSectionProps) {
   const [open, setOpen] = useState(false);
   const [showTriggers, setShowTriggers] = useState(false);
+  const [showTraining, setShowTraining] = useState(false);
   const [confirmFile, setConfirmFile] = useState<CivitFile | null>(null);
   const download = useCivitDownload();
+
+  const roleContext = useMemo(
+    () => ({ name: version.name, baseModel: version.baseModel, modelName }),
+    [version.name, version.baseModel, modelName],
+  );
+  // Header probes drive expert-role resolution, arch/precision truth badges,
+  // and training metadata; the backend caches by file id so repeats are free.
+  const peekTargets = useMemo(
+    () => (open ? civitFilePeekTargets(version.files) : []),
+    [open, version.files],
+  );
+  const peekResults = useQueries({
+    queries: peekTargets.map((f) => ({
+      queryKey: ["civitai-peek-header", f.id],
+      queryFn: () =>
+        api.get<CivitPeekResponse>("/sdapi/v2/civitai/peek-header", {
+          url: f.downloadUrl ?? "",
+          file_id: String(f.id),
+        }),
+      staleTime: Infinity,
+    })),
+  });
+  const peekRoles = new Map<number, string | null>();
+  const peekProbes = new Map<number, CivitProbe>();
+  peekTargets.forEach((f, i) => {
+    const data = peekResults[i]?.data;
+    peekRoles.set(f.id, civitRoleFromMetadata(data?.metadata, roleContext));
+    if (data?.probe) peekProbes.set(f.id, data.probe);
+  });
+  const saveContext = { ...roleContext, roles: peekRoles };
+  const baseFamily = civitBaseFamily(version.baseModel);
+  let found: Record<string, string> | null = null;
+  for (const f of peekTargets) {
+    const meta = peekProbes.get(f.id)?.metadata;
+    if (meta && Object.keys(meta).some((k) => k.startsWith("ss_"))) {
+      found = meta;
+      break;
+    }
+  }
+  const trainingMeta = found;
+  const trainingRows = trainingMeta ? buildTrainingRows(trainingMeta) : [];
+  const trainingTags = trainingMeta ? topTrainingTags(trainingMeta) : [];
 
   const isEarlyAccess = version.availability === "EarlyAccess";
   // The Buzz price lives only on the per-version endpoint (the model payload
@@ -283,7 +342,7 @@ function VersionSection({
     const routeType = file.type === "VAE" || file.type === "Text Encoder" ? file.type : modelType;
     download.mutate({
       url: file.downloadUrl,
-      filename: civitFileSaveName(file, version.files),
+      filename: civitFileSaveName(file, version.files, saveContext),
       model_type: routeType,
       expected_hash: file.hashes.SHA256 ?? undefined,
       model_name: modelName,
@@ -400,13 +459,89 @@ function VersionSection({
             </div>
           )}
 
+          {/* Training metadata from the safetensors header (kohya ss_*) */}
+          {trainingMeta && (trainingRows.length > 0 || trainingTags.length > 0) && (
+            <div>
+              <button
+                type="button"
+                onClick={() => setShowTraining(!showTraining)}
+                className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <Sparkles className="h-3.5 w-3.5 shrink-0" />
+                <span>Training metadata</span>
+                {showTraining ? (
+                  <ChevronDown className="h-3 w-3" />
+                ) : (
+                  <ChevronRight className="h-3 w-3" />
+                )}
+              </button>
+              {showTraining && (
+                <div className="mt-2 space-y-2 rounded-md bg-muted/30 p-3">
+                  {trainingRows.length > 0 && (
+                    <div className="grid grid-cols-[7rem_1fr] gap-y-1 text-2xs">
+                      {trainingRows.map(([label, value]) => (
+                        <div key={label} className="contents">
+                          <span className="text-muted-foreground">{label}</span>
+                          <span className="truncate font-mono tabular-nums">{value}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {trainingTags.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5">
+                      {trainingTags.map(([tag, count]) => (
+                        <Badge
+                          key={tag}
+                          variant="secondary"
+                          className="text-3xs px-1.5 py-0.5 max-w-full cursor-pointer hover:bg-accent"
+                          title={`${count} training images`}
+                          onClick={() => {
+                            appendToGenerationPrompt(tag);
+                            toast.success("Added to prompt", { description: tag });
+                          }}
+                        >
+                          <span className="truncate">{tag}</span>
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Files - grid layout with fixed columns so buttons can never be displaced */}
           {version.files.length > 0 && (
             <div className="rounded-md border border-border/30 overflow-hidden">
               {version.files.map((f, i) => {
                 const localMatch = f.hashes.SHA256 ? localFiles[f.hashes.SHA256] : undefined;
-                const saveName = civitFileSaveName(f, version.files);
+                const saveName = civitFileSaveName(f, version.files, saveContext);
                 const variant = civitFileVariant(f);
+                const role = peekRoles.get(f.id) ?? civitFileRole(f, roleContext);
+                const probe = peekProbes.get(f.id);
+                const probeKind = probe?.arch.kind;
+                const archMismatch =
+                  probe?.ok &&
+                  baseFamily &&
+                  (probeKind === "model" || probeKind === "lora") &&
+                  probe.arch.family !== "unknown" &&
+                  probe.arch.confidence >= 0.7 &&
+                  probe.arch.family !== baseFamily
+                    ? probe.arch.display
+                    : null;
+                const claimedFp = f.metadata?.fp ?? null;
+                const actualFp =
+                  probe?.ok && !probe.quant.scheme
+                    ? precisionFromDtype(probe.dominant_dtype)
+                    : null;
+                const fpMismatch =
+                  claimedFp && actualFp && claimedFp.toLowerCase() !== actualFp ? actualFp : null;
+                const quantScheme =
+                  probe?.quant.scheme === "comfy_quant"
+                    ? `comfy ${probe.quant.format === "int8_tensorwise" ? "int8" : "fp8"}`
+                    : probe?.quant.scheme === "scaled_fp8"
+                      ? "scaled fp8"
+                      : null;
                 const failedError = !localMatch ? failedDownloads.get(saveName) : undefined;
                 const scanFailed =
                   (f.pickleScanResult && f.pickleScanResult !== "Success") ||
@@ -449,6 +584,38 @@ function VersionSection({
                           title={metaTitle}
                         >
                           {f.metadata.size}
+                        </Badge>
+                      )}
+                      {role && (
+                        <Badge variant="outline" className="text-4xs px-1 py-0 shrink-0">
+                          {role}
+                        </Badge>
+                      )}
+                      {quantScheme && (
+                        <Badge
+                          variant="secondary"
+                          className="text-4xs px-1 py-0 shrink-0"
+                          title={`Quantization scheme from tensor headers: ${probe?.quant.format ?? quantScheme}`}
+                        >
+                          {quantScheme}
+                        </Badge>
+                      )}
+                      {fpMismatch && (
+                        <Badge
+                          variant="outline"
+                          className="text-4xs px-1 py-0 shrink-0 border-red-500/40 text-red-400"
+                          title={`Metadata claims ${claimedFp}; tensor dtypes say ${fpMismatch}`}
+                        >
+                          actual {fpMismatch}
+                        </Badge>
+                      )}
+                      {archMismatch && (
+                        <Badge
+                          variant="outline"
+                          className="text-4xs px-1 py-0 shrink-0 border-amber-500/40 text-amber-500"
+                          title={`Base tag implies ${baseFamily}; header fingerprint says ${archMismatch}`}
+                        >
+                          &ne; {archMismatch}
                         </Badge>
                       )}
                       {f.primary && (
