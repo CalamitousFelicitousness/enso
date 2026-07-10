@@ -17,6 +17,7 @@ from enso_api.models import (
     ReqLoaderLoadV2,
     ReqLoraExtractV2,
     ReqMergeV2,
+    ReqModelAuditV2,
     ReqModelSaveV2,
     ReqReplaceV2,
 )
@@ -218,6 +219,149 @@ def post_civitai_download(req: ReqCivitaiDownloadV2):
         token=req.token,
     )
     return {"status": "queued", "download_id": item.id, "url": req.url}
+
+
+# folder basename to the file kind it should contain, for audit mismatch checks
+FOLDER_KINDS = {
+    "Stable-diffusion": "model",
+    "UNET": "model",
+    "Lora": "lora",
+    "VAE": "vae",
+    "Text-encoder": "text-encoder",
+}
+FILENAME_PRECISIONS = ("fp8", "fp16", "bf16", "fp32", "int8")
+DTYPE_PRECISIONS = {"F32": "fp32", "F16": "fp16", "BF16": "bf16", "F8_E4M3": "fp8", "F8_E5M2": "fp8"}
+
+
+def get_model_probe(path: str):
+    """
+    Header-only analysis of a local model file.
+
+    Returns the architecture fingerprint, dtype/quant detection, and embedded
+    metadata (kohya ``ss_*`` keys at full fidelity) without reading weights.
+    """
+    from modules import model_probe
+    from modules.civitai.filemanage_civitai import iter_type_roots
+
+    try:
+        from modules.api.security import is_confined_to
+    except ImportError:
+        from enso_api.security_stubs import is_confined_to
+    roots = [str(r) for r in iter_type_roots()]
+    if not path or not is_confined_to(path, roots):
+        return model_probe.error_result("unknown", "path outside model directories", "denied")
+    if not os.path.isfile(path):
+        return model_probe.error_result("unknown", "file not found", "missing")
+    result = model_probe.probe_file(path)
+    model_probe.save_probe_cache()
+    return result
+
+
+def audit_mismatches(path: str, root: str, probe: dict) -> list:
+    from modules.model_probe import family_from_text
+
+    mismatches = []
+    arch = probe.get("arch", {})
+    kind = arch.get("kind")
+    implied = FOLDER_KINDS.get(os.path.basename(root))
+    known = ("model", "lora", "vae", "text-encoder")
+    if implied and kind in known and implied != kind:
+        mismatches.append({"kind": "folder_vs_arch", "claimed": implied, "actual": kind})
+    basename = os.path.basename(path).lower()
+    claimed_fp = next((p for p in FILENAME_PRECISIONS if p in basename), None)
+    quant = probe.get("quant", {})
+    if claimed_fp:
+        if quant.get("scheme") == "comfy_quant":
+            actual_fp = "int8" if quant.get("format") == "int8_tensorwise" else "fp8"
+        elif quant.get("scheme") == "gguf":
+            actual_fp = None
+        else:
+            actual_fp = DTYPE_PRECISIONS.get(probe.get("dominant_dtype") or "")
+        if actual_fp and claimed_fp != actual_fp:
+            mismatches.append({"kind": "filename_precision", "claimed": claimed_fp, "actual": actual_fp})
+    rel = os.path.relpath(path, root)
+    subfolder = rel.split(os.sep)[0] if os.sep in rel else ""
+    implied_family = family_from_text(subfolder) if subfolder else None
+    family = arch.get("family")
+    if implied_family and family not in (None, "unknown") and arch.get("confidence", 0) >= 0.7 and family != implied_family:
+        mismatches.append({"kind": "base_vs_arch", "claimed": implied_family, "actual": family})
+    return mismatches
+
+
+def post_model_audit(req: ReqModelAuditV2):
+    """
+    Header-only audit of the local model libraries.
+
+    Probes every model file under the configured model roots and reports
+    actual architecture, precision, and quantization against what the folder
+    and filename claim. Cached by mtime, so repeat scans are near-instant.
+    """
+    import time
+
+    from modules import files_cache, model_probe
+    from modules.civitai.filemanage_civitai import iter_type_roots
+
+    start = time.time()
+    exts = tuple(req.exts) if req.exts else (".safetensors", ".gguf")
+    roots = [str(r) for r in iter_type_roots()]
+    if req.roots:
+        wanted = set(req.roots)
+        roots = [r for r in roots if os.path.basename(r) in wanted or r in wanted]
+    results = []
+    summary_family = {}
+    summary_scheme = {}
+    mismatch_count = 0
+    corrupt_count = 0
+    from_cache = 0
+    for root in sorted(roots):
+        for path in files_cache.list_files(root, ext_filter=list(exts)):
+            stat = os.stat(path)
+            cached_before = not req.force and path in (model_probe.probe_cache or {})
+            probe = model_probe.probe_file(path, use_cache=not req.force)
+            from_cache += cached_before
+            mismatches = audit_mismatches(path, root, probe) if probe.get("ok") else []
+            mismatch_count += len(mismatches)
+            corrupt_count += not probe.get("ok")
+            arch = probe.get("arch", {})
+            family = arch.get("family", "unknown")
+            summary_family[family] = summary_family.get(family, 0) + 1
+            scheme = probe.get("quant", {}).get("scheme")
+            if scheme:
+                summary_scheme[scheme] = summary_scheme.get(scheme, 0) + 1
+            results.append({
+                "path": path,
+                "root": os.path.basename(root),
+                "size": stat.st_size,
+                "mtime": stat.st_mtime,
+                "kind": arch.get("kind", "unknown"),
+                "family": family,
+                "display": arch.get("display", "Unknown"),
+                "confidence": arch.get("confidence", 0.0),
+                "variant": arch.get("variant"),
+                "dominant_dtype": probe.get("dominant_dtype"),
+                "quant": probe.get("quant"),
+                "metadata_present": probe.get("metadata_present", False),
+                "flags": probe.get("flags", []),
+                "error": probe.get("error"),
+                "mismatches": mismatches,
+            })
+    model_probe.save_probe_cache()
+    total = len(results)
+    if req.limit:
+        results = results[req.offset:req.offset + req.limit]
+    return {
+        "files": results,
+        "summary": {
+            "by_family": summary_family,
+            "by_scheme": summary_scheme,
+            "mismatch_count": mismatch_count,
+            "corrupt_count": corrupt_count,
+        },
+        "scanned": total,
+        "from_cache": from_cache,
+        "elapsed": round(time.time() - start, 3),
+        "total": total,
+    }
 
 
 def post_metadata_scan():
@@ -518,6 +662,8 @@ def register_api():
     api.add_api_route("/sdapi/v2/model/save", post_save, methods=["POST"], tags=["Models"])
     api.add_api_route("/sdapi/v2/model/list-detail", get_list_detail, methods=["GET"], tags=["Models"])
     api.add_api_route("/sdapi/v2/model/update-hashes", post_update_hashes, methods=["POST"], tags=["Models"])
+    api.add_api_route("/sdapi/v2/model/probe", get_model_probe, methods=["GET"], tags=["Models"])
+    api.add_api_route("/sdapi/v2/model/audit", post_model_audit, methods=["POST"], tags=["Models"])
     #
     api.add_api_route("/sdapi/v2/model/hf/search", get_hf_search, methods=["GET"], tags=["Models"])
     api.add_api_route("/sdapi/v2/model/hf/download", post_hf_download, methods=["POST"], tags=["Models"])

@@ -777,6 +777,16 @@ class ReqModelSaveV2(StrictBaseModel):
     overwrite: bool = Field(default=False, title="Overwrite", description="Allow replacing an existing file")
 
 
+class ReqModelAuditV2(StrictBaseModel):
+    """POST /sdapi/v2/model/audit body."""
+
+    roots: list[str] | None = Field(default=None, title="Roots", description="Restrict the scan to these model root folders (basename or absolute path); all roots when omitted")
+    exts: list[str] | None = Field(default=None, title="Extensions", description="File extensions to probe; defaults to .safetensors and .gguf")
+    force: bool = Field(default=False, title="Force", description="Bypass the probe cache and re-read every header")
+    offset: int = Field(default=0, title="Offset", description="Pagination offset into the findings list")
+    limit: int = Field(default=0, title="Limit", description="Page size; 0 returns all findings")
+
+
 class ReqHfDownloadV2(StrictBaseModel):
     """POST /sdapi/v2/model/hf/download body."""
 
