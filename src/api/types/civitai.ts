@@ -22,6 +22,7 @@ export interface CivitFileMetadata {
   format?: string | null;
   size?: string | null;
   fp?: string | null;
+  quantType?: string | null;
 }
 
 export interface CivitFile {

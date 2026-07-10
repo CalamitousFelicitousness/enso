@@ -70,7 +70,12 @@ import {
   ContextMenuSeparator,
 } from "@/components/ui/context-menu";
 import { CivitFlags } from "./CivitFlags";
-import { civitaiModelUrl, civitaiUserUrl, civitFileSaveName } from "@/lib/civitai";
+import {
+  civitaiModelUrl,
+  civitaiUserUrl,
+  civitFileSaveName,
+  civitFileVariant,
+} from "@/lib/civitai";
 import {
   fetchRemoteImage,
   sendImageToCanvas,
@@ -274,10 +279,12 @@ function VersionSection({
   const hasSome = downloadedCount > 0 && !hasAll;
 
   function handleDownload(file: CivitFile) {
+    // Companion files route to their own type's folder, not the model's.
+    const routeType = file.type === "VAE" || file.type === "Text Encoder" ? file.type : modelType;
     download.mutate({
       url: file.downloadUrl,
       filename: civitFileSaveName(file, version.files),
-      model_type: modelType,
+      model_type: routeType,
       expected_hash: file.hashes.SHA256 ?? undefined,
       model_name: modelName,
       base_model: version.baseModel,
@@ -399,6 +406,7 @@ function VersionSection({
               {version.files.map((f, i) => {
                 const localMatch = f.hashes.SHA256 ? localFiles[f.hashes.SHA256] : undefined;
                 const saveName = civitFileSaveName(f, version.files);
+                const variant = civitFileVariant(f);
                 const failedError = !localMatch ? failedDownloads.get(saveName) : undefined;
                 const scanFailed =
                   (f.pickleScanResult && f.pickleScanResult !== "Success") ||
@@ -425,13 +433,13 @@ function VersionSection({
                           {f.type}
                         </Badge>
                       )}
-                      {f.metadata?.fp && (
+                      {variant && (
                         <Badge
                           variant="secondary"
                           className="text-4xs px-1 py-0 shrink-0"
                           title={metaTitle}
                         >
-                          {f.metadata.fp}
+                          {variant}
                         </Badge>
                       )}
                       {f.metadata?.size && (
