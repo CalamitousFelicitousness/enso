@@ -13,6 +13,7 @@ import {
   X,
   Heart,
   Star,
+  ShieldAlert,
   ArrowDownToLine,
   Image as ImageIcon,
   Send,
@@ -69,7 +70,7 @@ import {
   ContextMenuSeparator,
 } from "@/components/ui/context-menu";
 import { CivitFlags } from "./CivitFlags";
-import { civitaiModelUrl, civitaiUserUrl } from "@/lib/civitai";
+import { civitaiModelUrl, civitaiUserUrl, civitFileSaveName } from "@/lib/civitai";
 import {
   fetchRemoteImage,
   sendImageToCanvas,
@@ -275,7 +276,7 @@ function VersionSection({
   function handleDownload(file: CivitFile) {
     download.mutate({
       url: file.downloadUrl,
-      filename: file.name,
+      filename: civitFileSaveName(file, version.files),
       model_type: modelType,
       expected_hash: file.hashes.SHA256 ?? undefined,
       model_name: modelName,
@@ -397,14 +398,61 @@ function VersionSection({
             <div className="rounded-md border border-border/30 overflow-hidden">
               {version.files.map((f, i) => {
                 const localMatch = f.hashes.SHA256 ? localFiles[f.hashes.SHA256] : undefined;
-                const failedError = !localMatch ? failedDownloads.get(f.name) : undefined;
+                const saveName = civitFileSaveName(f, version.files);
+                const failedError = !localMatch ? failedDownloads.get(saveName) : undefined;
+                const scanFailed =
+                  (f.pickleScanResult && f.pickleScanResult !== "Success") ||
+                  (f.virusScanResult && f.virusScanResult !== "Success");
+                const metaTitle = [
+                  f.metadata?.format,
+                  f.scannedAt
+                    ? `${scanFailed ? `scan ${f.pickleScanResult}/${f.virusScanResult}` : "verified"} ${new Date(f.scannedAt).toLocaleDateString()}`
+                    : "not scanned",
+                ]
+                  .filter(Boolean)
+                  .join(" · ");
                 return (
                   <div
                     key={f.id}
                     className={`grid ${isEarlyAccess || failedError ? "grid-cols-[1fr_5rem_auto]" : "grid-cols-[1fr_5rem_2.5rem]"} items-center gap-2 px-3 py-2 text-xs ${i > 0 ? "border-t border-border/20" : ""}`}
                   >
-                    <span className="truncate min-w-0" title={f.name}>
-                      {f.name}
+                    <span className="flex items-center gap-1.5 min-w-0">
+                      <span className="truncate min-w-0" title={saveName}>
+                        {f.name}
+                      </span>
+                      {f.type !== "Model" && (
+                        <Badge variant="outline" className="text-4xs px-1 py-0 shrink-0">
+                          {f.type}
+                        </Badge>
+                      )}
+                      {f.metadata?.fp && (
+                        <Badge
+                          variant="secondary"
+                          className="text-4xs px-1 py-0 shrink-0"
+                          title={metaTitle}
+                        >
+                          {f.metadata.fp}
+                        </Badge>
+                      )}
+                      {f.metadata?.size && (
+                        <Badge
+                          variant="outline"
+                          className="text-4xs px-1 py-0 shrink-0"
+                          title={metaTitle}
+                        >
+                          {f.metadata.size}
+                        </Badge>
+                      )}
+                      {f.primary && (
+                        <span title="Primary file">
+                          <Star className="h-3 w-3 shrink-0 fill-primary text-primary" />
+                        </span>
+                      )}
+                      {scanFailed && (
+                        <span title={metaTitle}>
+                          <ShieldAlert className="h-3 w-3 shrink-0 text-red-500" />
+                        </span>
+                      )}
                     </span>
                     <span className="text-muted-foreground text-right">{formatSize(f.sizeKB)}</span>
                     <span className="flex items-center justify-center gap-1.5">
@@ -412,7 +460,7 @@ function VersionSection({
                         <span title={`Downloaded: ${localMatch.filename}`}>
                           <Check className="h-4 w-4 text-green-500" />
                         </span>
-                      ) : activeDownloads.has(f.name) ? (
+                      ) : activeDownloads.has(saveName) ? (
                         <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
                       ) : (
                         <>

@@ -18,6 +18,12 @@ export interface CivitFileHashes {
   BLAKE3: string | null;
 }
 
+export interface CivitFileMetadata {
+  format?: string | null;
+  size?: string | null;
+  fp?: string | null;
+}
+
 export interface CivitFile {
   id: number;
   name: string;
@@ -26,6 +32,10 @@ export interface CivitFile {
   hashes: CivitFileHashes;
   downloadUrl: string;
   primary: boolean | null;
+  metadata?: CivitFileMetadata;
+  pickleScanResult?: string | null;
+  virusScanResult?: string | null;
+  scannedAt?: string | null;
 }
 
 export interface CivitStats {
