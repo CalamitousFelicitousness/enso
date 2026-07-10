@@ -15,6 +15,9 @@ import type {
   LoaderComponentsResponse,
   LoaderLoadRequest,
   LoraExtractRequest,
+  ModelProbe,
+  ModelAuditRequest,
+  ModelAuditResponse,
 } from "../types/modelOps";
 
 //
@@ -40,6 +43,22 @@ export function useSaveModel() {
   return useMutation({
     mutationFn: (req: ModelSaveRequest) =>
       api.post<{ status: string }>("/sdapi/v2/model/save", req),
+  });
+}
+
+export function useModelProbe(path: string | null | undefined, enabled = true) {
+  return useQuery({
+    queryKey: ["model-probe", path],
+    queryFn: () => api.get<ModelProbe>("/sdapi/v2/model/probe", { path: path ?? "" }),
+    enabled: Boolean(path) && enabled,
+    staleTime: 300_000,
+  });
+}
+
+export function useModelAudit() {
+  return useMutation({
+    mutationFn: (req: ModelAuditRequest) =>
+      api.post<ModelAuditResponse>("/sdapi/v2/model/audit", req),
   });
 }
 

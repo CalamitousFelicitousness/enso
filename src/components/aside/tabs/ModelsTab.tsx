@@ -13,6 +13,7 @@ import { MetadataSubTab } from "@/components/models/sub-tabs/MetadataSubTab";
 import { LoaderSubTab } from "@/components/models/sub-tabs/LoaderSubTab";
 import { MergeSubTab } from "@/components/models/sub-tabs/MergeSubTab";
 import { ReplaceSubTab } from "@/components/models/sub-tabs/ReplaceSubTab";
+import { AuditSubTab } from "@/components/models/sub-tabs/AuditSubTab";
 import { CivitaiSubTab } from "@/components/models/sub-tabs/CivitaiSubTab";
 import { HuggingfaceSubTab } from "@/components/models/sub-tabs/HuggingfaceSubTab";
 import { ExtractLoraSubTab } from "@/components/models/sub-tabs/ExtractLoraSubTab";
@@ -20,6 +21,7 @@ import { ExtractLoraSubTab } from "@/components/models/sub-tabs/ExtractLoraSubTa
 const SUB_TABS: readonly ModelsSubTab[] = [
   "Current",
   "List",
+  "Audit",
   "Metadata",
   "Loader",
   "Merge",
@@ -45,6 +47,7 @@ function subPanel(id: ModelsSubTab, content: ReactNode) {
 const SUB_PANELS = [
   subPanel("Current", <CurrentSubTab />),
   subPanel("List", <ListSubTab />),
+  subPanel("Audit", <AuditSubTab />),
   subPanel("Metadata", <MetadataSubTab />),
   subPanel("Loader", <LoaderSubTab />),
   subPanel("Merge", <MergeSubTab />),

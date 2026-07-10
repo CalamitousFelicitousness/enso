@@ -3,6 +3,8 @@ import { Loader2, ExternalLink, ImageOff, ChevronDown, ChevronRight, Sparkles } 
 import { toast } from "sonner";
 import { useNetworkDetail } from "@/api/hooks/useNetworks";
 import { useCivitVersionImages } from "@/api/hooks/useCivitai";
+import { useModelProbe } from "@/api/hooks/useModelOps";
+import { buildTrainingRows, hasTrainingMeta, topTrainingTags } from "@/lib/trainingMeta";
 import { useGenerationStore } from "@/stores/generationStore";
 import { civitaiModelUrl } from "@/lib/civitai";
 import { insertAtCursor } from "@/lib/promptCursor";
@@ -263,6 +265,9 @@ function NetworkDialogBody({
   const civit = getCivitInfo(detail.info);
   const tags = detail.tags?.replaceAll("|", ", ").split(", ").filter(Boolean) ?? [];
   const hasPreview = !!previewUrl;
+  const { data: probe } = useModelProbe(detail.filename);
+  const showTraining = Boolean(probe?.ok && hasTrainingMeta(probe.metadata));
+  const trainTags = showTraining && probe ? topTrainingTags(probe.metadata, 20) : [];
 
   return (
     <div className={`flex gap-5 min-h-0 ${hasPreview ? "" : "flex-col"}`}>
@@ -326,6 +331,53 @@ function NetworkDialogBody({
           {civit && civit.trainedWords.length > 0 && (
             <div className="pt-2 border-t border-border">
               <TriggerWords words={civit.trainedWords} />
+            </div>
+          )}
+
+          {/* Embedded training metadata (kohya ss_*) read from the file header */}
+          {showTraining && probe && (
+            <div className="space-y-1.5 pt-2 border-t border-border">
+              <span className="text-xs font-medium">Training metadata</span>
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <Badge variant="outline" className="text-3xs px-1.5 py-0.5">
+                  {probe.arch.display}
+                </Badge>
+                {probe.dominant_dtype && (
+                  <Badge variant="secondary" className="text-3xs px-1.5 py-0.5">
+                    {probe.dominant_dtype}
+                  </Badge>
+                )}
+                {probe.quant.scheme && (
+                  <Badge variant="secondary" className="text-3xs px-1.5 py-0.5">
+                    {probe.quant.scheme}
+                  </Badge>
+                )}
+              </div>
+              <div className="space-y-1">
+                {buildTrainingRows(probe.metadata).map(([label, value]) => (
+                  <DetailRow key={label} label={label} value={value} />
+                ))}
+              </div>
+              {trainTags.length > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                  {trainTags.map(([tag, count]) => (
+                    <button
+                      key={tag}
+                      type="button"
+                      title={`${count} training images`}
+                      onClick={() => {
+                        const current = useGenerationStore.getState().prompt;
+                        const updated = current ? `${current}, ${tag}` : tag;
+                        useGenerationStore.getState().setParam("prompt", updated);
+                        toast.success(`Added "${tag}" to prompt`);
+                      }}
+                      className="inline-flex items-center rounded-md border border-transparent bg-secondary text-secondary-foreground px-2 py-0.5 text-2xs font-medium cursor-pointer hover:bg-primary/20 select-none transition-colors"
+                    >
+                      {tag}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 

@@ -19,6 +19,7 @@ type CanvasBackground = "dots" | "noise" | "iso";
 type ModelsSubTab =
   | "Current"
   | "List"
+  | "Audit"
   | "Metadata"
   | "Loader"
   | "Merge"
