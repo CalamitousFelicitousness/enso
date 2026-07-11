@@ -76,6 +76,9 @@ export interface RoleContext {
   // Roles resolved out-of-band (safetensors header peek), keyed by file id;
   // they take precedence over name-derived roles in civitFileSaveName.
   roles?: Map<number, string | null>;
+  // Variant tokens upgraded by header probes (bare fp8 -> fp8_e4m3fn),
+  // keyed by file id; they take precedence over metadata-derived variants.
+  variants?: Map<number, string>;
 }
 
 function findArch(context: RoleContext) {
@@ -149,12 +152,27 @@ const DTYPE_PRECISION: Record<string, string> = {
   F32: "fp32",
   F16: "fp16",
   BF16: "bf16",
-  F8_E4M3: "fp8",
-  F8_E5M2: "fp8",
+  F8_E4M3: "fp8_e4m3fn",
+  F8_E5M2: "fp8_e5m2",
 };
 
 export function precisionFromDtype(dtype: string | null | undefined): string | null {
   return dtype ? (DTYPE_PRECISION[dtype] ?? null) : null;
+}
+
+// A generic claim (fp8) is satisfied by any of its variants (fp8_e4m3fn).
+export function precisionClaimSatisfied(claimed: string, actual: string): boolean {
+  return claimed === actual || actual.startsWith(claimed);
+}
+
+const QUANT_FORMAT_LABELS: Record<string, string> = {
+  int8_tensorwise: "int8",
+  float8_e4m3fn: "fp8_e4m3fn",
+  float8_e5m2: "fp8_e5m2",
+};
+
+export function quantFormatLabel(format: string | null | undefined): string | null {
+  return format ? (QUANT_FORMAT_LABELS[format] ?? format) : null;
 }
 
 // Civitai serves one canonical name for every variant of a version. Suffix
@@ -170,7 +188,7 @@ export function civitFileSaveName(
   const roleOf = (f: VariantFile) =>
     context ? (context.roles?.get(f.id) ?? civitFileRole(f, context)) : null;
   const tier1 = (f: VariantFile) => {
-    const variant = civitFileVariant(f);
+    const variant = context?.variants?.get(f.id) ?? civitFileVariant(f);
     const name = variant ? insertNameSuffix(f.name, variant) : f.name;
     const role = roleOf(f);
     return role ? insertNameSuffix(name, role) : name;

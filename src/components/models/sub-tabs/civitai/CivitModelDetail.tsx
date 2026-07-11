@@ -90,6 +90,8 @@ import {
   civitFilePeekTargets,
   civitRoleFromMetadata,
   precisionFromDtype,
+  precisionClaimSatisfied,
+  quantFormatLabel,
 } from "@/lib/civitai";
 import {
   fetchRemoteImage,
@@ -272,12 +274,22 @@ function VersionSection({
   });
   const peekRoles = new Map<number, string | null>();
   const peekProbes = new Map<number, CivitProbe>();
+  const peekVariants = new Map<number, string>();
   peekTargets.forEach((f, i) => {
     const data = peekResults[i]?.data;
     peekRoles.set(f.id, civitRoleFromMetadata(data?.metadata, roleContext));
-    if (data?.probe) peekProbes.set(f.id, data.probe);
+    if (data?.probe) {
+      peekProbes.set(f.id, data.probe);
+      // upgrade a generic metadata variant to the dtype-exact token; the fp8
+      // element type is header truth regardless of quant container
+      const claimed = civitFileVariant(f);
+      const exact = data.probe.ok ? precisionFromDtype(data.probe.dominant_dtype) : null;
+      if (claimed && exact && exact !== claimed && precisionClaimSatisfied(claimed, exact)) {
+        peekVariants.set(f.id, exact);
+      }
+    }
   });
-  const saveContext = { ...roleContext, roles: peekRoles };
+  const saveContext = { ...roleContext, roles: peekRoles, variants: peekVariants };
   const baseFamily = civitBaseFamily(version.baseModel);
   let found: Record<string, string> | null = null;
   for (const f of peekTargets) {
@@ -516,7 +528,7 @@ function VersionSection({
               {version.files.map((f, i) => {
                 const localMatch = f.hashes.SHA256 ? localFiles[f.hashes.SHA256] : undefined;
                 const saveName = civitFileSaveName(f, version.files, saveContext);
-                const variant = civitFileVariant(f);
+                const variant = peekVariants.get(f.id) ?? civitFileVariant(f);
                 const role = peekRoles.get(f.id) ?? civitFileRole(f, roleContext);
                 const probe = peekProbes.get(f.id);
                 const probeKind = probe?.arch.kind;
@@ -535,12 +547,14 @@ function VersionSection({
                     ? precisionFromDtype(probe.dominant_dtype)
                     : null;
                 const fpMismatch =
-                  claimedFp && actualFp && claimedFp.toLowerCase() !== actualFp ? actualFp : null;
+                  claimedFp && actualFp && !precisionClaimSatisfied(claimedFp.toLowerCase(), actualFp)
+                    ? actualFp
+                    : null;
                 const quantScheme =
                   probe?.quant.scheme === "comfy_quant"
-                    ? `comfy ${probe.quant.format === "int8_tensorwise" ? "int8" : "fp8"}`
+                    ? `comfy ${quantFormatLabel(probe.quant.format) ?? ""}`.trim()
                     : probe?.quant.scheme === "scaled_fp8"
-                      ? "scaled fp8"
+                      ? `scaled ${quantFormatLabel(probe.quant.format) ?? "fp8"}`
                       : null;
                 const failedError = !localMatch ? failedDownloads.get(saveName) : undefined;
                 const scanFailed =
