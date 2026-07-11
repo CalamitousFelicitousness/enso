@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Loader2, ScanSearch, Wrench } from "lucide-react";
 import { toast } from "sonner";
 import { useModelAudit, useModelAuditFix } from "@/api/hooks/useModelOps";
+import { quantFormatLabel } from "@/lib/civitai";
 import type { ModelAuditFile, ModelAuditFixResponse } from "@/api/types/modelOps";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -19,10 +20,10 @@ function hasIssues(f: ModelAuditFile): boolean {
 
 function precisionLabel(f: ModelAuditFile): string {
   if (f.quant.scheme === "comfy_quant") {
-    return f.quant.format === "int8_tensorwise" ? "comfy int8" : "comfy fp8";
+    return `comfy ${quantFormatLabel(f.quant.format) ?? ""}`.trim();
   }
   if (f.quant.scheme === "gguf") return f.quant.format ?? "gguf";
-  if (f.quant.scheme === "scaled_fp8") return "scaled fp8";
+  if (f.quant.scheme === "scaled_fp8") return `scaled ${quantFormatLabel(f.quant.format) ?? "fp8"}`;
   return f.dominant_dtype ?? "-";
 }
 
@@ -34,9 +35,6 @@ export function AuditSubTab() {
   const data = audit.data;
   const files = data?.files ?? [];
   const shown = issuesOnly ? files.filter(hasIssues) : files;
-  const precisionIssues = files.some((f) =>
-    f.mismatches.some((m) => m.kind === "filename_precision"),
-  );
 
   function planFix() {
     fix.mutate(
@@ -82,12 +80,10 @@ export function AuditSubTab() {
         >
           Force rescan
         </Button>
-        {precisionIssues && (
-          <Button size="sm" variant="outline" onClick={planFix} disabled={fix.isPending}>
-            <Wrench className="h-3.5 w-3.5" />
-            Fix names
-          </Button>
-        )}
+        <Button size="sm" variant="outline" onClick={planFix} disabled={fix.isPending}>
+          <Wrench className="h-3.5 w-3.5" />
+          Fix names
+        </Button>
         <div className="flex items-center gap-2">
           <Switch id="audit-issues-only" checked={issuesOnly} onCheckedChange={setIssuesOnly} />
           <Label htmlFor="audit-issues-only">Issues only</Label>

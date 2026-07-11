@@ -231,8 +231,34 @@ FOLDER_KINDS = {
     "Text-encoder": "text-encoder",
 }
 # ordered longest-first so substrings (fp8 in mxfp8) cannot shadow the claim
-FILENAME_PRECISIONS = ("nvfp4", "mxfp8", "int8", "fp16", "bf16", "fp32", "nf4", "fp8")
+FILENAME_PRECISIONS = ("fp8_e4m3fn", "fp8_e5m2", "nvfp4", "mxfp8", "int8", "fp16", "bf16", "fp32", "nf4", "fp8")
 ROLE_NAME_SUFFIXES = ("high-noise", "low-noise", "uncond")
+
+
+def filename_precision_claim(basename: str) -> str | None:
+    """Precision the filename claims. Names can carry several tokens (a model
+    branded INT8 shipping an FP8 file); the rightmost describes the file, and
+    on ties the longer token wins so mxfp8 beats its embedded fp8."""
+    if "e4m3" in basename:
+        return "fp8_e4m3fn"
+    if "e5m2" in basename:
+        return "fp8_e5m2"
+    best = None
+    best_end = -1
+    for token in FILENAME_PRECISIONS:
+        pos = basename.rfind(token)
+        if pos < 0:
+            continue
+        end = pos + len(token)
+        if end > best_end or (end == best_end and len(token) > len(best or "")):
+            best = token
+            best_end = end
+    return best
+
+
+def precision_claim_satisfied(claimed: str, actual: str) -> bool:
+    """A generic claim (fp8) is satisfied by any of its variants."""
+    return claimed == actual or actual.startswith(claimed)
 
 
 def get_model_probe(path: str):
@@ -270,12 +296,12 @@ def audit_mismatches(path: str, root: str, probe: dict) -> list:
     if implied and kind in known and implied != kind:
         mismatches.append({"kind": "folder_vs_arch", "claimed": implied, "actual": kind})
     basename = os.path.basename(path).lower()
-    claimed_fp = next((p for p in FILENAME_PRECISIONS if p in basename), None)
+    claimed_fp = filename_precision_claim(basename)
     if claimed_fp:
         from modules.model_probe import precision_token
 
         actual_fp = precision_token(probe)
-        if actual_fp and claimed_fp != actual_fp:
+        if actual_fp and not precision_claim_satisfied(claimed_fp, actual_fp):
             mismatches.append({"kind": "filename_precision", "claimed": claimed_fp, "actual": actual_fp})
     rel = os.path.relpath(path, root)
     subfolder = rel.split(os.sep)[0] if os.sep in rel else ""
