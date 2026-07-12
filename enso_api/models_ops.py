@@ -304,7 +304,7 @@ def audit_mismatches(path: str, root: str, probe: dict) -> list:
         if actual_fp and not precision_claim_satisfied(claimed_fp, actual_fp):
             mismatches.append({"kind": "filename_precision", "claimed": claimed_fp, "actual": actual_fp})
     rel = os.path.relpath(path, root)
-    subfolder = rel.split(os.sep)[0] if os.sep in rel else ""
+    subfolder = rel.split(os.sep, maxsplit=1)[0] if os.sep in rel else ""
     implied_family = family_from_text(subfolder) if subfolder else None
     family = arch.get("family")
     if implied_family and family not in (None, "unknown") and arch.get("confidence", 0) >= 0.7 and family != implied_family:
