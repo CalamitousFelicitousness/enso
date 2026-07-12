@@ -1,7 +1,7 @@
 /**
  * Refresh `src/api/types/openapi.snapshot.json` from the live SD.Next backend.
  *
- * Run with `npm run codegen:refresh` after changing any Pydantic model in
+ * Run with `pnpm run codegen:refresh` after changing any Pydantic model in
  * `enso_api/`. The script:
  * 1. Resolves the backend port via {@link detectBackendPort}.
  * 2. Fetches `/openapi.json`.

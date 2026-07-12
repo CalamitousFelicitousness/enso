@@ -1,7 +1,7 @@
 /**
  * Refresh `src/data/locale_en.snapshot.json` from the live SD.Next backend.
  *
- * Run with `npm run locale:refresh` after SD.Next changes its hints (the
+ * Run with `pnpm run locale:refresh` after SD.Next changes its hints (the
  * `docs(i18n)` / `docs(locale)` commit stream in `ui/locale/locale_en.json`).
  * The script:
  * 1. Resolves the backend port via {@link detectBackendPort}.

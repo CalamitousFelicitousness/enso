@@ -144,7 +144,7 @@ cd /path/to/sdnext
 ./webui.sh --enso
 ```
 
-The `--enso` flag triggers the built-in `install.py` which automatically runs `npm install` and `npm run build` when needed. It detects source changes and only rebuilds when necessary.
+The `--enso` flag triggers the built-in `install.py` which automatically runs `pnpm install` and `pnpm run build` when needed. It detects source changes and only rebuilds when necessary.
 
 The UI will be available at `http://localhost:7860/enso/`
 
@@ -154,7 +154,7 @@ The UI will be available at `http://localhost:7860/enso/`
 cd /path/to/sdnext/extensions-builtin/sdnext-enso
 
 # Start dev server (HMR, proxies API to SD.Next backend)
-npm run dev
+pnpm run dev
 ```
 
 Dev server runs at `http://localhost:5174/` with hot reload. API requests automatically proxy to whatever port SD.Next is running on (detected via `.sdnext.port` written at startup). To override, copy `.env.example` to `.env.local` and uncomment the settings you need.
@@ -197,7 +197,7 @@ enso/
 │   └── misc_routes.py        # HuggingFace, extra-networks, WS ticket
 ├── scripts/
 │   └── enso.py               # SD.Next extension entry point
-├── install.py                # Auto npm install + build (triggered by --enso)
+├── install.py                # Auto pnpm install + build (triggered by --enso)
 ├── public/                   # Static assets, PWA icons, fonts
 ├── index.html                # SPA entry
 ├── package.json
@@ -208,11 +208,11 @@ enso/
 
 ### Available Scripts
 
-| Command       | Description                       |
-| ------------- | --------------------------------- |
-| `npm run dev` | Start development server with HMR |
+| Command        | Description                       |
+| -------------- | --------------------------------- |
+| `pnpm run dev` | Start development server with HMR |
 
-Production builds (`npm run build`) are handled automatically by `install.py` when SD.Next starts with `--enso`.
+Production builds (`pnpm run build`) are handled automatically by `install.py` when SD.Next starts with `--enso`.
 
 ### Technology Stack
 

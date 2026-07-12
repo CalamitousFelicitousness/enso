@@ -2,8 +2,8 @@
  * Drift check: fail if `src/data/locale_en.snapshot.json` doesn't match the
  * live SD.Next backend's `/file=ui/locale/locale_en.json`.
  *
- * Run with `npm run locale:check`. Catches the case where SD.Next expanded its
- * hints without a corresponding `npm run locale:refresh` in Enso. On drift,
+ * Run with `pnpm run locale:check`. Catches the case where SD.Next expanded its
+ * hints without a corresponding `pnpm run locale:refresh` in Enso. On drift,
  * exits nonzero with a first-difference hint pointing at the refresh command.
  */
 
@@ -53,7 +53,7 @@ async function main() {
     committed = fs.readFileSync(SNAPSHOT_PATH, "utf-8");
   } catch {
     process.stderr.write(
-      `locale:check failed - snapshot file missing.\n  Expected: ${SNAPSHOT_PATH}\n  Run \`npm run locale:refresh\` to create it.\n`,
+      `locale:check failed - snapshot file missing.\n  Expected: ${SNAPSHOT_PATH}\n  Run \`pnpm run locale:refresh\` to create it.\n`,
     );
     process.exit(1);
   }
@@ -70,7 +70,7 @@ async function main() {
     process.stderr.write(`    committed: ${diff.aLine.slice(0, 200)}\n`);
     process.stderr.write(`    live:      ${diff.bLine.slice(0, 200)}\n`);
   }
-  process.stderr.write("\n  Run `npm run locale:refresh` to update the snapshot, then commit.\n");
+  process.stderr.write("\n  Run `pnpm run locale:refresh` to update the snapshot, then commit.\n");
   process.exit(1);
 }
 
