@@ -133,7 +133,6 @@ function civitThumbnail(url: string, width = 450): string {
   return url.replace(/\/(width=\d+|original=true)\//, `/width=${width}/`);
 }
 
-
 function ImageStrip({
   images,
   className,
@@ -547,7 +546,9 @@ function VersionSection({
                     ? precisionFromDtype(probe.dominant_dtype)
                     : null;
                 const fpMismatch =
-                  claimedFp && actualFp && !precisionClaimSatisfied(claimedFp.toLowerCase(), actualFp)
+                  claimedFp &&
+                  actualFp &&
+                  !precisionClaimSatisfied(claimedFp.toLowerCase(), actualFp)
                     ? actualFp
                     : null;
                 const quantScheme =

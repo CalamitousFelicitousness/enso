@@ -4,13 +4,7 @@ import type { MaskLine } from "@/stores/img2imgStore";
 import type { ControlUnitSnapshot } from "@/api/types/control";
 
 export type JobDomain =
-  | "generate"
-  | "upscale"
-  | "rembg"
-  | "video"
-  | "framepack"
-  | "ltx"
-  | "xyz-grid";
+  "generate" | "upscale" | "rembg" | "video" | "framepack" | "ltx" | "xyz-grid";
 
 /**
  * Captured workspace state for a submitted job, discriminated by the
@@ -43,9 +37,7 @@ export type JobSnapshot =
  * persistence -- they are not needed for queue rehydration on reload.
  */
 export type StoredJobSnapshot =
-  | { kind: "control"; controlUnits: ControlUnitSnapshot[] }
-  | { kind: "detail" }
-  | { kind: "none" };
+  { kind: "control"; controlUnits: ControlUnitSnapshot[] } | { kind: "detail" } | { kind: "none" };
 
 export function strippedSnapshot(s: JobSnapshot): StoredJobSnapshot {
   switch (s.kind) {

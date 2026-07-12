@@ -94,8 +94,7 @@ export function InputFrameLayer({
   const focusedFramePosition =
     focusedFrame && focusedFrame.mode === "initial"
       ? (frames.find((f) => f.kind === "initial" && f.frameId === focusedFrame.id) as
-          | InitialFramePosition
-          | undefined)
+          InitialFramePosition | undefined)
       : undefined;
   const focusedActiveLayerId = focusedFrame?.mode === "initial" ? focusedFrame.activeLayerId : null;
 

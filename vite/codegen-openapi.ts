@@ -91,14 +91,12 @@ function discoverInlineUnions(snapshot: JsonObject): DiscoveredUnion[] {
   )?.requestBody as JsonObject | undefined;
   const jobsPostSchema = (
     (jobsPostBody?.content as JsonObject | undefined)?.["application/json"] as
-      | JsonObject
-      | undefined
+      JsonObject | undefined
   )?.schema;
   if (jobsPostSchema !== undefined) addIfDiscriminated("JobRequest", jobsPostSchema);
 
   const wsEventsPath = (snapshot.paths as JsonObject | undefined)?.["/sdapi/v2/jobs/ws-events"] as
-    | JsonObject
-    | undefined;
+    JsonObject | undefined;
   const wsEventsResp = (
     (
       ((wsEventsPath?.get as JsonObject | undefined)?.responses as JsonObject | undefined)?.[

@@ -1,13 +1,7 @@
 import type { FitMode, FreeTransform } from "@/lib/image";
 
 export type ControlUnitType =
-  | "controlnet"
-  | "t2i"
-  | "xs"
-  | "lite"
-  | "style_transfer"
-  | "ip"
-  | "reference";
+  "controlnet" | "t2i" | "xs" | "lite" | "style_transfer" | "ip" | "reference";
 
 /** High-level unified input roles visible to the user. */
 export type InputRole = "initial" | "reference" | "control";

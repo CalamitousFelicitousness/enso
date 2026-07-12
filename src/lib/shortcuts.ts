@@ -1,19 +1,8 @@
 export type ShortcutScope =
-  | "global"
-  | "canvas"
-  | "gallery"
-  | "lightbox"
-  | "comparison"
-  | "tutorial";
+  "global" | "canvas" | "gallery" | "lightbox" | "comparison" | "tutorial";
 
 export type ShortcutCategory =
-  | "Global"
-  | "Canvas"
-  | "Gallery"
-  | "Lightbox"
-  | "Comparison"
-  | "Navigation"
-  | "Tutorial";
+  "Global" | "Canvas" | "Gallery" | "Lightbox" | "Comparison" | "Navigation" | "Tutorial";
 
 export interface ShortcutDef {
   id: string;

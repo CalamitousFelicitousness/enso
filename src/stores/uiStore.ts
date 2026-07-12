@@ -29,13 +29,7 @@ type ModelsSubTab =
   | "Extract LoRA";
 
 type SystemSubTab =
-  | "Overview"
-  | "Storage"
-  | "Update"
-  | "Activity"
-  | "GPU Monitor"
-  | "System Info"
-  | "Benchmark";
+  "Overview" | "Storage" | "Update" | "Activity" | "GPU Monitor" | "System Info" | "Benchmark";
 
 type CaptionSubTab = "vlm" | "openclip" | "tagger" | "cloud" | "default";
 
