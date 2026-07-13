@@ -35,7 +35,9 @@ def run():
 
     pnpm = shutil.which("pnpm")
     if pnpm is None:
-        print("Enso: pnpm not found, skipping frontend build")
+        state = "serving the previous build" if os.path.isdir(dist_dir) else "no build available"
+        print(f"Enso: pnpm not found - frontend build skipped, {state}")
+        print("Enso: install pnpm (`npm install -g pnpm` or `corepack enable`) and restart")
         return
 
     # A node_modules without pnpm's state file was built by another package

@@ -134,6 +134,8 @@ It runs as a standard SD.Next extension: drop it into `extensions-builtin/` and 
 
 ### Installation
 
+Requires [Node.js](https://nodejs.org/) 20.19+ or 22.12+ and [pnpm](https://pnpm.io/) (`npm install -g pnpm`, or `corepack enable`).
+
 ```bash
 # Clone into SD.Next extensions directory
 cd /path/to/sdnext/extensions-builtin
@@ -145,6 +147,8 @@ cd /path/to/sdnext
 ```
 
 The `--enso` flag triggers the built-in `install.py` which automatically runs `pnpm install` and `pnpm run build` when needed. It detects source changes and only rebuilds when necessary.
+
+**Migrating from an npm-era checkout:** the build tooling moved from npm to pnpm. Install pnpm (`npm install -g pnpm`, or `corepack enable`), then restart SD.Next with `--enso`; the extension replaces its npm-built `node_modules` and rebuilds on its own. Until pnpm is installed, the UI keeps serving the last npm-era build.
 
 The UI will be available at `http://localhost:7860/enso/`
 
