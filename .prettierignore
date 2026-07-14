@@ -20,12 +20,11 @@ src/data/locale_en.snapshot.json
 mcp
 working-docs
 
-# Top-level docs maintained by hand
+# Docs maintained by hand. Prettier rewrites markdown emphasis and escapes,
+# which mangles glob patterns and Obsidian syntax in the docs vault.
 /*.md
 !README.md
+docs
 
 # Lockfiles
 pnpm-lock.yaml
-
-# Editor state
-docs/.obsidian/

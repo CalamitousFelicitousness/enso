@@ -936,7 +936,7 @@ enso_api/cloud/
 | ------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------- |
 | **1 - Universal**         | prompt, negative_prompt, width/height, seed, steps, guidance, batch_size                                                                      | Translated to provider names via preset map        |
 | **2 - Provider-specific** | quality, style (OpenAI), denoising_strength (img2img)                                                                                         | Present in some presets' maps, absent in others    |
-| **3 - Local-only**        | hires*\*, refiner*\_, detailer\__, hypertile\*\*, teacache*_, freeU\_\_, token_merging, color_correction, sampler tuning, clip_skip, VAE type | Never sent. Hidden in UI when cloud model selected |
+| **3 - Local-only**        | `hires_*`, `refiner_*`, `detailer_*`, `hypertile_*`, `teacache_*`, `freeU_*`, token_merging, color_correction, sampler tuning, clip_skip, VAE type | Never sent. Hidden in UI when cloud model selected |
 
 ### Frontend Param Visibility
 
