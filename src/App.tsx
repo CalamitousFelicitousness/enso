@@ -7,12 +7,14 @@ import { useConnectionStore } from "@/stores/connectionStore";
 import { api } from "@/api/client";
 import { contrastText } from "@/lib/utils";
 import { useResolvedTheme } from "@/hooks/useResolvedTheme";
+import { useVersionWatch } from "@/hooks/useVersionWatch";
 import "./App.css";
 
 function App() {
   const accentColor = useUiStore((s) => s.accentColor);
   const uiScale = useUiStore((s) => s.uiScale);
   const resolvedTheme = useResolvedTheme();
+  useVersionWatch();
 
   // Bootstrap stored backend connection before queries fire
   useEffect(() => {

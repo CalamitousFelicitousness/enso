@@ -478,6 +478,12 @@ class ServerModelInfo(BaseModel):
     supports_strength: bool = True
 
 
+class ExtensionVersionV2(BaseModel):
+    commit: str | None = None
+    dist_commit: str | None = None
+    dist_source: Literal["release", "local", "unknown"] = "unknown"
+
+
 class ResServerInfoV2(BaseModel):
     version: VersionInfoV2
     backend: str
@@ -485,6 +491,7 @@ class ResServerInfoV2(BaseModel):
     api_version: str = "v2"
     capabilities: ServerCapabilities = Field(default_factory=ServerCapabilities)
     model: ServerModelInfo = Field(default_factory=ServerModelInfo)
+    extension: ExtensionVersionV2 = Field(default_factory=ExtensionVersionV2)
 
 
 # --- Memory models (v2) ---

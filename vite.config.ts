@@ -1,5 +1,6 @@
 import path from "path";
-import { defineConfig, loadEnv } from "vite";
+import { execFileSync } from "node:child_process";
+import { defineConfig, loadEnv, type Plugin } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import { VitePWA } from "vite-plugin-pwa";
@@ -10,8 +11,37 @@ import { detectBackendPort } from "./vite/backend-port.ts";
 
 const detectedPort = await detectBackendPort(process.env.BACKEND_PORT);
 
+function resolveBuildInfo(mode: string) {
+  let sha = process.env.GITHUB_SHA;
+  const source = mode !== "production" ? "dev" : sha ? "release" : "local";
+  if (!sha) {
+    try {
+      sha = execFileSync("git", ["rev-parse", "HEAD"], {
+        cwd: __dirname,
+        encoding: "utf-8",
+      }).trim();
+    } catch {
+      sha = "unknown";
+    }
+  }
+  return { sha, time: new Date().toISOString(), source };
+}
+
+// version.json lets a running bundle ask "what build is on disk right now";
+// fetched with no-store, and not matched by any SW runtime-caching rule
+function versionJsonPlugin(buildInfo: ReturnType<typeof resolveBuildInfo>): Plugin {
+  return {
+    name: "enso-version-json",
+    apply: "build",
+    generateBundle() {
+      this.emitFile({ type: "asset", fileName: "version.json", source: JSON.stringify(buildInfo) });
+    },
+  };
+}
+
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, __dirname, "");
+  const buildInfo = resolveBuildInfo(mode);
   const isVercel = !!process.env.VERCEL;
   const devPort = parseInt(env.DEV_PORT || (isVercel ? "5173" : "5174"), 10);
   const standalone = env.STANDALONE === "true" || isVercel;
@@ -104,6 +134,7 @@ export default defineConfig(({ mode }) => {
           ],
         },
       }),
+      versionJsonPlugin(buildInfo),
     ],
     resolve: {
       alias: { "@": path.resolve(__dirname, "./src") },
@@ -124,6 +155,7 @@ export default defineConfig(({ mode }) => {
     },
     define: {
       __VERCEL__: JSON.stringify(isVercel),
+      __ENSO_BUILD__: JSON.stringify(buildInfo),
     },
     build: {
       outDir: "dist",

@@ -1,8 +1,16 @@
 import { useGpuStatus, useMemory, useLoadedModels, useServerInfo } from "@/api/hooks/useServer";
 import { useKeepAliveVisible } from "@/components/ui/keep-alive";
 import { GroupedModels } from "@/components/layout/LoadedModelsPanel";
-import { formatBytes } from "@/lib/utils";
+import { useVersionInfo, type VersionSyncState } from "@/hooks/useVersionInfo";
+import { cn, formatBytes } from "@/lib/utils";
 import { Section, Row, BarRow } from "../shared";
+
+const SYNC_LABELS: Record<VersionSyncState, { text: string; dot: string }> = {
+  "in-sync": { text: "Up to date", dot: "bg-emerald-500" },
+  "dist-stale": { text: "Out of date - restart SD.Next", dot: "bg-amber-500" },
+  dev: { text: "Dev server", dot: "bg-sky-500" },
+  unknown: { text: "Unknown", dot: "bg-muted-foreground" },
+};
 
 export function OverviewSubTab() {
   const visible = useKeepAliveVisible();
@@ -10,6 +18,8 @@ export function OverviewSubTab() {
   const { data: memory } = useMemory(visible);
   const { data: models } = useLoadedModels(visible);
   const { data: serverInfo } = useServerInfo();
+  const version = useVersionInfo();
+  const sync = SYNC_LABELS[version.syncState];
 
   const gpu = gpus?.[0];
   const metrics = gpu?.metrics;
@@ -66,6 +76,30 @@ export function OverviewSubTab() {
           <Row label="Platform" value={serverInfo.platform} />
         </Section>
       )}
+
+      <Section title="Enso">
+        <div className="flex justify-between gap-2 text-xs">
+          <span className="text-muted-foreground">UI Build</span>
+          <span className="font-mono tabular-nums">
+            {version.bundleShort}
+            <span className="text-muted-foreground">
+              {" "}
+              ({version.bundleSource}, {version.bundleDate})
+            </span>
+          </span>
+        </div>
+        <div className="flex justify-between gap-2 text-xs">
+          <span className="text-muted-foreground">Extension</span>
+          <span className="font-mono tabular-nums">{version.backendShort ?? "unknown"}</span>
+        </div>
+        <div className="flex justify-between gap-2 text-xs">
+          <span className="text-muted-foreground">Status</span>
+          <span className="flex items-center gap-1.5">
+            <span className={cn("size-1.5 rounded-full", sync.dot)} />
+            {sync.text}
+          </span>
+        </div>
+      </Section>
     </div>
   );
 }

@@ -1831,6 +1831,44 @@
         "title": "EnhanceParams",
         "type": "object"
       },
+      "ExtensionVersionV2": {
+        "properties": {
+          "commit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Commit"
+          },
+          "dist_commit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dist Commit"
+          },
+          "dist_source": {
+            "default": "unknown",
+            "enum": [
+              "release",
+              "local",
+              "unknown"
+            ],
+            "title": "Dist Source",
+            "type": "string"
+          }
+        },
+        "title": "ExtensionVersionV2",
+        "type": "object"
+      },
       "FramePackLoadResponse": {
         "properties": {
           "messages": {
@@ -6513,6 +6551,91 @@
         "title": "ReqMergeV2",
         "type": "object"
       },
+      "ReqModelAuditFixV2": {
+        "additionalProperties": false,
+        "description": "POST /sdapi/v2/model/audit/fix body.",
+        "properties": {
+          "apply": {
+            "default": false,
+            "description": "Perform the renames; false returns the plan only",
+            "title": "Apply",
+            "type": "boolean"
+          },
+          "paths": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Restrict fixes to these files; all model roots when omitted",
+            "title": "Paths"
+          }
+        },
+        "title": "ReqModelAuditFixV2",
+        "type": "object"
+      },
+      "ReqModelAuditV2": {
+        "additionalProperties": false,
+        "description": "POST /sdapi/v2/model/audit body.",
+        "properties": {
+          "exts": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "File extensions to probe; defaults to .safetensors and .gguf",
+            "title": "Extensions"
+          },
+          "force": {
+            "default": false,
+            "description": "Bypass the probe cache and re-read every header",
+            "title": "Force",
+            "type": "boolean"
+          },
+          "limit": {
+            "default": 0,
+            "description": "Page size; 0 returns all findings",
+            "title": "Limit",
+            "type": "integer"
+          },
+          "offset": {
+            "default": 0,
+            "description": "Pagination offset into the findings list",
+            "title": "Offset",
+            "type": "integer"
+          },
+          "roots": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Restrict the scan to these model root folders (basename or absolute path); all roots when omitted",
+            "title": "Roots"
+          }
+        },
+        "title": "ReqModelAuditV2",
+        "type": "object"
+      },
       "ReqModelSaveV2": {
         "additionalProperties": false,
         "description": "POST /sdapi/v2/model/save body.",
@@ -7986,6 +8109,9 @@
           },
           "capabilities": {
             "$ref": "#/components/schemas/ServerCapabilities"
+          },
+          "extension": {
+            "$ref": "#/components/schemas/ExtensionVersionV2"
           },
           "model": {
             "$ref": "#/components/schemas/ServerModelInfo"
@@ -10553,7 +10679,7 @@
     },
     "/sdapi/v2/browser/folder-info": {
       "get": {
-        "description": "Get directory modification time for cache invalidation.\n\nReturns the latest mtime across all files in the folder (recursive).\nClients can poll this to detect when new images have been saved.",
+        "description": "Get directory modification time for cache invalidation.\n\nReturns the latest directory mtime across the folder tree (recursive).\nClients can poll this to detect when new images have been saved.",
         "operationId": "get_folder_info_sdapi_v2_browser_folder_info_get",
         "parameters": [
           {
@@ -11829,6 +11955,57 @@
           }
         },
         "summary": "Get Options",
+        "tags": [
+          "CivitAI"
+        ]
+      }
+    },
+    "/sdapi/v2/civitai/peek-header": {
+      "get": {
+        "description": "Read a remote safetensors JSON header via ranged requests. Returns the\n__metadata__ block plus a full model_probe analysis (architecture,\ndtypes, quant scheme) without downloading the file.",
+        "operationId": "get_peek_header_sdapi_v2_civitai_peek_header_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "url",
+            "required": true,
+            "schema": {
+              "title": "Url",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "file_id",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "title": "File Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Peek Header",
         "tags": [
           "CivitAI"
         ]
@@ -14070,6 +14247,86 @@
         ]
       }
     },
+    "/sdapi/v2/model/audit": {
+      "post": {
+        "description": "Header-only audit of the local model libraries.\n\nProbes every model file under the configured model roots and reports\nactual architecture, precision, and quantization against what the folder\nand filename claim. Cached by mtime, so repeat scans are near-instant.",
+        "operationId": "post_model_audit_sdapi_v2_model_audit_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReqModelAuditV2"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Post Model Audit",
+        "tags": [
+          "Models"
+        ]
+      }
+    },
+    "/sdapi/v2/model/audit/fix": {
+      "post": {
+        "description": "Correct filename precision suffixes against probed truth.\n\nDry-run by default: returns the rename plan. With ``apply`` set, performs\nthe renames including same-stem sidecar files.",
+        "operationId": "post_audit_fix_sdapi_v2_model_audit_fix_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReqModelAuditFixV2"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Post Audit Fix",
+        "tags": [
+          "Models"
+        ]
+      }
+    },
     "/sdapi/v2/model/civitai/download": {
       "post": {
         "description": "Download a model from CivitAI.\n\nQueues the download and returns the download ID for progress tracking via\nthe WebSocket or ``GET /sdapi/v1/civitai/download/status``.",
@@ -14467,6 +14724,47 @@
           }
         },
         "summary": "Post Metadata Update",
+        "tags": [
+          "Models"
+        ]
+      }
+    },
+    "/sdapi/v2/model/probe": {
+      "get": {
+        "description": "Header-only analysis of a local model file.\n\nReturns the architecture fingerprint, dtype/quant detection, and embedded\nmetadata (kohya ``ss_*`` keys at full fidelity) without reading weights.",
+        "operationId": "get_model_probe_sdapi_v2_model_probe_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "path",
+            "required": true,
+            "schema": {
+              "title": "Path",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Model Probe",
         "tags": [
           "Models"
         ]

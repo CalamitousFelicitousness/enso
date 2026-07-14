@@ -1,12 +1,15 @@
+import functools
 import inspect
 import os
 import re
+import subprocess
 import time
 
 from fastapi import APIRouter
 
 from enso_api.models import (
     CudaMemoryV2,
+    ExtensionVersionV2,
     GpuMetrics,
     MemoryPeakUsage,
     MemoryUsage,
@@ -23,10 +26,38 @@ from enso_api.models import (
 
 router = APIRouter(prefix="/sdapi/v2", tags=["Server"])
 
+EXT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
 
 def detect_video_capability() -> bool:
     """Video generation is always available."""
     return True
+
+
+@functools.cache
+def extension_commit() -> str | None:
+    try:
+        proc = subprocess.run(["git", "rev-parse", "HEAD"], cwd=EXT_ROOT, capture_output=True, text=True, check=True, timeout=5)
+        return proc.stdout.strip() or None
+    except (OSError, subprocess.SubprocessError):
+        return None
+
+
+def extension_version() -> ExtensionVersionV2:
+    dist_dir = os.path.join(EXT_ROOT, "dist")
+    dist_commit = None
+    try:
+        with open(os.path.join(dist_dir, ".build-meta"), encoding="utf-8") as f:
+            dist_commit = f.read().strip() or None
+    except OSError:
+        dist_commit = None
+    if dist_commit:
+        dist_source = "release"
+    elif os.path.isfile(os.path.join(dist_dir, ".build-stamp")):
+        dist_source = "local"
+    else:
+        dist_source = "unknown"
+    return ExtensionVersionV2(commit=extension_commit(), dist_commit=dist_commit, dist_source=dist_source)
 
 
 @router.get("/server-info", response_model=ResServerInfoV2)
@@ -56,6 +87,7 @@ async def get_server_info_v2():
         platform=devices.get_device_name() if hasattr(devices, "get_device_name") else str(shared.device),
         capabilities=capabilities,
         model=ServerModelInfo(name=model_name, type=model_type, supports_strength=supports_strength),
+        extension=extension_version(),
     )
 
 
