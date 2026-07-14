@@ -146,7 +146,9 @@ cd /path/to/sdnext
 ./webui.sh --enso
 ```
 
-The `--enso` flag triggers the built-in `install.py`, which fetches the prebuilt frontend for the current commit. When no matching build is published (a fork, a modified checkout, or a push whose CI build is still running), it falls back to a local `pnpm install` + `pnpm run build` if pnpm is available, and otherwise keeps serving the previous build.
+The `--enso` flag triggers the built-in `install.py`, which fetches the prebuilt frontend for the current commit. When no matching build is published (a modified checkout, or a push whose CI build is still running), it falls back to a local `pnpm install` + `pnpm run build` if pnpm is available, and otherwise keeps serving the previous build.
+
+Builds are fetched from the checkout's own `origin`, so a fork serves the frontend its own Actions run publishes; enable Actions on the fork and push, and no local toolchain is needed there either.
 
 **Updating an existing checkout:** run SD.Next with `--update --enso` (or `git pull` in the extension folder); the matching prebuilt frontend is fetched automatically. pnpm is no longer required for regular use.
 

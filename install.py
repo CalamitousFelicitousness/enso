@@ -1,16 +1,15 @@
 import hashlib
 import io
 import os
+import re
 import shutil
 import subprocess
 import urllib.error
 import urllib.request
 import zipfile
 
-RELEASE_BASE = os.environ.get(
-    "ENSO_RELEASE_BASE",
-    "https://github.com/CalamitousFelicitousness/enso/releases/download",
-)
+UPSTREAM = "https://github.com/CalamitousFelicitousness/enso"
+GITHUB_REMOTE = re.compile(r"github\.com[:/]+([^/]+)/([^/]+?)(?:\.git)?/?$", re.IGNORECASE)
 
 
 def newest_source_mtime(ext_root):
@@ -45,6 +44,21 @@ def head_sha(ext_root):
         return None
 
 
+def release_base(ext_root):
+    """Release download URL for this checkout's own origin, so a fork serves its own CI builds."""
+    override = os.environ.get("ENSO_RELEASE_BASE")
+    if override:
+        return override
+    try:
+        proc = subprocess.run(["git", "remote", "get-url", "origin"], cwd=ext_root, capture_output=True, text=True, check=True)
+        m = GITHUB_REMOTE.search(proc.stdout.strip())
+        if m:
+            return f"https://github.com/{m.group(1)}/{m.group(2)}/releases/download"
+    except (OSError, subprocess.CalledProcessError):
+        pass
+    return f"{UPSTREAM}/releases/download"
+
+
 def read_meta(meta_path):
     try:
         with open(meta_path, "r", encoding="utf-8") as f:
@@ -53,9 +67,9 @@ def read_meta(meta_path):
         return None
 
 
-def download_dist(dist_dir, sha):
+def download_dist(dist_dir, sha, base):
     """Fetch the CI-built dist for the checked-out commit and swap it in."""
-    url = f"{RELEASE_BASE}/build-{sha[:7]}/dist.zip"
+    url = f"{base}/build-{sha[:7]}/dist.zip"
     with urllib.request.urlopen(url, timeout=30) as resp:
         blob = resp.read()
     with urllib.request.urlopen(url + ".sha256", timeout=30) as resp:
@@ -142,7 +156,7 @@ def run():
         why = "local source changes detected"
     else:
         try:
-            download_dist(dist_dir, sha)
+            download_dist(dist_dir, sha, release_base(ext_root))
             print(f"Enso: prebuilt frontend {sha[:7]} installed")
             return
         except urllib.error.HTTPError as e:
