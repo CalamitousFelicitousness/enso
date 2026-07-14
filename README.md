@@ -134,7 +134,7 @@ It runs as a standard SD.Next extension: drop it into `extensions-builtin/` and 
 
 ### Installation
 
-Requires [Node.js](https://nodejs.org/) 20.19+ or 22.12+ and [pnpm](https://pnpm.io/) (`npm install -g pnpm`, or `corepack enable`).
+No Node.js or pnpm required: `install.py` downloads a prebuilt frontend matching the checked-out commit from GitHub releases. [Node.js](https://nodejs.org/) 20.19+/22.12+ and [pnpm](https://pnpm.io/) are only needed for development or building from modified source.
 
 ```bash
 # Clone into SD.Next extensions directory
@@ -146,9 +146,9 @@ cd /path/to/sdnext
 ./webui.sh --enso
 ```
 
-The `--enso` flag triggers the built-in `install.py` which automatically runs `pnpm install` and `pnpm run build` when needed. It detects source changes and only rebuilds when necessary.
+The `--enso` flag triggers the built-in `install.py`, which fetches the prebuilt frontend for the current commit. When no matching build is published (a fork, a modified checkout, or a push whose CI build is still running), it falls back to a local `pnpm install` + `pnpm run build` if pnpm is available, and otherwise keeps serving the previous build.
 
-**Migrating from an npm-era checkout:** the build tooling moved from npm to pnpm. Install pnpm (`npm install -g pnpm`, or `corepack enable`), then restart SD.Next with `--enso`; the extension replaces its npm-built `node_modules` and rebuilds on its own. Until pnpm is installed, the UI keeps serving the last npm-era build.
+**Updating an existing checkout:** run SD.Next with `--update --enso` (or `git pull` in the extension folder); the matching prebuilt frontend is fetched automatically. pnpm is no longer required for regular use.
 
 The UI will be available at `http://localhost:7860/enso/`
 
@@ -201,7 +201,7 @@ enso/
 │   └── misc_routes.py        # HuggingFace, extra-networks, WS ticket
 ├── scripts/
 │   └── enso.py               # SD.Next extension entry point
-├── install.py                # Auto pnpm install + build (triggered by --enso)
+├── install.py                # Prebuilt frontend fetch + build fallback (--enso)
 ├── public/                   # Static assets, PWA icons, fonts
 ├── index.html                # SPA entry
 ├── package.json
@@ -216,7 +216,7 @@ enso/
 | -------------- | --------------------------------- |
 | `pnpm run dev` | Start development server with HMR |
 
-Production builds (`pnpm run build`) are handled automatically by `install.py` when SD.Next starts with `--enso`.
+Production builds are published by CI: every push to `master` runs `.github/workflows/build-dist.yml`, which attaches `dist.zip` to a `build-<sha>` prerelease. `install.py` downloads the asset matching the checkout and only runs `pnpm run build` locally as a fallback.
 
 ### Technology Stack
 
