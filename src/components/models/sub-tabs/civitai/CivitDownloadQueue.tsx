@@ -34,15 +34,25 @@ export function CivitDownloadQueue() {
   const queuedItems = statusData?.queued ?? [];
   const completedItems = statusData?.completed ?? [];
   const totalCount = activeItems.length + queuedItems.length + completedItems.length;
-
-  // Invalidate check-local when new downloads complete
-  const prevCompletedCount = useRef(completedItems.length);
+  // Invalidate check-local when downloads newly complete. The backend holds
+  // completed in a bounded deque, so its length stops growing once saturated;
+  // track ids. Seed silently so mount doesn't refetch for already-seen items.
+  const seenCompleted = useRef<Set<string> | null>(null);
   useEffect(() => {
-    if (completedItems.length > prevCompletedCount.current) {
-      void qc.invalidateQueries({ queryKey: ["civitai-check-local"] });
+    const done = (statusData?.completed ?? []).filter((d) => d.status === "completed");
+    if (seenCompleted.current === null) {
+      seenCompleted.current = new Set(done.map((d) => d.id));
+      return;
     }
-    prevCompletedCount.current = completedItems.length;
-  }, [completedItems.length, qc]);
+    let fresh = false;
+    for (const d of done) {
+      if (!seenCompleted.current.has(d.id)) {
+        seenCompleted.current.add(d.id);
+        fresh = true;
+      }
+    }
+    if (fresh) void qc.invalidateQueries({ queryKey: ["civitai-check-local"] });
+  }, [statusData, qc]);
 
   if (totalCount === 0) return null;
 
