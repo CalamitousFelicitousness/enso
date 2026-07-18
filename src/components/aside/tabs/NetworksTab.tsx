@@ -49,10 +49,11 @@ export function NetworksTab() {
 
   // Fetch networks
   const page = PAGE_MAP[filter];
+  // No limit: the sidebar derives class facets from the full item set, so a
+  // page cap would drop classes that sort past it.
   const { data: networksResp, isLoading } = useExtraNetworks({
     page: page ?? undefined,
     search: search || undefined,
-    limit: 500,
   });
 
   // Merge networks + styles into unified list
