@@ -34,6 +34,11 @@ export function CivitDownloadQueue() {
   const queuedItems = statusData?.queued ?? [];
   const completedItems = statusData?.completed ?? [];
   const totalCount = activeItems.length + queuedItems.length + completedItems.length;
+  // Backend appends to a bounded deque, so completed arrives oldest-first and
+  // is already length-capped; copy before reversing to avoid mutating the
+  // query cache.
+  const completedNewestFirst = [...completedItems].reverse();
+
   // Invalidate check-local when downloads newly complete. The backend holds
   // completed in a bounded deque, so its length stops growing once saturated;
   // track ids. Seed silently so mount doesn't refetch for already-seen items.
@@ -67,7 +72,7 @@ export function CivitDownloadQueue() {
         <span className="text-xs font-medium">Downloads ({totalCount})</span>
       </button>
       {open && (
-        <div className="px-3 pb-3 space-y-1.5">
+        <div className="px-3 pb-3 space-y-1.5 max-h-64 overflow-y-auto">
           {activeItems.map((item) => (
             <div key={item.id} className="space-y-1">
               <div className="flex items-center gap-2 text-2xs">
@@ -112,7 +117,7 @@ export function CivitDownloadQueue() {
               </Button>
             </div>
           ))}
-          {completedItems.slice(0, 5).map((item) => (
+          {completedNewestFirst.map((item) => (
             <div key={item.id} className="flex items-center gap-2 text-2xs text-muted-foreground">
               <span className="truncate flex-1 min-w-0" title={item.filename}>
                 {item.filename}
