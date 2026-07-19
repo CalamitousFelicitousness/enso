@@ -460,6 +460,7 @@ def execute_upscale(params: dict, job_id: str) -> dict:
             image_folder="",
             input_dir="",
             output_dir="",
+            video="",
             show_extras_results=False,
             save_output=False,
             extras_upscaler_1=upscaler,
