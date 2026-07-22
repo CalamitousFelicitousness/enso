@@ -129,7 +129,8 @@ export function BottomStatusBar() {
   const gpuPct = gpu?.load_gpu ?? null;
   const gpuTemp = gpu?.temperature ?? null;
 
-  const vramUsed = memory?.cuda?.allocated?.current ?? null;
+  // device-wide, not allocated.current: offload parks weights in RAM, so live-tensor bytes read ~0 at idle
+  const vramUsed = memory?.cuda?.system?.used ?? null;
   const vramTotal = memory?.cuda?.system?.total ?? null;
   const ramUsed = memory?.ram?.used ?? null;
   const ramTotal = memory?.ram?.total ?? null;

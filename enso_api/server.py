@@ -14,6 +14,7 @@ from enso_api.models import (
     MemoryPeakUsage,
     MemoryUsage,
     MemoryWarnings,
+    ModelPlacementV2,
     RamMemoryV2,
     ResGpuV2,
     ResMemoryV2,
@@ -122,7 +123,15 @@ async def get_memory_v2():
             cuda = CudaMemoryV2(error="unavailable")
     except Exception as err:
         cuda = CudaMemoryV2(error=str(err))
-    return ResMemoryV2(ram=ram, cuda=cuda)
+    try:
+        from modules import memstats
+
+        placement = memstats.model_stats()  # missing on older sdnext; the walk reports its own failure as an error key rather than raising
+        walk_error = placement.pop("error", None)
+        model = ModelPlacementV2(components=placement, error=walk_error)
+    except Exception as err:
+        model = ModelPlacementV2(error=str(err))
+    return ResMemoryV2(ram=ram, cuda=cuda, model=model)
 
 
 def safe_float(val) -> float | None:

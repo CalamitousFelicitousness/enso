@@ -5532,6 +5532,34 @@
         "title": "ModelMergeParams",
         "type": "object"
       },
+      "ModelPlacementV2": {
+        "description": "Loaded-pipeline weight bytes per component per device type, so offloaded weights can be told from resident ones.",
+        "properties": {
+          "components": {
+            "additionalProperties": {
+              "additionalProperties": {
+                "type": "integer"
+              },
+              "type": "object"
+            },
+            "title": "Components",
+            "type": "object"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          }
+        },
+        "title": "ModelPlacementV2",
+        "type": "object"
+      },
       "ModelReplaceParams": {
         "additionalProperties": false,
         "description": "Replace components of a loaded model and save as a new model.",
@@ -7823,6 +7851,9 @@
         "properties": {
           "cuda": {
             "$ref": "#/components/schemas/CudaMemoryV2"
+          },
+          "model": {
+            "$ref": "#/components/schemas/ModelPlacementV2"
           },
           "ram": {
             "$ref": "#/components/schemas/RamMemoryV2"

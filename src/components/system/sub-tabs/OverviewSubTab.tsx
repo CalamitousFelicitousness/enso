@@ -24,8 +24,10 @@ export function OverviewSubTab() {
   const gpu = gpus?.[0];
   const metrics = gpu?.metrics;
 
-  const vramAllocated = memory?.cuda?.allocated?.current;
+  const vramUsed = memory?.cuda?.system?.used;
   const vramTotal = memory?.cuda?.system?.total;
+  const vramAllocated = memory?.cuda?.allocated?.current;
+  const vramReserved = memory?.cuda?.reserved?.current;
   const ramUsed = memory?.ram?.used;
   const ramTotal = memory?.ram?.total;
 
@@ -51,9 +53,13 @@ export function OverviewSubTab() {
       )}
 
       <Section title="Memory">
-        {vramAllocated != null && vramTotal != null && vramTotal > 0 && (
-          <BarRow label="VRAM" value={vramAllocated} max={vramTotal} formatter={formatBytes} />
+        {vramUsed != null && vramTotal != null && vramTotal > 0 && (
+          <BarRow label="VRAM" value={vramUsed} max={vramTotal} formatter={formatBytes} />
         )}
+        {vramAllocated != null && (
+          <Row label="Torch Allocated" value={formatBytes(vramAllocated)} />
+        )}
+        {vramReserved != null && <Row label="Torch Reserved" value={formatBytes(vramReserved)} />}
         {ramUsed != null && ramTotal != null && ramTotal > 0 && (
           <BarRow label="RAM" value={ramUsed} max={ramTotal} formatter={formatBytes} />
         )}

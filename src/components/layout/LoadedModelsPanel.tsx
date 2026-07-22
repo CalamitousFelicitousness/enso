@@ -79,6 +79,40 @@ export function ModelRow({ model }: { model: LoadedModel }) {
   );
 }
 
+type PlacementSummary = {
+  resident: number;
+  offloaded: number;
+};
+
+/**
+ * Total resident (on-GPU) and offloaded (in-RAM) weight bytes from the
+ * /sdapi/v2/memory placement map, keyed component -> torch device type -> bytes:
+ *   { transformer: { cpu: 8532169880 }, text_encoder: { cuda: 3314640448 } }
+ *
+ * The Components list above already shows per-component size and device, so this
+ * only feeds the header summary. It exists because that list samples one device
+ * per component and cannot represent a split one.
+ *
+ * Bytes are counted per device, so a component split across cpu and cuda by
+ * streaming offload lands in both totals in the proportion it actually occupies.
+ * `meta` bytes are shape-only placeholders (never materialized, or offloaded to
+ * disk) and occupy neither, so they are dropped rather than inflating a total.
+ * Keys are torch device types, so any accelerator other than cpu counts as
+ * resident.
+ */
+function summarizePlacement(components: Record<string, Record<string, number>>): PlacementSummary {
+  let resident = 0;
+  let offloaded = 0;
+  for (const devices of Object.values(components)) {
+    for (const [device, bytes] of Object.entries(devices)) {
+      if (device === "meta") continue;
+      if (device === "cpu") offloaded += bytes;
+      else resident += bytes;
+    }
+  }
+  return { resident, offloaded };
+}
+
 export function GroupedModels({ models }: { models: LoadedModel[] }) {
   const groups = new Map<string, LoadedModel[]>();
   for (const m of models) {
@@ -109,8 +143,10 @@ export function LoadedModelsPanel({ children }: { children: React.ReactNode }) {
 
   const modelCount = models?.length ?? 0;
   const totalSize = models?.reduce((acc, m) => acc + (m.size_bytes ?? 0), 0) ?? 0;
-  const vramAllocated = memory?.cuda?.allocated?.current;
+  const vramUsed = memory?.cuda?.system?.used;
   const vramTotal = memory?.cuda?.system?.total;
+  const placement = memory?.model?.components ?? {};
+  const { offloaded } = summarizePlacement(placement);
 
   return (
     <Dialog>
@@ -121,12 +157,13 @@ export function LoadedModelsPanel({ children }: { children: React.ReactNode }) {
           <DialogDescription>
             {modelCount} model{modelCount !== 1 ? "s" : ""} loaded
             {totalSize > 0 && <> &middot; {formatBytes(totalSize)} params</>}
-            {vramAllocated != null && vramTotal != null && (
+            {vramUsed != null && vramTotal != null && (
               <>
                 {" "}
-                &middot; VRAM {formatBytes(vramAllocated)} / {formatBytes(vramTotal)}
+                &middot; VRAM {formatBytes(vramUsed)} / {formatBytes(vramTotal)}
               </>
             )}
+            {offloaded > 0 && <> &middot; {formatBytes(offloaded)} offloaded to RAM</>}
           </DialogDescription>
         </DialogHeader>
         <ScrollArea className="max-h-[60vh] min-w-0">

@@ -530,9 +530,17 @@ class CudaMemoryV2(BaseModel):
     error: str | None = None
 
 
+class ModelPlacementV2(BaseModel):
+    """Loaded-pipeline weight bytes per component per device type, so offloaded weights can be told from resident ones."""
+
+    components: dict[str, dict[str, int]] = Field(default_factory=dict)
+    error: str | None = None
+
+
 class ResMemoryV2(BaseModel):
     ram: RamMemoryV2
     cuda: CudaMemoryV2
+    model: ModelPlacementV2 = Field(default_factory=ModelPlacementV2)
 
 
 # --- System info & GPU models (v2) ---
