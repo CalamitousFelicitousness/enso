@@ -146,7 +146,7 @@ export function LoadedModelsPanel({ children }: { children: React.ReactNode }) {
   const vramUsed = memory?.cuda?.system?.used;
   const vramTotal = memory?.cuda?.system?.total;
   const placement = memory?.model?.components ?? {};
-  const { offloaded } = summarizePlacement(placement);
+  const { resident, offloaded } = summarizePlacement(placement);
 
   return (
     <Dialog>
@@ -163,7 +163,10 @@ export function LoadedModelsPanel({ children }: { children: React.ReactNode }) {
                 &middot; VRAM {formatBytes(vramUsed)} / {formatBytes(vramTotal)}
               </>
             )}
-            {offloaded > 0 && <> &middot; {formatBytes(offloaded)} offloaded to RAM</>}
+            {/* against resident, not totalSize: that sum counts other categories and omits buffers */}
+            {offloaded > 0 && (
+              <> &middot; {resident === 0 ? "all" : formatBytes(offloaded)} offloaded to RAM</>
+            )}
           </DialogDescription>
         </DialogHeader>
         <ScrollArea className="max-h-[60vh] min-w-0">
