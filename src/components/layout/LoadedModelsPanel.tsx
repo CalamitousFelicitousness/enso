@@ -129,7 +129,7 @@ export function LoadedModelsPanel({ children }: { children: React.ReactNode }) {
             )}
           </DialogDescription>
         </DialogHeader>
-        <ScrollArea className="max-h-[60vh]">
+        <ScrollArea className="max-h-[60vh] min-w-0">
           {modelCount > 0 ? (
             <GroupedModels models={models!} />
           ) : (
