@@ -352,27 +352,29 @@ def post_model_audit(req: ReqModelAuditV2):
             scheme = probe.get("quant", {}).get("scheme")
             if scheme:
                 summary_scheme[scheme] = summary_scheme.get(scheme, 0) + 1
-            results.append({
-                "path": path,
-                "root": os.path.basename(root),
-                "size": stat.st_size,
-                "mtime": stat.st_mtime,
-                "kind": arch.get("kind", "unknown"),
-                "family": family,
-                "display": arch.get("display", "Unknown"),
-                "confidence": arch.get("confidence", 0.0),
-                "variant": arch.get("variant"),
-                "dominant_dtype": probe.get("dominant_dtype"),
-                "quant": probe.get("quant"),
-                "metadata_present": probe.get("metadata_present", False),
-                "flags": probe.get("flags", []),
-                "error": probe.get("error"),
-                "mismatches": mismatches,
-            })
+            results.append(
+                {
+                    "path": path,
+                    "root": os.path.basename(root),
+                    "size": stat.st_size,
+                    "mtime": stat.st_mtime,
+                    "kind": arch.get("kind", "unknown"),
+                    "family": family,
+                    "display": arch.get("display", "Unknown"),
+                    "confidence": arch.get("confidence", 0.0),
+                    "variant": arch.get("variant"),
+                    "dominant_dtype": probe.get("dominant_dtype"),
+                    "quant": probe.get("quant"),
+                    "metadata_present": probe.get("metadata_present", False),
+                    "flags": probe.get("flags", []),
+                    "error": probe.get("error"),
+                    "mismatches": mismatches,
+                }
+            )
     model_probe.save_probe_cache()
     total = len(results)
     if req.limit:
-        results = results[req.offset:req.offset + req.limit]
+        results = results[req.offset : req.offset + req.limit]
     return {
         "files": results,
         "summary": {
@@ -429,7 +431,7 @@ def audit_fix_plans(paths):
         old_stem = os.path.splitext(os.path.basename(path))[0]
         renames = []
         for comp in sorted(glob.glob(os.path.join(glob.escape(folder), glob.escape(old_stem) + ".*"))):
-            target = os.path.join(folder, new_stem + os.path.basename(comp)[len(old_stem):])
+            target = os.path.join(folder, new_stem + os.path.basename(comp)[len(old_stem) :])
             renames.append((comp, target))
         if any(os.path.exists(t) for _, t in renames):
             continue
@@ -452,7 +454,7 @@ def post_audit_fix(req: ReqModelAuditFixV2):
             for src, dst in plan["renames"]:
                 os.rename(src, dst)
         model_probe.save_probe_cache()
-        log.info(f'Model audit fix: renamed={len(plans)}')
+        log.info(f"Model audit fix: renamed={len(plans)}")
     return {
         "applied": req.apply,
         "count": len(plans),

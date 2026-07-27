@@ -61,7 +61,7 @@ def release_base(ext_root):
 
 def read_meta(meta_path):
     try:
-        with open(meta_path, "r", encoding="utf-8") as f:
+        with open(meta_path, encoding="utf-8") as f:
             return f.read().strip()
     except OSError:
         return None

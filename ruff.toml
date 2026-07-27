@@ -4,7 +4,9 @@ line-length = 250
 target-version = "py310"
 indent-width = 4
 
-exclude = ["venv", "node_modules", "dist"]
+# Markdown is prettier's (see .prettierignore); ruff 0.16 formats fenced Python
+# and collapses the aligned trailing comments the docs rely on.
+exclude = ["venv", "node_modules", "dist", "*.md"]
 
 [lint]
 select = [
