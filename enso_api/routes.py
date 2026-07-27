@@ -7,6 +7,7 @@ from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import FileResponse
 from modules.logger import log
 
+from enso_api.confine import confine_or_403
 from enso_api.job_models import JobRequest
 from enso_api.models import (
     FramePackLoadResponse,
@@ -217,41 +218,6 @@ def get_ref_path(job: dict, key: str, index: int) -> str | None:
     return items[index].get("path")
 
 
-def confine_or_403(file_path: str) -> None:
-    """Apply path confinement to `file_path` against the allowed outdir set.
-
-    Centralised so any new ref-style file route picks up the same allow-list
-    (cloud video thumbnail subroute, future audio routes, etc.) without
-    duplicating the attr list. The list mirrors sdnext's modules.paths
-    resolution targets plus the cloud-specific outdirs.
-    """
-    from modules import shared
-
-    try:
-        from modules.api.security import is_confined_to
-    except ImportError:
-        from enso_api.security_stubs import is_confined_to
-    allowed_attrs = [
-        "outdir_samples",
-        "outdir_grids",
-        "outdir_video",
-        "outdir_txt2img_samples",
-        "outdir_img2img_samples",
-        "outdir_control_samples",
-        "outdir_extras_samples",
-        "outdir_cloud_image",
-        "outdir_cloud_video",
-    ]
-    from enso_api.temp_store import get_staging_dir
-
-    allowed = list({r for attr in allowed_attrs for r in [getattr(shared.opts, attr, None)] if r})
-    staging = get_staging_dir()
-    if staging:
-        allowed.append(staging)
-    if allowed and not is_confined_to(file_path, allowed):
-        raise HTTPException(status_code=403, detail="Access denied")
-
-
 MEDIA_TYPES = {
     "png": "image/png",
     "jpeg": "image/jpeg",
@@ -265,9 +231,11 @@ MEDIA_TYPES = {
 
 
 def serve_file_path(file_path: str):
+    # Confine before touching the filesystem so a ref pointing outside the
+    # allow-list cannot reveal whether such a file exists.
+    confine_or_403(file_path)
     if not os.path.isfile(file_path):
         raise HTTPException(status_code=404, detail="File not found on disk")
-    confine_or_403(file_path)
     ext = os.path.splitext(file_path)[1].lstrip(".").lower()
     return FileResponse(file_path, media_type=MEDIA_TYPES.get(ext, "application/octet-stream"))
 

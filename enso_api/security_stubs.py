@@ -26,8 +26,22 @@ def validate_download_url(_url):
 
 
 def is_confined_to(path, allowed_roots):
-    """Check if path is under one of the allowed root directories."""
+    """Check if path is under one of the allowed root directories.
+
+    Compared with commonpath, not a string prefix: a raw startswith accepts
+    the sibling `/outputs-evil` for root `/outputs`. commonpath matches whole
+    components, keeps `path == root` valid, and realpath strips trailing
+    separators. ValueError means the pair is not comparable (mixed
+    absolute/relative), which is never confined.
+    """
     import os
 
     path = os.path.realpath(path)
-    return any(path.startswith(os.path.realpath(r)) for r in allowed_roots)
+    for root in allowed_roots:
+        root = os.path.realpath(root)
+        try:
+            if os.path.commonpath([path, root]) == root:
+                return True
+        except ValueError:
+            continue
+    return False
