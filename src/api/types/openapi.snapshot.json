@@ -13035,8 +13035,28 @@
     },
     "/sdapi/v2/extra-networks/refresh": {
       "post": {
-        "description": "Rescan all extra-network directories (LoRA, embeddings, etc.) and rebuild caches.",
+        "description": "Rescan extra-network directories from disk and rebuild page caches.\n\npage.refresh() is the per-page disk rescan (rebuilds sd_unet.unet_dict,\nthe VAE list, embeddings, etc.); create_items() only re-projects that\nstate into page records. Both are needed or new files stay invisible.",
         "operationId": "refresh_extra_networks_v2_sdapi_v2_extra_networks_refresh_post",
+        "parameters": [
+          {
+            "description": "Refresh a single page by name (lora, model, unet/dit, vae, embedding, style, wildcards); omit to refresh every page",
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Refresh a single page by name (lora, model, unet/dit, vae, embedding, style, wildcards); omit to refresh every page",
+              "title": "Page"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "content": {
@@ -13047,6 +13067,16 @@
               }
             },
             "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
           }
         },
         "summary": "Refresh Extra Networks V2",

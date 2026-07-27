@@ -757,19 +757,30 @@ async def get_prompt_styles_v2():
 
 
 @router.post("/extra-networks/refresh", response_model=ResRefreshNetworksV2, tags=["Enumerators"])
-async def refresh_extra_networks_v2():
-    """Rescan all extra-network directories (LoRA, embeddings, etc.) and rebuild caches."""
+async def refresh_extra_networks_v2(
+    page: str | None = Query(
+        default=None,
+        description="Refresh a single page by name (lora, model, unet/dit, vae, embedding, style, wildcards); omit to refresh every page",
+    ),
+):
+    """Rescan extra-network directories from disk and rebuild page caches.
+
+    page.refresh() is the per-page disk rescan (rebuilds sd_unet.unet_dict,
+    the VAE list, embeddings, etc.); create_items() only re-projects that
+    state into page records. Both are needed or new files stay invisible.
+    """
+    targets = [pg for pg in shared.extra_networks if page is None or pg.name == page.lower()]
+    if page is not None and len(targets) == 0:
+        raise HTTPException(status_code=404, detail=f"Unknown extra-network page: {page}")
 
     def _refresh():
-        from modules.lora import lora_load
-
-        lora_load.list_available_networks()
-        for page in shared.extra_networks:
-            page.refresh_time = 0
-            page.create_items("txt2img")
+        for pg in targets:
+            pg.refresh_time = 0
+            pg.refresh()
+            pg.create_items("txt2img")
 
     await asyncio.to_thread(_refresh)
-    total = sum(len(pg.items) for pg in shared.extra_networks)
+    total = sum(len(pg.items) for pg in targets)
     return ResRefreshNetworksV2(ok=True, total=total)
 
 
