@@ -51,7 +51,6 @@ export function QuickSettingsTab() {
     for (const key of activeKeys) {
       const info = meta[key];
       if (!info) continue;
-      if (!(key in options)) continue;
       const section = info.section_title || "Other";
       if (!sectionMap.has(section)) sectionMap.set(section, []);
       sectionMap.get(section)!.push(metaToSettingDef(key, info));
@@ -64,13 +63,12 @@ export function QuickSettingsTab() {
 
   // All available settings for the picker (excluding separators and hidden)
   const allPickerItems = useMemo(() => {
-    if (!optionsInfo || !options) return [];
+    if (!optionsInfo) return [];
     const meta = optionsInfo.options;
     const items: { key: string; label: string; section: string }[] = [];
     for (const [key, info] of Object.entries(meta)) {
       if (!info.visible || info.hidden || info.is_legacy) continue;
       if (info.component === "separator") continue;
-      if (!(key in options)) continue;
       items.push({
         key,
         label: info.label || key,
@@ -78,7 +76,7 @@ export function QuickSettingsTab() {
       });
     }
     return items;
-  }, [optionsInfo, options]);
+  }, [optionsInfo]);
 
   // Group picker items by section
   const pickerSections = useMemo(() => {
@@ -215,9 +213,11 @@ export function QuickSettingsTab() {
                   {setting.label}
                 </span>
                 <div className="flex-1 min-w-0">
+                  {/* /options carries only explicitly-saved settings, so an
+                      untouched option is absent and falls back to its default. */}
                   <SettingControl
                     setting={setting}
-                    value={options[setting.key]}
+                    value={options[setting.key] ?? setting.defaultValue}
                     onChange={(v) => handleChange(setting.key, v, setting.component === "slider")}
                     dynamicChoices={dynamicChoices[setting.key]}
                   />
