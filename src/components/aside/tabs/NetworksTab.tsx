@@ -11,7 +11,7 @@ import { NetworkDetailDialog } from "./NetworkDetailDialog";
 import { toast } from "sonner";
 
 import { TYPE_FILTERS, type TypeFilter, type SortMode, type NetworkItem } from "./networks/types";
-import { PAGE_MAP } from "./networks/constants";
+import { PAGE_MAP, REFRESH_PAGE_MAP, TYPE_FILTER_LABELS } from "./networks/constants";
 import { isExtraNetwork, isReferenceName } from "./networks/utils";
 import { useNetworkFiltering } from "./networks/useNetworkFiltering";
 import { useProgressiveRender } from "./networks/useProgressiveRender";
@@ -24,7 +24,7 @@ import { NetworkGrid } from "./networks/NetworkGrid";
 
 const TYPE_FILTER_OPTIONS: SegmentOption<TypeFilter>[] = TYPE_FILTERS.map((t) => ({
   value: t,
-  label: t,
+  label: TYPE_FILTER_LABELS[t],
 }));
 
 export function NetworksTab() {
@@ -200,7 +200,7 @@ export function NetworksTab() {
           description: parts.join(", ") || `${results.length} processed`,
         });
       }
-      refreshNetworks.mutate();
+      refreshNetworks.mutate(scanPage);
     } catch (err) {
       toast.error("CivitAI scan failed", {
         description: err instanceof Error ? err.message : String(err),
@@ -218,7 +218,9 @@ export function NetworksTab() {
           options={TYPE_FILTER_OPTIONS}
           value={filter}
           onValueChange={handleFilterChange}
-          className="w-full"
+          // flex-[1_0_auto] lets segments fill a wide panel but never shrink
+          // below their text, so a narrow panel scrolls instead of clipping.
+          className="w-full overflow-x-auto [&_[role=radio]]:flex-[1_0_auto] [&_[role=radio]]:px-2"
         />
         <CommandBar
           search={search}
@@ -232,7 +234,7 @@ export function NetworksTab() {
           isScanPending={civitScan.isPending}
           isRefreshPending={refreshNetworks.isPending}
           onCivitScan={() => void handleCivitScan()}
-          onRefresh={() => refreshNetworks.mutate()}
+          onRefresh={() => refreshNetworks.mutate(REFRESH_PAGE_MAP[filter])}
         />
         <ActiveLoraStack
           activeLoras={loraManager.activeLoras}

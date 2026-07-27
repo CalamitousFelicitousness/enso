@@ -46,13 +46,22 @@ export function useNetworkDetail(page: string, name: string, enabled: boolean) {
   });
 }
 
+// Pass a page name to rescan just that page; undefined rescans every page,
+// which includes a full checkpoint walk.
 export function useRefreshNetworks() {
   const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: () => api.post<RefreshNetworksResponse>("/sdapi/v2/extra-networks/refresh"),
+  return useMutation<RefreshNetworksResponse, Error, string | undefined>({
+    mutationFn: (page) =>
+      api.post<RefreshNetworksResponse>(
+        page
+          ? `/sdapi/v2/extra-networks/refresh?page=${encodeURIComponent(page)}`
+          : "/sdapi/v2/extra-networks/refresh",
+      ),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["extra-networks"] });
       void queryClient.invalidateQueries({ queryKey: ["prompt-styles"] });
+      // sd_unet and sd_vae dropdown choices are served from options-info.
+      void queryClient.invalidateQueries({ queryKey: ["options-info"] });
     },
   });
 }
