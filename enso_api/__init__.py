@@ -19,8 +19,13 @@ def register_api(app, dependencies=None):
 
     deps = dependencies or []
 
+    from modules import paths
+
+    # Queue and output state must outlive this extension checkout: a redeploy
+    # or git clean of the extension root takes anything stored there with it,
+    # so the db lives with sdnext's own state files under <data_path>/data.
     enso_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    job_queue.init(enso_root)
+    job_queue.init(os.path.join(paths.data_path, "data", "enso"), legacy_path=enso_root)
 
     # Cloud provider registry, transport, and adapters now live in
     # modules.cloud (sdnext core). Provider CRUD goes through

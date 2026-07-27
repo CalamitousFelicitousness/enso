@@ -3,6 +3,8 @@ import contextlib
 import io
 import json
 import os
+import shutil
+import sqlite3
 import threading
 from concurrent.futures import ThreadPoolExecutor
 
@@ -26,6 +28,36 @@ STAGE_MAP: dict[str, str] = {
     "Refine": "Refiner",
     "Detailer": "Detailer",
 }
+
+
+def migrate_db_files(old_path: str, new_path: str) -> None:
+    """One-time move of the queue db out of the extension root.
+
+    Checkpointing first folds the WAL into the main file, so only that one
+    file has to move and a stale sidecar cannot replay foreign pages at the
+    new location. The main file's presence at the new path marks the
+    migration done; a failure leaves the old location intact for the next
+    boot to retry, and queue data is ephemeral enough that starting fresh
+    beats refusing to load.
+    """
+    if os.path.exists(new_path) or not os.path.exists(old_path):
+        return
+    from modules.logger import log
+
+    try:
+        os.makedirs(os.path.dirname(new_path), exist_ok=True)
+        conn = sqlite3.connect(old_path)
+        try:
+            conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+        finally:
+            conn.close()
+        shutil.move(old_path, new_path)
+        for suffix in ("-wal", "-shm"):
+            with contextlib.suppress(OSError):
+                os.remove(old_path + suffix)
+        log.info(f"Job queue: moved queue db to {new_path}")
+    except Exception as e:
+        log.error(f"Job queue: db migration failed, starting fresh at {new_path}: {e}")
 
 
 def compute_stages(job_type: str, params: dict) -> list[str] | None:
@@ -54,10 +86,12 @@ class JobQueue:
         self._current_job_id: str | None = None
         self._initialized = False
 
-    def init(self, data_path: str) -> None:
+    def init(self, data_path: str, legacy_path: str | None = None) -> None:
         if self._initialized:
             return
         db_path = os.path.join(data_path, "jobs.db")
+        if legacy_path:
+            migrate_db_files(os.path.join(legacy_path, "jobs.db"), db_path)
         self.store = JobStore(db_path)
         self._recover_stale_jobs()
         self._worker_thread = threading.Thread(target=self._worker_loop, daemon=True, name="v2-job-worker")
