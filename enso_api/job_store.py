@@ -6,7 +6,7 @@ import os
 import sqlite3
 import threading
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 
 class JobStore:
@@ -223,17 +223,21 @@ class JobStore:
         return {"total": total, "counts": counts, "staging_bytes": staging_bytes}
 
     def cleanup(self, max_age_hours: int = 168) -> int:
-        cutoff = datetime.now(timezone.utc).isoformat()
+        # The cutoff must be in the same shape now() stores: SQLite's
+        # datetime() renders a space-separated string with no offset, which
+        # compares below the stored T-separated form on the separator byte,
+        # so rows only aged out on a later calendar date.
+        cutoff = (datetime.now(timezone.utc) - timedelta(hours=max_age_hours)).isoformat()
         with self._write_lock:
             rows = self._conn.execute(
-                "SELECT result FROM jobs WHERE status IN ('completed', 'failed', 'cancelled') AND completed_at IS NOT NULL AND completed_at < datetime(?, '-' || ? || ' hours')",
-                (cutoff, max_age_hours),
+                "SELECT result FROM jobs WHERE status IN ('completed', 'failed', 'cancelled') AND completed_at IS NOT NULL AND completed_at < ?",
+                (cutoff,),
             ).fetchall()
             for row in rows:
                 self._cleanup_staging(row[0])
             cur = self._conn.execute(
-                "DELETE FROM jobs WHERE status IN ('completed', 'failed', 'cancelled') AND completed_at IS NOT NULL AND completed_at < datetime(?, '-' || ? || ' hours')",
-                (cutoff, max_age_hours),
+                "DELETE FROM jobs WHERE status IN ('completed', 'failed', 'cancelled') AND completed_at IS NOT NULL AND completed_at < ?",
+                (cutoff,),
             )
             self._conn.commit()
             return cur.rowcount
