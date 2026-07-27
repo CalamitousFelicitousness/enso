@@ -1,5 +1,12 @@
 allowBuilds:
   esbuild: true
+# Security overrides; drop each once its parent ships a patched range.
+overrides:
+  # @hey-api/json-schema-ref-parser pins js-yaml 4.2.0 exactly. 4.3.0 patches GHSA-52cp-r559-cp3m.
+  "@hey-api/json-schema-ref-parser>js-yaml": "^4.3.0"
+  # ajv allows ^3.0.1 already, but pnpm update skips this peer-suffixed subtree.
+  # 3.1.4 patches GHSA-v2hh-gcrm-f6hx.
+  "ajv>fast-uri": "^3.1.4"
 peerDependencyRules:
   allowedVersions:
     "eslint-plugin-jsx-a11y>eslint": "^10"
