@@ -39,6 +39,13 @@ class JobStore:
             );
             CREATE INDEX IF NOT EXISTS idx_jobs_status ON jobs(status);
             CREATE INDEX IF NOT EXISTS idx_jobs_created ON jobs(created_at);
+            CREATE TABLE IF NOT EXISTS outputs (
+                id         TEXT PRIMARY KEY,
+                path       TEXT NOT NULL,
+                job_id     TEXT,
+                created_at TEXT NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_outputs_path ON outputs(path);
         """)
 
     @staticmethod
@@ -220,7 +227,32 @@ class JobStore:
                 for f in filenames:
                     with contextlib.suppress(OSError):
                         staging_bytes += os.path.getsize(os.path.join(dirpath, f))
-        return {"total": total, "counts": counts, "staging_bytes": staging_bytes}
+        return {"total": total, "counts": counts, "staging_bytes": staging_bytes, "outputs_total": self.outputs_count()}
+
+    def register_output(self, path: str, job_id: str | None = None) -> str:
+        """Mint a durable id addressing `path`.
+
+        A fresh id per call, deliberately without UNIQUE(path): the filename
+        sequencer can hand out a previously deleted path again after a
+        restart, and returning the old id would silently point stored
+        history at the new image. Rows are never swept; a row whose file is
+        gone serves an honest 404.
+        """
+        output_id = uuid.uuid4().hex[:16]
+        with self._write_lock, self._conn:
+            self._conn.execute(
+                "INSERT INTO outputs (id, path, job_id, created_at) VALUES (?, ?, ?, ?)",
+                (output_id, path, job_id, self.now()),
+            )
+        return output_id
+
+    def resolve_output(self, output_id: str) -> dict | None:
+        row = self._conn.execute("SELECT * FROM outputs WHERE id = ?", (output_id,)).fetchone()
+        return dict(row) if row else None
+
+    def outputs_count(self) -> int:
+        row = self._conn.execute("SELECT COUNT(*) FROM outputs").fetchone()
+        return row[0] if row else 0
 
     def cleanup(self, max_age_hours: int = 168) -> int:
         # The cutoff must be in the same shape now() stores: SQLite's

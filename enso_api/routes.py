@@ -115,7 +115,9 @@ async def purge_jobs():
 async def job_stats():
     from enso_api.job_queue import job_queue
 
-    return await asyncio.to_thread(job_queue.store.stats)
+    stats = await asyncio.to_thread(job_queue.store.stats)
+    stats["output_register_failures"] = job_queue.output_register_failures
+    return stats
 
 
 @router.post("/jobs/bulk", response_model=ResBulkJobV2, tags=["Jobs"])
@@ -275,28 +277,63 @@ def get_completed_job(job_id: str):
     return job
 
 
-@router.get("/jobs/{job_id}/images/{index}", tags=["Jobs"])
+# Deprecated: refs minted at completion now carry durable /outputs/{id} URLs,
+# so these job-scoped routes only serve rows persisted before that change and
+# refs whose registration failed. Remove once that fallback has proven quiet.
+@router.get("/jobs/{job_id}/images/{index}", tags=["Jobs"], deprecated=True)
 async def get_job_image(job_id: str, index: int):
     return serve_job_file(get_completed_job(job_id), "images", index)
 
 
-@router.get("/jobs/{job_id}/processed/{index}", tags=["Jobs"])
+@router.get("/jobs/{job_id}/processed/{index}", tags=["Jobs"], deprecated=True)
 async def get_job_processed(job_id: str, index: int):
     return serve_job_file(get_completed_job(job_id), "processed", index)
 
 
-@router.get("/jobs/{job_id}/videos/{index}", tags=["Jobs"])
+@router.get("/jobs/{job_id}/videos/{index}", tags=["Jobs"], deprecated=True)
 async def get_job_video(job_id: str, index: int):
     return serve_job_file(get_completed_job(job_id), "videos", index)
 
 
-@router.get("/jobs/{job_id}/videos/{index}/thumbnail", tags=["Jobs"])
+@router.get("/jobs/{job_id}/videos/{index}/thumbnail", tags=["Jobs"], deprecated=True)
 async def get_job_video_thumbnail(job_id: str, index: int):
     job = get_completed_job(job_id)
     thumb_path = get_ref_field(job, "videos", index, "thumbnail_path")
     if thumb_path is None:
         raise HTTPException(status_code=404, detail="Thumbnail not available")
     return serve_file_path(thumb_path)
+
+
+@router.get("/outputs/{output_id}", tags=["Outputs"])
+async def get_output(output_id: str):
+    """Serve a generation output by its durable id.
+
+    Job rows are queue bookkeeping and get swept; the files they produced are
+    not. Every saved ref is registered at completion, so the `url` and
+    `thumbnail_url` a client stores keep resolving across restarts and long
+    after the job row is gone. Range requests are honored for video seeking.
+
+    404 covers an unknown id and a registered file no longer on disk; the two
+    are deliberately indistinguishable. Paths never cross the wire: the id is
+    minted server-side and confined at registration time, so the serve path
+    trusts the row.
+    """
+    from enso_api.job_queue import job_queue
+
+    row = job_queue.store.resolve_output(output_id)
+    if row is None:
+        raise HTTPException(status_code=404, detail="Output not found")
+    file_path = row["path"]
+    if not os.path.isfile(file_path):
+        log.debug(f"Outputs: {output_id} -> {file_path} missing on disk")
+        raise HTTPException(status_code=404, detail="Output not found")
+    ext = os.path.splitext(file_path)[1].lstrip(".").lower()
+    return FileResponse(
+        file_path,
+        media_type=MEDIA_TYPES.get(ext, "application/octet-stream"),
+        filename=os.path.basename(file_path),
+        content_disposition_type="inline",
+    )
 
 
 def parse_video_mode(name: str) -> str:

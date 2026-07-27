@@ -18,6 +18,63 @@ from enso_api.ws_models import (
     WsEventStatus,
 )
 
+OUTPUT_URL_PREFIX = "/sdapi/v2/outputs"
+
+# (path key in a stored ref dict, url key it addresses)
+REF_ADDRESSES = (("path", "url"), ("thumbnail_path", "thumbnail_url"))
+
+
+def assign_output_urls(store: JobStore, result, job_id: str) -> int:
+    """Rewrite each saved ref's URL in `result` to a durable output URL.
+
+    Runs at the two persist sites on the raw executor dict before it is
+    serialized, so the stored row, the completion event, and every later read
+    carry the same addresses and executors never know outputs exist. The
+    internal path keys stay in the stored JSON for the legacy job-scoped
+    routes and base64 embedding; the response models never expose them.
+
+    Confinement happens here, at registration, where the outdir settings are
+    the same ones the file was just saved under; the serve path trusts the
+    row. Staged save_images=False refs are skipped: their files are deleted
+    on schedules of their own, and a durable address for a doomed file would
+    lie about durability.
+
+    Best-effort by contract: a finished generation must never be reported
+    failed over bookkeeping, so failures keep the job-scoped URL, log a
+    warning, and are returned for the stats counter.
+    """
+    from modules.logger import log
+
+    failures = 0
+    try:
+        from enso_api.confine import confined_to_outputs
+
+        if not isinstance(result, dict):
+            return 0
+        for key in ("images", "processed", "videos"):
+            refs = result.get(key)
+            if not isinstance(refs, list):
+                continue
+            for ref in refs:
+                if not isinstance(ref, dict) or ref.get("temp"):
+                    continue
+                for path_key, url_key in REF_ADDRESSES:
+                    path = ref.get(path_key)
+                    if not isinstance(path, str) or not path:
+                        continue
+                    try:
+                        if not confined_to_outputs(path):
+                            raise ValueError("path outside allowed output roots")
+                        ref[url_key] = f"{OUTPUT_URL_PREFIX}/{store.register_output(path, job_id=job_id)}"
+                    except Exception as e:
+                        failures += 1
+                        log.warning(f"Job queue: output registration failed job={job_id} path={path}: {e}")
+    except Exception as e:
+        failures += 1
+        log.warning(f"Job queue: output url assignment failed job={job_id}: {e}")
+    return failures
+
+
 # Maps SD.Next state.job labels → user-facing stage name
 STAGE_MAP: dict[str, str] = {
     "Base": "Generate",
@@ -85,6 +142,7 @@ class JobQueue:
         self._sub_lock = threading.Lock()
         self._current_job_id: str | None = None
         self._initialized = False
+        self.output_register_failures = 0
 
     def init(self, data_path: str, legacy_path: str | None = None) -> None:
         if self._initialized:
@@ -266,6 +324,7 @@ class JobQueue:
                 if isinstance(params, str):
                     params = json.loads(params)
                 result = executor_fn(params, job_id)
+            self.output_register_failures += assign_output_urls(self.store, result, job_id)
             result_json = json.dumps(result, default=str)
             self.store.update_status(job_id, "completed", completed_at=JobStore.now(), result=result_json)
             self.push_progress(job_id, WsEventCompleted(result=JobResult.from_result_dict(result)).model_dump(exclude_none=True))
@@ -301,6 +360,7 @@ class JobQueue:
             if isinstance(params, str):
                 params = json.loads(params)
             result = executor_fn(params, job_id)
+            self.output_register_failures += assign_output_urls(self.store, result, job_id)
             result_json = json.dumps(result, default=str)
             self.store.update_status(job_id, "completed", completed_at=JobStore.now(), result=result_json)
             self.push_progress(job_id, WsEventCompleted(result=JobResult.from_result_dict(result)).model_dump(exclude_none=True))

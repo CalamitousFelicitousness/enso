@@ -37,6 +37,16 @@ TS side's CloudJobPhase mirror in src/api/types/cloud.ts."""
 
 
 class ImageRef(BaseModel):
+    """One generated image.
+
+    `url` is a durable output address (`/sdapi/v2/outputs/{id}`) minted at job
+    completion. It resolves for as long as the file exists - across restarts,
+    and after the job row it came from is swept - so clients may store it in
+    durable history. Staged `save_images=false` images instead carry a
+    job-scoped URL that dies with the job row, matching their deliberately
+    short life. The on-disk path never crosses the wire.
+    """
+
     index: int
     url: str
     width: int
@@ -52,10 +62,11 @@ class VideoRef(BaseModel):
 
     `thumbnail_url` is populated when the upstream orchestrator wrote a
     `<video_path>.thumb.png` (best-effort, may be absent on extraction failure).
-    The video file itself is served from `url`; the thumbnail (when present)
-    from `thumbnail_url`. The Python-side stored ref dict also carries `path`
-    and `thumbnail_path` fields that the file-serving handlers read; those
-    are intentionally absent from this response model.
+    Both it and `url` are durable output addresses (`/sdapi/v2/outputs/{id}`)
+    that resolve independently of the job row's lifetime, as on ImageRef. The
+    Python-side stored ref dict also carries `path` and `thumbnail_path`
+    fields that the deprecated job-scoped handlers read; those are
+    intentionally absent from this response model.
     """
 
     index: int
@@ -155,6 +166,10 @@ class ResJobStatsV2(BaseModel):
     total: int
     counts: dict[str, int]
     staging_bytes: int
+    outputs_total: int
+    """Rows in the durable outputs table."""
+    output_register_failures: int
+    """Refs that kept a job-scoped URL because registration failed, since boot."""
 
 
 class ReqBulkJobV2(BaseModel):

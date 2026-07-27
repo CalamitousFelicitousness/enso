@@ -3179,6 +3179,7 @@
         "type": "object"
       },
       "ImageRef": {
+        "description": "One generated image.\n\n`url` is a durable output address (`/sdapi/v2/outputs/{id}`) minted at job\ncompletion. It resolves for as long as the file exists - across restarts,\nand after the job row it came from is swept - so clients may store it in\ndurable history. Staged `save_images=false` images instead carry a\njob-scoped URL that dies with the job row, matching their deliberately\nshort life. The on-disk path never crosses the wire.",
         "properties": {
           "data": {
             "anyOf": [
@@ -7794,6 +7795,14 @@
             "title": "Counts",
             "type": "object"
           },
+          "output_register_failures": {
+            "title": "Output Register Failures",
+            "type": "integer"
+          },
+          "outputs_total": {
+            "title": "Outputs Total",
+            "type": "integer"
+          },
           "staging_bytes": {
             "title": "Staging Bytes",
             "type": "integer"
@@ -7806,7 +7815,9 @@
         "required": [
           "total",
           "counts",
-          "staging_bytes"
+          "staging_bytes",
+          "outputs_total",
+          "output_register_failures"
         ],
         "title": "ResJobStatsV2",
         "type": "object"
@@ -9041,7 +9052,7 @@
         "type": "object"
       },
       "VideoRef": {
-        "description": "One cloud-generated video plus its sibling thumbnail.\n\n`thumbnail_url` is populated when the upstream orchestrator wrote a\n`<video_path>.thumb.png` (best-effort, may be absent on extraction failure).\nThe video file itself is served from `url`; the thumbnail (when present)\nfrom `thumbnail_url`. The Python-side stored ref dict also carries `path`\nand `thumbnail_path` fields that the file-serving handlers read; those\nare intentionally absent from this response model.",
+        "description": "One cloud-generated video plus its sibling thumbnail.\n\n`thumbnail_url` is populated when the upstream orchestrator wrote a\n`<video_path>.thumb.png` (best-effort, may be absent on extraction failure).\nBoth it and `url` are durable output addresses (`/sdapi/v2/outputs/{id}`)\nthat resolve independently of the job row's lifetime, as on ImageRef. The\nPython-side stored ref dict also carries `path` and `thumbnail_path`\nfields that the deprecated job-scoped handlers read; those are\nintentionally absent from this response model.",
         "properties": {
           "duration": {
             "anyOf": [
@@ -13977,6 +13988,7 @@
     },
     "/sdapi/v2/jobs/{job_id}/images/{index}": {
       "get": {
+        "deprecated": true,
         "operationId": "get_job_image_sdapi_v2_jobs__job_id__images__index__get",
         "parameters": [
           {
@@ -14027,6 +14039,7 @@
     },
     "/sdapi/v2/jobs/{job_id}/processed/{index}": {
       "get": {
+        "deprecated": true,
         "operationId": "get_job_processed_sdapi_v2_jobs__job_id__processed__index__get",
         "parameters": [
           {
@@ -14077,6 +14090,7 @@
     },
     "/sdapi/v2/jobs/{job_id}/videos/{index}": {
       "get": {
+        "deprecated": true,
         "operationId": "get_job_video_sdapi_v2_jobs__job_id__videos__index__get",
         "parameters": [
           {
@@ -14127,6 +14141,7 @@
     },
     "/sdapi/v2/jobs/{job_id}/videos/{index}/thumbnail": {
       "get": {
+        "deprecated": true,
         "operationId": "get_job_video_thumbnail_sdapi_v2_jobs__job_id__videos__index__thumbnail_get",
         "parameters": [
           {
@@ -15046,6 +15061,48 @@
         "summary": "Get Options Info V2",
         "tags": [
           "Server"
+        ]
+      }
+    },
+    "/sdapi/v2/outputs/{output_id}": {
+      "get": {
+        "description": "Serve a generation output by its durable id.\n\nJob rows are queue bookkeeping and get swept; the files they produced are\nnot. Every saved ref is registered at completion, so the `url` and\n`thumbnail_url` a client stores keep resolving across restarts and long\nafter the job row is gone. Range requests are honored for video seeking.\n\n404 covers an unknown id and a registered file no longer on disk; the two\nare deliberately indistinguishable. Paths never cross the wire: the id is\nminted server-side and confined at registration time, so the serve path\ntrusts the row.",
+        "operationId": "get_output_sdapi_v2_outputs__output_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "output_id",
+            "required": true,
+            "schema": {
+              "title": "Output Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Output",
+        "tags": [
+          "v2",
+          "Outputs"
         ]
       }
     },
