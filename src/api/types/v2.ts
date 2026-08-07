@@ -305,6 +305,11 @@ export interface JobTypeV2 {
 
 // --- Job response types ---
 
+/** One generated image. `url` is a durable output address
+ * (`/sdapi/v2/outputs/{id}`) that resolves for as long as the file exists,
+ * independent of the job row's lifetime - except staged `save_images=false`
+ * results, which carry a job-scoped URL matching their deliberately short
+ * life. Mirrors ImageRef in enso_api/models.py. */
 export interface ImageRef {
   index: number;
   url: string;
@@ -316,7 +321,8 @@ export interface ImageRef {
 
 /** A cloud-generated video plus its sibling thumbnail. `thumbnail_url`
  * is null when extraction failed upstream; the mp4 itself is always
- * present at `url` when the ref exists. Mirrors VideoRef in enso_api/models.py. */
+ * present at `url` when the ref exists. Both are durable output addresses,
+ * as on ImageRef. Mirrors VideoRef in enso_api/models.py. */
 export interface VideoRef {
   index: number;
   url: string;
@@ -370,6 +376,10 @@ export interface JobStats {
   total: number;
   counts: Partial<Record<JobStatus, number>>;
   staging_bytes: number;
+  /** Rows in the durable outputs table. */
+  outputs_total: number;
+  /** Refs that kept a job-scoped URL because registration failed, since boot. */
+  output_register_failures: number;
 }
 
 // --- Bulk job types ---
