@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/dialog";
 import { GenerationDiffDialog } from "@/components/generation/GenerationDiffDialog";
 import { ResultThumbPreview } from "@/components/generation/ResultThumbPreview";
+import { ResultImage } from "@/components/generation/ResultImage";
 import { ResultThumbActions } from "@/components/generation/ResultThumbActions";
 
 interface CompareCandidate {
@@ -464,7 +465,6 @@ const BatchTile = memo(function BatchTile({
   // Mirror the canvas selection: show the picked frame as the cover when this
   // batch owns the current selection, otherwise the first image.
   const coverIndex = isSelected && selectedImageIndex !== null ? selectedImageIndex : 0;
-  const coverSrc = resolveImageSrc(result.images[coverIndex]);
 
   // Shift-click builds a compare pair across batches, so keep the popover open;
   // any other pick selects onto the canvas and dismisses it.
@@ -507,7 +507,12 @@ const BatchTile = memo(function BatchTile({
             )}
             style={{ width: size, height: size }}
           >
-            <img src={coverSrc} alt="Batch cover" className="h-full w-full object-cover" />
+            <ResultImage
+              image={result.images[coverIndex]}
+              alt="Batch cover"
+              className="h-full w-full object-cover"
+              compact={size < 48}
+            />
             <span className="absolute bottom-0.5 right-0.5 rounded bg-black/70 px-1 text-3xs leading-tight text-white tabular-nums">
               ×{count}
             </span>
@@ -639,7 +644,12 @@ const ResultThumb = memo(function ResultThumb({
         style={{ width: size, height: size }}
         {...dragProps}
       >
-        <img src={src} alt="Result" className="w-full h-full object-cover" />
+        <ResultImage
+          image={item.image}
+          alt="Result"
+          className="w-full h-full object-cover"
+          compact={size < 48}
+        />
 
         {isCompareCandidate && (
           <span className="absolute bottom-0 left-0 right-0 bg-amber-400/80 text-black text-center text-3xs leading-tight">
