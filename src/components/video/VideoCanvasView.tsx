@@ -31,7 +31,7 @@ import type { DragPayload } from "@/stores/dragStore";
 import { Button } from "@/components/ui/button";
 import { ParamSlider } from "@/components/generation/ParamSlider";
 import { fileToBase64 } from "@/lib/image";
-import { contrastText, cn } from "@/lib/utils";
+import { contrastText, cn, resolveImageSrc } from "@/lib/utils";
 
 const DOMAIN_LABELS: Record<string, string> = {
   video: "Models",
@@ -352,7 +352,7 @@ export function VideoCanvasView() {
                   <>
                     <VideoResultActions result={selectedResult} />
 
-                    <a href={selectedResult.videoUrl} download>
+                    <a href={resolveImageSrc(selectedResult.videoUrl)} download>
                       <Button
                         variant="ghost"
                         size="icon-xs"
@@ -386,13 +386,13 @@ export function VideoCanvasView() {
           >
             {compareMode && compareLeft?.videoUrl && compareRight?.videoUrl ? (
               <VideoCompare
-                leftSrc={compareLeft.videoUrl}
-                rightSrc={compareRight.videoUrl}
+                leftSrc={resolveImageSrc(compareLeft.videoUrl)}
+                rightSrc={resolveImageSrc(compareRight.videoUrl)}
                 leftLabel={DOMAIN_LABELS[compareLeft.domain] ?? compareLeft.domain}
                 rightLabel={DOMAIN_LABELS[compareRight.domain] ?? compareRight.domain}
               />
             ) : !isGenerating && selectedResult?.videoUrl ? (
-              <VideoPlayer src={selectedResult.videoUrl} />
+              <VideoPlayer src={resolveImageSrc(selectedResult.videoUrl)} />
             ) : null}
           </div>
         )}
@@ -468,7 +468,11 @@ export function VideoCanvasView() {
                   )}
                 >
                   {r.thumbnailUrl ? (
-                    <img src={r.thumbnailUrl} alt="" className="w-full h-full object-cover" />
+                    <img
+                      src={resolveImageSrc(r.thumbnailUrl)}
+                      alt=""
+                      className="w-full h-full object-cover"
+                    />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center bg-muted">
                       <Film size={12} className="text-muted-foreground/50" />

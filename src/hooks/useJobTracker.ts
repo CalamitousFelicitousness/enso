@@ -60,12 +60,12 @@ function routeResult(domain: JobDomain, result: JobResult, snapshot: TrackedJob[
     // existing Wan/Hunyuan/FramePack/LTX flows keep working unchanged.
     const cloudVid = result.videos?.[0];
     if (cloudVid) {
+      // Stored relative and resolved at render, like image results, so
+      // persisted history survives a backend URL change.
       useVideoStore.getState().addResult({
         id: crypto.randomUUID(),
-        videoUrl: `${api.getBaseUrl()}${cloudVid.url}`,
-        thumbnailUrl: cloudVid.thumbnail_url
-          ? `${api.getBaseUrl()}${cloudVid.thumbnail_url}`
-          : undefined,
+        videoUrl: cloudVid.url,
+        thumbnailUrl: cloudVid.thumbnail_url ?? undefined,
         width: cloudVid.width,
         height: cloudVid.height,
         format: cloudVid.format,
@@ -83,8 +83,8 @@ function routeResult(domain: JobDomain, result: JobResult, snapshot: TrackedJob[
         const thumb = result.images[1];
         useVideoStore.getState().addResult({
           id: crypto.randomUUID(),
-          videoUrl: `${api.getBaseUrl()}${vid.url}`,
-          thumbnailUrl: thumb ? `${api.getBaseUrl()}${thumb.url}` : undefined,
+          videoUrl: vid.url,
+          thumbnailUrl: thumb?.url,
           width: vid.width,
           height: vid.height,
           format: vid.format,

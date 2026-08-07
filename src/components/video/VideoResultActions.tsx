@@ -25,6 +25,7 @@ import {
   sendFrameToUpscale,
   restoreVideoSettings,
 } from "@/lib/sendTo";
+import { resolveImageSrc } from "@/lib/utils";
 import type { VideoResult } from "@/api/types/video";
 
 interface VideoResultActionsProps {
@@ -34,26 +35,27 @@ interface VideoResultActionsProps {
 export function VideoResultActions({ result }: VideoResultActionsProps) {
   const [framePickerOpen, setFramePickerOpen] = useState(false);
   const [diffOpen, setDiffOpen] = useState(false);
+  const videoSrc = resolveImageSrc(result.videoUrl);
 
   const handleSendFirstFrame = useCallback(async () => {
     try {
-      const blob = await extractFrameFromVideo(result.videoUrl, 0);
+      const blob = await extractFrameFromVideo(videoSrc, 0);
       void sendFrameToVideoInit(blob);
       toast.success("First frame sent to Init Image");
     } catch {
       toast.error("Failed to extract frame");
     }
-  }, [result.videoUrl]);
+  }, [videoSrc]);
 
   const handleSendLastFrame = useCallback(async () => {
     try {
-      const blob = await extractFrameFromVideo(result.videoUrl, 999999);
+      const blob = await extractFrameFromVideo(videoSrc, 999999);
       void sendFrameToVideoInit(blob);
       toast.success("Last frame sent to Init Image");
     } catch {
       toast.error("Failed to extract frame");
     }
-  }, [result.videoUrl]);
+  }, [videoSrc]);
 
   const handleFrameCapture = useCallback((blob: Blob) => {
     void sendFrameToVideoInit(blob);
@@ -62,13 +64,13 @@ export function VideoResultActions({ result }: VideoResultActionsProps) {
 
   const handleSendToUpscale = useCallback(async () => {
     try {
-      const blob = await extractFrameFromVideo(result.videoUrl, 0);
+      const blob = await extractFrameFromVideo(videoSrc, 0);
       sendFrameToUpscale(blob);
       toast.success("Frame sent to Upscale");
     } catch {
       toast.error("Failed to extract frame");
     }
-  }, [result.videoUrl]);
+  }, [videoSrc]);
 
   const handleReuseSettings = useCallback(() => {
     restoreVideoSettings(result.params);
@@ -77,14 +79,14 @@ export function VideoResultActions({ result }: VideoResultActionsProps) {
 
   const handleExtend = useCallback(async () => {
     try {
-      const blob = await extractFrameFromVideo(result.videoUrl, 999999);
+      const blob = await extractFrameFromVideo(videoSrc, 999999);
       void sendFrameToVideoInit(blob);
       restoreVideoSettings(result.params);
       toast.success("Ready to extend video");
     } catch {
       toast.error("Failed to extract frame");
     }
-  }, [result.videoUrl, result.params]);
+  }, [videoSrc, result.params]);
 
   return (
     <>
@@ -129,7 +131,7 @@ export function VideoResultActions({ result }: VideoResultActionsProps) {
       </DropdownMenu>
 
       <FramePickerDialog
-        videoUrl={result.videoUrl}
+        videoUrl={videoSrc}
         open={framePickerOpen}
         onOpenChange={setFramePickerOpen}
         onCapture={handleFrameCapture}
