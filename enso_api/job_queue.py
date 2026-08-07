@@ -117,6 +117,34 @@ def migrate_db_files(old_path: str, new_path: str) -> None:
         log.error(f"Job queue: db migration failed, starting fresh at {new_path}: {e}")
 
 
+GITIGNORE_SENTINEL = "# Enso runtime state, not part of the sdnext tree.\n*\n"
+
+
+def mark_dir_git_ignored(path: str) -> None:
+    """Write a self-ignoring .gitignore into Enso's state dir.
+
+    sdnext force-includes <data_path>/data and then excludes its own state
+    files one at a time by name, so a directory an extension creates is
+    untracked-and-visible in the checkout. A lone '*' covers the whole
+    directory including the sentinel itself, so nothing here reaches git.
+
+    Written only when missing or empty: a populated file is someone's
+    deliberate edit, and this is hygiene, so a failure to write it must not
+    interrupt boot. Deliberately no CACHEDIR.TAG, which would tell backup
+    tools this directory is regenerable.
+    """
+    target = os.path.join(path, ".gitignore")
+    try:
+        if os.path.exists(target) and os.path.getsize(target) > 0:
+            return
+        with open(target, "w", encoding="utf-8") as f:
+            f.write(GITIGNORE_SENTINEL)
+    except OSError as e:
+        from modules.logger import log
+
+        log.debug(f"Job queue: could not write {target}: {e}")
+
+
 def compute_stages(job_type: str, params: dict) -> list[str] | None:
     """Predict the generation stage sequence from request params."""
     if job_type != "generate":
@@ -151,6 +179,7 @@ class JobQueue:
         if legacy_path:
             migrate_db_files(os.path.join(legacy_path, "jobs.db"), db_path)
         self.store = JobStore(db_path)
+        mark_dir_git_ignored(data_path)
         self._recover_stale_jobs()
         self._worker_thread = threading.Thread(target=self._worker_loop, daemon=True, name="v2-job-worker")
         self._worker_thread.start()
