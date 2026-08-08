@@ -6,12 +6,52 @@ This extension entry point:
 3. Mounts the built frontend at ``/enso/``
 """
 
+import json
 import os
 import sys
 
 from modules import script_callbacks
 
 ext_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
+def register_cloud_options():
+    """Register Enso-managed cloud settings with the options registry.
+
+    The frontend stores cloud defaults and provider records through the
+    generic options surface; unregistered keys are flagged unknown at boot
+    and unused on every config save. Registered hidden: Enso's own UI
+    manages them, so they have no place on the settings page. Provider API
+    keys are named cloud_<id>_key and route to secrets.json by suffix; ids
+    come from the stored provider list, so a provider added mid-session
+    registers its key on the next start.
+    """
+    from modules.shared import OptionInfo, opts
+
+    section = ("enso", "Enso")
+    hidden = {"visible": False}
+    settings = {
+        "cloud_providers": ("[]", "Cloud providers"),
+        "cloud_default_provider": ("", "Default cloud provider"),
+        "cloud_default_text_provider": ("", "Default cloud text provider"),
+        "cloud_default_vision_provider": ("", "Default cloud vision provider"),
+        "cloud_default_image_provider": ("", "Default cloud image provider"),
+        "cloud_default_video_provider": ("", "Default cloud video provider"),
+        "cloud_default_audio_provider": ("", "Default cloud audio provider"),
+    }
+    for name, (default, label) in settings.items():
+        opts.add_option(name, OptionInfo(default, label, component_args=hidden, section=section))
+    try:
+        providers = json.loads(opts.data.get("cloud_providers") or "[]")
+    except (TypeError, ValueError):
+        providers = []
+    for provider in providers:
+        pid = provider.get("id") if isinstance(provider, dict) else None
+        if pid:
+            opts.add_option(f"cloud_{pid}_key", OptionInfo("", f"Cloud provider key: {pid}", component_args=hidden, section=section))
+
+
+register_cloud_options()
 
 
 def on_app_started(blocks, app):  # pylint: disable=unused-argument
