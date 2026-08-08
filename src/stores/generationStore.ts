@@ -32,6 +32,7 @@ export interface GenerationState {
   // Prompt
   prompt: string;
   negativePrompt: string;
+  styles: string[];
 
   // Sampler
   sampler: string;
@@ -195,6 +196,7 @@ export interface GenerationState {
 export const defaultParams = {
   prompt: "",
   negativePrompt: "",
+  styles: [] as string[],
   sampler: "Euler",
   steps: 20,
   width: 1024,

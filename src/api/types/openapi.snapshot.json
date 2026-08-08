@@ -2942,6 +2942,13 @@
             "title": "Steps",
             "type": "integer"
           },
+          "styles": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Styles",
+            "type": "array"
+          },
           "subseed": {
             "default": -1,
             "title": "Subseed",
@@ -8880,6 +8887,11 @@
         "additionalProperties": false,
         "description": "Native SD.Next video generation (Wan, HunyuanVideo, etc.).",
         "properties": {
+          "audio": {
+            "default": true,
+            "title": "Audio",
+            "type": "boolean"
+          },
           "codec": {
             "default": "libx264",
             "title": "Codec",
@@ -9020,6 +9032,13 @@
             "default": 30,
             "title": "Steps",
             "type": "integer"
+          },
+          "styles": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Styles",
+            "type": "array"
           },
           "type": {
             "const": "video",
@@ -10393,6 +10412,13 @@
             "default": 20,
             "title": "Steps",
             "type": "integer"
+          },
+          "styles": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Styles",
+            "type": "array"
           },
           "subseed": {
             "default": -1,

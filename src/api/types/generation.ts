@@ -22,6 +22,7 @@ export interface ControlRequestUnit {
 export interface ControlRequest {
   prompt: string;
   negative_prompt?: string | undefined;
+  styles?: string[] | undefined;
   sampler_name?: string | undefined;
   steps?: number | undefined;
   width_before?: number | undefined;

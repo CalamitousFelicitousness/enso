@@ -3,6 +3,7 @@ import { ParamSlider } from "@/components/generation/ParamSlider";
 import { ParamGrid } from "@/components/generation/ParamRow";
 import { SectionLeader } from "@/components/ui/section-leader";
 import { VideoOutputSection } from "./VideoOutputSection";
+import { VideoStylesSection } from "./VideoStylesSection";
 import { VideoPresetSelector } from "../VideoPresetSelector";
 
 // LTX-specific form. Model is picked in the top-level ModelSelector (Video
@@ -150,6 +151,8 @@ export function LtxForm() {
         enabled={ltxAudioEnable}
         onToggleEnabled={(v) => setParam("ltxAudioEnable", v)}
       />
+
+      <VideoStylesSection />
 
       <VideoOutputSection />
     </div>

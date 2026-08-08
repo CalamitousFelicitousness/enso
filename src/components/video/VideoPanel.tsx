@@ -76,6 +76,7 @@ async function buildLocalVideoPayload(kind: VideoUiKind, model: LocalVideoModel)
       type: "framepack" as const,
       prompt: s.prompt,
       negative: s.negative,
+      styles: s.styles,
       seed: s.seed,
       variant: model.model,
       resolution: s.fpResolution,
@@ -109,6 +110,7 @@ async function buildLocalVideoPayload(kind: VideoUiKind, model: LocalVideoModel)
       model: model.model,
       prompt: s.prompt,
       negative: s.negative,
+      styles: s.styles,
       seed: s.seed,
       width: s.width,
       height: s.height,
@@ -135,6 +137,7 @@ async function buildLocalVideoPayload(kind: VideoUiKind, model: LocalVideoModel)
     model: model.model,
     prompt: s.prompt,
     negative: s.negative,
+    styles: s.styles,
     seed: s.seed,
     width: s.width,
     height: s.height,
@@ -149,6 +152,7 @@ async function buildLocalVideoPayload(kind: VideoUiKind, model: LocalVideoModel)
     last_image: lastRef,
     vae_type: s.vaeType,
     vae_tile_frames: s.vaeTileFrames,
+    audio: s.audio,
     ...output,
   };
 }

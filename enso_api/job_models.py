@@ -642,6 +642,7 @@ class GenerateParams(
     type: Literal["generate"] = "generate"
     prompt: str = ""
     negative_prompt: str = ""
+    styles: list[str] = Field(default_factory=list)
     sampler_name: str = "Default"
     steps: int = 20
     width: int = 512
@@ -774,6 +775,7 @@ class VideoParams(JobBase):
     model: str
     prompt: str
     negative: str = ""
+    styles: list[str] = Field(default_factory=list)
     width: int = 848
     height: int = 480
     frames: int = 25
@@ -789,6 +791,7 @@ class VideoParams(JobBase):
     last_image: str | None = None
     vae_type: str = "Default"
     vae_tile_frames: int = 0
+    audio: bool = True
     fps: int = 24
     interpolate: int = 0
     codec: str = "libx264"

@@ -77,6 +77,7 @@ export async function buildControlRequest(): Promise<BuildResult> {
   const request: ControlRequest = {
     prompt: gen.prompt,
     negative_prompt: gen.negativePrompt,
+    styles: gen.styles,
     sampler_name: gen.sampler,
     steps: gen.steps,
     width_before: gen.width,
@@ -507,6 +508,7 @@ export function extractParamsFromResult(result: GenerationResult): Partial<Gener
     // Prompt
     prompt: str(p.prompt, ""),
     negativePrompt: str(p.negative_prompt, ""),
+    styles: Array.isArray(p.styles) ? p.styles : [],
 
     // Sampler
     sampler: str(p.sampler_name, "Euler"),

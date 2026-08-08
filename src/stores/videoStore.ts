@@ -15,6 +15,7 @@ interface VideoState {
   // for cloud video) and the Video panel reads them from there.
   prompt: string;
   negative: string;
+  styles: string[];
   width: number;
   height: number;
   frames: number;
@@ -28,6 +29,7 @@ interface VideoState {
   initStrength: number;
   vaeType: string;
   vaeTileFrames: number;
+  audio: boolean;
   fps: number;
   interpolate: number;
   codec: string;
@@ -97,6 +99,7 @@ interface VideoState {
 const defaultParams = {
   prompt: "",
   negative: "",
+  styles: [] as string[],
   width: 848,
   height: 480,
   frames: 25,
@@ -110,6 +113,7 @@ const defaultParams = {
   initStrength: 0.5,
   vaeType: "Default",
   vaeTileFrames: 0,
+  audio: true,
   fps: 24,
   interpolate: 0,
   codec: "libx264",

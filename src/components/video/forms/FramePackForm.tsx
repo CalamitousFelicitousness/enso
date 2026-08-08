@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { VideoOutputSection } from "./VideoOutputSection";
+import { VideoStylesSection } from "./VideoStylesSection";
 import { VideoPresetSelector } from "../VideoPresetSelector";
 
 // FramePack-specific form. Variant is selected in the top-level
@@ -247,6 +248,8 @@ export function FramePackForm() {
           />
         </div>
       </SectionLeader>
+
+      <VideoStylesSection />
 
       <VideoOutputSection />
     </div>

@@ -6,6 +6,7 @@ import { Combobox } from "@/components/ui/combobox";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { VideoOutputSection } from "./VideoOutputSection";
+import { VideoStylesSection } from "./VideoStylesSection";
 import { VideoPresetSelector } from "../VideoPresetSelector";
 
 // Generic Wan/Hunyuan/etc. video form. Engine + model are picked in the
@@ -25,6 +26,7 @@ export function WanHunyuanForm() {
   const initStrength = useVideoStore((s) => s.initStrength);
   const vaeType = useVideoStore((s) => s.vaeType);
   const vaeTileFrames = useVideoStore((s) => s.vaeTileFrames);
+  const audio = useVideoStore((s) => s.audio);
   const setParam = useVideoStore((s) => s.setParam);
 
   return (
@@ -82,7 +84,14 @@ export function WanHunyuanForm() {
           <Label className="text-2xs text-muted-foreground w-16 shrink-0">Dynamic</Label>
           <Switch checked={dynamicShift} onCheckedChange={(v) => setParam("dynamicShift", v)} />
         </div>
+
+        <div className="flex items-center gap-2">
+          <Label className="text-2xs text-muted-foreground w-16 shrink-0">Audio</Label>
+          <Switch checked={audio} onCheckedChange={(v) => setParam("audio", v)} />
+        </div>
       </SectionLeader>
+
+      <VideoStylesSection />
 
       <SectionLeader title="Size" collapsible defaultCollapsed>
         <ParamGrid>

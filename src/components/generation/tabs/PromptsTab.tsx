@@ -9,13 +9,14 @@ import { useShallow } from "zustand/react/shallow";
 import { usePromptStyles } from "@/api/hooks/useNetworks";
 import { useOptionsSubset } from "@/api/hooks/useSettings";
 import { useUpscalerGroups } from "@/api/hooks/useModels";
-import { Link2Off, ArrowLeftRight, ChevronDown, X } from "lucide-react";
+import { Link2Off, ArrowLeftRight, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { resolveGenerationSize, formatMegapixels } from "@/lib/sizeCompute";
 import type { SizeMode } from "@/lib/sizeCompute";
 import type { ParamDescriptor } from "@/api/types/cloud";
 import type { GenerationInfo } from "@/api/types/generation";
 import { PromptEditor } from "../PromptEditor";
+import { StylePicker } from "../StylePicker";
 import { ParamSlider } from "../ParamSlider";
 import { SectionLeader, SectionDivider } from "@/components/ui/section-leader";
 import { ParamGrid } from "../ParamRow";
@@ -79,6 +80,7 @@ export function PromptsTab() {
       height: s.height,
       batchCount: s.batchCount,
       batchSize: s.batchSize,
+      styles: s.styles,
     })),
   );
   const setParam = useGenerationStore((s) => s.setParam);
@@ -240,7 +242,6 @@ export function PromptsTab() {
   const [activePreset, setActivePreset] = useState<string | null>(null);
   const aspectLocked = activePreset !== null;
   const [aspectOpen, setAspectOpen] = useState(false);
-  const [selectedStyles, setSelectedStyles] = useState<string[]>([]);
 
   const showSizeModes = isImg2Img && autoFitFrame;
   const effectiveSizeMode: SizeMode = showSizeModes ? sizeMode : "fixed";
@@ -329,16 +330,6 @@ export function PromptsTab() {
     [setParam],
   );
 
-  function addStyle(name: string) {
-    if (!selectedStyles.includes(name)) {
-      setSelectedStyles([...selectedStyles, name]);
-    }
-  }
-
-  function removeStyle(name: string) {
-    setSelectedStyles(selectedStyles.filter((s) => s !== name));
-  }
-
   return (
     <div className="flex flex-col gap-3 text-sm">
       <PromptEditor />
@@ -346,29 +337,7 @@ export function PromptsTab() {
       {Array.isArray(styles) && styles.length > 0 && (
         <>
           <SectionLeader title="Styles" collapsible defaultCollapsed>
-            <div className="flex flex-wrap gap-1 mb-1">
-              {selectedStyles.map((name) => (
-                <span
-                  key={name}
-                  className="inline-flex items-center gap-0.5 px-1.5 py-0.5 text-3xs bg-muted rounded"
-                >
-                  {name}
-                  <button
-                    onClick={() => removeStyle(name)}
-                    className="text-muted-foreground hover:text-foreground"
-                  >
-                    <X size={10} />
-                  </button>
-                </span>
-              ))}
-            </div>
-            <Combobox
-              value=""
-              onValueChange={addStyle}
-              options={styles.filter((s) => !selectedStyles.includes(s.name)).map((s) => s.name)}
-              placeholder="Add style..."
-              className="h-6 text-2xs"
-            />
+            <StylePicker selected={state.styles} onChange={(v) => setParam("styles", v)} />
           </SectionLeader>
           <SectionDivider />
         </>
