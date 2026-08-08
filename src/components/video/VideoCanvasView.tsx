@@ -39,6 +39,12 @@ const DOMAIN_LABELS: Record<string, string> = {
   ltx: "LTX",
 };
 
+// Still-mode results (frames <= 1 on modular models) arrive as a videos ref
+// whose format is an image; a <video> element cannot display those, so the
+// viewer swaps in an <img>. GIF is included because <video> cannot play it
+// either, while <img> animates it natively.
+const STILL_FORMATS = new Set(["png", "jpg", "jpeg", "webp", "gif"]);
+
 export function VideoCanvasView() {
   const layout = useVideoFrameLayout();
   const viewport = useVideoCanvasStore((s) => s.viewport);
@@ -392,7 +398,15 @@ export function VideoCanvasView() {
                 rightLabel={DOMAIN_LABELS[compareRight.domain] ?? compareRight.domain}
               />
             ) : !isGenerating && selectedResult?.videoUrl ? (
-              <VideoPlayer src={resolveImageSrc(selectedResult.videoUrl)} />
+              STILL_FORMATS.has(selectedResult.format) ? (
+                <img
+                  src={resolveImageSrc(selectedResult.videoUrl)}
+                  alt=""
+                  className="size-full object-contain"
+                />
+              ) : (
+                <VideoPlayer src={resolveImageSrc(selectedResult.videoUrl)} />
+              )
             ) : null}
           </div>
         )}

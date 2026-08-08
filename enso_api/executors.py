@@ -848,11 +848,50 @@ def execute_video(params: dict, job_id: str) -> dict:
             engine=engine,
             needs_load=needs_load,
         )
+        # Capture saved file paths BEFORE end() clears state.results; in still
+        # mode the product is an image saved through the regular sample path,
+        # and its filename only surfaces here
+        saved_paths = [str(p2) for p2 in (getattr(shared.state, "results", None) or [])]
     finally:
         shared.state.end(jobid)
 
     videos_refs: list[dict] = []
-    if res.video_path and os.path.isfile(str(res.video_path)):
+    if res.still:
+        still = res.images[0] if res.images else None
+        path = next((p2 for p2 in saved_paths if os.path.isfile(p2)), None)
+        if path is None and still is not None:
+            # samples_save disabled: nothing was written, so save the still
+            # directly to keep the job result addressable
+            from modules import images as img_module
+            from modules.paths import resolve_output_path
+
+            try:
+                output_dir = resolve_output_path(shared.opts.outdir_samples, shared.opts.outdir_video)
+                still_info = still.info.get("parameters") if isinstance(getattr(still, "info", None), dict) else None
+                saved = img_module.save_image(still, output_dir, "", seed=params.get("seed", -1), prompt=params.get("prompt", ""), info=still_info)
+                if saved and saved[0] and os.path.isfile(str(saved[0])):
+                    path = str(saved[0])
+            except Exception as e:
+                log.warning(f"Job {job_id}: failed to save video still: {e}")
+        if path:
+            ext = os.path.splitext(path)[1].lstrip(".").lower()
+            videos_refs.append(
+                {
+                    "index": 0,
+                    "path": path,
+                    # the still is its own thumbnail; the strip and the viewer
+                    # both render image formats directly
+                    "thumbnail_path": path,
+                    "url": f"/sdapi/v2/jobs/{job_id}/videos/0",
+                    "thumbnail_url": f"/sdapi/v2/jobs/{job_id}/videos/0/thumbnail",
+                    "width": still.width if still is not None else 0,
+                    "height": still.height if still is not None else 0,
+                    "format": ext or "png",
+                    "size": os.path.getsize(path),
+                    "duration": None,
+                }
+            )
+    elif res.video_path and os.path.isfile(str(res.video_path)):
         path = str(res.video_path)
         ext = os.path.splitext(path)[1].lstrip(".").lower()
         thumb_path = str(res.thumb_path) if res.thumb_path and os.path.isfile(str(res.thumb_path)) else None
@@ -863,8 +902,10 @@ def execute_video(params: dict, job_id: str) -> dict:
                 "thumbnail_path": thumb_path,
                 "url": f"/sdapi/v2/jobs/{job_id}/videos/0",
                 "thumbnail_url": f"/sdapi/v2/jobs/{job_id}/videos/0/thumbnail" if thumb_path else None,
-                "width": width,
-                "height": height,
+                # run() snaps generation size to 16px multiples; report what
+                # the file actually contains, not what was requested
+                "width": 16 * (int(width) // 16),
+                "height": 16 * (int(height) // 16),
                 "format": ext or "mp4",
                 "size": os.path.getsize(path),
                 "duration": round(res.num_frames / res.fps, 3) if res.fps > 0 else None,
