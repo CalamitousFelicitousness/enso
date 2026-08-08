@@ -53,11 +53,10 @@ function routeResult(domain: JobDomain, result: JobResult, snapshot: TrackedJob[
         .replaceProcessedImages(`${api.getBaseUrl()}${result.processed[0].url}`);
     }
   } else if (domain === "video" || domain === "framepack" || domain === "ltx") {
-    // Cloud video executor populates result.videos with a single VideoRef
-    // carrying its own thumbnail_url (sibling.thumb.png written by sdnext
-    // core). Local pipelines still place [video, thumbnail] into result.images.
-    // Prefer the cloud shape when present; fall back to the local shape so
-    // existing Wan/Hunyuan/FramePack/LTX flows keep working unchanged.
+    // The video and cloud_video executors populate result.videos with a single
+    // VideoRef carrying its own thumbnail_url. FramePack/LTX still place
+    // [video, thumbnail] into result.images; fall back to that shape so those
+    // flows keep working unchanged.
     const cloudVid = result.videos?.[0];
     if (cloudVid) {
       // Stored relative and resolved at render, like image results, so
