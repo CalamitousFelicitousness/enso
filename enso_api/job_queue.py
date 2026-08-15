@@ -304,7 +304,7 @@ class JobQueue:
             return
 
         if entry["lock"]:
-            self._run_local_job(job, entry["fn"], job_type)
+            self._run_local_job(job, entry["fn"], job_type, hold_lock=entry["lock"] is True)
         else:
             # Flip to 'running' synchronously before pool dispatch so the worker
             # loop can't see this row as pending and double-dispatch it.
@@ -314,7 +314,7 @@ class JobQueue:
             if self.store.next_pending():
                 self._job_event.set()
 
-    def _run_local_job(self, job: dict, executor_fn, job_type: str) -> None:
+    def _run_local_job(self, job: dict, executor_fn, job_type: str, hold_lock: bool = True) -> None:
         from modules import shared
         from modules.logger import log
 
@@ -343,7 +343,9 @@ class JobQueue:
         try:
             from modules.call_queue import queue_lock
 
-            with queue_lock:
+            # hold_lock=False for executors whose sdnext entry point acquires
+            # queue_lock internally; serialization still holds, just one level down
+            with queue_lock if hold_lock else contextlib.nullcontext():
                 if job_id in self._cancel_ids:
                     self._cancel_ids.discard(job_id)
                     self.store.update_status(job_id, "cancelled", completed_at=JobStore.now())

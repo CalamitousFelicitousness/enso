@@ -1387,8 +1387,10 @@ EXECUTORS = {
     "preprocess": {"fn": execute_preprocess, "lock": True},
     "detail": {"fn": execute_detail, "lock": True},
     "video": {"fn": execute_video, "lock": True},
-    "framepack": {"fn": execute_framepack, "lock": True},
-    "ltx": {"fn": execute_ltx, "lock": True},
+    # lock="internal": run_framepack/run_ltx acquire call_queue.queue_lock
+    # themselves; holding the non-reentrant lock here too deadlocks the worker
+    "framepack": {"fn": execute_framepack, "lock": "internal"},
+    "ltx": {"fn": execute_ltx, "lock": "internal"},
     "xyz-grid": {"fn": execute_xyz_grid_dispatch, "lock": True},
     "model-load": {"fn": execute_model_load, "lock": True},
     "model-merge": {"fn": execute_model_merge, "lock": True},
