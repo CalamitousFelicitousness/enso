@@ -1,4 +1,5 @@
 import type { ControlRequest } from "./generation";
+import type { FramePackParams, LtxParams, VideoParams } from "@/lib/openapi-generated/types.gen";
 
 // V1 alias keys for fields whose canonical names differ in the V2 schema.
 // Older PNG metadata in user history may carry these.
@@ -64,76 +65,10 @@ export type WireParams = Partial<ControlRequest> &
   LegacyUpscaleAfterWire &
   LegacyOverrideWire;
 
-// Video-side wire shape, kept separate from WireParams because the video
-// namespaces (engine, fp_*, ltx_*) do not belong in image-restore autocomplete.
-
-interface VideoSharedWire {
-  domain?: string;
-  type?: string;
-  engine?: string;
-  model?: string;
-  prompt?: string;
-  negative?: string;
-  width?: number;
-  height?: number;
-  frames?: number;
-  steps?: number;
-  seed?: number;
-  guidance_scale?: number;
-  guidance_true?: number;
-  sampler?: number;
-  sampler_shift?: number;
-  dynamic_shift?: boolean;
-  init_strength?: number;
-  vae_type?: string;
-  vae_tile_frames?: number;
-}
-
-interface VideoOutputWire {
-  fps?: number;
-  interpolate?: number;
-  codec?: string;
-  format?: string;
-  codec_options?: string;
-  save_video?: boolean;
-  save_frames?: boolean;
-  save_safetensors?: boolean;
-}
-
-interface FramePackWire {
-  fp_variant?: string;
-  fp_resolution?: number;
-  fp_duration?: number;
-  fp_latent_window_size?: number;
-  fp_steps?: number;
-  fp_shift?: number;
-  fp_cfg_scale?: number;
-  fp_cfg_distilled?: number;
-  fp_cfg_rescale?: number;
-  fp_start_weight?: number;
-  fp_end_weight?: number;
-  fp_vision_weight?: number;
-  fp_section_prompt?: string;
-  fp_system_prompt?: string;
-  fp_teacache?: boolean;
-  fp_optimized_prompt?: boolean;
-  fp_cfg_zero?: boolean;
-  fp_preview?: boolean;
-  fp_attention?: string;
-  fp_vae_type?: string;
-}
-
-interface LtxWire {
-  ltx_model?: string;
-  ltx_steps?: number;
-  ltx_decode_timestep?: number;
-  ltx_noise_scale?: number;
-  ltx_upsample_enable?: boolean;
-  ltx_upsample_ratio?: number;
-  ltx_refine_enable?: boolean;
-  ltx_refine_strength?: number;
-  ltx_condition_strength?: number;
-  ltx_audio_enable?: boolean;
-}
-
-export type VideoWireParams = VideoSharedWire & VideoOutputWire & FramePackWire & LtxWire;
+// Video-side wire shape: the union of the three video job params echoes,
+// kept separate from WireParams because the video vocabulary does not belong
+// in image-restore autocomplete. `type` is a per-job Literal (their
+// intersection is never) and is excluded from the echo server-side anyway.
+export type VideoWireParams = Partial<
+  Omit<VideoParams, "type"> & Omit<LtxParams, "type"> & Omit<FramePackParams, "type">
+>;

@@ -2,6 +2,14 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { VideoResult } from "@/api/types/video";
 import { createIdbListDb } from "@/lib/idbListDb";
+import {
+  VIDEO_PARAMS,
+  VIDEO_PARAM_DEFAULTS,
+  VIDEO_PARAM_KEYS,
+  coerce,
+  type VideoParamKey,
+  type VideoParamValues,
+} from "@/lib/video/paramRegistry";
 
 export const videoHistoryDb = createIdbListDb<VideoResult>({
   dbName: "SDNextVideoHistory",
@@ -9,87 +17,25 @@ export const videoHistoryDb = createIdbListDb<VideoResult>({
   sortKey: "timestamp",
 });
 
-interface VideoState {
-  // Shared. Engine + model are not stored here - they live on
-  // modelSelectionStore.activeModel as a LocalVideoModel (or a CloudModel
-  // for cloud video) and the Video panel reads them from there.
-  prompt: string;
-  negative: string;
-  styles: string[];
-  width: number;
-  height: number;
-  frames: number;
-  steps: number;
-  sampler: number;
-  samplerShift: number;
-  dynamicShift: boolean;
-  seed: number;
-  guidanceScale: number;
-  guidanceTrue: number;
-  initStrength: number;
-  vaeType: string;
-  vaeTileFrames: number;
-  audio: boolean;
-  fps: number;
-  interpolate: number;
-  codec: string;
-  format: string;
-  codecOptions: string;
-  outputPreset: string;
-  outputQuality: number;
-  saveVideo: boolean;
-  saveFrames: boolean;
-  saveSafetensors: boolean;
-  saveThumbnail: boolean;
-
-  // Shared input images (File objects, not persisted to localStorage)
+interface VideoState extends VideoParamValues {
+  // Shared input images (File objects, not persisted to localStorage).
+  // Engine + model live on modelSelectionStore.activeModel.
   initImage: File | null;
   lastImage: File | null;
-
-  // FramePack. fpVariant lives on activeModel; the rest are tunables.
-  fpResolution: number;
-  fpDuration: number;
-  fpLatentWindowSize: number;
-  fpSteps: number;
-  fpShift: number;
-  fpCfgScale: number;
-  fpCfgDistilled: number;
-  fpCfgRescale: number;
-  fpStartWeight: number;
-  fpEndWeight: number;
-  fpVisionWeight: number;
-  fpSectionPrompt: string;
-  fpSystemPrompt: string;
-  fpTeacache: boolean;
-  fpOptimizedPrompt: boolean;
-  fpCfgZero: boolean;
-  fpPreview: boolean;
-  fpAttention: string;
-  fpVaeType: string;
-
-  // LTX. ltxModel lives on activeModel; the rest are tunables.
-  ltxSteps: number;
-  ltxDecodeTimestep: number;
-  ltxNoiseScale: number;
-  ltxUpsampleEnable: boolean;
-  ltxUpsampleRatio: number;
-  ltxRefineEnable: boolean;
-  ltxRefineStrength: number;
-  ltxConditionStrength: number;
-  ltxAudioEnable: boolean;
-
-  // Cloud video. Provider + model come from modelSelectionStore.activeModel;
-  // these are the operational params the form binds to.
-  cloudAspectRatio: string;
-  cloudDuration: number;
 
   // Result history
   results: VideoResult[];
   selectedResultId: string | null;
   historyLimit: number;
 
+  /** Params the user explicitly changed since the last defaults
+   * application; drives the model-switch defaults policy. Not persisted -
+   * reseeded on rehydrate as "differs from the registry default". */
+  touched: ReadonlySet<VideoParamKey>;
+
   setParam: <K extends keyof VideoState>(key: K, value: VideoState[K]) => void;
   setParams: (params: Partial<VideoState>) => void;
+  applyCapsDefaults: (params: Partial<VideoParamValues>) => void;
   addResult: (result: VideoResult) => void;
   selectResult: (id: string | null) => void;
   clearResults: () => void;
@@ -97,86 +43,47 @@ interface VideoState {
   reset: () => void;
 }
 
-const defaultParams = {
-  prompt: "",
-  negative: "",
-  styles: [] as string[],
-  width: 848,
-  height: 480,
-  frames: 25,
-  steps: 30,
-  sampler: 0,
-  samplerShift: -1,
-  dynamicShift: false,
-  seed: -1,
-  guidanceScale: 6,
-  guidanceTrue: -1,
-  initStrength: 0.5,
-  vaeType: "Default",
-  vaeTileFrames: 0,
-  audio: true,
-  fps: 24,
-  interpolate: 0,
-  codec: "libx264",
-  format: "mp4",
-  codecOptions: "crf:16",
-  outputPreset: "balanced",
-  outputQuality: 70,
-  saveVideo: true,
-  saveFrames: false,
-  saveSafetensors: false,
-  saveThumbnail: true,
+function isParamKey(key: string): key is VideoParamKey {
+  return key in VIDEO_PARAMS;
+}
 
-  initImage: null as File | null,
-  lastImage: null as File | null,
-
-  fpResolution: 640,
-  fpDuration: 4,
-  fpLatentWindowSize: 9,
-  fpSteps: 25,
-  fpShift: 3,
-  fpCfgScale: 1,
-  fpCfgDistilled: 10,
-  fpCfgRescale: 0,
-  fpStartWeight: 1,
-  fpEndWeight: 1,
-  fpVisionWeight: 1,
-  fpSectionPrompt: "",
-  fpSystemPrompt: "",
-  fpTeacache: true,
-  fpOptimizedPrompt: true,
-  fpCfgZero: false,
-  fpPreview: true,
-  fpAttention: "Default",
-  fpVaeType: "Full",
-
-  ltxSteps: 50,
-  ltxDecodeTimestep: 0.05,
-  ltxNoiseScale: 0.025,
-  ltxUpsampleEnable: false,
-  ltxUpsampleRatio: 2,
-  ltxRefineEnable: false,
-  ltxRefineStrength: 0.4,
-  ltxConditionStrength: 0.8,
-  ltxAudioEnable: false,
-
-  cloudAspectRatio: "16:9",
-  cloudDuration: 5,
-};
-
-const defaultParamKeys = Object.keys(defaultParams) as (keyof typeof defaultParams)[];
+function withTouched(
+  touched: ReadonlySet<VideoParamKey>,
+  keys: string[],
+): ReadonlySet<VideoParamKey> {
+  const fresh = keys.filter((k): k is VideoParamKey => isParamKey(k) && !touched.has(k));
+  if (fresh.length === 0) return touched;
+  const next = new Set(touched);
+  for (const k of fresh) next.add(k);
+  return next;
+}
 
 export const useVideoStore = create<VideoState>()(
   persist(
     (set) => ({
-      ...defaultParams,
+      ...VIDEO_PARAM_DEFAULTS,
+
+      initImage: null as File | null,
+      lastImage: null as File | null,
 
       results: [],
       selectedResultId: null,
       historyLimit: 50,
+      touched: new Set<VideoParamKey>(),
 
-      setParam: (key, value) => set({ [key]: value }),
-      setParams: (params) => set(params),
+      setParam: (key, value) =>
+        set((s) => ({ [key]: value, touched: withTouched(s.touched, [key]) })),
+      setParams: (params) =>
+        set((s) => ({ ...params, touched: withTouched(s.touched, Object.keys(params)) })),
+
+      applyCapsDefaults: (params) =>
+        set((s) => {
+          const touched = new Set(s.touched);
+          for (const key of Object.keys(params)) {
+            if (isParamKey(key)) touched.delete(key);
+          }
+          return { ...params, touched };
+        }),
 
       addResult: (result) =>
         set((state) => {
@@ -196,19 +103,44 @@ export const useVideoStore = create<VideoState>()(
 
       setHistoryLimit: (limit) => set({ historyLimit: limit }),
 
-      reset: () => set({ ...defaultParams }),
+      reset: () => set({ ...VIDEO_PARAM_DEFAULTS, touched: new Set<VideoParamKey>() }),
     }),
     {
       name: "enso-video",
-      version: 5,
+      version: 6,
       partialize: (state) => {
         const p: Record<string, unknown> = {};
-        for (const key of defaultParamKeys) {
-          if (key === "initImage" || key === "lastImage") continue;
+        for (const key of VIDEO_PARAM_KEYS) {
           p[key] = state[key];
         }
         p["historyLimit"] = state.historyLimit;
         return p;
+      },
+      // Keep every persisted key that is still a registry param and still
+      // type-checks; drop the rest. Param adds/removes need no version bump;
+      // a key whose meaning changes needs an explicit branch keyed on the
+      // from-version.
+      migrate: (persisted) => {
+        const p = (persisted ?? {}) as Record<string, unknown>;
+        const out: Record<string, unknown> = {};
+        for (const key of VIDEO_PARAM_KEYS) {
+          const v = coerce(VIDEO_PARAMS[key].kind, p[key]);
+          if (v !== undefined) out[key] = v;
+        }
+        if (typeof p["historyLimit"] === "number") out["historyLimit"] = p["historyLimit"];
+        return out;
+      },
+      merge: (persisted, current) => {
+        const p = (persisted ?? {}) as Partial<VideoState>;
+        // Persisted values that differ from the registry default are presumed
+        // user-touched; touched itself is never persisted.
+        const touched = new Set<VideoParamKey>();
+        for (const key of VIDEO_PARAM_KEYS) {
+          if (key in p && JSON.stringify(p[key]) !== JSON.stringify(VIDEO_PARAM_DEFAULTS[key])) {
+            touched.add(key);
+          }
+        }
+        return { ...current, ...p, touched };
       },
     },
   ),

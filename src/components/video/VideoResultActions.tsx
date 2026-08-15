@@ -73,20 +73,20 @@ export function VideoResultActions({ result }: VideoResultActionsProps) {
   }, [videoSrc]);
 
   const handleReuseSettings = useCallback(() => {
-    restoreVideoSettings(result.params);
+    restoreVideoSettings(result.params, result.domain);
     toast.success("Video settings restored");
-  }, [result.params]);
+  }, [result.params, result.domain]);
 
   const handleExtend = useCallback(async () => {
     try {
       const blob = await extractFrameFromVideo(videoSrc, 999999);
       void sendFrameToVideoInit(blob);
-      restoreVideoSettings(result.params);
+      restoreVideoSettings(result.params, result.domain);
       toast.success("Ready to extend video");
     } catch {
       toast.error("Failed to extract frame");
     }
-  }, [videoSrc, result.params]);
+  }, [videoSrc, result.params, result.domain]);
 
   return (
     <>

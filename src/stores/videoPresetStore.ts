@@ -1,8 +1,9 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { useVideoStore } from "@/stores/videoStore";
+import { presetKeysFor, type VideoJobType } from "@/lib/video/paramRegistry";
 
-export type PresetDomain = "video" | "framepack" | "ltx";
+export type PresetDomain = VideoJobType;
 
 export interface VideoPreset {
   id: string;
@@ -13,85 +14,12 @@ export interface VideoPreset {
   builtIn?: boolean;
 }
 
-const SHARED_PARAM_KEYS = [
-  "width",
-  "height",
-  "frames",
-  "steps",
-  "sampler",
-  "samplerShift",
-  "dynamicShift",
-  "seed",
-  "guidanceScale",
-  "guidanceTrue",
-  "initStrength",
-  "vaeType",
-  "vaeTileFrames",
-] as const;
-
-const OUTPUT_PARAM_KEYS = [
-  "fps",
-  "interpolate",
-  "codec",
-  "format",
-  "codecOptions",
-  "outputPreset",
-  "outputQuality",
-  "saveVideo",
-  "saveFrames",
-  "saveSafetensors",
-] as const;
-
-// Note: variant lives on modelSelectionStore.activeModel as a
-// LocalVideoModel, not in videoStore. Presets only carry tunable params;
-// the user picks variant via the top selector.
-const FP_PARAM_KEYS = [
-  "fpResolution",
-  "fpDuration",
-  "fpLatentWindowSize",
-  "fpSteps",
-  "fpShift",
-  "fpCfgScale",
-  "fpCfgDistilled",
-  "fpCfgRescale",
-  "fpStartWeight",
-  "fpEndWeight",
-  "fpVisionWeight",
-  "fpSectionPrompt",
-  "fpSystemPrompt",
-  "fpTeacache",
-  "fpOptimizedPrompt",
-  "fpCfgZero",
-  "fpPreview",
-  "fpAttention",
-  "fpVaeType",
-] as const;
-
-// Note: ltxModel lives on activeModel; preset carries only tunables.
-const LTX_PARAM_KEYS = [
-  "ltxSteps",
-  "ltxDecodeTimestep",
-  "ltxNoiseScale",
-  "ltxUpsampleEnable",
-  "ltxUpsampleRatio",
-  "ltxRefineEnable",
-  "ltxRefineStrength",
-  "ltxConditionStrength",
-  "ltxAudioEnable",
-] as const;
-
-function keysForDomain(domain: PresetDomain): readonly string[] {
-  const base: string[] = [...SHARED_PARAM_KEYS, ...OUTPUT_PARAM_KEYS];
-  if (domain === "framepack") return [...base, ...FP_PARAM_KEYS];
-  if (domain === "ltx") return [...base, ...LTX_PARAM_KEYS];
-  return base;
-}
-
+// Model identity (engine/model/variant) lives on modelSelectionStore
+// .activeModel, not in videoStore; presets carry only tunable params.
 export function snapshotParams(domain: PresetDomain): Record<string, unknown> {
   const state = useVideoStore.getState() as unknown as Record<string, unknown>;
-  const keys = keysForDomain(domain);
   const snap: Record<string, unknown> = {};
-  for (const k of keys) {
+  for (const k of presetKeysFor(domain)) {
     snap[k] = state[k];
   }
   return snap;

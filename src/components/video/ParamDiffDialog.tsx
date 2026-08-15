@@ -13,131 +13,25 @@ import {
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useVideoStore } from "@/stores/videoStore";
+import { WIRE_TO_STORE, VIDEO_PARAM_KEYS, type VideoJobType } from "@/lib/video/paramRegistry";
 import type { VideoWireParams } from "@/api/types/wireParams";
 
 interface ParamDiffDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   resultParams: VideoWireParams;
-  domain: string;
+  domain: VideoJobType;
 }
 
-const SHARED_KEYS = [
-  "engine",
-  "model",
-  "prompt",
-  "negative",
-  "width",
-  "height",
-  "frames",
-  "steps",
-  "sampler",
-  "samplerShift",
-  "dynamicShift",
-  "seed",
-  "guidanceScale",
-  "guidanceTrue",
-  "initStrength",
-  "vaeType",
-  "vaeTileFrames",
-];
-
-const OUTPUT_KEYS = [
-  "fps",
-  "interpolate",
-  "codec",
-  "format",
-  "codecOptions",
-  "saveVideo",
-  "saveFrames",
-  "saveSafetensors",
-];
-
-const FP_KEYS = [
-  "fpVariant",
-  "fpResolution",
-  "fpDuration",
-  "fpLatentWindowSize",
-  "fpSteps",
-  "fpShift",
-  "fpCfgScale",
-  "fpCfgDistilled",
-  "fpCfgRescale",
-  "fpStartWeight",
-  "fpEndWeight",
-  "fpVisionWeight",
-  "fpSectionPrompt",
-  "fpSystemPrompt",
-  "fpTeacache",
-  "fpOptimizedPrompt",
-  "fpCfgZero",
-  "fpPreview",
-  "fpAttention",
-  "fpVaeType",
-];
-
-const LTX_KEYS = [
-  "ltxModel",
-  "ltxSteps",
-  "ltxDecodeTimestep",
-  "ltxNoiseScale",
-  "ltxUpsampleEnable",
-  "ltxUpsampleRatio",
-  "ltxRefineEnable",
-  "ltxRefineStrength",
-  "ltxConditionStrength",
-  "ltxAudioEnable",
-];
-
-const API_TO_STORE: Record<string, string> = {
-  guidance_scale: "guidanceScale",
-  guidance_true: "guidanceTrue",
-  sampler_shift: "samplerShift",
-  dynamic_shift: "dynamicShift",
-  init_strength: "initStrength",
-  vae_type: "vaeType",
-  vae_tile_frames: "vaeTileFrames",
-  codec_options: "codecOptions",
-  save_video: "saveVideo",
-  save_frames: "saveFrames",
-  save_safetensors: "saveSafetensors",
-  fp_variant: "fpVariant",
-  fp_resolution: "fpResolution",
-  fp_duration: "fpDuration",
-  fp_latent_window_size: "fpLatentWindowSize",
-  fp_steps: "fpSteps",
-  fp_shift: "fpShift",
-  fp_cfg_scale: "fpCfgScale",
-  fp_cfg_distilled: "fpCfgDistilled",
-  fp_cfg_rescale: "fpCfgRescale",
-  fp_start_weight: "fpStartWeight",
-  fp_end_weight: "fpEndWeight",
-  fp_vision_weight: "fpVisionWeight",
-  fp_section_prompt: "fpSectionPrompt",
-  fp_system_prompt: "fpSystemPrompt",
-  fp_teacache: "fpTeacache",
-  fp_optimized_prompt: "fpOptimizedPrompt",
-  fp_cfg_zero: "fpCfgZero",
-  fp_preview: "fpPreview",
-  fp_attention: "fpAttention",
-  fp_vae_type: "fpVaeType",
-  ltx_model: "ltxModel",
-  ltx_steps: "ltxSteps",
-  ltx_decode_timestep: "ltxDecodeTimestep",
-  ltx_noise_scale: "ltxNoiseScale",
-  ltx_upsample_enable: "ltxUpsampleEnable",
-  ltx_upsample_ratio: "ltxUpsampleRatio",
-  ltx_refine_enable: "ltxRefineEnable",
-  ltx_refine_strength: "ltxRefineStrength",
-  ltx_condition_strength: "ltxConditionStrength",
-  ltx_audio_enable: "ltxAudioEnable",
-};
-
-function normalizeResultParams(raw: VideoWireParams): Record<string, unknown> {
+function normalizeResultParams(
+  raw: VideoWireParams,
+  domain: VideoJobType,
+): Record<string, unknown> {
+  const map = WIRE_TO_STORE[domain];
   const out: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(raw)) {
-    const storeKey = API_TO_STORE[k] ?? k;
-    out[storeKey] = v;
+    const storeKey = map[k];
+    if (storeKey) out[storeKey] = v;
   }
   return out;
 }
@@ -147,13 +41,6 @@ function formatValue(v: unknown): string {
   if (typeof v === "boolean") return v ? "Yes" : "No";
   if (typeof v === "string") return v || '""';
   return toDisplayString(v);
-}
-
-function keysForDomain(domain: string): string[] {
-  const keys = [...SHARED_KEYS, ...OUTPUT_KEYS];
-  if (domain === "framepack" || domain === "") keys.push(...FP_KEYS);
-  if (domain === "ltx" || domain === "") keys.push(...LTX_KEYS);
-  return keys;
 }
 
 interface DiffRow {
@@ -172,23 +59,23 @@ export function ParamDiffDialog({
   const storeState = useVideoStore();
   const setParams = useVideoStore((s) => s.setParams);
 
-  const normalized = useMemo(() => normalizeResultParams(resultParams), [resultParams]);
+  const normalized = useMemo(
+    () => normalizeResultParams(resultParams, domain),
+    [resultParams, domain],
+  );
 
   const rows = useMemo<DiffRow[]>(() => {
-    const keys = keysForDomain(domain);
-    return keys
-      .filter((k) => k in normalized)
-      .map((k) => {
-        const current = (storeState as unknown as Record<string, unknown>)[k];
-        const result = normalized[k];
-        return {
-          key: k,
-          current,
-          result,
-          changed: JSON.stringify(current) !== JSON.stringify(result),
-        };
-      });
-  }, [storeState, normalized, domain]);
+    return VIDEO_PARAM_KEYS.filter((k) => k in normalized).map((k) => {
+      const current = (storeState as unknown as Record<string, unknown>)[k];
+      const result = normalized[k];
+      return {
+        key: k,
+        current,
+        result,
+        changed: JSON.stringify(current) !== JSON.stringify(result),
+      };
+    });
+  }, [storeState, normalized]);
 
   const changedCount = rows.filter((r) => r.changed).length;
 

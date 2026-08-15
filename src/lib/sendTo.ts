@@ -11,6 +11,7 @@ import { engineToKind } from "@/lib/videoModel";
 import type { DragPayload } from "@/stores/dragStore";
 import type { LocalVideoModel } from "@/api/types/cloud";
 import type { VideoWireParams } from "@/api/types/wireParams";
+import { VIDEO_PARAMS, WIRE_TO_STORE, coerce, type VideoJobType } from "@/lib/video/paramRegistry";
 
 export function extractFrameFromVideo(videoUrl: string, time: number): Promise<Blob> {
   return new Promise((resolve, reject) => {
@@ -149,107 +150,36 @@ export function appendToGenerationPrompt(text: string) {
   gen.setParam("prompt", current ? `${current} ${text}` : text);
 }
 
-export function restoreVideoSettings(params: VideoWireParams) {
-  const num = (v: unknown, fallback?: number) => (typeof v === "number" ? v : fallback);
-  const str = (v: unknown, fallback?: string) => (typeof v === "string" ? v : fallback);
-  const bool = (v: unknown, fallback?: boolean) => (typeof v === "boolean" ? v : fallback);
+export function restoreVideoSettings(params: VideoWireParams, domain: VideoJobType = "video") {
+  const str = (v: unknown) => (typeof v === "string" ? v : undefined);
 
-  type WireMap = Record<string, (p: VideoWireParams) => unknown>;
-
-  const sharedKeyMap: WireMap = {
-    prompt: (p) => str(p.prompt),
-    negative: (p) => str(p.negative),
-    width: (p) => num(p.width),
-    height: (p) => num(p.height),
-    frames: (p) => num(p.frames),
-    steps: (p) => num(p.steps),
-    seed: (p) => num(p.seed),
-    guidanceScale: (p) => num(p.guidance_scale),
-    guidanceTrue: (p) => num(p.guidance_true),
-    sampler: (p) => num(p.sampler),
-    samplerShift: (p) => num(p.sampler_shift),
-    dynamicShift: (p) => bool(p.dynamic_shift),
-    initStrength: (p) => num(p.init_strength),
-    vaeType: (p) => str(p.vae_type),
-    vaeTileFrames: (p) => num(p.vae_tile_frames),
-  };
-
-  const outputKeyMap: WireMap = {
-    fps: (p) => num(p.fps),
-    interpolate: (p) => num(p.interpolate),
-    codec: (p) => str(p.codec),
-    format: (p) => str(p.format),
-    codecOptions: (p) => str(p.codec_options),
-    saveVideo: (p) => bool(p.save_video),
-    saveFrames: (p) => bool(p.save_frames),
-    saveSafetensors: (p) => bool(p.save_safetensors),
-  };
-
-  const fpKeyMap: WireMap = {
-    fpResolution: (p) => num(p.fp_resolution),
-    fpDuration: (p) => num(p.fp_duration),
-    fpLatentWindowSize: (p) => num(p.fp_latent_window_size),
-    fpSteps: (p) => num(p.fp_steps),
-    fpShift: (p) => num(p.fp_shift),
-    fpCfgScale: (p) => num(p.fp_cfg_scale),
-    fpCfgDistilled: (p) => num(p.fp_cfg_distilled),
-    fpCfgRescale: (p) => num(p.fp_cfg_rescale),
-    fpStartWeight: (p) => num(p.fp_start_weight),
-    fpEndWeight: (p) => num(p.fp_end_weight),
-    fpVisionWeight: (p) => num(p.fp_vision_weight),
-    fpSectionPrompt: (p) => str(p.fp_section_prompt),
-    fpSystemPrompt: (p) => str(p.fp_system_prompt),
-    fpTeacache: (p) => bool(p.fp_teacache),
-    fpOptimizedPrompt: (p) => bool(p.fp_optimized_prompt),
-    fpCfgZero: (p) => bool(p.fp_cfg_zero),
-    fpPreview: (p) => bool(p.fp_preview),
-    fpAttention: (p) => str(p.fp_attention),
-    fpVaeType: (p) => str(p.fp_vae_type),
-  };
-
-  const ltxKeyMap: WireMap = {
-    ltxSteps: (p) => num(p.ltx_steps),
-    ltxDecodeTimestep: (p) => num(p.ltx_decode_timestep),
-    ltxNoiseScale: (p) => num(p.ltx_noise_scale),
-    ltxUpsampleEnable: (p) => bool(p.ltx_upsample_enable),
-    ltxUpsampleRatio: (p) => num(p.ltx_upsample_ratio),
-    ltxRefineEnable: (p) => bool(p.ltx_refine_enable),
-    ltxRefineStrength: (p) => num(p.ltx_refine_strength),
-    ltxConditionStrength: (p) => num(p.ltx_condition_strength),
-    ltxAudioEnable: (p) => bool(p.ltx_audio_enable),
-  };
-
-  const domain = str(params.domain ?? params.type, "") as string;
-  const maps: WireMap[] = [sharedKeyMap, outputKeyMap];
-  if (domain === "framepack" || domain === "") maps.push(fpKeyMap);
-  if (domain === "ltx" || domain === "") maps.push(ltxKeyMap);
-
+  const map = WIRE_TO_STORE[domain];
   const updates: Record<string, unknown> = {};
-  for (const map of maps) {
-    for (const [storeKey, extractor] of Object.entries(map)) {
-      const value = extractor(params);
-      if (value !== undefined) updates[storeKey] = value;
-    }
+  for (const [wireKey, value] of Object.entries(params)) {
+    const storeKey = map[wireKey];
+    if (!storeKey) continue;
+    const coerced = coerce(VIDEO_PARAMS[storeKey].kind, value);
+    if (coerced !== undefined) updates[storeKey] = coerced;
   }
 
   if (Object.keys(updates).length > 0) {
     useVideoStore.getState().setParams(updates);
   }
 
-  // Restore the engine/model selection too. The wire payload identifies the
-  // model by engine + model (generic), fp_variant (FramePack), or ltx_model
-  // (LTX). Synthesise a LocalVideoModel and set it as activeModel so the
-  // top-level selector + Video panel both reflect the historical choice.
-  // mode/cached/loaded aren't on the wire - they default to safe values and
-  // get refreshed if the user re-picks the same model from the dropdown.
+  // Restore the engine/model selection too. The params echo identifies the
+  // model by engine + model (generic), variant (FramePack), or model (LTX).
+  // Synthesise a LocalVideoModel and set it as activeModel so the top-level
+  // selector + Video panel both reflect the historical choice. mode/cached/
+  // loaded aren't on the wire - they default to safe values and get
+  // refreshed if the user re-picks the same model from the dropdown.
   let engineName: string | undefined;
   let modelName: string | undefined;
   if (domain === "framepack") {
     engineName = "FramePack";
-    modelName = str(params.fp_variant);
+    modelName = str(params.variant);
   } else if (domain === "ltx") {
     engineName = "LTX Video";
-    modelName = str(params.ltx_model);
+    modelName = str(params.model);
   } else {
     engineName = str(params.engine);
     modelName = str(params.model);
