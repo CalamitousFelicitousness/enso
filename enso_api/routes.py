@@ -25,6 +25,7 @@ from enso_api.models import (
     VideoEngine,
     VideoLoadResponse,
     VideoModel,
+    VideoModelCapsV2,
     VideoModelEnriched,
 )
 from enso_api.ws_models import WsEvent, WsEventPing
@@ -336,28 +337,12 @@ async def get_output(output_id: str):
     )
 
 
-def video_model_mode(model) -> str:
-    # mirrors the dispatch order in video_run.run: workflow models route on
-    # their declared workflow, the rest on name markers
-    if model.workflow is not None:
-        return "workflow"
-    lower = model.name.lower()
-    if "flf2v" in lower:
-        return "flf2v"
-    if "vace" in lower:
-        return "vace"
-    if "animate" in lower:
-        return "animate"
-    if "i2v" in lower:
-        return "i2v"
-    return "t2v"
-
-
 @router.get("/video/engines", response_model=list[VideoEngine], tags=["Video"])
 async def list_video_engines():
     from modules.video_models import models_def, video_load
 
     from enso_api.util import is_model_cached
+    from enso_api.video_caps import group_paths, video_model_mode
 
     current_loaded = video_load.loaded_model
     result = []
@@ -365,6 +350,7 @@ async def list_video_engines():
         if engine_name == "None":
             continue
         model_names = [m.name for m in model_list if models_def.is_model(m)]
+        groups = group_paths(model_list)
         details = []
         for m in model_list:
             if not models_def.is_model(m):
@@ -372,9 +358,53 @@ async def list_video_engines():
             cached = is_model_cached(m.repo) if m.repo else False
             loaded = m.name == current_loaded if current_loaded else False
             mode = video_model_mode(m)
-            details.append(VideoModelEnriched(name=m.name, repo=m.repo or "", url=m.url or "", cached=cached, loaded=loaded, mode=mode, workflow=m.workflow))
+            details.append(VideoModelEnriched(name=m.name, repo=m.repo or "", url=m.url or "", cached=cached, loaded=loaded, mode=mode, workflow=m.workflow, group_path=groups.get(m.name, [])))
         result.append({"engine": engine_name, "models": model_names, "model_details": details})
     return result
+
+
+@router.get("/video/capabilities", response_model=list[VideoModelCapsV2], tags=["Video"])
+async def list_video_capabilities():
+    from enso_api.video_caps import all_caps
+
+    return await asyncio.to_thread(all_caps)
+
+
+@router.get("/video/capabilities/{engine}/{model}", response_model=VideoModelCapsV2, tags=["Video"])
+async def get_video_capabilities(engine: str, model: str):
+    from modules.framepack import framepack_load
+    from modules.video_models import models_def, video_run
+
+    from enso_api.video_caps import framepack_caps, resolve_caps
+
+    if engine == "FramePack":
+        if model in framepack_load.models:
+            return framepack_caps(model)
+        raise HTTPException(status_code=404, detail=f"FramePack variant not found: {model}")
+    if engine == "Loaded":
+        try:
+            selected, _needs_load = video_run.resolve_model(None, None)
+        except video_run.VideoError as e:
+            raise HTTPException(status_code=e.code, detail=str(e)) from e
+        engine_name = next((eng for eng, rows in models_def.models.items() if selected in rows), "Loaded")
+        return resolve_caps(engine_name, selected)
+    row = models_def.find(engine, model)
+    if row is None:
+        raise HTTPException(status_code=404, detail=f"Model not found: {engine}/{model}")
+    return resolve_caps(engine, row)
+
+
+@router.post("/video/unload", response_model=MessageResponse, tags=["Video"])
+async def unload_video_model():
+    def unload():
+        from modules import sd_models
+        from modules.call_queue import queue_lock
+
+        with queue_lock:
+            sd_models.unload_model_weights()
+
+    await asyncio.to_thread(unload)
+    return {"messages": ["Model unloaded"]}
 
 
 @router.get("/video/engines/{engine}/models", response_model=list[VideoModel], tags=["Video"])

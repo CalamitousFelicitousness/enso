@@ -187,9 +187,10 @@ class ResBulkJobV2(BaseModel):
     affected: int
 
 
-VideoMode = Literal["workflow", "t2v", "i2v", "flf2v", "vace", "animate"]
+VideoMode = Literal["workflow", "t2v", "i2v", "flf2v", "vace", "animate", "cond2v", "unknown"]
 """Video pipeline mode. Mirrors the TS ``VideoMode`` literal in
-``src/api/types/video.ts``."""
+``src/api/types/video.ts``. ``cond2v`` is the LTX multi-condition family;
+``unknown`` marks rows the generic dispatch wires no inputs for."""
 
 
 class VideoModelEnriched(BaseModel):
@@ -207,6 +208,7 @@ class VideoModelEnriched(BaseModel):
     loaded: bool
     mode: VideoMode
     workflow: str | None
+    group_path: list[str] = Field(default_factory=list)
 
 
 class VideoEngine(BaseModel):
@@ -226,6 +228,136 @@ class ReqVideoLoadV2(StrictBaseModel):
 
     engine: str = Field(title="Engine", description="Video engine name (e.g. wan, hunyuan)")
     model: str = Field(title="Model", description="Model name within the engine")
+
+
+VideoJobType = Literal["video", "ltx", "framepack"]
+VideoInputReq = Literal["required", "optional", "ignored"]
+VideoVaeType = Literal["Default", "Full", "Tiny", "Remote", "Upscale"]
+VideoSizingMode = Literal["dimensions", "resolution"]
+VideoLengthMode = Literal["frames", "duration"]
+VideoCapsSource = Literal["table", "ltx", "minimax", "framepack"]
+
+
+class VideoFrameRuleV2(BaseModel):
+    """Valid frame counts: multiple*n + offset, clamped to [min, max]."""
+
+    multiple: int = 1
+    offset: int = 0
+    min: int = 1
+    max: int = 1024
+
+
+class VideoDurationRuleV2(BaseModel):
+    """Clip length bounds in seconds for duration-driven engines."""
+
+    min: float = 1.0
+    max: float = 120.0
+    step: float = 0.1
+
+
+class VideoReferenceCapsV2(BaseModel):
+    """Reference-image contract; counts reflect what the V2 wire can carry."""
+
+    supported: bool = False
+    required: bool = False
+    max_images: int = 0
+    max_videos: int = 0
+    max_audio: int = 0
+    max_total: int = 0
+    aspect_min: float = 0.25
+    aspect_max: float = 4.0
+    ordered: bool = False
+
+
+class VideoAudioCapsV2(BaseModel):
+    produces_audio: bool = False
+    gateable: bool = False
+    sample_rate: int | None = None
+
+
+class VideoSamplerCapsV2(BaseModel):
+    selectable: bool = True
+    fixed_name: str | None = None
+    shift_applicable: bool = True
+    dynamic_shift_applicable: bool = True
+
+
+class VideoGuidanceCapsV2(BaseModel):
+    cfg_applicable: bool = True
+    true_cfg_applicable: bool = True
+    negative_prompt_applicable: bool = True
+    distilled: bool = False
+
+
+class VideoStageCapsV2(BaseModel):
+    upsample: bool = False
+    refine: bool = False
+    auto_duration: bool = False
+    multi_condition: bool = False
+    stg: bool = False
+    decode_timestep: bool = False
+    image_cond_noise_scale: bool = False
+
+
+class VideoDefaultsV2(BaseModel):
+    """Per-model starting values; -1 keeps the pipeline default."""
+
+    width: int = 1024
+    height: int = 576
+    frames: int = 17
+    steps: int = 50
+    guidance_scale: float = -1.0
+    sampler_shift: float = -1.0
+    dynamic_shift: bool = False
+    fps: int = 24
+    resolution: int | None = None
+    duration: float | None = None
+
+
+class VideoModelCapsV2(BaseModel):
+    """Declarative capability descriptor for one video model.
+
+    Every field is always present with an honest value; fields whose value
+    is a table declaration standing in for a runtime probe are named in
+    ``unverified``.
+    """
+
+    engine: str
+    model: str
+    job_type: VideoJobType = "video"
+    mode: VideoMode = "t2v"
+    workflow: str | None = None
+    init_image: VideoInputReq = "ignored"
+    last_image: VideoInputReq = "ignored"
+    init_strength_applicable: bool = False
+    references: VideoReferenceCapsV2 = Field(default_factory=VideoReferenceCapsV2)
+    supports_still: bool = False
+    sizing_mode: VideoSizingMode = "dimensions"
+    canvas_multiple: int = 16
+    min_width: int = 256
+    max_width: int = 1920
+    min_height: int = 256
+    max_height: int = 1920
+    resolution_min: int = 0
+    resolution_max: int = 0
+    resolution_multiple: int = 16
+    length_mode: VideoLengthMode = "frames"
+    frame_rule: VideoFrameRuleV2 = Field(default_factory=VideoFrameRuleV2)
+    duration_rule: VideoDurationRuleV2 | None = None
+    fps_fixed: int | None = None
+    fps_min: int = 1
+    fps_max: int = 60
+    max_duration: float | None = None
+    vae_types: list[VideoVaeType] = Field(default_factory=lambda: ["Default"])
+    sampler: VideoSamplerCapsV2 = Field(default_factory=VideoSamplerCapsV2)
+    guidance: VideoGuidanceCapsV2 = Field(default_factory=VideoGuidanceCapsV2)
+    audio: VideoAudioCapsV2 = Field(default_factory=VideoAudioCapsV2)
+    stages: VideoStageCapsV2 = Field(default_factory=VideoStageCapsV2)
+    defaults: VideoDefaultsV2 = Field(default_factory=VideoDefaultsV2)
+    source: VideoCapsSource = "table"
+    unverified: list[str] = Field(default_factory=list)
+    gated_repo: bool = False
+    remote: bool = False
 
 
 class ReqFramePackLoadV2(StrictBaseModel):

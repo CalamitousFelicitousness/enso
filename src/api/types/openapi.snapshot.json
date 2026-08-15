@@ -8760,6 +8760,124 @@
         "title": "VersionInfoV2",
         "type": "object"
       },
+      "VideoAudioCapsV2": {
+        "properties": {
+          "gateable": {
+            "default": false,
+            "title": "Gateable",
+            "type": "boolean"
+          },
+          "produces_audio": {
+            "default": false,
+            "title": "Produces Audio",
+            "type": "boolean"
+          },
+          "sample_rate": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sample Rate"
+          }
+        },
+        "title": "VideoAudioCapsV2",
+        "type": "object"
+      },
+      "VideoDefaultsV2": {
+        "description": "Per-model starting values; -1 keeps the pipeline default.",
+        "properties": {
+          "duration": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration"
+          },
+          "dynamic_shift": {
+            "default": false,
+            "title": "Dynamic Shift",
+            "type": "boolean"
+          },
+          "fps": {
+            "default": 24,
+            "title": "Fps",
+            "type": "integer"
+          },
+          "frames": {
+            "default": 17,
+            "title": "Frames",
+            "type": "integer"
+          },
+          "guidance_scale": {
+            "default": -1,
+            "title": "Guidance Scale",
+            "type": "number"
+          },
+          "height": {
+            "default": 576,
+            "title": "Height",
+            "type": "integer"
+          },
+          "resolution": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolution"
+          },
+          "sampler_shift": {
+            "default": -1,
+            "title": "Sampler Shift",
+            "type": "number"
+          },
+          "steps": {
+            "default": 50,
+            "title": "Steps",
+            "type": "integer"
+          },
+          "width": {
+            "default": 1024,
+            "title": "Width",
+            "type": "integer"
+          }
+        },
+        "title": "VideoDefaultsV2",
+        "type": "object"
+      },
+      "VideoDurationRuleV2": {
+        "description": "Clip length bounds in seconds for duration-driven engines.",
+        "properties": {
+          "max": {
+            "default": 120,
+            "title": "Max",
+            "type": "number"
+          },
+          "min": {
+            "default": 1,
+            "title": "Min",
+            "type": "number"
+          },
+          "step": {
+            "default": 0.1,
+            "title": "Step",
+            "type": "number"
+          }
+        },
+        "title": "VideoDurationRuleV2",
+        "type": "object"
+      },
       "VideoEngine": {
         "properties": {
           "engine": {
@@ -8786,6 +8904,59 @@
           "models"
         ],
         "title": "VideoEngine",
+        "type": "object"
+      },
+      "VideoFrameRuleV2": {
+        "description": "Valid frame counts: multiple*n + offset, clamped to [min, max].",
+        "properties": {
+          "max": {
+            "default": 1024,
+            "title": "Max",
+            "type": "integer"
+          },
+          "min": {
+            "default": 1,
+            "title": "Min",
+            "type": "integer"
+          },
+          "multiple": {
+            "default": 1,
+            "title": "Multiple",
+            "type": "integer"
+          },
+          "offset": {
+            "default": 0,
+            "title": "Offset",
+            "type": "integer"
+          }
+        },
+        "title": "VideoFrameRuleV2",
+        "type": "object"
+      },
+      "VideoGuidanceCapsV2": {
+        "properties": {
+          "cfg_applicable": {
+            "default": true,
+            "title": "Cfg Applicable",
+            "type": "boolean"
+          },
+          "distilled": {
+            "default": false,
+            "title": "Distilled",
+            "type": "boolean"
+          },
+          "negative_prompt_applicable": {
+            "default": true,
+            "title": "Negative Prompt Applicable",
+            "type": "boolean"
+          },
+          "true_cfg_applicable": {
+            "default": true,
+            "title": "True Cfg Applicable",
+            "type": "boolean"
+          }
+        },
+        "title": "VideoGuidanceCapsV2",
         "type": "object"
       },
       "VideoLoadResponse": {
@@ -8837,12 +9008,267 @@
         "title": "VideoModel",
         "type": "object"
       },
+      "VideoModelCapsV2": {
+        "description": "Declarative capability descriptor for one video model.\n\nEvery field is always present with an honest value; fields whose value\nis a table declaration standing in for a runtime probe are named in\n``unverified``.",
+        "properties": {
+          "audio": {
+            "$ref": "#/components/schemas/VideoAudioCapsV2"
+          },
+          "canvas_multiple": {
+            "default": 16,
+            "title": "Canvas Multiple",
+            "type": "integer"
+          },
+          "defaults": {
+            "$ref": "#/components/schemas/VideoDefaultsV2"
+          },
+          "duration_rule": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/VideoDurationRuleV2"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "engine": {
+            "title": "Engine",
+            "type": "string"
+          },
+          "fps_fixed": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fps Fixed"
+          },
+          "fps_max": {
+            "default": 60,
+            "title": "Fps Max",
+            "type": "integer"
+          },
+          "fps_min": {
+            "default": 1,
+            "title": "Fps Min",
+            "type": "integer"
+          },
+          "frame_rule": {
+            "$ref": "#/components/schemas/VideoFrameRuleV2"
+          },
+          "gated_repo": {
+            "default": false,
+            "title": "Gated Repo",
+            "type": "boolean"
+          },
+          "guidance": {
+            "$ref": "#/components/schemas/VideoGuidanceCapsV2"
+          },
+          "init_image": {
+            "default": "ignored",
+            "enum": [
+              "required",
+              "optional",
+              "ignored"
+            ],
+            "title": "Init Image",
+            "type": "string"
+          },
+          "init_strength_applicable": {
+            "default": false,
+            "title": "Init Strength Applicable",
+            "type": "boolean"
+          },
+          "job_type": {
+            "default": "video",
+            "enum": [
+              "video",
+              "ltx",
+              "framepack"
+            ],
+            "title": "Job Type",
+            "type": "string"
+          },
+          "last_image": {
+            "default": "ignored",
+            "enum": [
+              "required",
+              "optional",
+              "ignored"
+            ],
+            "title": "Last Image",
+            "type": "string"
+          },
+          "length_mode": {
+            "default": "frames",
+            "enum": [
+              "frames",
+              "duration"
+            ],
+            "title": "Length Mode",
+            "type": "string"
+          },
+          "max_duration": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Duration"
+          },
+          "max_height": {
+            "default": 1920,
+            "title": "Max Height",
+            "type": "integer"
+          },
+          "max_width": {
+            "default": 1920,
+            "title": "Max Width",
+            "type": "integer"
+          },
+          "min_height": {
+            "default": 256,
+            "title": "Min Height",
+            "type": "integer"
+          },
+          "min_width": {
+            "default": 256,
+            "title": "Min Width",
+            "type": "integer"
+          },
+          "mode": {
+            "default": "t2v",
+            "enum": [
+              "workflow",
+              "t2v",
+              "i2v",
+              "flf2v",
+              "vace",
+              "animate",
+              "cond2v",
+              "unknown"
+            ],
+            "title": "Mode",
+            "type": "string"
+          },
+          "model": {
+            "title": "Model",
+            "type": "string"
+          },
+          "references": {
+            "$ref": "#/components/schemas/VideoReferenceCapsV2"
+          },
+          "remote": {
+            "default": false,
+            "title": "Remote",
+            "type": "boolean"
+          },
+          "resolution_max": {
+            "default": 0,
+            "title": "Resolution Max",
+            "type": "integer"
+          },
+          "resolution_min": {
+            "default": 0,
+            "title": "Resolution Min",
+            "type": "integer"
+          },
+          "resolution_multiple": {
+            "default": 16,
+            "title": "Resolution Multiple",
+            "type": "integer"
+          },
+          "sampler": {
+            "$ref": "#/components/schemas/VideoSamplerCapsV2"
+          },
+          "sizing_mode": {
+            "default": "dimensions",
+            "enum": [
+              "dimensions",
+              "resolution"
+            ],
+            "title": "Sizing Mode",
+            "type": "string"
+          },
+          "source": {
+            "default": "table",
+            "enum": [
+              "table",
+              "ltx",
+              "minimax",
+              "framepack"
+            ],
+            "title": "Source",
+            "type": "string"
+          },
+          "stages": {
+            "$ref": "#/components/schemas/VideoStageCapsV2"
+          },
+          "supports_still": {
+            "default": false,
+            "title": "Supports Still",
+            "type": "boolean"
+          },
+          "unverified": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Unverified",
+            "type": "array"
+          },
+          "vae_types": {
+            "items": {
+              "enum": [
+                "Default",
+                "Full",
+                "Tiny",
+                "Remote",
+                "Upscale"
+              ],
+              "type": "string"
+            },
+            "title": "Vae Types",
+            "type": "array"
+          },
+          "workflow": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Workflow"
+          }
+        },
+        "required": [
+          "engine",
+          "model"
+        ],
+        "title": "VideoModelCapsV2",
+        "type": "object"
+      },
       "VideoModelEnriched": {
         "description": "An entry of GET /sdapi/v2/video/engines/{engine}/models.\n\nAll fields required: the route at ``routes.py`` always passes them\nwith derived values, so making them required tells the codegen the\ntruth and removes the consumer-side coercion in ``useVideo.ts``.",
         "properties": {
           "cached": {
             "title": "Cached",
             "type": "boolean"
+          },
+          "group_path": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Group Path",
+            "type": "array"
           },
           "loaded": {
             "title": "Loaded",
@@ -8855,7 +9281,9 @@
               "i2v",
               "flf2v",
               "vace",
-              "animate"
+              "animate",
+              "cond2v",
+              "unknown"
             ],
             "title": "Mode",
             "type": "string"
@@ -9159,6 +9587,131 @@
           "url"
         ],
         "title": "VideoRef",
+        "type": "object"
+      },
+      "VideoReferenceCapsV2": {
+        "description": "Reference-image contract; counts reflect what the V2 wire can carry.",
+        "properties": {
+          "aspect_max": {
+            "default": 4,
+            "title": "Aspect Max",
+            "type": "number"
+          },
+          "aspect_min": {
+            "default": 0.25,
+            "title": "Aspect Min",
+            "type": "number"
+          },
+          "max_audio": {
+            "default": 0,
+            "title": "Max Audio",
+            "type": "integer"
+          },
+          "max_images": {
+            "default": 0,
+            "title": "Max Images",
+            "type": "integer"
+          },
+          "max_total": {
+            "default": 0,
+            "title": "Max Total",
+            "type": "integer"
+          },
+          "max_videos": {
+            "default": 0,
+            "title": "Max Videos",
+            "type": "integer"
+          },
+          "ordered": {
+            "default": false,
+            "title": "Ordered",
+            "type": "boolean"
+          },
+          "required": {
+            "default": false,
+            "title": "Required",
+            "type": "boolean"
+          },
+          "supported": {
+            "default": false,
+            "title": "Supported",
+            "type": "boolean"
+          }
+        },
+        "title": "VideoReferenceCapsV2",
+        "type": "object"
+      },
+      "VideoSamplerCapsV2": {
+        "properties": {
+          "dynamic_shift_applicable": {
+            "default": true,
+            "title": "Dynamic Shift Applicable",
+            "type": "boolean"
+          },
+          "fixed_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fixed Name"
+          },
+          "selectable": {
+            "default": true,
+            "title": "Selectable",
+            "type": "boolean"
+          },
+          "shift_applicable": {
+            "default": true,
+            "title": "Shift Applicable",
+            "type": "boolean"
+          }
+        },
+        "title": "VideoSamplerCapsV2",
+        "type": "object"
+      },
+      "VideoStageCapsV2": {
+        "properties": {
+          "auto_duration": {
+            "default": false,
+            "title": "Auto Duration",
+            "type": "boolean"
+          },
+          "decode_timestep": {
+            "default": false,
+            "title": "Decode Timestep",
+            "type": "boolean"
+          },
+          "image_cond_noise_scale": {
+            "default": false,
+            "title": "Image Cond Noise Scale",
+            "type": "boolean"
+          },
+          "multi_condition": {
+            "default": false,
+            "title": "Multi Condition",
+            "type": "boolean"
+          },
+          "refine": {
+            "default": false,
+            "title": "Refine",
+            "type": "boolean"
+          },
+          "stg": {
+            "default": false,
+            "title": "Stg",
+            "type": "boolean"
+          },
+          "upsample": {
+            "default": false,
+            "title": "Upsample",
+            "type": "boolean"
+          }
+        },
+        "title": "VideoStageCapsV2",
         "type": "object"
       },
       "WsEventAck": {
@@ -16033,6 +16586,84 @@
         ]
       }
     },
+    "/sdapi/v2/video/capabilities": {
+      "get": {
+        "operationId": "list_video_capabilities_sdapi_v2_video_capabilities_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/VideoModelCapsV2"
+                  },
+                  "title": "Response List Video Capabilities Sdapi V2 Video Capabilities Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Video Capabilities",
+        "tags": [
+          "v2",
+          "Video"
+        ]
+      }
+    },
+    "/sdapi/v2/video/capabilities/{engine}/{model}": {
+      "get": {
+        "operationId": "get_video_capabilities_sdapi_v2_video_capabilities__engine___model__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "engine",
+            "required": true,
+            "schema": {
+              "title": "Engine",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "model",
+            "required": true,
+            "schema": {
+              "title": "Model",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VideoModelCapsV2"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Video Capabilities",
+        "tags": [
+          "v2",
+          "Video"
+        ]
+      }
+    },
     "/sdapi/v2/video/engines": {
       "get": {
         "operationId": "list_video_engines_sdapi_v2_video_engines_get",
@@ -16142,6 +16773,28 @@
           }
         },
         "summary": "Load Video Model",
+        "tags": [
+          "v2",
+          "Video"
+        ]
+      }
+    },
+    "/sdapi/v2/video/unload": {
+      "post": {
+        "operationId": "unload_video_model_sdapi_v2_video_unload_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Unload Video Model",
         "tags": [
           "v2",
           "Video"
