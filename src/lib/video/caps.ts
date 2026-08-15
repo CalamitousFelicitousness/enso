@@ -1,0 +1,87 @@
+import type { VideoModelCaps } from "@/api/types/video";
+
+// Permissive stand-in for models with no resolved caps (cloud, synthetic
+// history restores, stale listings). Missing caps means "we don't know" -
+// hiding a control the user needs is a worse failure than showing one the
+// server ignores, so this mirrors the pre-caps UI surface exactly.
+export const FALLBACK_CAPS: VideoModelCaps = {
+  engine: "",
+  model: "",
+  job_type: "video",
+  mode: "t2v",
+  workflow: null,
+  init_image: "optional",
+  last_image: "optional",
+  init_strength_applicable: true,
+  references: {
+    supported: false,
+    required: false,
+    max_images: 0,
+    max_videos: 0,
+    max_audio: 0,
+    max_total: 0,
+    aspect_min: 0.25,
+    aspect_max: 4,
+    ordered: false,
+  },
+  supports_still: false,
+  sizing_mode: "dimensions",
+  canvas_multiple: 16,
+  min_width: 256,
+  max_width: 1920,
+  min_height: 256,
+  max_height: 1920,
+  resolution_min: 0,
+  resolution_max: 0,
+  resolution_multiple: 16,
+  length_mode: "frames",
+  frame_rule: { multiple: 1, offset: 0, min: 1, max: 1024 },
+  duration_rule: null,
+  fps_fixed: null,
+  fps_min: 1,
+  fps_max: 60,
+  max_duration: null,
+  vae_types: ["Default", "Tiny", "Remote", "Upscale"],
+  sampler: {
+    selectable: true,
+    fixed_name: null,
+    shift_applicable: true,
+    dynamic_shift_applicable: true,
+  },
+  guidance: {
+    cfg_applicable: true,
+    true_cfg_applicable: true,
+    negative_prompt_applicable: true,
+    distilled: false,
+  },
+  audio: { produces_audio: true, gateable: true, sample_rate: null },
+  stages: {
+    upsample: false,
+    refine: false,
+    auto_duration: false,
+    multi_condition: false,
+    stg: false,
+    decode_timestep: false,
+    image_cond_noise_scale: false,
+  },
+  defaults: {
+    width: 848,
+    height: 480,
+    frames: 25,
+    steps: 30,
+    guidance_scale: -1,
+    sampler_shift: -1,
+    dynamic_shift: false,
+    fps: 24,
+    resolution: null,
+    duration: null,
+  },
+  source: "table",
+  unverified: [],
+  gated_repo: false,
+  remote: false,
+};
+
+export function capsKey(engine: string, model: string): string {
+  return `${engine}/${model}`;
+}

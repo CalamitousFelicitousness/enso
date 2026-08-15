@@ -8,6 +8,18 @@ export type {
   VideoModelEnriched as VideoModelDetail,
 } from "@/lib/openapi-generated/types.gen";
 
+// The codegen marks Pydantic-defaulted response fields optional, but the
+// server always serializes every field; DeepRequired restores the truth.
+type DeepRequired<T> = T extends (infer U)[]
+  ? DeepRequired<U>[]
+  : T extends object
+    ? { [K in keyof T]-?: DeepRequired<T[K]> }
+    : T;
+
+export type VideoModelCaps = DeepRequired<
+  import("@/lib/openapi-generated/types.gen").VideoModelCapsV2
+>;
+
 // Derived from VideoModelEnriched.mode so the narrowing is always in
 // lockstep with the Pydantic-side Literal in enso_api/models.py.
 export type VideoMode = VideoModelEnriched["mode"];

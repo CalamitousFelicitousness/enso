@@ -196,6 +196,8 @@ export function restoreVideoSettings(params: VideoWireParams, domain: VideoJobTy
       cached: false,
       loaded: false,
       kind: engineToKind(engineName),
+      caps: null,
+      group_path: [],
     };
     useModelSelectionStore.getState().setActiveModel(synthetic);
   }

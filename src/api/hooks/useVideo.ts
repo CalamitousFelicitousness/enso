@@ -1,9 +1,10 @@
 import { useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "../client";
-import type { VideoEngine, VideoLoadResponse } from "../types/video";
+import type { VideoEngine, VideoLoadResponse, VideoModelCaps } from "../types/video";
 import type { LocalVideoModel } from "../types/cloud";
-import { engineToKind } from "@/lib/videoModel";
+import { engineToKind, jobTypeToKind } from "@/lib/videoModel";
+import { capsKey } from "@/lib/video/caps";
 
 export function useVideoEngines() {
   return useQuery({
@@ -11,6 +12,22 @@ export function useVideoEngines() {
     queryFn: () => api.get<VideoEngine[]>("/sdapi/v2/video/engines"),
     staleTime: 300_000,
   });
+}
+
+// Caps are process-static on the server, so unlike video-engines (whose
+// loaded/cached flags are invalidated on every model load) one fetch lives
+// for the session.
+export function useVideoCaps(): Map<string, VideoModelCaps> {
+  const { data } = useQuery({
+    queryKey: ["video-caps"],
+    queryFn: () => api.get<VideoModelCaps[]>("/sdapi/v2/video/capabilities"),
+    staleTime: Infinity,
+  });
+  return useMemo(() => {
+    const map = new Map<string, VideoModelCaps>();
+    for (const c of data ?? []) map.set(capsKey(c.engine, c.model), c);
+    return map;
+  }, [data]);
 }
 
 export function useLoadVideoModel() {
@@ -68,11 +85,13 @@ export function useUnloadFramePack() {
 export function useLocalVideoModels(): LocalVideoModel[] {
   const { data: engines } = useVideoEngines();
   const { data: fpVariants } = useFramePackVariants();
+  const capsMap = useVideoCaps();
   return useMemo(() => {
     const result: LocalVideoModel[] = [];
     for (const eng of engines ?? []) {
       for (const detail of eng.model_details ?? []) {
         if (detail.name === "None") continue;
+        const caps = capsMap.get(capsKey(eng.engine, detail.name)) ?? null;
         result.push({
           source: "local-video",
           engine: eng.engine,
@@ -83,7 +102,9 @@ export function useLocalVideoModels(): LocalVideoModel[] {
           workflow: detail.workflow,
           cached: detail.cached,
           loaded: detail.loaded,
-          kind: engineToKind(eng.engine),
+          kind: caps ? jobTypeToKind(caps.job_type) : engineToKind(eng.engine),
+          caps,
+          group_path: detail.group_path ?? [],
         });
       }
     }
@@ -99,8 +120,10 @@ export function useLocalVideoModels(): LocalVideoModel[] {
         cached: false,
         loaded: false,
         kind: "framepack",
+        caps: capsMap.get(capsKey("FramePack", variant)) ?? null,
+        group_path: [],
       });
     }
     return result;
-  }, [engines, fpVariants]);
+  }, [engines, fpVariants, capsMap]);
 }

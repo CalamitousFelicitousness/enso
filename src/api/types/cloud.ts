@@ -1,5 +1,5 @@
 import type { SdModelV2 } from "./models";
-import type { VideoMode } from "./video";
+import type { VideoMode, VideoModelCaps } from "./video";
 
 // --- Modality & Capability ---
 
@@ -159,6 +159,11 @@ export interface LocalVideoModel {
   cached: boolean;
   loaded: boolean;
   kind: LocalVideoEngineKind;
+  /** Capability snapshot joined at list-build time; null for synthetic
+   * models (history restore) until the caps query resolves. */
+  caps: VideoModelCaps | null;
+  /** Registry group labels (e.g. ["LTX-2.5", "Distilled"]). */
+  group_path: string[];
 }
 
 export type UnifiedModel = LocalModel | LocalVideoModel | CloudModel;

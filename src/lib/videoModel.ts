@@ -16,13 +16,18 @@ export function isLocalVideoModel(m: UnifiedModel | null | undefined): m is Loca
   return m?.source === "local-video";
 }
 
-/** Map an upstream engine name (verbatim from /sdapi/v2/video/engines or
- * "FramePack" for the framepack registry) to the form kind. Anything that
- * isn't FramePack or LTX falls into the generic Wan/Hunyuan/etc. bucket
- * since they share param surfaces. */
+/** Fallback for models with no resolved caps: map an upstream engine name
+ * to the form kind by name. Caps-carrying models use jobTypeToKind. */
 export function engineToKind(engine: string): LocalVideoEngineKind {
   if (engine === "FramePack") return "framepack";
   if (engine === "LTX Video") return "ltx";
+  return "generic";
+}
+
+/** The caps-declared job type is the authoritative kind source. */
+export function jobTypeToKind(job: "video" | "ltx" | "framepack"): LocalVideoEngineKind {
+  if (job === "framepack") return "framepack";
+  if (job === "ltx") return "ltx";
   return "generic";
 }
 
