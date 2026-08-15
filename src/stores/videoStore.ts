@@ -18,10 +18,8 @@ export const videoHistoryDb = createIdbListDb<VideoResult>({
 });
 
 interface VideoState extends VideoParamValues {
-  // Shared input images (File objects, not persisted to localStorage).
-  // Engine + model live on modelSelectionStore.activeModel.
-  initImage: File | null;
-  lastImage: File | null;
+  // Input images live on videoCanvasStore; engine + model live on
+  // modelSelectionStore.activeModel.
 
   // Result history
   results: VideoResult[];
@@ -62,9 +60,6 @@ export const useVideoStore = create<VideoState>()(
   persist(
     (set) => ({
       ...VIDEO_PARAM_DEFAULTS,
-
-      initImage: null as File | null,
-      lastImage: null as File | null,
 
       results: [],
       selectedResultId: null,

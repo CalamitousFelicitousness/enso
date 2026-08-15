@@ -17,8 +17,10 @@ import { sendToJob } from "@/hooks/useJobTracker";
 import { useCancelJob } from "@/api/hooks/useJobs";
 import { usePromptEnhance } from "@/api/hooks/usePromptEnhance";
 import { useLoadVideoModel, useLoadFramePack } from "@/api/hooks/useVideo";
-import { uploadFile, uploadBlob } from "@/lib/upload";
+import { uploadBlob } from "@/lib/upload";
 import { buildCloudVideoRequest } from "@/lib/requestBuilder";
+import { buildVideoPayload } from "@/lib/video/buildVideoPayload";
+import { getVideoInputs } from "@/lib/video/inputs";
 import { resolveVideoUi, kindToDomain, type VideoUiKind } from "@/lib/videoModel";
 import { Button } from "@/components/ui/button";
 import { PromptField } from "@/components/generation/PromptField";
@@ -31,7 +33,6 @@ import { WanHunyuanForm } from "./forms/WanHunyuanForm";
 import { FramePackForm } from "./forms/FramePackForm";
 import { LtxForm } from "./forms/LtxForm";
 import { CloudVideoForm } from "./forms/CloudVideoForm";
-import type { LocalVideoModel } from "@/api/types/cloud";
 import type { PromptEnhanceRequest } from "@/api/types/promptEnhance";
 
 // One panel per video UI kind. The "empty" state has no params - render a
@@ -54,111 +55,6 @@ const SUB_PANELS = [
   subPanel("ltx", <LtxForm />),
   subPanel("cloud", <CloudVideoForm />),
 ];
-
-async function buildLocalVideoPayload(kind: VideoUiKind, model: LocalVideoModel) {
-  const s = useVideoStore.getState();
-  const output = {
-    fps: s.fps,
-    interpolate: s.interpolate,
-    codec: s.codec,
-    format: s.format,
-    codec_options: s.codecOptions,
-    save_video: s.saveVideo,
-    save_frames: s.saveFrames,
-    save_safetensors: s.saveSafetensors,
-  };
-
-  const initRef = s.initImage ? await uploadFile(s.initImage) : null;
-  const lastRef = s.lastImage ? await uploadFile(s.lastImage) : null;
-
-  if (kind === "framepack") {
-    return {
-      type: "framepack" as const,
-      prompt: s.prompt,
-      negative: s.negative,
-      styles: s.styles,
-      seed: s.seed,
-      variant: model.model,
-      resolution: s.fpResolution,
-      duration: s.fpDuration,
-      latent_ws: s.fpLatentWindowSize,
-      steps: s.fpSteps,
-      shift: s.fpShift,
-      cfg_scale: s.fpCfgScale,
-      cfg_distilled: s.fpCfgDistilled,
-      cfg_rescale: s.fpCfgRescale,
-      start_weight: s.fpStartWeight,
-      end_weight: s.fpEndWeight,
-      vision_weight: s.fpVisionWeight,
-      section_prompt: s.fpSectionPrompt,
-      system_prompt: s.fpSystemPrompt,
-      use_teacache: s.fpTeacache,
-      optimized_prompt: s.fpOptimizedPrompt,
-      use_cfgzero: s.fpCfgZero,
-      use_preview: s.fpPreview,
-      attention: s.fpAttention,
-      vae_type: s.fpVaeType,
-      init_image: initRef,
-      end_image: lastRef,
-      ...output,
-    };
-  }
-
-  if (kind === "ltx") {
-    return {
-      type: "ltx" as const,
-      model: model.model,
-      prompt: s.prompt,
-      negative: s.negative,
-      styles: s.styles,
-      seed: s.seed,
-      width: s.width,
-      height: s.height,
-      frames: s.frames,
-      steps: s.ltxSteps,
-      decode_timestep: s.ltxDecodeTimestep,
-      image_cond_noise_scale: s.ltxNoiseScale,
-      upsample_enable: s.ltxUpsampleEnable,
-      upsample_ratio: s.ltxUpsampleRatio,
-      refine_enable: s.ltxRefineEnable,
-      refine_strength: s.ltxRefineStrength,
-      condition_strength: s.ltxConditionStrength,
-      condition_image: initRef,
-      condition_last: lastRef,
-      audio_enable: s.ltxAudioEnable,
-      ...output,
-    };
-  }
-
-  // "generic" - Wan/Hunyuan/etc. routed through the canonical /video/load.
-  return {
-    type: "video" as const,
-    engine: model.engine,
-    model: model.model,
-    prompt: s.prompt,
-    negative: s.negative,
-    styles: s.styles,
-    seed: s.seed,
-    width: s.width,
-    height: s.height,
-    frames: s.frames,
-    steps: s.steps,
-    guidance_scale: s.guidanceScale,
-    guidance_true: s.guidanceTrue,
-    sampler_shift: s.samplerShift,
-    dynamic_shift: s.dynamicShift,
-    init_strength: s.initStrength,
-    init_image: initRef,
-    last_image: lastRef,
-    vae_type: s.vaeType,
-    vae_tile_frames: s.vaeTileFrames,
-    audio: s.audio,
-    // VideoParams-only: FramePackParams/LtxParams are strict and lack the
-    // field, so it can't ride the shared output object
-    save_thumbnail: s.saveThumbnail,
-    ...output,
-  };
-}
 
 export function VideoPanel() {
   const prompt = useVideoStore((s) => s.prompt);
@@ -201,7 +97,7 @@ export function VideoPanel() {
     }
     let image: string | null = null;
     if (enhanceStore.useVision) {
-      const initImg = useVideoStore.getState().initImage;
+      const initImg = getVideoInputs().init;
       if (initImg) image = await uploadBlob(initImg, "vision.png");
     }
     const req: PromptEnhanceRequest = {
@@ -255,7 +151,7 @@ export function VideoPanel() {
       // surface a real "Failed to submit" toast as a safety net.
       throw new Error("No video model selected");
     }
-    const payload = await buildLocalVideoPayload(kind, activeModel);
+    const payload = await buildVideoPayload(kind, activeModel);
     return { payload, snapshot: { kind: "none" as const } };
   }, [kind, activeModel]);
 

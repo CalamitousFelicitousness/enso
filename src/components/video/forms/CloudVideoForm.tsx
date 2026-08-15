@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { Cloud, Film } from "lucide-react";
 import { useVideoStore } from "@/stores/videoStore";
+import { useVideoCanvasStore } from "@/stores/videoCanvasStore";
 import { useModelSelectionStore } from "@/stores/modelSelectionStore";
 import { isCloudVideoModel, supportsImageToVideo } from "@/lib/cloudVideo";
 import { Combobox } from "@/components/ui/combobox";
@@ -29,7 +30,7 @@ export function CloudVideoForm() {
   const activeModel = useModelSelectionStore((s) => s.activeModel);
   const cloudAspectRatio = useVideoStore((s) => s.cloudAspectRatio);
   const cloudDuration = useVideoStore((s) => s.cloudDuration);
-  const initImage = useVideoStore((s) => s.initImage);
+  const initImage = useVideoCanvasStore((s) => s.initFrame?.file ?? null);
   const setParam = useVideoStore((s) => s.setParam);
 
   const isVideo = isCloudVideoModel(activeModel);

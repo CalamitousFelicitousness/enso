@@ -2,7 +2,6 @@ import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import { base64ToBlob } from "@/lib/utils";
 import { createIdbStorage } from "@/lib/idbStorage";
-import { useVideoStore } from "@/stores/videoStore";
 
 export interface VideoFrameImage {
   id: string;
@@ -131,13 +130,3 @@ export const useVideoCanvasStore = create<VideoCanvasState>()(
     },
   ),
 );
-
-// Sync frames to videoStore so buildJobPayload keeps working
-useVideoCanvasStore.subscribe((state, prev) => {
-  if (state.initFrame !== prev.initFrame) {
-    useVideoStore.getState().setParam("initImage", state.initFrame?.file ?? null);
-  }
-  if (state.lastFrame !== prev.lastFrame) {
-    useVideoStore.getState().setParam("lastImage", state.lastFrame?.file ?? null);
-  }
-});

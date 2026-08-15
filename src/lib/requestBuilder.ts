@@ -933,6 +933,7 @@ export async function buildCloudImageRequest(): Promise<CloudImageJobParams> {
 
 import { useVideoStore } from "@/stores/videoStore";
 import { supportsImageToVideo } from "@/lib/cloudVideo";
+import { getVideoInputs } from "@/lib/video/inputs";
 import type { CloudVideoJobParams } from "@/api/types/cloud";
 
 export async function buildCloudVideoRequest(): Promise<CloudVideoJobParams> {
@@ -953,8 +954,9 @@ export async function buildCloudVideoRequest(): Promise<CloudVideoJobParams> {
   if (video.cloudAspectRatio) request.aspect_ratio = video.cloudAspectRatio;
   if (video.cloudDuration > 0) request.duration = video.cloudDuration;
 
-  if (video.initImage && supportsImageToVideo(model)) {
-    request.image = await uploadFile(video.initImage);
+  const initImage = getVideoInputs().init;
+  if (initImage && supportsImageToVideo(model)) {
+    request.image = await uploadFile(initImage);
   }
 
   return request;
