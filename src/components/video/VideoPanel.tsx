@@ -21,7 +21,7 @@ import { uploadBlob } from "@/lib/upload";
 import { buildCloudVideoRequest } from "@/lib/requestBuilder";
 import { buildVideoPayload } from "@/lib/video/buildVideoPayload";
 import { getVideoInputs } from "@/lib/video/inputs";
-import { resolveVideoUi, kindToDomain, type VideoUiKind } from "@/lib/videoModel";
+import { resolveVideoUi, kindToDomain } from "@/lib/videoModel";
 import { Button } from "@/components/ui/button";
 import { PromptField } from "@/components/generation/PromptField";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -29,17 +29,15 @@ import { KeepAlivePanel, KeepAliveSwitch } from "@/components/ui/keep-alive";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { PromptEnhanceWorkspace } from "@/components/generation/PromptEnhanceWorkspace";
-import { WanHunyuanForm } from "./forms/WanHunyuanForm";
-import { FramePackForm } from "./forms/FramePackForm";
-import { LtxForm } from "./forms/LtxForm";
+import { CapabilityForm } from "./forms/CapabilityForm";
 import { CloudVideoForm } from "./forms/CloudVideoForm";
 import type { PromptEnhanceRequest } from "@/api/types/promptEnhance";
 
-// One panel per video UI kind. The "empty" state has no params - render a
-// hint inline rather than as a 5th keep-alive panel. Forms below are
-// kept-alive across kind swaps so CodeMirror cursors, textarea drafts,
-// FramePack section prompts, etc. survive the user switching models.
-function subPanel(id: VideoUiKind, content: ReactNode) {
+// Two panels: every local engine renders through the caps-driven
+// CapabilityForm (per-engine drafts live in videoStore, so nothing worth
+// preserving is lost by sharing one tree), cloud keeps its own form. The
+// "empty" state renders a hint inline rather than as a third panel.
+function subPanel(id: string, content: ReactNode) {
   return (
     <KeepAlivePanel key={id} id={id} activeClassName="flex-1 overflow-hidden">
       <ScrollArea className="size-full">
@@ -50,9 +48,7 @@ function subPanel(id: VideoUiKind, content: ReactNode) {
 }
 
 const SUB_PANELS = [
-  subPanel("generic", <WanHunyuanForm />),
-  subPanel("framepack", <FramePackForm />),
-  subPanel("ltx", <LtxForm />),
+  subPanel("capability", <CapabilityForm />),
   subPanel("cloud", <CloudVideoForm />),
 ];
 
@@ -322,7 +318,9 @@ export function VideoPanel() {
           Pick a video model from the model selector to configure and run it.
         </div>
       ) : (
-        <KeepAliveSwitch active={kind}>{SUB_PANELS}</KeepAliveSwitch>
+        <KeepAliveSwitch active={kind === "cloud" ? "cloud" : "capability"}>
+          {SUB_PANELS}
+        </KeepAliveSwitch>
       )}
     </div>
   );

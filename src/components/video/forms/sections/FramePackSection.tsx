@@ -9,19 +9,14 @@ import { Combobox } from "@/components/ui/combobox";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import { VideoOutputSection } from "./VideoOutputSection";
-import { VideoStylesSection } from "./VideoStylesSection";
-import { VideoPresetSelector } from "../VideoPresetSelector";
 
-// FramePack-specific form. Variant is selected in the top-level
-// ModelSelector (Video view); the global Load/Unload buttons act on it via
-// useLoadFramePack/useUnloadFramePack. This form owns the parameter surface
-// and the SectionTimeline editor.
-export function FramePackForm() {
-  const fpResolution = useVideoStore((s) => s.fpResolution);
+// FramePack-specific extension surface. The shared sections own size,
+// duration, steps, seed, and decode; this owns the weights, section
+// timeline, sampler tuning, and model options that exist only on the
+// FramePack wire.
+export function FramePackSection() {
   const fpDuration = useVideoStore((s) => s.fpDuration);
   const fpLatentWindowSize = useVideoStore((s) => s.fpLatentWindowSize);
-  const fpSteps = useVideoStore((s) => s.fpSteps);
   const fpShift = useVideoStore((s) => s.fpShift);
   const fpCfgScale = useVideoStore((s) => s.fpCfgScale);
   const fpCfgDistilled = useVideoStore((s) => s.fpCfgDistilled);
@@ -36,17 +31,14 @@ export function FramePackForm() {
   const fpCfgZero = useVideoStore((s) => s.fpCfgZero);
   const fpPreview = useVideoStore((s) => s.fpPreview);
   const fpAttention = useVideoStore((s) => s.fpAttention);
-  const fpVaeType = useVideoStore((s) => s.fpVaeType);
   const fps = useVideoStore((s) => s.fps);
   const interpolate = useVideoStore((s) => s.interpolate);
-  const seed = useVideoStore((s) => s.seed);
   const setParam = useVideoStore((s) => s.setParam);
 
   // SectionTimeline needs the FramePack variant to compute window layout.
-  // Pull it from activeModel (the top-level model picker is the source of
-  // truth for variant selection now). Fall back to "bi-directional" so the
-  // timeline still renders when the form is briefly visible without an
-  // active FramePack model selected (KeepAlive can pre-mount).
+  // Pull it from activeModel; fall back to "bi-directional" so the timeline
+  // still renders when the section is briefly visible without an active
+  // FramePack model selected (KeepAlive can pre-mount).
   const activeModel = useModelSelectionStore((s) => s.activeModel);
   const variant =
     activeModel?.source === "local-video" && activeModel.kind === "framepack"
@@ -56,32 +48,8 @@ export function FramePackForm() {
   const [rawEdit, setRawEdit] = useState(false);
 
   return (
-    <div className="space-y-1">
-      <VideoPresetSelector domain="framepack" />
-
-      <SectionLeader title="Size" collapsible defaultCollapsed>
-        <ParamGrid>
-          <ParamSlider
-            label="Resolution"
-            value={fpResolution}
-            onChange={(v) => setParam("fpResolution", v)}
-            min={240}
-            max={1088}
-            step={16}
-          />
-
-          <ParamSlider
-            label="Duration"
-            value={fpDuration}
-            onChange={(v) => setParam("fpDuration", v)}
-            min={1}
-            max={120}
-            step={1}
-          />
-        </ParamGrid>
-      </SectionLeader>
-
-      <SectionLeader title="Inputs" collapsible defaultCollapsed>
+    <>
+      <SectionLeader title="Weights" collapsible defaultCollapsed>
         <ParamGrid>
           <ParamSlider
             label="Start wt"
@@ -91,7 +59,6 @@ export function FramePackForm() {
             max={2}
             step={0.05}
           />
-
           <ParamSlider
             label="End wt"
             value={fpEndWeight}
@@ -136,16 +103,7 @@ export function FramePackForm() {
         )}
       </SectionLeader>
 
-      <SectionLeader title="Advanced" collapsible defaultCollapsed>
-        <ParamSlider
-          label="Seed"
-          value={seed}
-          onChange={(v) => setParam("seed", v)}
-          min={-1}
-          max={999999999}
-          step={1}
-        />
-
+      <SectionLeader title="Sampler Tuning" collapsible defaultCollapsed>
         <ParamSlider
           label="Window"
           value={fpLatentWindowSize}
@@ -154,26 +112,15 @@ export function FramePackForm() {
           max={33}
           step={4}
         />
-
         <ParamGrid>
           <ParamSlider
-            label="Steps"
-            value={fpSteps}
-            onChange={(v) => setParam("fpSteps", v)}
-            min={1}
-            max={100}
-            step={1}
-          />
-
-          <ParamSlider
-            label="Shift"
+            label="FP shift"
             value={fpShift}
             onChange={(v) => setParam("fpShift", v)}
             min={0}
             max={20}
             step={0.5}
           />
-
           <ParamSlider
             label="CFG"
             value={fpCfgScale}
@@ -182,7 +129,6 @@ export function FramePackForm() {
             max={20}
             step={0.5}
           />
-
           <ParamSlider
             label="Distilled"
             value={fpCfgDistilled}
@@ -191,15 +137,15 @@ export function FramePackForm() {
             max={20}
             step={0.5}
           />
+          <ParamSlider
+            label="Rescale"
+            value={fpCfgRescale}
+            onChange={(v) => setParam("fpCfgRescale", v)}
+            min={0}
+            max={1}
+            step={0.05}
+          />
         </ParamGrid>
-        <ParamSlider
-          label="Rescale"
-          value={fpCfgRescale}
-          onChange={(v) => setParam("fpCfgRescale", v)}
-          min={0}
-          max={1}
-          step={0.05}
-        />
       </SectionLeader>
 
       <SectionLeader title="Model Options" collapsible defaultCollapsed>
@@ -209,7 +155,6 @@ export function FramePackForm() {
           placeholder="System prompt (optional)"
           className="text-xs min-h-9 resize-y"
         />
-
         <div className="flex items-center gap-2">
           <Label className="text-2xs text-muted-foreground w-16 shrink-0">TeaCache</Label>
           <Switch checked={fpTeacache} onCheckedChange={(v) => setParam("fpTeacache", v)} />
@@ -238,20 +183,7 @@ export function FramePackForm() {
             className="h-6 text-2xs flex-1"
           />
         </div>
-        <div className="flex items-center gap-2">
-          <Label className="text-2xs text-muted-foreground w-16 shrink-0">VAE</Label>
-          <Combobox
-            value={fpVaeType}
-            onValueChange={(v) => setParam("fpVaeType", v)}
-            options={["Full", "Tiny"]}
-            className="h-6 text-2xs flex-1"
-          />
-        </div>
       </SectionLeader>
-
-      <VideoStylesSection />
-
-      <VideoOutputSection />
-    </div>
+    </>
   );
 }

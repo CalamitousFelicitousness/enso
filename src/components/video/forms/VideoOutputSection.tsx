@@ -7,13 +7,14 @@ import { Combobox } from "@/components/ui/combobox";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { OUTPUT_PRESETS, qualityToCrf, crfToQuality } from "@/lib/videoOutputPresets";
+import type { VideoModelCaps } from "@/api/types/video";
 
 const presetOptions = OUTPUT_PRESETS.map((p) => p.id);
 const presetLabels: Record<string, string> = Object.fromEntries(
   OUTPUT_PRESETS.map((p) => [p.id, p.label]),
 );
 
-export function VideoOutputSection() {
+export function VideoOutputSection({ caps }: { caps?: VideoModelCaps }) {
   const fps = useVideoStore((s) => s.fps);
   const interpolate = useVideoStore((s) => s.interpolate);
   const codec = useVideoStore((s) => s.codec);
@@ -136,9 +137,13 @@ export function VideoOutputSection() {
           label="FPS"
           value={fps}
           onChange={(v) => setParam("fps", v)}
-          min={1}
-          max={60}
+          min={caps?.fps_min ?? 1}
+          max={caps?.fps_max ?? 60}
           step={1}
+          disabled={caps?.fps_fixed != null}
+          tooltip={
+            caps?.fps_fixed != null ? `Model output is fixed at ${caps.fps_fixed} fps` : undefined
+          }
         />
 
         <ParamSlider

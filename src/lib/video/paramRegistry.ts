@@ -82,13 +82,13 @@ export const VIDEO_PARAMS = {
     kind: "number",
     default: -1,
     group: "sampling",
-    wire: { video: "sampler_shift" },
+    wire: { video: "sampler_shift", ltx: "sampler_shift" },
   },
   dynamicShift: {
     kind: "boolean",
     default: false,
     group: "sampling",
-    wire: { video: "dynamic_shift" },
+    wire: { video: "dynamic_shift", ltx: "dynamic_shift" },
   },
   seed: {
     kind: "number",
@@ -100,7 +100,7 @@ export const VIDEO_PARAMS = {
     kind: "number",
     default: 6,
     group: "sampling",
-    wire: { video: "guidance_scale" },
+    wire: { video: "guidance_scale", ltx: "guidance_scale" },
   },
   guidanceTrue: {
     kind: "number",
@@ -274,6 +274,12 @@ export const VIDEO_PARAMS = {
   },
 
   ltxSteps: { kind: "number", default: 50, group: "ltx", wire: { ltx: "steps" } },
+  ltxAutoDuration: {
+    kind: "boolean",
+    default: false,
+    group: "ltx",
+    wire: { ltx: "auto_duration" },
+  },
   ltxDecodeTimestep: {
     kind: "number",
     default: 0.05,
