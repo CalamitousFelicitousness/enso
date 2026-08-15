@@ -53,28 +53,26 @@ function routeResult(domain: JobDomain, result: JobResult, snapshot: TrackedJob[
         .replaceProcessedImages(`${api.getBaseUrl()}${result.processed[0].url}`);
     }
   } else if (domain === "video" || domain === "framepack" || domain === "ltx") {
-    // The video and cloud_video executors populate result.videos with a single
-    // VideoRef carrying its own thumbnail_url. FramePack/LTX still place
-    // [video, thumbnail] into result.images; fall back to that shape so those
-    // flows keep working unchanged.
-    const cloudVid = result.videos?.[0];
+    // Every video executor populates result.videos with a single VideoRef
+    // carrying its own thumbnail_url.
+    const vid = result.videos?.[0];
     const info: Record<string, unknown> = result.info ?? {};
     const infoFps = typeof info["fps"] === "number" && info["fps"] > 0 ? info["fps"] : null;
     const infoFrames =
       typeof info["frames"] === "number" && info["frames"] > 0 ? info["frames"] : null;
     const infoAudio = typeof info["has_audio"] === "boolean" ? info["has_audio"] : false;
-    if (cloudVid) {
+    if (vid) {
       // Stored relative and resolved at render, like image results, so
       // persisted history survives a backend URL change.
       useVideoStore.getState().addResult({
         id: crypto.randomUUID(),
-        videoUrl: cloudVid.url,
-        thumbnailUrl: cloudVid.thumbnail_url ?? undefined,
-        width: cloudVid.width,
-        height: cloudVid.height,
-        format: cloudVid.format,
-        size: cloudVid.size,
-        duration: cloudVid.duration,
+        videoUrl: vid.url,
+        thumbnailUrl: vid.thumbnail_url ?? undefined,
+        width: vid.width,
+        height: vid.height,
+        format: vid.format,
+        size: vid.size,
+        duration: vid.duration,
         fps: infoFps,
         frames: infoFrames,
         hasAudio: infoAudio,
@@ -84,25 +82,6 @@ function routeResult(domain: JobDomain, result: JobResult, snapshot: TrackedJob[
         domain: domain,
         timestamp: Date.now(),
       });
-    } else {
-      const vid = result.images[0];
-      if (vid) {
-        const thumb = result.images[1];
-        useVideoStore.getState().addResult({
-          id: crypto.randomUUID(),
-          videoUrl: vid.url,
-          thumbnailUrl: thumb?.url,
-          width: vid.width,
-          height: vid.height,
-          format: vid.format,
-          size: vid.size,
-          // Server returns snake_case JSON; the structural assignment to
-          // VideoWireParams here crosses the wire-contract boundary.
-          params: result.params,
-          domain: domain,
-          timestamp: Date.now(),
-        });
-      }
     }
   } else if (domain === "upscale" || domain === "rembg") {
     const img = result.images[0];
