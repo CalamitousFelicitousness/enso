@@ -4,6 +4,7 @@ import { getVideoInputs } from "@/lib/video/inputs";
 import { VIDEO_PARAM_KEYS, wireKeyFor, type VideoJobType } from "@/lib/video/paramRegistry";
 import type { JobRequest } from "@/api/types/v2";
 import type { LocalVideoEngineKind, LocalVideoModel } from "@/api/types/cloud";
+import type { VideoModelCaps } from "@/api/types/video";
 
 const KIND_TO_JOB: Record<LocalVideoEngineKind, VideoJobType> = {
   generic: "video",
@@ -16,10 +17,13 @@ export function jobTypeForKind(kind: LocalVideoEngineKind): VideoJobType {
 }
 
 /** Build the job payload for a local video model by walking the param
- * registry; the per-job wire maps decide which store params ride along. */
+ * registry; the per-job wire maps decide which store params ride along.
+ * Pass the resolved caps (live query first) - the snapshot on `model` is
+ * stale for selections persisted before the caps join existed. */
 export async function buildVideoPayload(
   kind: LocalVideoEngineKind,
   model: LocalVideoModel,
+  caps: VideoModelCaps | null = model.caps,
 ): Promise<JobRequest> {
   const job = KIND_TO_JOB[kind];
   const state = useVideoStore.getState();
@@ -39,9 +43,14 @@ export async function buildVideoPayload(
     if (wireKey) payload[wireKey] = state[key];
   }
 
-  const { init, last } = getVideoInputs();
-  const initRef = init ? await uploadFile(init) : null;
-  const lastRef = last ? await uploadFile(last) : null;
+  // Caps-gated input attachment: slots the model ignores stay off the wire
+  // even when stale frames linger on the canvas.
+  const { init, last, refs } = getVideoInputs();
+  const wantInit = caps ? caps.init_image !== "ignored" : true;
+  const wantLast = caps ? caps.last_image !== "ignored" : true;
+  const wantRefs = job === "video" && (caps?.references.supported ?? false);
+  const initRef = wantInit && init ? await uploadFile(init) : null;
+  const lastRef = wantLast && last ? await uploadFile(last) : null;
   if (job === "ltx") {
     payload["condition_image"] = initRef;
     payload["condition_last"] = lastRef;
@@ -51,6 +60,11 @@ export async function buildVideoPayload(
   } else {
     payload["init_image"] = initRef;
     payload["last_image"] = lastRef;
+    payload["references"] = wantRefs
+      ? await Promise.all(
+          refs.slice(0, caps?.references.max_images ?? refs.length).map((f) => uploadFile(f)),
+        )
+      : [];
   }
 
   // Every key written above is a wire key of this job's params model; the

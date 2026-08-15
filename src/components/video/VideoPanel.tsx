@@ -13,6 +13,7 @@ import {
   selectDomainRunning,
 } from "@/stores/jobStore";
 import { useSubmitToQueue } from "@/hooks/useSubmitToQueue";
+import { useActiveVideoCaps } from "@/hooks/useActiveVideoCaps";
 import { useVideoCapsDefaults } from "@/hooks/useVideoCapsDefaults";
 import { sendToJob } from "@/hooks/useJobTracker";
 import { useCancelJob } from "@/api/hooks/useJobs";
@@ -60,6 +61,7 @@ export function VideoPanel() {
   const activeModel = useModelSelectionStore((s) => s.activeModel);
   const kind = resolveVideoUi(activeModel);
   const domain = kindToDomain(kind);
+  const activeCaps = useActiveVideoCaps();
   useVideoCapsDefaults();
 
   const isVideoActive = useJobQueueStore(selectVideoActive);
@@ -149,9 +151,9 @@ export function VideoPanel() {
       // surface a real "Failed to submit" toast as a safety net.
       throw new Error("No video model selected");
     }
-    const payload = await buildVideoPayload(kind, activeModel);
+    const payload = await buildVideoPayload(kind, activeModel, activeCaps);
     return { payload, snapshot: { kind: "none" as const } };
-  }, [kind, activeModel]);
+  }, [kind, activeModel, activeCaps]);
 
   const { submit, isSubmitting } = useSubmitToQueue(
     useMemo(() => ({ domain, buildRequest }), [domain, buildRequest]),

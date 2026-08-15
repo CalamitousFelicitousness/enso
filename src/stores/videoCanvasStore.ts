@@ -18,10 +18,17 @@ interface ViewportState {
   scale: number;
 }
 
+export type VideoSlotId = "init" | "last" | "references";
+
 interface VideoCanvasState {
   viewport: ViewportState;
   initFrame: VideoFrameImage | null;
   lastFrame: VideoFrameImage | null;
+  /** Ordered; index 0 = <Picture 1>. Order is semantically load-bearing for
+   * ref2va's rotary addressing - never sort, never dedupe. */
+  references: VideoFrameImage[];
+  /** Last input slot the user touched; paste targets it. */
+  activeSlot: VideoSlotId;
 
   setViewport: (v: Partial<ViewportState>) => void;
   setFrame: (
@@ -33,18 +40,40 @@ interface VideoCanvasState {
     h: number,
   ) => void;
   clearFrame: (which: "init" | "last") => void;
+  addReference: (file: File, base64: string, objectUrl: string, w: number, h: number) => void;
+  removeReference: (id: string) => void;
+  reorderReference: (from: number, to: number) => void;
+  clearReferences: () => void;
+  setActiveSlot: (slot: VideoSlotId) => void;
   clearAll: () => void;
+}
+
+interface PersistedFrame {
+  id: string;
+  base64: string;
+  naturalWidth: number;
+  naturalHeight: number;
 }
 
 interface PersistedVideoCanvasState {
   viewport: ViewportState;
-  initFrame: { id: string; base64: string; naturalWidth: number; naturalHeight: number } | null;
-  lastFrame: { id: string; base64: string; naturalWidth: number; naturalHeight: number } | null;
+  initFrame: PersistedFrame | null;
+  lastFrame: PersistedFrame | null;
+  references?: PersistedFrame[];
 }
 
 const videoCanvasIdbStorage = createIdbStorage("enso-video-canvas", "state");
 
-function rehydrateFrame(saved: PersistedVideoCanvasState["initFrame"]): VideoFrameImage | null {
+function stripFrame(frame: VideoFrameImage): PersistedFrame {
+  return {
+    id: frame.id,
+    base64: frame.base64,
+    naturalWidth: frame.naturalWidth,
+    naturalHeight: frame.naturalHeight,
+  };
+}
+
+function rehydrateFrame(saved: PersistedFrame | null): VideoFrameImage | null {
   if (!saved || !saved.base64) return null;
   const blob = base64ToBlob(saved.base64);
   const objectUrl = URL.createObjectURL(blob);
@@ -64,6 +93,8 @@ export const useVideoCanvasStore = create<VideoCanvasState>()(
       viewport: { x: 0, y: 0, scale: 1 },
       initFrame: null,
       lastFrame: null,
+      references: [],
+      activeSlot: "init",
 
       setViewport: (v) => set((s) => ({ viewport: { ...s.viewport, ...v } })),
 
@@ -78,7 +109,7 @@ export const useVideoCanvasStore = create<VideoCanvasState>()(
           naturalWidth: w,
           naturalHeight: h,
         };
-        set({ [which === "init" ? "initFrame" : "lastFrame"]: frame });
+        set({ [which === "init" ? "initFrame" : "lastFrame"]: frame, activeSlot: which });
       },
 
       clearFrame: (which) => {
@@ -88,34 +119,66 @@ export const useVideoCanvasStore = create<VideoCanvasState>()(
         set({ [key]: null });
       },
 
+      addReference: (file, base64, objectUrl, w, h) => {
+        const frame: VideoFrameImage = {
+          id: crypto.randomUUID(),
+          file,
+          base64,
+          objectUrl,
+          naturalWidth: w,
+          naturalHeight: h,
+        };
+        set((s) => ({ references: [...s.references, frame], activeSlot: "references" }));
+      },
+
+      removeReference: (id) => {
+        const prev = get().references.find((r) => r.id === id);
+        if (prev?.objectUrl) URL.revokeObjectURL(prev.objectUrl);
+        set((s) => ({ references: s.references.filter((r) => r.id !== id) }));
+      },
+
+      reorderReference: (from, to) => {
+        set((s) => {
+          if (from < 0 || from >= s.references.length || to < 0 || to >= s.references.length) {
+            return s;
+          }
+          const next = [...s.references];
+          const [moved] = next.splice(from, 1);
+          if (moved === undefined) return s;
+          next.splice(to, 0, moved);
+          return { references: next };
+        });
+      },
+
+      clearReferences: () => {
+        for (const r of get().references) {
+          if (r.objectUrl) URL.revokeObjectURL(r.objectUrl);
+        }
+        set({ references: [] });
+      },
+
+      setActiveSlot: (slot) => set({ activeSlot: slot }),
+
       clearAll: () => {
-        const { initFrame, lastFrame } = get();
+        const { initFrame, lastFrame, references } = get();
         if (initFrame?.objectUrl) URL.revokeObjectURL(initFrame.objectUrl);
         if (lastFrame?.objectUrl) URL.revokeObjectURL(lastFrame.objectUrl);
-        set({ initFrame: null, lastFrame: null });
+        for (const r of references) {
+          if (r.objectUrl) URL.revokeObjectURL(r.objectUrl);
+        }
+        set({ initFrame: null, lastFrame: null, references: [] });
       },
     }),
     {
       name: "enso-video-canvas",
       storage: createJSONStorage(() => videoCanvasIdbStorage),
+      // Additive persistence via merge only: adding a `version` without a
+      // migrate would wipe users' persisted frames (zustand default).
       partialize: (state): PersistedVideoCanvasState => ({
         viewport: state.viewport,
-        initFrame: state.initFrame
-          ? {
-              id: state.initFrame.id,
-              base64: state.initFrame.base64,
-              naturalWidth: state.initFrame.naturalWidth,
-              naturalHeight: state.initFrame.naturalHeight,
-            }
-          : null,
-        lastFrame: state.lastFrame
-          ? {
-              id: state.lastFrame.id,
-              base64: state.lastFrame.base64,
-              naturalWidth: state.lastFrame.naturalWidth,
-              naturalHeight: state.lastFrame.naturalHeight,
-            }
-          : null,
+        initFrame: state.initFrame ? stripFrame(state.initFrame) : null,
+        lastFrame: state.lastFrame ? stripFrame(state.lastFrame) : null,
+        references: state.references.map(stripFrame),
       }),
       merge: (persisted, current) => {
         const saved = persisted as Partial<PersistedVideoCanvasState> | undefined;
@@ -125,6 +188,7 @@ export const useVideoCanvasStore = create<VideoCanvasState>()(
           viewport: saved.viewport ?? current.viewport,
           initFrame: saved.initFrame ? rehydrateFrame(saved.initFrame) : current.initFrame,
           lastFrame: saved.lastFrame ? rehydrateFrame(saved.lastFrame) : current.lastFrame,
+          references: (saved.references ?? []).map(rehydrateFrame).filter(Boolean),
         };
       },
     },

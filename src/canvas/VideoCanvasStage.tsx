@@ -4,8 +4,10 @@ import { useVideoCanvasStore } from "@/stores/videoCanvasStore";
 import { useVideoStore } from "@/stores/videoStore";
 import { usePanZoom } from "./tools/usePanZoom";
 import { VideoFrameLayer } from "./layers/VideoFrameLayer";
+import { VideoReferencesLayer } from "./layers/VideoReferencesLayer";
 import { VideoOutputFrame } from "./layers/VideoOutputFrame";
 import type { VideoCanvasLayout } from "./useVideoFrameLayout";
+import type { VideoSlotId } from "@/stores/videoCanvasStore";
 import { videoViewportBus } from "./viewportBus";
 import type Konva from "konva";
 
@@ -14,7 +16,7 @@ const LABEL_HEIGHT = 19;
 
 interface VideoCanvasStageProps {
   layout: VideoCanvasLayout;
-  onPickImage?: (which: "init" | "last") => void;
+  onPickImage?: (which: VideoSlotId) => void;
 }
 
 export function VideoCanvasStage({ layout, onPickImage }: VideoCanvasStageProps) {
@@ -28,7 +30,7 @@ export function VideoCanvasStage({ layout, onPickImage }: VideoCanvasStageProps)
 
   const panZoom = usePanZoom(stageRef, setViewport, videoViewportBus);
 
-  const { initX, lastX, outputX, totalBounds, displayW, displayH } = layout;
+  const { initX, lastX, referencesX, outputX, totalBounds, displayW, displayH } = layout;
 
   // Container-responsive sizing
   useEffect(() => {
@@ -47,12 +49,13 @@ export function VideoCanvasStage({ layout, onPickImage }: VideoCanvasStageProps)
     return () => ro.disconnect();
   }, []);
 
-  // Fit viewport to show all three frames on initial render / size change
+  // Fit viewport to show the visible frames on initial render, size change,
+  // or when caps hide/show slots
   const prevFrameRef = useRef<string>("");
   useEffect(() => {
     if (frameW <= 0 || frameH <= 0) return;
     if (containerSize.width <= 0 || containerSize.height <= 0) return;
-    const key = `${frameW}x${frameH}`;
+    const key = `${frameW}x${frameH}:${layout.slotCount}`;
     if (prevFrameRef.current === key) return;
     prevFrameRef.current = key;
 
@@ -64,7 +67,7 @@ export function VideoCanvasStage({ layout, onPickImage }: VideoCanvasStageProps)
     const x = (containerSize.width - totalWidth * scale) / 2 - totalBounds.minX * scale;
     const y = (containerSize.height - totalHeight * scale) / 2 + LABEL_HEIGHT * scale;
     setViewport({ x, y, scale });
-  }, [containerSize, frameW, frameH, totalBounds, setViewport]);
+  }, [containerSize, frameW, frameH, totalBounds, layout.slotCount, setViewport]);
 
   const onMouseDown = useCallback(
     (e: Konva.KonvaEventObject<MouseEvent>) => {
@@ -100,21 +103,36 @@ export function VideoCanvasStage({ layout, onPickImage }: VideoCanvasStageProps)
           onMouseMove={onMouseMove}
           onMouseUp={onMouseUp}
         >
-          <VideoFrameLayer
-            which="init"
-            offsetX={initX}
-            width={displayW}
-            height={displayH}
-            onPickImage={() => onPickImage?.("init")}
-          />
+          {layout.showInit && (
+            <VideoFrameLayer
+              which="init"
+              offsetX={initX}
+              width={displayW}
+              height={displayH}
+              onPickImage={() => onPickImage?.("init")}
+            />
+          )}
 
-          <VideoFrameLayer
-            which="last"
-            offsetX={lastX}
-            width={displayW}
-            height={displayH}
-            onPickImage={() => onPickImage?.("last")}
-          />
+          {layout.showLast && (
+            <VideoFrameLayer
+              which="last"
+              offsetX={lastX}
+              width={displayW}
+              height={displayH}
+              onPickImage={() => onPickImage?.("last")}
+            />
+          )}
+
+          {layout.showReferences && (
+            <VideoReferencesLayer
+              offsetX={referencesX}
+              width={displayW}
+              height={displayH}
+              cells={layout.referenceChildren}
+              addCell={layout.referenceAddCell}
+              onPickAdd={() => onPickImage?.("references")}
+            />
+          )}
 
           <VideoOutputFrame offsetX={outputX} width={displayW} height={displayH} />
         </Stage>

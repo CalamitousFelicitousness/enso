@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Download, Trash2, Film, Columns2, X, ImagePlus } from "lucide-react";
+import { toast } from "sonner";
 import { useVideoStore } from "@/stores/videoStore";
-import { useVideoCanvasStore } from "@/stores/videoCanvasStore";
+import { useVideoCanvasStore, type VideoSlotId } from "@/stores/videoCanvasStore";
+import { useActiveVideoCaps } from "@/hooks/useActiveVideoCaps";
 import { videoViewportBus } from "@/canvas/viewportBus";
 import {
   useJobQueueStore,
@@ -47,11 +49,15 @@ const STILL_FORMATS = new Set(["png", "jpg", "jpeg", "webp", "gif"]);
 
 export function VideoCanvasView() {
   const layout = useVideoFrameLayout();
+  const caps = useActiveVideoCaps();
   const viewport = useVideoCanvasStore((s) => s.viewport);
   const initFrame = useVideoCanvasStore((s) => s.initFrame);
   const lastFrame = useVideoCanvasStore((s) => s.lastFrame);
+  const references = useVideoCanvasStore((s) => s.references);
   const setFrame = useVideoCanvasStore((s) => s.setFrame);
   const clearFrame = useVideoCanvasStore((s) => s.clearFrame);
+  const addReference = useVideoCanvasStore((s) => s.addReference);
+  const clearReferences = useVideoCanvasStore((s) => s.clearReferences);
   const labelScale = useUiStore((s) => s.canvasLabelScale);
 
   const results = useVideoStore((s) => s.results);
@@ -129,16 +135,27 @@ export function VideoCanvasView() {
   // File input refs for click-to-pick
   const initInputRef = useRef<HTMLInputElement>(null);
   const lastInputRef = useRef<HTMLInputElement>(null);
+  const referencesInputRef = useRef<HTMLInputElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
 
-  const handlePickImage = useCallback((which: "init" | "last") => {
+  const handlePickImage = useCallback((which: VideoSlotId) => {
     if (which === "init") initInputRef.current?.click();
-    else lastInputRef.current?.click();
+    else if (which === "last") lastInputRef.current?.click();
+    else referencesInputRef.current?.click();
   }, []);
 
+  const maxReferences = caps.references.max_images;
+
   const handleFileSelected = useCallback(
-    async (which: "init" | "last", file: File) => {
+    async (which: VideoSlotId, file: File) => {
       if (!file.type.startsWith("image/")) return;
+      if (
+        which === "references" &&
+        useVideoCanvasStore.getState().references.length >= maxReferences
+      ) {
+        toast.warning(`This model takes at most ${maxReferences} reference images`);
+        return;
+      }
       const base64 = await fileToBase64(file);
       const objectUrl = URL.createObjectURL(file);
       const img = new window.Image();
@@ -146,18 +163,26 @@ export function VideoCanvasView() {
       await new Promise<void>((r) => {
         img.onload = () => r();
       });
-      setFrame(which, file, base64, objectUrl, img.naturalWidth, img.naturalHeight);
+      if (which === "references") {
+        addReference(file, base64, objectUrl, img.naturalWidth, img.naturalHeight);
+      } else {
+        setFrame(which, file, base64, objectUrl, img.naturalWidth, img.naturalHeight);
+      }
     },
-    [setFrame],
+    [setFrame, addReference, maxReferences],
   );
 
   const handleInputChange = useCallback(
-    (which: "init" | "last") => (e: React.ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0];
-      if (file) void handleFileSelected(which, file);
+    (which: VideoSlotId) => (e: React.ChangeEvent<HTMLInputElement>) => {
+      const files = Array.from(e.target.files ?? []);
+      void (async () => {
+        for (const file of files.slice(0, which === "references" ? maxReferences : 1)) {
+          await handleFileSelected(which, file);
+        }
+      })();
       e.target.value = "";
     },
-    [handleFileSelected],
+    [handleFileSelected, maxReferences],
   );
 
   // Move overlay wrapper imperatively during pan/zoom gestures
@@ -183,16 +208,22 @@ export function VideoCanvasView() {
     });
   }, []);
 
-  // Hit-test: determine which video frame a drop lands on based on screen coords
+  // Hit-test: which visible input slot a drop lands on; outside every band
+  // falls back to the first visible input slot
   const hitTestTarget = useCallback(
-    (e: React.DragEvent): "init" | "last" => {
+    (e: React.DragEvent): VideoSlotId => {
       const vp = useVideoCanvasStore.getState().viewport;
       const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
       const screenX = e.clientX - rect.left;
       const canvasX = (screenX - vp.x) / vp.scale;
-      const { lastX, displayW } = layout;
-      if (canvasX >= lastX && canvasX < lastX + displayW) return "last";
-      return "init";
+      const bands: [VideoSlotId, number][] = [];
+      if (layout.showInit) bands.push(["init", layout.initX]);
+      if (layout.showLast) bands.push(["last", layout.lastX]);
+      if (layout.showReferences) bands.push(["references", layout.referencesX]);
+      for (const [slot, x] of bands) {
+        if (canvasX >= x && canvasX < x + layout.displayW) return slot;
+      }
+      return bands[0]?.[0] ?? "init";
     },
     [layout],
   );
@@ -217,15 +248,26 @@ export function VideoCanvasView() {
     onFileDrop: (f, e) => void handleDropFile(f, e),
   });
 
-  // Paste handler
+  // Paste targets the last slot the user touched, not a hardcoded one
   const handlePaste = useCallback(
     async (e: React.ClipboardEvent) => {
       const item = Array.from(e.clipboardData.items).find((i) => i.type.startsWith("image/"));
       if (!item) return;
       const file = item.getAsFile();
-      if (file) await handleFileSelected("init", file);
+      if (!file) return;
+      const active = useVideoCanvasStore.getState().activeSlot;
+      const visible =
+        (active === "init" && layout.showInit) ||
+        (active === "last" && layout.showLast) ||
+        (active === "references" && layout.showReferences);
+      const fallback: VideoSlotId = layout.showInit
+        ? "init"
+        : layout.showReferences
+          ? "references"
+          : "last";
+      await handleFileSelected(visible ? active : fallback, file);
     },
-    [handleFileSelected],
+    [handleFileSelected, layout],
   );
 
   // Compute output frame overlay position
@@ -238,8 +280,10 @@ export function VideoCanvasView() {
 
   const initColor = initFrame ? INPUT_COLOR_ACTIVE : INPUT_COLOR_INACTIVE;
   const lastColor = lastFrame ? INPUT_COLOR_ACTIVE : INPUT_COLOR_INACTIVE;
+  const referencesColor = references.length > 0 ? "#a78bfa" : INPUT_COLOR_INACTIVE;
   const initTextColor = contrastText(initColor);
   const lastTextColor = contrastText(lastColor);
+  const referencesTextColor = contrastText(referencesColor);
   const outputTextColor = contrastText(OUTPUT_COLOR);
 
   return (
@@ -259,88 +303,130 @@ export function VideoCanvasView() {
           style={{ position: "absolute", inset: 0, pointerEvents: "none", transformOrigin: "0 0" }}
         >
           {/* Floating header: Init frame */}
-          <FrameHeader
-            mode="panel"
-            color={initColor}
-            label="Init"
-            canvasX={layout.initX}
-            frameW={displayW}
-            viewport={viewport}
-            labelScale={labelScale}
-            actions={
-              <>
-                <Button
-                  variant="ghost"
-                  size="icon-xs"
-                  onClick={() => handlePickImage("init")}
-                  title="Add image"
-                  className="hover:bg-black/10"
-                >
-                  <ImagePlus size={16} style={{ color: initTextColor }} />
-                </Button>
-                {initFrame && (
+          {layout.showInit && (
+            <FrameHeader
+              mode="panel"
+              color={initColor}
+              label="Init"
+              canvasX={layout.initX}
+              frameW={displayW}
+              viewport={viewport}
+              labelScale={labelScale}
+              actions={
+                <>
                   <Button
                     variant="ghost"
                     size="icon-xs"
-                    onClick={() => clearFrame("init")}
-                    title="Clear"
+                    onClick={() => handlePickImage("init")}
+                    title="Add image"
                     className="hover:bg-black/10"
                   >
-                    <Trash2 size={16} style={{ color: initTextColor }} />
+                    <ImagePlus size={16} style={{ color: initTextColor }} />
                   </Button>
-                )}
-              </>
-            }
-            drawer={
-              <ParamSlider
-                label="Strength"
-                value={initStrength}
-                onChange={(v) => setParam("initStrength", v)}
-                min={0}
-                max={1}
-                step={0.05}
-              />
-            }
-            collapsed={!initFrame}
-            onToggleCollapsed={() => {
-              /* drawer auto-shows when frame present */
-            }}
-          />
+                  {initFrame && (
+                    <Button
+                      variant="ghost"
+                      size="icon-xs"
+                      onClick={() => clearFrame("init")}
+                      title="Clear"
+                      className="hover:bg-black/10"
+                    >
+                      <Trash2 size={16} style={{ color: initTextColor }} />
+                    </Button>
+                  )}
+                </>
+              }
+              drawer={
+                <ParamSlider
+                  label="Strength"
+                  value={initStrength}
+                  onChange={(v) => setParam("initStrength", v)}
+                  min={0}
+                  max={1}
+                  step={0.05}
+                />
+              }
+              collapsed={!initFrame}
+              onToggleCollapsed={() => {
+                /* drawer auto-shows when frame present */
+              }}
+            />
+          )}
 
           {/* Floating header: Last frame */}
-          <FrameHeader
-            mode="panel"
-            color={lastColor}
-            label="Last"
-            canvasX={layout.lastX}
-            frameW={displayW}
-            viewport={viewport}
-            labelScale={labelScale}
-            actions={
-              <>
-                <Button
-                  variant="ghost"
-                  size="icon-xs"
-                  onClick={() => handlePickImage("last")}
-                  title="Add image"
-                  className="hover:bg-black/10"
-                >
-                  <ImagePlus size={16} style={{ color: lastTextColor }} />
-                </Button>
-                {lastFrame && (
+          {layout.showLast && (
+            <FrameHeader
+              mode="panel"
+              color={lastColor}
+              label="Last"
+              canvasX={layout.lastX}
+              frameW={displayW}
+              viewport={viewport}
+              labelScale={labelScale}
+              actions={
+                <>
                   <Button
                     variant="ghost"
                     size="icon-xs"
-                    onClick={() => clearFrame("last")}
-                    title="Clear"
+                    onClick={() => handlePickImage("last")}
+                    title="Add image"
                     className="hover:bg-black/10"
                   >
-                    <Trash2 size={16} style={{ color: lastTextColor }} />
+                    <ImagePlus size={16} style={{ color: lastTextColor }} />
                   </Button>
-                )}
-              </>
-            }
-          />
+                  {lastFrame && (
+                    <Button
+                      variant="ghost"
+                      size="icon-xs"
+                      onClick={() => clearFrame("last")}
+                      title="Clear"
+                      className="hover:bg-black/10"
+                    >
+                      <Trash2 size={16} style={{ color: lastTextColor }} />
+                    </Button>
+                  )}
+                </>
+              }
+            />
+          )}
+
+          {/* Floating header: References mother frame */}
+          {layout.showReferences && (
+            <FrameHeader
+              mode="panel"
+              color={referencesColor}
+              label="Refs"
+              sizeText={`${references.length}/${maxReferences}`}
+              canvasX={layout.referencesX}
+              frameW={displayW}
+              viewport={viewport}
+              labelScale={labelScale}
+              actions={
+                <>
+                  <Button
+                    variant="ghost"
+                    size="icon-xs"
+                    onClick={() => handlePickImage("references")}
+                    title="Add reference images"
+                    className="hover:bg-black/10"
+                  >
+                    <ImagePlus size={16} style={{ color: referencesTextColor }} />
+                  </Button>
+                  {references.length > 0 && (
+                    <Button
+                      variant="ghost"
+                      size="icon-xs"
+                      onClick={clearReferences}
+                      title="Clear references"
+                      className="hover:bg-black/10"
+                    >
+                      <Trash2 size={16} style={{ color: referencesTextColor }} />
+                    </Button>
+                  )}
+                </>
+              }
+            />
+          )}
 
           {/* Floating header: Output frame */}
           <FrameHeader
@@ -460,6 +546,15 @@ export function VideoCanvasView() {
           accept="image/*"
           className="hidden"
           onChange={handleInputChange("last")}
+        />
+
+        <input
+          ref={referencesInputRef}
+          type="file"
+          accept="image/*"
+          multiple
+          className="hidden"
+          onChange={handleInputChange("references")}
         />
       </div>
 
