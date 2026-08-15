@@ -44,6 +44,16 @@ export function useLoadVideoModel() {
   });
 }
 
+export function useUnloadVideoModel() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => api.post<{ messages: string[] }>("/sdapi/v2/video/unload", {}),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["video-engines"] });
+    },
+  });
+}
+
 export function useFramePackVariants() {
   return useQuery({
     queryKey: ["framepack-variants"],

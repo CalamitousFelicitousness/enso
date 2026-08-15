@@ -13,12 +13,14 @@ import {
   useLoadVideoModel,
   useLoadFramePack,
   useUnloadFramePack,
+  useUnloadVideoModel,
 } from "@/api/hooks/useVideo";
 import { useModelSelectionStore } from "@/stores/modelSelectionStore";
 import { useUiStore } from "@/stores/uiStore";
 import { useVideoStore } from "@/stores/videoStore";
 import { useOptionsSubset } from "@/api/hooks/useSettings";
 import { useQueryClient } from "@tanstack/react-query";
+import { VideoModelBadges } from "@/components/models/VideoModelBadges";
 import type { LocalModel, LocalVideoModel, CloudModel } from "@/api/types/cloud";
 import {
   RefreshCw,
@@ -82,6 +84,7 @@ export function ModelSelector() {
   const loadVideoModel = useLoadVideoModel();
   const loadFramePack = useLoadFramePack();
   const unloadFramePack = useUnloadFramePack();
+  const unloadVideoModel = useUnloadVideoModel();
 
   const [open, setOpen] = useState(false);
 
@@ -139,16 +142,22 @@ export function ModelSelector() {
     toast.success("Cloud model selected", { description: model.name });
   }
 
-  // Group local video models by engine for the dropdown. Memoised against
-  // the list reference; useLocalVideoModels already memoises internally.
-  const localVideoByEngine = useMemo(() => {
-    const map = new Map<string, LocalVideoModel[]>();
+  // Group local video models by engine plus registry group path (LTX
+  // families), preserving registry order. One CommandGroup per heading.
+  const localVideoGroups = useMemo(() => {
+    const groups: { heading: string; models: LocalVideoModel[] }[] = [];
+    const index = new Map<string, number>();
     for (const m of localVideoModels) {
-      const bucket = map.get(m.engine) ?? [];
-      bucket.push(m);
-      map.set(m.engine, bucket);
+      const heading = [m.engine, ...m.group_path].join(" · ");
+      let i = index.get(heading);
+      if (i === undefined) {
+        i = groups.length;
+        index.set(heading, i);
+        groups.push({ heading, models: [] });
+      }
+      groups[i]?.models.push(m);
     }
-    return Array.from(map.entries());
+    return groups;
   }, [localVideoModels]);
 
   // --- Action row dispatch -------------------------------------------------
@@ -177,15 +186,16 @@ export function ModelSelector() {
     }
   }
 
-  // Unload: sdnext has /options unload; FramePack has /framepack/unload; the
-  // generic /video/load endpoint has no unload counterpart, so generic and
-  // LTX local-video models leave the Unload button muted.
+  // Unload: sdnext has /options unload; FramePack has /framepack/unload;
+  // every other video engine goes through /sdapi/v2/video/unload.
   function handleUnload() {
     if (!activeModel) return;
     if (activeModel.source === "local") {
       unloadModel.mutate(undefined);
     } else if (isFramePackActive) {
       unloadFramePack.mutate();
+    } else if (activeModel.source === "local-video") {
+      unloadVideoModel.mutate();
     }
   }
 
@@ -200,9 +210,12 @@ export function ModelSelector() {
   }
 
   const canLoadOrReload = activeModel != null && activeModel.source !== "cloud";
-  const canUnload = isLocalImage || isFramePackActive;
+  const canUnload = isLocalImage || isLocalVideo;
   const anyVideoMutationPending =
-    loadVideoModel.isPending || loadFramePack.isPending || unloadFramePack.isPending;
+    loadVideoModel.isPending ||
+    loadFramePack.isPending ||
+    unloadFramePack.isPending ||
+    unloadVideoModel.isPending;
   const anyLoadActionPending = isModelLoading || anyVideoMutationPending;
 
   return (
@@ -260,17 +273,17 @@ export function ModelSelector() {
                 </CommandGroup>
               )}
 
-              {/* Local video models, grouped by engine. Wan/Hunyuan/LTX
-                  come from /sdapi/v2/video/engines with full metadata;
-                  FramePack variants come from /sdapi/v2/framepack/variants
-                  as bare strings (no cached/loaded badges available). */}
+              {/* Local video models, grouped by engine plus registry group
+                  path. Wan/Hunyuan/LTX come from /sdapi/v2/video/engines
+                  with caps joined; FramePack variants come from
+                  /sdapi/v2/framepack/variants as bare strings. */}
               {showLocalVideo &&
-                localVideoByEngine.map(([engine, engineModels]) => (
-                  <CommandGroup key={`lv-${engine}`} heading={engine}>
-                    {engineModels.map((m) => (
+                localVideoGroups.map(({ heading, models: groupModels }) => (
+                  <CommandGroup key={`lv-${heading}`} heading={heading}>
+                    {groupModels.map((m) => (
                       <CommandItem
                         key={m.title}
-                        value={`${engine} ${m.name}`}
+                        value={`${heading} ${m.name}`}
                         onSelect={() => handleSelectLocalVideo(m)}
                         className={cn(
                           "text-xs",
@@ -293,11 +306,7 @@ export function ModelSelector() {
                           />
                         ) : null}
                         <span className="truncate flex-1">{m.name}</span>
-                        {m.mode !== "t2v" && (
-                          <span className="text-4xs font-medium uppercase bg-muted px-1 rounded shrink-0 ml-2">
-                            {m.mode === "workflow" ? (m.workflow ?? m.mode) : m.mode}
-                          </span>
-                        )}
+                        <VideoModelBadges model={m} />
                       </CommandItem>
                     ))}
                   </CommandGroup>
