@@ -145,12 +145,15 @@ export default defineConfig(({ mode }) => {
       proxy: standalone
         ? undefined
         : {
-            "/sdapi/v2/ws": { target: backend, ws: true, timeout: 5000 },
-            "/sdapi/v2/browser/files": { target: backend, ws: true, timeout: 5000 },
-            "/sdapi/v2/jobs": { target: backend, ws: true, timeout: 5000 },
-            "/sdapi": { target: backend, timeout: 5000 },
-            "/internal": { target: backend, timeout: 5000 },
-            "/file": { target: backend, timeout: 5000 },
+            // No proxy timeout: it sets an idle timeout on the browser socket,
+            // which kills slow-but-healthy requests (model loads run minutes
+            // with zero bytes flowing). Dead backends fail fast on their own.
+            "/sdapi/v2/ws": { target: backend, ws: true },
+            "/sdapi/v2/browser/files": { target: backend, ws: true },
+            "/sdapi/v2/jobs": { target: backend, ws: true },
+            "/sdapi": { target: backend },
+            "/internal": { target: backend },
+            "/file": { target: backend },
           },
     },
     define: {
