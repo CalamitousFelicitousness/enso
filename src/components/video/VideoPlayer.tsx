@@ -9,9 +9,12 @@ const DEFAULT_FPS = 24;
 
 interface VideoPlayerProps {
   src: string | null;
+  /** Playback rate probed from the saved container; the default is only a
+   * fallback for results recorded before fps was carried. */
+  fps?: number | null | undefined;
 }
 
-function VideoPlayerInner({ src }: { src: string }) {
+function VideoPlayerInner({ src, fps }: { src: string; fps?: number | null | undefined }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const idleTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -22,7 +25,7 @@ function VideoPlayerInner({ src }: { src: string }) {
   const [speed, setSpeed] = useState<number>(1);
   const [showControls, setShowControls] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [meta, setMeta] = useState({ fps: DEFAULT_FPS, width: 0, height: 0 });
+  const [meta, setMeta] = useState({ fps: fps || DEFAULT_FPS, width: 0, height: 0 });
   const [trackWidth, setTrackWidth] = useState(0);
 
   const startIdleTimer = useCallback(() => {
@@ -41,11 +44,11 @@ function VideoPlayerInner({ src }: { src: string }) {
     if (!video) return;
     setDuration(video.duration);
     setMeta({
-      fps: DEFAULT_FPS,
+      fps: fps || DEFAULT_FPS,
       width: video.videoWidth,
       height: video.videoHeight,
     });
-  }, []);
+  }, [fps]);
 
   const handleTimeUpdate = useCallback(() => {
     if (videoRef.current) setCurrentTime(videoRef.current.currentTime);
@@ -249,7 +252,7 @@ function VideoPlayerInner({ src }: { src: string }) {
   );
 }
 
-export function VideoPlayer({ src }: VideoPlayerProps) {
+export function VideoPlayer({ src, fps }: VideoPlayerProps) {
   if (!src) {
     return (
       <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
@@ -260,5 +263,5 @@ export function VideoPlayer({ src }: VideoPlayerProps) {
   }
 
   // key={src} resets all state when the source changes, avoiding effects that set state
-  return <VideoPlayerInner key={src} src={src} />;
+  return <VideoPlayerInner key={src} src={src} fps={fps} />;
 }

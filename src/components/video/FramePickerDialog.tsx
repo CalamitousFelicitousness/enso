@@ -12,6 +12,7 @@ import { Slider } from "@/components/ui/slider";
 
 interface FramePickerDialogProps {
   videoUrl: string;
+  fps?: number | null | undefined;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onCapture: (blob: Blob, time: number) => void;
@@ -19,6 +20,7 @@ interface FramePickerDialogProps {
 
 export function FramePickerDialog({
   videoUrl,
+  fps,
   open,
   onOpenChange,
   onCapture,
@@ -60,14 +62,17 @@ export function FramePickerDialog({
     }
   }, []);
 
-  const stepFrame = useCallback((delta: number) => {
-    const video = videoRef.current;
-    if (!video) return;
-    const frameTime = 1 / 30;
-    const newTime = Math.min(Math.max(0, video.currentTime + delta * frameTime), video.duration);
-    video.currentTime = newTime;
-    setCurrentTime(newTime);
-  }, []);
+  const stepFrame = useCallback(
+    (delta: number) => {
+      const video = videoRef.current;
+      if (!video) return;
+      const frameTime = 1 / (fps || 30);
+      const newTime = Math.min(Math.max(0, video.currentTime + delta * frameTime), video.duration);
+      video.currentTime = newTime;
+      setCurrentTime(newTime);
+    },
+    [fps],
+  );
 
   const handleCapture = useCallback(() => {
     const video = videoRef.current;

@@ -58,6 +58,11 @@ function routeResult(domain: JobDomain, result: JobResult, snapshot: TrackedJob[
     // [video, thumbnail] into result.images; fall back to that shape so those
     // flows keep working unchanged.
     const cloudVid = result.videos?.[0];
+    const info: Record<string, unknown> = result.info ?? {};
+    const infoFps = typeof info["fps"] === "number" && info["fps"] > 0 ? info["fps"] : null;
+    const infoFrames =
+      typeof info["frames"] === "number" && info["frames"] > 0 ? info["frames"] : null;
+    const infoAudio = typeof info["has_audio"] === "boolean" ? info["has_audio"] : false;
     if (cloudVid) {
       // Stored relative and resolved at render, like image results, so
       // persisted history survives a backend URL change.
@@ -70,6 +75,9 @@ function routeResult(domain: JobDomain, result: JobResult, snapshot: TrackedJob[
         format: cloudVid.format,
         size: cloudVid.size,
         duration: cloudVid.duration,
+        fps: infoFps,
+        frames: infoFrames,
+        hasAudio: infoAudio,
         // Server returns snake_case JSON; the structural assignment to
         // VideoWireParams here crosses the wire-contract boundary.
         params: result.params,

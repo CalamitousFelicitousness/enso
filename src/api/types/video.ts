@@ -41,6 +41,11 @@ export interface VideoResult {
   /** Reported by cloud providers via VideoRef.duration. Local pipelines
    * compute duration from frames/fps client-side and leave this undefined. */
   duration?: number | null | undefined;
+  /** Playback rate probed from the saved container; differs from the
+   * requested rate under interpolation. */
+  fps?: number | null | undefined;
+  hasAudio?: boolean | undefined;
+  frames?: number | null | undefined;
   params: VideoWireParams;
   domain: "video" | "framepack" | "ltx";
   timestamp: number;

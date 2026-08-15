@@ -22,10 +22,13 @@ import { ParamDiffDialog } from "./ParamDiffDialog";
 import {
   extractFrameFromVideo,
   sendFrameToVideoInit,
+  sendFrameToVideoLast,
   sendFrameToUpscale,
   restoreVideoSettings,
 } from "@/lib/sendTo";
 import { resolveImageSrc } from "@/lib/utils";
+import { isStillResult } from "@/lib/video/results";
+import { useActiveVideoCaps } from "@/hooks/useActiveVideoCaps";
 import type { VideoResult } from "@/api/types/video";
 
 interface VideoResultActionsProps {
@@ -36,6 +39,19 @@ export function VideoResultActions({ result }: VideoResultActionsProps) {
   const [framePickerOpen, setFramePickerOpen] = useState(false);
   const [diffOpen, setDiffOpen] = useState(false);
   const videoSrc = resolveImageSrc(result.videoUrl);
+  const still = isStillResult(result);
+  const caps = useActiveVideoCaps();
+  const lastSlotAvailable = caps.last_image !== "ignored";
+
+  const handleSendLastFrameToLast = useCallback(async () => {
+    try {
+      const blob = await extractFrameFromVideo(videoSrc, 999999);
+      void sendFrameToVideoLast(blob);
+      toast.success("Last frame sent to Last Image");
+    } catch {
+      toast.error("Failed to extract frame");
+    }
+  }, [videoSrc]);
 
   const handleSendFirstFrame = useCallback(async () => {
     try {
@@ -97,19 +113,29 @@ export function VideoResultActions({ result }: VideoResultActionsProps) {
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          <DropdownMenuItem onClick={() => void handleSendFirstFrame()}>
-            <ImagePlus size={14} />
-            <span>Send first frame to Init</span>
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => void handleSendLastFrame()}>
-            <ImagePlus size={14} />
-            <span>Send last frame to Init</span>
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => setFramePickerOpen(true)}>
-            <Scissors size={14} />
-            <span>Extract frame...</span>
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
+          {!still && (
+            <>
+              <DropdownMenuItem onClick={() => void handleSendFirstFrame()}>
+                <ImagePlus size={14} />
+                <span>Send first frame to Init</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => void handleSendLastFrame()}>
+                <ImagePlus size={14} />
+                <span>Send last frame to Init</span>
+              </DropdownMenuItem>
+              {lastSlotAvailable && (
+                <DropdownMenuItem onClick={() => void handleSendLastFrameToLast()}>
+                  <ImagePlus size={14} />
+                  <span>Send last frame to Last</span>
+                </DropdownMenuItem>
+              )}
+              <DropdownMenuItem onClick={() => setFramePickerOpen(true)}>
+                <Scissors size={14} />
+                <span>Extract frame...</span>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+            </>
+          )}
           <DropdownMenuItem onClick={() => void handleSendToUpscale()}>
             <ArrowUpFromLine size={14} />
             <span>Send frame to Upscale</span>
@@ -119,10 +145,12 @@ export function VideoResultActions({ result }: VideoResultActionsProps) {
             <RotateCcw size={14} />
             <span>Reuse Settings</span>
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => void handleExtend()}>
-            <FastForward size={14} />
-            <span>Extend Video</span>
-          </DropdownMenuItem>
+          {!still && (
+            <DropdownMenuItem onClick={() => void handleExtend()}>
+              <FastForward size={14} />
+              <span>Extend Video</span>
+            </DropdownMenuItem>
+          )}
           <DropdownMenuItem onClick={() => setDiffOpen(true)}>
             <GitCompare size={14} />
             <span>Compare Settings</span>
@@ -132,6 +160,7 @@ export function VideoResultActions({ result }: VideoResultActionsProps) {
 
       <FramePickerDialog
         videoUrl={videoSrc}
+        fps={result.fps}
         open={framePickerOpen}
         onOpenChange={setFramePickerOpen}
         onCapture={handleFrameCapture}

@@ -33,6 +33,7 @@ import type { DragPayload } from "@/stores/dragStore";
 import { Button } from "@/components/ui/button";
 import { ParamSlider } from "@/components/generation/ParamSlider";
 import { fileToBase64 } from "@/lib/image";
+import { isStillResult } from "@/lib/video/results";
 import { contrastText, cn, resolveImageSrc } from "@/lib/utils";
 
 const DOMAIN_LABELS: Record<string, string> = {
@@ -40,12 +41,6 @@ const DOMAIN_LABELS: Record<string, string> = {
   framepack: "FP",
   ltx: "LTX",
 };
-
-// Still-mode results (frames <= 1 on modular models) arrive as a videos ref
-// whose format is an image; a <video> element cannot display those, so the
-// viewer swaps in an <img>. GIF is included because <video> cannot play it
-// either, while <img> animates it natively.
-const STILL_FORMATS = new Set(["png", "jpg", "jpeg", "webp", "gif"]);
 
 export function VideoCanvasView() {
   const layout = useVideoFrameLayout();
@@ -484,14 +479,17 @@ export function VideoCanvasView() {
                 rightLabel={DOMAIN_LABELS[compareRight.domain] ?? compareRight.domain}
               />
             ) : !isGenerating && selectedResult?.videoUrl ? (
-              STILL_FORMATS.has(selectedResult.format) ? (
+              isStillResult(selectedResult) ? (
                 <img
                   src={resolveImageSrc(selectedResult.videoUrl)}
                   alt=""
                   className="size-full object-contain"
                 />
               ) : (
-                <VideoPlayer src={resolveImageSrc(selectedResult.videoUrl)} />
+                <VideoPlayer
+                  src={resolveImageSrc(selectedResult.videoUrl)}
+                  fps={selectedResult.fps}
+                />
               )
             ) : null}
           </div>
