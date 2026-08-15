@@ -911,25 +911,14 @@ def execute_video(params: dict, job_id: str) -> dict:
                 }
             )
     elif res.video_path and os.path.isfile(str(res.video_path)):
+        from enso_api.video_result import build_video_ref
+
         path = str(res.video_path)
-        ext = os.path.splitext(path)[1].lstrip(".").lower()
         thumb_path = str(res.thumb_path) if res.thumb_path and os.path.isfile(str(res.thumb_path)) else None
-        videos_refs.append(
-            {
-                "index": 0,
-                "path": path,
-                "thumbnail_path": thumb_path,
-                "url": f"/sdapi/v2/jobs/{job_id}/videos/0",
-                "thumbnail_url": f"/sdapi/v2/jobs/{job_id}/videos/0/thumbnail" if thumb_path else None,
-                # run() snaps generation size to 16px multiples; report what
-                # the file actually contains, not what was requested
-                "width": 16 * (int(width) // 16),
-                "height": 16 * (int(height) // 16),
-                "format": ext or "mp4",
-                "size": os.path.getsize(path),
-                "duration": round(res.num_frames / res.fps, 3) if res.fps > 0 else None,
-            }
-        )
+        # per-engine snapping diverges from the universal 16px rule (LTX and
+        # MiniMax use 32); the container probe reports the real dimensions and
+        # the core-reported values are the fallback
+        videos_refs.append(build_video_ref(job_id, 0, path, thumb_path=thumb_path, width=16 * (int(width) // 16), height=16 * (int(height) // 16), fps=res.fps, frames=res.num_frames))
 
     info = {"engine": engine or "Loaded", "model": selected.name, "frames": res.num_frames, "fps": res.fps, "has_audio": res.has_audio}
     return {"videos": videos_refs, "info": info, "params": {k: v for k, v in params.items() if k not in ("type", "init_image", "last_image", "references")}}
@@ -1004,26 +993,19 @@ def execute_framepack(params: dict, job_id: str) -> dict:
     finally:
         shared.state.end(jobid)
 
-    image_refs = []
+    from enso_api.video_result import build_video_ref, probe_video_file
+
+    videos_refs = []
+    info = {"engine": "FramePack", "model": variant, "frames": 0, "fps": 0.0, "has_audio": False}
     if video_file and os.path.isfile(str(video_file)):
         path = str(video_file)
-        ext = os.path.splitext(path)[1].lstrip(".").lower()
-        image_refs.append(
-            {
-                "index": 0,
-                "path": path,
-                "url": f"/sdapi/v2/jobs/{job_id}/images/0",
-                "width": resolution,
-                "height": resolution,
-                "format": ext or "mp4",
-                "size": os.path.getsize(path),
-            }
-        )
-        thumb_path = os.path.splitext(path)[0] + ".thumb.jpg"
-        if os.path.isfile(thumb_path):
-            image_refs.append({"index": 1, "path": thumb_path, "url": f"/sdapi/v2/jobs/{job_id}/images/1", "width": 0, "height": 0, "format": "jpg", "size": os.path.getsize(thumb_path)})
+        probe = probe_video_file(path)
+        # resolution is a bucket scalar, not the real canvas; the probe reports
+        # the actual dimensions and the square is only the probe-failure fallback
+        videos_refs.append(build_video_ref(job_id, 0, path, probe=probe, width=resolution, height=resolution, fps=params.get("fps", 30)))
+        info.update({"frames": probe["frames"], "fps": probe["fps"] or params.get("fps", 30), "has_audio": probe["has_audio"]})
 
-    return {"images": image_refs, "info": {}, "params": {k: v for k, v in params.items() if k not in ("type", "init_image", "end_image")}}
+    return {"videos": videos_refs, "info": info, "params": {k: v for k, v in params.items() if k not in ("type", "init_image", "end_image")}}
 
 
 def execute_ltx(params: dict, job_id: str) -> dict:
@@ -1098,26 +1080,17 @@ def execute_ltx(params: dict, job_id: str) -> dict:
     finally:
         shared.state.end(jobid)
 
-    image_refs = []
+    from enso_api.video_result import build_video_ref, probe_video_file
+
+    videos_refs = []
+    info = {"engine": "LTX Video", "model": model, "frames": 0, "fps": 0.0, "has_audio": False}
     if video_file and os.path.isfile(str(video_file)):
         path = str(video_file)
-        ext = os.path.splitext(path)[1].lstrip(".").lower()
-        image_refs.append(
-            {
-                "index": 0,
-                "path": path,
-                "url": f"/sdapi/v2/jobs/{job_id}/images/0",
-                "width": width,
-                "height": height,
-                "format": ext or "mp4",
-                "size": os.path.getsize(path),
-            }
-        )
-        thumb_path = os.path.splitext(path)[0] + ".thumb.jpg"
-        if os.path.isfile(thumb_path):
-            image_refs.append({"index": 1, "path": thumb_path, "url": f"/sdapi/v2/jobs/{job_id}/images/1", "width": 0, "height": 0, "format": "jpg", "size": os.path.getsize(thumb_path)})
+        probe = probe_video_file(path)
+        videos_refs.append(build_video_ref(job_id, 0, path, probe=probe, width=width, height=height, fps=params.get("fps", 24)))
+        info.update({"frames": probe["frames"], "fps": probe["fps"] or params.get("fps", 24), "has_audio": probe["has_audio"]})
 
-    return {"images": image_refs, "info": {}, "params": {k: v for k, v in params.items() if k not in ("type", "condition_image", "condition_last")}}
+    return {"videos": videos_refs, "info": info, "params": {k: v for k, v in params.items() if k not in ("type", "condition_image", "condition_last")}}
 
 
 def execute_xyz_grid_dispatch(params: dict, job_id: str) -> dict:
