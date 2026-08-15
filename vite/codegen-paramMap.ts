@@ -7,6 +7,10 @@ import type { ExtractedParam, ExtractWarning } from "./extract-params.ts";
 const here = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(here, "..");
 const TABS_DIR = path.join(repoRoot, "src/components/generation/tabs");
+const VIDEO_SECTIONS_DIRS = [
+  path.join(repoRoot, "src/components/video/forms"),
+  path.join(repoRoot, "src/components/video/forms/sections"),
+];
 const OUTPUT_PATH = path.join(repoRoot, "src/lib/paramMap.generated.ts");
 const SYNONYMS_PATH = path.join(here, "palette-synonyms.json");
 
@@ -35,7 +39,7 @@ const HEADER = [
   'import type { ImagesSubTab } from "@/stores/uiStore";',
   "",
   "export interface ParamEntry {",
-  "  tab: ImagesSubTab;",
+  '  tab: ImagesSubTab | "video";',
   "  section: string;",
   "  param: string;",
   "  label: string;",
@@ -60,6 +64,15 @@ export function runCodegen(): CodegenResult {
     .filter((name) => name.endsWith("Tab.tsx"))
     .map((name) => path.join(TABS_DIR, name))
     .sort();
+  for (const dir of VIDEO_SECTIONS_DIRS) {
+    tabFiles.push(
+      ...fs
+        .readdirSync(dir)
+        .filter((name) => name.endsWith("Section.tsx"))
+        .map((name) => path.join(dir, name))
+        .sort(),
+    );
+  }
 
   const synonymGroups = loadSynonymGroups();
   const allParams: ExtractedParam[] = [];

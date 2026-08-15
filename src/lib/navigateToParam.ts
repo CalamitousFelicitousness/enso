@@ -6,6 +6,9 @@ export interface NavigateTarget {
   view?: string;
   tab?: ImagesSubTab;
   rightTab?: RightTab;
+  /** KeepAlive panel id to scope the param lookup to when the target is a
+   * view without a sub-tab (the Video panel's sections). */
+  panel?: string;
   section?: string;
   param?: string;
 }
@@ -67,9 +70,8 @@ export async function navigateToParam(target: NavigateTarget) {
   // mounted, so the same data-param (or data-section) can exist in several
   // panels at once - an unscoped query could match and scroll a hidden tab's
   // copy instead of the one we just switched to. The panel id equals the tab id.
-  const scope = target.tab
-    ? await waitForElement(`[data-panel-id="${target.tab}"]`)
-    : document.body;
+  const panelId = target.tab ?? target.panel;
+  const scope = panelId ? await waitForElement(`[data-panel-id="${panelId}"]`) : document.body;
   if (!scope) return;
 
   // 5. Expand section if specified

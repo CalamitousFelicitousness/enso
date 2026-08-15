@@ -41,10 +41,10 @@ const NAV_ICONS: Record<string, LucideIcon> = {
   gallery: Images,
 };
 
-const TAB_ICONS: Record<string, LucideIcon> = {};
+const TAB_ICONS: Record<string, LucideIcon> = { video: Video };
 for (const t of IMAGES_SUB_TABS) TAB_ICONS[t.id] = t.icon;
 
-const TAB_LABELS: Record<string, string> = {};
+const TAB_LABELS: Record<string, string> = { video: "Video" };
 for (const t of IMAGES_SUB_TABS) TAB_LABELS[t.id] = t.label;
 
 /** Title-case a lowercase section name: "hires fix" -> "Hires Fix". */
@@ -186,7 +186,12 @@ export function buildActions(commands?: PaletteCommand[]): PaletteAction[] {
       group: tabLabel,
       keywords: [...entry.keywords, entry.param, entry.section],
       ...(entry.helpExcerpt ? { helpExcerpt: entry.helpExcerpt } : {}),
-      target: { tab: entry.tab, section: entry.section, param: entry.param },
+      // Video sections live in one KeepAlive panel navigated by view;
+      // images params navigate by sub-tab.
+      target:
+        entry.tab === "video"
+          ? { view: "video", panel: "capability", section: entry.section, param: entry.param }
+          : { tab: entry.tab, section: entry.section, param: entry.param },
       showOnlyInSearch: true,
     });
   }
