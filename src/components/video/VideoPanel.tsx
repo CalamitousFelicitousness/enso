@@ -13,6 +13,7 @@ import {
   selectDomainRunning,
 } from "@/stores/jobStore";
 import { useSubmitToQueue } from "@/hooks/useSubmitToQueue";
+import { useVideoCapsDefaults } from "@/hooks/useVideoCapsDefaults";
 import { sendToJob } from "@/hooks/useJobTracker";
 import { useCancelJob } from "@/api/hooks/useJobs";
 import { usePromptEnhance } from "@/api/hooks/usePromptEnhance";
@@ -59,6 +60,7 @@ export function VideoPanel() {
   const activeModel = useModelSelectionStore((s) => s.activeModel);
   const kind = resolveVideoUi(activeModel);
   const domain = kindToDomain(kind);
+  useVideoCapsDefaults();
 
   const isVideoActive = useJobQueueStore(selectVideoActive);
   const isFramepackActive = useJobQueueStore(selectFramepackActive);
