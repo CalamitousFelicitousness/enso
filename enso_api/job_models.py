@@ -824,7 +824,7 @@ class FramePackParams(JobBase):
     seed: int = -1
     variant: str = "bi-directional"
     resolution: int = 640
-    duration: int = 4
+    duration: float = 4.0
     latent_ws: int = 9
     steps: int = 25
     shift: float = 3.0
@@ -852,6 +852,7 @@ class FramePackParams(JobBase):
     save_video: bool = True
     save_frames: bool = False
     save_safetensors: bool = False
+    save_thumbnail: bool = True
     vlm_enhance: bool = False
     vlm_model: str = ""
     vlm_system_prompt: str = ""
@@ -869,8 +870,13 @@ class LtxParams(JobBase):
     width: int = 768
     height: int = 512
     frames: int = 97
+    # auto_duration defers the clip length to the LTX 2.5 duration head
+    auto_duration: bool = False
     steps: int = 50
     sampler: int = 0
+    guidance_scale: float = 4.0
+    sampler_shift: float = -1.0
+    dynamic_shift: bool = False
     decode_timestep: float = 0.05
     image_cond_noise_scale: float = 0.025
     upsample_enable: bool = False
@@ -880,7 +886,8 @@ class LtxParams(JobBase):
     condition_strength: float = 0.8
     condition_image: str | None = None
     condition_last: str | None = None
-    condition_video_frames: int = 0
+    # -1 means all frames of the condition video; 0 is literally zero frames
+    condition_video_frames: int = -1
     condition_video_skip: int = 0
     audio_enable: bool = False
     fps: int = 24
@@ -891,6 +898,7 @@ class LtxParams(JobBase):
     save_video: bool = True
     save_frames: bool = False
     save_safetensors: bool = False
+    save_thumbnail: bool = True
     styles: list[str] = Field(default_factory=list)
 
 
