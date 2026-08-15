@@ -40,6 +40,7 @@ interface VideoState {
   saveVideo: boolean;
   saveFrames: boolean;
   saveSafetensors: boolean;
+  saveThumbnail: boolean;
 
   // Shared input images (File objects, not persisted to localStorage)
   initImage: File | null;
@@ -124,6 +125,7 @@ const defaultParams = {
   saveVideo: true,
   saveFrames: false,
   saveSafetensors: false,
+  saveThumbnail: true,
 
   initImage: null as File | null,
   lastImage: null as File | null,

@@ -336,8 +336,12 @@ async def get_output(output_id: str):
     )
 
 
-def parse_video_mode(name: str) -> str:
-    lower = name.lower()
+def video_model_mode(model) -> str:
+    # mirrors the dispatch order in video_run.run: workflow models route on
+    # their declared workflow, the rest on name markers
+    if model.workflow is not None:
+        return "workflow"
+    lower = model.name.lower()
     if "flf2v" in lower:
         return "flf2v"
     if "vace" in lower:
@@ -360,15 +364,15 @@ async def list_video_engines():
     for engine_name, model_list in models_def.models.items():
         if engine_name == "None":
             continue
-        model_names = [m.name for m in model_list if m.name != "None"]
+        model_names = [m.name for m in model_list if models_def.is_model(m)]
         details = []
         for m in model_list:
-            if m.name == "None":
+            if not models_def.is_model(m):
                 continue
             cached = is_model_cached(m.repo) if m.repo else False
             loaded = m.name == current_loaded if current_loaded else False
-            mode = parse_video_mode(m.name)
-            details.append(VideoModelEnriched(name=m.name, repo=m.repo or "", url=m.url or "", cached=cached, loaded=loaded, mode=mode))
+            mode = video_model_mode(m)
+            details.append(VideoModelEnriched(name=m.name, repo=m.repo or "", url=m.url or "", cached=cached, loaded=loaded, mode=mode, workflow=m.workflow))
         result.append({"engine": engine_name, "models": model_names, "model_details": details})
     return result
 
@@ -380,7 +384,7 @@ async def list_video_engine_models(engine: str):
     if engine not in models_def.models:
         raise HTTPException(status_code=404, detail=f"Engine not found: {engine}")
     model_list = models_def.models[engine]
-    return [{"name": m.name, "repo": m.repo or "", "url": m.url or ""} for m in model_list if m.name != "None"]
+    return [{"name": m.name, "repo": m.repo or "", "url": m.url or ""} for m in model_list if models_def.is_model(m)]
 
 
 @router.post("/video/load", response_model=VideoLoadResponse, tags=["Video"])

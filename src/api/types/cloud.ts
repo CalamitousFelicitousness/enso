@@ -154,6 +154,8 @@ export interface LocalVideoModel {
   name: string;
   title: string;
   mode: VideoMode;
+  /** Modular workflow name (e.g. "ref2va") when mode === "workflow". */
+  workflow: string | null;
   cached: boolean;
   loaded: boolean;
   kind: LocalVideoEngineKind;

@@ -20,7 +20,7 @@ Cloud-specific parameter classes live in ``enso_api/cloud/models.py``.
 
 from typing import Annotated, Any, Literal
 
-from pydantic import ConfigDict, Field
+from pydantic import ConfigDict, Field, field_validator
 
 from enso_api.cloud.models import (
     CloudChatParams,
@@ -789,6 +789,9 @@ class VideoParams(JobBase):
     init_image: str | None = None
     init_strength: float = 0.5
     last_image: str | None = None
+    # ordered reference images for ref2va workflow models; rejected by the
+    # video core on models that do not condition on references
+    references: list[str] = Field(default_factory=list)
     vae_type: str = "Default"
     vae_tile_frames: int = 0
     audio: bool = True
@@ -800,6 +803,16 @@ class VideoParams(JobBase):
     save_video: bool = True
     save_frames: bool = False
     save_safetensors: bool = False
+    save_thumbnail: bool = True
+    override_settings: dict[str, Any] = Field(default_factory=dict)
+
+    @field_validator("override_settings")
+    @classmethod
+    def no_checkpoint_override(cls, v: dict[str, Any]) -> dict[str, Any]:
+        for key in ("sd_model_checkpoint", "sd_model_refiner"):
+            if key in v:
+                raise ValueError(f"{key} override is not supported: load the model before generating")
+        return v
 
 
 class FramePackParams(JobBase):

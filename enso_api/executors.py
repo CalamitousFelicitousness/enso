@@ -794,9 +794,13 @@ def execute_preprocess(params: dict, job_id: str) -> dict:
     return {"images": image_refs, "info": {"model": model}, "params": {k: v for k, v in params.items() if k not in ("type", "image")}}
 
 
+video_script_defaults: list = []
+
+
 def execute_video(params: dict, job_id: str) -> dict:
-    from modules import processing, shared
+    from modules import processing, scripts_manager, shared, ui
     from modules.api import helpers
+    from modules.api import script as api_script
     from modules.video_models import video_run
 
     engine = params.get("engine") or None
@@ -809,6 +813,16 @@ def execute_video(params: dict, job_id: str) -> dict:
 
     init_image = helpers.decode_base64_to_image(params["init_image"]) if params.get("init_image") else None
     last_image = helpers.decode_base64_to_image(params["last_image"]) if params.get("last_image") else None
+    references = [helpers.decode_base64_to_image(x) for x in (params.get("references") or [])]
+
+    # always-on video scripts need their bootstrapped default args; running
+    # them against an empty args tuple raises a TypeError per frame
+    script_runner = scripts_manager.scripts_video
+    if not script_runner.scripts:
+        script_runner.initialize_scripts(is_img2img=False, is_control=False, is_video=True)
+        ui.create_ui(None)
+    if not video_script_defaults:
+        video_script_defaults.extend(api_script.init_default_script_args(script_runner))
 
     # video_run raises VideoError on resolution and generation failures; let it
     # propagate so the worker marks the job failed with the message
@@ -834,6 +848,7 @@ def execute_video(params: dict, job_id: str) -> dict:
             init_image=init_image,
             init_strength=params.get("init_strength", 0.5),
             last_image=last_image,
+            references=references,
             vae_type=params.get("vae_type", "Default"),
             vae_tile_frames=params.get("vae_tile_frames", 0),
             audio=params.get("audio", True),
@@ -845,7 +860,11 @@ def execute_video(params: dict, job_id: str) -> dict:
             mp4_video=params.get("save_video", True),
             mp4_frames=params.get("save_frames", False),
             mp4_sf=params.get("save_safetensors", False),
+            mp4_thumb=params.get("save_thumbnail", True),
+            override_settings=dict(params.get("override_settings") or {}),
             engine=engine,
+            scripts=script_runner,
+            script_args=video_script_defaults,
             needs_load=needs_load,
         )
         # Capture saved file paths BEFORE end() clears state.results; in still
@@ -913,7 +932,7 @@ def execute_video(params: dict, job_id: str) -> dict:
         )
 
     info = {"engine": engine or "Loaded", "model": selected.name, "frames": res.num_frames, "fps": res.fps, "has_audio": res.has_audio}
-    return {"videos": videos_refs, "info": info, "params": {k: v for k, v in params.items() if k not in ("type", "init_image", "last_image")}}
+    return {"videos": videos_refs, "info": info, "params": {k: v for k, v in params.items() if k not in ("type", "init_image", "last_image", "references")}}
 
 
 def execute_framepack(params: dict, job_id: str) -> dict:

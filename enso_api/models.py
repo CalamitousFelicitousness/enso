@@ -187,7 +187,7 @@ class ResBulkJobV2(BaseModel):
     affected: int
 
 
-VideoMode = Literal["t2v", "i2v", "flf2v", "vace", "animate"]
+VideoMode = Literal["workflow", "t2v", "i2v", "flf2v", "vace", "animate"]
 """Video pipeline mode. Mirrors the TS ``VideoMode`` literal in
 ``src/api/types/video.ts``."""
 
@@ -206,6 +206,7 @@ class VideoModelEnriched(BaseModel):
     cached: bool
     loaded: bool
     mode: VideoMode
+    workflow: str | None
 
 
 class VideoEngine(BaseModel):

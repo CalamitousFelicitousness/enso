@@ -24,6 +24,7 @@ export function VideoOutputSection() {
   const saveVideo = useVideoStore((s) => s.saveVideo);
   const saveFrames = useVideoStore((s) => s.saveFrames);
   const saveSafetensors = useVideoStore((s) => s.saveSafetensors);
+  const saveThumbnail = useVideoStore((s) => s.saveThumbnail);
   const width = useVideoStore((s) => s.width);
   const fpResolution = useVideoStore((s) => s.fpResolution);
   const setParam = useVideoStore((s) => s.setParam);
@@ -161,6 +162,10 @@ export function VideoOutputSection() {
       <div className="flex items-center gap-2">
         <Label className="text-2xs text-muted-foreground w-16 shrink-0">Safetensors</Label>
         <Switch checked={saveSafetensors} onCheckedChange={(v) => setParam("saveSafetensors", v)} />
+      </div>
+      <div className="flex items-center gap-2">
+        <Label className="text-2xs text-muted-foreground w-16 shrink-0">Thumbnail</Label>
+        <Switch checked={saveThumbnail} onCheckedChange={(v) => setParam("saveThumbnail", v)} />
       </div>
     </SectionLeader>
   );

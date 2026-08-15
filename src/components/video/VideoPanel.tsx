@@ -153,6 +153,9 @@ async function buildLocalVideoPayload(kind: VideoUiKind, model: LocalVideoModel)
     vae_type: s.vaeType,
     vae_tile_frames: s.vaeTileFrames,
     audio: s.audio,
+    // VideoParams-only: FramePackParams/LtxParams are strict and lack the
+    // field, so it can't ride the shared output object
+    save_thumbnail: s.saveThumbnail,
     ...output,
   };
 }

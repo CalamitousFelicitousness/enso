@@ -262,6 +262,7 @@ export function restoreVideoSettings(params: VideoWireParams) {
       name: modelName,
       title: `local-video:${engineName}:${modelName}`,
       mode: "t2v",
+      workflow: null,
       cached: false,
       loaded: false,
       kind: engineToKind(engineName),

@@ -295,7 +295,7 @@ export function ModelSelector() {
                         <span className="truncate flex-1">{m.name}</span>
                         {m.mode !== "t2v" && (
                           <span className="text-4xs font-medium uppercase bg-muted px-1 rounded shrink-0 ml-2">
-                            {m.mode}
+                            {m.mode === "workflow" ? (m.workflow ?? m.mode) : m.mode}
                           </span>
                         )}
                       </CommandItem>

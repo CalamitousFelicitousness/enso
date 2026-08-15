@@ -8850,6 +8850,7 @@
           },
           "mode": {
             "enum": [
+              "workflow",
               "t2v",
               "i2v",
               "flf2v",
@@ -8870,6 +8871,17 @@
           "url": {
             "title": "Url",
             "type": "string"
+          },
+          "workflow": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Workflow"
           }
         },
         "required": [
@@ -8878,7 +8890,8 @@
           "url",
           "cached",
           "loaded",
-          "mode"
+          "mode",
+          "workflow"
         ],
         "title": "VideoModelEnriched",
         "type": "object"
@@ -8988,6 +9001,11 @@
             "title": "Negative",
             "type": "string"
           },
+          "override_settings": {
+            "additionalProperties": true,
+            "title": "Override Settings",
+            "type": "object"
+          },
           "priority": {
             "default": 0,
             "description": "Higher runs first; 0 is normal priority",
@@ -8997,6 +9015,13 @@
           "prompt": {
             "title": "Prompt",
             "type": "string"
+          },
+          "references": {
+            "items": {
+              "type": "string"
+            },
+            "title": "References",
+            "type": "array"
           },
           "sampler": {
             "default": 0,
@@ -9016,6 +9041,11 @@
           "save_safetensors": {
             "default": false,
             "title": "Save Safetensors",
+            "type": "boolean"
+          },
+          "save_thumbnail": {
+            "default": true,
+            "title": "Save Thumbnail",
             "type": "boolean"
           },
           "save_video": {
