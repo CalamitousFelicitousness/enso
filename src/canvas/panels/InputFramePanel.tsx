@@ -1,13 +1,11 @@
 // Per-frame DOM chrome for the multi-Input-frame stack. Renders the panel
 // above the frame (mode toggle, label, action buttons, expandable drawer
-// with Info/Options KeepAlive tabs) plus per-reference-child X-button
-// hover overlays in Reference mode. Each panel is a sortable dnd-kit
-// item under the orchestrator's vertical DndContext, and Reference
-// frames host a nested DndContext for child reorder.
+// with Info/Options KeepAlive tabs). Each panel is a sortable dnd-kit
+// item under the orchestrator's vertical DndContext; Reference frames
+// mount the shared ReferenceSortableOverlay for child reorder and removal.
 
 import { useMemo, useState } from "react";
-import { DndContext, PointerSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
-import { SortableContext, horizontalListSortingStrategy, useSortable } from "@dnd-kit/sortable";
+import { useSortable } from "@dnd-kit/sortable";
 import { GripVertical, ImagePlus, Info, Settings, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { KeepAlivePanel, KeepAliveSwitch } from "@/components/ui/keep-alive";
@@ -22,7 +20,8 @@ import {
 import { useCanvasStore } from "@/stores/canvasStore";
 import type { ImageLayer } from "@/stores/canvasStore";
 import type { InputFrameMode } from "@/canvas/inputFrames";
-import type { InputFramePosition, ReferenceChildPosition } from "@/canvas/inputFrameTypes";
+import { ReferenceSortableOverlay } from "@/canvas/ReferenceSortableOverlay";
+import type { InputFramePosition } from "@/canvas/inputFrameTypes";
 
 // HTML hints for the Initial / Reference mode toggle, rendered through the
 // styled Tooltip path (matte glass + <b>/<i>/<br> formatting) rather than the
@@ -83,6 +82,8 @@ export function InputFramePanel({
 }: InputFramePanelProps) {
   const storeFrame = useCanvasStore((s) => s.inputFrames.find((f) => f.id === frame.frameId));
   const setFrameMode = useCanvasStore((s) => s.setFrameMode);
+  const reorderReferenceInFrame = useCanvasStore((s) => s.reorderReferenceInFrame);
+  const removeReferenceFromFrame = useCanvasStore((s) => s.removeReferenceFromFrame);
 
   // dnd-kit Sortable for whole-frame vertical reorder. The drag activator
   // is the GripVertical handle inside the panel header - pointer-down on
@@ -144,6 +145,15 @@ export function InputFramePanel({
   const handleAddRef = () => onAddReferenceChild?.(frame.frameId);
   const handleClear = () => onClearFrame?.(frame.frameId);
   const handleRemove = () => onRemoveFrame?.(frame.frameId);
+
+  // The overlay speaks ids; map them to this frame's reference indices.
+  const handleChildReorder = (activeId: string, overId: string) => {
+    if (!storeFrame) return;
+    const fromIndex = storeFrame.references.findIndex((r) => r.id === activeId);
+    const toIndex = storeFrame.references.findIndex((r) => r.id === overId);
+    if (fromIndex < 0 || toIndex < 0) return;
+    reorderReferenceInFrame(frame.frameId, fromIndex, toIndex);
+  };
 
   // Compact Mode toggle pill (Initial / Reference). Rendered in the
   // FrameHeader's subheader slot, above the Info/Options tab bar.
@@ -308,55 +318,18 @@ export function InputFramePanel({
         tabBar={tabBar}
         subheader={!collapsed ? modeToggle : undefined}
       />
-      {/* Per-reference-child overlays for Reference mode. Each child has
-       * a transparent div positioned over its Konva cell that hosts the
-       * X-button hover affordance and the dnd-kit drag activator. The
-       * nested DndContext + SortableContext (horizontal strategy though
-       * the grid wraps, since the dnd-kit hit-test doesn't care about
-       * visual layout direction) handles child reorder via
-       * reorderReferenceInFrame. PointerSensor activation distance
-       * matches the outer frame-reorder context so a stray click on a
-       * cell doesn't trigger drag. */}
+      {/* Per-reference-child overlays: the shared sortable overlay hosts
+       * the X-button hover affordance and dnd-kit drag-reorder, wired to
+       * this frame's slice of canvasStore. */}
       {frame.kind === "reference" && (
-        <ReferenceChildrenSortable frame={frame} viewport={viewport} />
+        <ReferenceSortableOverlay
+          cells={frame.children}
+          viewport={viewport}
+          onReorder={handleChildReorder}
+          onRemove={(refId) => removeReferenceFromFrame(frame.frameId, refId)}
+        />
       )}
     </>
-  );
-}
-
-interface ReferenceChildrenSortableProps {
-  frame: Extract<InputFramePosition, { kind: "reference" }>;
-  viewport: ViewportState;
-}
-
-function ReferenceChildrenSortable({ frame, viewport }: ReferenceChildrenSortableProps) {
-  const reorderReferenceInFrame = useCanvasStore((s) => s.reorderReferenceInFrame);
-  const storeFrame = useCanvasStore((s) => s.inputFrames.find((f) => f.id === frame.frameId));
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
-
-  const childIds = frame.children.map((c) => c.refId);
-
-  const handleDragEnd = (e: DragEndEvent) => {
-    if (!e.over || e.active.id === e.over.id || !storeFrame) return;
-    const fromIndex = storeFrame.references.findIndex((r) => r.id === e.active.id);
-    const toIndex = storeFrame.references.findIndex((r) => r.id === e.over!.id);
-    if (fromIndex < 0 || toIndex < 0) return;
-    reorderReferenceInFrame(frame.frameId, fromIndex, toIndex);
-  };
-
-  return (
-    <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
-      <SortableContext items={childIds} strategy={horizontalListSortingStrategy}>
-        {frame.children.map((child) => (
-          <ReferenceChildOverlay
-            key={child.refId}
-            frameId={frame.frameId}
-            child={child}
-            viewport={viewport}
-          />
-        ))}
-      </SortableContext>
-    </DndContext>
   );
 }
 
@@ -367,58 +340,6 @@ function InfoLine({ label, value }: { label: string; value: string }) {
     <div className="flex items-center justify-between gap-2">
       <span className="text-muted-foreground">{label}</span>
       <span className="font-mono tabular-nums text-foreground">{value}</span>
-    </div>
-  );
-}
-
-// ── Per-reference-child overlay ───────────────────────────────────────
-
-interface ReferenceChildOverlayProps {
-  frameId: string;
-  child: ReferenceChildPosition;
-  viewport: ViewportState;
-}
-
-function ReferenceChildOverlay({ frameId, child, viewport }: ReferenceChildOverlayProps) {
-  const removeReferenceFromFrame = useCanvasStore((s) => s.removeReferenceFromFrame);
-  // useSortable binds this overlay to the parent SortableContext's items
-  // list. Listeners are spread on the overlay wrapper so a pointer-down
-  // anywhere on the cell starts a drag; the X button uses
-  // stopPropagation so it stays clickable.
-  const { attributes, listeners, setNodeRef } = useSortable({ id: child.refId });
-
-  const style = useMemo<React.CSSProperties>(() => {
-    const left = child.x * viewport.scale + viewport.x;
-    const top = child.y * viewport.scale + viewport.y;
-    const width = child.displayW * viewport.scale;
-    const height = child.displayH * viewport.scale;
-    return {
-      position: "absolute",
-      left: `${left}px`,
-      top: `${top}px`,
-      width: `${width}px`,
-      height: `${height}px`,
-      pointerEvents: "auto",
-      cursor: "grab",
-      touchAction: "none",
-    };
-  }, [child.x, child.y, child.displayW, child.displayH, viewport.scale, viewport.x, viewport.y]);
-
-  return (
-    <div ref={setNodeRef} style={style} className="group" {...attributes} {...listeners}>
-      <button
-        type="button"
-        onClick={(e) => {
-          e.stopPropagation();
-          removeReferenceFromFrame(frameId, child.refId);
-        }}
-        onPointerDown={(e) => e.stopPropagation()}
-        title="Remove reference"
-        className="absolute right-1 top-1 grid h-5 w-5 place-items-center rounded-full bg-black/60 text-white opacity-0 transition-opacity hover:bg-black/80 group-hover:opacity-100"
-        style={{ pointerEvents: "auto" }}
-      >
-        <X size={10} />
-      </button>
     </div>
   );
 }

@@ -18,6 +18,7 @@ import {
 import { useUiStore } from "@/stores/uiStore";
 import { useVideoFrameLayout } from "@/canvas/useVideoFrameLayout";
 import { VideoCanvasStage } from "@/canvas/VideoCanvasStage";
+import { ReferenceSortableOverlay } from "@/canvas/ReferenceSortableOverlay";
 import {
   FrameHeader,
   INPUT_COLOR_ACTIVE,
@@ -52,7 +53,9 @@ export function VideoCanvasView() {
   const setFrame = useVideoCanvasStore((s) => s.setFrame);
   const clearFrame = useVideoCanvasStore((s) => s.clearFrame);
   const addReference = useVideoCanvasStore((s) => s.addReference);
+  const removeReference = useVideoCanvasStore((s) => s.removeReference);
   const clearReferences = useVideoCanvasStore((s) => s.clearReferences);
+  const setActiveSlot = useVideoCanvasStore((s) => s.setActiveSlot);
   const labelScale = useUiStore((s) => s.canvasLabelScale);
 
   const results = useVideoStore((s) => s.results);
@@ -265,6 +268,21 @@ export function VideoCanvasView() {
     [handleFileSelected, layout],
   );
 
+  // Reference cells come frame-local from the layout; the sortable overlay
+  // wants canvas coordinates.
+  const referenceOverlayCells = useMemo(
+    () => layout.referenceChildren.map((c) => ({ ...c, x: layout.referencesX + c.x })),
+    [layout.referenceChildren, layout.referencesX],
+  );
+
+  const handleReferenceReorder = useCallback((activeId: string, overId: string) => {
+    const store = useVideoCanvasStore.getState();
+    const from = store.references.findIndex((r) => r.id === activeId);
+    const to = store.references.findIndex((r) => r.id === overId);
+    if (from < 0 || to < 0) return;
+    store.reorderReference(from, to);
+  }, []);
+
   // Compute output frame overlay position
   const { outputX, displayW, displayH } = layout;
   const outputScreenX = outputX * viewport.scale + viewport.x;
@@ -420,6 +438,19 @@ export function VideoCanvasView() {
                   )}
                 </>
               }
+            />
+          )}
+
+          {/* Per-reference-cell overlays: drag-reorder + hover-X remove,
+           * shared with the Input frames. Pointer-down also focuses the
+           * references slot so paste targets it. */}
+          {layout.showReferences && referenceOverlayCells.length > 0 && (
+            <ReferenceSortableOverlay
+              cells={referenceOverlayCells}
+              viewport={viewport}
+              onReorder={handleReferenceReorder}
+              onRemove={removeReference}
+              onCellPointerDown={() => setActiveSlot("references")}
             />
           )}
 
