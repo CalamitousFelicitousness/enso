@@ -9620,7 +9620,7 @@
         "type": "object"
       },
       "VideoReferenceCapsV2": {
-        "description": "Reference-image contract; counts reflect what the V2 wire can carry.",
+        "description": "Reference media contract; counts reflect what the V2 wire can carry.",
         "properties": {
           "aspect_max": {
             "default": 4,
@@ -9631,6 +9631,16 @@
             "default": 0.25,
             "title": "Aspect Min",
             "type": "number"
+          },
+          "audio_max_channels": {
+            "default": 0,
+            "title": "Audio Max Channels",
+            "type": "integer"
+          },
+          "audio_sample_rate": {
+            "default": 0,
+            "title": "Audio Sample Rate",
+            "type": "integer"
           },
           "max_audio": {
             "default": 0,
@@ -9666,6 +9676,21 @@
             "default": false,
             "title": "Supported",
             "type": "boolean"
+          },
+          "video_max_bytes": {
+            "default": 0,
+            "title": "Video Max Bytes",
+            "type": "integer"
+          },
+          "video_max_seconds": {
+            "default": 0,
+            "title": "Video Max Seconds",
+            "type": "number"
+          },
+          "video_min_frames": {
+            "default": 0,
+            "title": "Video Min Frames",
+            "type": "integer"
           }
         },
         "title": "VideoReferenceCapsV2",

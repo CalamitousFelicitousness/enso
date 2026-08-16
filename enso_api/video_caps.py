@@ -124,7 +124,9 @@ RULES: tuple[CapsRule, ...] = (
         },
     ),
     CapsRule(engine="MiniMax", workflow="fl2va", caps={"init_image": "optional", "last_image": "optional"}),
-    # the V2 wire carries image references only; keyframe slots stay hidden on ref2va
+    # baseline for sdnext trees without video_run.reference_caps; the MiniMax
+    # provider overrides these limits (and adds video/audio slots) when the
+    # mixed-references core is present. Keyframe slots stay hidden on ref2va.
     CapsRule(
         engine="MiniMax",
         workflow="ref2va",
@@ -201,8 +203,51 @@ def ltx_overlay(caps: dict, name: str) -> None:
     apply_overlay(caps, overlay)
 
 
+def minimax_overlay(caps: dict, name: str) -> None:
+    """Read reference limits from video_run.reference_caps when the sdnext
+    tree carries it; otherwise the static ref2va rule stays in effect."""
+    workflow = caps.get("workflow")
+    if not workflow:
+        return
+    try:
+        from modules.video_models import video_run
+
+        rc_fn = getattr(video_run, "reference_caps", None)
+        rc = rc_fn(workflow) if rc_fn is not None else None
+    except Exception as e:
+        log.warning(f"Video caps: reference caps unavailable for {name}: {e}")
+        return
+    if rc is None:
+        return
+
+    def g(attr: str, default):
+        return getattr(rc, attr, default)
+
+    aspect = float(g("image_aspect", 4.0))
+    apply_overlay(
+        caps,
+        {
+            "references.supported": True,
+            "references.required": True,
+            "references.ordered": True,
+            "references.max_images": int(g("max_images", 9)),
+            "references.max_videos": int(g("max_videos", 0)),
+            "references.max_audio": int(g("max_audios", 0)),
+            "references.max_total": int(g("max_references", 9)),
+            "references.aspect_min": 1.0 / aspect if aspect > 0 else 0.25,
+            "references.aspect_max": aspect,
+            "references.video_min_frames": int(g("video_min_frames", 0)),
+            "references.video_max_seconds": float(g("video_max_seconds", 0.0)),
+            "references.video_max_bytes": int(g("video_max_bytes", 0)),
+            "references.audio_max_channels": int(g("audio_max_channels", 0)),
+            "references.audio_sample_rate": int(g("audio_sample_rate", 0)),
+        },
+    )
+
+
 PROVIDERS: dict[str, Callable[[dict, str], None]] = {
     "LTX Video": ltx_overlay,
+    "MiniMax": minimax_overlay,
 }
 
 

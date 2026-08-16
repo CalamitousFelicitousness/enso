@@ -55,6 +55,10 @@ class UploadStore:
             return None
         return Image.open(entry.path)
 
+    def resolve_to_path(self, ref_id: str) -> str | None:
+        entry = self.get(ref_id)
+        return entry.path if entry else None
+
     def remove(self, ref_id: str):
         with self._lock:
             entry = self._entries.pop(ref_id, None)

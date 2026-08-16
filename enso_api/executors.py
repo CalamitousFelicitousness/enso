@@ -813,7 +813,21 @@ def execute_video(params: dict, job_id: str) -> dict:
 
     init_image = helpers.decode_base64_to_image(params["init_image"]) if params.get("init_image") else None
     last_image = helpers.decode_base64_to_image(params["last_image"]) if params.get("last_image") else None
-    references = [helpers.decode_base64_to_image(x) for x in (params.get("references") or [])]
+
+    # Staged references pass as file paths: the core classifies paths by
+    # extension (image/video/audio) and EXIF-transposes images via load_image,
+    # neither of which the base64 decode provides. Raw base64 entries can only
+    # be images and keep the decode path.
+    def reference_entry(ref: str):
+        if isinstance(ref, str) and ref.startswith("upload:"):
+            from enso_api.upload import get_upload_store
+
+            path = get_upload_store().resolve_to_path(ref.removeprefix("upload:"))
+            if path is not None:
+                return path
+        return helpers.decode_base64_to_image(ref)
+
+    references = [reference_entry(x) for x in (params.get("references") or [])]
 
     # always-on video scripts need their bootstrapped default args; running
     # them against an empty args tuple raises a TypeError per frame

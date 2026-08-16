@@ -256,7 +256,7 @@ class VideoDurationRuleV2(BaseModel):
 
 
 class VideoReferenceCapsV2(BaseModel):
-    """Reference-image contract; counts reflect what the V2 wire can carry."""
+    """Reference media contract; counts reflect what the V2 wire can carry."""
 
     supported: bool = False
     required: bool = False
@@ -267,6 +267,12 @@ class VideoReferenceCapsV2(BaseModel):
     aspect_min: float = 0.25
     aspect_max: float = 4.0
     ordered: bool = False
+    # decoded-media bounds enforced server-side before the model load; 0 = unbounded
+    video_min_frames: int = 0
+    video_max_seconds: float = 0.0
+    video_max_bytes: int = 0
+    audio_max_channels: int = 0
+    audio_sample_rate: int = 0
 
 
 class VideoAudioCapsV2(BaseModel):
