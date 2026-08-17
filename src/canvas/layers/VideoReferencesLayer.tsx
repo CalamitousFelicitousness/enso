@@ -17,12 +17,18 @@ interface VideoReferencesLayerProps {
 }
 
 function ReferenceChild({ frame, pos }: { frame: VideoFrameImage; pos: ReferenceChildPosition }) {
-  const [image, setImage] = useState<HTMLImageElement | null>(null);
+  // Videos draw their captured poster frame; audio has no visual and gets a
+  // glyph cell instead.
+  const src =
+    frame.kind === "audio" ? null : frame.kind === "video" ? frame.posterUrl : frame.objectUrl;
+  const [loaded, setLoaded] = useState<{ src: string; img: HTMLImageElement } | null>(null);
   useEffect(() => {
+    if (!src) return;
     const img = new window.Image();
-    img.onload = () => setImage(img);
-    img.src = frame.objectUrl;
-  }, [frame.objectUrl]);
+    img.onload = () => setLoaded({ src, img });
+    img.src = src;
+  }, [src]);
+  const image = loaded && loaded.src === src ? loaded.img : null;
 
   const scale =
     frame.naturalWidth > 0 && frame.naturalHeight > 0
@@ -30,6 +36,10 @@ function ReferenceChild({ frame, pos }: { frame: VideoFrameImage; pos: Reference
       : 1;
   const drawW = frame.naturalWidth * scale;
   const drawH = frame.naturalHeight * scale;
+
+  // Per-modality address ("P1", "V1", "A1·V1"); order is load-bearing for ref2va
+  const badgeText = pos.badge ?? String(pos.wireIndex);
+  const badgeW = Math.max(BADGE_SIZE, badgeText.length * 6 + 6);
 
   return (
     <Group x={pos.x} y={pos.y}>
@@ -44,6 +54,32 @@ function ReferenceChild({ frame, pos }: { frame: VideoFrameImage; pos: Reference
           listening={false}
         />
       )}
+      {frame.kind === "audio" && (
+        <Text
+          x={0}
+          y={pos.displayH / 2 - 12}
+          width={pos.displayW}
+          align="center"
+          text="♪"
+          fontFamily="IBM Plex Sans"
+          fontSize={22}
+          fill={ACTIVE_COLOR}
+          listening={false}
+        />
+      )}
+      {frame.duration != null && (
+        <Text
+          x={0}
+          y={pos.displayH - 14}
+          width={pos.displayW - 4}
+          align="right"
+          text={`${frame.duration.toFixed(1)}s`}
+          fontFamily="IBM Plex Sans"
+          fontSize={10}
+          fill="#ccc"
+          listening={false}
+        />
+      )}
       <Rect
         x={0}
         y={0}
@@ -53,21 +89,13 @@ function ReferenceChild({ frame, pos }: { frame: VideoFrameImage; pos: Reference
         strokeWidth={1}
         listening={false}
       />
-      {/* 1-based <Picture N> wire address; order is load-bearing for ref2va */}
-      <Rect
-        x={0}
-        y={0}
-        width={BADGE_SIZE}
-        height={BADGE_SIZE}
-        fill={ACTIVE_COLOR}
-        listening={false}
-      />
+      <Rect x={0} y={0} width={badgeW} height={BADGE_SIZE} fill={ACTIVE_COLOR} listening={false} />
       <Text
         x={0}
         y={2}
-        width={BADGE_SIZE}
+        width={badgeW}
         align="center"
-        text={String(pos.wireIndex)}
+        text={badgeText}
         fontFamily="IBM Plex Sans"
         fontSize={11}
         fontStyle="bold"

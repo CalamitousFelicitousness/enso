@@ -1,8 +1,9 @@
-import { ArrowLeft, ArrowRight, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, Music, X } from "lucide-react";
 import { SectionLeader } from "@/components/ui/section-leader";
 import { ParamSlider } from "@/components/generation/ParamSlider";
 import { Button } from "@/components/ui/button";
 import { useVideoCanvasStore } from "@/stores/videoCanvasStore";
+import { referenceAddresses } from "@/lib/video/referenceMedia";
 import { useWireParam } from "./useWireParam";
 import type { VideoModelCaps } from "@/api/types/video";
 import type { VideoJobType } from "@/lib/video/paramRegistry";
@@ -12,27 +13,34 @@ interface SectionProps {
   job: VideoJobType;
 }
 
-// Ordered reference list; index 0 = <Picture 1> and the prompt addresses
-// references by that number, so reordering changes meaning, not looks.
+// Ordered reference list; the prompt addresses each entry by its
+// per-modality number (<Picture N> / <Video N> / <Audio N>), so reordering
+// changes meaning, not looks.
 function ReferenceList({ caps }: { caps: VideoModelCaps }) {
   const references = useVideoCanvasStore((s) => s.references);
   const reorderReference = useVideoCanvasStore((s) => s.reorderReference);
   const removeReference = useVideoCanvasStore((s) => s.removeReference);
   if (references.length === 0) return null;
+  const addresses = referenceAddresses(references);
+  const maxTotal = caps.references.max_total || caps.references.max_images;
   return (
     <div className="space-y-1">
       {references.map((r, i) => (
         <div key={r.id} className="flex items-center gap-1.5">
-          <span className="text-3xs font-mono text-muted-foreground w-14 shrink-0">
-            {"<Picture "}
-            {i + 1}
-            {">"}
+          <span className="text-3xs font-mono text-muted-foreground shrink-0">
+            {addresses[i]?.address}
           </span>
-          <img
-            src={r.objectUrl}
-            alt=""
-            className="w-9 h-6 rounded border border-border object-cover"
-          />
+          {r.kind === "audio" ? (
+            <span className="w-9 h-6 rounded border border-border grid place-items-center shrink-0">
+              <Music size={12} className="text-muted-foreground" />
+            </span>
+          ) : (
+            <img
+              src={r.kind === "video" ? (r.posterUrl ?? undefined) : r.objectUrl}
+              alt=""
+              className="w-9 h-6 rounded border border-border object-cover shrink-0"
+            />
+          )}
           <span className="flex-1" />
           <Button
             variant="ghost"
@@ -62,10 +70,8 @@ function ReferenceList({ caps }: { caps: VideoModelCaps }) {
           </Button>
         </div>
       ))}
-      {references.length > caps.references.max_images && (
-        <p className="text-3xs text-amber-500">
-          Only the first {caps.references.max_images} references are sent
-        </p>
+      {maxTotal > 0 && references.length > maxTotal && (
+        <p className="text-3xs text-amber-500">Only the first {maxTotal} references are sent</p>
       )}
     </div>
   );

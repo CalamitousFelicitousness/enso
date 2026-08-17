@@ -11,6 +11,7 @@ import {
   computeReferenceGridRows,
 } from "./inputFrameLayout";
 import type { ReferenceChildPosition } from "./inputFrameTypes";
+import { referenceAddresses } from "@/lib/video/referenceMedia";
 
 const FRAME_GAP = 48;
 
@@ -75,12 +76,14 @@ export function useVideoFrameLayout(): VideoCanvasLayout {
         x: REFERENCE_MOTHER_PADDING + (i % columns) * (cellW + REFERENCE_CHILD_GAP),
         y: REFERENCE_MOTHER_PADDING + Math.floor(i / columns) * (cellH + REFERENCE_CHILD_GAP),
       });
+      const addresses = referenceAddresses(references);
       referenceChildren = references.map((r, i) => ({
         refId: r.id,
         ...cellAt(i),
         displayW: cellW,
         displayH: cellH,
         wireIndex: i + 1,
+        badge: addresses[i]?.badge ?? String(i + 1),
       }));
       if (includeAdd) {
         referenceAddCell = { ...cellAt(count), w: cellW, h: cellH };

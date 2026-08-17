@@ -38,6 +38,9 @@ export interface ReferenceChildPosition {
   /** 1-based global wire index of this reference child. Always populated
    * for children that appear in the layout. */
   wireIndex: number;
+  /** Compact per-modality address ("P2", "V1", "A1·V1") when the layout
+   * carries mixed media; badge falls back to wireIndex when absent. */
+  badge?: string;
 }
 
 /** Layout position of a Reference-mode Input frame (the "mother frame
