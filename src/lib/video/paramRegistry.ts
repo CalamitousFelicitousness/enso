@@ -147,7 +147,7 @@ export const VIDEO_PARAMS = {
   },
   codecOptions: {
     kind: "string",
-    default: "crf:16",
+    default: "crf=16",
     group: "output",
     wire: { video: "codec_options", ltx: "codec_options", framepack: "codec_options" },
   },

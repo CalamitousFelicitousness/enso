@@ -59,7 +59,7 @@ export function VideoOutputSection({ caps }: { caps?: VideoModelCaps }) {
     setParam("outputQuality", value);
     const currentOpts = codecOptions;
     const hasExtraOpts = currentOpts
-      .replace(/crf:\d+/, "")
+      .replace(/crf[=:]\d+/, "")
       .replace(/^,|,$/g, "")
       .trim();
     const crfStr = qualityToCrf(value);

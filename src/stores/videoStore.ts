@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { VideoResult } from "@/api/types/video";
 import { createIdbListDb } from "@/lib/idbListDb";
+import { normalizeCodecOptions } from "@/lib/videoOutputPresets";
 import {
   VIDEO_PARAMS,
   VIDEO_PARAM_DEFAULTS,
@@ -102,7 +103,7 @@ export const useVideoStore = create<VideoState>()(
     }),
     {
       name: "enso-video",
-      version: 6,
+      version: 7,
       partialize: (state) => {
         const p: Record<string, unknown> = {};
         for (const key of VIDEO_PARAM_KEYS) {
@@ -121,6 +122,10 @@ export const useVideoStore = create<VideoState>()(
         for (const key of VIDEO_PARAM_KEYS) {
           const v = coerce(VIDEO_PARAMS[key].kind, p[key]);
           if (v !== undefined) out[key] = v;
+        }
+        // v7: codec option assignments moved from "crf:16" to "crf=16"
+        if (typeof out["codecOptions"] === "string") {
+          out["codecOptions"] = normalizeCodecOptions(out["codecOptions"]);
         }
         if (typeof p["historyLimit"] === "number") out["historyLimit"] = p["historyLimit"];
         return out;

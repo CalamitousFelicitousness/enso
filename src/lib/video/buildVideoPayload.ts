@@ -1,4 +1,5 @@
 import { uploadFile } from "@/lib/upload";
+import { normalizeCodecOptions } from "@/lib/videoOutputPresets";
 import { useVideoStore } from "@/stores/videoStore";
 import { getVideoInputs } from "@/lib/video/inputs";
 import { VIDEO_PARAM_KEYS, wireKeyFor, type VideoJobType } from "@/lib/video/paramRegistry";
@@ -41,6 +42,11 @@ export async function buildVideoPayload(
   for (const key of VIDEO_PARAM_KEYS) {
     const wireKey = wireKeyFor(key, job);
     if (wireKey) payload[wireKey] = state[key];
+  }
+  // Backstop for legacy "crf:16"-spelled values arriving from saved presets
+  // or restores that bypassed the store migration.
+  if (typeof payload["codec_options"] === "string") {
+    payload["codec_options"] = normalizeCodecOptions(payload["codec_options"]);
   }
 
   // Caps-gated input attachment: slots the model ignores stay off the wire

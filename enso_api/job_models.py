@@ -799,7 +799,7 @@ class VideoParams(JobBase):
     interpolate: int = 0
     codec: str = "libx264"
     format: str = "mp4"
-    codec_options: str = "crf:16"
+    codec_options: str = "crf=16"
     save_video: bool = True
     save_frames: bool = False
     save_safetensors: bool = False
@@ -848,7 +848,7 @@ class FramePackParams(JobBase):
     interpolate: int = 0
     codec: str = "libx264"
     format: str = "mp4"
-    codec_options: str = "crf:16"
+    codec_options: str = "crf=16"
     save_video: bool = True
     save_frames: bool = False
     save_safetensors: bool = False
@@ -894,7 +894,7 @@ class LtxParams(JobBase):
     interpolate: int = 0
     codec: str = "libx264"
     format: str = "mp4"
-    codec_options: str = "crf:16"
+    codec_options: str = "crf=16"
     save_video: bool = True
     save_frames: bool = False
     save_safetensors: bool = False

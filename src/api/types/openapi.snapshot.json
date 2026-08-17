@@ -1920,7 +1920,7 @@
             "type": "string"
           },
           "codec_options": {
-            "default": "crf:16",
+            "default": "crf=16",
             "title": "Codec Options",
             "type": "string"
           },
@@ -5072,7 +5072,7 @@
             "type": "string"
           },
           "codec_options": {
-            "default": "crf:16",
+            "default": "crf=16",
             "title": "Codec Options",
             "type": "string"
           },
@@ -9369,7 +9369,7 @@
             "type": "string"
           },
           "codec_options": {
-            "default": "crf:16",
+            "default": "crf=16",
             "title": "Codec Options",
             "type": "string"
           },
