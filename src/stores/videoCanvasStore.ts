@@ -2,14 +2,31 @@ import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import { base64ToBlob } from "@/lib/utils";
 import { createIdbStorage } from "@/lib/idbStorage";
+import type { ReferenceKind } from "@/lib/video/referenceMedia";
 
 export interface VideoFrameImage {
   id: string;
   file: File;
+  /** Empty for video/audio references - media bytes are too heavy for the
+   * JSON persistence pipeline; only images round-trip through it. */
   base64: string;
   objectUrl: string;
   naturalWidth: number;
   naturalHeight: number;
+  kind: ReferenceKind;
+  /** Seconds; video/audio only. */
+  duration: number | null;
+  /** Video only; null = browser could not tell without decoding. */
+  hasAudio: boolean | null;
+  /** First-frame capture for video cells. */
+  posterUrl: string | null;
+}
+
+export interface ReferenceMediaMeta {
+  kind: ReferenceKind;
+  duration?: number | null;
+  hasAudio?: boolean | null;
+  posterUrl?: string | null;
 }
 
 interface ViewportState {
@@ -40,7 +57,14 @@ interface VideoCanvasState {
     h: number,
   ) => void;
   clearFrame: (which: "init" | "last") => void;
-  addReference: (file: File, base64: string, objectUrl: string, w: number, h: number) => void;
+  addReference: (
+    file: File,
+    base64: string,
+    objectUrl: string,
+    w: number,
+    h: number,
+    meta?: ReferenceMediaMeta,
+  ) => void;
   removeReference: (id: string) => void;
   reorderReference: (from: number, to: number) => void;
   clearReferences: () => void;
@@ -84,6 +108,10 @@ function rehydrateFrame(saved: PersistedFrame | null): VideoFrameImage | null {
     objectUrl,
     naturalWidth: saved.naturalWidth,
     naturalHeight: saved.naturalHeight,
+    kind: "image",
+    duration: null,
+    hasAudio: null,
+    posterUrl: null,
   };
 }
 
@@ -108,6 +136,10 @@ export const useVideoCanvasStore = create<VideoCanvasState>()(
           objectUrl,
           naturalWidth: w,
           naturalHeight: h,
+          kind: "image",
+          duration: null,
+          hasAudio: null,
+          posterUrl: null,
         };
         set({ [which === "init" ? "initFrame" : "lastFrame"]: frame, activeSlot: which });
       },
@@ -119,7 +151,7 @@ export const useVideoCanvasStore = create<VideoCanvasState>()(
         set({ [key]: null });
       },
 
-      addReference: (file, base64, objectUrl, w, h) => {
+      addReference: (file, base64, objectUrl, w, h, meta) => {
         const frame: VideoFrameImage = {
           id: crypto.randomUUID(),
           file,
@@ -127,6 +159,10 @@ export const useVideoCanvasStore = create<VideoCanvasState>()(
           objectUrl,
           naturalWidth: w,
           naturalHeight: h,
+          kind: meta?.kind ?? "image",
+          duration: meta?.duration ?? null,
+          hasAudio: meta?.hasAudio ?? null,
+          posterUrl: meta?.posterUrl ?? null,
         };
         set((s) => ({ references: [...s.references, frame], activeSlot: "references" }));
       },
@@ -134,6 +170,7 @@ export const useVideoCanvasStore = create<VideoCanvasState>()(
       removeReference: (id) => {
         const prev = get().references.find((r) => r.id === id);
         if (prev?.objectUrl) URL.revokeObjectURL(prev.objectUrl);
+        if (prev?.posterUrl) URL.revokeObjectURL(prev.posterUrl);
         set((s) => ({ references: s.references.filter((r) => r.id !== id) }));
       },
 
@@ -153,6 +190,7 @@ export const useVideoCanvasStore = create<VideoCanvasState>()(
       clearReferences: () => {
         for (const r of get().references) {
           if (r.objectUrl) URL.revokeObjectURL(r.objectUrl);
+          if (r.posterUrl) URL.revokeObjectURL(r.posterUrl);
         }
         set({ references: [] });
       },
@@ -165,6 +203,7 @@ export const useVideoCanvasStore = create<VideoCanvasState>()(
         if (lastFrame?.objectUrl) URL.revokeObjectURL(lastFrame.objectUrl);
         for (const r of references) {
           if (r.objectUrl) URL.revokeObjectURL(r.objectUrl);
+          if (r.posterUrl) URL.revokeObjectURL(r.posterUrl);
         }
         set({ initFrame: null, lastFrame: null, references: [] });
       },
@@ -178,7 +217,11 @@ export const useVideoCanvasStore = create<VideoCanvasState>()(
         viewport: state.viewport,
         initFrame: state.initFrame ? stripFrame(state.initFrame) : null,
         lastFrame: state.lastFrame ? stripFrame(state.lastFrame) : null,
-        references: state.references.map(stripFrame),
+        // All-image lists only: media bytes don't fit the JSON pipeline, and
+        // persisting the image subset would silently renumber <Picture N>.
+        references: state.references.every((r) => r.kind === "image")
+          ? state.references.map(stripFrame)
+          : [],
       }),
       merge: (persisted, current) => {
         const saved = persisted as Partial<PersistedVideoCanvasState> | undefined;

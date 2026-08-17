@@ -35,6 +35,12 @@ import { Button } from "@/components/ui/button";
 import { ParamSlider } from "@/components/generation/ParamSlider";
 import { fileToBase64 } from "@/lib/image";
 import { isStillResult } from "@/lib/video/results";
+import {
+  classifyReferenceFile,
+  probeAudioFile,
+  probeVideoFile,
+  referenceAccept,
+} from "@/lib/video/referenceMedia";
 import { contrastText, cn, resolveImageSrc } from "@/lib/utils";
 
 const DOMAIN_LABELS: Record<string, string> = {
@@ -142,32 +148,85 @@ export function VideoCanvasView() {
     else referencesInputRef.current?.click();
   }, []);
 
-  const maxReferences = caps.references.max_images;
+  const refCaps = caps.references;
+  const maxReferences = refCaps.max_total > 0 ? refCaps.max_total : refCaps.max_images;
 
   const handleFileSelected = useCallback(
     async (which: VideoSlotId, file: File) => {
-      if (!file.type.startsWith("image/")) return;
-      if (
-        which === "references" &&
-        useVideoCanvasStore.getState().references.length >= maxReferences
-      ) {
-        toast.warning(`This model takes at most ${maxReferences} reference images`);
+      if (which !== "references") {
+        if (!file.type.startsWith("image/")) return;
+        const base64 = await fileToBase64(file);
+        const objectUrl = URL.createObjectURL(file);
+        const img = new window.Image();
+        img.src = objectUrl;
+        await new Promise<void>((r) => {
+          img.onload = () => r();
+        });
+        setFrame(which, file, base64, objectUrl, img.naturalWidth, img.naturalHeight);
         return;
       }
-      const base64 = await fileToBase64(file);
+
+      const kind = classifyReferenceFile(file.name);
+      if (!kind) {
+        toast.warning(`Unsupported reference type: ${file.name}`);
+        return;
+      }
+      const refs = useVideoCanvasStore.getState().references;
+      const kindMax =
+        kind === "image"
+          ? refCaps.max_images
+          : kind === "video"
+            ? refCaps.max_videos
+            : refCaps.max_audio;
+      if (kind !== "image" && kindMax <= 0) {
+        toast.warning("This model takes image references only");
+        return;
+      }
+      if (kindMax > 0 && refs.filter((r) => r.kind === kind).length >= kindMax) {
+        toast.warning(`This model takes at most ${kindMax} ${kind} references`);
+        return;
+      }
+      if (maxReferences > 0 && refs.length >= maxReferences) {
+        toast.warning(`This model takes at most ${maxReferences} references in total`);
+        return;
+      }
+
       const objectUrl = URL.createObjectURL(file);
-      const img = new window.Image();
-      img.src = objectUrl;
-      await new Promise<void>((r) => {
-        img.onload = () => r();
-      });
-      if (which === "references") {
-        addReference(file, base64, objectUrl, img.naturalWidth, img.naturalHeight);
-      } else {
-        setFrame(which, file, base64, objectUrl, img.naturalWidth, img.naturalHeight);
+      try {
+        if (kind === "image") {
+          const base64 = await fileToBase64(file);
+          const img = new window.Image();
+          img.src = objectUrl;
+          await new Promise<void>((r) => {
+            img.onload = () => r();
+          });
+          addReference(file, base64, objectUrl, img.naturalWidth, img.naturalHeight, { kind });
+        } else if (kind === "video") {
+          const probe = await probeVideoFile(objectUrl);
+          if (refCaps.video_max_seconds > 0 && probe.duration > refCaps.video_max_seconds) {
+            URL.revokeObjectURL(objectUrl);
+            if (probe.posterUrl) URL.revokeObjectURL(probe.posterUrl);
+            toast.warning(`Reference videos are limited to ${refCaps.video_max_seconds}s`);
+            return;
+          }
+          addReference(file, "", objectUrl, probe.width, probe.height, {
+            kind,
+            duration: probe.duration,
+            hasAudio: probe.hasAudio,
+            posterUrl: probe.posterUrl,
+          });
+        } else {
+          const probe = await probeAudioFile(objectUrl);
+          addReference(file, "", objectUrl, 0, 0, { kind, duration: probe.duration });
+        }
+      } catch (err) {
+        URL.revokeObjectURL(objectUrl);
+        toast.error(`Could not read ${file.name}`, {
+          description: err instanceof Error ? err.message : String(err),
+        });
       }
     },
-    [setFrame, addReference, maxReferences],
+    [setFrame, addReference, refCaps, maxReferences],
   );
 
   const handleInputChange = useCallback(
@@ -580,7 +639,7 @@ export function VideoCanvasView() {
         <input
           ref={referencesInputRef}
           type="file"
-          accept="image/*"
+          accept={referenceAccept(refCaps)}
           multiple
           className="hidden"
           onChange={handleInputChange("references")}

@@ -60,10 +60,9 @@ export async function buildVideoPayload(
   } else {
     payload["init_image"] = initRef;
     payload["last_image"] = lastRef;
+    const maxRefs = caps ? caps.references.max_total || caps.references.max_images : refs.length;
     payload["references"] = wantRefs
-      ? await Promise.all(
-          refs.slice(0, caps?.references.max_images ?? refs.length).map((f) => uploadFile(f)),
-        )
+      ? await Promise.all(refs.slice(0, maxRefs || refs.length).map((f) => uploadFile(f)))
       : [];
   }
 
