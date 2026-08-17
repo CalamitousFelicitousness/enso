@@ -14,6 +14,7 @@ import {
 } from "@/stores/jobStore";
 import { useSubmitToQueue } from "@/hooks/useSubmitToQueue";
 import { useActiveVideoCaps } from "@/hooks/useActiveVideoCaps";
+import { useVideoCanvasStore } from "@/stores/videoCanvasStore";
 import { useVideoCapsDefaults } from "@/hooks/useVideoCapsDefaults";
 import { sendToJob } from "@/hooks/useJobTracker";
 import { useCancelJob } from "@/api/hooks/useJobs";
@@ -198,7 +199,17 @@ export function VideoPanel() {
     }
   }, [runningVideoJob, cancelJob]);
 
-  const canGenerate = kind !== "empty" && !!prompt.trim();
+  // Reference workflows condition on media: the server takes the init image
+  // as reference 1 when the list is empty, so either satisfies the gate -
+  // but only when the payload actually carries init (a stale hidden init
+  // frame on an init-ignoring model never reaches the wire).
+  const referenceCount = useVideoCanvasStore((s) => s.references.length);
+  const hasInitFrame = useVideoCanvasStore((s) => s.initFrame !== null);
+  const initCounts = activeCaps.init_image !== "ignored" && hasInitFrame;
+  const missingRefs =
+    kind === "generic" && activeCaps.references.required && referenceCount === 0 && !initCounts;
+
+  const canGenerate = kind !== "empty" && !!prompt.trim() && !missingRefs;
   const progressPct = Math.round(progress * 100);
 
   return (
@@ -274,26 +285,37 @@ export function VideoPanel() {
 
         <div className="space-y-2 mb-3">
           <div className="flex gap-2">
-            <Button
-              type="button"
-              onClick={() => void handleGenerate()}
-              disabled={isSubmitting || isLoadingModel || !canGenerate}
-              variant="default"
-              size="sm"
+            {/* Title rides the wrapper: a disabled button swallows pointer
+                events, so its own title never shows. */}
+            <div
               className="flex-1"
+              title={
+                missingRefs
+                  ? "This model conditions on references - add at least one reference or an init image"
+                  : undefined
+              }
             >
-              {isLoadingModel ? (
-                <>
-                  <Loader2 size={14} className="animate-spin" />
-                  Loading model...
-                </>
-              ) : (
-                <>
-                  <Play size={14} />
-                  Generate
-                </>
-              )}
-            </Button>
+              <Button
+                type="button"
+                onClick={() => void handleGenerate()}
+                disabled={isSubmitting || isLoadingModel || !canGenerate}
+                variant="default"
+                size="sm"
+                className="w-full"
+              >
+                {isLoadingModel ? (
+                  <>
+                    <Loader2 size={14} className="animate-spin" />
+                    Loading model...
+                  </>
+                ) : (
+                  <>
+                    <Play size={14} />
+                    Generate
+                  </>
+                )}
+              </Button>
+            </div>
             {isGenerating && (
               <Button type="button" onClick={handleCancel} variant="destructive" size="sm">
                 <Square size={14} />
