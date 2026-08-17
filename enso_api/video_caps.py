@@ -31,6 +31,9 @@ def video_model_mode(model) -> str:
         return "i2v"
     if "t2v" in lower:
         return "t2v"
+    # markerless LTX rows (Condition, 0.9.7/0.9.8) stay unknown even once
+    # upstream gives them honest mode labels: labels alone do not add the
+    # missing ltx_capabilities application, so they are still not runnable
     return "unknown"
 
 
@@ -81,9 +84,8 @@ RULES: tuple[CapsRule, ...] = (
     ),
     # expand_timesteps pipes accept last_image but mask only the first frame
     CapsRule(engine="WAN Video", name_has=("2.2 5B",), caps={"last_image": "ignored", "unverified": []}),
-    CapsRule(engine="Hunyuan Video", caps={"vae_types": ["Default", "Tiny"]}),
-    CapsRule(engine="Mochi Video", caps={"vae_types": ["Default", "Tiny"]}),
-    CapsRule(engine="Kandinsky", caps={"vae_types": ["Default", "Tiny"]}),
+    # No "Tiny" rules for Hunyuan/Mochi/Kandinsky either: tiny decode
+    # silently no-ops for them today, same video_vae finding as Wan above
     CapsRule(engine="Latte Video", caps={"frame_rule.multiple": 16, "frame_rule.min": 16}),
     CapsRule(
         engine="LTX Video",
