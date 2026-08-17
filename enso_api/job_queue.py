@@ -361,9 +361,15 @@ class JobQueue:
             self.push_progress(job_id, WsEventCompleted(result=JobResult.from_result_dict(result)).model_dump(exclude_none=True))
             log.info(f"Job queue: completed id={job_id}")
         except Exception as e:
-            from modules import errors
+            # Typed rejections (VideoError-style, code with HTTP semantics)
+            # are expected client errors: one line, no traceback
+            code = getattr(e, "code", None)
+            if isinstance(code, int) and 400 <= code < 500:
+                log.info(f"Job queue: rejected id={job_id} type={job_type} code={code} error={e}")
+            else:
+                from modules import errors
 
-            errors.display(e, f"Job queue: {job_type}")
+                errors.display(e, f"Job queue: {job_type}")
             error_msg = f"{type(e).__name__}: {e}"
             self.store.update_status(job_id, "failed", completed_at=JobStore.now(), error=error_msg)
             self.push_progress(job_id, WsEventError(error=error_msg).model_dump(exclude_none=True))
