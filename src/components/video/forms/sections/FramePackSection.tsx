@@ -36,14 +36,14 @@ export function FramePackSection() {
   const setParam = useVideoStore((s) => s.setParam);
 
   // SectionTimeline needs the FramePack variant to compute window layout.
-  // Pull it from activeModel; fall back to "bi-directional" so the timeline
+  // Pull it from activeModel; fall back to "Bi-Directional" so the timeline
   // still renders when the section is briefly visible without an active
   // FramePack model selected (KeepAlive can pre-mount).
   const activeModel = useModelSelectionStore((s) => s.activeModel);
   const variant =
     activeModel?.source === "local-video" && activeModel.kind === "framepack"
       ? activeModel.model
-      : "bi-directional";
+      : "Bi-Directional";
 
   const [rawEdit, setRawEdit] = useState(false);
 

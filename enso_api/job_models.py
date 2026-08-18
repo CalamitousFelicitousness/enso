@@ -822,7 +822,7 @@ class FramePackParams(JobBase):
     prompt: str
     negative: str = ""
     seed: int = -1
-    variant: str = "bi-directional"
+    variant: str = "Bi-Directional"
     resolution: int = 640
     duration: float = 4.0
     latent_ws: int = 9

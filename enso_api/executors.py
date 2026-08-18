@@ -952,7 +952,7 @@ def execute_framepack(params: dict, job_id: str) -> dict:
     seed = params.get("seed", -1)
     resolution = params.get("resolution", 640)
     duration = params.get("duration", 4)
-    variant = params.get("variant", "bi-directional")
+    variant = params.get("variant", "Bi-Directional")
     attention = params.get("attention", "Default")
 
     jobid = shared.state.begin("API-V2-FP", api=True)

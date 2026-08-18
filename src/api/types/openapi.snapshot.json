@@ -2091,7 +2091,7 @@
             "type": "string"
           },
           "variant": {
-            "default": "bi-directional",
+            "default": "Bi-Directional",
             "title": "Variant",
             "type": "string"
           },
@@ -6205,8 +6205,8 @@
             "type": "string"
           },
           "variant": {
-            "default": "bi-directional",
-            "description": "FramePack variant (e.g. bi-directional)",
+            "default": "Bi-Directional",
+            "description": "FramePack variant (e.g. Bi-Directional)",
             "title": "Variant",
             "type": "string"
           }

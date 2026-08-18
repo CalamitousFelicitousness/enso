@@ -12,7 +12,7 @@ export function computeSectionCount(
   try {
     const realFps = fps / (interpolate + 1);
     const raw = (duration * realFps) / (latentWindowSize * 4);
-    if (variant === "forward-only") {
+    if (variant === "Forward-Only") {
       return Math.max(Math.round(raw), 1);
     }
     return Math.max(Math.floor(raw), 1);
