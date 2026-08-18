@@ -309,6 +309,8 @@ def all_caps() -> list[VideoModelCapsV2]:
                 continue
             result.append(resolve_caps(engine, row))
     for variant in framepack_load.models:
+        if variant == "None":
+            continue
         result.append(framepack_caps(variant))
     return result
 

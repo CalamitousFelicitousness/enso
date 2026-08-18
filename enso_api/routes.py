@@ -432,7 +432,8 @@ async def load_video_model(request: ReqVideoLoadV2):
 async def list_framepack_variants():
     from modules.framepack import framepack_load
 
-    return list(framepack_load.models.keys())
+    # "None" is the gradio no-model sentinel, not a loadable variant
+    return [k for k in framepack_load.models if k != "None"]
 
 
 @router.post("/framepack/load", response_model=FramePackLoadResponse, tags=["Video"])
