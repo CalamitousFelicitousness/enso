@@ -1,6 +1,7 @@
 import { SectionLeader } from "@/components/ui/section-leader";
 import { ParamSlider } from "@/components/generation/ParamSlider";
 import { ParamGrid } from "@/components/generation/ParamRow";
+import { ParamLabel } from "@/components/generation/ParamLabel";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { useWireParam } from "./useWireParam";
@@ -11,6 +12,15 @@ interface SectionProps {
   caps: VideoModelCaps;
   job: VideoJobType;
 }
+
+const GUIDANCE_HELP =
+  "Classifier-Free Guidance scale for the clip. Higher values track the prompt more strictly but stiffen motion and can oversaturate; lower values move more freely and drift off-prompt.<br>Most video models want 4 to 7.<br><br>Set to -1 to use the model's own default.<br><br>Also known as <b>CFG</b>.";
+
+const TRUE_CFG_HELP =
+  "Real classifier-free guidance for models that otherwise steer with a baked-in distilled guidance value. It evaluates the negative prompt on a second pass, roughly doubling time per step, and in exchange gives the negative prompt real effect.<br>1 leaves it off; 2 to 4 is the usual working range.<br><br>Set to -1 to leave it to the model.";
+
+const SHIFT_HELP =
+  "Flow-matching timestep shift. Above 1 spends more of the schedule on high-noise steps, which firms up structure and motion; below 1 favours the late steps and fine detail.<br>Video models usually default near 3 to 5.<br><br>Set to -1 to leave the model's own scheduler shift alone. Ignored while <b><i>Dynamic</i></b> is on.";
 
 export function ParametersSection({ caps, job }: SectionProps) {
   const steps = useWireParam<number>(job, "steps");
@@ -34,6 +44,8 @@ export function ParametersSection({ caps, job }: SectionProps) {
         {steps.key !== undefined && (
           <ParamSlider
             label="Steps"
+            tooltip="Denoising steps per clip. More steps firm up motion and fine detail; too few leave mushy frames and unstable movement.<br>Video costs far more per step than images, so the useful band is narrow - most models sit between 20 and 50, while distilled and turbo variants finish in 4 to 8.<br><br>The default comes from the selected model."
+            keywords={["iterations", "sampling steps", "quality"]}
             value={steps.value ?? 1}
             onChange={steps.set}
             min={1}
@@ -51,7 +63,8 @@ export function ParametersSection({ caps, job }: SectionProps) {
             max={20}
             step={0.5}
             disabled={!caps.guidance.cfg_applicable}
-            tooltip={caps.guidance.cfg_applicable ? undefined : distilledHint}
+            tooltip={caps.guidance.cfg_applicable ? GUIDANCE_HELP : distilledHint}
+            keywords={["cfg", "classifier free", "prompt adherence"]}
             defaultValue={caps.defaults.guidance_scale}
           />
         )}
@@ -64,7 +77,8 @@ export function ParametersSection({ caps, job }: SectionProps) {
             max={20}
             step={0.5}
             disabled={!caps.guidance.true_cfg_applicable}
-            tooltip={caps.guidance.true_cfg_applicable ? undefined : distilledHint}
+            tooltip={caps.guidance.true_cfg_applicable ? TRUE_CFG_HELP : distilledHint}
+            keywords={["cfg", "true cfg", "negative prompt", "distilled"]}
           />
         )}
         {shift.key !== undefined && (
@@ -76,7 +90,8 @@ export function ParametersSection({ caps, job }: SectionProps) {
             max={20}
             step={0.5}
             disabled={!caps.sampler.shift_applicable}
-            tooltip={caps.sampler.shift_applicable ? undefined : fixedSamplerHint}
+            tooltip={caps.sampler.shift_applicable ? SHIFT_HELP : fixedSamplerHint}
+            keywords={["flow shift", "sampler shift", "timestep", "schedule"]}
             defaultValue={caps.defaults.sampler_shift}
           />
         )}
@@ -84,6 +99,8 @@ export function ParametersSection({ caps, job }: SectionProps) {
       {seed.key !== undefined && (
         <ParamSlider
           label="Seed"
+          tooltip="Starting noise seed. The same seed with the same prompt and settings reproduces the same clip, which is what makes comparing two parameter values meaningful.<br><br>Set to -1 to draw a new random seed on every run."
+          keywords={["random", "reproducible", "deterministic"]}
           value={seed.value ?? -1}
           onChange={seed.set}
           min={-1}
@@ -97,7 +114,12 @@ export function ParametersSection({ caps, job }: SectionProps) {
           className="flex items-center gap-2"
           title={caps.sampler.dynamic_shift_applicable ? undefined : fixedSamplerHint}
         >
-          <Label className="text-2xs text-muted-foreground w-16 shrink-0">Dynamic</Label>
+          <ParamLabel
+            className="text-2xs text-muted-foreground w-16 shrink-0"
+            tooltip="Derive the flow-matching shift from the clip's own resolution and length instead of using a fixed value. Takes over from <b><i>Shift</i></b> while it is on.<br><br>Leave it on unless you are tuning shift by hand."
+          >
+            Dynamic
+          </ParamLabel>
           <Switch
             checked={dynamicShift.value ?? false}
             onCheckedChange={dynamicShift.set}

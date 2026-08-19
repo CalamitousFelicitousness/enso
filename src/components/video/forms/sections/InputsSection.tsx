@@ -13,6 +13,9 @@ interface SectionProps {
   job: VideoJobType;
 }
 
+const STRENGTH_HELP =
+  "How much the input image constrains the clip.<br>Most engines read it as a denoising strength: low values hold the opening frame close to the input, high values keep only the broad composition and redraw the rest.<br>LTX instead carries it as the weight on every conditioning frame, where higher pins the clip harder to them.<br><br>Only applies when an init image is on the canvas.";
+
 // Ordered reference list; the prompt addresses each entry by its
 // per-modality number (<Picture N> / <Video N> / <Audio N>), so reordering
 // changes meaning, not looks.
@@ -108,8 +111,9 @@ export function InputsSection({ caps, job }: SectionProps) {
           step={0.05}
           disabled={!caps.init_strength_applicable}
           tooltip={
-            caps.init_strength_applicable ? undefined : "This model does not use input strength"
+            caps.init_strength_applicable ? STRENGTH_HELP : "This model does not use input strength"
           }
+          keywords={["denoise", "init strength", "condition strength", "i2v", "image to video"]}
         />
       )}
       {showReferences && <ReferenceList caps={caps} />}
