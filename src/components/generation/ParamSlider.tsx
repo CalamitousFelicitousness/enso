@@ -6,7 +6,7 @@ import {
   ContextMenuItem,
   ContextMenuSeparator,
 } from "@/components/ui/context-menu";
-import { getParamHelp } from "@/data/parameterHelp";
+import { getParamHelp, stripParamHelpHtml } from "@/data/parameterHelp";
 import { cn } from "@/lib/utils";
 
 // ── Utility functions ──────────────────────────────────────────────
@@ -299,9 +299,9 @@ export const ParamSlider = memo(function ParamSlider({
       aria-valuemin={min}
       aria-valuemax={max}
       aria-valuenow={value}
-      aria-label={tooltip || label}
+      aria-label={tooltip ? stripParamHelpHtml(tooltip) : label}
       tabIndex={disabled ? -1 : 0}
-      title={helpText}
+      title={helpText ? stripParamHelpHtml(helpText) : undefined}
       className={cn(
         "relative h-5 rounded-sm bg-muted/60 select-none overflow-hidden",
         disabled

@@ -245,8 +245,27 @@ export function getParamHelp(label: string): string | undefined {
   return parameterHelp.get(key) ?? localeHints.get(key);
 }
 
+const HTML_ENTITIES: Record<string, string> = {
+  "&quot;": '"',
+  "&apos;": "'",
+  "&amp;": "&",
+  "&lt;": "<",
+  "&gt;": ">",
+  "&nbsp;": " ",
+};
+
+/** Strip help-text HTML for plain-text sinks (title=, aria-label, settings descriptions). */
+export function stripParamHelpHtml(text: string): string {
+  return text
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&[a-z]+;/gi, (m) => HTML_ENTITIES[m.toLowerCase()] ?? m)
+    .replace(/[ \t]+/g, " ")
+    .trim();
+}
+
 /** Look up help text and strip HTML tags for plain-text contexts (e.g. settings descriptions). */
 export function getParamHelpPlain(label: string): string | undefined {
   const text = getParamHelp(label);
-  return text ? text.replace(/<[^>]+>/g, "") : undefined;
+  return text ? stripParamHelpHtml(text) : undefined;
 }
