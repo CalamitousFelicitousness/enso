@@ -1,6 +1,7 @@
 import { useCallback, useMemo } from "react";
 import { Lightbulb } from "lucide-react";
 import { Label } from "@/components/ui/label";
+import { ParamLabel } from "@/components/generation/ParamLabel";
 import { Combobox, type ComboboxGroup } from "@/components/ui/combobox";
 import { Textarea } from "@/components/ui/textarea";
 import { Slider } from "@/components/ui/slider";
@@ -109,7 +110,7 @@ export function VlmSettings() {
       </div>
 
       <div className="flex flex-col gap-1.5">
-        <Label className="text-xs">Task</Label>
+        <ParamLabel className="text-xs">Task</ParamLabel>
         <Combobox
           value={s.task}
           onValueChange={handleTaskChange}
@@ -214,7 +215,7 @@ export function VlmSettings() {
 
           {s.keepPrefill && (
             <div className="flex flex-col gap-1.5">
-              <Label className="text-xs">Prefill Text</Label>
+              <ParamLabel className="text-xs">Prefill Text</ParamLabel>
               <Textarea
                 value={s.prefill}
                 onChange={(e) => set({ prefill: e.target.value })}

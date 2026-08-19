@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo } from "react";
 import { Lightbulb, Eye } from "lucide-react";
 import { Label } from "@/components/ui/label";
+import { ParamLabel } from "@/components/generation/ParamLabel";
 import { Switch } from "@/components/ui/switch";
 import { Combobox, type ComboboxGroup, type ComboboxOption } from "@/components/ui/combobox";
 import { Input } from "@/components/ui/input";
@@ -141,7 +142,7 @@ export function PromptEnhancePanel() {
       {/* ── Prompts ── */}
       <SectionLabel>Prompts</SectionLabel>
       <div className="flex flex-col gap-0.5">
-        <Label className="text-3xs text-muted-foreground">System prompt</Label>
+        <ParamLabel className="text-3xs text-muted-foreground">System prompt</ParamLabel>
         <Textarea
           value={store.systemPrompt}
           onChange={(e) => store.setSystemPrompt(e.target.value)}
@@ -238,7 +239,7 @@ export function PromptEnhancePanel() {
           </ParamGrid>
           <div className="grid grid-cols-3 gap-2">
             <div className="flex flex-col gap-0.5">
-              <Label className="text-3xs text-muted-foreground">Max tokens</Label>
+              <ParamLabel className="text-3xs text-muted-foreground">Max tokens</ParamLabel>
               <NumberInput
                 value={store.maxTokens}
                 onChange={store.setMaxTokens}

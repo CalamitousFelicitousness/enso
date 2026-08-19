@@ -5,6 +5,7 @@ import { useModelList, useVaeList } from "@/api/hooks/useModels";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ParamLabel } from "@/components/generation/ParamLabel";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Combobox } from "@/components/ui/combobox";
 import { Slider } from "@/components/ui/slider";
@@ -178,7 +179,7 @@ export function MergeSubTab() {
         <div className="space-y-2 pl-3">
           <div className="flex gap-2">
             <div className="flex-1">
-              <Label className="text-2xs">Precision</Label>
+              <ParamLabel className="text-2xs">Precision</ParamLabel>
               <Combobox
                 value={precision}
                 onValueChange={setPrecision}

@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { Label } from "@/components/ui/label";
+import { ParamLabel } from "@/components/generation/ParamLabel";
 import { Combobox } from "@/components/ui/combobox";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
@@ -89,7 +90,7 @@ export function TaggerSettings() {
           />
 
           <div className="flex flex-col gap-1.5">
-            <Label className="text-xs">Exclude Tags</Label>
+            <ParamLabel className="text-xs">Exclude Tags</ParamLabel>
             <Textarea
               value={s.excludeTags}
               onChange={(e) => set({ excludeTags: e.target.value })}

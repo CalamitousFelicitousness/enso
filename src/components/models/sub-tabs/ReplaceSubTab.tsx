@@ -5,6 +5,7 @@ import { useModelList, useSamplerList } from "@/api/hooks/useModels";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ParamLabel } from "@/components/generation/ParamLabel";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Combobox } from "@/components/ui/combobox";
 
@@ -86,7 +87,7 @@ export function ReplaceSubTab() {
           />
         </div>
         <div className="flex-1">
-          <Label className="text-2xs">Precision</Label>
+          <ParamLabel className="text-2xs">Precision</ParamLabel>
           <Combobox
             value={precision}
             onValueChange={setPrecision}
@@ -129,7 +130,7 @@ export function ReplaceSubTab() {
           />
         </div>
         <div>
-          <Label className="text-2xs">VAE</Label>
+          <ParamLabel className="text-2xs">VAE</ParamLabel>
           <Input
             className="h-6 text-2xs"
             value={compVae}

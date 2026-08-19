@@ -1,4 +1,5 @@
 import { Label } from "@/components/ui/label";
+import { ParamLabel } from "@/components/generation/ParamLabel";
 import { Combobox } from "@/components/ui/combobox";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
@@ -17,7 +18,7 @@ export function OpenClipSettings() {
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-col gap-1.5">
-        <Label className="text-xs">CLIP Model</Label>
+        <ParamLabel className="text-xs">CLIP Model</ParamLabel>
         <Combobox
           value={s.clipModel}
           onValueChange={(v) => set({ clipModel: v })}
@@ -28,7 +29,7 @@ export function OpenClipSettings() {
       </div>
 
       <div className="flex flex-col gap-1.5">
-        <Label className="text-xs">Caption Model</Label>
+        <ParamLabel className="text-xs">Caption Model</ParamLabel>
         <Combobox
           value={s.blipModel}
           onValueChange={(v) => set({ blipModel: v })}

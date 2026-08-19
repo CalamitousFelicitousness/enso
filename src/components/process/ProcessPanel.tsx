@@ -11,6 +11,7 @@ import { Combobox } from "@/components/ui/combobox";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { ParamLabel } from "@/components/generation/ParamLabel";
 import { SectionLeader } from "@/components/ui/section-leader";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 
@@ -140,7 +141,7 @@ export function ProcessPanel() {
         <SectionLeader title="Upscale" collapsible>
           <div className="space-y-3 pb-2">
             <div className="space-y-1.5">
-              <Label className="text-2xs text-muted-foreground">Upscaler</Label>
+              <ParamLabel className="text-2xs text-muted-foreground">Upscaler</ParamLabel>
               <Combobox
                 value={upscaler}
                 onValueChange={setUpscaler}
@@ -150,7 +151,7 @@ export function ProcessPanel() {
               />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-2xs text-muted-foreground">Resize mode</Label>
+              <ParamLabel className="text-2xs text-muted-foreground">Resize mode</ParamLabel>
               <SegmentedControl
                 options={RESIZE_MODES}
                 value={String(resizeMode)}
@@ -170,7 +171,7 @@ export function ProcessPanel() {
             ) : (
               <div className="flex gap-2">
                 <div className="flex-1 space-y-1">
-                  <Label className="text-2xs text-muted-foreground">Width</Label>
+                  <ParamLabel className="text-2xs text-muted-foreground">Width</ParamLabel>
                   <NumberInput
                     value={targetWidth}
                     onChange={setTargetWidth}
@@ -180,7 +181,7 @@ export function ProcessPanel() {
                   />
                 </div>
                 <div className="flex-1 space-y-1">
-                  <Label className="text-2xs text-muted-foreground">Height</Label>
+                  <ParamLabel className="text-2xs text-muted-foreground">Height</ParamLabel>
                   <NumberInput
                     value={targetHeight}
                     onChange={setTargetHeight}

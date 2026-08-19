@@ -4,7 +4,7 @@ import { useScriptStore } from "@/stores/scriptStore";
 import { SectionLeader, SectionDivider } from "@/components/ui/section-leader";
 import { ScriptArgControl } from "./scripts/ScriptArgControl";
 import { ScriptSection } from "./scripts/ScriptSection";
-import { Label } from "@/components/ui/label";
+import { ParamLabel } from "@/components/generation/ParamLabel";
 import { Combobox } from "@/components/ui/combobox";
 import type { ScriptInfoV2 } from "@/api/types/script";
 
@@ -34,7 +34,9 @@ export function ScriptsTab() {
     <div className="flex flex-col gap-3 text-sm">
       <SectionLeader title="Script" collapsible>
         <div className="flex items-center gap-2">
-          <Label className="text-2xs text-muted-foreground w-16 flex-shrink-0">Script</Label>
+          <ParamLabel className="text-2xs text-muted-foreground w-16 flex-shrink-0">
+            Script
+          </ParamLabel>
           <Combobox
             value={store.selectedScript || "__none__"}
             onValueChange={(v) => store.setSelectedScript(v === "__none__" ? "" : v)}

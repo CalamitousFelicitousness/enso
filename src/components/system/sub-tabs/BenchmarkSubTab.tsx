@@ -4,6 +4,7 @@ import { useRunBenchmark, useBenchmarkResults } from "@/api/hooks/useSystem";
 import { Button } from "@/components/ui/button";
 import { Combobox } from "@/components/ui/combobox";
 import { Label } from "@/components/ui/label";
+import { ParamLabel } from "@/components/generation/ParamLabel";
 import { NumberInput } from "@/components/ui/number-input";
 import { toast } from "sonner";
 import { Section, Row } from "../shared";
@@ -65,7 +66,7 @@ export function BenchmarkSubTab() {
             />
           </div>
           <div>
-            <Label className="text-xs mb-1 block">Steps</Label>
+            <ParamLabel className="text-xs mb-1 block">Steps</ParamLabel>
             <Combobox
               options={STEPS}
               value={steps}
@@ -75,7 +76,7 @@ export function BenchmarkSubTab() {
           </div>
           <div className="grid grid-cols-2 gap-2">
             <div>
-              <Label className="text-xs mb-1 block">Width</Label>
+              <ParamLabel className="text-xs mb-1 block">Width</ParamLabel>
               <NumberInput
                 value={width}
                 onChange={setWidth}
@@ -87,7 +88,7 @@ export function BenchmarkSubTab() {
               />
             </div>
             <div>
-              <Label className="text-xs mb-1 block">Height</Label>
+              <ParamLabel className="text-xs mb-1 block">Height</ParamLabel>
               <NumberInput
                 value={height}
                 onChange={setHeight}

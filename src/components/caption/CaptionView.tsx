@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { ParamLabel } from "@/components/generation/ParamLabel";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
 import { useCaptionStore } from "@/stores/captionStore";
@@ -252,7 +253,9 @@ export function CaptionView() {
                     {/* OpenCLiP: CLIP Analysis */}
                     {method === "openclip" && (
                       <div className="flex flex-col gap-1.5">
-                        <Label className="text-xs text-muted-foreground">CLIP Analysis</Label>
+                        <ParamLabel className="text-xs text-muted-foreground">
+                          CLIP Analysis
+                        </ParamLabel>
                         {hasAnalysis ? (
                           <div className="rounded-md border border-border p-3 flex flex-col gap-2 text-sm">
                             {result.medium && (

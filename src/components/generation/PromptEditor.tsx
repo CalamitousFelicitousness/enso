@@ -8,7 +8,7 @@ import { uploadBlob } from "@/lib/upload";
 import { useState, useCallback } from "react";
 import { useUiStore } from "@/stores/uiStore";
 import { PromptField } from "./PromptField";
-import { Label } from "@/components/ui/label";
+import { ParamLabel } from "@/components/generation/ParamLabel";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -116,7 +116,7 @@ export function PromptEditor() {
       {/* Positive prompt */}
       <div>
         <div className="flex items-center justify-between mb-1">
-          <Label className="text-2xs text-muted-foreground">Prompt</Label>
+          <ParamLabel className="text-2xs text-muted-foreground">Prompt</ParamLabel>
           <div className="flex items-center gap-0.5">
             <Popover open={historyOpen} onOpenChange={setHistoryOpen}>
               <PopoverTrigger asChild>
