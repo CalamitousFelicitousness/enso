@@ -1,5 +1,7 @@
 import { useMemo } from "react";
 import { useModelSelectionStore } from "@/stores/modelSelectionStore";
+import { showImagesTab } from "@/lib/tabVisibility";
+import type { ImagesSubTab } from "@/lib/constants";
 import type { UnifiedModel } from "@/api/types/cloud";
 
 /**
@@ -31,7 +33,7 @@ export interface ModelCapabilities {
   model: UnifiedModel | null;
   supports: ModelSupports;
   /** True when the named left-rail sub-tab should be visible for the active model. */
-  showTab: (tabId: string) => boolean;
+  showTab: (tabId: ImagesSubTab) => boolean;
   /** Cap on input image count for the active model. Null when no advertised
    * limit. Filmstrip uses it to disable the AddSlot once at capacity. Lives
    * outside ModelSupports because it's not a boolean. Mirrors
@@ -79,21 +81,6 @@ const LOCAL_VIDEO_SUPPORTS: ModelSupports = {
   multiImage: false,
 };
 
-// Tabs gate on a specific `supports` flag. Tabs that are sdnext-only concepts
-// (sampler, refine, detail, advanced, color, scripts) map to flags the cloud
-// branch never sets true, so they hide automatically for remote models.
-const TAB_TO_FLAG: Record<string, keyof ModelSupports | "always"> = {
-  prompts: "always",
-  sampler: "sampler",
-  guidance: "guidance",
-  refine: "refine",
-  detail: "detailer",
-  advanced: "sampler", // Advanced surfaces sampler-side knobs; gate together.
-  color: "sampler", // Color grading is post-process on the local pipeline.
-  control: "controlNet",
-  scripts: "scripts",
-};
-
 export function useModelCapabilities(): ModelCapabilities {
   const model = useModelSelectionStore((s) => s.activeModel);
   return useMemo(() => {
@@ -102,10 +89,7 @@ export function useModelCapabilities(): ModelCapabilities {
         kind: "local",
         model,
         supports: LOCAL_SUPPORTS,
-        showTab: (tabId: string) => {
-          const flag = TAB_TO_FLAG[tabId];
-          return flag === undefined || flag === "always" || LOCAL_SUPPORTS[flag];
-        },
+        showTab: (tabId) => showImagesTab(tabId, LOCAL_SUPPORTS),
         maxInputImages: null,
       };
     }
@@ -114,10 +98,9 @@ export function useModelCapabilities(): ModelCapabilities {
         kind: "local-video",
         model,
         supports: LOCAL_VIDEO_SUPPORTS,
-        // Images-view sub-tabs all hide for local-video; "prompts" survives
-        // via the "always" flag. Local-video models drive their own panel
-        // and never reach the Images-side sub-tab gating in practice.
-        showTab: (tabId: string) => TAB_TO_FLAG[tabId] === "always",
+        // Every gated tab drops out against the all-false table; "prompts"
+        // survives via its "always" gate.
+        showTab: (tabId) => showImagesTab(tabId, LOCAL_VIDEO_SUPPORTS),
         maxInputImages: null,
       };
     }
@@ -147,11 +130,7 @@ export function useModelCapabilities(): ModelCapabilities {
       kind: "cloud",
       model,
       supports,
-      showTab: (tabId: string) => {
-        const flag = TAB_TO_FLAG[tabId];
-        if (flag === undefined || flag === "always") return true;
-        return supports[flag];
-      },
+      showTab: (tabId) => showImagesTab(tabId, supports),
       maxInputImages: model.max_input_images ?? null,
     };
   }, [model]);
