@@ -268,8 +268,8 @@ export function InputFramePanel({
   );
 
   const drawer = !collapsed && (
-    <KeepAliveSwitch active={activeTab}>
-      <KeepAlivePanel id="info">
+    <KeepAliveSwitch active={`frame-${activeTab}`}>
+      <KeepAlivePanel id="frame-info">
         <div className="space-y-1 text-[10px]">
           {isReference ? (
             <>
@@ -289,7 +289,7 @@ export function InputFramePanel({
           )}
         </div>
       </KeepAlivePanel>
-      <KeepAlivePanel id="options" lazy>
+      <KeepAlivePanel id="frame-options" lazy>
         <div className="text-[10px] text-muted-foreground italic">
           {isReference
             ? "Reference frames have no extra options yet."

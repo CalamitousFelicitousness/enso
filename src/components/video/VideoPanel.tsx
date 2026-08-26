@@ -42,7 +42,7 @@ import type { PromptEnhanceRequest } from "@/api/types/promptEnhance";
 // "empty" state renders a hint inline rather than as a third panel.
 function subPanel(id: string, content: ReactNode) {
   return (
-    <KeepAlivePanel key={id} id={id} activeClassName="flex-1 overflow-hidden">
+    <KeepAlivePanel key={id} id={`video-${id}`} activeClassName="flex-1 overflow-hidden">
       <ScrollArea className="size-full">
         <div className="p-3 min-w-0">{content}</div>
       </ScrollArea>
@@ -344,7 +344,7 @@ export function VideoPanel() {
           Pick a video model from the model selector to configure and run it.
         </div>
       ) : (
-        <KeepAliveSwitch active={kind === "cloud" ? "cloud" : "capability"}>
+        <KeepAliveSwitch active={kind === "cloud" ? "video-cloud" : "video-capability"}>
           {SUB_PANELS}
         </KeepAliveSwitch>
       )}

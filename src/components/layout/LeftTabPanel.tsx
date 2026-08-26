@@ -27,7 +27,7 @@ import { KeepAlivePanel, KeepAliveSwitch } from "@/components/ui/keep-alive";
 
 function subPanel(id: string, content: ReactNode) {
   return (
-    <KeepAlivePanel key={id} id={id} activeClassName="flex-1 overflow-hidden">
+    <KeepAlivePanel key={id} id={`images-${id}`} activeClassName="flex-1 overflow-hidden">
       <ScrollArea className="size-full">
         <div className="p-3 min-w-0">{content}</div>
       </ScrollArea>
@@ -57,7 +57,7 @@ function ImagesView() {
       <div className="px-3 py-2 border-b border-border">
         <ActionBar />
       </div>
-      <KeepAliveSwitch active={resolvedSubTab}>{SUB_PANELS}</KeepAliveSwitch>
+      <KeepAliveSwitch active={`images-${resolvedSubTab}`}>{SUB_PANELS}</KeepAliveSwitch>
       <div className="border-t border-border px-2 py-1.5">
         <ResultGallery />
       </div>
@@ -66,19 +66,19 @@ function ImagesView() {
 }
 
 const VIEW_PANELS = [
-  <KeepAlivePanel key="caption" id="caption">
+  <KeepAlivePanel key="caption" id="left-caption">
     <CaptionPanel />
   </KeepAlivePanel>,
-  <KeepAlivePanel key="gallery" id="gallery">
+  <KeepAlivePanel key="gallery" id="left-gallery">
     <GalleryPanel />
   </KeepAlivePanel>,
-  <KeepAlivePanel key="process" id="process">
+  <KeepAlivePanel key="process" id="left-process">
     <ProcessPanel />
   </KeepAlivePanel>,
-  <KeepAlivePanel key="video" id="video">
+  <KeepAlivePanel key="video" id="left-video">
     <VideoPanel />
   </KeepAlivePanel>,
-  <KeepAlivePanel key="images" id="images">
+  <KeepAlivePanel key="images" id="left-images">
     <ImagesView />
   </KeepAlivePanel>,
 ];
@@ -93,7 +93,7 @@ export function LeftTabPanel() {
   // up un-bounded, breaking nested ScrollArea behavior.
   return (
     <div className="flex flex-col h-full min-w-0">
-      <KeepAliveSwitch active={activeView}>{VIEW_PANELS}</KeepAliveSwitch>
+      <KeepAliveSwitch active={`left-${activeView}`}>{VIEW_PANELS}</KeepAliveSwitch>
     </div>
   );
 }

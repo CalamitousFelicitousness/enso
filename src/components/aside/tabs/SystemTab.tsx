@@ -45,7 +45,7 @@ const SUB_TABS: readonly SystemSubTab[] = [
 // forcing the reconciler to walk every kept-alive subtree on every click.
 function subPanel(id: SystemSubTab, content: ReactNode) {
   return (
-    <KeepAlivePanel key={id} id={id} activeClassName="flex-1 overflow-hidden">
+    <KeepAlivePanel key={id} id={`system-${id}`} activeClassName="flex-1 overflow-hidden">
       <ScrollArea className="size-full">
         <div className="p-3 min-w-0">{content}</div>
       </ScrollArea>
@@ -171,7 +171,7 @@ export function SystemTab() {
         </div>
       </div>
 
-      <KeepAliveSwitch active={active}>{SUB_PANELS}</KeepAliveSwitch>
+      <KeepAliveSwitch active={`system-${active}`}>{SUB_PANELS}</KeepAliveSwitch>
 
       <Dialog
         open={confirmAction !== null}

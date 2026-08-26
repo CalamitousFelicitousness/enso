@@ -498,7 +498,7 @@ function UnitPanel({
                 a stretched flex column - we want the panel to take its
                 content height, not flex-grow. */}
             <KeepAlivePanel
-              id="info"
+              id="control-info"
               active={activeTab === "info"}
               activeClassName=""
               hiddenClassName="hidden"
@@ -506,7 +506,7 @@ function UnitPanel({
               {infoContent}
             </KeepAlivePanel>
             <KeepAlivePanel
-              id="params"
+              id="control-params"
               active={activeTab === "params"}
               lazy
               activeClassName=""

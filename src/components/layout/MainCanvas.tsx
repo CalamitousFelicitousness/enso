@@ -24,7 +24,7 @@ function UnavailablePlaceholder({ label }: { label: string }) {
 // forcing the reconciler to walk every kept-alive subtree on every state change.
 function viewPanel(id: string, content: ReactNode) {
   return (
-    <KeepAlivePanel key={id} id={id} activeClassName="size-full">
+    <KeepAlivePanel key={id} id={`canvas-${id}`} activeClassName="size-full">
       {content}
     </KeepAlivePanel>
   );
@@ -49,5 +49,5 @@ export function MainCanvas() {
     return <UnavailablePlaceholder label={navItem.label} />;
   }
 
-  return <KeepAliveSwitch active={activeView}>{VIEW_PANELS}</KeepAliveSwitch>;
+  return <KeepAliveSwitch active={`canvas-${activeView}`}>{VIEW_PANELS}</KeepAliveSwitch>;
 }

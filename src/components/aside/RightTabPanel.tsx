@@ -65,7 +65,7 @@ const TAB_PANELS = Object.entries(TAB_COMPONENTS).map(([id, Comp]) => {
     </Suspense>
   );
   return (
-    <KeepAlivePanel key={id} id={id} activeClassName="flex-1 overflow-hidden">
+    <KeepAlivePanel key={id} id={`right-${id}`} activeClassName="flex-1 overflow-hidden">
       {SELF_SCROLL_TABS.has(id) ? inner : <ScrollArea className="size-full">{inner}</ScrollArea>}
     </KeepAlivePanel>
   );
@@ -81,7 +81,7 @@ export function RightTabPanel() {
         {tabMeta && <tabMeta.icon className="h-4 w-4 text-muted-foreground" />}
         <span className="text-sm font-medium">{tabMeta?.label ?? activeTab}</span>
       </div>
-      <KeepAliveSwitch active={activeTab}>{TAB_PANELS}</KeepAliveSwitch>
+      <KeepAliveSwitch active={`right-${activeTab}`}>{TAB_PANELS}</KeepAliveSwitch>
     </div>
   );
 }

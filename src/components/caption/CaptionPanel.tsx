@@ -75,7 +75,7 @@ function DefaultCaptionSettings() {
 // forcing the reconciler to walk every kept-alive subtree on every state change.
 function methodPanel(id: CaptionTab, content: ReactNode) {
   return (
-    <KeepAlivePanel key={id} id={id} activeClassName="" hiddenClassName="hidden">
+    <KeepAlivePanel key={id} id={`caption-${id}`} activeClassName="" hiddenClassName="hidden">
       {content}
     </KeepAlivePanel>
   );
@@ -283,7 +283,7 @@ export function CaptionPanel() {
           />
 
           <div className="mt-3">
-            <KeepAliveSwitch active={activeTab}>{METHOD_PANELS}</KeepAliveSwitch>
+            <KeepAliveSwitch active={`caption-${activeTab}`}>{METHOD_PANELS}</KeepAliveSwitch>
           </div>
         </div>
       </ScrollArea>
