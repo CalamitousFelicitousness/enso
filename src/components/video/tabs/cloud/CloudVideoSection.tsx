@@ -6,7 +6,8 @@ import { useModelSelectionStore } from "@/stores/modelSelectionStore";
 import { isCloudVideoModel, supportsImageToVideo } from "@/lib/cloudVideo";
 import { Combobox } from "@/components/ui/combobox";
 import { NumberInput } from "@/components/ui/number-input";
-import { Label } from "@/components/ui/label";
+import { SectionLeader } from "@/components/ui/section-leader";
+import { ParamRow } from "@/components/generation/ParamRow";
 
 // Aspect ratios accepted by most cloud video providers. Sora-style providers
 // (orientation: portrait|landscape|square) get covered by 9:16 / 16:9 / 1:1.
@@ -26,7 +27,7 @@ function formatModelName(provider: string, name: string): string {
   return `${provider} / ${name}`;
 }
 
-export function CloudVideoForm() {
+export function CloudVideoSection() {
   const activeModel = useModelSelectionStore((s) => s.activeModel);
   const cloudAspectRatio = useVideoStore((s) => s.cloudAspectRatio);
   const cloudDuration = useVideoStore((s) => s.cloudDuration);
@@ -39,55 +40,50 @@ export function CloudVideoForm() {
     [isVideo, activeModel],
   );
 
-  if (!isVideo || !activeModel) {
-    // Empty state. The model selector at the top is the entry point; we keep
-    // this guidance short rather than re-implementing a provider/model picker
-    // here (cloud video parity with cloud image, which also doesn't have a
-    // panel-internal picker).
-    return (
-      <div className="p-4 space-y-2">
-        <div className="flex items-center gap-2 text-2xs font-medium uppercase tracking-wider text-muted-foreground">
-          <Cloud size={14} className="text-sky-400" />
-          Cloud video
-        </div>
-        <p className="text-3xs text-muted-foreground leading-snug">
-          Pick a cloud video model from the model selector above to configure and run it from this
-          tab.
-        </p>
-      </div>
-    );
-  }
+  // The Settings sub-tab is only visible for cloud models, so the
+  // no-model case cannot render here.
+  if (!isVideo || !activeModel) return null;
 
   return (
-    <div className="p-4 space-y-3">
+    <div className="space-y-3">
       <div className="flex items-center gap-2 text-2xs font-medium uppercase tracking-wider text-muted-foreground">
         <Cloud size={14} className="text-sky-400" />
         {formatModelName(activeModel.provider, activeModel.name)}
       </div>
 
-      <div className="flex items-center gap-2">
-        <Label className="text-2xs text-muted-foreground w-20 shrink-0">Aspect</Label>
-        <Combobox
-          value={cloudAspectRatio}
-          onValueChange={(v) => setParam("cloudAspectRatio", v)}
-          options={ASPECT_RATIOS}
-          placeholder="Pick aspect ratio..."
-          className="h-7 text-2xs flex-1"
-        />
-      </div>
+      <SectionLeader title="Cloud">
+        <ParamRow
+          label="Aspect"
+          tooltip="Frame shape the provider renders. Providers accept a fixed set of ratios; one they do not support is rejected at submit."
+          keywords={["aspect ratio", "orientation", "landscape", "portrait", "square"]}
+        >
+          <Combobox
+            value={cloudAspectRatio}
+            onValueChange={(v) => setParam("cloudAspectRatio", v)}
+            options={ASPECT_RATIOS}
+            placeholder="Pick aspect ratio..."
+            className="h-7 text-2xs w-full"
+          />
+        </ParamRow>
 
-      <div className="flex items-center gap-2">
-        <Label className="text-2xs text-muted-foreground w-20 shrink-0">Duration</Label>
-        <NumberInput
-          value={cloudDuration}
-          onChange={(v) => setParam("cloudDuration", v)}
-          min={1}
-          max={60}
-          step={1}
-          className="h-7 text-2xs flex-1"
-        />
-        <span className="text-3xs text-muted-foreground">sec</span>
-      </div>
+        <ParamRow
+          label="Duration"
+          tooltip="Clip length in seconds. Most providers bill by the second and cap the maximum; a value above the model's limit is rejected at submit."
+          keywords={["length", "seconds", "clip length"]}
+        >
+          <div className="flex items-center gap-2">
+            <NumberInput
+              value={cloudDuration}
+              onChange={(v) => setParam("cloudDuration", v)}
+              min={1}
+              max={60}
+              step={1}
+              className="h-7 text-2xs flex-1"
+            />
+            <span className="text-3xs text-muted-foreground">sec</span>
+          </div>
+        </ParamRow>
+      </SectionLeader>
 
       {canI2V && (
         <div className="space-y-1 pt-1 border-t border-border/50">

@@ -1,5 +1,5 @@
-import { CloudVideoForm } from "./cloud/CloudVideoForm";
+import { CloudVideoSection } from "./cloud/CloudVideoSection";
 
 export function CloudTab() {
-  return <CloudVideoForm />;
+  return <CloudVideoSection />;
 }
