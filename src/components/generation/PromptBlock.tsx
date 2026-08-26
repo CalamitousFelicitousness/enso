@@ -94,11 +94,7 @@ export function PromptBlock({
               className="p-0.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
               title="Enhance prompt"
             >
-              {isPending ? (
-                <Loader2 size={14} className="animate-spin" />
-              ) : (
-                <Sparkles size={14} />
-              )}
+              {isPending ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
             </button>
             <Popover open={enhanceOpen} onOpenChange={setEnhanceOpen}>
               <PopoverTrigger asChild>

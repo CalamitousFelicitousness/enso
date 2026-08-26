@@ -10,7 +10,7 @@ import {
   Images,
   Settings,
 } from "lucide-react";
-import { NAV_ITEMS, IMAGES_SUB_TABS, RIGHT_TABS } from "@/lib/constants";
+import { NAV_ITEMS, IMAGES_SUB_TABS, VIDEO_SUB_TABS, RIGHT_TABS } from "@/lib/constants";
 import { PARAM_MAP } from "@/lib/paramMap.generated";
 import { getAllCommands } from "@/lib/commandRegistry";
 import type { PaletteCommand } from "@/lib/commandRegistry";
@@ -40,11 +40,18 @@ const NAV_ICONS: Record<string, LucideIcon> = {
   gallery: Images,
 };
 
-const TAB_ICONS: Record<string, LucideIcon> = { video: Video };
-for (const t of IMAGES_SUB_TABS) TAB_ICONS[t.id] = t.icon;
-
-const TAB_LABELS: Record<string, string> = { video: "Video" };
-for (const t of IMAGES_SUB_TABS) TAB_LABELS[t.id] = t.label;
+// Keyed by view:tab - "prompts" names a tab in both views, so the bare id
+// would have one overwrite the other.
+const TAB_ICONS: Record<string, LucideIcon> = {};
+const TAB_LABELS: Record<string, string> = {};
+for (const t of IMAGES_SUB_TABS) {
+  TAB_ICONS[`images:${t.id}`] = t.icon;
+  TAB_LABELS[`images:${t.id}`] = t.label;
+}
+for (const t of VIDEO_SUB_TABS) {
+  TAB_ICONS[`video:${t.id}`] = t.icon;
+  TAB_LABELS[`video:${t.id}`] = `Video \u203a ${t.label}`;
+}
 
 /** Title-case a lowercase section name: "hires fix" -> "Hires Fix". */
 function titleCaseSection(section: string): string {
@@ -57,7 +64,7 @@ function titleCaseSection(section: string): string {
 const COLLIDING_PARAM_LABELS: Set<string> = (() => {
   const counts = new Map<string, number>();
   for (const entry of PARAM_MAP) {
-    const group = TAB_LABELS[entry.tab] ?? entry.tab;
+    const group = TAB_LABELS[`${entry.view}:${entry.tab}`] ?? entry.tab;
     const key = `${group} ${entry.label.toLowerCase()}`;
     counts.set(key, (counts.get(key) ?? 0) + 1);
   }
@@ -140,16 +147,27 @@ export function buildActions(commands?: PaletteCommand[]): PaletteAction[] {
     });
   }
 
-  // --- Navigation: images sub-tabs ---
+  // --- Navigation: sub-tabs ---
   for (const tab of IMAGES_SUB_TABS) {
     actions.push({
       kind: "navigate",
-      id: `subtab-${tab.id}`,
-      label: `Images › ${tab.label}`,
+      id: `subtab-images-${tab.id}`,
+      label: `Images \u203a ${tab.label}`,
       icon: tab.icon,
       group: "Navigation",
       keywords: ["tab", "images", tab.label.toLowerCase()],
-      target: { tab: tab.id },
+      target: { view: "images", subTab: tab.id },
+    });
+  }
+  for (const tab of VIDEO_SUB_TABS) {
+    actions.push({
+      kind: "navigate",
+      id: `subtab-video-${tab.id}`,
+      label: `Video \u203a ${tab.label}`,
+      icon: tab.icon,
+      group: "Navigation",
+      keywords: ["tab", "video", tab.label.toLowerCase()],
+      target: { view: "video", subTab: tab.id },
     });
   }
 
@@ -168,8 +186,8 @@ export function buildActions(commands?: PaletteCommand[]): PaletteAction[] {
 
   // --- Parameter navigation (search-only) ---
   for (const entry of PARAM_MAP) {
-    const tabLabel = TAB_LABELS[entry.tab] ?? entry.tab;
-    const icon = TAB_ICONS[entry.tab] ?? Settings;
+    const tabLabel = TAB_LABELS[`${entry.view}:${entry.tab}`] ?? entry.tab;
+    const icon = TAB_ICONS[`${entry.view}:${entry.tab}`] ?? Settings;
     // Section is part of the id so params that share a name across sections of
     // the same tab (Refine's "Steps", "Scale", etc.) get distinct ids. A shared
     // id collides the React key and the cmdk selection value, which highlights
@@ -179,18 +197,16 @@ export function buildActions(commands?: PaletteCommand[]): PaletteAction[] {
     const label = collides ? `${entry.label} (${titleCaseSection(entry.section)})` : entry.label;
     actions.push({
       kind: "navigate",
-      id: `param-${entry.tab}-${sectionSlug}-${entry.param}`,
+      id: `param-${entry.view}-${entry.tab}-${sectionSlug}-${entry.param}`,
       label,
       icon,
       group: tabLabel,
       keywords: [...entry.keywords, entry.param, entry.section],
       ...(entry.helpExcerpt ? { helpExcerpt: entry.helpExcerpt } : {}),
-      // Video sections live in one KeepAlive panel navigated by view;
-      // images params navigate by sub-tab.
       target:
-        entry.tab === "video"
-          ? { view: "video", panel: "capability", section: entry.section, param: entry.param }
-          : { tab: entry.tab, section: entry.section, param: entry.param },
+        entry.view === "video"
+          ? { view: "video", subTab: entry.tab, section: entry.section, param: entry.param }
+          : { view: "images", subTab: entry.tab, section: entry.section, param: entry.param },
       showOnlyInSearch: true,
     });
   }

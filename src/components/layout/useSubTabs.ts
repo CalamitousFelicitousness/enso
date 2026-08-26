@@ -19,8 +19,7 @@ export function useSubTabs<Id extends string>(opts: {
   return useMemo(() => {
     const visible = registry.filter((tab) => isVisible(tab.id));
     const active = visible.some((tab) => tab.id === stored) ? stored : fallback;
-    const activePanelId =
-      registry.find((tab) => tab.id === active)?.panelId ?? `${String(active)}`;
+    const activePanelId = registry.find((tab) => tab.id === active)?.panelId ?? `${String(active)}`;
     return { visible, active, activePanelId };
   }, [registry, isVisible, stored, fallback]);
 }

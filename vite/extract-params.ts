@@ -1,10 +1,10 @@
-import path from "node:path";
 import { Project, SyntaxKind, Node } from "ts-morph";
 import type { JsxOpeningElement, JsxSelfClosingElement, JsxElement, JsxFragment } from "ts-morph";
 
 export interface ExtractedParam {
   /** Absolute source path, so validation warnings can cite it. */
   file: string;
+  view: string;
   tab: string;
   section: string;
   param: string;
@@ -35,9 +35,12 @@ const project = new Project({
   },
 });
 
-export function extractParamsFromTabFile(filePath: string, sourceText: string): ExtractResult {
-  const tab = inferTabFromFilename(filePath);
-  if (!tab) return { params: [], warnings: [] };
+export function extractParamsFromTabFile(
+  filePath: string,
+  sourceText: string,
+  attribution: { view: string; tab: string },
+): ExtractResult {
+  const { view, tab } = attribution;
 
   const existing = project.getSourceFile(filePath);
   if (existing) project.removeSourceFile(existing);
@@ -48,7 +51,7 @@ export function extractParamsFromTabFile(filePath: string, sourceText: string): 
   const seen = new Set<string>();
 
   const addEntry = (entry: ExtractedParam, node: Node) => {
-    const key = `${entry.tab}:${entry.section}:${entry.param}`;
+    const key = `${entry.view}:${entry.tab}:${entry.section}:${entry.param}`;
     if (seen.has(key)) {
       warnings.push({
         file: filePath,
@@ -100,12 +103,20 @@ export function extractParamsFromTabFile(filePath: string, sourceText: string): 
       }
 
       const helpResult = readStringAttr(node, "tooltip");
+      if (helpResult.kind === "dynamic") {
+        warnings.push({
+          file: filePath,
+          line: node.getStartLineNumber(),
+          message: `<${tagName} label="${label}"> has dynamic tooltip - no help extracted`,
+        });
+      }
       const help = helpResult.kind === "ok" ? helpResult.value : undefined;
       const helpExcerpt = help ? buildHelpExcerpt(help) : undefined;
 
       addEntry(
         {
           file: filePath,
+          view,
           tab,
           section: section.toLowerCase(),
           param: label.toLowerCase(),
@@ -137,6 +148,7 @@ export function extractParamsFromTabFile(filePath: string, sourceText: string): 
     addEntry(
       {
         file: filePath,
+        view,
         tab,
         section: section.toLowerCase(),
         param: dataParam.toLowerCase(),
@@ -153,17 +165,6 @@ export function extractParamsFromTabFile(filePath: string, sourceText: string): 
   });
 
   return { params, warnings };
-}
-
-function inferTabFromFilename(filePath: string): string | null {
-  // Video sections all map to the "video" pseudo-tab (navigated by view, not
-  // sub-tab) wherever they sit under the video component tree.
-  if (filePath.includes(path.join("components", "video"))) return "video";
-  const base = path.basename(filePath, ".tsx");
-  if (!base.endsWith("Tab")) return null;
-  const stem = base.slice(0, -"Tab".length);
-  if (!stem) return null;
-  return stem.toLowerCase();
 }
 
 type OpeningLike = JsxOpeningElement | JsxSelfClosingElement;

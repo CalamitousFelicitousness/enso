@@ -4,6 +4,7 @@ import { useProcessStore } from "@/stores/processStore";
 import { useGenerationStore } from "@/stores/generationStore";
 import { useCanvasStore } from "@/stores/canvasStore";
 import { useUiStore } from "@/stores/uiStore";
+import type { VideoSubTab } from "@/lib/constants";
 import { useModelSelectionStore } from "@/stores/modelSelectionStore";
 import { fileToBase64, base64ToFile } from "@/lib/image";
 import { resolveImageSrc } from "@/lib/utils";
@@ -65,6 +66,15 @@ export function blobToFile(blob: Blob, filename = "frame.png"): File {
   return new File([blob], filename, { type: blob.type });
 }
 
+/** Switch to the Video view and land on the sub-tab that shows what was
+ * just sent. The video prompt and input controls each live in their own tab,
+ * so the view alone no longer puts them on screen. */
+function showVideoTab(tab: VideoSubTab) {
+  const ui = useUiStore.getState();
+  ui.setNavView("video");
+  ui.setPanelSelection("videoSubTab", tab);
+}
+
 export async function sendFrameToVideoInit(blob: Blob) {
   const file = blobToFile(blob, "init-frame.png");
   const base64 = await fileToBase64(file);
@@ -77,7 +87,7 @@ export async function sendFrameToVideoInit(blob: Blob) {
   useVideoCanvasStore
     .getState()
     .setFrame("init", file, base64, objectUrl, img.naturalWidth, img.naturalHeight);
-  useUiStore.getState().setNavView("video");
+  showVideoTab("inputs");
 }
 
 export async function sendFrameToVideoLast(blob: Blob) {
@@ -92,7 +102,7 @@ export async function sendFrameToVideoLast(blob: Blob) {
   useVideoCanvasStore
     .getState()
     .setFrame("last", file, base64, objectUrl, img.naturalWidth, img.naturalHeight);
-  useUiStore.getState().setNavView("video");
+  showVideoTab("inputs");
 }
 
 export function sendFrameToUpscale(blob: Blob) {
@@ -141,7 +151,7 @@ export function sendPromptToVideo(prompt: string, negative?: string) {
   const store = useVideoStore.getState();
   store.setParam("prompt", prompt);
   if (negative) store.setParam("negative", negative);
-  useUiStore.getState().setNavView("video");
+  showVideoTab("prompts");
 }
 
 export function appendToGenerationPrompt(text: string) {

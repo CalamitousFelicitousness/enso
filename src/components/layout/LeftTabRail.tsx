@@ -3,6 +3,7 @@ import { useUiStore } from "@/stores/uiStore";
 import { useTutorialStore } from "@/stores/tutorialStore";
 import { useCapabilities } from "@/api/hooks/useServer";
 import { useImagesTabs } from "@/components/generation/tabs/useImagesTabs";
+import { useVideoTabs } from "@/components/video/tabs/useVideoTabs";
 import { cn } from "@/lib/utils";
 import { PanelLeftClose, PanelLeftOpen, HelpCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -17,6 +18,11 @@ function ImagesSubTabStrip() {
   return <SubTabStrip tabs={visible} value={active} onChange={setActive} />;
 }
 
+function VideoSubTabStrip() {
+  const { visible, active, setActive } = useVideoTabs();
+  return <SubTabStrip tabs={visible} value={active} onChange={setActive} />;
+}
+
 export function LeftTabRail() {
   const collapsed = useUiStore((s) => s.leftRailCollapsed);
   const activeView = useUiStore((s) => s.activeNavView);
@@ -28,7 +34,7 @@ export function LeftTabRail() {
 
   const capabilities = useCapabilities();
 
-  const hasSubTabs = activeView === "images" && !viewCollapsed;
+  const hasSubTabs = (activeView === "images" || activeView === "video") && !viewCollapsed;
 
   return (
     <div
@@ -138,7 +144,7 @@ export function LeftTabRail() {
           data-tour="left-rail-subtabs"
           className="border-l border-rail-border py-2 overflow-y-auto"
         >
-          <ImagesSubTabStrip />
+          {activeView === "video" ? <VideoSubTabStrip /> : <ImagesSubTabStrip />}
         </div>
       )}
     </div>

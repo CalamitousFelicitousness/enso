@@ -6,8 +6,6 @@ import { useRegisterCommand } from "@/lib/commandRegistry";
 import { toast } from "sonner";
 import { useVideoStore } from "@/stores/videoStore";
 import { useModelSelectionStore } from "@/stores/modelSelectionStore";
-import { videoInitVisionSource } from "./visionSource";
-import { PromptBlock } from "@/components/generation/PromptBlock";
 import {
   useJobQueueStore,
   selectVideoActive,
@@ -27,25 +25,24 @@ import { buildCloudVideoRequest } from "@/lib/requestBuilder";
 import { buildVideoPayload } from "@/lib/video/buildVideoPayload";
 import { resolveVideoUi, kindToDomain } from "@/lib/videoModel";
 import { Button } from "@/components/ui/button";
-import { KeepAliveSwitch } from "@/components/ui/keep-alive";
+import { TabbedPanel } from "@/components/layout/TabbedPanel";
+import { tabPanelEntries } from "@/components/layout/tabRegistry";
+import { VIDEO_TAB_REGISTRY } from "./tabs/registry";
+import { useVideoTabs } from "./tabs/useVideoTabs";
+import { VideoPresetSelector } from "./VideoPresetSelector";
 import { buildPanels } from "@/components/ui/tab-panels";
-import { CapabilityForm } from "./forms/CapabilityForm";
-import { CloudVideoForm } from "./tabs/cloud/CloudVideoForm";
 
 // Two panels: every local engine renders through the caps-driven
 // CapabilityForm (per-engine drafts live in videoStore, so nothing worth
 // preserving is lost by sharing one tree), cloud keeps its own form. The
 // "empty" state renders a hint inline rather than as a third panel.
-const SUB_PANELS = buildPanels([
-  { id: "video-capability", content: <CapabilityForm /> },
-  { id: "video-cloud", content: <CloudVideoForm /> },
-]);
+// Module scope: stable element references, see buildPanels.
+const VIDEO_PANELS = buildPanels(tabPanelEntries(VIDEO_TAB_REGISTRY));
 
 export function VideoPanel() {
   const prompt = useVideoStore((s) => s.prompt);
-  const negative = useVideoStore((s) => s.negative);
-  const setParam = useVideoStore((s) => s.setParam);
   const activeModel = useModelSelectionStore((s) => s.activeModel);
+  const { activePanelId, job } = useVideoTabs();
   const kind = resolveVideoUi(activeModel);
   const domain = kindToDomain(kind);
   const activeCaps = useActiveVideoCaps();
@@ -71,9 +68,6 @@ export function VideoPanel() {
   const [isLoadingModel, setIsLoadingModel] = useState(false);
 
   // Prompt enhance
-  const setPrompt = useCallback((v: string) => setParam("prompt", v), [setParam]);
-  const setNegative = useCallback((v: string) => setParam("negative", v), [setParam]);
-
 
   const buildRequest = useCallback(async () => {
     if (kind === "cloud") {
@@ -180,27 +174,18 @@ export function VideoPanel() {
   );
 
   return (
-    <div className="flex flex-col h-full min-w-0">
-      {/* Sticky header: prompt + Generate stay visible while the
-          kind-specific form scrolls independently below. */}
-      <div className="shrink-0 p-3 pb-0 space-y-1 border-b border-border">
-        <div className="space-y-1.5 mb-3">
-          <PromptBlock
-            value={prompt}
-            onChange={setPrompt}
-            negativeValue={negative}
-            onNegativeChange={setNegative}
-            negativeMode={kind === "cloud" ? "hidden" : "always"}
-            enhanceType="video"
-            getVisionImage={videoInitVisionSource}
-            placeholder="Describe the video..."
-            negativePlaceholder="Negative prompt (optional)"
-            className="min-h-15"
-            negativeClassName="min-h-9"
-          />
-        </div>
-
-        <div className="space-y-2 mb-3">
+    <TabbedPanel
+      panels={VIDEO_PANELS}
+      activePanelId={activePanelId}
+      headerClassName="px-3 py-2 space-y-2"
+      {...(kind === "empty"
+        ? {
+            emptyState: "Pick a video model from the model selector to configure and run it.",
+          }
+        : {})}
+      header={
+        <>
+          {job && <VideoPresetSelector domain={job} />}
           <div className="flex gap-2">
             {/* Title rides the wrapper: a disabled button swallows pointer
                 events, so its own title never shows. */}
@@ -253,18 +238,8 @@ export function VideoPanel() {
               </span>
             </div>
           )}
-        </div>
-      </div>
-
-      {kind === "empty" ? (
-        <div className="p-6 text-center text-3xs text-muted-foreground">
-          Pick a video model from the model selector to configure and run it.
-        </div>
-      ) : (
-        <KeepAliveSwitch active={kind === "cloud" ? "video-cloud" : "video-capability"}>
-          {SUB_PANELS}
-        </KeepAliveSwitch>
-      )}
-    </div>
+        </>
+      }
+    />
   );
 }

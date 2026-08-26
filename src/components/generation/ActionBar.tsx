@@ -197,34 +197,43 @@ export const ActionBar = memo(function ActionBar() {
   useViewShortcut("images", "skip", handleSkip);
 
   // Command Palette entries - captured at mount, dispatched via current closure refs
-  useRegisterCommand({
-    id: "actions:generate",
-    label: "Generate",
-    group: "Actions",
-    keywords: ["run", "create", "start"],
-    icon: Play,
-    shortcutId: "generate",
-    run: () => {
-      if (!isSubmitting && !detailOnlyBlockReason) void submit();
+  useRegisterCommand(
+    {
+      id: "actions:generate",
+      label: "Generate",
+      group: "Actions",
+      keywords: ["run", "create", "start"],
+      icon: Play,
+      shortcutId: "generate",
+      run: () => {
+        if (!isSubmitting && !detailOnlyBlockReason) void submit();
+      },
     },
-  }, isImagesView);
-  useRegisterCommand({
-    id: "actions:interrupt",
-    label: "Interrupt generation",
-    group: "Actions",
-    keywords: ["stop", "cancel", "abort"],
-    icon: Square,
-    run: handleInterrupt,
-  }, isImagesView);
-  useRegisterCommand({
-    id: "actions:skip",
-    label: "Skip current step",
-    group: "Actions",
-    keywords: ["next", "advance"],
-    icon: SkipForward,
-    shortcutId: "skip",
-    run: handleSkip,
-  }, isImagesView);
+    isImagesView,
+  );
+  useRegisterCommand(
+    {
+      id: "actions:interrupt",
+      label: "Interrupt generation",
+      group: "Actions",
+      keywords: ["stop", "cancel", "abort"],
+      icon: Square,
+      run: handleInterrupt,
+    },
+    isImagesView,
+  );
+  useRegisterCommand(
+    {
+      id: "actions:skip",
+      label: "Skip current step",
+      group: "Actions",
+      keywords: ["next", "advance"],
+      icon: SkipForward,
+      shortcutId: "skip",
+      run: handleSkip,
+    },
+    isImagesView,
+  );
   useRegisterCommand({
     id: "actions:restore-last",
     label: "Restore last settings",

@@ -1,16 +1,16 @@
 import { useUiStore } from "@/stores/uiStore";
-import type { ImagesSubTab, NavView, RightTab } from "@/lib/constants";
+import type { ImagesSubTab, NavView, RightTab, VideoSubTab } from "@/lib/constants";
 
-export interface NavigateTarget {
-  view?: NavView;
-  tab?: ImagesSubTab;
-  rightTab?: RightTab;
-  /** KeepAlive panel id to scope the param lookup to when the target is a
-   * view without a sub-tab (the Video panel's sections). */
-  panel?: string;
+interface ParamLocation {
   section?: string;
   param?: string;
 }
+
+export type NavigateTarget =
+  | { rightTab: RightTab }
+  | ({ view: "images"; subTab?: ImagesSubTab } & ParamLocation)
+  | ({ view: "video"; subTab?: VideoSubTab } & ParamLocation)
+  | { view: Exclude<NavView, "images" | "video"> };
 
 function waitForElement(
   selector: string,
@@ -47,7 +47,7 @@ export async function navigateToParam(target: NavigateTarget) {
   const store = useUiStore.getState();
 
   // 1. Right panel tab navigation
-  if (target.rightTab) {
+  if ("rightTab" in target) {
     store.openRightTab(target.rightTab);
     return;
   }
@@ -58,23 +58,19 @@ export async function navigateToParam(target: NavigateTarget) {
   if (store.viewCollapsed) store.toggleViewCollapsed();
 
   // 3. Switch view/tab
-  if (target.view) store.setNavView(target.view);
-  if (target.tab) {
-    store.setNavView("images");
-    store.setImagesSubTab(target.tab);
+  store.setNavView(target.view);
+  if (target.view === "images" && target.subTab) store.setImagesSubTab(target.subTab);
+  if (target.view === "video" && target.subTab) {
+    store.setPanelSelection("videoSubTab", target.subTab);
   }
 
   // 4. If no param specified (tab-only navigation), we're done
-  if (!target.param) return;
+  if (!("param" in target) || !target.param) return;
 
   // Scope the lookup to the target panel. Hidden panels stay mounted, so the
   // same data-param can exist in several at once. Panel ids are namespaced by
   // their host, so this resolves to exactly one element.
-  const panelId = target.tab
-    ? `images-${target.tab}`
-    : target.panel && target.view
-      ? `${target.view}-${target.panel}`
-      : undefined;
+  const panelId = target.subTab ? `${target.view}-${target.subTab}` : undefined;
   const scope = panelId ? await waitForElement(`[data-panel-id="${panelId}"]`) : document.body;
   if (!scope) {
     if (import.meta.env.DEV) console.warn(`[navigateToParam] no panel "${panelId}"`);

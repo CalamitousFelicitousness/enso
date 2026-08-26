@@ -20,3 +20,13 @@ export function useActiveVideoCaps(): VideoModelCaps {
     );
   }, [activeModel, capsMap]);
 }
+
+/** Whether the caps above came from the model rather than the permissive
+ * fallback. Sub-tab visibility consults this so a cold load does not show a
+ * fallback-derived strip and then reflow when the real caps arrive. */
+export function useActiveVideoCapsResolved(): boolean {
+  const activeModel = useModelSelectionStore((s) => s.activeModel);
+  const capsMap = useVideoCaps();
+  if (!isLocalVideoModel(activeModel)) return true;
+  return capsMap.has(capsKey(activeModel.engine, activeModel.model)) || activeModel.caps != null;
+}
