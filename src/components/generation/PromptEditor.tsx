@@ -1,11 +1,8 @@
 import { useGenerationStore } from "@/stores/generationStore";
-import { useCanvasStore } from "@/stores/canvasStore";
-import type { ImageLayer } from "@/stores/canvasStore";
 import { usePromptEnhanceStore } from "@/stores/promptEnhanceStore";
-import { usePromptEnhance } from "@/api/hooks/usePromptEnhance";
-import { flattenCanvas } from "@/lib/flattenCanvas";
-import { uploadBlob } from "@/lib/upload";
-import { useState, useCallback } from "react";
+import { usePromptEnhancer } from "@/hooks/usePromptEnhancer";
+import { imageCanvasVisionSource } from "./visionSource";
+import { useState } from "react";
 import { useUiStore } from "@/stores/uiStore";
 import { PromptField } from "./PromptField";
 import { ParamLabel } from "@/components/generation/ParamLabel";
@@ -22,85 +19,33 @@ import {
   Settings2,
   CalendarClock,
 } from "lucide-react";
-import { toast } from "sonner";
 import { useRegisterCommand } from "@/lib/commandRegistry";
 import { PromptEnhanceWorkspace } from "./PromptEnhanceWorkspace";
 import { PromptHistoryPopover } from "./PromptHistoryPopover";
 import { CloudEnhanceButton } from "./CloudEnhanceButton";
-import type { PromptEnhanceRequest } from "@/api/types/promptEnhance";
 
 export function PromptEditor() {
   const prompt = useGenerationStore((s) => s.prompt);
   const negativePrompt = useGenerationStore((s) => s.negativePrompt);
   const setParam = useGenerationStore((s) => s.setParam);
   const [showNegative, setShowNegative] = useState(false);
-  const [enhanceOpen, setEnhanceOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
 
   const promptAutocomplete = useUiStore((s) => s.promptAutocomplete);
   const setPromptAutocomplete = useUiStore((s) => s.setPromptAutocomplete);
 
-  const enhanceStore = usePromptEnhanceStore();
   const pinned = usePromptEnhanceStore((s) => s.pinned);
-  const setPendingResult = usePromptEnhanceStore((s) => s.setPendingResult);
-  const enhanceMutation = usePromptEnhance();
+  const {
+    enhance: handleEnhance,
+    isPending: isEnhancing,
+    open: enhanceOpen,
+    setOpen: setEnhanceOpen,
+  } = usePromptEnhancer({
+    type: "text",
+    getPrompt: () => useGenerationStore.getState().prompt,
+    getVisionImage: imageCanvasVisionSource,
+  });
 
-  const handleEnhance = useCallback(async () => {
-    if (!prompt.trim()) {
-      toast.warning("Enter a prompt first");
-      return;
-    }
-    let image: string | null = null;
-    if (enhanceStore.useVision) {
-      const { width, height } = useGenerationStore.getState();
-      const inputFrames = useCanvasStore.getState().inputFrames;
-      const firstInitial = inputFrames.find(
-        (f) => f.mode === "initial" && f.layers.some((l) => l.type === "image"),
-      );
-      const layers: ImageLayer[] =
-        firstInitial && firstInitial.mode === "initial"
-          ? firstInitial.layers.filter((l): l is ImageLayer => l.type === "image")
-          : [];
-      const blob = await flattenCanvas(layers, width, height);
-      if (blob) image = await uploadBlob(blob, "vision.png");
-    }
-    const req: PromptEnhanceRequest = {
-      prompt,
-      type: "text",
-      model: enhanceStore.model || null,
-      system_prompt: enhanceStore.systemPrompt || null,
-      prefix: enhanceStore.prefix || null,
-      suffix: enhanceStore.suffix || null,
-      nsfw: enhanceStore.nsfw,
-      seed: enhanceStore.seed,
-      do_sample: enhanceStore.doSample,
-      max_tokens: enhanceStore.maxTokens,
-      temperature: enhanceStore.temperature,
-      repetition_penalty: enhanceStore.repetitionPenalty,
-      top_k: enhanceStore.topK || null,
-      top_p: enhanceStore.topP || null,
-      thinking: enhanceStore.thinking,
-      keep_thinking: enhanceStore.keepThinking,
-      use_vision: enhanceStore.useVision,
-      prefill: enhanceStore.prefill || null,
-      keep_prefill: enhanceStore.keepPrefill,
-      image,
-    };
-    enhanceMutation.mutate(req, {
-      onSuccess: (res) => {
-        setPendingResult({
-          prompt: res.prompt,
-          seed: res.seed,
-          originalPrompt: prompt,
-        });
-        setEnhanceOpen(true);
-        toast.success(`Prompt enhanced (seed: ${res.seed})`);
-      },
-      onError: (err) => {
-        toast.error(`Enhance failed: ${err instanceof Error ? err.message : "Unknown error"}`);
-      },
-    });
-  }, [prompt, enhanceStore, enhanceMutation, setPendingResult]);
 
   useRegisterCommand({
     id: "prompt:open-history",
@@ -145,11 +90,11 @@ export function PromptEditor() {
             <button
               type="button"
               onClick={() => void handleEnhance()}
-              disabled={enhanceMutation.isPending}
+              disabled={isEnhancing}
               className="p-0.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
               title="Enhance prompt"
             >
-              {enhanceMutation.isPending ? (
+              {isEnhancing ? (
                 <Loader2 size={14} className="animate-spin" />
               ) : (
                 <Sparkles size={14} />
@@ -180,7 +125,7 @@ export function PromptEditor() {
                 <ScrollArea className="max-h-[80vh]">
                   <PromptEnhanceWorkspace
                     onEnhance={() => void handleEnhance()}
-                    isPending={enhanceMutation.isPending}
+                    isPending={isEnhancing}
                     onClose={() => setEnhanceOpen(false)}
                   />
                 </ScrollArea>
