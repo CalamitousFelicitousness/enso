@@ -29,6 +29,8 @@ import {
   Terminal,
   ListOrdered,
   CloudCog,
+  Film,
+  FileVideo,
 } from "lucide-react";
 
 export type NavView = "images" | "video" | "process" | "caption" | "gallery";
@@ -110,6 +112,19 @@ export const IMAGES_SUB_TABS = [
 
 /** Derived from the registry so ids and the union cannot drift apart. */
 export type ImagesSubTab = (typeof IMAGES_SUB_TABS)[number]["id"];
+
+/** Sub-tabs for the Video view. Which ones a model actually offers is
+ * decided by visibleVideoSubTabs in @/lib/video/subTabs. */
+export const VIDEO_SUB_TABS = [
+  { id: "prompts", label: "Prompts", icon: Type },
+  { id: "cloud", label: "Settings", icon: CloudCog },
+  { id: "sampling", label: "Sampling", icon: SlidersHorizontal },
+  { id: "inputs", label: "Inputs", icon: Layers },
+  { id: "framepack", label: "FramePack", icon: Film },
+  { id: "output", label: "Output", icon: FileVideo },
+] as const satisfies readonly SubTabItem[];
+
+export type VideoSubTab = (typeof VIDEO_SUB_TABS)[number]["id"];
 
 /** External links at the bottom of the Left Rail */
 export const EXTERNAL_LINKS: ExternalLink[] = [

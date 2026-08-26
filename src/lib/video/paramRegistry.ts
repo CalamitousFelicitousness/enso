@@ -374,6 +374,11 @@ export const WIRE_TO_STORE: Record<VideoJobType, Record<string, VideoParamKey>> 
   return out;
 })();
 
+/** Whether this job's wire carries the given param, outside React. */
+export function hasWire(job: VideoJobType, wire: string): boolean {
+  return WIRE_TO_STORE[job][wire] !== undefined;
+}
+
 /** Preset membership: carried on the domain's wire, plus client-only output
  * view state; prompts and cloud state stay out. */
 export function presetKeysFor(domain: VideoJobType): VideoParamKey[] {

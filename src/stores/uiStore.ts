@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { ImagesSubTab, NavView, RightTab } from "@/lib/constants";
+import type { ImagesSubTab, NavView, RightTab, VideoSubTab } from "@/lib/constants";
 
 type ColorMode = "dark" | "light" | "system";
 type CanvasBackground = "dots" | "noise" | "iso";
@@ -26,6 +26,7 @@ interface PanelSelections {
   modelsSubTab: ModelsSubTab;
   systemSubTab: SystemSubTab;
   captionSubTab: CaptionSubTab;
+  videoSubTab: VideoSubTab;
   /** Free-form because backend Settings sections are dynamic. The synthetic
    * Connection / Appearance ids and any backend section id are valid; null
    * falls back to whichever section SettingsView resolves first. */
@@ -131,6 +132,7 @@ export type {
   ModelsSubTab,
   SystemSubTab,
   CaptionSubTab,
+  VideoSubTab,
   PanelSelections,
 };
 
@@ -138,6 +140,7 @@ const DEFAULT_PANEL_SELECTIONS: PanelSelections = {
   modelsSubTab: "Current",
   systemSubTab: "Overview",
   captionSubTab: "vlm",
+  videoSubTab: "prompts",
   settingsSection: null,
 };
 
@@ -224,6 +227,18 @@ export const useUiStore = create<UiState>()(
           ...rest
         } = state;
         return rest;
+      },
+      // Zustand merges persisted state with a shallow spread, so a blob
+      // written before a panelSelections key existed would reinstate the
+      // whole object and leave that key undefined. Exactly one level deep:
+      // array fields elsewhere must still be replaced, not merged.
+      merge: (persisted, current) => {
+        const saved = (persisted ?? {}) as Partial<UiState>;
+        return {
+          ...current,
+          ...saved,
+          panelSelections: { ...DEFAULT_PANEL_SELECTIONS, ...(saved.panelSelections ?? {}) },
+        };
       },
     },
   ),
