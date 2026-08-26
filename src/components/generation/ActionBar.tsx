@@ -27,7 +27,8 @@ import { Play, Square, SkipForward, History, ChevronDown, Layers, Grid3X3 } from
 import { ProgressRing } from "@/components/ui/progress-ring";
 import { useState, useCallback, useMemo, memo } from "react";
 import { toast } from "sonner";
-import { useShortcut } from "@/hooks/useShortcut";
+import { useUiStore } from "@/stores/uiStore";
+import { useViewShortcut } from "@/hooks/useViewShortcut";
 import { useRegisterCommand } from "@/lib/commandRegistry";
 import { Button } from "@/components/ui/button";
 import {
@@ -187,11 +188,13 @@ export const ActionBar = memo(function ActionBar() {
   const phase = runningJob?.domain === "generate" ? runningJob.task : "";
   const phaseLabel = phase || "Generating";
 
-  // Global keyboard shortcuts for generation
-  useShortcut("generate", () => {
+  // Scoped to the Images view: this panel stays mounted under KeepAlive after
+  // the user switches away, so an unscoped registration would answer for Video.
+  const isImagesView = useUiStore((s) => s.activeNavView === "images");
+  useViewShortcut("images", "generate", () => {
     if (!isSubmitting && !detailOnlyBlockReason) void submit();
   });
-  useShortcut("skip", handleSkip);
+  useViewShortcut("images", "skip", handleSkip);
 
   // Command Palette entries - captured at mount, dispatched via current closure refs
   useRegisterCommand({
@@ -204,7 +207,7 @@ export const ActionBar = memo(function ActionBar() {
     run: () => {
       if (!isSubmitting && !detailOnlyBlockReason) void submit();
     },
-  });
+  }, isImagesView);
   useRegisterCommand({
     id: "actions:interrupt",
     label: "Interrupt generation",
@@ -212,7 +215,7 @@ export const ActionBar = memo(function ActionBar() {
     keywords: ["stop", "cancel", "abort"],
     icon: Square,
     run: handleInterrupt,
-  });
+  }, isImagesView);
   useRegisterCommand({
     id: "actions:skip",
     label: "Skip current step",
@@ -221,7 +224,7 @@ export const ActionBar = memo(function ActionBar() {
     icon: SkipForward,
     shortcutId: "skip",
     run: handleSkip,
-  });
+  }, isImagesView);
   useRegisterCommand({
     id: "actions:restore-last",
     label: "Restore last settings",
@@ -265,13 +268,16 @@ export const ActionBar = memo(function ActionBar() {
   return (
     <div className="flex items-center gap-2">
       {/* Generate button group */}
-      <div className="flex flex-1 min-w-0" data-tour="generate-button">
+      <div
+        className="flex flex-1 min-w-0"
+        data-tour="generate-button"
+        title={detailOnlyBlockReason ?? undefined}
+      >
         <Button
           type="button"
           data-param="generate"
           onClick={() => void submit()}
           disabled={isSubmitting || !!detailOnlyBlockReason}
-          title={detailOnlyBlockReason ?? undefined}
           variant="default"
           size="sm"
           className="flex-1 rounded-r-none"

@@ -1,5 +1,8 @@
 import { useCallback, useMemo, useState } from "react";
 import { Play, Square, Sparkles, Settings2, Loader2 } from "lucide-react";
+import { useUiStore } from "@/stores/uiStore";
+import { useViewShortcut } from "@/hooks/useViewShortcut";
+import { useRegisterCommand } from "@/lib/commandRegistry";
 import { toast } from "sonner";
 import { useVideoStore } from "@/stores/videoStore";
 import { useModelSelectionStore } from "@/stores/modelSelectionStore";
@@ -202,6 +205,39 @@ export function VideoPanel() {
 
   const canGenerate = kind !== "empty" && !!prompt.trim() && !missingRefs;
   const progressPct = Math.round(progress * 100);
+
+  // Own the generate shortcut and palette entries while Video is the active
+  // view. Distinct command ids: the registry is one entry per id, so sharing
+  // "actions:generate" would let one panel's cleanup drop the other's.
+  const isVideoView = useUiStore((s) => s.activeNavView === "video");
+  useViewShortcut("video", "generate", () => {
+    if (!isSubmitting && !isLoadingModel && canGenerate) void handleGenerate();
+  });
+  useRegisterCommand(
+    {
+      id: "video:generate",
+      label: "Generate video",
+      group: "Actions",
+      keywords: ["run", "render", "clip"],
+      icon: Play,
+      shortcutId: "generate",
+      run: () => {
+        if (!isSubmitting && !isLoadingModel && canGenerate) void handleGenerate();
+      },
+    },
+    isVideoView,
+  );
+  useRegisterCommand(
+    {
+      id: "video:interrupt",
+      label: "Interrupt video generation",
+      group: "Actions",
+      keywords: ["stop", "cancel", "abort"],
+      icon: Square,
+      run: handleCancel,
+    },
+    isVideoView,
+  );
 
   return (
     <div className="flex flex-col h-full min-w-0">

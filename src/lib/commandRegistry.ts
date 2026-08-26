@@ -85,12 +85,13 @@ export function useCommands(): PaletteCommand[] {
  * If you need the displayed label or keywords to change at runtime, change
  * the `id` to force re-registration.
  */
-export function useRegisterCommand(cmd: PaletteCommand): void {
+export function useRegisterCommand(cmd: PaletteCommand, enabled = true): void {
   const cmdRef = useRef(cmd);
   // eslint-disable-next-line react-hooks/refs -- latest-ref pattern; run() invoked from palette, never during render
   cmdRef.current = cmd;
 
   useEffect(() => {
+    if (!enabled) return;
     const wrapped: PaletteCommand = {
       id: cmd.id,
       label: cmd.label,
@@ -103,7 +104,9 @@ export function useRegisterCommand(cmd: PaletteCommand): void {
     };
     registerCommand(wrapped);
     return () => unregisterCommand(cmd.id);
-    // Capture display metadata at mount; re-register only when id changes.
+    // Capture display metadata at mount; re-register only when id or the
+    // gate changes. KeepAlive keeps hidden panels mounted, so a view-scoped
+    // command has to deregister itself rather than rely on unmounting.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cmd.id]);
+  }, [cmd.id, enabled]);
 }

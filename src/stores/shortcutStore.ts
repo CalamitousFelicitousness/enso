@@ -11,7 +11,7 @@ interface ShortcutStoreState {
   pushScope: (scope: ShortcutScope) => void;
   popScope: (scope: ShortcutScope) => void;
   register: (id: string, handler: ShortcutHandler) => void;
-  unregister: (id: string) => void;
+  unregister: (id: string, handler?: ShortcutHandler) => void;
   setCheatsheetOpen: (open: boolean) => void;
 }
 
@@ -42,9 +42,13 @@ export const useShortcutStore = create<ShortcutStoreState>()((set) => ({
       return { handlers: next };
     }),
 
-  unregister: (id) =>
+  // Identity-checked: two views can hold the same id across a switch, and the
+  // outgoing component's cleanup must not delete the incoming registration.
+  unregister: (id, handler) =>
     set((s) => {
-      if (!s.handlers.has(id)) return s;
+      const current = s.handlers.get(id);
+      if (current === undefined) return s;
+      if (handler !== undefined && current !== handler) return s;
       const next = new Map(s.handlers);
       next.delete(id);
       return { handlers: next };

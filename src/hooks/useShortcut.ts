@@ -16,6 +16,6 @@ export function useShortcut(id: string, handler: (e: KeyboardEvent) => void, ena
   useEffect(() => {
     if (!enabled) return;
     useShortcutStore.getState().register(id, stableHandler);
-    return () => useShortcutStore.getState().unregister(id);
+    return () => useShortcutStore.getState().unregister(id, stableHandler);
   }, [id, enabled, stableHandler]);
 }
