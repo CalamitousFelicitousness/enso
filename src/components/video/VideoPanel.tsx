@@ -1,14 +1,13 @@
 import { useCallback, useMemo, useState } from "react";
-import { Play, Square, Sparkles, Settings2, Loader2 } from "lucide-react";
+import { Play, Square, Loader2 } from "lucide-react";
 import { useUiStore } from "@/stores/uiStore";
 import { useViewShortcut } from "@/hooks/useViewShortcut";
 import { useRegisterCommand } from "@/lib/commandRegistry";
 import { toast } from "sonner";
 import { useVideoStore } from "@/stores/videoStore";
 import { useModelSelectionStore } from "@/stores/modelSelectionStore";
-import { usePromptEnhanceStore } from "@/stores/promptEnhanceStore";
-import { usePromptEnhancer } from "@/hooks/usePromptEnhancer";
 import { videoInitVisionSource } from "./visionSource";
+import { PromptBlock } from "@/components/generation/PromptBlock";
 import {
   useJobQueueStore,
   selectVideoActive,
@@ -28,13 +27,8 @@ import { buildCloudVideoRequest } from "@/lib/requestBuilder";
 import { buildVideoPayload } from "@/lib/video/buildVideoPayload";
 import { resolveVideoUi, kindToDomain } from "@/lib/videoModel";
 import { Button } from "@/components/ui/button";
-import { PromptField } from "@/components/generation/PromptField";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { KeepAliveSwitch } from "@/components/ui/keep-alive";
 import { buildPanels } from "@/components/ui/tab-panels";
-import { Label } from "@/components/ui/label";
-import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
-import { PromptEnhanceWorkspace } from "@/components/generation/PromptEnhanceWorkspace";
 import { CapabilityForm } from "./forms/CapabilityForm";
 import { CloudVideoForm } from "./forms/CloudVideoForm";
 
@@ -77,20 +71,9 @@ export function VideoPanel() {
   const [isLoadingModel, setIsLoadingModel] = useState(false);
 
   // Prompt enhance
-  const pinned = usePromptEnhanceStore((s) => s.pinned);
-  const {
-    enhance: handleEnhance,
-    isPending: isEnhancing,
-    open: enhanceOpen,
-    setOpen: setEnhanceOpen,
-  } = usePromptEnhancer({
-    type: "video",
-    getPrompt: () => useVideoStore.getState().prompt,
-    getVisionImage: videoInitVisionSource,
-  });
+  const setPrompt = useCallback((v: string) => setParam("prompt", v), [setParam]);
+  const setNegative = useCallback((v: string) => setParam("negative", v), [setParam]);
 
-
-  const handleAcceptEnhanced = useCallback((p: string) => setParam("prompt", p), [setParam]);
 
   const buildRequest = useCallback(async () => {
     if (kind === "cloud") {
@@ -202,68 +185,18 @@ export function VideoPanel() {
           kind-specific form scrolls independently below. */}
       <div className="shrink-0 p-3 pb-0 space-y-1 border-b border-border">
         <div className="space-y-1.5 mb-3">
-          <div className="flex items-center justify-between mb-1">
-            <Label className="text-2xs text-muted-foreground">Prompt</Label>
-            <div className="flex items-center gap-0.5">
-              <button
-                type="button"
-                onClick={() => void handleEnhance()}
-                disabled={isEnhancing}
-                className="p-0.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
-                title="Enhance prompt"
-              >
-                {isEnhancing ? (
-                  <Loader2 size={14} className="animate-spin" />
-                ) : (
-                  <Sparkles size={14} />
-                )}
-              </button>
-              <Popover open={enhanceOpen} onOpenChange={setEnhanceOpen}>
-                <PopoverTrigger asChild>
-                  <button
-                    type="button"
-                    className="p-0.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
-                    title="Enhance settings"
-                  >
-                    <Settings2 size={13} />
-                  </button>
-                </PopoverTrigger>
-                <PopoverContent
-                  side="right"
-                  align="start"
-                  className="w-96 p-0"
-                  onInteractOutside={(e) => {
-                    if (pinned) e.preventDefault();
-                  }}
-                  onEscapeKeyDown={(e) => {
-                    if (pinned) e.preventDefault();
-                  }}
-                >
-                  <ScrollArea className="max-h-[80vh]">
-                    <PromptEnhanceWorkspace
-                      onEnhance={() => void handleEnhance()}
-                      isPending={isEnhancing}
-                      onClose={() => setEnhanceOpen(false)}
-                      onAccept={handleAcceptEnhanced}
-                      onSelectPrompt={handleAcceptEnhanced}
-                    />
-                  </ScrollArea>
-                </PopoverContent>
-              </Popover>
-            </div>
-          </div>
-          <PromptField
+          <PromptBlock
             value={prompt}
-            onChange={(v) => setParam("prompt", v)}
+            onChange={setPrompt}
+            negativeValue={negative}
+            onNegativeChange={setNegative}
+            negativeMode={kind === "cloud" ? "hidden" : "always"}
+            enhanceType="video"
+            getVisionImage={videoInitVisionSource}
             placeholder="Describe the video..."
+            negativePlaceholder="Negative prompt (optional)"
             className="min-h-15"
-          />
-
-          <PromptField
-            value={negative}
-            onChange={(v) => setParam("negative", v)}
-            placeholder="Negative prompt (optional)"
-            className="min-h-9"
+            negativeClassName="min-h-9"
           />
         </div>
 
