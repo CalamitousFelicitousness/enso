@@ -3,14 +3,10 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { extractParamsFromTabFile, enrichKeywords } from "./extract-params.ts";
 import type { ExtractedParam, ExtractWarning } from "./extract-params.ts";
+import { collectParamFiles } from "./param-sources.ts";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(here, "..");
-const TABS_DIR = path.join(repoRoot, "src/components/generation/tabs");
-const VIDEO_SECTIONS_DIRS = [
-  path.join(repoRoot, "src/components/video/forms"),
-  path.join(repoRoot, "src/components/video/forms/sections"),
-];
 const OUTPUT_PATH = path.join(repoRoot, "src/lib/paramMap.generated.ts");
 const SYNONYMS_PATH = path.join(here, "palette-synonyms.json");
 
@@ -59,20 +55,7 @@ export interface CodegenResult {
 }
 
 export function runCodegen(): CodegenResult {
-  const tabFiles = fs
-    .readdirSync(TABS_DIR)
-    .filter((name) => name.endsWith("Tab.tsx"))
-    .map((name) => path.join(TABS_DIR, name))
-    .sort();
-  for (const dir of VIDEO_SECTIONS_DIRS) {
-    tabFiles.push(
-      ...fs
-        .readdirSync(dir)
-        .filter((name) => name.endsWith("Section.tsx"))
-        .map((name) => path.join(dir, name))
-        .sort(),
-    );
-  }
+  const tabFiles = collectParamFiles(repoRoot);
 
   const synonymGroups = loadSynonymGroups();
   const allParams: ExtractedParam[] = [];
@@ -94,21 +77,21 @@ export function runCodegen(): CodegenResult {
   for (const entry of allParams) {
     if (!entry.label.trim()) {
       allWarnings.push({
-        file: TABS_DIR,
+        file: entry.file,
         line: 0,
         message: `entry ${entry.tab}/${entry.section}/${entry.param} has empty label`,
       });
     }
     if (!entry.help && entry.keywords.length <= 1) {
       allWarnings.push({
-        file: TABS_DIR,
+        file: entry.file,
         line: 0,
         message: `entry ${entry.tab}/${entry.section}/${entry.param} has no help and only label-word keywords - consider adding tooltip + keywords`,
       });
     }
     if (entry.help && entry.help.replace(/<[^>]+>/g, "").trim().length < 15) {
       allWarnings.push({
-        file: TABS_DIR,
+        file: entry.file,
         line: 0,
         message: `entry ${entry.tab}/${entry.section}/${entry.param} has suspiciously short help text`,
       });

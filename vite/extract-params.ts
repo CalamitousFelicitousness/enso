@@ -3,6 +3,8 @@ import { Project, SyntaxKind, Node } from "ts-morph";
 import type { JsxOpeningElement, JsxSelfClosingElement, JsxElement, JsxFragment } from "ts-morph";
 
 export interface ExtractedParam {
+  /** Absolute source path, so validation warnings can cite it. */
+  file: string;
   tab: string;
   section: string;
   param: string;
@@ -103,6 +105,7 @@ export function extractParamsFromTabFile(filePath: string, sourceText: string): 
 
       addEntry(
         {
+          file: filePath,
           tab,
           section: section.toLowerCase(),
           param: label.toLowerCase(),
@@ -133,6 +136,7 @@ export function extractParamsFromTabFile(filePath: string, sourceText: string): 
     const innerLabel = findInnerLabelText(node) ?? titleCase(dataParam);
     addEntry(
       {
+        file: filePath,
         tab,
         section: section.toLowerCase(),
         param: dataParam.toLowerCase(),

@@ -1,10 +1,9 @@
 import path from "node:path";
 import type { Plugin } from "vite";
 import { runCodegen } from "./codegen-paramMap.ts";
+import { isParamSourceFile } from "./param-sources.ts";
 
 export function paletteCodegenPlugin(): Plugin {
-  const tabsDir = path.resolve(process.cwd(), "src/components/generation/tabs");
-  const videoFormsDir = path.resolve(process.cwd(), "src/components/video/forms");
   let lastError: unknown = null;
 
   function regenerate(reason: string) {
@@ -36,10 +35,7 @@ export function paletteCodegenPlugin(): Plugin {
       }
     },
     handleHotUpdate(ctx) {
-      const isTabFile =
-        (ctx.file.startsWith(tabsDir) && ctx.file.endsWith("Tab.tsx")) ||
-        (ctx.file.startsWith(videoFormsDir) && ctx.file.endsWith("Section.tsx"));
-      if (!isTabFile) return;
+      if (!isParamSourceFile(process.cwd(), ctx.file)) return;
       regenerate(`hot update: ${path.relative(process.cwd(), ctx.file)}`);
       return undefined;
     },
