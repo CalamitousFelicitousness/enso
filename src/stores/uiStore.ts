@@ -1,18 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { RightTab } from "@/lib/constants";
+import type { ImagesSubTab, NavView, RightTab } from "@/lib/constants";
 
-type NavView = "images" | "video" | "process" | "caption" | "gallery";
-type ImagesSubTab =
-  | "prompts"
-  | "sampler"
-  | "guidance"
-  | "refine"
-  | "detail"
-  | "advanced"
-  | "color"
-  | "control"
-  | "scripts";
 type ColorMode = "dark" | "light" | "system";
 type CanvasBackground = "dots" | "noise" | "iso";
 

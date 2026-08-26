@@ -15,7 +15,6 @@ import { PARAM_MAP } from "@/lib/paramMap.generated";
 import { getAllCommands } from "@/lib/commandRegistry";
 import type { PaletteCommand } from "@/lib/commandRegistry";
 import type { NavigateTarget } from "@/lib/navigateToParam";
-import type { ImagesSubTab } from "@/stores/uiStore";
 
 interface PaletteActionBase {
   id: string;
@@ -150,7 +149,7 @@ export function buildActions(commands?: PaletteCommand[]): PaletteAction[] {
       icon: tab.icon,
       group: "Navigation",
       keywords: ["tab", "images", tab.label.toLowerCase()],
-      target: { tab: tab.id as ImagesSubTab },
+      target: { tab: tab.id },
     });
   }
 

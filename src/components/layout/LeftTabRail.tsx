@@ -2,7 +2,6 @@ import { useMemo } from "react";
 import { NAV_ITEMS, IMAGES_SUB_TABS, EXTERNAL_LINKS } from "@/lib/constants";
 import { useUiStore } from "@/stores/uiStore";
 import { useTutorialStore } from "@/stores/tutorialStore";
-import type { NavView, ImagesSubTab } from "@/stores/uiStore";
 import { useCapabilities } from "@/api/hooks/useServer";
 import { useModelCapabilities } from "@/hooks/useModelCapabilities";
 import { cn } from "@/lib/utils";
@@ -79,7 +78,7 @@ export function LeftTabRail() {
                       if (isActive) {
                         toggleViewCollapsed();
                       } else {
-                        setNavView(item.id as NavView);
+                        setNavView(item.id);
                         if (viewCollapsed) toggleViewCollapsed();
                       }
                     }}
@@ -152,7 +151,7 @@ export function LeftTabRail() {
             options={filteredSubTabs}
             value={activeSubTab}
             onValueChange={(v) => {
-              setImagesSubTab(v as ImagesSubTab);
+              setImagesSubTab(v);
               if (leftPanelCollapsed) toggleLeftPanel();
               if (viewCollapsed) toggleViewCollapsed();
             }}

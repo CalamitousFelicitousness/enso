@@ -31,8 +31,10 @@ import {
   CloudCog,
 } from "lucide-react";
 
+export type NavView = "images" | "video" | "process" | "caption" | "gallery";
+
 export interface NavItem {
-  id: string;
+  id: NavView;
   label: string;
   icon: LucideIcon;
   capability?: keyof import("@/api/types/server").ServerCapabilities;
@@ -94,7 +96,7 @@ export const NAV_ITEMS: NavItem[] = [
 ];
 
 /** Sub-tabs for the Images view (matches SD.Next control tab structure) */
-export const IMAGES_SUB_TABS: SubTabItem[] = [
+export const IMAGES_SUB_TABS = [
   { id: "prompts", label: "Prompts", icon: Type },
   { id: "sampler", label: "Sampler", icon: SlidersHorizontal },
   { id: "guidance", label: "Guidance", icon: Compass },
@@ -104,7 +106,10 @@ export const IMAGES_SUB_TABS: SubTabItem[] = [
   { id: "color", label: "Color", icon: Palette },
   { id: "control", label: "Input", icon: Layers },
   { id: "scripts", label: "Scripts", icon: FileCode },
-];
+] as const satisfies readonly SubTabItem[];
+
+/** Derived from the registry so ids and the union cannot drift apart. */
+export type ImagesSubTab = (typeof IMAGES_SUB_TABS)[number]["id"];
 
 /** External links at the bottom of the Left Rail */
 export const EXTERNAL_LINKS: ExternalLink[] = [
