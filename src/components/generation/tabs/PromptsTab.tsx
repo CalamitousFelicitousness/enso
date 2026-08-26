@@ -1,45 +1,34 @@
-import { useMemo, useState, useCallback } from "react";
+import { useMemo, useCallback } from "react";
 import { useGenerationStore } from "@/stores/generationStore";
 import { useUiStore } from "@/stores/uiStore";
 import { useImg2ImgStore } from "@/stores/img2imgStore";
 import { useCanvasStore } from "@/stores/canvasStore";
 import { useIsImg2Img } from "@/hooks/useIsImg2Img";
+import { useAspectLock, useAspectPresets } from "@/hooks/useAspectLock";
 import { useModelSelectionStore } from "@/stores/modelSelectionStore";
 import { useShallow } from "zustand/react/shallow";
 import { usePromptStyles } from "@/api/hooks/useNetworks";
-import { useOptionsSubset } from "@/api/hooks/useSettings";
 import { useUpscalerGroups } from "@/api/hooks/useModels";
-import { Link2Off, ArrowLeftRight, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { resolveGenerationSize, formatMegapixels } from "@/lib/sizeCompute";
 import type { SizeMode } from "@/lib/sizeCompute";
+import type { AspectPreset } from "@/lib/aspect";
 import type { ParamDescriptor } from "@/api/types/cloud";
 import type { GenerationInfo } from "@/api/types/generation";
 import { PromptEditor } from "../PromptEditor";
 import { StylePicker } from "../StylePicker";
 import { ParamSlider } from "../ParamSlider";
+import { AspectRatioControl } from "../AspectRatioControl";
 import { SectionLeader, SectionDivider } from "@/components/ui/section-leader";
 import { ParamGrid } from "../ParamRow";
-import { NumberInput } from "@/components/ui/number-input";
 import { ParamLabel } from "../ParamLabel";
 import { Button } from "@/components/ui/button";
 import { Combobox } from "@/components/ui/combobox";
-import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 
-interface AspectPreset {
-  label: string;
-  w: number;
-  h: number;
-}
+const IMAGE_AXIS = { min: 64, max: 4096, multiple: 8 };
 
-interface AbsoluteSizePreset {
-  label: string;
-  w: number;
-  h: number;
-}
-
-const GENERIC_CLOUD_PRESETS: AbsoluteSizePreset[] = [
+const GENERIC_CLOUD_PRESETS: AspectPreset[] = [
   { label: "1024x1024", w: 1024, h: 1024 },
   { label: "1536x1024", w: 1536, h: 1024 },
   { label: "1024x1536", w: 1024, h: 1536 },
@@ -48,29 +37,17 @@ const GENERIC_CLOUD_PRESETS: AbsoluteSizePreset[] = [
   { label: "1280x720", w: 1280, h: 720 },
 ];
 
-function parseSizeOptions(params: ParamDescriptor[] | null): AbsoluteSizePreset[] | null {
+function parseSizeOptions(params: ParamDescriptor[] | null): AspectPreset[] | null {
   if (!params) return null;
   const sizeParam = params.find((p) => p.name === "size" && p.type === "enum" && p.options);
   if (!sizeParam?.options) return null;
-  const presets: AbsoluteSizePreset[] = [];
+  const presets: AspectPreset[] = [];
   for (const opt of sizeParam.options) {
     if (opt === "auto") continue;
     const [w, h] = opt.split("x").map(Number);
     if (w > 0 && h > 0) presets.push({ label: opt, w, h });
   }
   return presets.length > 0 ? presets : null;
-}
-
-function parseAspectRatios(raw: string): AspectPreset[] {
-  return raw
-    .split(",")
-    .map((s) => s.trim())
-    .filter(Boolean)
-    .map((s) => {
-      const [w, h] = s.split(":").map(Number);
-      return w > 0 && h > 0 ? { label: s, w, h } : null;
-    })
-    .filter((p): p is AspectPreset => p !== null);
 }
 
 export function PromptsTab() {
@@ -99,7 +76,6 @@ export function PromptsTab() {
   const autoSize = useImg2ImgStore((s) => s.autoSize);
   const setAutoSize = useImg2ImgStore((s) => s.setAutoSize);
   const upscalerGroups = useUpscalerGroups({ excludeLatent: true });
-  const { data: aspectOpts } = useOptionsSubset(["aspect_ratios"]);
   const activeModel = useModelSelectionStore((s) => s.activeModel);
   const cloudSizePresets = useMemo(() => {
     // Narrow inside the closure so `.supported_params` and `.size_constraint`
@@ -110,7 +86,7 @@ export function PromptsTab() {
     //.5: size_constraint is authoritative when present.
     const sc = activeModel.size_constraint;
     if (sc?.kind === "enum" && sc.options.length > 0) {
-      const presets: AbsoluteSizePreset[] = [];
+      const presets: AspectPreset[] = [];
       for (const opt of sc.options) {
         const [w, h] = opt.split("x").map(Number);
         if (w > 0 && h > 0) presets.push({ label: opt, w, h });
@@ -123,7 +99,7 @@ export function PromptsTab() {
       //. Requires plumbing an activeBucketSymbol state
       // through to buildCloudImageRequest. No priority models use bucket today
       // (NanoGPT catalogue codifies as enum), so deferred.
-      const presets: AbsoluteSizePreset[] = [];
+      const presets: AspectPreset[] = [];
       for (const opt of sc.options) {
         const resolved = sc.resolve[opt];
         if (resolved) presets.push({ label: opt, w: resolved.w, h: resolved.h });
@@ -230,18 +206,7 @@ export function PromptsTab() {
       `${base}<br><br>` + notes.map((n) => `<span style="opacity:0.7">${n}</span>`).join("<br><br>")
     );
   }, [autoInactive, referenceInactive, firstReferenceImage]);
-  const aspectPresets = useMemo(
-    () =>
-      parseAspectRatios(
-        typeof aspectOpts?.["aspect_ratios"] === "string"
-          ? aspectOpts["aspect_ratios"]
-          : "1:1, 4:3, 3:2, 16:9, 16:10, 21:9, 2:3, 3:4, 9:16, 10:16, 9:21",
-      ),
-    [aspectOpts],
-  );
-  const [activePreset, setActivePreset] = useState<string | null>(null);
-  const aspectLocked = activePreset !== null;
-  const [aspectOpen, setAspectOpen] = useState(false);
+  const aspectPresets = useAspectPresets();
 
   const showSizeModes = isImg2Img && autoFitFrame;
   const effectiveSizeMode: SizeMode = showSizeModes ? sizeMode : "fixed";
@@ -259,68 +224,16 @@ export function PromptsTab() {
     [effectiveSizeMode, state.width, state.height, scaleFactor, megapixelTarget],
   );
 
-  const lockedRatio = useMemo(() => {
-    if (!activePreset) return null;
-    const [w, h] = activePreset.split(":").map(Number);
-    return w > 0 && h > 0 ? w / h : null;
-  }, [activePreset]);
-
-  const setWidth = useCallback(
-    (w: number) => {
-      const rounded = Math.round(w / 8) * 8;
-      setParam("width", rounded);
-      if (lockedRatio) setParam("height", Math.round(rounded / lockedRatio / 8) * 8);
-    },
-    [setParam, lockedRatio],
-  );
-
-  const setHeight = useCallback(
-    (h: number) => {
-      const rounded = Math.round(h / 8) * 8;
-      setParam("height", rounded);
-      if (lockedRatio) setParam("width", Math.round((rounded * lockedRatio) / 8) * 8);
-    },
-    [setParam, lockedRatio],
-  );
-
-  const swapDimensions = useCallback(() => {
-    const w = state.width;
-    setParam("width", state.height);
-    setParam("height", w);
-    if (activePreset) {
-      const parts = activePreset.split(":");
-      if (parts.length === 2) setActivePreset(`${parts[1]}:${parts[0]}`);
-    }
-  }, [setParam, state.width, state.height, activePreset]);
-
-  const selectPreset = useCallback(
-    (preset: AspectPreset | null) => {
-      if (!preset) {
-        setActivePreset(null);
-        setAspectOpen(false);
-        return;
-      }
-      setActivePreset(preset.label);
-      const pixels = state.width * state.height;
-      const ratio = preset.w / preset.h;
-      const newW = Math.round(Math.sqrt(pixels * ratio) / 8) * 8;
-      const newH = Math.round(newW / ratio / 8) * 8;
-      setParam("width", newW);
-      setParam("height", newH);
-      setAspectOpen(false);
-    },
-    [state.width, state.height, setParam],
-  );
-
-  const selectCloudSize = useCallback(
-    (preset: AbsoluteSizePreset) => {
-      setActivePreset(preset.label);
-      setParam("width", preset.w);
-      setParam("height", preset.h);
-      setAspectOpen(false);
-    },
-    [setParam],
-  );
+  const onWidth = useCallback((v: number) => setParam("width", v), [setParam]);
+  const onHeight = useCallback((v: number) => setParam("height", v), [setParam]);
+  const aspect = useAspectLock({
+    width: state.width,
+    height: state.height,
+    onWidth,
+    onHeight,
+    widthRule: IMAGE_AXIS,
+    heightRule: IMAGE_AXIS,
+  });
 
   const set = useMemo(
     () => ({
@@ -405,133 +318,47 @@ export function PromptsTab() {
             />
           )}
 
-          {/* Width / Height row */}
-          <div data-param="width" className="flex items-center gap-2">
-            <ParamLabel className="text-2xs text-muted-foreground shrink-0">Width</ParamLabel>
-            <NumberInput
-              value={isFixed ? state.width : genSize.width}
-              onChange={setWidth}
-              step={8}
-              min={64}
-              max={4096}
-              fallback={512}
-              disabled={!isFixed}
-              className="flex-1 min-w-12 h-6 text-2xs text-center px-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-            />
-
-            <Popover open={aspectOpen} onOpenChange={setAspectOpen}>
-              <PopoverTrigger asChild>
-                <button
-                  type="button"
-                  disabled={!isFixed}
-                  className={cn(
-                    "inline-flex items-center justify-center gap-0 h-6 shrink-0 rounded-md transition-colors",
-                    "hover:bg-accent hover:text-accent-foreground",
-                    "disabled:pointer-events-none disabled:opacity-50",
-                    aspectLocked ? "text-primary px-1" : "text-muted-foreground px-1",
-                    cloudSizePresets ? "w-auto min-w-9" : "w-9",
-                  )}
-                  title={
-                    cloudSizePresets
-                      ? aspectLocked
-                        ? `Size: ${activePreset}`
-                        : "Select output size"
-                      : aspectLocked
-                        ? `Aspect ratio locked to ${activePreset}`
-                        : "Select aspect ratio preset"
-                  }
-                >
-                  {aspectLocked ? (
-                    <span className="text-3xs font-medium leading-none font-mono">
-                      {activePreset}
-                    </span>
-                  ) : cloudSizePresets ? (
-                    <span className="text-3xs font-medium leading-none font-mono">
-                      {state.width}x{state.height}
-                    </span>
-                  ) : (
-                    <Link2Off size={12} />
-                  )}
-                  <ChevronDown size={8} className="ml-0.5 opacity-60" />
-                </button>
-              </PopoverTrigger>
-              <PopoverContent
-                className={cn("p-1", cloudSizePresets ? "w-36" : "w-32")}
-                align="center"
-                sideOffset={6}
-              >
-                {cloudSizePresets ? (
-                  <>
-                    {cloudSizePresets.map((p) => (
-                      <button
-                        key={p.label}
-                        type="button"
-                        onClick={() => selectCloudSize(p)}
-                        className={cn(
-                          "w-full text-left text-2xs px-2 py-1 rounded-sm transition-colors font-mono",
-                          "hover:bg-accent hover:text-accent-foreground",
-                          (activePreset === p.label ||
-                            (!activePreset && state.width === p.w && state.height === p.h)) &&
-                            "text-primary font-medium",
-                        )}
-                      >
-                        {p.label}
-                      </button>
-                    ))}
-                  </>
-                ) : (
-                  <>
-                    <button
-                      type="button"
-                      onClick={() => selectPreset(null)}
-                      className={cn(
-                        "w-full text-left text-2xs px-2 py-1 rounded-sm transition-colors",
-                        "hover:bg-accent hover:text-accent-foreground",
-                        !aspectLocked && "text-primary font-medium",
-                      )}
-                    >
-                      Custom
-                    </button>
-                    {aspectPresets.map((p) => (
-                      <button
-                        key={p.label}
-                        type="button"
-                        onClick={() => selectPreset(p)}
-                        className={cn(
-                          "w-full text-left text-2xs px-2 py-1 rounded-sm transition-colors",
-                          "hover:bg-accent hover:text-accent-foreground",
-                          activePreset === p.label && "text-primary font-medium",
-                        )}
-                      >
-                        {p.label}
-                      </button>
-                    ))}
-                  </>
-                )}
-              </PopoverContent>
-            </Popover>
-            <Button
-              variant="ghost"
-              size="icon-xs"
-              onClick={swapDimensions}
-              className="text-muted-foreground"
-              title="Swap width and height - switch between landscape and portrait"
-              disabled={!isFixed}
-            >
-              <ArrowLeftRight size={12} />
-            </Button>
-            <NumberInput
-              value={isFixed ? state.height : genSize.height}
-              onChange={setHeight}
-              step={8}
-              min={64}
-              max={4096}
-              fallback={512}
-              disabled={!isFixed}
-              className="flex-1 min-w-12 h-6 text-2xs text-center px-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-            />
-
-            <ParamLabel className="text-2xs text-muted-foreground shrink-0">Height</ParamLabel>
+          {/* Width / Height sliders with the aspect lock binding the pair */}
+          <div className="flex items-center gap-1.5">
+            <div className="flex-1 min-w-0">
+              <ParamSlider
+                label="Width"
+                tooltip="Output width in pixels, in steps of 8. Generation time and VRAM scale with width x height; sizes far above the model's native resolution invite doubled subjects and stretched composition."
+                keywords={["size", "dimensions", "resolution", "aspect", "landscape"]}
+                value={isFixed ? state.width : genSize.width}
+                onChange={aspect.setWidth}
+                min={aspect.widthBounds.min}
+                max={aspect.widthBounds.max}
+                step={8}
+                disabled={!isFixed}
+              />
+            </div>
+            <div data-param="aspect ratio" className="shrink-0">
+              <AspectRatioControl
+                presets={aspectPresets}
+                activePreset={aspect.activePreset}
+                onSelectPreset={aspect.selectPreset}
+                onSwap={aspect.swap}
+                disabled={!isFixed}
+                isPresetDisabled={(p) => !aspect.fitsPreset(p)}
+                absolutePresets={cloudSizePresets}
+                onSelectAbsolute={aspect.selectAbsolute}
+                currentSize={{ w: state.width, h: state.height }}
+              />
+            </div>
+            <div className="flex-1 min-w-0">
+              <ParamSlider
+                label="Height"
+                tooltip="Output height in pixels, in steps of 8. Generation time and VRAM scale with width x height; sizes far above the model's native resolution invite doubled subjects and stretched composition."
+                keywords={["size", "dimensions", "resolution", "aspect", "portrait"]}
+                value={isFixed ? state.height : genSize.height}
+                onChange={aspect.setHeight}
+                min={aspect.heightBounds.min}
+                max={aspect.heightBounds.max}
+                step={8}
+                disabled={!isFixed}
+              />
+            </div>
           </div>
 
           {/* Scale slider */}
@@ -605,8 +432,8 @@ export function PromptsTab() {
               <button
                 type="button"
                 onClick={() => {
-                  setWidth(lastResultSize.w);
-                  setHeight(lastResultSize.h);
+                  aspect.setWidth(lastResultSize.w);
+                  aspect.setHeight(lastResultSize.h);
                 }}
                 className="px-1.5 py-0 text-3xs rounded border border-border/40 hover:bg-accent hover:text-accent-foreground transition-colors"
               >

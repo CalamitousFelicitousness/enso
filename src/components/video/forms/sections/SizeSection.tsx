@@ -1,9 +1,11 @@
+import { useMemo } from "react";
 import { SectionLeader } from "@/components/ui/section-leader";
 import { ParamSlider } from "@/components/generation/ParamSlider";
-import { ParamGrid } from "@/components/generation/ParamRow";
+import { AspectRatioControl } from "@/components/generation/AspectRatioControl";
 import { ParamLabel } from "@/components/generation/ParamLabel";
 import { Switch } from "@/components/ui/switch";
-import { canvasSliderProps, frameSliderProps } from "@/lib/video/capsSlider";
+import { useAspectLock, useAspectPresets } from "@/hooks/useAspectLock";
+import { frameSliderProps } from "@/lib/video/capsSlider";
 import { useWireParam } from "./useWireParam";
 import type { VideoModelCaps } from "@/api/types/video";
 import type { VideoJobType } from "@/lib/video/paramRegistry";
@@ -26,29 +28,64 @@ export function SizeSection({ caps, job }: SectionProps) {
 
   const autoDurationOn = caps.stages.auto_duration && (autoDuration.value ?? false);
 
+  const aspectPresets = useAspectPresets();
+  const widthRule = useMemo(
+    () => ({ min: caps.min_width, max: caps.max_width, multiple: caps.canvas_multiple }),
+    [caps],
+  );
+  const heightRule = useMemo(
+    () => ({ min: caps.min_height, max: caps.max_height, multiple: caps.canvas_multiple }),
+    [caps],
+  );
+  const aspect = useAspectLock({
+    width: width.value ?? caps.defaults.width,
+    height: height.value ?? caps.defaults.height,
+    onWidth: width.set,
+    onHeight: height.set,
+    widthRule,
+    heightRule,
+  });
+
   return (
     <SectionLeader title="Size" collapsible defaultCollapsed>
       {caps.sizing_mode === "dimensions" && width.key !== undefined && height.key !== undefined && (
-        <ParamGrid>
-          <ParamSlider
-            label="Width"
-            tooltip="Output frame width in pixels. Video models are trained on a narrow set of frame sizes and drift off-distribution well before image models do, so stay near the size on the model card.<br>The slider steps by the multiple the model requires, so any value it lands on is legal.<br><br>Time and VRAM scale with width x height x frames."
-            keywords={["size", "dimensions", "aspect", "frame size"]}
-            value={width.value ?? caps.defaults.width}
-            onChange={width.set}
-            {...canvasSliderProps(caps, "width")}
-            defaultValue={caps.defaults.width}
-          />
-          <ParamSlider
-            label="Height"
-            tooltip="Output frame height in pixels. Video models are trained on a narrow set of frame sizes and drift off-distribution well before image models do, so stay near the size on the model card.<br>The slider steps by the multiple the model requires, so any value it lands on is legal.<br><br>Time and VRAM scale with width x height x frames."
-            keywords={["size", "dimensions", "aspect", "frame size"]}
-            value={height.value ?? caps.defaults.height}
-            onChange={height.set}
-            {...canvasSliderProps(caps, "height")}
-            defaultValue={caps.defaults.height}
-          />
-        </ParamGrid>
+        <div className="flex items-center gap-1.5">
+          <div className="flex-1 min-w-0">
+            <ParamSlider
+              label="Width"
+              tooltip="Output frame width in pixels. Video models are trained on a narrow set of frame sizes and drift off-distribution well before image models do, so stay near the size on the model card.<br>The slider steps by the multiple the model requires, so any value it lands on is legal.<br><br>Time and VRAM scale with width x height x frames."
+              keywords={["size", "dimensions", "aspect", "frame size"]}
+              value={width.value ?? caps.defaults.width}
+              onChange={aspect.setWidth}
+              min={aspect.widthBounds.min}
+              max={aspect.widthBounds.max}
+              step={Math.max(1, caps.canvas_multiple)}
+              defaultValue={caps.defaults.width}
+            />
+          </div>
+          <div data-param="aspect ratio" className="shrink-0">
+            <AspectRatioControl
+              presets={aspectPresets}
+              activePreset={aspect.activePreset}
+              onSelectPreset={aspect.selectPreset}
+              onSwap={aspect.swap}
+              isPresetDisabled={(p) => !aspect.fitsPreset(p)}
+            />
+          </div>
+          <div className="flex-1 min-w-0">
+            <ParamSlider
+              label="Height"
+              tooltip="Output frame height in pixels. Video models are trained on a narrow set of frame sizes and drift off-distribution well before image models do, so stay near the size on the model card.<br>The slider steps by the multiple the model requires, so any value it lands on is legal.<br><br>Time and VRAM scale with width x height x frames."
+              keywords={["size", "dimensions", "aspect", "frame size"]}
+              value={height.value ?? caps.defaults.height}
+              onChange={aspect.setHeight}
+              min={aspect.heightBounds.min}
+              max={aspect.heightBounds.max}
+              step={Math.max(1, caps.canvas_multiple)}
+              defaultValue={caps.defaults.height}
+            />
+          </div>
+        </div>
       )}
       {caps.sizing_mode === "resolution" && resolution.key !== undefined && (
         <ParamSlider
