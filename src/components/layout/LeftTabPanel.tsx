@@ -1,67 +1,31 @@
-import type { ReactNode } from "react";
 import { useUiStore } from "@/stores/uiStore";
-import { useModelCapabilities } from "@/hooks/useModelCapabilities";
 import { ActionBar } from "@/components/generation/ActionBar";
 import { ResultGallery } from "@/components/generation/ResultGallery";
-import { PromptsTab } from "@/components/generation/tabs/PromptsTab";
-import { SamplerTab } from "@/components/generation/tabs/SamplerTab";
-import { GuidanceTab } from "@/components/generation/tabs/GuidanceTab";
-import { RefineTab } from "@/components/generation/tabs/RefineTab";
-import { AdvancedTab } from "@/components/generation/tabs/AdvancedTab";
-import { ColorTab } from "@/components/generation/tabs/ColorTab";
-import { DetailTab } from "@/components/generation/tabs/DetailTab";
-import { ControlTab } from "@/components/generation/tabs/ControlTab";
-import { ScriptsTab } from "@/components/generation/tabs/ScriptsTab";
+import { IMAGES_TAB_REGISTRY } from "@/components/generation/tabs/registry";
+import { useImagesTabs } from "@/components/generation/tabs/useImagesTabs";
 import { CaptionPanel } from "@/components/caption/CaptionPanel";
 import { GalleryPanel } from "@/components/gallery/GalleryPanel";
 import { ProcessPanel } from "@/components/process/ProcessPanel";
 import { VideoPanel } from "@/components/video/VideoPanel";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { buildPanels } from "@/components/ui/tab-panels";
+import { tabPanelEntries } from "./tabRegistry";
+import { TabbedPanel } from "./TabbedPanel";
 import { KeepAlivePanel, KeepAliveSwitch } from "@/components/ui/keep-alive";
 
-// Hoist panel JSX to module scope so the React element references are stable
-// across re-renders. Without this, every parent render creates fresh elements
-// for every panel, which forces the reconciler to walk every kept-alive
-// subtree on every click. With stable references, React's reconciler skips
-// re-rendering panels whose element didn't change.
-
-function subPanel(id: string, content: ReactNode) {
-  return (
-    <KeepAlivePanel key={id} id={`images-${id}`} activeClassName="flex-1 overflow-hidden">
-      <ScrollArea className="size-full">
-        <div className="p-3 min-w-0">{content}</div>
-      </ScrollArea>
-    </KeepAlivePanel>
-  );
-}
-
-const SUB_PANELS = [
-  subPanel("prompts", <PromptsTab />),
-  subPanel("sampler", <SamplerTab />),
-  subPanel("guidance", <GuidanceTab />),
-  subPanel("refine", <RefineTab />),
-  subPanel("detail", <DetailTab />),
-  subPanel("advanced", <AdvancedTab />),
-  subPanel("color", <ColorTab />),
-  subPanel("control", <ControlTab />),
-  subPanel("scripts", <ScriptsTab />),
-];
+// Module scope: stable element references, see buildPanels.
+const IMAGES_PANELS = buildPanels(tabPanelEntries(IMAGES_TAB_REGISTRY));
+const IMAGES_HEADER = <ActionBar />;
+const IMAGES_FOOTER = <ResultGallery />;
 
 function ImagesView() {
-  const activeSubTab = useUiStore((s) => s.activeImagesSubTab);
-  const { showTab } = useModelCapabilities();
-  const resolvedSubTab = showTab(activeSubTab) ? activeSubTab : "prompts";
-
+  const { activePanelId } = useImagesTabs();
   return (
-    <div className="flex flex-col h-full min-w-0">
-      <div className="px-3 py-2 border-b border-border">
-        <ActionBar />
-      </div>
-      <KeepAliveSwitch active={`images-${resolvedSubTab}`}>{SUB_PANELS}</KeepAliveSwitch>
-      <div className="border-t border-border px-2 py-1.5">
-        <ResultGallery />
-      </div>
-    </div>
+    <TabbedPanel
+      panels={IMAGES_PANELS}
+      activePanelId={activePanelId}
+      header={IMAGES_HEADER}
+      footer={IMAGES_FOOTER}
+    />
   );
 }
 

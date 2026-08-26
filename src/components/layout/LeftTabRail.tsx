@@ -1,43 +1,34 @@
-import { useMemo } from "react";
-import { NAV_ITEMS, IMAGES_SUB_TABS, EXTERNAL_LINKS } from "@/lib/constants";
+import { NAV_ITEMS, EXTERNAL_LINKS } from "@/lib/constants";
 import { useUiStore } from "@/stores/uiStore";
 import { useTutorialStore } from "@/stores/tutorialStore";
 import { useCapabilities } from "@/api/hooks/useServer";
-import { useModelCapabilities } from "@/hooks/useModelCapabilities";
+import { useImagesTabs } from "@/components/generation/tabs/useImagesTabs";
 import { cn } from "@/lib/utils";
 import { PanelLeftClose, PanelLeftOpen, HelpCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { SegmentedControl } from "@/components/ui/segmented-control";
+import { SubTabStrip } from "./SubTabStrip";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Separator } from "@/components/ui/separator";
 
-const SUBTAB_OPTIONS = IMAGES_SUB_TABS.map((tab) => ({
-  value: tab.id,
-  label: tab.label,
-  icon: tab.icon,
-}));
+/** Rendered as a child, not a hook call in LeftTabRail, so each view's
+ * sub-tab data is only subscribed to while that view is active. */
+function ImagesSubTabStrip() {
+  const { visible, active, setActive } = useImagesTabs();
+  return <SubTabStrip tabs={visible} value={active} onChange={setActive} />;
+}
 
 export function LeftTabRail() {
   const collapsed = useUiStore((s) => s.leftRailCollapsed);
   const activeView = useUiStore((s) => s.activeNavView);
-  const activeSubTab = useUiStore((s) => s.activeImagesSubTab);
   const viewCollapsed = useUiStore((s) => s.viewCollapsed);
-  const leftPanelCollapsed = useUiStore((s) => s.leftPanelCollapsed);
   const setNavView = useUiStore((s) => s.setNavView);
-  const setImagesSubTab = useUiStore((s) => s.setImagesSubTab);
   const toggleViewCollapsed = useUiStore((s) => s.toggleViewCollapsed);
-  const toggleLeftPanel = useUiStore((s) => s.toggleLeftPanel);
   const toggleLeftRail = useUiStore((s) => s.toggleLeftRail);
   const startTutorial = useTutorialStore((s) => s.start);
 
   const capabilities = useCapabilities();
-  const { showTab } = useModelCapabilities();
 
   const hasSubTabs = activeView === "images" && !viewCollapsed;
-  const filteredSubTabs = useMemo(
-    () => SUBTAB_OPTIONS.filter((opt) => showTab(opt.value)),
-    [showTab],
-  );
 
   return (
     <div
@@ -147,24 +138,7 @@ export function LeftTabRail() {
           data-tour="left-rail-subtabs"
           className="border-l border-rail-border py-2 overflow-y-auto"
         >
-          <SegmentedControl
-            options={filteredSubTabs}
-            value={activeSubTab}
-            onValueChange={(v) => {
-              setImagesSubTab(v);
-              if (leftPanelCollapsed) toggleLeftPanel();
-              if (viewCollapsed) toggleViewCollapsed();
-            }}
-            onActiveClick={() => {
-              if (!leftPanelCollapsed && !viewCollapsed) {
-                toggleLeftPanel();
-              }
-            }}
-            variant="stacked"
-            orientation="vertical"
-            animated
-            className="border-0 bg-transparent px-1.5 py-0 gap-0.5 rounded-none"
-          />
+          <ImagesSubTabStrip />
         </div>
       )}
     </div>
