@@ -1,4 +1,4 @@
-import { useCallback, useState, type ReactNode } from "react";
+import { useCallback, useState } from "react";
 import { RotateCcw, PowerOff, Activity } from "lucide-react";
 import {
   useProfilingState,
@@ -18,8 +18,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { KeepAlivePanel, KeepAliveSwitch, useKeepAliveVisible } from "@/components/ui/keep-alive";
+import { KeepAliveSwitch, useKeepAliveVisible } from "@/components/ui/keep-alive";
+import { buildPanels } from "@/components/ui/tab-panels";
 import { cn } from "@/lib/utils";
 
 import { OverviewSubTab } from "@/components/system/sub-tabs/OverviewSubTab";
@@ -40,28 +40,15 @@ const SUB_TABS: readonly SystemSubTab[] = [
   "Benchmark",
 ] as const;
 
-// Hoist panel JSX to module scope so React element references are stable
-// across re-renders. Without this, every parent render rebuilds every panel,
-// forcing the reconciler to walk every kept-alive subtree on every click.
-function subPanel(id: SystemSubTab, content: ReactNode) {
-  return (
-    <KeepAlivePanel key={id} id={`system-${id}`} activeClassName="flex-1 overflow-hidden">
-      <ScrollArea className="size-full">
-        <div className="p-3 min-w-0">{content}</div>
-      </ScrollArea>
-    </KeepAlivePanel>
-  );
-}
-
-const SUB_PANELS = [
-  subPanel("Overview", <OverviewSubTab />),
-  subPanel("Storage", <StorageSubTab />),
-  subPanel("Update", <UpdateSubTab />),
-  subPanel("Activity", <ActivityLogSubTab />),
-  subPanel("GPU Monitor", <GpuMonitorSubTab />),
-  subPanel("System Info", <SystemInfoSubTab />),
-  subPanel("Benchmark", <BenchmarkSubTab />),
-];
+const SUB_PANELS = buildPanels([
+  { id: "system-Overview", content: <OverviewSubTab /> },
+  { id: "system-Storage", content: <StorageSubTab /> },
+  { id: "system-Update", content: <UpdateSubTab /> },
+  { id: "system-Activity", content: <ActivityLogSubTab /> },
+  { id: "system-GPU Monitor", content: <GpuMonitorSubTab /> },
+  { id: "system-System Info", content: <SystemInfoSubTab /> },
+  { id: "system-Benchmark", content: <BenchmarkSubTab /> },
+]);
 
 export function SystemTab() {
   const visible = useKeepAliveVisible();

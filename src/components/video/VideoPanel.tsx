@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { Play, Square, Sparkles, Settings2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useVideoStore } from "@/stores/videoStore";
@@ -28,7 +28,8 @@ import { resolveVideoUi, kindToDomain } from "@/lib/videoModel";
 import { Button } from "@/components/ui/button";
 import { PromptField } from "@/components/generation/PromptField";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { KeepAlivePanel, KeepAliveSwitch } from "@/components/ui/keep-alive";
+import { KeepAliveSwitch } from "@/components/ui/keep-alive";
+import { buildPanels } from "@/components/ui/tab-panels";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { PromptEnhanceWorkspace } from "@/components/generation/PromptEnhanceWorkspace";
@@ -40,20 +41,10 @@ import type { PromptEnhanceRequest } from "@/api/types/promptEnhance";
 // CapabilityForm (per-engine drafts live in videoStore, so nothing worth
 // preserving is lost by sharing one tree), cloud keeps its own form. The
 // "empty" state renders a hint inline rather than as a third panel.
-function subPanel(id: string, content: ReactNode) {
-  return (
-    <KeepAlivePanel key={id} id={`video-${id}`} activeClassName="flex-1 overflow-hidden">
-      <ScrollArea className="size-full">
-        <div className="p-3 min-w-0">{content}</div>
-      </ScrollArea>
-    </KeepAlivePanel>
-  );
-}
-
-const SUB_PANELS = [
-  subPanel("capability", <CapabilityForm />),
-  subPanel("cloud", <CloudVideoForm />),
-];
+const SUB_PANELS = buildPanels([
+  { id: "video-capability", content: <CapabilityForm /> },
+  { id: "video-cloud", content: <CloudVideoForm /> },
+]);
 
 export function VideoPanel() {
   const prompt = useVideoStore((s) => s.prompt);

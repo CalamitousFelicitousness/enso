@@ -1,10 +1,11 @@
-import { useCallback, type ReactNode } from "react";
+import { useCallback } from "react";
 import { Play, Loader2, Eye, Aperture, Tags, Cloud, Settings } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { SegmentedControl } from "@/components/ui/segmented-control";
-import { KeepAlivePanel, KeepAliveSwitch } from "@/components/ui/keep-alive";
+import { KeepAliveSwitch } from "@/components/ui/keep-alive";
+import { buildPanels } from "@/components/ui/tab-panels";
 import { useCaptionStore } from "@/stores/captionStore";
 import { useCaptionSettingsStore } from "@/stores/captionSettingsStore";
 import { useCloudTextStore } from "@/stores/cloudTextStore";
@@ -73,21 +74,16 @@ function DefaultCaptionSettings() {
 // Hoist panel JSX to module scope so React element references stay stable
 // across re-renders. Without this, every parent render rebuilds every panel,
 // forcing the reconciler to walk every kept-alive subtree on every state change.
-function methodPanel(id: CaptionTab, content: ReactNode) {
-  return (
-    <KeepAlivePanel key={id} id={`caption-${id}`} activeClassName="" hiddenClassName="hidden">
-      {content}
-    </KeepAlivePanel>
-  );
-}
-
-const METHOD_PANELS = [
-  methodPanel("vlm", <VlmSettings />),
-  methodPanel("openclip", <OpenClipSettings />),
-  methodPanel("tagger", <TaggerSettings />),
-  methodPanel("cloud", <CloudCaptionSettings />),
-  methodPanel("default", <DefaultCaptionSettings />),
-];
+const METHOD_PANELS = buildPanels(
+  [
+    { id: "caption-vlm", content: <VlmSettings /> },
+    { id: "caption-openclip", content: <OpenClipSettings /> },
+    { id: "caption-tagger", content: <TaggerSettings /> },
+    { id: "caption-cloud", content: <CloudCaptionSettings /> },
+    { id: "caption-default", content: <DefaultCaptionSettings /> },
+  ],
+  { activeClassName: "", hiddenClassName: "hidden", scroll: false },
+);
 
 export function CaptionPanel() {
   const image = useCaptionStore((s) => s.image);

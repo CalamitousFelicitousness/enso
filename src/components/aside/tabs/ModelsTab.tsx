@@ -1,11 +1,11 @@
-import { useCallback, type ReactNode } from "react";
+import { useCallback } from "react";
 import { Combine, Replace, Scissors, CloudDownload, Globe } from "lucide-react";
 import { useLoadedModels } from "@/api/hooks/useServer";
 import { useRegisterCommand } from "@/lib/commandRegistry";
 import { useUiStore, type ModelsSubTab } from "@/stores/uiStore";
 import { cn } from "@/lib/utils";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { KeepAlivePanel, KeepAliveSwitch, useKeepAliveVisible } from "@/components/ui/keep-alive";
+import { KeepAliveSwitch, useKeepAliveVisible } from "@/components/ui/keep-alive";
+import { buildPanels } from "@/components/ui/tab-panels";
 
 import { CurrentSubTab } from "@/components/models/sub-tabs/CurrentSubTab";
 import { ListSubTab } from "@/components/models/sub-tabs/ListSubTab";
@@ -31,31 +31,18 @@ const SUB_TABS: readonly ModelsSubTab[] = [
   "Extract LoRA",
 ] as const;
 
-// Hoist panel JSX to module scope so React element references are stable
-// across re-renders. Without this, every parent render rebuilds every panel,
-// forcing the reconciler to walk every kept-alive subtree on every click.
-function subPanel(id: ModelsSubTab, content: ReactNode) {
-  return (
-    <KeepAlivePanel key={id} id={`models-${id}`} activeClassName="flex-1 overflow-hidden">
-      <ScrollArea className="size-full">
-        <div className="p-3 min-w-0">{content}</div>
-      </ScrollArea>
-    </KeepAlivePanel>
-  );
-}
-
-const SUB_PANELS = [
-  subPanel("Current", <CurrentSubTab />),
-  subPanel("List", <ListSubTab />),
-  subPanel("Audit", <AuditSubTab />),
-  subPanel("Metadata", <MetadataSubTab />),
-  subPanel("Loader", <LoaderSubTab />),
-  subPanel("Merge", <MergeSubTab />),
-  subPanel("Replace", <ReplaceSubTab />),
-  subPanel("CivitAI", <CivitaiSubTab />),
-  subPanel("Huggingface", <HuggingfaceSubTab />),
-  subPanel("Extract LoRA", <ExtractLoraSubTab />),
-];
+const SUB_PANELS = buildPanels([
+  { id: "models-Current", content: <CurrentSubTab /> },
+  { id: "models-List", content: <ListSubTab /> },
+  { id: "models-Audit", content: <AuditSubTab /> },
+  { id: "models-Metadata", content: <MetadataSubTab /> },
+  { id: "models-Loader", content: <LoaderSubTab /> },
+  { id: "models-Merge", content: <MergeSubTab /> },
+  { id: "models-Replace", content: <ReplaceSubTab /> },
+  { id: "models-CivitAI", content: <CivitaiSubTab /> },
+  { id: "models-Huggingface", content: <HuggingfaceSubTab /> },
+  { id: "models-Extract LoRA", content: <ExtractLoraSubTab /> },
+]);
 
 export function ModelsTab() {
   const active = useUiStore((s) => s.panelSelections.modelsSubTab);

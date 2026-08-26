@@ -19,7 +19,7 @@ export interface BuildPanelsOptions {
   innerClassName?: string;
 }
 
-const FALLBACK = <div className="p-3 text-2xs text-muted-foreground">Loading...</div>;
+const FALLBACK = <div className="p-3 text-xs text-muted-foreground">Loading...</div>;
 
 /**
  * Build the KeepAlivePanel elements for a KeepAliveSwitch.

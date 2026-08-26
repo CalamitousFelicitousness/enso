@@ -1,8 +1,8 @@
-import { lazy, Suspense } from "react";
+import { lazy } from "react";
 import { RIGHT_TABS } from "@/lib/constants";
 import { useUiStore } from "@/stores/uiStore";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { KeepAlivePanel, KeepAliveSwitch } from "@/components/ui/keep-alive";
+import { KeepAliveSwitch } from "@/components/ui/keep-alive";
+import { buildPanels } from "@/components/ui/tab-panels";
 
 const QuickSettingsTab = lazy(() =>
   import("./tabs/QuickSettingsTab").then((m) => ({
@@ -53,23 +53,14 @@ const SELF_SCROLL_TABS = new Set<string>([
   "system",
 ]);
 
-const FALLBACK = <div className="p-3 text-xs text-muted-foreground">Loading...</div>;
-
-// Hoist panel JSX to module scope so React element references are stable
-// across re-renders. Without this, every parent render rebuilds every panel,
-// forcing the reconciler to walk every kept-alive subtree on every click.
-const TAB_PANELS = Object.entries(TAB_COMPONENTS).map(([id, Comp]) => {
-  const inner = (
-    <Suspense fallback={FALLBACK}>
-      <Comp />
-    </Suspense>
-  );
-  return (
-    <KeepAlivePanel key={id} id={`right-${id}`} activeClassName="flex-1 overflow-hidden">
-      {SELF_SCROLL_TABS.has(id) ? inner : <ScrollArea className="size-full">{inner}</ScrollArea>}
-    </KeepAlivePanel>
-  );
-});
+const TAB_PANELS = buildPanels(
+  Object.entries(TAB_COMPONENTS).map(([id, Comp]) => ({
+    id: `right-${id}`,
+    content: <Comp />,
+    selfScroll: SELF_SCROLL_TABS.has(id),
+  })),
+  { innerClassName: "" },
+);
 
 export function RightTabPanel() {
   const activeTab = useUiStore((s) => s.activeRightTab);
