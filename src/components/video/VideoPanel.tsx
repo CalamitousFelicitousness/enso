@@ -30,7 +30,7 @@ import { Button } from "@/components/ui/button";
 import { KeepAliveSwitch } from "@/components/ui/keep-alive";
 import { buildPanels } from "@/components/ui/tab-panels";
 import { CapabilityForm } from "./forms/CapabilityForm";
-import { CloudVideoForm } from "./forms/CloudVideoForm";
+import { CloudVideoForm } from "./tabs/cloud/CloudVideoForm";
 
 // Two panels: every local engine renders through the caps-driven
 // CapabilityForm (per-engine drafts live in videoStore, so nothing worth

@@ -4,7 +4,7 @@ import { ParamGrid } from "@/components/generation/ParamRow";
 import { ParamLabel } from "@/components/generation/ParamLabel";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { useWireParam } from "./useWireParam";
+import { useWireParam } from "@/components/video/useWireParam";
 import type { VideoModelCaps } from "@/api/types/video";
 import type { VideoJobType } from "@/lib/video/paramRegistry";
 

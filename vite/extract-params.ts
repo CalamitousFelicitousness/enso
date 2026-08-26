@@ -156,9 +156,9 @@ export function extractParamsFromTabFile(filePath: string, sourceText: string): 
 }
 
 function inferTabFromFilename(filePath: string): string | null {
-  // Video form sections all live in one scrolling panel; every entry maps
-  // to the "video" pseudo-tab (navigated by view, not sub-tab).
-  if (filePath.includes(path.join("components", "video", "forms"))) return "video";
+  // Video sections all map to the "video" pseudo-tab (navigated by view, not
+  // sub-tab) wherever they sit under the video component tree.
+  if (filePath.includes(path.join("components", "video"))) return "video";
   const base = path.basename(filePath, ".tsx");
   if (!base.endsWith("Tab")) return null;
   const stem = base.slice(0, -"Tab".length);

@@ -3,14 +3,14 @@ import { useActiveVideoCaps } from "@/hooks/useActiveVideoCaps";
 import { resolveVideoUi } from "@/lib/videoModel";
 import { jobTypeForKind } from "@/lib/video/buildVideoPayload";
 import { VideoPresetSelector } from "../VideoPresetSelector";
-import { VideoOutputSection } from "./VideoOutputSection";
-import { VideoStylesSection } from "./VideoStylesSection";
-import { ParametersSection } from "./sections/ParametersSection";
-import { SizeSection } from "./sections/SizeSection";
-import { InputsSection } from "./sections/InputsSection";
-import { StagesSection } from "./sections/StagesSection";
-import { DecodeSection } from "./sections/DecodeSection";
-import { FramePackSection } from "./sections/FramePackSection";
+import { OutputSection } from "../tabs/output/OutputSection";
+import { StylesSection } from "../tabs/prompts/StylesSection";
+import { ParametersSection } from "../tabs/sampling/ParametersSection";
+import { SizeSection } from "../tabs/sampling/SizeSection";
+import { InputsSection } from "../tabs/inputs/InputsSection";
+import { StagesSection } from "../tabs/output/StagesSection";
+import { DecodeSection } from "../tabs/output/DecodeSection";
+import { FramePackSection } from "../tabs/framepack/FramePackSection";
 
 // One form for every local video engine: sections gate and parameterize
 // (bounds, defaults, visibility, disabled state) from the active model's
@@ -34,8 +34,8 @@ export function CapabilityForm() {
       {showStages && <StagesSection caps={caps} job={job} />}
       <DecodeSection caps={caps} job={job} />
       {job === "framepack" && <FramePackSection />}
-      <VideoStylesSection />
-      <VideoOutputSection caps={caps} />
+      <StylesSection />
+      <OutputSection caps={caps} />
     </div>
   );
 }

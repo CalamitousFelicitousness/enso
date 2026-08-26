@@ -18,7 +18,7 @@ const presetLabels: Record<string, string> = Object.fromEntries(
   OUTPUT_PRESETS.map((p) => [p.id, p.label]),
 );
 
-export function VideoOutputSection({ caps }: { caps?: VideoModelCaps }) {
+export function OutputSection({ caps }: { caps?: VideoModelCaps }) {
   const fps = useVideoStore((s) => s.fps);
   const interpolate = useVideoStore((s) => s.interpolate);
   const codec = useVideoStore((s) => s.codec);

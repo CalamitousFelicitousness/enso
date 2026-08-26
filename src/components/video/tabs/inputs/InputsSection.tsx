@@ -4,7 +4,7 @@ import { ParamSlider } from "@/components/generation/ParamSlider";
 import { Button } from "@/components/ui/button";
 import { useVideoCanvasStore } from "@/stores/videoCanvasStore";
 import { referenceAddresses } from "@/lib/video/referenceMedia";
-import { useWireParam } from "./useWireParam";
+import { useWireParam } from "@/components/video/useWireParam";
 import type { VideoModelCaps } from "@/api/types/video";
 import type { VideoJobType } from "@/lib/video/paramRegistry";
 

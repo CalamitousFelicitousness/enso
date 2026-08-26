@@ -3,7 +3,7 @@ import { ParamSlider } from "@/components/generation/ParamSlider";
 import { ParamGrid } from "@/components/generation/ParamRow";
 import { ParamLabel } from "@/components/generation/ParamLabel";
 import { Combobox } from "@/components/ui/combobox";
-import { useWireParam } from "./useWireParam";
+import { useWireParam } from "@/components/video/useWireParam";
 import type { VideoModelCaps } from "@/api/types/video";
 import type { VideoJobType } from "@/lib/video/paramRegistry";
 

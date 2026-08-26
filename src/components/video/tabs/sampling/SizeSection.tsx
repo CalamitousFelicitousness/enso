@@ -6,7 +6,7 @@ import { ParamLabel } from "@/components/generation/ParamLabel";
 import { Switch } from "@/components/ui/switch";
 import { useAspectLock, useAspectPresets } from "@/hooks/useAspectLock";
 import { frameSliderProps } from "@/lib/video/capsSlider";
-import { useWireParam } from "./useWireParam";
+import { useWireParam } from "@/components/video/useWireParam";
 import type { VideoModelCaps } from "@/api/types/video";
 import type { VideoJobType } from "@/lib/video/paramRegistry";
 

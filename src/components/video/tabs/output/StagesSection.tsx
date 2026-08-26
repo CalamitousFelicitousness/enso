@@ -1,6 +1,6 @@
 import { SectionLeader } from "@/components/ui/section-leader";
 import { ParamSlider } from "@/components/generation/ParamSlider";
-import { useWireParam } from "./useWireParam";
+import { useWireParam } from "@/components/video/useWireParam";
 import type { VideoModelCaps } from "@/api/types/video";
 import type { VideoJobType } from "@/lib/video/paramRegistry";
 

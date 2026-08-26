@@ -5,7 +5,7 @@ import { StylePicker } from "@/components/generation/StylePicker";
 
 // Shared across the generic/FramePack/LTX forms; all three executors apply
 // the styles param server-side. Hidden entirely when no styles are saved.
-export function VideoStylesSection() {
+export function StylesSection() {
   const styles = useVideoStore((s) => s.styles);
   const setParam = useVideoStore((s) => s.setParam);
   const { data: available } = usePromptStyles();
