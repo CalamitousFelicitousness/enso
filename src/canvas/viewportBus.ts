@@ -23,6 +23,3 @@ export function createViewportBus(): ViewportBus {
     },
   };
 }
-
-export const mainViewportBus = createViewportBus();
-export const videoViewportBus = createViewportBus();

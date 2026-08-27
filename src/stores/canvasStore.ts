@@ -7,6 +7,7 @@ import { createIdbStorage } from "@/lib/idbStorage";
 import { createInitialFrame, createReferenceFrame } from "@/canvas/inputFrames";
 import type { FrameId } from "@/canvas/frameList";
 import type { InputFrame, InputFrameMode } from "@/canvas/inputFrames";
+import type { ViewportState } from "@/canvas/viewportBus";
 
 export type ToolType =
   | "move"
@@ -91,12 +92,6 @@ export interface FilmstripDragState {
   draggingReferenceId: string | null;
   dropTargetReferenceId: string | null;
   dropInsertIndex: number | null;
-}
-
-interface ViewportState {
-  x: number;
-  y: number;
-  scale: number;
 }
 
 interface CanvasState {

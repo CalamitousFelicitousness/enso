@@ -12,7 +12,7 @@ import { ControlFrameLayer } from "./layers/ControlFrameLayer";
 import { getOrderedFrames, computeFocusViewport } from "./frameList";
 import type { CanvasLayout } from "./useControlFrameLayout";
 import { CanvasBackground } from "./CanvasBackground";
-import { mainViewportBus } from "./viewportBus";
+import { mainViewport } from "./viewportAdapter";
 import { useKeepAliveVisible } from "@/components/ui/keep-alive";
 import Konva from "konva";
 
@@ -53,7 +53,7 @@ export function CanvasStage({
   const focusedFrameId = useCanvasStore((s) => s.focusedFrameId);
   const focusFitTrigger = useCanvasStore((s) => s.focusFitTrigger);
 
-  const panZoom = usePanZoom(stageRef, undefined, mainViewportBus);
+  const panZoom = usePanZoom(stageRef, undefined, mainViewport.bus);
   const maskPaint = useMaskPaint({ stageRef, spaceHeld: panZoom.spaceHeld, layout });
   const imageTransform = useImageTransform(stageRef, trRef);
 
@@ -170,7 +170,7 @@ export function CanvasStage({
             width={containerSize.width}
             height={containerSize.height}
             viewport={viewport}
-            bus={mainViewportBus}
+            bus={mainViewport.bus}
           />
           <Stage
             ref={stageRef}

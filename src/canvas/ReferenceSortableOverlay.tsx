@@ -9,12 +9,7 @@ import { DndContext, PointerSensor, useSensor, useSensors, type DragEndEvent } f
 import { SortableContext, horizontalListSortingStrategy, useSortable } from "@dnd-kit/sortable";
 import { X } from "lucide-react";
 import type { ReferenceChildPosition } from "@/canvas/inputFrameTypes";
-
-interface ViewportState {
-  x: number;
-  y: number;
-  scale: number;
-}
+import type { ViewportState } from "@/canvas/viewportBus";
 
 interface ReferenceSortableOverlayProps {
   /** Child cells in canvas coordinates (any mother-frame offset applied). */

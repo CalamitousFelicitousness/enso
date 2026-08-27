@@ -3,6 +3,7 @@ import { persist, createJSONStorage } from "zustand/middleware";
 import { base64ToBlob } from "@/lib/utils";
 import { createIdbStorage } from "@/lib/idbStorage";
 import type { ReferenceKind } from "@/lib/video/referenceMedia";
+import type { ViewportState } from "@/canvas/viewportBus";
 
 export interface VideoFrameImage {
   id: string;
@@ -27,12 +28,6 @@ export interface ReferenceMediaMeta {
   duration?: number | null;
   hasAudio?: boolean | null;
   posterUrl?: string | null;
-}
-
-interface ViewportState {
-  x: number;
-  y: number;
-  scale: number;
 }
 
 export type VideoSlotId = "init" | "last" | "references";

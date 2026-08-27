@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { useVideoStore } from "@/stores/videoStore";
 import { useVideoCanvasStore, type VideoSlotId } from "@/stores/videoCanvasStore";
 import { useActiveVideoCaps } from "@/hooks/useActiveVideoCaps";
-import { videoViewportBus } from "@/canvas/viewportBus";
+import { videoViewport } from "@/canvas/viewportAdapter";
 import {
   useJobQueueStore,
   selectVideoActive,
@@ -242,26 +242,24 @@ export function VideoCanvasView() {
     [handleFileSelected, maxReferences],
   );
 
-  // Move overlay wrapper imperatively during pan/zoom gestures
+  // A gesture moves the stage imperatively and only commits on release, so the
+  // chrome rides the same delta until the store catches up.
   useEffect(() => {
-    return videoViewportBus.subscribe((vp) => {
+    return videoViewport.bus.subscribe((vp) => {
       if (!overlayRef.current) return;
-      const storeVp = useVideoCanvasStore.getState().viewport;
-      const ratio = vp.scale / storeVp.scale;
-      const dx = vp.x - storeVp.x * ratio;
-      const dy = vp.y - storeVp.y * ratio;
+      const base = videoViewport.getCommitted();
+      const ratio = vp.scale / base.scale;
+      const dx = vp.x - base.x * ratio;
+      const dy = vp.y - base.y * ratio;
       overlayRef.current.style.transform = `translate(${dx}px, ${dy}px) scale(${ratio})`;
     });
   }, []);
 
-  // Reset overlay when store viewport changes programmatically
+  // A committed change re-renders the chrome at the new viewport, so the delta
+  // has to clear or it double-applies.
   useEffect(() => {
-    let prevVp = useVideoCanvasStore.getState().viewport;
-    return useVideoCanvasStore.subscribe((state) => {
-      if (state.viewport !== prevVp) {
-        prevVp = state.viewport;
-        if (overlayRef.current) overlayRef.current.style.transform = "";
-      }
+    return videoViewport.subscribe(() => {
+      if (overlayRef.current) overlayRef.current.style.transform = "";
     });
   }, []);
 

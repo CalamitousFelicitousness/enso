@@ -22,6 +22,7 @@ import type { ImageLayer } from "@/stores/canvasStore";
 import type { InputFrameMode } from "@/canvas/inputFrames";
 import { ReferenceSortableOverlay } from "@/canvas/ReferenceSortableOverlay";
 import type { InputFramePosition } from "@/canvas/inputFrameTypes";
+import type { ViewportState } from "@/canvas/viewportBus";
 
 // HTML hints for the Initial / Reference mode toggle, rendered through the
 // styled Tooltip path (matte glass + <b>/<i>/<br> formatting) rather than the
@@ -37,12 +38,6 @@ const REFERENCE_MODE_HINT =
   "or resized to the frame.<br><br>Used by any model that accepts multiple image " +
   "inputs, local (<i>Klein</i>, <i>Kontext</i>, <i>Qwen Edit</i>) or cloud.<br><br>" +
   "A Reference frame can hold a grid of several images.";
-
-interface ViewportState {
-  x: number;
-  y: number;
-  scale: number;
-}
 
 interface InputFramePanelProps {
   frame: InputFramePosition;

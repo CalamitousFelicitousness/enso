@@ -8,7 +8,7 @@ import { VideoReferencesLayer } from "./layers/VideoReferencesLayer";
 import { VideoOutputFrame } from "./layers/VideoOutputFrame";
 import type { VideoCanvasLayout } from "./useVideoFrameLayout";
 import type { VideoSlotId } from "@/stores/videoCanvasStore";
-import { videoViewportBus } from "./viewportBus";
+import { videoViewport } from "./viewportAdapter";
 import type Konva from "konva";
 
 const PADDING = 32;
@@ -28,7 +28,7 @@ export function VideoCanvasStage({ layout, onPickImage }: VideoCanvasStageProps)
   const frameW = useVideoStore((s) => s.width);
   const frameH = useVideoStore((s) => s.height);
 
-  const panZoom = usePanZoom(stageRef, setViewport, videoViewportBus);
+  const panZoom = usePanZoom(stageRef, setViewport, videoViewport.bus);
 
   const { initX, lastX, referencesX, outputX, totalBounds, displayW, displayH } = layout;
 

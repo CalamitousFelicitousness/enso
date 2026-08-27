@@ -16,12 +16,7 @@ import { useCanvasStore } from "@/stores/canvasStore";
 import { enumerateWireSlots } from "@/canvas/inputFrames";
 import type { CanvasLayout } from "@/canvas/useControlFrameLayout";
 import { InputFramePanel } from "./InputFramePanel";
-
-interface ViewportState {
-  x: number;
-  y: number;
-  scale: number;
-}
+import type { ViewportState } from "@/canvas/viewportBus";
 
 interface InputFramePanelsProps {
   layout: CanvasLayout;
