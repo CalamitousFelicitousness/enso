@@ -365,8 +365,10 @@ export function VideoCanvasView() {
       onPaste={(e) => void handlePaste(e)}
       tabIndex={-1}
     >
-      {/* Canvas + overlays */}
-      <div className="flex-1 relative min-h-0">
+      {/* Canvas + overlays. overflow-hidden clips the floating headers: their
+          wrapper is transformed during pan and would otherwise push past the
+          container and scroll the page. */}
+      <div className="flex-1 relative min-h-0 overflow-hidden">
         <VideoCanvasStage layout={layout} onPickImage={handlePickImage} />
 
         {/* Floating headers - delta-transform wrapper for zero-render pan/zoom */}
