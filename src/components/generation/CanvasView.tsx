@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState, memo } from "react";
 import { useCanvasStore } from "@/stores/canvasStore";
 import { mainViewport } from "@/canvas/viewportAdapter";
+import { CanvasSurface, type SurfacePoint } from "@/canvas/CanvasSurface";
 import { useControlStore } from "@/stores/controlStore";
 import { useUiStore } from "@/stores/uiStore";
 import { useShortcutScope } from "@/hooks/useShortcutScope";
 import { useShortcut } from "@/hooks/useShortcut";
 import { useKeepAliveVisible } from "@/components/ui/keep-alive";
-import { useDropTarget } from "@/hooks/useDropTarget";
 import { payloadToFile } from "@/lib/sendTo";
 import type { DragPayload } from "@/stores/dragStore";
 import { fileToBase64 } from "@/lib/image";
@@ -52,8 +52,6 @@ export const CanvasView = memo(function CanvasView() {
   const setUnitImage = useControlStore((s) => s.setUnitImage);
   const setUnitParam = useControlStore((s) => s.setUnitParam);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const overlayRef = useRef<HTMLDivElement>(null);
   const [pendingUnitIndex, setPendingUnitIndex] = useState<number | null>(null);
 
   const layout = useControlFrameLayout();
@@ -98,21 +96,15 @@ export const CanvasView = memo(function CanvasView() {
     }
   }, []);
 
-  // Hit-test control frames, returning the unitIndex or -1 for canvas
+  // Which control frame a drop landed on, or -1 for the canvas itself
   const hitTestControlFrame = useCallback(
-    (e: React.DragEvent): number => {
-      const container = containerRef.current;
-      if (!container) return -1;
-      const rect = container.getBoundingClientRect();
-      const vp = useCanvasStore.getState().viewport;
-      const canvasX = (e.clientX - rect.left - vp.x) / vp.scale;
-      const canvasY = (e.clientY - rect.top - vp.y) / vp.scale;
+    (point: SurfacePoint): number => {
       for (const frame of layout.controlFrames) {
         if (
-          canvasX >= frame.x &&
-          canvasX <= frame.x + frame.width &&
-          canvasY >= frame.y &&
-          canvasY <= frame.y + frame.height
+          point.canvasX >= frame.x &&
+          point.canvasX <= frame.x + frame.width &&
+          point.canvasY >= frame.y &&
+          point.canvasY <= frame.y + frame.height
         ) {
           return frame.unitIndex;
         }
@@ -122,39 +114,40 @@ export const CanvasView = memo(function CanvasView() {
     [layout.controlFrames],
   );
 
-  const handleCanvasFileDrop = useCallback(
-    (file: File, e: React.DragEvent) => {
-      const unit = hitTestControlFrame(e);
+  const handleDropFiles = useCallback(
+    (files: File[], point: SurfacePoint) => {
+      const unit = hitTestControlFrame(point);
+      // A control frame holds one image, so a multi-file drop there takes the
+      // first and ignores the rest.
       if (unit >= 0) {
-        setUnitImage(unit, file);
-        setUnitParam(unit, "processedImage", null);
-      } else {
-        void handleFile(file);
+        const file = files[0];
+        if (file) {
+          setUnitImage(unit, file);
+          setUnitParam(unit, "processedImage", null);
+        }
+        return;
       }
+      for (const file of files) void handleFile(file);
     },
     [hitTestControlFrame, handleFile, setUnitImage, setUnitParam],
   );
 
-  const { isOver, ...dropHandlers } = useDropTarget({
-    onDropPayload: useCallback(
-      (payload: DragPayload, e: React.DragEvent) => {
-        // Hit-test synchronously before the event is recycled by React
-        const unit = hitTestControlFrame(e);
-        payloadToFile(payload)
-          .then((f: File) => {
-            if (unit >= 0) {
-              setUnitImage(unit, f);
-              setUnitParam(unit, "processedImage", null);
-            } else {
-              void handleFile(f);
-            }
-          })
-          .catch(() => {});
-      },
-      [hitTestControlFrame, handleFile, setUnitImage, setUnitParam],
-    ),
-    onFileDrop: handleCanvasFileDrop,
-  });
+  const handleDropPayload = useCallback(
+    (payload: DragPayload, point: SurfacePoint) => {
+      const unit = hitTestControlFrame(point);
+      payloadToFile(payload)
+        .then((f: File) => {
+          if (unit >= 0) {
+            setUnitImage(unit, f);
+            setUnitParam(unit, "processedImage", null);
+          } else {
+            void handleFile(f);
+          }
+        })
+        .catch(() => {});
+    },
+    [hitTestControlFrame, handleFile, setUnitImage, setUnitParam],
+  );
 
   const handleFileInput = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -238,27 +231,6 @@ export const CanvasView = memo(function CanvasView() {
     }
   }, [canvasMode, focusedFrameId, layout, setFocusedFrame]);
 
-  // A gesture moves the stage imperatively and only commits on release, so the
-  // chrome rides the same delta until the store catches up.
-  useEffect(() => {
-    return mainViewport.bus.subscribe((vp) => {
-      if (!overlayRef.current) return;
-      const base = mainViewport.getCommitted();
-      const ratio = vp.scale / base.scale;
-      const dx = vp.x - base.x * ratio;
-      const dy = vp.y - base.y * ratio;
-      overlayRef.current.style.transform = `translate(${dx}px, ${dy}px) scale(${ratio})`;
-    });
-  }, []);
-
-  // A committed change re-renders the chrome at the new viewport, so the delta
-  // has to clear or it double-applies.
-  useEffect(() => {
-    return mainViewport.subscribe(() => {
-      if (overlayRef.current) overlayRef.current.style.transform = "";
-    });
-  }, []);
-
   const handleClearFrame = useCallback((frameId: string) => {
     const state = useCanvasStore.getState();
     state.clearLayersInFrame(frameId);
@@ -305,15 +277,9 @@ export const CanvasView = memo(function CanvasView() {
     state.setActiveInputFrame(newId);
   }, []);
 
-  const handlePaste = useCallback(
-    (e: React.ClipboardEvent) => {
-      const items = e.clipboardData.items;
-      for (const item of items) {
-        if (item.type.startsWith("image/")) {
-          const file = item.getAsFile();
-          if (file) void handleFile(file);
-        }
-      }
+  const handlePasteFiles = useCallback(
+    (files: File[]) => {
+      for (const file of files) void handleFile(file);
     },
     [handleFile],
   );
@@ -335,13 +301,32 @@ export const CanvasView = memo(function CanvasView() {
   );
 
   return (
-    <div
-      ref={containerRef}
-      className={`relative w-full h-full overflow-hidden${isOver ? " ring-2 ring-primary ring-inset" : ""}`}
-      {...dropHandlers}
-      onPaste={(e) => void handlePaste(e)}
-      // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- paste target needs focus
-      tabIndex={0}
+    <CanvasSurface
+      viewport={mainViewport}
+      onDropFiles={handleDropFiles}
+      onDropPayload={handleDropPayload}
+      onPasteFiles={handlePasteFiles}
+      overlay={
+        <>
+          <ControlFramePanels
+            layout={layout}
+            onPickImage={handlePickImage}
+            onClearImage={handleClearImage}
+          />
+          {/* Per-Input-frame DOM chrome: mode toggle, action buttons, drawer,
+              +Add Input Frame placeholder, per-Reference-child X buttons. */}
+          <InputFramePanels
+            layout={layout}
+            viewport={viewport}
+            labelScale={labelScale}
+            onPickImage={handlePickInputFile}
+            onAddReferenceChild={handleAddReferenceChild}
+            onClearFrame={handleClearFrame}
+            onRemoveFrame={handleRemoveFrame}
+            onAddInputFrame={handleAddInputFrame}
+          />
+        </>
+      }
     >
       <CanvasStage
         layout={layout}
@@ -398,33 +383,6 @@ export const CanvasView = memo(function CanvasView() {
       {/* Generation progress overlay - not affected by pan/zoom */}
       <CanvasProgressOverlay />
 
-      {/* Floating control panels - delta-transform wrapper for zero-render pan/zoom */}
-      <div
-        ref={overlayRef}
-        style={{ position: "absolute", inset: 0, pointerEvents: "none", transformOrigin: "0 0" }}
-      >
-        <ControlFramePanels
-          layout={layout}
-          onPickImage={handlePickImage}
-          onClearImage={handleClearImage}
-        />
-        {/* Per-Input-frame DOM chrome. Replaces the singular
-            InputFramePanel (dropped from ControlFramePanels) and the
-            multi-image ReferenceFilmstripOverlay (legacy, now removed). Mode toggle, action buttons, drawer, +Add Input
-            Frame placeholder, and per-Reference-child X-button overlays
-            all live here. */}
-        <InputFramePanels
-          layout={layout}
-          viewport={viewport}
-          labelScale={labelScale}
-          onPickImage={handlePickInputFile}
-          onAddReferenceChild={handleAddReferenceChild}
-          onClearFrame={handleClearFrame}
-          onRemoveFrame={handleRemoveFrame}
-          onAddInputFrame={handleAddInputFrame}
-        />
-      </div>
-
       {/* Single file input for both input frame and control frame picks */}
       <input
         ref={fileInputRef}
@@ -433,6 +391,6 @@ export const CanvasView = memo(function CanvasView() {
         onChange={handleFileInput}
         className="hidden"
       />
-    </div>
+    </CanvasSurface>
   );
 });
