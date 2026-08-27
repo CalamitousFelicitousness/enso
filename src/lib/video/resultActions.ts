@@ -6,7 +6,7 @@ import {
   sendFrameToVideoInit,
   sendFrameToVideoLast,
 } from "@/lib/sendTo";
-import { resolveImageSrc } from "@/lib/utils";
+import { downloadImage, resolveImageSrc } from "@/lib/utils";
 import type { VideoResult } from "@/api/types/video";
 
 // Past the end of any clip; the extractor clamps to the real duration.
@@ -78,4 +78,9 @@ export function reuseSettings(result: VideoResult) {
 export function sendCapturedFrameToInit(blob: Blob) {
   void sendFrameToVideoInit(blob);
   toast.success("Captured frame sent to Init Image");
+}
+
+export function downloadResult(result: VideoResult) {
+  const stamp = new Date(result.timestamp).toISOString().replace(/[:.]/g, "-").slice(0, 19);
+  void downloadImage(resolveImageSrc(result.videoUrl), `enso-${stamp}.${result.format}`);
 }

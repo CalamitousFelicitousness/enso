@@ -30,14 +30,14 @@ import { tabPanelEntries } from "@/components/layout/tabRegistry";
 import { VIDEO_TAB_REGISTRY } from "./tabs/registry";
 import { useVideoTabs } from "./tabs/useVideoTabs";
 import { VideoPresetSelector } from "./VideoPresetSelector";
+import { VideoResultStrip } from "./VideoResultStrip";
 import { buildPanels } from "@/components/ui/tab-panels";
 
-// Two panels: every local engine renders through the caps-driven
-// CapabilityForm (per-engine drafts live in videoStore, so nothing worth
-// preserving is lost by sharing one tree), cloud keeps its own form. The
-// "empty" state renders a hint inline rather than as a third panel.
-// Module scope: stable element references, see buildPanels.
+// Module scope: stable element references, see buildPanels. The footer needs
+// the same treatment for a different reason - this panel re-renders on every
+// progress tick, and a fresh element would re-render the strip with it.
 const VIDEO_PANELS = buildPanels(tabPanelEntries(VIDEO_TAB_REGISTRY));
+const VIDEO_FOOTER = <VideoResultStrip />;
 
 export function VideoPanel() {
   const prompt = useVideoStore((s) => s.prompt);
@@ -178,6 +178,7 @@ export function VideoPanel() {
       panels={VIDEO_PANELS}
       activePanelId={activePanelId}
       headerClassName="px-3 py-2 space-y-2"
+      footer={VIDEO_FOOTER}
       {...(kind === "empty"
         ? {
             emptyState: "Pick a video model from the model selector to configure and run it.",

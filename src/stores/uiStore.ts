@@ -54,6 +54,7 @@ interface UiState {
 
   // Result gallery
   resultThumbSize: number;
+  videoResultThumbSize: number;
 
   // Canvas preferences
   autoFitFrame: boolean;
@@ -97,6 +98,7 @@ interface UiState {
   setImagesSubTab: (tab: ImagesSubTab) => void;
   toggleViewCollapsed: () => void;
   setResultThumbSize: (size: number) => void;
+  setVideoResultThumbSize: (size: number) => void;
   setAutoFitFrame: (enabled: boolean) => void;
   setAutoUpdateProcessed: (enabled: boolean) => void;
   setAutoApplyModelDefaults: (enabled: boolean) => void;
@@ -158,6 +160,7 @@ export const useUiStore = create<UiState>()(
       activeRightTab: "networks",
       panelSelections: { ...DEFAULT_PANEL_SELECTIONS },
       resultThumbSize: 56,
+      videoResultThumbSize: 56,
       autoFitFrame: true,
       reprocessOnGenerate: true,
       autoApplyModelDefaults: false,
@@ -182,6 +185,8 @@ export const useUiStore = create<UiState>()(
       setImagesSubTab: (tab) => set({ activeImagesSubTab: tab }),
       toggleViewCollapsed: () => set((s) => ({ viewCollapsed: !s.viewCollapsed })),
       setResultThumbSize: (size) => set({ resultThumbSize: Math.max(40, Math.min(160, size)) }),
+      setVideoResultThumbSize: (size) =>
+        set({ videoResultThumbSize: Math.max(40, Math.min(120, size)) }),
       setAutoFitFrame: (enabled) => set({ autoFitFrame: enabled }),
       setAutoUpdateProcessed: (enabled) => set({ reprocessOnGenerate: enabled }),
       setAutoApplyModelDefaults: (enabled) => set({ autoApplyModelDefaults: enabled }),
