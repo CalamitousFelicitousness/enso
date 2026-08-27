@@ -1,4 +1,4 @@
-import { useCallback, useEffect } from "react";
+import { useCallback } from "react";
 import { Upload, X, Loader2, ImageOff, Copy, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,7 @@ import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/componen
 import { useCaptionStore } from "@/stores/captionStore";
 import { useGenerationStore } from "@/stores/generationStore";
 import { useDropTarget } from "@/hooks/useDropTarget";
+import { useWindowPaste } from "@/hooks/useWindowPaste";
 import { payloadToFile } from "@/lib/sendTo";
 import type { DragPayload } from "@/stores/dragStore";
 import { useKeepAliveVisible } from "@/components/ui/keep-alive";
@@ -43,31 +44,7 @@ export function CaptionView() {
     [setImage],
   );
 
-  // Pause the global paste listener while this view is hidden inside its
-  // KeepAlive panel. `inert` does not block window-level events, so without
-  // the visibility gate a paste meant for the active view would silently land
-  // here. Rebind on visibility change rather than gating inside the handler -
-  // simpler and stays clean of the no-ref-during-render rule.
-  const visible = useKeepAliveVisible();
-  useEffect(() => {
-    if (!visible) return;
-    const onPaste = (e: ClipboardEvent) => {
-      const target = e.target as HTMLElement;
-      if (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable)
-        return;
-      const items = e.clipboardData?.items;
-      if (!items) return;
-      for (const item of items) {
-        if (item.type.startsWith("image/")) {
-          const file = item.getAsFile();
-          if (file) setImage(file);
-          break;
-        }
-      }
-    };
-    window.addEventListener("paste", onPaste);
-    return () => window.removeEventListener("paste", onPaste);
-  }, [visible, setImage]);
+  useWindowPaste((files) => setImage(files[0]), useKeepAliveVisible());
 
   const answerText =
     result?.type === "vqa"
