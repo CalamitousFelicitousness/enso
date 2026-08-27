@@ -546,46 +546,50 @@ export function VideoCanvasView() {
               </>
             }
           />
+
+          {/* Video player overlay at the output frame. Lives inside the
+              delta-transform wrapper so it tracks a drag: pan only commits
+              to the store on release, so positioning it from the store
+              viewport left it trailing the cursor and escaping the frame. */}
+          {showVideoOverlay && (
+            <div
+              className="absolute overflow-hidden"
+              style={{
+                left: `${outputScreenX}px`,
+                top: `${outputScreenY}px`,
+                width: `${outputScreenW}px`,
+                height: `${outputScreenH}px`,
+                pointerEvents:
+                  selectedResult?.videoUrl || (compareMode && compareLeft?.videoUrl)
+                    ? "auto"
+                    : "none",
+              }}
+            >
+              {compareMode && compareLeft?.videoUrl && compareRight?.videoUrl ? (
+                <VideoCompare
+                  leftSrc={resolveImageSrc(compareLeft.videoUrl)}
+                  rightSrc={resolveImageSrc(compareRight.videoUrl)}
+                  leftLabel={DOMAIN_LABELS[compareLeft.domain] ?? compareLeft.domain}
+                  rightLabel={DOMAIN_LABELS[compareRight.domain] ?? compareRight.domain}
+                />
+              ) : !isGenerating && selectedResult?.videoUrl ? (
+                isStillResult(selectedResult) ? (
+                  <img
+                    src={resolveImageSrc(selectedResult.videoUrl)}
+                    alt=""
+                    className="size-full object-contain"
+                  />
+                ) : (
+                  <VideoPlayer
+                    src={resolveImageSrc(selectedResult.videoUrl)}
+                    fps={selectedResult.fps}
+                  />
+                )
+              ) : null}
+            </div>
+          )}
         </div>
 
-        {/* Video player overlay positioned at output frame */}
-        {showVideoOverlay && (
-          <div
-            className="absolute overflow-hidden"
-            style={{
-              left: `${outputScreenX}px`,
-              top: `${outputScreenY}px`,
-              width: `${outputScreenW}px`,
-              height: `${outputScreenH}px`,
-              pointerEvents:
-                selectedResult?.videoUrl || (compareMode && compareLeft?.videoUrl)
-                  ? "auto"
-                  : "none",
-            }}
-          >
-            {compareMode && compareLeft?.videoUrl && compareRight?.videoUrl ? (
-              <VideoCompare
-                leftSrc={resolveImageSrc(compareLeft.videoUrl)}
-                rightSrc={resolveImageSrc(compareRight.videoUrl)}
-                leftLabel={DOMAIN_LABELS[compareLeft.domain] ?? compareLeft.domain}
-                rightLabel={DOMAIN_LABELS[compareRight.domain] ?? compareRight.domain}
-              />
-            ) : !isGenerating && selectedResult?.videoUrl ? (
-              isStillResult(selectedResult) ? (
-                <img
-                  src={resolveImageSrc(selectedResult.videoUrl)}
-                  alt=""
-                  className="size-full object-contain"
-                />
-              ) : (
-                <VideoPlayer
-                  src={resolveImageSrc(selectedResult.videoUrl)}
-                  fps={selectedResult.fps}
-                />
-              )
-            ) : null}
-          </div>
-        )}
 
         {/* Progress overlay during generation */}
         {isGenerating && (
