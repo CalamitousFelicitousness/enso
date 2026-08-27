@@ -337,8 +337,8 @@ export interface VideoRef {
 export interface JobResult {
   images: ImageRef[];
   processed: ImageRef[];
-  /** Populated by cloud_video; absent for local-pipeline executors that
-   * still place the mp4 + thumbnail under `images[0]` / `images[1]`. */
+  /** Every video executor reports here, local and cloud alike, and leaves
+   * `images` empty. A still result is its own thumbnail. */
   videos?: VideoRef[] | undefined;
   info: Record<string, unknown>;
   params: Record<string, unknown>;

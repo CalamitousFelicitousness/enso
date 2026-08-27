@@ -15,6 +15,7 @@ import type { Job } from "@/api/types/v2";
 import { useDeleteJob } from "@/api/hooks/useJobs";
 import { useResubmitJob } from "@/hooks/useResubmitJob";
 import { getJobPayload } from "@/lib/jobPayloadDb";
+import { resolveImageSrc } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
@@ -76,7 +77,8 @@ export function HistoryJobCard({ job }: HistoryJobCardProps) {
   const resubmit = useResubmitJob();
   const [retrying, setRetrying] = useState(false);
   const TypeIcon = TYPE_ICONS[job.type] ?? Image;
-  const hasImages = job.result && job.result.images.length > 0;
+  // Video jobs leave `images` empty and carry their poster on the video ref.
+  const thumbUrl = job.result?.images[0]?.url ?? job.result?.videos?.[0]?.thumbnail_url ?? null;
   const timestamp = job.completed_at ?? job.created_at;
   const isTerminal =
     job.status === "completed" || job.status === "failed" || job.status === "cancelled";
@@ -107,9 +109,9 @@ export function HistoryJobCard({ job }: HistoryJobCardProps) {
   return (
     <div className="group flex items-start gap-2 px-3 py-1.5 hover:bg-muted/50 rounded">
       {/* Thumbnail or type icon */}
-      {hasImages ? (
+      {thumbUrl ? (
         <img
-          src={job.result!.images[0].url}
+          src={resolveImageSrc(thumbUrl)}
           alt=""
           loading="lazy"
           decoding="async"
