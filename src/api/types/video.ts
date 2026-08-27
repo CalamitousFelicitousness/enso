@@ -47,6 +47,9 @@ export interface VideoResult {
   hasAudio?: boolean | undefined;
   frames?: number | null | undefined;
   params: VideoWireParams;
+  /** Kept out of eviction and out of a history clear. Absent on rows written
+   * before pinning existed, which read back as unpinned. */
+  pinned?: boolean | undefined;
   domain: "video" | "framepack" | "ltx";
   timestamp: number;
 }
