@@ -1,27 +1,31 @@
 import { useCallback, useEffect, useRef } from "react";
-import { useCanvasStore } from "@/stores/canvasStore";
 import { ZOOM_LIMITS } from "@/lib/constants";
 import type Konva from "konva";
-import type { ViewportBus } from "../viewportBus";
+import type { ViewportAdapter } from "../viewportAdapter";
 
-type SetViewportFn = (v: { x?: number; y?: number; scale?: number }) => void;
+interface PanZoomOptions {
+  stageRef: React.RefObject<Konva.Stage | null>;
+  viewport: ViewportAdapter;
+  /** Swallow pan and zoom while it returns false (the images mode lock). */
+  canGesture?: () => boolean;
+  /** Runs on each pan or zoom event that is allowed through. */
+  onGesture?: () => void;
+  /** Window listeners bind only while the canvas is on screen. */
+  enabled?: boolean;
+}
 
-export function usePanZoom(
-  stageRef: React.RefObject<Konva.Stage | null>,
-  setViewportOverride?: SetViewportFn,
-  bus?: ViewportBus,
-) {
-  const canvasSetViewport = useCanvasStore((s) => s.setViewport);
-  const switchToCanvasMode = useCanvasStore((s) => s.switchToCanvasMode);
-  const modeLocked = useCanvasStore((s) => s.modeLocked);
-  const setViewport = setViewportOverride ?? canvasSetViewport;
-  const isOverride = !!setViewportOverride;
+export function usePanZoom({
+  stageRef,
+  viewport,
+  canGesture,
+  onGesture,
+  enabled = true,
+}: PanZoomOptions) {
   const spaceHeld = useRef(false);
   const isPanning = useRef(false);
   const lastPointer = useRef({ x: 0, y: 0 });
   const wheelSyncTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Cleanup debounce timer on unmount
   useEffect(() => {
     return () => {
       if (wheelSyncTimer.current) clearTimeout(wheelSyncTimer.current);
@@ -31,8 +35,8 @@ export function usePanZoom(
   const handleWheel = useCallback(
     (e: Konva.KonvaEventObject<WheelEvent>) => {
       e.evt.preventDefault();
-      if (!isOverride && modeLocked) return;
-      if (!isOverride) switchToCanvasMode();
+      if (canGesture && !canGesture()) return;
+      onGesture?.();
       const stage = stageRef.current;
       if (!stage) return;
 
@@ -61,7 +65,7 @@ export function usePanZoom(
       stage.scaleX(newScale);
       stage.scaleY(newScale);
       stage.batchDraw();
-      bus?.emit({ x: newX, y: newY, scale: newScale });
+      viewport.bus.emit({ x: newX, y: newY, scale: newScale });
 
       // Debounced store sync
       if (wheelSyncTimer.current) clearTimeout(wheelSyncTimer.current);
@@ -69,12 +73,12 @@ export function usePanZoom(
         const s = stageRef.current;
         if (s) {
           const vp = { x: s.x(), y: s.y(), scale: s.scaleX() };
-          setViewport(vp);
-          bus?.emit(vp);
+          viewport.setViewport(vp);
+          viewport.bus.emit(vp);
         }
       }, 150);
     },
-    [stageRef, setViewport, isOverride, modeLocked, switchToCanvasMode, bus],
+    [stageRef, viewport, canGesture, onGesture],
   );
 
   const handleMouseDown = useCallback(
@@ -82,8 +86,8 @@ export function usePanZoom(
       // Middle-click or space+left-click to pan
       if (e.evt.button === 1 || (spaceHeld.current && e.evt.button === 0)) {
         e.evt.preventDefault();
-        if (!isOverride && modeLocked) return;
-        if (!isOverride) switchToCanvasMode();
+        if (canGesture && !canGesture()) return;
+        onGesture?.();
         isPanning.current = true;
         lastPointer.current = { x: e.evt.clientX, y: e.evt.clientY };
         const stage = stageRef.current;
@@ -93,7 +97,7 @@ export function usePanZoom(
         }
       }
     },
-    [stageRef, isOverride, modeLocked, switchToCanvasMode],
+    [stageRef, canGesture, onGesture],
   );
 
   const handleMouseMove = useCallback(
@@ -113,9 +117,9 @@ export function usePanZoom(
       stage.x(newX);
       stage.y(newY);
       stage.batchDraw();
-      bus?.emit({ x: newX, y: newY, scale: stage.scaleX() });
+      viewport.bus.emit({ x: newX, y: newY, scale: stage.scaleX() });
     },
-    [stageRef, bus],
+    [stageRef, viewport],
   );
 
   const handleMouseUp = useCallback(() => {
@@ -127,14 +131,32 @@ export function usePanZoom(
         container.style.cursor = spaceHeld.current ? "grab" : "default";
         // Sync to store on gesture end
         const vp = { x: stage.x(), y: stage.y(), scale: stage.scaleX() };
-        setViewport(vp);
-        bus?.emit(vp);
+        viewport.setViewport(vp);
+        viewport.bus.emit(vp);
       }
     }
-  }, [stageRef, setViewport, bus]);
+  }, [stageRef, viewport]);
+
+  // A release outside the stage never reaches the Konva handler, which would
+  // leave the canvas panning with no button held. The guard above makes the
+  // second call a no-op when both fire.
+  useEffect(() => {
+    if (!enabled) return;
+    window.addEventListener("mouseup", handleMouseUp);
+    return () => window.removeEventListener("mouseup", handleMouseUp);
+  }, [enabled, handleMouseUp]);
 
   // Space key tracking for pan mode
   useEffect(() => {
+    if (!enabled) {
+      // Nothing else clears these once the listeners are gone, and a latched
+      // spaceHeld makes left-drag pan when the canvas comes back.
+      spaceHeld.current = false;
+      isPanning.current = false;
+      return;
+    }
+    const revealed = stageRef.current;
+    if (revealed) revealed.container().style.cursor = "default";
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.code === "Space" && !e.repeat) {
         spaceHeld.current = true;
@@ -155,7 +177,7 @@ export function usePanZoom(
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("keyup", onKeyUp);
     };
-  }, [stageRef]);
+  }, [enabled, stageRef]);
 
   return {
     onWheel: handleWheel,

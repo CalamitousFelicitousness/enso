@@ -14,11 +14,12 @@ import type { CanvasLayout } from "./useControlFrameLayout";
 import { CanvasBackground } from "./CanvasBackground";
 import { mainViewport } from "./viewportAdapter";
 import { useKeepAliveVisible } from "@/components/ui/keep-alive";
-import Konva from "konva";
+import type Konva from "konva";
+import "./konvaSetup";
 
-// Only allow left mouse button to initiate Konva node drags.
-// Default is [0, 1] which lets middle-click drag images.
-Konva.dragButtons = [0];
+// Read at event time so a lock or mode change does not re-render the stage.
+const canvasCanGesture = () => !useCanvasStore.getState().modeLocked;
+const canvasOnGesture = () => useCanvasStore.getState().switchToCanvasMode();
 
 const PADDING = 32;
 const LABEL_HEIGHT = 19;
@@ -52,8 +53,15 @@ export function CanvasStage({
   const canvasMode = useCanvasStore((s) => s.canvasMode);
   const focusedFrameId = useCanvasStore((s) => s.focusedFrameId);
   const focusFitTrigger = useCanvasStore((s) => s.focusFitTrigger);
+  const visible = useKeepAliveVisible();
 
-  const panZoom = usePanZoom(stageRef, undefined, mainViewport.bus);
+  const panZoom = usePanZoom({
+    stageRef,
+    viewport: mainViewport,
+    canGesture: canvasCanGesture,
+    onGesture: canvasOnGesture,
+    enabled: visible,
+  });
   const maskPaint = useMaskPaint({ stageRef, spaceHeld: panZoom.spaceHeld, layout });
   const imageTransform = useImageTransform(stageRef, trRef);
 
@@ -81,7 +89,6 @@ export function CanvasStage({
   // ResizeObserver naturally on display:none -> visible transitions, but the
   // explicit read closes any race where the observer is late and the auto-fit
   // effect would otherwise skip with 0x0 dimensions.
-  const visible = useKeepAliveVisible();
   useEffect(() => {
     if (!visible) return;
     const el = containerRef.current;

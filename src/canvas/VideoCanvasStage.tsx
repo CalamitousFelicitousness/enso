@@ -9,7 +9,9 @@ import { VideoOutputFrame } from "./layers/VideoOutputFrame";
 import type { VideoCanvasLayout } from "./useVideoFrameLayout";
 import type { VideoSlotId } from "@/stores/videoCanvasStore";
 import { videoViewport } from "./viewportAdapter";
+import { useKeepAliveVisible } from "@/components/ui/keep-alive";
 import type Konva from "konva";
+import "./konvaSetup";
 
 const PADDING = 32;
 const LABEL_HEIGHT = 19;
@@ -28,7 +30,9 @@ export function VideoCanvasStage({ layout, onPickImage }: VideoCanvasStageProps)
   const frameW = useVideoStore((s) => s.width);
   const frameH = useVideoStore((s) => s.height);
 
-  const panZoom = usePanZoom(stageRef, setViewport, videoViewport.bus);
+  const visible = useKeepAliveVisible();
+
+  const panZoom = usePanZoom({ stageRef, viewport: videoViewport, enabled: visible });
 
   const { initX, lastX, referencesX, outputX, totalBounds, displayW, displayH } = layout;
 
