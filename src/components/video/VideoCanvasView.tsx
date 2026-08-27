@@ -8,7 +8,6 @@ import { videoViewport } from "@/canvas/viewportAdapter";
 import { CanvasSurface, type SurfacePoint } from "@/canvas/CanvasSurface";
 import { CanvasProgressOverlay } from "@/canvas/CanvasProgressOverlay";
 import { VideoCompareStrip } from "./VideoCompareStrip";
-import { compareLabel } from "@/lib/video/resultLabel";
 import {
   useJobQueueStore,
   selectVideoActive,
@@ -485,12 +484,7 @@ export function VideoCanvasView() {
               }}
             >
               {comparing ? (
-                <VideoCompare
-                  leftSrc={resolveImageSrc(compareLeft.videoUrl)}
-                  rightSrc={resolveImageSrc(compareRight.videoUrl)}
-                  leftLabel={compareLabel("A", compareLeft)}
-                  rightLabel={compareLabel("B", compareRight)}
-                />
+                <VideoCompare left={compareLeft} right={compareRight} />
               ) : !isGenerating && selectedResult?.videoUrl ? (
                 isStillResult(selectedResult) ? (
                   <img

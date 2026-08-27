@@ -5,7 +5,7 @@ import { useKeepAliveVisible } from "@/components/ui/keep-alive";
 
 const SPEEDS = [0.25, 0.5, 1, 2, 4] as const;
 const IDLE_TIMEOUT_MS = 2500;
-const DEFAULT_FPS = 24;
+export const DEFAULT_FPS = 24;
 
 interface VideoPlayerProps {
   src: string | null;
