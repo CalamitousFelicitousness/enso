@@ -26,7 +26,8 @@
     "codegen:check": "tsx scripts/openapi-check.ts",
     "locale:refresh": "tsx scripts/locale-refresh.ts",
     "locale:check": "tsx scripts/locale-check.ts",
-    "check": "pnpm run typecheck && pnpm run lint && pnpm run format:check && pnpm run format:py:check"
+    "test": "vitest run",
+    "check": "pnpm run typecheck && pnpm run lint && pnpm run format:check && pnpm run format:py:check && pnpm run test"
   },
   "dependencies": {
     "@codemirror/autocomplete": "^6.20.3",
@@ -87,6 +88,7 @@
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.65.0",
     "vite": "^8.1.5",
-    "vite-plugin-pwa": "^1.3.0"
+    "vite-plugin-pwa": "^1.3.0",
+    "vitest": "^4.1.11"
   }
 }
