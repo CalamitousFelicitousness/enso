@@ -4,24 +4,42 @@ import type { DragPayload } from "@/stores/dragStore";
 
 interface UseDropTargetOptions {
   onDropPayload?: (payload: DragPayload, e: React.DragEvent) => void;
+  /** The first accepted file. Ignored when onFilesDrop is given. */
   onFileDrop?: (file: File, e: React.DragEvent) => void;
+  /** Every accepted file, in the order the drag carried them. */
+  onFilesDrop?: (files: File[], e: React.DragEvent) => void;
+  /** What the target takes. Drops only: pasted files often have no usable
+   * name, so the paste path stays on MIME. */
+  acceptFile?: (file: File) => boolean;
   acceptTypes?: DragPayload["type"][];
 }
 
-export function useDropTarget({ onDropPayload, onFileDrop, acceptTypes }: UseDropTargetOptions) {
+const isImageFile = (file: File) => file.type.startsWith("image/");
+
+/** Whether a drag carries something a target could take at all. */
+function hasDroppableData(e: React.DragEvent) {
+  return e.dataTransfer.types.includes(INTERNAL_MIME) || e.dataTransfer.types.includes("Files");
+}
+
+export function useDropTarget({
+  onDropPayload,
+  onFileDrop,
+  onFilesDrop,
+  acceptFile,
+  acceptTypes,
+}: UseDropTargetOptions) {
   const [isOver, setIsOver] = useState(false);
   const targetId = useId();
 
   const onDragOver = useCallback((e: React.DragEvent) => {
-    // Accept internal drags or native file drags
-    if (e.dataTransfer.types.includes(INTERNAL_MIME) || e.dataTransfer.types.includes("Files")) {
-      e.preventDefault();
-      e.dataTransfer.dropEffect = "copy";
-    }
+    if (!hasDroppableData(e)) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "copy";
   }, []);
 
   const onDragEnter = useCallback(
     (e: React.DragEvent) => {
+      if (!hasDroppableData(e)) return;
       e.preventDefault();
       setIsOver(true);
       useDragStore.getState().setActiveDropTarget(targetId);
@@ -64,12 +82,12 @@ export function useDropTarget({ onDropPayload, onFileDrop, acceptTypes }: UseDro
       }
 
       // Fall through to native file drops
-      const file = e.dataTransfer.files?.[0];
-      if (file && file.type.startsWith("image/")) {
-        onFileDrop?.(file, e);
-      }
+      const files = Array.from(e.dataTransfer.files ?? []).filter(acceptFile ?? isImageFile);
+      if (files.length === 0) return;
+      if (onFilesDrop) onFilesDrop(files, e);
+      else if (files[0]) onFileDrop?.(files[0], e);
     },
-    [onDropPayload, onFileDrop, acceptTypes],
+    [onDropPayload, onFileDrop, onFilesDrop, acceptFile, acceptTypes],
   );
 
   return { onDragOver, onDragEnter, onDragLeave, onDrop, isOver };

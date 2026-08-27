@@ -45,6 +45,11 @@ import {
 } from "@/lib/video/referenceMedia";
 import { contrastText, resolveImageSrc } from "@/lib/utils";
 
+// The picker admits reference video and audio, so the drop path has to as
+// well. Which slot a file is legal for is decided once it has landed.
+const acceptDroppedFile = (file: File) =>
+  file.type.startsWith("image/") || classifyReferenceFile(file.name) !== null;
+
 export function VideoCanvasView() {
   const layout = useVideoFrameLayout();
   const caps = useActiveVideoCaps();
@@ -122,7 +127,12 @@ export function VideoCanvasView() {
   const handleFileSelected = useCallback(
     async (which: VideoSlotId, file: File) => {
       if (which !== "references") {
-        if (!file.type.startsWith("image/")) return;
+        if (!file.type.startsWith("image/")) {
+          toast.warning(`The ${which === "init" ? "Init" : "Last"} slot takes an image`, {
+            description: file.name,
+          });
+          return;
+        }
         const base64 = await fileToBase64(file);
         const objectUrl = URL.createObjectURL(file);
         const img = new window.Image();
@@ -301,6 +311,7 @@ export function VideoCanvasView() {
       onDropFiles={handleDropFiles}
       onDropPayload={handleDropPayload}
       onPasteFiles={handlePasteFiles}
+      acceptFile={acceptDroppedFile}
       below={results.length > 0 ? <VideoCompareStrip /> : null}
       overlay={
         <>

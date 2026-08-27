@@ -23,6 +23,8 @@ interface CanvasSurfaceProps {
   /** Chrome below the canvas, outside its clip. */
   below?: ReactNode;
   onDropFiles?: (files: File[], point: SurfacePoint) => void;
+  /** What a drop takes. Defaults to images by MIME. */
+  acceptFile?: (file: File) => boolean;
   onDropPayload?: (payload: DragPayload, point: SurfacePoint) => void;
   onPasteFiles?: (files: File[]) => void;
   className?: string;
@@ -41,6 +43,7 @@ export function CanvasSurface({
   onDropFiles,
   onDropPayload,
   onPasteFiles,
+  acceptFile,
   className,
 }: CanvasSurfaceProps) {
   const overlayRef = useRef<HTMLDivElement>(null);
@@ -67,10 +70,11 @@ export function CanvasSurface({
       (payload: DragPayload, e: React.DragEvent) => onDropPayload?.(payload, pointFrom(e)),
       [onDropPayload, pointFrom],
     ),
-    onFileDrop: useCallback(
-      (file: File, e: React.DragEvent) => onDropFiles?.([file], pointFrom(e)),
+    onFilesDrop: useCallback(
+      (files: File[], e: React.DragEvent) => onDropFiles?.(files, pointFrom(e)),
       [onDropFiles, pointFrom],
     ),
+    ...(acceptFile ? { acceptFile } : {}),
   });
 
   const visible = useKeepAliveVisible();
