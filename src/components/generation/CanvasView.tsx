@@ -14,7 +14,7 @@ import { CanvasStage } from "@/canvas/CanvasStage";
 import { CanvasToolbar } from "@/canvas/CanvasToolbar";
 import { ControlFramePanels } from "@/canvas/ControlFramePanel";
 import { InputFramePanels } from "@/canvas/panels/InputFramePanels";
-import { CanvasProgressOverlay } from "./CanvasProgressOverlay";
+import { CanvasProgressOverlay } from "@/canvas/CanvasProgressOverlay";
 import { useControlFrameLayout } from "@/canvas/useControlFrameLayout";
 import { getOrderedFrames } from "@/canvas/frameList";
 import { ModeToggle } from "./ModeToggle";

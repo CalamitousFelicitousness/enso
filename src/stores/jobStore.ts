@@ -80,7 +80,7 @@ function isTerminal(status: JobStatus) {
   return status === "completed" || status === "failed" || status === "cancelled";
 }
 
-interface JobQueueState {
+export interface JobQueueState {
   jobs: Map<string, TrackedJob>;
   activeJobId: string | null;
 

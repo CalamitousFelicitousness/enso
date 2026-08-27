@@ -1,4 +1,5 @@
 import { useJobQueueStore, selectViewedJob } from "@/stores/jobStore";
+import type { JobQueueState, TrackedJob } from "@/stores/jobStore";
 
 const CLOUD_PHASE_LABELS: Record<string, string> = {
   submitted: "Submitting...",
@@ -7,8 +8,14 @@ const CLOUD_PHASE_LABELS: Record<string, string> = {
   downloading: "Downloading...",
 };
 
-export function CanvasProgressOverlay() {
-  const job = useJobQueueStore(selectViewedJob);
+interface CanvasProgressOverlayProps {
+  /** Which job the canvas is showing. Defaults to the one the queue is
+   * pointed at, which is what the images canvas renders. */
+  select?: (state: JobQueueState) => TrackedJob | undefined;
+}
+
+export function CanvasProgressOverlay({ select = selectViewedJob }: CanvasProgressOverlayProps) {
+  const job = useJobQueueStore(select);
   if (!job || job.status !== "running") return null;
 
   const pct = Math.round(job.progress * 100);

@@ -6,6 +6,7 @@ import { useVideoCanvasStore, type VideoSlotId } from "@/stores/videoCanvasStore
 import { useActiveVideoCaps } from "@/hooks/useActiveVideoCaps";
 import { videoViewport } from "@/canvas/viewportAdapter";
 import { CanvasSurface, type SurfacePoint } from "@/canvas/CanvasSurface";
+import { CanvasProgressOverlay } from "@/canvas/CanvasProgressOverlay";
 import { VideoCompareStrip } from "./VideoCompareStrip";
 import { compareLabel } from "@/lib/video/resultLabel";
 import {
@@ -13,9 +14,6 @@ import {
   selectVideoActive,
   selectFramepackActive,
   selectLtxActive,
-  selectVideoProgress,
-  selectFramepackProgress,
-  selectLtxProgress,
   selectVideoDomainActiveJob,
 } from "@/stores/jobStore";
 import { useUiStore } from "@/stores/uiStore";
@@ -85,21 +83,6 @@ export function VideoCanvasView() {
   const isFramepackActive = useJobQueueStore(selectFramepackActive);
   const isLtxActive = useJobQueueStore(selectLtxActive);
   const isGenerating = isVideoActive || isFramepackActive || isLtxActive;
-  const videoProgress = useJobQueueStore(selectVideoProgress);
-  const fpProgress = useJobQueueStore(selectFramepackProgress);
-  const ltxProgress = useJobQueueStore(selectLtxProgress);
-  const progress = Math.max(videoProgress, fpProgress, ltxProgress);
-  const progressPct = Math.round(progress * 100);
-
-  const activeVideoJob = useJobQueueStore(selectVideoDomainActiveJob);
-  const stepInfo = activeVideoJob
-    ? {
-        step: activeVideoJob.step,
-        steps: activeVideoJob.steps,
-        textinfo: activeVideoJob.textinfo,
-      }
-    : null;
-
   const compareLeft = useMemo(
     () => results.find((r) => r.id === compareA) ?? null,
     [results, compareA],
@@ -529,39 +512,7 @@ export function VideoCanvasView() {
     >
       <VideoCanvasStage layout={layout} onPickImage={handlePickImage} />
 
-      {/* Progress overlay during generation */}
-      {isGenerating && (
-        <div className="absolute inset-x-0 bottom-0 p-4 pointer-events-none">
-          <div className="flex flex-col gap-1 bg-background/80 backdrop-blur-sm rounded-lg px-3 py-2">
-            {stepInfo && (stepInfo.step > 0 || stepInfo.textinfo) && (
-              <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                {stepInfo.steps > 0 && (
-                  <span className="font-mono tabular-nums">
-                    Step {stepInfo.step}/{stepInfo.steps}
-                  </span>
-                )}
-                {stepInfo.textinfo && (
-                  <>
-                    <span className="text-muted-foreground/40">|</span>
-                    <span className="truncate">{stepInfo.textinfo}</span>
-                  </>
-                )}
-              </div>
-            )}
-            <div className="flex items-center gap-2">
-              <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-primary rounded-full transition-[width] duration-300"
-                  style={{ width: `${progressPct}%` }}
-                />
-              </div>
-              <span className="text-xs text-muted-foreground font-mono tabular-nums min-w-[3ch]">
-                {progressPct}%
-              </span>
-            </div>
-          </div>
-        </div>
-      )}
+      <CanvasProgressOverlay select={selectVideoDomainActiveJob} />
 
       {/* Hidden file inputs */}
       <input
