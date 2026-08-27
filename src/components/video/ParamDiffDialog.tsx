@@ -21,6 +21,10 @@ interface ParamDiffDialogProps {
   onOpenChange: (open: boolean) => void;
   resultParams: VideoWireParams;
   domain: VideoJobType;
+  /** Diff against another result instead of the live settings. Read-only:
+   * applying one historical result's value over another has no meaning. */
+  baselineParams?: VideoWireParams;
+  baselineDomain?: VideoJobType;
 }
 
 function normalizeResultParams(
@@ -55,6 +59,8 @@ export function ParamDiffDialog({
   onOpenChange,
   resultParams,
   domain,
+  baselineParams,
+  baselineDomain,
 }: ParamDiffDialogProps) {
   const storeState = useVideoStore();
   const setParams = useVideoStore((s) => s.setParams);
@@ -64,9 +70,20 @@ export function ParamDiffDialog({
     [resultParams, domain],
   );
 
+  const baseline = useMemo(
+    () => (baselineParams ? normalizeResultParams(baselineParams, baselineDomain ?? domain) : null),
+    [baselineParams, baselineDomain, domain],
+  );
+  const readOnly = baseline !== null;
+
   const rows = useMemo<DiffRow[]>(() => {
-    return VIDEO_PARAM_KEYS.filter((k) => k in normalized).map((k) => {
-      const current = (storeState as unknown as Record<string, unknown>)[k];
+    const store = storeState as unknown as Record<string, unknown>;
+    // Union of both sides: a param only one of them carries is exactly the
+    // kind of difference this is for.
+    return VIDEO_PARAM_KEYS.filter(
+      (k) => k in normalized || (baseline !== null && k in baseline),
+    ).map((k) => {
+      const current = baseline ? baseline[k] : store[k];
       const result = normalized[k];
       return {
         key: k,
@@ -75,7 +92,7 @@ export function ParamDiffDialog({
         changed: JSON.stringify(current) !== JSON.stringify(result),
       };
     });
-  }, [storeState, normalized]);
+  }, [storeState, normalized, baseline]);
 
   const changedCount = rows.filter((r) => r.changed).length;
 
@@ -101,7 +118,11 @@ export function ParamDiffDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-xl">
         <DialogHeader>
-          <DialogTitle>Compare Settings ({changedCount} changed)</DialogTitle>
+          <DialogTitle>
+            {readOnly
+              ? `A vs B (${changedCount} different)`
+              : `Compare Settings (${changedCount} changed)`}
+          </DialogTitle>
           <DialogDescription className="sr-only">
             Side-by-side comparison of video parameters
           </DialogDescription>
@@ -111,9 +132,9 @@ export function ParamDiffDialog({
             <thead>
               <tr className="border-b text-left text-muted-foreground">
                 <th className="py-1 px-2 font-medium">Parameter</th>
-                <th className="py-1 px-2 font-medium">Current</th>
-                <th className="py-1 px-2 font-medium">Result</th>
-                <th className="py-1 px-2 w-8" />
+                <th className="py-1 px-2 font-medium">{readOnly ? "A" : "Current"}</th>
+                <th className="py-1 px-2 font-medium">{readOnly ? "B" : "Result"}</th>
+                {!readOnly && <th className="py-1 px-2 w-8" />}
               </tr>
             </thead>
             <tbody>
@@ -127,18 +148,20 @@ export function ParamDiffDialog({
                   <td className="py-0.5 px-2 max-w-32 truncate font-medium">
                     {formatValue(row.result)}
                   </td>
-                  <td className="py-0.5 px-1">
-                    {row.changed && (
-                      <button
-                        type="button"
-                        onClick={() => handleApplyOne(row.key, row.result)}
-                        className="hover:text-primary"
-                        title="Apply this value"
-                      >
-                        <ArrowRight size={12} />
-                      </button>
-                    )}
-                  </td>
+                  {!readOnly && (
+                    <td className="py-0.5 px-1">
+                      {row.changed && (
+                        <button
+                          type="button"
+                          onClick={() => handleApplyOne(row.key, row.result)}
+                          className="hover:text-primary"
+                          title="Apply this value"
+                        >
+                          <ArrowRight size={12} />
+                        </button>
+                      )}
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>
@@ -148,9 +171,11 @@ export function ParamDiffDialog({
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Close
           </Button>
-          <Button onClick={handleApplyAll} disabled={changedCount === 0}>
-            Apply All ({changedCount})
-          </Button>
+          {!readOnly && (
+            <Button onClick={handleApplyAll} disabled={changedCount === 0}>
+              Apply All ({changedCount})
+            </Button>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>

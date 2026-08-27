@@ -1,10 +1,13 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Download, Trash2, Film, Columns2, X, ImagePlus } from "lucide-react";
+import { useCallback, useMemo, useRef } from "react";
+import { Download, Trash2, ImagePlus } from "lucide-react";
 import { toast } from "sonner";
 import { useVideoStore } from "@/stores/videoStore";
 import { useVideoCanvasStore, type VideoSlotId } from "@/stores/videoCanvasStore";
 import { useActiveVideoCaps } from "@/hooks/useActiveVideoCaps";
 import { videoViewport } from "@/canvas/viewportAdapter";
+import { CanvasSurface, type SurfacePoint } from "@/canvas/CanvasSurface";
+import { VideoCompareStrip } from "./VideoCompareStrip";
+import { compareLabel } from "@/lib/video/resultLabel";
 import {
   useJobQueueStore,
   selectVideoActive,
@@ -28,7 +31,6 @@ import {
 import { VideoPlayer } from "@/components/video/VideoPlayer";
 import { VideoCompare } from "@/components/video/VideoCompare";
 import { VideoResultActions } from "@/components/video/VideoResultActions";
-import { useDropTarget } from "@/hooks/useDropTarget";
 import { payloadToFile } from "@/lib/sendTo";
 import type { DragPayload } from "@/stores/dragStore";
 import { Button } from "@/components/ui/button";
@@ -41,13 +43,7 @@ import {
   probeVideoFile,
   referenceAccept,
 } from "@/lib/video/referenceMedia";
-import { contrastText, cn, resolveImageSrc } from "@/lib/utils";
-
-const DOMAIN_LABELS: Record<string, string> = {
-  video: "Models",
-  framepack: "FP",
-  ltx: "LTX",
-};
+import { contrastText, resolveImageSrc } from "@/lib/utils";
 
 export function VideoCanvasView() {
   const layout = useVideoFrameLayout();
@@ -66,8 +62,9 @@ export function VideoCanvasView() {
 
   const results = useVideoStore((s) => s.results);
   const selectedResultId = useVideoStore((s) => s.selectedResultId);
-  const selectResult = useVideoStore((s) => s.selectResult);
-  const clearResults = useVideoStore((s) => s.clearResults);
+  const compareA = useVideoStore((s) => s.compareA);
+  const compareB = useVideoStore((s) => s.compareB);
+  const compareOpen = useVideoStore((s) => s.compareOpen);
   const initStrength = useVideoStore((s) => s.initStrength);
   const videoWidth = useVideoStore((s) => s.width);
   const videoHeight = useVideoStore((s) => s.height);
@@ -98,49 +95,20 @@ export function VideoCanvasView() {
       }
     : null;
 
-  // Compare mode
-  const [compareMode, setCompareMode] = useState(false);
-  const [compareIds, setCompareIds] = useState<[string | null, string | null]>([null, null]);
-
-  const handleCompareToggle = useCallback(() => {
-    if (compareMode) {
-      setCompareMode(false);
-      setCompareIds([null, null]);
-    } else if (results.length >= 2) {
-      setCompareMode(true);
-      setCompareIds([results[0]?.id ?? null, results[1]?.id ?? null]);
-    }
-  }, [compareMode, results]);
-
-  const handleCompareSelect = useCallback(
-    (id: string) => {
-      if (!compareMode) {
-        selectResult(id);
-        return;
-      }
-      setCompareIds((prev) => {
-        if (prev[0] === id) return prev;
-        if (prev[1] === id) return prev;
-        return [prev[1], id];
-      });
-    },
-    [compareMode, selectResult],
-  );
-
   const compareLeft = useMemo(
-    () => results.find((r) => r.id === compareIds[0]) ?? null,
-    [results, compareIds],
+    () => results.find((r) => r.id === compareA) ?? null,
+    [results, compareA],
   );
   const compareRight = useMemo(
-    () => results.find((r) => r.id === compareIds[1]) ?? null,
-    [results, compareIds],
+    () => results.find((r) => r.id === compareB) ?? null,
+    [results, compareB],
   );
+  const comparing = compareOpen && compareLeft !== null && compareRight !== null;
 
   // File input refs for click-to-pick
   const initInputRef = useRef<HTMLInputElement>(null);
   const lastInputRef = useRef<HTMLInputElement>(null);
   const referencesInputRef = useRef<HTMLInputElement>(null);
-  const overlayRef = useRef<HTMLDivElement>(null);
 
   const handlePickImage = useCallback((which: VideoSlotId) => {
     if (which === "init") initInputRef.current?.click();
@@ -242,73 +210,44 @@ export function VideoCanvasView() {
     [handleFileSelected, maxReferences],
   );
 
-  // A gesture moves the stage imperatively and only commits on release, so the
-  // chrome rides the same delta until the store catches up.
-  useEffect(() => {
-    return videoViewport.bus.subscribe((vp) => {
-      if (!overlayRef.current) return;
-      const base = videoViewport.getCommitted();
-      const ratio = vp.scale / base.scale;
-      const dx = vp.x - base.x * ratio;
-      const dy = vp.y - base.y * ratio;
-      overlayRef.current.style.transform = `translate(${dx}px, ${dy}px) scale(${ratio})`;
-    });
-  }, []);
-
-  // A committed change re-renders the chrome at the new viewport, so the delta
-  // has to clear or it double-applies.
-  useEffect(() => {
-    return videoViewport.subscribe(() => {
-      if (overlayRef.current) overlayRef.current.style.transform = "";
-    });
-  }, []);
-
   // Hit-test: which visible input slot a drop lands on; outside every band
   // falls back to the first visible input slot
   const hitTestTarget = useCallback(
-    (e: React.DragEvent): VideoSlotId => {
-      const vp = useVideoCanvasStore.getState().viewport;
-      const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-      const screenX = e.clientX - rect.left;
-      const canvasX = (screenX - vp.x) / vp.scale;
+    (point: SurfacePoint): VideoSlotId => {
       const bands: [VideoSlotId, number][] = [];
       if (layout.showInit) bands.push(["init", layout.initX]);
       if (layout.showLast) bands.push(["last", layout.lastX]);
       if (layout.showReferences) bands.push(["references", layout.referencesX]);
       for (const [slot, x] of bands) {
-        if (canvasX >= x && canvasX < x + layout.displayW) return slot;
+        if (point.canvasX >= x && point.canvasX < x + layout.displayW) return slot;
       }
       return bands[0]?.[0] ?? "init";
     },
     [layout],
   );
 
-  const handleDropFile = useCallback(
-    async (file: File, e: React.DragEvent) => {
-      await handleFileSelected(hitTestTarget(e), file);
+  const handleDropFiles = useCallback(
+    (files: File[], point: SurfacePoint) => {
+      const target = hitTestTarget(point);
+      for (const file of files) void handleFileSelected(target, file);
     },
     [handleFileSelected, hitTestTarget],
   );
 
-  const { isOver, ...dropHandlers } = useDropTarget({
-    onDropPayload: useCallback(
-      (payload: DragPayload, e: React.DragEvent) => {
-        const target = hitTestTarget(e);
-        payloadToFile(payload)
-          .then((f: File) => handleFileSelected(target, f))
-          .catch(() => {});
-      },
-      [hitTestTarget, handleFileSelected],
-    ),
-    onFileDrop: (f, e) => void handleDropFile(f, e),
-  });
+  const handleDropPayload = useCallback(
+    (payload: DragPayload, point: SurfacePoint) => {
+      const target = hitTestTarget(point);
+      payloadToFile(payload)
+        .then((f: File) => handleFileSelected(target, f))
+        .catch(() => {});
+    },
+    [hitTestTarget, handleFileSelected],
+  );
 
   // Paste targets the last slot the user touched, not a hardcoded one
-  const handlePaste = useCallback(
-    async (e: React.ClipboardEvent) => {
-      const item = Array.from(e.clipboardData.items).find((i) => i.type.startsWith("image/"));
-      if (!item) return;
-      const file = item.getAsFile();
+  const handlePasteFiles = useCallback(
+    (files: File[]) => {
+      const file = files[0];
       if (!file) return;
       const active = useVideoCanvasStore.getState().activeSlot;
       const visible =
@@ -320,7 +259,7 @@ export function VideoCanvasView() {
         : layout.showReferences
           ? "references"
           : "last";
-      await handleFileSelected(visible ? active : fallback, file);
+      void handleFileSelected(visible ? active : fallback, file);
     },
     [handleFileSelected, layout],
   );
@@ -357,23 +296,14 @@ export function VideoCanvasView() {
   const outputTextColor = contrastText(OUTPUT_COLOR);
 
   return (
-    <div
-      className={cn("h-full flex flex-col", isOver && "ring-2 ring-primary ring-inset")}
-      {...dropHandlers}
-      onPaste={(e) => void handlePaste(e)}
-      tabIndex={-1}
-    >
-      {/* Canvas + overlays. overflow-hidden clips the floating headers: their
-          wrapper is transformed during pan and would otherwise push past the
-          container and scroll the page. */}
-      <div className="flex-1 relative min-h-0 overflow-hidden">
-        <VideoCanvasStage layout={layout} onPickImage={handlePickImage} />
-
-        {/* Floating headers - delta-transform wrapper for zero-render pan/zoom */}
-        <div
-          ref={overlayRef}
-          style={{ position: "absolute", inset: 0, pointerEvents: "none", transformOrigin: "0 0" }}
-        >
+    <CanvasSurface
+      viewport={videoViewport}
+      onDropFiles={handleDropFiles}
+      onDropPayload={handleDropPayload}
+      onPasteFiles={handlePasteFiles}
+      below={results.length > 0 ? <VideoCompareStrip /> : null}
+      overlay={
+        <>
           {/* Floating header: Init frame */}
           {layout.showInit && (
             <FrameHeader
@@ -545,10 +475,10 @@ export function VideoCanvasView() {
             }
           />
 
-          {/* Video player overlay at the output frame. Lives inside the
-              delta-transform wrapper so it tracks a drag: pan only commits
-              to the store on release, so positioning it from the store
-              viewport left it trailing the cursor and escaping the frame. */}
+          {/* The player sits in the overlay slot rather than pinned to the
+              container: pan only commits to the store on release, so a
+              player positioned from the store viewport trails the cursor
+              and escapes its frame for the length of a drag. */}
           {showVideoOverlay && (
             <div
               className="absolute overflow-hidden"
@@ -557,18 +487,15 @@ export function VideoCanvasView() {
                 top: `${outputScreenY}px`,
                 width: `${outputScreenW}px`,
                 height: `${outputScreenH}px`,
-                pointerEvents:
-                  selectedResult?.videoUrl || (compareMode && compareLeft?.videoUrl)
-                    ? "auto"
-                    : "none",
+                pointerEvents: comparing || selectedResult?.videoUrl ? "auto" : "none",
               }}
             >
-              {compareMode && compareLeft?.videoUrl && compareRight?.videoUrl ? (
+              {comparing ? (
                 <VideoCompare
                   leftSrc={resolveImageSrc(compareLeft.videoUrl)}
                   rightSrc={resolveImageSrc(compareRight.videoUrl)}
-                  leftLabel={DOMAIN_LABELS[compareLeft.domain] ?? compareLeft.domain}
-                  rightLabel={DOMAIN_LABELS[compareRight.domain] ?? compareRight.domain}
+                  leftLabel={compareLabel("A", compareLeft)}
+                  rightLabel={compareLabel("B", compareRight)}
                 />
               ) : !isGenerating && selectedResult?.videoUrl ? (
                 isStillResult(selectedResult) ? (
@@ -586,132 +513,70 @@ export function VideoCanvasView() {
               ) : null}
             </div>
           )}
-        </div>
+        </>
+      }
+    >
+      <VideoCanvasStage layout={layout} onPickImage={handlePickImage} />
 
-        {/* Progress overlay during generation */}
-        {isGenerating && (
-          <div className="absolute inset-x-0 bottom-0 p-4 pointer-events-none">
-            <div className="flex flex-col gap-1 bg-background/80 backdrop-blur-sm rounded-lg px-3 py-2">
-              {stepInfo && (stepInfo.step > 0 || stepInfo.textinfo) && (
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  {stepInfo.steps > 0 && (
-                    <span className="font-mono tabular-nums">
-                      Step {stepInfo.step}/{stepInfo.steps}
-                    </span>
-                  )}
-                  {stepInfo.textinfo && (
-                    <>
-                      <span className="text-muted-foreground/40">|</span>
-                      <span className="truncate">{stepInfo.textinfo}</span>
-                    </>
-                  )}
-                </div>
-              )}
-              <div className="flex items-center gap-2">
-                <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-primary rounded-full transition-[width] duration-300"
-                    style={{ width: `${progressPct}%` }}
-                  />
-                </div>
-                <span className="text-xs text-muted-foreground font-mono tabular-nums min-w-[3ch]">
-                  {progressPct}%
-                </span>
+      {/* Progress overlay during generation */}
+      {isGenerating && (
+        <div className="absolute inset-x-0 bottom-0 p-4 pointer-events-none">
+          <div className="flex flex-col gap-1 bg-background/80 backdrop-blur-sm rounded-lg px-3 py-2">
+            {stepInfo && (stepInfo.step > 0 || stepInfo.textinfo) && (
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                {stepInfo.steps > 0 && (
+                  <span className="font-mono tabular-nums">
+                    Step {stepInfo.step}/{stepInfo.steps}
+                  </span>
+                )}
+                {stepInfo.textinfo && (
+                  <>
+                    <span className="text-muted-foreground/40">|</span>
+                    <span className="truncate">{stepInfo.textinfo}</span>
+                  </>
+                )}
               </div>
-            </div>
-          </div>
-        )}
-
-        {/* Hidden file inputs */}
-        <input
-          ref={initInputRef}
-          type="file"
-          accept="image/*"
-          className="hidden"
-          onChange={handleInputChange("init")}
-        />
-
-        <input
-          ref={lastInputRef}
-          type="file"
-          accept="image/*"
-          className="hidden"
-          onChange={handleInputChange("last")}
-        />
-
-        <input
-          ref={referencesInputRef}
-          type="file"
-          accept={referenceAccept(refCaps)}
-          multiple
-          className="hidden"
-          onChange={handleInputChange("references")}
-        />
-      </div>
-
-      {/* Result strip */}
-      {results.length > 0 && (
-        <div className="flex-shrink-0 border-t border-border bg-muted/30 px-2 py-1.5">
-          <div className="flex items-center gap-1.5">
-            <div className="flex-1 flex items-center gap-1 overflow-x-auto scrollbar-thin">
-              {results.map((r) => (
-                <button
-                  key={r.id}
-                  onClick={() => handleCompareSelect(r.id)}
-                  className={cn(
-                    "flex-shrink-0 w-16 h-10 rounded border overflow-hidden relative group transition-all",
-                    !compareMode && r.id === selectedResultId
-                      ? "border-primary ring-1 ring-primary/30"
-                      : compareMode && (r.id === compareIds[0] || r.id === compareIds[1])
-                        ? "border-primary ring-1 ring-primary/30"
-                        : "border-border hover:border-primary/40",
-                  )}
-                >
-                  {r.thumbnailUrl ? (
-                    <img
-                      src={resolveImageSrc(r.thumbnailUrl)}
-                      alt=""
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center bg-muted">
-                      <Film size={12} className="text-muted-foreground/50" />
-                    </div>
-                  )}
-                  <div className="absolute bottom-0 left-0 right-0 px-0.5 bg-black/60">
-                    <span className="text-5xs text-white/80 font-medium">
-                      {DOMAIN_LABELS[r.domain] ?? r.domain}
-                    </span>
-                  </div>
-                  {compareMode && r.id === compareIds[0] && (
-                    <div className="absolute top-0 left-0 px-1 bg-primary text-primary-foreground text-5xs font-bold rounded-br">
-                      A
-                    </div>
-                  )}
-                  {compareMode && r.id === compareIds[1] && (
-                    <div className="absolute top-0 left-0 px-1 bg-primary text-primary-foreground text-5xs font-bold rounded-br">
-                      B
-                    </div>
-                  )}
-                </button>
-              ))}
-            </div>
-            {results.length >= 2 && (
-              <Button
-                variant={compareMode ? "default" : "ghost"}
-                size="icon-sm"
-                onClick={handleCompareToggle}
-                title={compareMode ? "Exit compare" : "Compare two results"}
-              >
-                {compareMode ? <X size={12} /> : <Columns2 size={12} />}
-              </Button>
             )}
-            <Button variant="ghost" size="icon-sm" onClick={clearResults} title="Clear history">
-              <Trash2 size={12} />
-            </Button>
+            <div className="flex items-center gap-2">
+              <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-primary rounded-full transition-[width] duration-300"
+                  style={{ width: `${progressPct}%` }}
+                />
+              </div>
+              <span className="text-xs text-muted-foreground font-mono tabular-nums min-w-[3ch]">
+                {progressPct}%
+              </span>
+            </div>
           </div>
         </div>
       )}
-    </div>
+
+      {/* Hidden file inputs */}
+      <input
+        ref={initInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={handleInputChange("init")}
+      />
+
+      <input
+        ref={lastInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={handleInputChange("last")}
+      />
+
+      <input
+        ref={referencesInputRef}
+        type="file"
+        accept={referenceAccept(refCaps)}
+        multiple
+        className="hidden"
+        onChange={handleInputChange("references")}
+      />
+    </CanvasSurface>
   );
 }

@@ -22,3 +22,8 @@ export function resultMeta(result: VideoResult): string[] {
   out.push(`${result.width}x${result.height}`);
   return out;
 }
+
+/** Slot letter plus the facts, so two takes of one model stay distinct. */
+export function compareLabel(slot: string, result: VideoResult): string {
+  return [slot, ...resultMeta(result)].join(" - ");
+}
