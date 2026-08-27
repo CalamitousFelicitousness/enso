@@ -1,6 +1,6 @@
 import path from "path";
 import { execFileSync } from "node:child_process";
-import { defineConfig, loadEnv, type Plugin } from "vite";
+import { defineConfig, loadEnv, type Plugin, type UserConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import { VitePWA } from "vite-plugin-pwa";
@@ -8,8 +8,6 @@ import { paletteCodegenPlugin } from "./vite/palette-codegen-plugin.ts";
 import { openapiCodegenPlugin } from "./vite/openapi-codegen-plugin.ts";
 import { localeCodegenPlugin } from "./vite/locale-codegen-plugin.ts";
 import { detectBackendPort } from "./vite/backend-port.ts";
-
-const detectedPort = await detectBackendPort(process.env.BACKEND_PORT);
 
 function resolveBuildInfo(mode: string) {
   let sha = process.env.GITHUB_SHA;
@@ -39,13 +37,16 @@ function versionJsonPlugin(buildInfo: ReturnType<typeof resolveBuildInfo>): Plug
   };
 }
 
-export default defineConfig(({ mode }) => {
+export default defineConfig(async ({ mode }): Promise<UserConfig> => {
   const env = loadEnv(mode, __dirname, "");
   const buildInfo = resolveBuildInfo(mode);
   const isVercel = !!process.env.VERCEL;
   const devPort = parseInt(env.DEV_PORT || (isVercel ? "5173" : "5174"), 10);
   const standalone = env.STANDALONE === "true" || isVercel;
-  const backendPort = standalone ? "0" : detectedPort;
+  // Resolved here rather than at module scope: loadEnv is what reads
+  // .env.local, so detecting earlier ignored a BACKEND_PORT set there and
+  // only honoured one exported in the shell.
+  const backendPort = standalone ? "0" : await detectBackendPort(env.BACKEND_PORT);
   const backend = `http://localhost:${backendPort}`;
   if (!standalone) console.log(`\x1b[36m[enso]\x1b[0m SD.Next backend at ${backend}`);
 
