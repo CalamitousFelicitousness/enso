@@ -1,6 +1,10 @@
 import { memo, useCallback, useMemo, useState } from "react";
-import { ArrowLeftRight, Columns2, GitCompare, PinOff, X } from "lucide-react";
+import { ArrowLeftRight, Columns2, GitCompare, Pin, PinOff, X } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { useRegisterCommand } from "@/lib/commandRegistry";
+import { useUiStore } from "@/stores/uiStore";
+import { MAX_PINNED } from "@/lib/video/history";
 import { useVideoStore, type CompareSlot } from "@/stores/videoStore";
 import { ParamDiffDialog } from "./ParamDiffDialog";
 import { CompareSlotTile } from "./CompareSlotTile";
@@ -34,6 +38,83 @@ export const VideoCompareStrip = memo(function VideoCompareStrip() {
   const setSlot = useCallback((slot: CompareSlot, id: string | null) => {
     useVideoStore.getState().setCompareSlot(slot, id);
   }, []);
+
+  // Palette entries, scoped to the view: KeepAlive keeps this mounted after
+  // the user leaves, and ids are one-per-registry.
+  const isVideoView = useUiStore((s) => s.activeNavView === "video");
+  useRegisterCommand(
+    {
+      id: "video:compare-toggle",
+      label: "Toggle video comparison",
+      group: "Video",
+      keywords: ["ab", "a/b", "side by side", "versus"],
+      icon: Columns2,
+      run: () => {
+        const store = useVideoStore.getState();
+        if (!store.compareA || !store.compareB) {
+          toast.warning("Send two results to compare first");
+          return;
+        }
+        store.setCompareOpen(!store.compareOpen);
+      },
+    },
+    isVideoView,
+  );
+  useRegisterCommand(
+    {
+      id: "video:compare-swap",
+      label: "Swap compare A and B",
+      group: "Video",
+      keywords: ["ab", "promote", "incumbent", "challenger"],
+      icon: ArrowLeftRight,
+      run: () => useVideoStore.getState().swapCompare(),
+    },
+    isVideoView,
+  );
+  useRegisterCommand(
+    {
+      id: "video:compare-clear",
+      label: "Clear video comparison",
+      group: "Video",
+      keywords: ["ab", "reset", "empty"],
+      icon: X,
+      run: () => useVideoStore.getState().clearCompare(),
+    },
+    isVideoView,
+  );
+  useRegisterCommand(
+    {
+      id: "video:send-selected-to-compare",
+      label: "Send selected result to compare",
+      group: "Video",
+      keywords: ["ab", "challenger", "judge"],
+      icon: Columns2,
+      run: () => {
+        const store = useVideoStore.getState();
+        if (store.selectedResultId) store.sendToCompare(store.selectedResultId);
+      },
+    },
+    isVideoView,
+  );
+  useRegisterCommand(
+    {
+      id: "video:pin-selected",
+      label: "Pin selected result",
+      group: "Video",
+      keywords: ["keep", "working set", "favourite", "favorite"],
+      icon: Pin,
+      run: () => {
+        const store = useVideoStore.getState();
+        if (!store.selectedResultId) return;
+        if (!store.togglePin(store.selectedResultId)) {
+          toast.warning(`Pin limit reached (${MAX_PINNED})`, {
+            description: "Unpin a result to make room.",
+          });
+        }
+      },
+    },
+    isVideoView,
+  );
 
   const renderPinnedActions = useCallback(
     (result: VideoResult) => (
