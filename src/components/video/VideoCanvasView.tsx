@@ -590,7 +590,6 @@ export function VideoCanvasView() {
           )}
         </div>
 
-
         {/* Progress overlay during generation */}
         {isGenerating && (
           <div className="absolute inset-x-0 bottom-0 p-4 pointer-events-none">
