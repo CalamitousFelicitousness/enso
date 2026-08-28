@@ -15,6 +15,8 @@ from PIL import Image
 from pydantic import BaseModel, Field  # pylint: disable=no-name-in-module
 from starlette.websockets import WebSocket, WebSocketState
 
+from enso_api.video_result import sibling_thumb
+
 debug = log.debug if os.environ.get("SD_BROWSER_DEBUG", None) is not None else lambda *args, **kwargs: None
 
 
@@ -172,15 +174,26 @@ def register_api(app: FastAPI):  # register api
 
         try:
             stat_size, stat_mtime = modelstats.stat(filepath)
-            frames, fps, duration, width, height, codec, frame = get_video_params(filepath, capture=True)
+            # Reusing the first-frame jpg written at save time skips the decode and the
+            # full-resolution resample; reading it first lets a truncated one fall back.
+            source = None
+            thumb = sibling_thumb(filepath)
+            if thumb is not None:
+                try:
+                    with Image.open(thumb) as sibling:
+                        source = sibling.convert("RGB")
+                except Exception as e:
+                    log.debug(f'Gallery video: sibling thumb unusable file="{thumb}" {e}')
+            frames, fps, duration, width, height, codec, frame = get_video_params(filepath, capture=source is None)
             h = shared.opts.extra_networks_card_size
             w = shared.opts.extra_networks_card_size if shared.opts.browser_fixed_width else width * h // height
-            frame = frame.convert("RGB")
-            frame.thumbnail((w, h), Image.Resampling.HAMMING)
+            if source is None:
+                source = frame.convert("RGB")
+            source.thumbnail((w, h), Image.Resampling.HAMMING)
             buffered = io.BytesIO()
-            frame.save(buffered, format="jpeg")
+            source.save(buffered, format="jpeg")
             data_url = f"data:image/jpeg;base64,{base64.b64encode(buffered.getvalue()).decode('ascii')}"
-            frame.close()
+            source.close()
             return {
                 "exif": f"Codec: {codec}, Frames: {frames}, Duration: {duration:.2f} sec, FPS: {fps:.2f}",
                 "data": data_url,
