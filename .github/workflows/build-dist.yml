@@ -2,7 +2,7 @@ name: build-dist
 
 on:
   push:
-    branches: [master]
+    branches: [master, dev]
 
 permissions: {}
 
