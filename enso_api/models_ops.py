@@ -7,6 +7,7 @@ only accessible through the Gradio UI.
 import inspect
 import os
 
+from fastapi import HTTPException
 from modules import shared
 from modules.logger import log
 
@@ -481,9 +482,12 @@ def post_metadata_scan():
     from modules.civitai import metadata_civitai
 
     results = []
-    for batch in metadata_civitai.civit_search_metadata(raw=True):
-        if isinstance(batch, list):
-            results = batch
+    try:
+        for batch in metadata_civitai.civit_search_metadata(raw=True):
+            if isinstance(batch, list):
+                results = batch
+    except metadata_civitai.SweepBusy as e:
+        raise HTTPException(status_code=409, detail=str(e)) from e
     return {"results": results}
 
 
@@ -497,9 +501,12 @@ def post_metadata_update():
     from modules.civitai import metadata_civitai
 
     items = []
-    for batch in metadata_civitai.civit_update_metadata(raw=True):
-        if isinstance(batch, list):
-            items = batch
+    try:
+        for batch in metadata_civitai.civit_update_metadata(raw=True):
+            if isinstance(batch, list):
+                items = batch
+    except metadata_civitai.SweepBusy as e:
+        raise HTTPException(status_code=409, detail=str(e)) from e
     results = []
     for item in items:
         results.append(
