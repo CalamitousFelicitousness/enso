@@ -50,6 +50,7 @@ JOB_TYPE_META: dict[str, dict[str, str]] = {
     "loader-load": {"title": "Custom Loader", "category": "model-management"},
     "lora-extract": {"title": "Extract LoRA", "category": "model-management"},
     "hf-download": {"title": "HuggingFace Download", "category": "model-management"},
+    "metadata-sweep": {"title": "CivitAI Metadata Sweep", "category": "model-management"},
     "rembg": {"title": "Background Remove", "category": "model-management"},
     "cloud_image": {"title": "Cloud: Image", "category": "cloud"},
     "cloud_chat": {"title": "Cloud: Chat", "category": "cloud"},

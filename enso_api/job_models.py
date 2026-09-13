@@ -1006,6 +1006,13 @@ class HfDownloadParams(JobBase):
     custom_pipeline: str = ""
 
 
+class MetadataSweepParams(JobBase):
+    """Sweep local models against CivitAI metadata."""
+
+    type: Literal["metadata-sweep"] = "metadata-sweep"
+    mode: Literal["scan", "update"] = Field(default="scan", description="scan reports matches; update writes sidecars and previews")
+
+
 class RembgParams(JobBase):
     """Background removal."""
 
@@ -1042,6 +1049,7 @@ JobRequest = Annotated[
     | LoaderLoadParams
     | LoraExtractParams
     | HfDownloadParams
+    | MetadataSweepParams
     | RembgParams
     | CloudImageParams
     | CloudChatParams

@@ -260,10 +260,17 @@ export interface RembgJobParams {
   priority?: number | undefined;
 }
 
+export interface MetadataSweepJobParams {
+  type: "metadata-sweep";
+  mode?: "scan" | "update" | undefined;
+  priority?: number | undefined;
+}
+
 export type JobRequest =
   | GenerateJobRequest
   | UpscaleJobParams
   | RembgJobParams
+  | MetadataSweepJobParams
   | CaptionJobParams
   | EnhanceJobParams
   | DetectJobParams

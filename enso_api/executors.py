@@ -1336,6 +1336,50 @@ def execute_hf_download(params: dict, job_id: str) -> dict:  # pylint: disable=u
     return {"images": [], "info": {"status": result}, "params": {k: v for k, v in params.items() if k != "type"}}
 
 
+class MetadataSweepBusy(Exception):
+    """Another CivitAI metadata sweep already holds the lock."""
+
+    code = 409
+
+
+def execute_metadata_sweep(params: dict, job_id: str) -> dict:  # pylint: disable=unused-argument
+    """Sweep local models against CivitAI metadata.
+
+    Both sweeps share one lock in sdnext. The first update run hashes every
+    uncached checkpoint inline and reports through shared.state as 'CivitAI hash'.
+    """
+    from modules.civitai import metadata_civitai
+
+    mode = params.get("mode", "scan")
+    sweep = metadata_civitai.civit_update_metadata if mode == "update" else metadata_civitai.civit_search_metadata
+
+    items = []
+    try:
+        for batch in sweep(raw=True):
+            if isinstance(batch, list):
+                items = batch
+    except metadata_civitai.SweepBusy as e:
+        raise MetadataSweepBusy(str(e)) from e
+
+    if mode == "update":
+        results = [
+            {
+                "file": getattr(item, "file", None),
+                "id": getattr(item, "id", None),
+                "name": getattr(item, "name", None),
+                "sha": getattr(item, "sha", None),
+                "versions": getattr(item, "versions", None),
+                "latest": getattr(item, "latest_name", None),
+                "status": getattr(item, "status", None),
+            }
+            for item in items
+        ]
+    else:
+        results = items
+
+    return {"images": [], "info": {"mode": mode, "results": results}, "params": {k: v for k, v in params.items() if k != "type"}}
+
+
 def execute_rembg(params: dict, job_id: str) -> dict:
     from modules import shared
     from modules.api import helpers
@@ -1413,6 +1457,9 @@ EXECUTORS = {
     "loader-load": {"fn": execute_loader_load, "lock": True},
     "lora-extract": {"fn": execute_lora_extract, "lock": True},
     "hf-download": {"fn": execute_hf_download, "lock": True},
+    # the sweep drives shared.state for its own progress, so it cannot overlap a
+    # generation; the lock is also what routes cancel through state.interrupt()
+    "metadata-sweep": {"fn": execute_metadata_sweep, "lock": True},
     "rembg": {"fn": execute_rembg, "lock": True},
     "cloud_image": {"fn": execute_cloud_image, "lock": False},
     "cloud_chat": {"fn": execute_cloud_chat, "lock": False},
