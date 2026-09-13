@@ -97,13 +97,6 @@ function TokenSection({ configured }: { configured: boolean }) {
     return (
       <div className="flex items-center gap-2">
         <Check className="h-3 w-3 text-green-500 shrink-0" />
-        {profile?.profilePicture || profile?.image ? (
-          <img
-            src={profile.profilePicture ?? profile.image!}
-            alt=""
-            className="h-6 w-6 rounded-full shrink-0 object-cover"
-          />
-        ) : null}
         <span className="text-xs text-muted-foreground">
           {profile?.username ? `Signed in as ${profile.username}` : "API token configured"}
         </span>

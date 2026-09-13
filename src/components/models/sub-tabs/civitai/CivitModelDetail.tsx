@@ -13,7 +13,7 @@ import {
   Ban,
   MessageSquareText,
   X,
-  Heart,
+  ThumbsUp,
   Star,
   ShieldAlert,
   ArrowDownToLine,
@@ -176,6 +176,8 @@ function ImageStrip({
   );
 }
 
+// Civitai retired favoriteCount and rating; thumbsUpCount is the surviving
+// approval metric and the only one present on version-level stats.
 function StatsRow({ stats, className }: { stats: CivitStats; className?: string }) {
   return (
     <div className={`flex items-center gap-3 text-xs text-muted-foreground ${className ?? ""}`}>
@@ -184,15 +186,9 @@ function StatsRow({ stats, className }: { stats: CivitStats; className?: string 
         {formatCount(stats.downloadCount)}
       </span>
       <span className="flex items-center gap-1">
-        <Heart className="h-3 w-3" />
-        {formatCount(stats.favoriteCount)}
+        <ThumbsUp className="h-3 w-3" />
+        {formatCount(stats.thumbsUpCount)}
       </span>
-      {stats.rating > 0 && (
-        <span className="flex items-center gap-1">
-          <Star className="h-3 w-3" />
-          {stats.rating.toFixed(1)}
-        </span>
-      )}
     </div>
   );
 }
@@ -303,9 +299,10 @@ function VersionSection({
   const trainingTags = trainingMeta ? topTrainingTags(trainingMeta) : [];
 
   const isEarlyAccess = version.availability === "EarlyAccess";
-  // The Buzz price lives only on the per-version endpoint (the model payload
-  // carries availability but no config), so fetch it lazily once an
-  // early-access section is expanded.
+  // Civitai dropped earlyAccessConfig and earlyAccessEndsAt from the version
+  // endpoint, so buzzPrice and freeIn stay null and the price and countdown
+  // render their plain Early Access fallbacks. availability still resolves
+  // from the model payload, so the badge and gated button are unaffected.
   const { data: eaVersion } = useCivitVersion(open && isEarlyAccess ? version.id : null);
   const eaConfig = eaVersion?.earlyAccessConfig;
   const buzzPrice = eaConfig?.chargeForDownload ? (eaConfig.downloadPrice ?? null) : null;

@@ -18,6 +18,7 @@ export interface CivitFileHashes {
   AutoV3: string | null;
   CRC32: string | null;
   BLAKE3: string | null;
+  SHA256_12?: string | null;
 }
 
 export interface CivitFileMetadata {
@@ -41,14 +42,15 @@ export interface CivitFile {
   scannedAt?: string | null;
 }
 
+// Civitai retired favoriteCount, ratingCount and rating. tippedAmountCount is
+// optional because the backend gained it after these fields were removed, so a
+// server that predates that change omits it.
 export interface CivitStats {
   downloadCount: number;
-  favoriteCount: number;
   thumbsUpCount: number;
   thumbsDownCount: number;
   commentCount: number;
-  ratingCount: number;
-  rating: number;
+  tippedAmountCount?: number;
 }
 
 // Early-access pricing set by the model creator. Only present on per-version
@@ -248,11 +250,16 @@ export interface CivitCreatorResponse {
   metadata: CivitSearchMetadata;
 }
 
+// /me carries no image field. tier is absent on some accounts rather than
+// defaulting to "free", so it is nullable as well as optional. Element type of
+// subscriptions is unknown - no non-empty sample has been seen.
 export interface CivitUserProfile {
   id: number;
   username: string;
-  image: string | null;
-  profilePicture: string | null;
+  tier?: string | null;
+  status?: string | null;
+  isMember?: boolean;
+  subscriptions?: unknown[];
 }
 
 export interface CivitCheckLocalRequest {
