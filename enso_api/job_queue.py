@@ -449,6 +449,15 @@ class JobQueue:
                     steps = state.sampling_steps
                     progress_val = status.progress if hasattr(status, "progress") else 0
                     eta_val = status.eta if hasattr(status, "eta") else None
+                    # Item-count jobs (metadata sweeps, hashing) never set
+                    # sampling_steps, which zeroes status.progress and eta
+                    if steps == 0 and getattr(status, "jobs", 0) > 0:
+                        step = getattr(status, "job", 0)
+                        steps = status.jobs
+                        progress_val = round(min(1, step / steps), 2)
+                        elapsed = getattr(status, "elapsed", None)
+                        if progress_val > 0 and elapsed:
+                            eta_val = round(elapsed / progress_val - elapsed, 2)
                     progress_event = WsEventProgress(
                         step=step,
                         steps=steps,
