@@ -39,9 +39,10 @@ export function CivitDownloadQueue() {
   // query cache.
   const completedNewestFirst = [...completedItems].reverse();
 
-  // Invalidate check-local when downloads newly complete. The backend holds
-  // completed in a bounded deque, so its length stops growing once saturated;
-  // track ids. Seed silently so mount doesn't refetch for already-seen items.
+  // Refetch ticks and model lists when downloads newly complete; sdnext appends
+  // to completed only after registering the file with its loader. The backend
+  // holds completed in a bounded deque, so its length stops growing once
+  // saturated; track ids. Seed silently so mount does not refetch seen items.
   const seenCompleted = useRef<Set<string> | null>(null);
   useEffect(() => {
     const done = (statusData?.completed ?? []).filter((d) => d.status === "completed");
@@ -56,7 +57,14 @@ export function CivitDownloadQueue() {
         fresh = true;
       }
     }
-    if (fresh) void qc.invalidateQueries({ queryKey: ["civitai-check-local"] });
+    if (fresh) {
+      void qc.invalidateQueries({ queryKey: ["civitai-check-local"] });
+      void qc.invalidateQueries({ queryKey: ["extra-networks"] });
+      void qc.invalidateQueries({ queryKey: ["models"] });
+      void qc.invalidateQueries({ queryKey: ["vaes"] });
+      // sd_unet and sd_vae dropdown choices are served from options-info.
+      void qc.invalidateQueries({ queryKey: ["options-info"] });
+    }
   }, [statusData, qc]);
 
   if (totalCount === 0) return null;
