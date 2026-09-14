@@ -5368,6 +5368,42 @@
         "title": "MessageResponse",
         "type": "object"
       },
+      "MetadataSweepParams": {
+        "additionalProperties": false,
+        "description": "Sweep local models against CivitAI metadata.",
+        "properties": {
+          "live_previews": {
+            "default": true,
+            "description": "Stream live latent previews over WebSocket; set false to skip the per-step preview decode",
+            "title": "Live Previews",
+            "type": "boolean"
+          },
+          "mode": {
+            "default": "scan",
+            "description": "scan reports matches; update writes sidecars and previews",
+            "enum": [
+              "scan",
+              "update"
+            ],
+            "title": "Mode",
+            "type": "string"
+          },
+          "priority": {
+            "default": 0,
+            "description": "Higher runs first; 0 is normal priority",
+            "title": "Priority",
+            "type": "integer"
+          },
+          "type": {
+            "const": "metadata-sweep",
+            "default": "metadata-sweep",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "title": "MetadataSweepParams",
+        "type": "object"
+      },
       "ModelLoadParams": {
         "additionalProperties": false,
         "description": "Load or reload an SD checkpoint.",
@@ -12130,7 +12166,7 @@
     },
     "/sdapi/v2/civitai/check-local": {
       "post": {
-        "description": "Check which SHA256 hashes correspond to locally downloaded files.",
+        "description": "Check which SHA256 hashes correspond to local model files, dropping hash cache entries whose files are gone.",
         "operationId": "post_check_local_sdapi_v2_civitai_check_local_post",
         "requestBody": {
           "content": {
@@ -13173,6 +13209,63 @@
           }
         },
         "summary": "Get Version By Hash",
+        "tags": [
+          "CivitAI"
+        ]
+      }
+    },
+    "/sdapi/v2/civitai/version/mini/{version_id}": {
+      "get": {
+        "description": "Download-shaped version view carrying permission and early-access flags.",
+        "operationId": "get_version_mini_sdapi_v2_civitai_version_mini__version_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "version_id",
+            "required": true,
+            "schema": {
+              "title": "Version Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Version Mini",
         "tags": [
           "CivitAI"
         ]
@@ -14315,6 +14408,7 @@
                     "loader-load": "#/components/schemas/LoaderLoadParams",
                     "lora-extract": "#/components/schemas/LoraExtractParams",
                     "ltx": "#/components/schemas/LtxParams",
+                    "metadata-sweep": "#/components/schemas/MetadataSweepParams",
                     "model-load": "#/components/schemas/ModelLoadParams",
                     "model-merge": "#/components/schemas/ModelMergeParams",
                     "model-replace": "#/components/schemas/ModelReplaceParams",
@@ -14381,6 +14475,9 @@
                   },
                   {
                     "$ref": "#/components/schemas/HfDownloadParams"
+                  },
+                  {
+                    "$ref": "#/components/schemas/MetadataSweepParams"
                   },
                   {
                     "$ref": "#/components/schemas/RembgParams"
