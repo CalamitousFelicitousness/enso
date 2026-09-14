@@ -130,7 +130,11 @@ export function CivitDownloadQueue() {
               <span className="truncate flex-1 min-w-0" title={item.filename}>
                 {item.filename}
               </span>
-              <Badge variant={statusColor(item.status)} className="text-4xs px-1 py-0">
+              <Badge
+                variant={statusColor(item.status)}
+                className="text-4xs px-1 py-0"
+                title={item.error ?? undefined}
+              >
                 {item.status}
               </Badge>
             </div>
