@@ -114,7 +114,7 @@ def get_list_detail():
             guess = "Diffusion"
             guess = sd_detect.guess_by_size(f, guess)
             guess = sd_detect.guess_by_name(f, guess)
-            guess, pipeline = sd_detect.guess_by_diffusers(f, guess)
+            guess, pipeline = sd_detect.guess_by_model_index(f, name=None, current_guess=guess)
             guess = sd_detect.guess_variant(f, guess)
             if pipeline is None:
                 pipeline = sd_detect.shared_items.get_pipelines().get(guess, None)
