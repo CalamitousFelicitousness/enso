@@ -1,6 +1,5 @@
 import { useCallback, useRef } from "react";
 import { useCanvasStore } from "@/stores/canvasStore";
-import { bakeMaskStrokes } from "@/lib/bakeMask";
 import type { MaskLine } from "@/stores/img2imgStore";
 import type { CanvasLayout } from "@/canvas/useControlFrameLayout";
 import type Konva from "konva";
@@ -166,10 +165,7 @@ export function useMaskPaint({ stageRef, spaceHeld, layout }: UseMaskPaintOption
           cursor.visible(false);
         }
         stage.container().style.cursor = "none";
-
-        if (!isDrawing.current) {
-          cursor?.getLayer()?.batchDraw();
-        }
+        cursor?.getLayer()?.batchDraw();
       } else {
         const cursor = cursorRef.current;
         if (cursor?.visible()) {
@@ -208,7 +204,6 @@ export function useMaskPaint({ stageRef, spaceHeld, layout }: UseMaskPaintOption
         strokeWidth: strokeWidthRef.current,
         tool: toolRef.current,
       });
-      void bakeMaskStrokes(frameId);
     }
 
     const line = activeLineRef.current;

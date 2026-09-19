@@ -5,12 +5,16 @@ import { useGenerationStore } from "@/stores/generationStore";
 import { usePanZoom } from "./tools/usePanZoom";
 import { useMaskPaint } from "./tools/useMaskPaint";
 import { useImageTransform } from "./tools/useImageTransform";
+import { useSnap } from "./tools/useSnap";
 import { InputFrameLayer } from "./layers/InputFrameLayer";
+import { MaskLayer } from "./layers/MaskLayer";
+import { ChromeLayer } from "./layers/ChromeLayer";
 import { OutputLayer } from "./layers/OutputLayer";
 import { ProcessedCompositeLayer } from "./layers/ProcessedCompositeLayer";
 import { ControlFrameLayer } from "./layers/ControlFrameLayer";
 import { getOrderedFrames, computeFocusViewport } from "./frameList";
 import type { CanvasLayout } from "./useControlFrameLayout";
+import type { InitialFramePosition } from "./inputFrameTypes";
 import { CanvasBackground } from "./CanvasBackground";
 import { mainViewport } from "./viewportAdapter";
 import { useKeepAliveVisible } from "@/components/ui/keep-alive";
@@ -53,6 +57,7 @@ export function CanvasStage({
   const canvasMode = useCanvasStore((s) => s.canvasMode);
   const focusedFrameId = useCanvasStore((s) => s.focusedFrameId);
   const focusFitTrigger = useCanvasStore((s) => s.focusFitTrigger);
+  const activeInputFrameId = useCanvasStore((s) => s.activeInputFrameId);
   const visible = useKeepAliveVisible();
 
   const panZoom = usePanZoom({
@@ -67,6 +72,32 @@ export function CanvasStage({
 
   const { outputX, processedX, showProcessedFrame, controlFrames, totalBounds, displayScale } =
     layout;
+
+  // Per-node Konva map, keyed `${frameId}:${layerId}`. Image nodes register
+  // from InputFrameLayer and mask nodes from MaskLayer; the Transformer
+  // attaches through it so its target is unambiguous across frames.
+  const nodeMap = useRef<Map<string, Konva.Image>>(new Map());
+  const setNodeRef = useCallback((frameId: string, layerId: string, node: Konva.Image | null) => {
+    const key = `${frameId}:${layerId}`;
+    if (node) nodeMap.current.set(key, node);
+    else nodeMap.current.delete(key);
+  }, []);
+
+  // Snap targets the focused Initial frame's bounds in pixel space. Using
+  // (frame.x / ds, frame.y / ds) re-expresses the display-space frame
+  // origin in pixel-space so it aligns with the per-image x/y which are
+  // already in pixel-space relative to that origin.
+  const focusedInitial = layout.inputFrames.find(
+    (f): f is InitialFramePosition => f.kind === "initial" && f.frameId === activeInputFrameId,
+  );
+  const snap = useSnap(
+    focusedInitial?.frameW ?? 0,
+    focusedInitial?.frameH ?? 0,
+    trRef,
+    focusedInitial ? focusedInitial.x / displayScale : 0,
+    focusedInitial ? focusedInitial.y / displayScale : 0,
+    displayScale,
+  );
 
   // Container-responsive sizing
   useEffect(() => {
@@ -197,18 +228,27 @@ export function CanvasStage({
             <ControlFrameLayer frames={controlFrames} onPickImage={onPickImage} />
 
             {/* InputFrameLayer renders all Input frames (Initial + Reference)
-              as canvas-native chrome and owns the Transformer, per-frame
-              image-layer interaction (drag, scale, rotate, select), per-
-              frame mask object rendering, and the active mask paint stroke
-              + brush cursor (rendered inside the focused frame's group). */}
+              as canvas-native chrome and owns per-frame image-layer
+              interaction (drag, scale, rotate, select) plus the Transformer
+              attach logic. Masks and paint strokes render on MaskLayer above
+              it; the cursor, Transformer and snap guides on ChromeLayer. */}
             <InputFrameLayer
               frames={layout.inputFrames}
               displayScale={displayScale}
               trRef={trRef}
-              setActiveLineNode={maskPaint.setActiveLineNode}
-              setCursorNode={maskPaint.setCursorNode}
+              nodeMap={nodeMap}
+              setNodeRef={setNodeRef}
+              snap={snap}
               onPickInputFile={onPickInputFile}
               onAddReferenceChild={onAddReferenceChild}
+            />
+
+            <MaskLayer
+              frames={layout.inputFrames}
+              displayScale={displayScale}
+              setNodeRef={setNodeRef}
+              snap={snap}
+              setActiveLineNode={maskPaint.setActiveLineNode}
             />
 
             <OutputLayer
@@ -224,6 +264,14 @@ export function CanvasStage({
                 height={layout.outputDisplayH}
               />
             )}
+
+            <ChromeLayer
+              focusedFrame={focusedInitial}
+              displayScale={displayScale}
+              trRef={trRef}
+              snap={snap}
+              setCursorNode={maskPaint.setCursorNode}
+            />
           </Stage>
         </>
       )}

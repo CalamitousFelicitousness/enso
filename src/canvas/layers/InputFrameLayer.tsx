@@ -1,25 +1,16 @@
-// New canvas-native chrome for the multi-Input-frame stack. One Konva
-// <Layer> rendering display-space top-level (no displayScale Group wrapper
-// at the layer root), mirroring ControlFrameLayer's convention. Each frame
-// becomes one fragment: Initial frames carry a transform Group with layer
+// Canvas-native chrome for the multi-Input-frame stack. One Konva <Layer>
+// rendering display-space top-level (no displayScale Group wrapper at the
+// layer root), mirroring ControlFrameLayer's convention. Each frame becomes
+// one fragment: Initial frames carry a transform Group with layer
 // KonvaImages in pixel-space; Reference frames render as a "mother frame
-// with grid of children" per the user's mockup.
+// with grid of children".
 //
-// this layer now owns the Transformer + image-layer
-// interaction (drag, scale, rotate, select). The Transformer attaches to
-// whichever node corresponds to the focused frame's activeLayerId.
+// Image-layer interaction (drag, scale, rotate, select) and the Transformer
+// attach logic live here. Masks render on MaskLayer, the Transformer node
+// itself on ChromeLayer; both are reached through the shared node map.
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import {
-  Circle as KonvaCircle,
-  Group,
-  Image as KonvaImage,
-  Layer,
-  Line,
-  Rect,
-  Text,
-  Transformer,
-} from "react-konva";
+import { useCallback, useEffect, useState } from "react";
+import { Group, Image as KonvaImage, Layer, Rect, Text } from "react-konva";
 import {
   INPUT_COLOR_ACTIVE,
   INPUT_COLOR_INACTIVE,
@@ -27,8 +18,8 @@ import {
 } from "@/canvas/ControlFramePanel";
 import { CornerBrackets } from "@/canvas/layers/ControlFrameLayer";
 import { useCanvasStore } from "@/stores/canvasStore";
-import type { CanvasLayer, ImageLayer, MaskObjectLayer } from "@/stores/canvasStore";
-import { useSnap } from "@/canvas/tools/useSnap";
+import type { CanvasLayer, ImageLayer } from "@/stores/canvasStore";
+import { useLayerInteraction, type Snap } from "@/canvas/tools/useLayerInteraction";
 import type { InputFrame } from "@/canvas/inputFrames";
 import type {
   InitialFramePosition,
@@ -40,17 +31,12 @@ import type Konva from "konva";
 interface InputFrameLayerProps {
   frames: InputFramePosition[];
   displayScale: number;
-  /** Transformer ref owned by CanvasStage. The Transformer node itself is
-   * rendered here so it can attach to per-frame image/mask nodes within
-   * this Layer's draw scope. */
+  /** Transformer ref owned by CanvasStage; the node renders on ChromeLayer. */
   trRef: React.RefObject<Konva.Transformer | null>;
-  /** useMaskPaint callbacks for the active stroke `<Line>` and the brush
-   * cursor `<Circle>`. The nodes get attached inside the focused Initial
-   * frame's displayScale group, so coords live in that frame's pixel
-   * space and render lines up with what eventually commits to
-   * `frame.maskLines`. */
-  setActiveLineNode?: ((node: Konva.Line | null) => void) | undefined;
-  setCursorNode?: ((node: Konva.Circle | null) => void) | undefined;
+  /** Konva nodes keyed `${frameId}:${layerId}`, shared with MaskLayer. */
+  nodeMap: React.RefObject<Map<string, Konva.Image>>;
+  setNodeRef: (frameId: string, layerId: string, node: Konva.Image | null) => void;
+  snap: Snap;
   /** Called when an empty Initial frame is clicked - opens the file picker
    * targeted at that frame. */
   onPickInputFile?: ((frameId: string) => void) | undefined;
@@ -63,85 +49,56 @@ export function InputFrameLayer({
   frames,
   displayScale,
   trRef,
-  setActiveLineNode,
-  setCursorNode,
+  nodeMap,
+  setNodeRef,
+  snap,
   onPickInputFile,
   onAddReferenceChild,
 }: InputFrameLayerProps) {
   const storeFrames = useCanvasStore((s) => s.inputFrames);
   const focusedInputFrameId = useCanvasStore((s) => s.activeInputFrameId);
   const setActiveInputFrame = useCanvasStore((s) => s.setActiveInputFrame);
-  const setActiveLayerInFrame = useCanvasStore((s) => s.setActiveLayerInFrame);
-  const updateLayerInFrame = useCanvasStore((s) => s.updateLayerInFrame);
   const activeTool = useCanvasStore((s) => s.activeTool);
   const maskVisible = useCanvasStore((s) => s.maskVisible);
-  const maskColor = useCanvasStore((s) => s.maskColor);
-  const maskColorRgb = maskColor.slice(0, 7);
-  const maskColorAlpha = maskColor.length > 7 ? parseInt(maskColor.slice(7, 9), 16) / 255 : 1;
-
-  // Per-image-layer Konva node map, keyed `${frameId}:${layerId}`. The
-  // Transformer attaches via this map so its target is unambiguous when
-  // multiple Input frames each carry their own active layer.
-  const nodeMap = useRef<Map<string, Konva.Image>>(new Map());
-  const setNodeRef = useCallback((frameId: string, layerId: string, node: Konva.Image | null) => {
-    const key = `${frameId}:${layerId}`;
-    if (node) nodeMap.current.set(key, node);
-    else nodeMap.current.delete(key);
-  }, []);
+  const interaction = useLayerInteraction(snap);
 
   const focusedFrame =
     storeFrames.find((f) => f.id === focusedInputFrameId) ?? storeFrames[0] ?? null;
-  const focusedFramePosition =
-    focusedFrame && focusedFrame.mode === "initial"
-      ? (frames.find((f) => f.kind === "initial" && f.frameId === focusedFrame.id) as
-          InitialFramePosition | undefined)
-      : undefined;
   const focusedActiveLayerId = focusedFrame?.mode === "initial" ? focusedFrame.activeLayerId : null;
 
-  // Snap targets the focused Initial frame's bounds in pixel space. Using
-  // (frame.x / ds, frame.y / ds) re-expresses the display-space frame
-  // origin in pixel-space so it aligns with the per-image x/y which are
-  // already in pixel-space relative to that origin.
-  const snap = useSnap(
-    focusedFramePosition?.frameW ?? 0,
-    focusedFramePosition?.frameH ?? 0,
-    trRef,
-    focusedFramePosition ? focusedFramePosition.x / displayScale : 0,
-    focusedFramePosition ? focusedFramePosition.y / displayScale : 0,
-    displayScale,
-  );
-
   // Attach Transformer to the focused frame's active layer when move tool
-  // is active. Locked layers and Reference-mode frames suppress attachment.
+  // is active. Locked layers, hidden masks and Reference-mode frames
+  // suppress attachment.
   useEffect(() => {
-    if (!trRef.current) return;
+    const tr = trRef.current;
+    if (!tr) return;
+    const detach = () => {
+      tr.nodes([]);
+      tr.getLayer()?.batchDraw();
+    };
     if (activeTool !== "move" || !focusedFrame || focusedFrame.mode !== "initial") {
-      trRef.current.nodes([]);
-      trRef.current.getLayer()?.batchDraw();
+      detach();
       return;
     }
     if (!focusedActiveLayerId) {
-      trRef.current.nodes([]);
-      trRef.current.getLayer()?.batchDraw();
+      detach();
       return;
     }
     const layer = focusedFrame.layers.find((l) => l.id === focusedActiveLayerId);
-    if (!layer || layer.locked) {
-      trRef.current.nodes([]);
-      trRef.current.getLayer()?.batchDraw();
+    if (!layer || layer.locked || (layer.type === "mask" && !maskVisible)) {
+      detach();
       return;
     }
-    const node = nodeMap.current.get(`${focusedFrame.id}:${focusedActiveLayerId}`);
+    const node = nodeMap.current?.get(`${focusedFrame.id}:${focusedActiveLayerId}`);
     if (node) {
-      trRef.current.nodes([node]);
-      trRef.current.getLayer()?.batchDraw();
+      tr.nodes([node]);
+      tr.getLayer()?.batchDraw();
     } else {
-      trRef.current.nodes([]);
-      trRef.current.getLayer()?.batchDraw();
+      detach();
     }
-  }, [activeTool, focusedFrame, focusedActiveLayerId, trRef, storeFrames]);
+  }, [activeTool, focusedFrame, focusedActiveLayerId, maskVisible, trRef, nodeMap, storeFrames]);
 
-  // Preload HTMLImageElement for every visible image across every frame.
+  // Preload a drawable source for every visible image across every frame.
   const [imageMap, setImageMap] = useState<Map<string, HTMLImageElement>>(new Map());
 
   useEffect(() => {
@@ -149,10 +106,9 @@ export function InputFrameLayer({
     for (const frame of storeFrames) {
       if (frame.mode === "initial") {
         for (const layer of frame.layers) {
-          if ((layer.type !== "image" && layer.type !== "mask") || !layer.visible) continue;
-          const visual = layer as ImageLayer | MaskObjectLayer;
-          if (!visual.imageData) continue;
-          needed.push({ id: layer.id, src: visual.imageData });
+          if (layer.type !== "image" || !layer.visible) continue;
+          const src = (layer as ImageLayer).imageData;
+          if (src) needed.push({ id: layer.id, src });
         }
       } else {
         for (const ref of frame.references) {
@@ -213,42 +169,6 @@ export function InputFrameLayer({
     [onAddReferenceChild],
   );
 
-  const handleLayerClick = useCallback(
-    (frameId: string, layerId: string, e: Konva.KonvaEventObject<MouseEvent>) => {
-      if (e.evt.button !== 0 || activeTool !== "move") return;
-      e.cancelBubble = true;
-      setActiveInputFrame(frameId);
-      setActiveLayerInFrame(frameId, layerId);
-    },
-    [activeTool, setActiveInputFrame, setActiveLayerInFrame],
-  );
-
-  const handleLayerDragEnd = useCallback(
-    (frameId: string, layerId: string, e: Konva.KonvaEventObject<DragEvent>) => {
-      snap.clearGuides();
-      updateLayerInFrame(frameId, layerId, {
-        x: e.target.x(),
-        y: e.target.y(),
-      } as Partial<ImageLayer>);
-    },
-    [snap, updateLayerInFrame],
-  );
-
-  const handleLayerTransformEnd = useCallback(
-    (frameId: string, layerId: string, e: Konva.KonvaEventObject<Event>) => {
-      snap.clearGuides();
-      const node = e.target as Konva.Image;
-      updateLayerInFrame(frameId, layerId, {
-        x: node.x(),
-        y: node.y(),
-        scaleX: node.scaleX(),
-        scaleY: node.scaleY(),
-        rotation: node.rotation(),
-      } as Partial<ImageLayer>);
-    },
-    [snap, updateLayerInFrame],
-  );
-
   if (frames.length === 0) return null;
 
   return (
@@ -268,16 +188,8 @@ export function InputFrameLayer({
               isFocused={isFocused}
               activeTool={activeTool}
               setNodeRef={setNodeRef}
-              snapDragMove={snap.handleDragMove}
+              interaction={interaction}
               onClick={handleInitialClick}
-              onLayerClick={handleLayerClick}
-              onLayerDragEnd={handleLayerDragEnd}
-              onLayerTransformEnd={handleLayerTransformEnd}
-              maskVisible={maskVisible}
-              maskColorRgb={maskColorRgb}
-              maskColorAlpha={maskColorAlpha}
-              setActiveLineNode={setActiveLineNode}
-              setCursorNode={setCursorNode}
             />
           );
         }
@@ -293,33 +205,6 @@ export function InputFrameLayer({
           />
         );
       })}
-
-      <Transformer
-        ref={trRef}
-        keepRatio={false}
-        enabledAnchors={[
-          "top-left",
-          "top-right",
-          "bottom-left",
-          "bottom-right",
-          "top-center",
-          "bottom-center",
-          "middle-left",
-          "middle-right",
-        ]}
-        onTransform={snap.handleTransform}
-      />
-
-      {snap.guides.map((g, i) => (
-        <Line
-          key={i}
-          points={g.orientation === "v" ? [g.pos, -5000, g.pos, 5000] : [-5000, g.pos, 5000, g.pos]}
-          stroke="#22d3ee"
-          strokeWidth={1}
-          strokeScaleEnabled={false}
-          listening={false}
-        />
-      ))}
     </Layer>
   );
 }
@@ -334,16 +219,8 @@ interface InitialFrameFragmentProps {
   isFocused: boolean;
   activeTool: string;
   setNodeRef: (frameId: string, layerId: string, node: Konva.Image | null) => void;
-  snapDragMove: (e: Konva.KonvaEventObject<DragEvent>) => void;
+  interaction: ReturnType<typeof useLayerInteraction>;
   onClick: (frameId: string, hasLayers: boolean) => void;
-  onLayerClick: (frameId: string, layerId: string, e: Konva.KonvaEventObject<MouseEvent>) => void;
-  onLayerDragEnd: (frameId: string, layerId: string, e: Konva.KonvaEventObject<DragEvent>) => void;
-  onLayerTransformEnd: (frameId: string, layerId: string, e: Konva.KonvaEventObject<Event>) => void;
-  maskVisible: boolean;
-  maskColorRgb: string;
-  maskColorAlpha: number;
-  setActiveLineNode?: ((node: Konva.Line | null) => void) | undefined;
-  setCursorNode?: ((node: Konva.Circle | null) => void) | undefined;
 }
 
 function InitialFrameFragment({
@@ -354,25 +231,12 @@ function InitialFrameFragment({
   isFocused,
   activeTool,
   setNodeRef,
-  snapDragMove,
+  interaction,
   onClick,
-  onLayerClick,
-  onLayerDragEnd,
-  onLayerTransformEnd,
-  maskVisible,
-  maskColorRgb,
-  maskColorAlpha,
-  setActiveLineNode,
-  setCursorNode,
 }: InitialFrameFragmentProps) {
   const visibleImages = storeFrame.layers.filter(
     (l: CanvasLayer): l is ImageLayer => l.type === "image" && l.visible,
   );
-  const visibleMasks = maskVisible
-    ? storeFrame.layers.filter(
-        (l: CanvasLayer): l is MaskObjectLayer => l.type === "mask" && l.visible,
-      )
-    : [];
   const hasLayers = visibleImages.length > 0;
   const borderColor = !hasLayers
     ? INPUT_COLOR_INACTIVE
@@ -417,74 +281,13 @@ function InitialFrameFragment({
               rotation={layer.rotation}
               opacity={layer.opacity}
               draggable={activeTool === "move" && !layer.locked}
-              onDragMove={snapDragMove}
-              onDragEnd={(e) => onLayerDragEnd(frame.frameId, layer.id, e)}
-              onTransformEnd={(e) => onLayerTransformEnd(frame.frameId, layer.id, e)}
-              onClick={(e) => onLayerClick(frame.frameId, layer.id, e)}
+              onDragMove={interaction.onLayerDragMove}
+              onDragEnd={(e) => interaction.onLayerDragEnd(frame.frameId, layer.id, e)}
+              onTransformEnd={(e) => interaction.onLayerTransformEnd(frame.frameId, layer.id, e)}
+              onClick={(e) => interaction.onLayerClick(frame.frameId, layer.id, e)}
             />
           );
         })}
-        {visibleMasks.map((mask: MaskObjectLayer) => {
-          const img = imageMap.get(mask.id);
-          if (!img) return null;
-          return (
-            <KonvaImage
-              key={mask.id}
-              ref={(node) => setNodeRef(frame.frameId, mask.id, node)}
-              image={img}
-              x={mask.x}
-              y={mask.y}
-              width={mask.width}
-              height={mask.height}
-              scaleX={mask.scaleX}
-              scaleY={mask.scaleY}
-              rotation={mask.rotation}
-              opacity={mask.opacity * maskColorAlpha}
-              listening={!mask.locked}
-              draggable={activeTool === "move" && !mask.locked}
-              onDragMove={snapDragMove}
-              onDragEnd={(e) => onLayerDragEnd(frame.frameId, mask.id, e)}
-              onTransformEnd={(e) => onLayerTransformEnd(frame.frameId, mask.id, e)}
-              onClick={(e) => onLayerClick(frame.frameId, mask.id, e)}
-            />
-          );
-        })}
-        {/* Active mask paint stroke + brush cursor live inside the focused
-         * frame's group so their pixel-space coords match what useMaskPaint
-         * commits to frame.maskLines. Clipped to the frame's pixel bounds
-         * so a stroke that drags off-frame doesn't visually overflow. */}
-        {isFocused && maskVisible && setActiveLineNode && (
-          <Group
-            clipFunc={(ctx) => {
-              ctx.rect(0, 0, frame.frameW, frame.frameH);
-            }}
-          >
-            <Line
-              ref={setActiveLineNode}
-              points={[]}
-              stroke={maskColorRgb}
-              strokeWidth={20}
-              opacity={maskColorAlpha}
-              lineJoin="round"
-              lineCap="round"
-              visible={false}
-              listening={false}
-            />
-          </Group>
-        )}
-        {isFocused && setCursorNode && (
-          <KonvaCircle
-            ref={setCursorNode}
-            x={0}
-            y={0}
-            radius={10}
-            stroke="#fff"
-            strokeWidth={1 / displayScale}
-            dash={[4 / displayScale, 4 / displayScale]}
-            visible={false}
-            listening={false}
-          />
-        )}
       </Group>
 
       {/* Empty-state placeholder text (display-space so font size stays

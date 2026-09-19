@@ -6,6 +6,8 @@
 // MKS2021 resize pipeline - backend-side resize quality may differ slightly at
 // mask boundaries.
 
+import { ensureMaskBitmap } from "@/lib/mask/bitmaps";
+import { MASK_ALPHA_THRESHOLD } from "@/lib/mask/components";
 import type { MaskObjectLayer } from "@/stores/canvasStore";
 import type { MaskLine } from "@/stores/img2imgStore";
 
@@ -23,18 +25,10 @@ async function renderMaskObjects(
   const loaded = await Promise.all(
     masks
       .filter((m) => m.visible)
-      .map(
-        (m) =>
-          new Promise<{ mask: MaskObjectLayer; img: HTMLImageElement }>((resolve) => {
-            const img = new Image();
-            img.onload = () => resolve({ mask: m, img });
-            img.onerror = () => resolve({ mask: m, img });
-            img.src = m.imageData;
-          }),
-      ),
+      .map(async (m) => ({ mask: m, img: await ensureMaskBitmap(m.blob) })),
   );
 
-  // Draw each mask then convert non-transparent pixels to white
+  // Draw each mask then convert covered pixels to white
   const tmpCanvas = document.createElement("canvas");
   tmpCanvas.width = ctx.canvas.width;
   tmpCanvas.height = ctx.canvas.height;
@@ -49,15 +43,16 @@ async function renderMaskObjects(
     tmpCtx.restore();
   }
 
-  // Convert colored mask pixels to white
   const imgData = tmpCtx.getImageData(0, 0, tmpCanvas.width, tmpCanvas.height);
   const data = imgData.data;
   for (let i = 0; i < data.length; i += 4) {
-    if (data[i + 3] > 0) {
+    if (data[i + 3] >= MASK_ALPHA_THRESHOLD) {
       data[i] = 255;
       data[i + 1] = 255;
       data[i + 2] = 255;
       data[i + 3] = 255;
+    } else {
+      data[i + 3] = 0;
     }
   }
   tmpCtx.putImageData(imgData, 0, 0);

@@ -160,8 +160,12 @@ interface CanvasState {
   clearLayersInFrame: (frameId: string) => void;
   restoreImageLayerToFrame: (frameId: string, blob: Blob, w: number, h: number) => void;
   getImageLayersInFrame: (frameId: string) => ImageLayer[];
-  getMaskLayersInFrame: (frameId: string) => MaskObjectLayer[];
-  replaceMaskLayersInFrame: (frameId: string, newLayers: MaskObjectLayer[]) => void;
+  /** Install a bake result: the frame's mask layers become `layers` and the
+   * first `consumedLines` strokes are dropped. */
+  applyMaskBake: (
+    frameId: string,
+    bake: { consumedLines: number; layers: MaskObjectLayer[] },
+  ) => void;
   removeMaskLayersInFrame: (frameId: string) => void;
 
   // Per-frame reference filmstrip mutations
@@ -762,23 +766,25 @@ export const useCanvasStore = create<CanvasState>()(
         return frame ? (frame.layers.filter((l) => l.type === "image") as ImageLayer[]) : [];
       },
 
-      getMaskLayersInFrame: (frameId) => {
-        const frame = get().inputFrames.find((f) => f.id === frameId);
-        return frame ? (frame.layers.filter((l) => l.type === "mask") as MaskObjectLayer[]) : [];
-      },
-
-      replaceMaskLayersInFrame: (frameId, newLayers) =>
+      applyMaskBake: (frameId, bake) =>
         set((s) => {
           const frame = s.inputFrames.find((f) => f.id === frameId);
           if (!frame) return s;
           for (const l of frame.layers) {
             if (l.type === "mask") URL.revokeObjectURL((l as MaskObjectLayer).imageData);
           }
+          const ids = new Set(bake.layers.map((l) => l.id));
           return {
-            inputFrames: withFrame(s.inputFrames, frameId, (f) => ({
-              ...f,
-              layers: [...f.layers.filter((l) => l.type !== "mask"), ...newLayers],
-            })),
+            inputFrames: withFrame(s.inputFrames, frameId, (f) => {
+              const active = f.layers.find((l) => l.id === f.activeLayerId);
+              return {
+                ...f,
+                layers: [...f.layers.filter((l) => l.type !== "mask"), ...bake.layers],
+                maskLines: f.maskLines.slice(bake.consumedLines),
+                activeLayerId:
+                  active?.type === "mask" && !ids.has(active.id) ? null : f.activeLayerId,
+              };
+            }),
           };
         }),
 
