@@ -127,7 +127,7 @@ export async function bakeMaskStrokes(frameId: string): Promise<void> {
     for (const { mask: m, img } of loadedImages) {
       ctx.save();
       ctx.translate(m.x, m.y);
-      ctx.rotate(m.rotation);
+      ctx.rotate((m.rotation * Math.PI) / 180);
       ctx.scale(m.scaleX, m.scaleY);
       ctx.drawImage(img, 0, 0, m.width, m.height);
       ctx.restore();

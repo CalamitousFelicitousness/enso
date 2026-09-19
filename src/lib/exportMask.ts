@@ -41,10 +41,9 @@ async function renderMaskObjects(
   const tmpCtx = tmpCanvas.getContext("2d")!;
 
   for (const { mask: m, img } of loaded) {
-    tmpCtx.clearRect(0, 0, tmpCanvas.width, tmpCanvas.height);
     tmpCtx.save();
     tmpCtx.translate(m.x, m.y);
-    tmpCtx.rotate(m.rotation);
+    tmpCtx.rotate((m.rotation * Math.PI) / 180);
     tmpCtx.scale(m.scaleX, m.scaleY);
     tmpCtx.drawImage(img, 0, 0, m.width, m.height);
     tmpCtx.restore();
