@@ -39,9 +39,6 @@ export interface InputFrame {
    * time. Moved off the singleton img2imgStore so per-frame masks survive
    * focus changes. */
   maskLines: MaskLine[];
-  /** Baked mask PNG dataURL (set by exportMask at submit time, or imported).
-   * Cleared with maskLines on clearInitialMask. */
-  maskData: string | null;
   /** Ordered list of reference images for Reference mode. Index in array =
    * wire order within this frame. Reference children flow into the wire's
    * images[] after the previous frame's contribution. */
@@ -139,7 +136,6 @@ export function createInitialFrame(): InputFrame {
     layers: [],
     activeLayerId: null,
     maskLines: [],
-    maskData: null,
     references: [],
   };
 }
@@ -151,7 +147,6 @@ export function createReferenceFrame(): InputFrame {
     layers: [],
     activeLayerId: null,
     maskLines: [],
-    maskData: null,
     references: [],
   };
 }

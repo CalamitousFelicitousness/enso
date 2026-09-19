@@ -197,7 +197,6 @@ interface CanvasState {
   // Per-frame mask state
   addMaskLineToFrame: (frameId: string, line: MaskLine) => void;
   clearMaskLinesInFrame: (frameId: string) => void;
-  setMaskDataForFrame: (frameId: string, dataUrl: string | null) => void;
 
   // Whole-frame drag (vertical reorder of the input column)
   setInputFrameDrag: (drag: { fromIndex: number; toIndex: number | null } | null) => void;
@@ -218,7 +217,6 @@ interface PersistedInputFrame {
   layers: CanvasLayer[];
   activeLayerId: string | null;
   maskLines: MaskLine[];
-  maskData: string | null;
   references: ReferenceInput[];
 }
 
@@ -828,15 +826,6 @@ export const useCanvasStore = create<CanvasState>()(
           inputFrames: withFrame(s.inputFrames, frameId, (f) => ({
             ...f,
             maskLines: [],
-            maskData: null,
-          })),
-        })),
-
-      setMaskDataForFrame: (frameId, dataUrl) =>
-        set((s) => ({
-          inputFrames: withFrame(s.inputFrames, frameId, (f) => ({
-            ...f,
-            maskData: dataUrl,
           })),
         })),
 
@@ -878,7 +867,6 @@ export const useCanvasStore = create<CanvasState>()(
           layers: frame.layers.map(stripLayerForPersist),
           activeLayerId: frame.activeLayerId,
           maskLines: frame.maskLines,
-          maskData: frame.maskData,
           references: frame.references.map(stripReferenceInputForPersist),
         })),
         activeInputFrameId: state.activeInputFrameId,
@@ -909,7 +897,6 @@ export const useCanvasStore = create<CanvasState>()(
                 layers: frame.layers.map(rehydrateLayer),
                 activeLayerId: frame.activeLayerId ?? null,
                 maskLines: frame.maskLines ?? [],
-                maskData: frame.maskData ?? null,
                 references: frame.references.map(rehydrateReferenceInput),
               }))
             : current.inputFrames,

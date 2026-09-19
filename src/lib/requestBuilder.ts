@@ -66,7 +66,6 @@ export async function buildControlRequest(): Promise<BuildResult> {
   const primaryLayers =
     primaryFrame?.layers.filter((l): l is ImageLayer => l.type === "image" && l.visible) ?? [];
   const primaryMaskLines = primaryFrame?.maskLines ?? [];
-  const primaryMaskData = primaryFrame?.maskData ?? null;
   const primaryMaskObjects =
     primaryFrame?.layers.filter((l): l is MaskObjectLayer => l.type === "mask") ?? [];
   const primaryReferences = primaryFrame?.references ?? [];
@@ -404,20 +403,8 @@ export async function buildControlRequest(): Promise<BuildResult> {
       request.resize_name_before = img2img.resizeMethod;
     }
 
-    // Export mask from the primary frame's per-frame mask state.
-    // primaryMaskData (a pre-rendered dataURL) wins if present; otherwise
-    // composite the frame's mask objects + any uncommitted stroke buffer.
-    let maskBlob: Blob | null;
-    if (primaryMaskData) {
-      const resp = await fetch(
-        primaryMaskData.startsWith("data:")
-          ? primaryMaskData
-          : `data:image/png;base64,${primaryMaskData}`,
-      );
-      maskBlob = await resp.blob();
-    } else {
-      maskBlob = await exportMask(primaryMaskObjects, primaryMaskLines, frameW, frameH);
-    }
+    // Composite the primary frame's mask objects + any uncommitted strokes.
+    const maskBlob = await exportMask(primaryMaskObjects, primaryMaskLines, frameW, frameH);
     if (maskBlob) {
       request.mask = await uploadBlob(maskBlob, "mask.png");
       request.mask_blur = img2img.maskBlur;
