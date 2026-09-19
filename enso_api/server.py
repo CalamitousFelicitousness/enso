@@ -30,6 +30,34 @@ router = APIRouter(prefix="/sdapi/v2", tags=["Server"])
 EXT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
+def pipeline_supports_strength(model) -> bool:
+    """True when img2img on the loaded model takes a strength parameter, on the
+    pipeline itself or on the img2img class sdnext switches it to."""
+    pipe = getattr(model, "pipe", model)
+    classes = [type(pipe)]
+    try:
+        from diffusers.pipelines import auto_pipeline
+
+        classes.append(
+            auto_pipeline._get_task_class(  # pylint: disable=protected-access
+                auto_pipeline.AUTO_IMAGE2IMAGE_PIPELINES_MAPPING,
+                type(pipe).__name__,
+                throw_error_if_not_exist=False,
+            )
+        )
+    except Exception:
+        pass
+    for cls in classes:
+        if cls is None:
+            continue
+        try:
+            if "strength" in inspect.signature(cls.__call__, follow_wrapped=True).parameters:
+                return True
+        except (TypeError, ValueError):
+            continue
+    return False
+
+
 def detect_video_capability() -> bool:
     """Video generation is always available."""
     return True
@@ -71,16 +99,7 @@ async def get_server_info_v2():
     ver = installer.get_version()
     model_name = getattr(shared.opts, "sd_model_checkpoint", None)
     model_type = type(model_data.sd_model).__name__ if model_data.sd_model is not None else None
-    supports_strength = True
-    if model_data.sd_model is not None:
-        try:
-            pipe = model_data.sd_model
-            if hasattr(pipe, "pipe"):
-                pipe = pipe.pipe
-            sig = inspect.signature(type(pipe).__call__, follow_wrapped=True)
-            supports_strength = "strength" in sig.parameters
-        except Exception:
-            supports_strength = True
+    supports_strength = pipeline_supports_strength(model_data.sd_model) if model_data.sd_model is not None else True
     capabilities = ServerCapabilities(video=detect_video_capability())
     return ResServerInfoV2(
         version=VersionInfoV2(**{k: str(v) for k, v in ver.items() if k in VersionInfoV2.model_fields}),
