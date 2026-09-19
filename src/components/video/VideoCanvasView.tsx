@@ -32,7 +32,7 @@ import { payloadToFile } from "@/lib/sendTo";
 import type { DragPayload } from "@/stores/dragStore";
 import { Button } from "@/components/ui/button";
 import { ParamSlider } from "@/components/generation/ParamSlider";
-import { fileToBase64 } from "@/lib/image";
+import { loadImageFile } from "@/lib/image";
 import { isStillResult } from "@/lib/video/results";
 import {
   classifyReferenceFile,
@@ -115,14 +115,8 @@ export function VideoCanvasView() {
           });
           return;
         }
-        const base64 = await fileToBase64(file);
-        const objectUrl = URL.createObjectURL(file);
-        const img = new window.Image();
-        img.src = objectUrl;
-        await new Promise<void>((r) => {
-          img.onload = () => r();
-        });
-        setFrame(which, file, base64, objectUrl, img.naturalWidth, img.naturalHeight);
+        const loaded = await loadImageFile(file);
+        setFrame(which, loaded.file, loaded.objectUrl, loaded.naturalWidth, loaded.naturalHeight);
         return;
       }
 
@@ -151,17 +145,17 @@ export function VideoCanvasView() {
         return;
       }
 
-      const objectUrl = URL.createObjectURL(file);
+      let objectUrl: string | null = null;
       try {
         if (kind === "image") {
-          const base64 = await fileToBase64(file);
-          const img = new window.Image();
-          img.src = objectUrl;
-          await new Promise<void>((r) => {
-            img.onload = () => r();
+          const loaded = await loadImageFile(file);
+          addReference(loaded.file, loaded.objectUrl, loaded.naturalWidth, loaded.naturalHeight, {
+            kind,
           });
-          addReference(file, base64, objectUrl, img.naturalWidth, img.naturalHeight, { kind });
-        } else if (kind === "video") {
+          return;
+        }
+        objectUrl = URL.createObjectURL(file);
+        if (kind === "video") {
           const probe = await probeVideoFile(objectUrl);
           if (refCaps.video_max_seconds > 0 && probe.duration > refCaps.video_max_seconds) {
             URL.revokeObjectURL(objectUrl);
@@ -169,7 +163,7 @@ export function VideoCanvasView() {
             toast.warning(`Reference videos are limited to ${refCaps.video_max_seconds}s`);
             return;
           }
-          addReference(file, "", objectUrl, probe.width, probe.height, {
+          addReference(file, objectUrl, probe.width, probe.height, {
             kind,
             duration: probe.duration,
             hasAudio: probe.hasAudio,
@@ -177,10 +171,10 @@ export function VideoCanvasView() {
           });
         } else {
           const probe = await probeAudioFile(objectUrl);
-          addReference(file, "", objectUrl, 0, 0, { kind, duration: probe.duration });
+          addReference(file, objectUrl, 0, 0, { kind, duration: probe.duration });
         }
       } catch (err) {
-        URL.revokeObjectURL(objectUrl);
+        if (objectUrl) URL.revokeObjectURL(objectUrl);
         toast.error(`Could not read ${file.name}`, {
           description: err instanceof Error ? err.message : String(err),
         });

@@ -20,6 +20,42 @@ export function fileToBase64(file: File): Promise<string> {
   });
 }
 
+export interface LoadedImageFile {
+  file: File;
+  objectUrl: string;
+  naturalWidth: number;
+  naturalHeight: number;
+}
+
+/** Copy an image's bytes into memory and decode its dimensions. A File from
+ * a drop or file input is a lazy reference to the path on disk, which can
+ * move or change before the bytes are persisted or uploaded. */
+export async function loadImageFile(file: File): Promise<LoadedImageFile> {
+  const snapshot = new File([await file.arrayBuffer()], file.name, {
+    type: file.type,
+    lastModified: file.lastModified,
+  });
+  const objectUrl = URL.createObjectURL(snapshot);
+  const img = new Image();
+  const decoded = new Promise<void>((resolve, reject) => {
+    img.onload = () => resolve();
+    img.onerror = () => reject(new Error(`Could not decode ${file.name}`));
+  });
+  img.src = objectUrl;
+  try {
+    await decoded;
+  } catch (err) {
+    URL.revokeObjectURL(objectUrl);
+    throw err;
+  }
+  return {
+    file: snapshot,
+    objectUrl,
+    naturalWidth: img.naturalWidth,
+    naturalHeight: img.naturalHeight,
+  };
+}
+
 export function base64ToFile(base64: string, name: string, mimeType = "image/png"): File {
   const byteChars = atob(base64);
   const bytes = new Uint8Array(byteChars.length);

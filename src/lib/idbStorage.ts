@@ -1,11 +1,23 @@
-import type { StateStorage } from "zustand/middleware";
+import type { PersistStorage, StorageValue } from "zustand/middleware";
 
-/** Zustand StateStorage backed by IndexedDB with debounced writes. */
-export function createIdbStorage(
+interface IdbStorageOptions {
+  /** Quiet time a burst of writes waits for before it reaches IndexedDB. */
+  debounceMs?: number;
+  /** Record read when the store's own key is empty. Left untouched so the
+   * build that wrote it can still hydrate after a rollback. */
+  legacyKey?: string;
+}
+
+/** Zustand PersistStorage backed by IndexedDB. Records are stored as
+ * structured-clone objects: File and Blob fields are cloned by handle, so a
+ * write costs the main thread nothing beyond the debounce. Records written
+ * as JSON strings by earlier builds are still read. */
+export function createIdbStorage<S>(
   dbName: string,
   storeName: string,
-  debounceMs = 2000,
-): StateStorage {
+  options: IdbStorageOptions = {},
+): PersistStorage<S> {
+  const { debounceMs = 2000, legacyKey } = options;
   let dbPromise: Promise<IDBDatabase> | null = null;
 
   function openDb(): Promise<IDBDatabase> {
@@ -24,23 +36,24 @@ export function createIdbStorage(
     return dbPromise;
   }
 
-  function idbGet(key: string): Promise<string | null> {
+  function idbGet(key: string): Promise<unknown> {
     return openDb().then(
       (db) =>
         new Promise((resolve, reject) => {
           const tx = db.transaction(storeName, "readonly");
           const req = tx.objectStore(storeName).get(key);
-          req.onsuccess = () => resolve((req.result as string) ?? null);
+          req.onsuccess = () => resolve(req.result ?? null);
           req.onerror = () => reject(req.error ?? new Error("IDB request failed"));
         }),
     );
   }
 
-  function idbSet(key: string, value: string): Promise<void> {
+  function idbSet(key: string, value: unknown): Promise<void> {
     return openDb().then(
       (db) =>
         new Promise((resolve, reject) => {
           const tx = db.transaction(storeName, "readwrite");
+          // put() throws synchronously on an uncloneable value.
           tx.objectStore(storeName).put(value, key);
           tx.oncomplete = () => resolve();
           tx.onerror = () => reject(tx.error ?? new Error("IDB transaction failed"));
@@ -60,41 +73,69 @@ export function createIdbStorage(
     );
   }
 
-  // Debounce state for setItem
-  let pendingKey: string | null = null;
-  let pendingValue: string | null = null;
-  let timer: ReturnType<typeof setTimeout> | null = null;
+  function decode(raw: unknown): StorageValue<S> | null {
+    if (raw === null || raw === undefined) return null;
+    if (typeof raw !== "string") return raw as StorageValue<S>;
+    try {
+      return JSON.parse(raw) as StorageValue<S>;
+    } catch (err) {
+      console.error(`[idb] ${dbName}/${storeName}: unreadable record`, err);
+      return null;
+    }
+  }
 
-  // Gate: suppress writes until the first getItem resolves (hydration complete).
-  // Without this, Zustand persist middleware can queue a setItem with pre-hydration
-  // (empty/default) state before hydration finishes reading from IDB, and the
-  // debounced flush writes that stale state over the real data.
+  let pendingKey: string | null = null;
+  let pendingValue: StorageValue<S> | null = null;
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  let writing = false;
+  let reportedFailure = false;
+
+  // Gate: suppress writes until the first getItem settles (hydration
+  // complete). Without this, Zustand persist middleware can queue a setItem
+  // with pre-hydration (empty/default) state before hydration finishes
+  // reading from IDB, and the debounced flush writes that stale state over
+  // the real data.
   let hydrated = false;
 
   function flush() {
-    if (pendingKey !== null && pendingValue !== null) {
-      const k = pendingKey;
-      const v = pendingValue;
-      pendingKey = null;
-      pendingValue = null;
-      if (timer) {
-        clearTimeout(timer);
-        timer = null;
-      }
-      void idbSet(k, v);
+    if (writing || pendingKey === null || pendingValue === null) return;
+    const k = pendingKey;
+    const v = pendingValue;
+    pendingKey = null;
+    pendingValue = null;
+    if (timer) {
+      clearTimeout(timer);
+      timer = null;
     }
+    writing = true;
+    idbSet(k, v)
+      .catch((err: unknown) => {
+        if (reportedFailure) return;
+        reportedFailure = true;
+        console.error(`[idb] ${dbName}/${storeName}: write failed`, err);
+      })
+      .finally(() => {
+        writing = false;
+        if (pendingKey !== null) flush();
+      });
   }
 
   if (typeof window !== "undefined") {
     window.addEventListener("beforeunload", flush);
+    window.addEventListener("pagehide", flush);
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "hidden") flush();
+    });
   }
 
   return {
     getItem: (key) =>
-      idbGet(key).then((v) => {
-        hydrated = true;
-        return v;
-      }),
+      idbGet(key)
+        .then((raw) => (raw === null && legacyKey ? idbGet(legacyKey) : raw))
+        .then(decode)
+        .finally(() => {
+          hydrated = true;
+        }),
     setItem: (key, value) => {
       if (!hydrated) return;
       pendingKey = key;
@@ -103,7 +144,15 @@ export function createIdbStorage(
       timer = setTimeout(flush, debounceMs);
     },
     removeItem: (key) => {
-      void idbDelete(key);
+      pendingKey = null;
+      pendingValue = null;
+      if (timer) {
+        clearTimeout(timer);
+        timer = null;
+      }
+      idbDelete(key).catch((err: unknown) => {
+        console.error(`[idb] ${dbName}/${storeName}: delete failed`, err);
+      });
     },
   };
 }

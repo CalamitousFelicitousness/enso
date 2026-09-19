@@ -25,7 +25,7 @@ import { Button } from "@/components/ui/button";
 import { KeepAlivePanel } from "@/components/ui/keep-alive";
 import { downloadImage, generateImageFilename, resolveImageSrc } from "@/lib/utils";
 import type { GenerationInfo } from "@/api/types/generation";
-import { fileToBase64 } from "@/lib/image";
+import { loadImageFile } from "@/lib/image";
 import {
   ELEMENT_GAP,
   PROCESSED_HEADER_HEIGHT,
@@ -647,18 +647,17 @@ function OutputFramePanel({
     if (!imageUrl) return;
     const resp = await fetch(imageUrl);
     const blob = await resp.blob();
-    const file = new File([blob], "from-output.png", { type: "image/png" });
-    const base64 = await fileToBase64(file);
-    const objectUrl = URL.createObjectURL(file);
-    const img = new window.Image();
-    img.src = objectUrl;
-    await new Promise<void>((r) => {
-      img.onload = () => r();
-    });
+    const loaded = await loadImageFile(new File([blob], "from-output.png", { type: "image/png" }));
     const state = useCanvasStore.getState();
     const target = state.activeInputFrameId ?? state.inputFrames[0]?.id;
     if (target) {
-      addImageLayerToFrame(target, file, base64, objectUrl, img.naturalWidth, img.naturalHeight);
+      addImageLayerToFrame(
+        target,
+        loaded.file,
+        loaded.objectUrl,
+        loaded.naturalWidth,
+        loaded.naturalHeight,
+      );
     }
   }, [selectedResult, selectedImageIndex, addImageLayerToFrame]);
 

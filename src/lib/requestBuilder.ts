@@ -15,6 +15,7 @@ import { useUiStore } from "@/stores/uiStore";
 import { exportMask } from "@/lib/exportMask";
 import { flattenCanvas, compositeControlImage, compositeFitImage } from "@/lib/flattenCanvas";
 import { uploadFiles, uploadBlob, uploadFile } from "@/lib/upload";
+import { base64ToBlob } from "@/lib/utils";
 import { REFERENCE_HEIGHT } from "@/canvas/useControlFrameLayout";
 import { resolveGenerationSize } from "@/lib/sizeCompute";
 import type { SizeMode } from "@/lib/sizeCompute";
@@ -734,7 +735,7 @@ export function restoreFromResult(result: GenerationResult): void {
     const canvas = useCanvasStore.getState();
     const targetFrameId = canvas.activeInputFrameId ?? canvas.inputFrames[0]?.id ?? null;
     if (targetFrameId) {
-      canvas.restoreImageLayerToFrame(targetFrameId, result.inputImage, w, h);
+      canvas.restoreImageLayerToFrame(targetFrameId, base64ToBlob(result.inputImage), w, h);
 
       if (result.inputMask && result.inputMask.length > 0) {
         canvas.clearMaskLinesInFrame(targetFrameId);

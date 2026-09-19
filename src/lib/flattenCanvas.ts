@@ -63,8 +63,7 @@ export async function flattenCanvas(
   ctx.imageSmoothingQuality = "high";
 
   for (const layer of visible) {
-    const src = layer.base64 ? `data:image/png;base64,${layer.base64}` : layer.imageData;
-    const img = await loadImage(src);
+    const img = await createImageBitmap(layer.file);
     ctx.save();
     ctx.translate(layer.x * scale, layer.y * scale);
     ctx.rotate((layer.rotation * Math.PI) / 180);

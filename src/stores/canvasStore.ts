@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { persist, createJSONStorage } from "zustand/middleware";
+import { persist } from "zustand/middleware";
 import { useGenerationStore } from "@/stores/generationStore";
 import { useUiStore } from "@/stores/uiStore";
 import { base64ToBlob } from "@/lib/utils";
@@ -33,8 +33,7 @@ export interface CanvasLayer {
 export interface ImageLayer extends CanvasLayer {
   type: "image";
   imageData: string; // object URL for Konva display
-  base64: string; // raw base64 for flattening / API
-  file: File; // original File object
+  file: File; // image bytes; persisted, flattened and uploaded from
   naturalWidth: number; // original image pixel width
   naturalHeight: number; // original image pixel height
   x: number;
@@ -48,8 +47,8 @@ export interface ImageLayer extends CanvasLayer {
 
 export interface MaskObjectLayer extends CanvasLayer {
   type: "mask";
-  imageData: string; // object URL of colored display image
-  base64: string; // colored PNG base64 for persistence
+  imageData: string; // object URL of blob, for the LayerPanel thumbnail
+  blob: Blob; // tinted PNG; persisted, displayed and rebaked from
   x: number;
   y: number;
   width: number;
@@ -67,8 +66,7 @@ export interface MaskObjectLayer extends CanvasLayer {
 export interface ReferenceInput {
   id: string;
   imageData: string; // object URL for display
-  base64: string; // raw base64 for persistence + flatten fallback
-  file: File; // original File object for raw upload via uploadFile()
+  file: File; // image bytes; persisted and uploaded raw via uploadFile()
   naturalWidth: number;
   naturalHeight: number;
   filename: string;
@@ -151,7 +149,6 @@ interface CanvasState {
   addImageLayerToFrame: (
     frameId: string,
     file: File,
-    base64: string,
     objectUrl: string,
     w: number,
     h: number,
@@ -161,7 +158,7 @@ interface CanvasState {
   updateLayerInFrame: (frameId: string, layerId: string, updates: Partial<CanvasLayer>) => void;
   setActiveLayerInFrame: (frameId: string, layerId: string | null) => void;
   clearLayersInFrame: (frameId: string) => void;
-  restoreImageLayerToFrame: (frameId: string, base64: string, w: number, h: number) => void;
+  restoreImageLayerToFrame: (frameId: string, blob: Blob, w: number, h: number) => void;
   getImageLayersInFrame: (frameId: string) => ImageLayer[];
   getMaskLayersInFrame: (frameId: string) => MaskObjectLayer[];
   replaceMaskLayersInFrame: (frameId: string, newLayers: MaskObjectLayer[]) => void;
@@ -171,16 +168,6 @@ interface CanvasState {
   appendReferenceToFrame: (
     frameId: string,
     file: File,
-    base64: string,
-    objectUrl: string,
-    w: number,
-    h: number,
-  ) => void;
-  replaceReferenceInFrame: (
-    frameId: string,
-    refId: string,
-    file: File,
-    base64: string,
     objectUrl: string,
     w: number,
     h: number,
@@ -206,18 +193,62 @@ interface CanvasState {
   getInputFrame: (frameId: string) => InputFrame | undefined;
 }
 
-/** Per-frame projection of an InputFrame for IndexedDB storage. Each frame's
- * layers + references go through the same strip-then-rehydrate dance the
- * singular `layers`/`referenceInputs` arrays use: File + objectUrl are
- * stripped before persist, recreated on rehydrate from the surviving base64
- * payload. */
+/** Field-by-field projections for IndexedDB. Image bytes travel as File and
+ * Blob (structured clone copies the handle, not the bytes); object URLs are
+ * recreated on rehydrate. */
+interface PersistedImageLayer {
+  id: string;
+  type: "image";
+  name: string;
+  visible: boolean;
+  opacity: number;
+  locked: boolean;
+  file: File;
+  naturalWidth: number;
+  naturalHeight: number;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  rotation: number;
+  scaleX: number;
+  scaleY: number;
+}
+
+interface PersistedMaskLayer {
+  id: string;
+  type: "mask";
+  name: string;
+  visible: boolean;
+  opacity: number;
+  locked: boolean;
+  blob: Blob;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  scaleX: number;
+  scaleY: number;
+  rotation: number;
+}
+
+type PersistedLayer = PersistedImageLayer | PersistedMaskLayer;
+
+interface PersistedReference {
+  id: string;
+  file: File;
+  naturalWidth: number;
+  naturalHeight: number;
+  filename: string;
+}
+
 interface PersistedInputFrame {
   id: string;
   mode: InputFrameMode;
-  layers: CanvasLayer[];
+  layers: PersistedLayer[];
   activeLayerId: string | null;
   maskLines: MaskLine[];
-  references: ReferenceInput[];
+  references: PersistedReference[];
 }
 
 /** Serializable snapshot of canvas state stored in IndexedDB. The v2 shape
@@ -241,60 +272,169 @@ interface PersistedCanvasState {
   activeInputFrameId: string | null;
 }
 
-const canvasIdbStorage = createIdbStorage("enso-canvas", "state");
+const canvasIdbStorage = createIdbStorage<PersistedCanvasState>("enso-canvas", "state", {
+  legacyKey: "enso-canvas",
+});
 
-function rehydrateLayer(layer: CanvasLayer): CanvasLayer | ImageLayer | MaskObjectLayer {
+function rehydrateLayer(saved: PersistedLayer): ImageLayer | MaskObjectLayer {
+  if (saved.type === "image") return { ...saved, imageData: URL.createObjectURL(saved.file) };
+  return { ...saved, imageData: URL.createObjectURL(saved.blob) };
+}
+
+function rehydrateReferenceInput(saved: PersistedReference): ReferenceInput {
+  return { ...saved, imageData: URL.createObjectURL(saved.file) };
+}
+
+/** Explicit field lists: anything else on a layer (object URLs, future
+ * runtime-only handles) must not reach structured clone. */
+function stripLayerForPersist(layer: CanvasLayer): PersistedLayer | null {
   if (layer.type === "image") {
-    const img = layer as ImageLayer;
-    if (!img.base64) return layer;
-    const blob = base64ToBlob(img.base64);
+    const l = layer as ImageLayer;
     return {
-      ...img,
-      imageData: URL.createObjectURL(blob),
-      file: new File([blob], img.name || "restored.png", { type: "image/png" }),
+      id: l.id,
+      type: "image",
+      name: l.name,
+      visible: l.visible,
+      opacity: l.opacity,
+      locked: l.locked,
+      file: l.file,
+      naturalWidth: l.naturalWidth,
+      naturalHeight: l.naturalHeight,
+      x: l.x,
+      y: l.y,
+      width: l.width,
+      height: l.height,
+      rotation: l.rotation,
+      scaleX: l.scaleX,
+      scaleY: l.scaleY,
     };
   }
   if (layer.type === "mask") {
-    const ml = layer as MaskObjectLayer;
-    if (!ml.base64) return layer;
-    const blob = base64ToBlob(ml.base64);
-    return { ...ml, imageData: URL.createObjectURL(blob) };
+    const l = layer as MaskObjectLayer;
+    return {
+      id: l.id,
+      type: "mask",
+      name: l.name,
+      visible: l.visible,
+      opacity: l.opacity,
+      locked: l.locked,
+      blob: l.blob,
+      x: l.x,
+      y: l.y,
+      width: l.width,
+      height: l.height,
+      scaleX: l.scaleX,
+      scaleY: l.scaleY,
+      rotation: l.rotation,
+    };
   }
-  return layer;
+  return null;
 }
 
-/** Reconstruct a ReferenceInput's File + object URL from persisted base64.
- * Mirrors rehydrateLayer for the image-layer case. */
-function rehydrateReferenceInput(ref: ReferenceInput): ReferenceInput {
-  if (!ref.base64) return ref;
-  const blob = base64ToBlob(ref.base64);
+function stripReferenceInputForPersist(ref: ReferenceInput): PersistedReference {
   return {
-    ...ref,
-    imageData: URL.createObjectURL(blob),
-    file: new File([blob], ref.filename || "reference.png", { type: "image/png" }),
+    id: ref.id,
+    file: ref.file,
+    naturalWidth: ref.naturalWidth,
+    naturalHeight: ref.naturalHeight,
+    filename: ref.filename,
   };
 }
 
-/** Strip a CanvasLayer for storage: drop File + object URL, keep base64.
- * Mirrors the inline strip used by the legacy partialize so per-frame
- * layers serialize identically to their singular-store counterparts. */
-function stripLayerForPersist(layer: CanvasLayer): CanvasLayer {
-  if (layer.type === "image") {
-    const { file: _file, imageData: _url, ...rest } = layer as ImageLayer;
-    return { ...rest, imageData: "", file: undefined } as unknown as CanvasLayer;
-  }
-  if (layer.type === "mask") {
-    const { imageData: _url, ...rest } = layer as MaskObjectLayer;
-    return { ...rest, imageData: "" } as unknown as CanvasLayer;
-  }
-  return layer;
+/** Record shapes before version 4, when image bytes were stored as base64. */
+type LegacyImageLayer = Omit<ImageLayer, "file" | "imageData"> & { base64?: string };
+type LegacyMaskLayer = Omit<MaskObjectLayer, "blob" | "imageData"> & { base64?: string };
+type LegacyReference = Omit<ReferenceInput, "file" | "imageData"> & { base64?: string };
+
+interface LegacyPersistedInputFrame {
+  id: string;
+  mode: InputFrameMode;
+  layers?: CanvasLayer[];
+  activeLayerId?: string | null;
+  maskLines?: MaskLine[];
+  references?: LegacyReference[];
 }
 
-/** Strip a ReferenceInput for storage: drop File + object URL, keep base64. */
-function stripReferenceInputForPersist(ref: ReferenceInput): ReferenceInput {
-  const { file: _file, imageData: _url, ...rest } = ref;
-  return { ...rest, imageData: "", file: undefined } as unknown as ReferenceInput;
+type LegacyPersistedCanvasState = Omit<PersistedCanvasState, "inputFrames"> & {
+  inputFrames?: LegacyPersistedInputFrame[];
+};
+
+function migrateLayerV3(layer: CanvasLayer): PersistedLayer | null {
+  if (layer.type === "image") {
+    const l = layer as LegacyImageLayer;
+    if (!l.base64) return null;
+    return {
+      id: l.id,
+      type: "image",
+      name: l.name,
+      visible: l.visible,
+      opacity: l.opacity,
+      locked: l.locked,
+      file: new File([base64ToBlob(l.base64)], l.name || "restored.png", { type: "image/png" }),
+      naturalWidth: l.naturalWidth,
+      naturalHeight: l.naturalHeight,
+      x: l.x,
+      y: l.y,
+      width: l.width,
+      height: l.height,
+      rotation: l.rotation,
+      scaleX: l.scaleX,
+      scaleY: l.scaleY,
+    };
+  }
+  if (layer.type === "mask") {
+    const l = layer as LegacyMaskLayer;
+    if (!l.base64) return null;
+    return {
+      id: l.id,
+      type: "mask",
+      name: l.name,
+      visible: l.visible,
+      opacity: l.opacity,
+      locked: l.locked,
+      blob: base64ToBlob(l.base64),
+      x: l.x,
+      y: l.y,
+      width: l.width,
+      height: l.height,
+      scaleX: l.scaleX,
+      scaleY: l.scaleY,
+      rotation: l.rotation,
+    };
+  }
+  return null;
 }
+
+function migrateReferenceV3(ref: LegacyReference): PersistedReference | null {
+  if (!ref.base64) return null;
+  const filename = ref.filename || "reference.png";
+  return {
+    id: ref.id,
+    file: new File([base64ToBlob(ref.base64)], filename, { type: "image/png" }),
+    naturalWidth: ref.naturalWidth,
+    naturalHeight: ref.naturalHeight,
+    filename,
+  };
+}
+
+function migrateV3(legacy: LegacyPersistedCanvasState): PersistedCanvasState {
+  const { inputFrames, ...rest } = legacy;
+  return {
+    ...rest,
+    inputFrames: (inputFrames ?? []).map((frame) => ({
+      id: frame.id,
+      mode: frame.mode,
+      layers: (frame.layers ?? []).map(migrateLayerV3).filter(Boolean),
+      activeLayerId: frame.activeLayerId ?? null,
+      maskLines: frame.maskLines ?? [],
+      references: (frame.references ?? []).map(migrateReferenceV3).filter(Boolean),
+    })),
+  };
+}
+
+// merge() reads every field with a fallback, so an empty record hydrates
+// the defaults.
+const EMPTY_RECORD = {} as PersistedCanvasState;
 
 /** Apply a transform to one InputFrame in the array, returning a new slice
  * with the frame replaced. Returns the original array if frameId is not
@@ -451,7 +591,6 @@ export const useCanvasStore = create<CanvasState>()(
               const seedRef: ReferenceInput = {
                 id: crypto.randomUUID(),
                 file: firstImage.file,
-                base64: firstImage.base64,
                 imageData: URL.createObjectURL(firstImage.file),
                 naturalWidth: firstImage.naturalWidth,
                 naturalHeight: firstImage.naturalHeight,
@@ -478,7 +617,7 @@ export const useCanvasStore = create<CanvasState>()(
 
       // Per-frame layer mutations
 
-      addImageLayerToFrame: (frameId, file, base64, objectUrl, w, h) => {
+      addImageLayerToFrame: (frameId, file, objectUrl, w, h) => {
         const frame = get().inputFrames.find((f) => f.id === frameId);
         if (!frame) return;
         const gen = useGenerationStore.getState();
@@ -501,7 +640,6 @@ export const useCanvasStore = create<CanvasState>()(
           opacity: 1,
           locked: false,
           imageData: objectUrl,
-          base64,
           file,
           naturalWidth: w,
           naturalHeight: h,
@@ -581,7 +719,7 @@ export const useCanvasStore = create<CanvasState>()(
           };
         }),
 
-      restoreImageLayerToFrame: (frameId, base64, w, h) => {
+      restoreImageLayerToFrame: (frameId, blob, w, h) => {
         const frame = get().inputFrames.find((f) => f.id === frameId);
         if (!frame) return;
         for (const layer of frame.layers) {
@@ -589,7 +727,6 @@ export const useCanvasStore = create<CanvasState>()(
             URL.revokeObjectURL((layer as ImageLayer).imageData);
           }
         }
-        const blob = base64ToBlob(base64);
         const objectUrl = URL.createObjectURL(blob);
         const id = crypto.randomUUID();
         const newLayer: ImageLayer = {
@@ -600,7 +737,6 @@ export const useCanvasStore = create<CanvasState>()(
           opacity: 1,
           locked: false,
           imageData: objectUrl,
-          base64,
           file: new File([blob], "restored.png", { type: "image/png" }),
           naturalWidth: w,
           naturalHeight: h,
@@ -669,11 +805,10 @@ export const useCanvasStore = create<CanvasState>()(
 
       // Per-frame reference filmstrip mutations
 
-      appendReferenceToFrame: (frameId, file, base64, objectUrl, w, h) => {
+      appendReferenceToFrame: (frameId, file, objectUrl, w, h) => {
         const ref: ReferenceInput = {
           id: crypto.randomUUID(),
           file,
-          base64,
           imageData: objectUrl,
           naturalWidth: w,
           naturalHeight: h,
@@ -686,26 +821,6 @@ export const useCanvasStore = create<CanvasState>()(
           })),
         }));
       },
-
-      replaceReferenceInFrame: (frameId, refId, file, base64, objectUrl, w, h) =>
-        set((s) => ({
-          inputFrames: withFrame(s.inputFrames, frameId, (f) => ({
-            ...f,
-            references: f.references.map((ref) => {
-              if (ref.id !== refId) return ref;
-              URL.revokeObjectURL(ref.imageData);
-              return {
-                ...ref,
-                file,
-                base64,
-                imageData: objectUrl,
-                naturalWidth: w,
-                naturalHeight: h,
-                filename: file.name,
-              };
-            }),
-          })),
-        })),
 
       removeReferenceFromFrame: (frameId, refId) =>
         set((s) => {
@@ -846,9 +961,15 @@ export const useCanvasStore = create<CanvasState>()(
       getInputFrame: (frameId) => get().inputFrames.find((f) => f.id === frameId),
     }),
     {
-      name: "enso-canvas",
-      storage: createJSONStorage(() => canvasIdbStorage),
-      version: 3,
+      // The key changed with the record format; the version 3 record stays
+      // under "enso-canvas" for builds that still read JSON.
+      name: "enso-canvas-v4",
+      storage: canvasIdbStorage,
+      version: 4,
+      migrate: (persisted, version) => {
+        if (version !== 3) return EMPTY_RECORD;
+        return migrateV3(persisted as LegacyPersistedCanvasState);
+      },
       partialize: (state): PersistedCanvasState => ({
         viewport: state.viewport,
         activeTool: state.activeTool,
@@ -865,7 +986,7 @@ export const useCanvasStore = create<CanvasState>()(
         inputFrames: state.inputFrames.map((frame) => ({
           id: frame.id,
           mode: frame.mode,
-          layers: frame.layers.map(stripLayerForPersist),
+          layers: frame.layers.map(stripLayerForPersist).filter(Boolean),
           activeLayerId: frame.activeLayerId,
           maskLines: frame.maskLines,
           references: frame.references.map(stripReferenceInputForPersist),

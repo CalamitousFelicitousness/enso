@@ -6,7 +6,7 @@ import {
   type MaskObjectLayer,
 } from "@/stores/canvasStore";
 import { useGenerationStore } from "@/stores/generationStore";
-import { fileToBase64 } from "@/lib/image";
+import { loadImageFile } from "@/lib/image";
 import { Eye, EyeOff, X, Plus, Frame, Lock, Unlock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -69,17 +69,17 @@ export function LayerPanel() {
   const handleAddFile = useCallback(
     async (file: File) => {
       if (!file.type.startsWith("image/")) return;
-      const base64 = await fileToBase64(file);
-      const objectUrl = URL.createObjectURL(file);
-      const img = new window.Image();
-      img.src = objectUrl;
-      await new Promise<void>((r) => {
-        img.onload = () => r();
-      });
+      const loaded = await loadImageFile(file);
       const state = useCanvasStore.getState();
       const target = state.activeInputFrameId ?? state.inputFrames[0]?.id;
       if (target) {
-        addImageLayerToFrame(target, file, base64, objectUrl, img.naturalWidth, img.naturalHeight);
+        addImageLayerToFrame(
+          target,
+          loaded.file,
+          loaded.objectUrl,
+          loaded.naturalWidth,
+          loaded.naturalHeight,
+        );
       }
     },
     [addImageLayerToFrame],

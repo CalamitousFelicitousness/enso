@@ -9,7 +9,7 @@ import { useShortcut } from "@/hooks/useShortcut";
 import { useKeepAliveVisible } from "@/components/ui/keep-alive";
 import { payloadToFile } from "@/lib/sendTo";
 import type { DragPayload } from "@/stores/dragStore";
-import { fileToBase64 } from "@/lib/image";
+import { loadImageFile } from "@/lib/image";
 import { CanvasStage } from "@/canvas/CanvasStage";
 import { CanvasToolbar } from "@/canvas/CanvasToolbar";
 import { ControlFramePanels } from "@/canvas/ControlFramePanel";
@@ -61,36 +61,14 @@ export const CanvasView = memo(function CanvasView() {
   // frame on demand.
   const handleFile = useCallback(async (file: File) => {
     if (!file.type.startsWith("image/")) return;
-    const base64 = await fileToBase64(file);
-    const objectUrl = URL.createObjectURL(file);
-    const img = new window.Image();
-    img.src = objectUrl;
-    await new Promise<void>((r) => {
-      img.onload = () => r();
-    });
+    const loaded = await loadImageFile(file);
     const state = useCanvasStore.getState();
     const target = state.activeInputFrameId ?? state.inputFrames[0]?.id;
     if (!target) return;
     const frame = state.inputFrames.find((f) => f.id === target);
-    if (frame?.mode === "reference") {
-      state.appendReferenceToFrame(
-        target,
-        file,
-        base64,
-        objectUrl,
-        img.naturalWidth,
-        img.naturalHeight,
-      );
-    } else {
-      state.addImageLayerToFrame(
-        target,
-        file,
-        base64,
-        objectUrl,
-        img.naturalWidth,
-        img.naturalHeight,
-      );
-    }
+    const add =
+      frame?.mode === "reference" ? state.appendReferenceToFrame : state.addImageLayerToFrame;
+    add(target, loaded.file, loaded.objectUrl, loaded.naturalWidth, loaded.naturalHeight);
   }, []);
 
   // Which control frame a drop landed on, or -1 for the canvas itself

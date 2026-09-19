@@ -6,7 +6,7 @@ import { useCanvasStore } from "@/stores/canvasStore";
 import { useUiStore } from "@/stores/uiStore";
 import type { VideoSubTab } from "@/lib/constants";
 import { useModelSelectionStore } from "@/stores/modelSelectionStore";
-import { fileToBase64, base64ToFile } from "@/lib/image";
+import { loadImageFile, base64ToFile } from "@/lib/image";
 import { resolveImageSrc } from "@/lib/utils";
 import { engineToKind } from "@/lib/videoModel";
 import type { DragPayload } from "@/stores/dragStore";
@@ -76,32 +76,18 @@ function showVideoTab(tab: VideoSubTab) {
 }
 
 export async function sendFrameToVideoInit(blob: Blob) {
-  const file = blobToFile(blob, "init-frame.png");
-  const base64 = await fileToBase64(file);
-  const objectUrl = URL.createObjectURL(file);
-  const img = new window.Image();
-  img.src = objectUrl;
-  await new Promise<void>((r) => {
-    img.onload = () => r();
-  });
+  const loaded = await loadImageFile(blobToFile(blob, "init-frame.png"));
   useVideoCanvasStore
     .getState()
-    .setFrame("init", file, base64, objectUrl, img.naturalWidth, img.naturalHeight);
+    .setFrame("init", loaded.file, loaded.objectUrl, loaded.naturalWidth, loaded.naturalHeight);
   showVideoTab("inputs");
 }
 
 export async function sendFrameToVideoLast(blob: Blob) {
-  const file = blobToFile(blob, "last-frame.png");
-  const base64 = await fileToBase64(file);
-  const objectUrl = URL.createObjectURL(file);
-  const img = new window.Image();
-  img.src = objectUrl;
-  await new Promise<void>((r) => {
-    img.onload = () => r();
-  });
+  const loaded = await loadImageFile(blobToFile(blob, "last-frame.png"));
   useVideoCanvasStore
     .getState()
-    .setFrame("last", file, base64, objectUrl, img.naturalWidth, img.naturalHeight);
+    .setFrame("last", loaded.file, loaded.objectUrl, loaded.naturalWidth, loaded.naturalHeight);
   showVideoTab("inputs");
 }
 
@@ -118,23 +104,16 @@ export async function fetchRemoteImage(url: string, filename = "image.png"): Pro
 }
 
 export async function sendImageToCanvas(file: File) {
-  const base64 = await fileToBase64(file);
-  const objectUrl = URL.createObjectURL(file);
-  const img = new window.Image();
-  img.src = objectUrl;
-  await new Promise<void>((r) => {
-    img.onload = () => r();
-  });
+  const loaded = await loadImageFile(file);
   const state = useCanvasStore.getState();
   const target = state.activeInputFrameId ?? state.inputFrames[0]?.id;
   if (target) {
     state.addImageLayerToFrame(
       target,
-      file,
-      base64,
-      objectUrl,
-      img.naturalWidth,
-      img.naturalHeight,
+      loaded.file,
+      loaded.objectUrl,
+      loaded.naturalWidth,
+      loaded.naturalHeight,
     );
   }
   useUiStore.getState().setNavView("images");

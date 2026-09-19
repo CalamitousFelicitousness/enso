@@ -1,5 +1,4 @@
 import { findConnectedComponents } from "@/lib/connectedComponents";
-import { blobToBase64 } from "@/lib/image";
 import { useCanvasStore, type MaskObjectLayer } from "@/stores/canvasStore";
 import { useGenerationStore } from "@/stores/generationStore";
 import type { MaskLine } from "@/stores/img2imgStore";
@@ -62,19 +61,6 @@ function colorizeRegion(region: HTMLCanvasElement, rgb: string): HTMLCanvasEleme
 
   ctx.putImageData(imgData, 0, 0);
   return canvas;
-}
-
-/** Convert an HTMLCanvasElement to a base64 PNG string. */
-function canvasToBase64(canvas: HTMLCanvasElement): Promise<string> {
-  return new Promise((resolve) => {
-    canvas.toBlob((blob) => {
-      if (!blob) {
-        resolve("");
-        return;
-      }
-      void blobToBase64(blob).then(resolve);
-    }, "image/png");
-  });
 }
 
 function rectsOverlap(
@@ -164,11 +150,10 @@ export async function bakeMaskStrokes(frameId: string): Promise<void> {
   const newLayers: MaskObjectLayer[] = await Promise.all(
     regions.map(async (region) => {
       const coloredCanvas = colorizeRegion(region.canvas, rgb);
-      const base64 = await canvasToBase64(coloredCanvas);
-      const blob = await new Promise<Blob | null>((resolve) =>
-        coloredCanvas.toBlob(resolve, "image/png"),
-      );
-      const objectUrl = blob ? URL.createObjectURL(blob) : "";
+      const blob =
+        (await new Promise<Blob | null>((resolve) => coloredCanvas.toBlob(resolve, "image/png"))) ??
+        new Blob([], { type: "image/png" });
+      const objectUrl = URL.createObjectURL(blob);
 
       let locked = true;
       let visible = true;
@@ -195,7 +180,7 @@ export async function bakeMaskStrokes(frameId: string): Promise<void> {
         opacity: 1,
         locked,
         imageData: objectUrl,
-        base64,
+        blob,
         x: region.x,
         y: region.y,
         width: region.width,

@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { persist, createJSONStorage } from "zustand/middleware";
+import { persist } from "zustand/middleware";
 import { base64ToBlob } from "@/lib/utils";
 import { createIdbStorage } from "@/lib/idbStorage";
 import type { ReferenceKind } from "@/lib/video/referenceMedia";
@@ -8,9 +8,6 @@ import type { ViewportState } from "@/canvas/viewportBus";
 export interface VideoFrameImage {
   id: string;
   file: File;
-  /** Empty for video/audio references - media bytes are too heavy for the
-   * JSON persistence pipeline; only images round-trip through it. */
-  base64: string;
   objectUrl: string;
   naturalWidth: number;
   naturalHeight: number;
@@ -43,18 +40,10 @@ interface VideoCanvasState {
   activeSlot: VideoSlotId;
 
   setViewport: (v: Partial<ViewportState>) => void;
-  setFrame: (
-    which: "init" | "last",
-    file: File,
-    base64: string,
-    objectUrl: string,
-    w: number,
-    h: number,
-  ) => void;
+  setFrame: (which: "init" | "last", file: File, objectUrl: string, w: number, h: number) => void;
   clearFrame: (which: "init" | "last") => void;
   addReference: (
     file: File,
-    base64: string,
     objectUrl: string,
     w: number,
     h: number,
@@ -69,7 +58,7 @@ interface VideoCanvasState {
 
 interface PersistedFrame {
   id: string;
-  base64: string;
+  file: File;
   naturalWidth: number;
   naturalHeight: number;
 }
@@ -81,26 +70,42 @@ interface PersistedVideoCanvasState {
   references?: PersistedFrame[];
 }
 
-const videoCanvasIdbStorage = createIdbStorage("enso-video-canvas", "state");
+/** Record shape before version 1, when image bytes were stored as base64. */
+interface LegacyPersistedFrame {
+  id: string;
+  base64: string;
+  naturalWidth: number;
+  naturalHeight: number;
+}
+
+interface LegacyPersistedVideoCanvasState {
+  viewport?: ViewportState;
+  initFrame?: LegacyPersistedFrame | null;
+  lastFrame?: LegacyPersistedFrame | null;
+  references?: LegacyPersistedFrame[];
+}
+
+const videoCanvasIdbStorage = createIdbStorage<PersistedVideoCanvasState>(
+  "enso-video-canvas",
+  "state",
+  { legacyKey: "enso-video-canvas" },
+);
 
 function stripFrame(frame: VideoFrameImage): PersistedFrame {
   return {
     id: frame.id,
-    base64: frame.base64,
+    file: frame.file,
     naturalWidth: frame.naturalWidth,
     naturalHeight: frame.naturalHeight,
   };
 }
 
 function rehydrateFrame(saved: PersistedFrame | null): VideoFrameImage | null {
-  if (!saved || !saved.base64) return null;
-  const blob = base64ToBlob(saved.base64);
-  const objectUrl = URL.createObjectURL(blob);
+  if (!saved?.file) return null;
   return {
     id: saved.id,
-    file: new File([blob], "restored.png", { type: "image/png" }),
-    base64: saved.base64,
-    objectUrl,
+    file: saved.file,
+    objectUrl: URL.createObjectURL(saved.file),
     naturalWidth: saved.naturalWidth,
     naturalHeight: saved.naturalHeight,
     kind: "image",
@@ -109,6 +114,23 @@ function rehydrateFrame(saved: PersistedFrame | null): VideoFrameImage | null {
     posterUrl: null,
   };
 }
+
+function migrateFrame(saved: LegacyPersistedFrame | null | undefined): PersistedFrame | null {
+  if (!saved?.base64) return null;
+  return {
+    id: saved.id,
+    file: new File([base64ToBlob(saved.base64)], "restored.png", { type: "image/png" }),
+    naturalWidth: saved.naturalWidth,
+    naturalHeight: saved.naturalHeight,
+  };
+}
+
+const FRESH_RECORD: PersistedVideoCanvasState = {
+  viewport: { x: 0, y: 0, scale: 1 },
+  initFrame: null,
+  lastFrame: null,
+  references: [],
+};
 
 export const useVideoCanvasStore = create<VideoCanvasState>()(
   persist(
@@ -121,13 +143,12 @@ export const useVideoCanvasStore = create<VideoCanvasState>()(
 
       setViewport: (v) => set((s) => ({ viewport: { ...s.viewport, ...v } })),
 
-      setFrame: (which, file, base64, objectUrl, w, h) => {
+      setFrame: (which, file, objectUrl, w, h) => {
         const prev = get()[which === "init" ? "initFrame" : "lastFrame"];
         if (prev?.objectUrl) URL.revokeObjectURL(prev.objectUrl);
         const frame: VideoFrameImage = {
           id: crypto.randomUUID(),
           file,
-          base64,
           objectUrl,
           naturalWidth: w,
           naturalHeight: h,
@@ -146,11 +167,10 @@ export const useVideoCanvasStore = create<VideoCanvasState>()(
         set({ [key]: null });
       },
 
-      addReference: (file, base64, objectUrl, w, h, meta) => {
+      addReference: (file, objectUrl, w, h, meta) => {
         const frame: VideoFrameImage = {
           id: crypto.randomUUID(),
           file,
-          base64,
           objectUrl,
           naturalWidth: w,
           naturalHeight: h,
@@ -204,16 +224,28 @@ export const useVideoCanvasStore = create<VideoCanvasState>()(
       },
     }),
     {
-      name: "enso-video-canvas",
-      storage: createJSONStorage(() => videoCanvasIdbStorage),
-      // Additive persistence via merge only: adding a `version` without a
-      // migrate would wipe users' persisted frames (zustand default).
+      // The key changed with the record format; the version 0 record stays
+      // under "enso-video-canvas" for builds that still read JSON.
+      name: "enso-video-canvas-v1",
+      storage: videoCanvasIdbStorage,
+      version: 1,
+      migrate: (persisted, version) => {
+        if (version !== 0) return FRESH_RECORD;
+        const legacy = persisted as LegacyPersistedVideoCanvasState;
+        return {
+          viewport: legacy.viewport ?? FRESH_RECORD.viewport,
+          initFrame: migrateFrame(legacy.initFrame),
+          lastFrame: migrateFrame(legacy.lastFrame),
+          references: (legacy.references ?? []).map(migrateFrame).filter(Boolean),
+        };
+      },
       partialize: (state): PersistedVideoCanvasState => ({
         viewport: state.viewport,
         initFrame: state.initFrame ? stripFrame(state.initFrame) : null,
         lastFrame: state.lastFrame ? stripFrame(state.lastFrame) : null,
-        // All-image lists only: media bytes don't fit the JSON pipeline, and
-        // persisting the image subset would silently renumber <Picture N>.
+        // All-image lists only: video and audio references carry probe
+        // results and poster frames that do not persist, and persisting the
+        // image subset would silently renumber <Picture N>.
         references: state.references.every((r) => r.kind === "image")
           ? state.references.map(stripFrame)
           : [],
