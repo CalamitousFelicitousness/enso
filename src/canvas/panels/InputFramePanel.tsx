@@ -21,6 +21,9 @@ import { useCanvasStore } from "@/stores/canvasStore";
 import type { ImageLayer } from "@/stores/canvasStore";
 import type { InputFrameMode } from "@/canvas/inputFrames";
 import { ReferenceSortableOverlay } from "@/canvas/ReferenceSortableOverlay";
+import { LayerPanel } from "@/components/generation/LayerPanel";
+import { MaskParams } from "@/components/generation/MaskParams";
+import { StrengthSlider } from "@/components/generation/StrengthSlider";
 import type { InputFramePosition } from "@/canvas/inputFrameTypes";
 import type { ViewportState } from "@/canvas/viewportBus";
 
@@ -285,11 +288,17 @@ export function InputFramePanel({
         </div>
       </KeepAlivePanel>
       <KeepAlivePanel id="frame-options" lazy>
-        <div className="text-[10px] text-muted-foreground italic">
-          {isReference
-            ? "Reference frames have no extra options yet."
-            : "Layer + mask params will live here."}
-        </div>
+        {isReference ? (
+          <div className="text-[10px] text-muted-foreground italic">
+            Reference frames have no extra options yet.
+          </div>
+        ) : (
+          <div className="space-y-2">
+            <StrengthSlider />
+            <MaskParams />
+            <LayerPanel frameId={frame.frameId} />
+          </div>
+        )}
       </KeepAlivePanel>
     </KeepAliveSwitch>
   );

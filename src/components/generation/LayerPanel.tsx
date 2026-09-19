@@ -36,14 +36,19 @@ function LayerDims({ layer }: { layer: ImageLayer }) {
   );
 }
 
-export function LayerPanel() {
-  // Layer state comes from the focused Input frame. Mutations route
-  // through the per-frame canvasStore API (setActiveLayerInFrame /
-  // updateLayerInFrame / removeLayerFromFrame / addImageLayerToFrame).
+interface LayerPanelProps {
+  /** Frame to list; defaults to the focused Input frame. */
+  frameId?: string | undefined;
+}
+
+export function LayerPanel({ frameId }: LayerPanelProps = {}) {
+  // Mutations route through the per-frame canvasStore API
+  // (setActiveLayerInFrame / updateLayerInFrame / removeLayerFromFrame /
+  // addImageLayerToFrame).
   const inputFrames = useCanvasStore((s) => s.inputFrames);
   const activeInputFrameId = useCanvasStore((s) => s.activeInputFrameId);
-  const focusedFrame =
-    inputFrames.find((f) => f.id === activeInputFrameId) ?? inputFrames[0] ?? null;
+  const targetId = frameId ?? activeInputFrameId;
+  const focusedFrame = inputFrames.find((f) => f.id === targetId) ?? inputFrames[0] ?? null;
   const layers = focusedFrame?.layers ?? [];
   const activeLayerId = focusedFrame?.activeLayerId ?? null;
   const setActiveLayerInFrame = useCanvasStore((s) => s.setActiveLayerInFrame);

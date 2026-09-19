@@ -1,5 +1,7 @@
 import { useMemo } from "react";
 import { useGenerationStore } from "@/stores/generationStore";
+import { useCanvasStore } from "@/stores/canvasStore";
+import { useStrengthSupported } from "@/hooks/useStrengthSupported";
 import { useShallow } from "zustand/react/shallow";
 import { useSamplerList, useCurrentCheckpoint } from "@/api/hooks/useModels";
 import { ParamSlider } from "../ParamSlider";
@@ -45,9 +47,16 @@ export function SamplerTab() {
       seed: s.seed,
       subseed: s.subseed,
       subseedStrength: s.subseedStrength,
+      denoisingStrength: s.denoisingStrength,
     })),
   );
   const setParam = useGenerationStore((s) => s.setParam);
+  const hasInitialImage = useCanvasStore((s) =>
+    s.inputFrames.some(
+      (f) => f.mode === "initial" && f.layers.some((l) => l.type === "image" && l.visible),
+    ),
+  );
+  const strengthSupported = useStrengthSupported();
   const lastResult = useGenerationStore((s) => s.results[0]);
   const { data: checkpoint } = useCurrentCheckpoint();
   const { data: samplers } = useSamplerList(checkpoint?.type);
@@ -113,12 +122,28 @@ export function SamplerTab() {
         if (lastInfo?.subseed != null) setParam("subseed", lastInfo.subseed);
       },
       subseedStrength: (v: number) => setParam("subseedStrength", v),
+      denoisingStrength: (v: number) => setParam("denoisingStrength", v),
     }),
     [setParam, lastInfo],
   );
 
   return (
     <div className="flex flex-col gap-3 text-sm">
+      {hasInitialImage && (
+        <SectionLeader title="Image to image" collapsible>
+          <ParamSlider
+            label="Denoise"
+            tooltip="How far the result may depart from the input image.<br>0 keeps the image as it is, 1 regenerates it from noise; values between blend the two. With a mask, only the painted area changes."
+            keywords={["denoising strength", "img2img", "strength", "inpaint", "image to image"]}
+            value={state.denoisingStrength}
+            onChange={set.denoisingStrength}
+            min={0}
+            max={1}
+            step={0.05}
+            disabled={!strengthSupported}
+          />
+        </SectionLeader>
+      )}
       <SectionLeader title="Sampler" collapsible>
         <ParamGrid>
           <Combobox
