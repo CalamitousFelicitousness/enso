@@ -429,7 +429,8 @@ export const useCanvasStore = create<CanvasState>()(
           return { inputFrames: next };
         }),
 
-      setActiveInputFrame: (frameId) => set({ activeInputFrameId: frameId }),
+      setActiveInputFrame: (frameId) =>
+        set((s) => (s.activeInputFrameId === frameId ? s : { activeInputFrameId: frameId })),
 
       setFrameMode: (frameId, mode) =>
         set((s) => {

@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { useControlStore } from "@/stores/controlStore";
 import { useGenerationStore } from "@/stores/generationStore";
 import { useUiStore } from "@/stores/uiStore";
-import { useCanvasStore } from "@/stores/canvasStore";
+import { useFrameShapes } from "@/canvas/useFrameShapes";
 import { useImg2ImgStore } from "@/stores/img2imgStore";
 import { useModelSelectionStore } from "@/stores/modelSelectionStore";
 import { resolveGenerationSize } from "@/lib/sizeCompute";
@@ -90,10 +90,8 @@ export function useControlFrameLayout(): CanvasLayout {
   const frameW = useGenerationStore((s) => s.width);
   const frameH = useGenerationStore((s) => s.height);
   const lastResult = useGenerationStore((s) => s.results[0]);
-  const storeInputFrames = useCanvasStore((s) => s.inputFrames);
-  const hasAnyInputImage = storeInputFrames.some(
-    (f) => f.mode === "initial" && f.layers.some((l) => l.type === "image" && l.visible),
-  );
+  const storeInputFrames = useFrameShapes();
+  const hasAnyInputImage = storeInputFrames.some((f) => f.mode === "initial" && f.hasImage);
   const autoFitFrame = useUiStore((s) => s.autoFitFrame);
   const sizeMode = useImg2ImgStore((s) => s.sizeMode);
   const scaleFactor = useImg2ImgStore((s) => s.scaleFactor);

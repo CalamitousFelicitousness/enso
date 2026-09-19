@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, memo } from "react";
+import { useCallback, useEffect, useRef, useState, memo } from "react";
 import { useCanvasStore } from "@/stores/canvasStore";
 import { mainViewport } from "@/canvas/viewportAdapter";
 import { CanvasSurface, type SurfacePoint } from "@/canvas/CanvasSurface";
@@ -27,19 +27,16 @@ export const CanvasView = memo(function CanvasView() {
   const setViewport = useCanvasStore((s) => s.setViewport);
   // File-input handlers route to per-frame mutations on the focused
   // inputFrame.
-  const inputFrames = useCanvasStore((s) => s.inputFrames);
-  const activeInputFrameId = useCanvasStore((s) => s.activeInputFrameId);
-  const focusedFrame = useMemo(
-    () => inputFrames.find((f) => f.id === activeInputFrameId) ?? inputFrames[0] ?? null,
-    [inputFrames, activeInputFrameId],
-  );
-  const focusedFrameInitialHasImages =
-    focusedFrame?.mode === "initial" &&
-    focusedFrame.layers.some((l) => l.type === "image" && l.visible);
-  const hasAnyContent = inputFrames.some(
-    (f) =>
-      (f.mode === "initial" && f.layers.length > 0) ||
-      (f.mode === "reference" && f.references.length > 0),
+  const focusedFrameInitialHasImages = useCanvasStore((s) => {
+    const f = s.inputFrames.find((fr) => fr.id === s.activeInputFrameId) ?? s.inputFrames[0];
+    return f?.mode === "initial" && f.layers.some((l) => l.type === "image" && l.visible);
+  });
+  const hasAnyContent = useCanvasStore((s) =>
+    s.inputFrames.some(
+      (f) =>
+        (f.mode === "initial" && f.layers.length > 0) ||
+        (f.mode === "reference" && f.references.length > 0),
+    ),
   );
   const labelScale = useUiStore((s) => s.canvasLabelScale ?? 1);
   const canvasMode = useCanvasStore((s) => s.canvasMode);

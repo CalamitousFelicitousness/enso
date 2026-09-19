@@ -64,6 +64,24 @@ export interface WireSlot {
 const VISIBLE_IMAGE: (l: CanvasLayer) => l is ImageLayer = (l): l is ImageLayer =>
   l.type === "image" && l.visible;
 
+/** The frame fields that decide canvas layout and wire numbering. Mask edits
+ * and layer transforms leave all of them unchanged. */
+export interface FrameShape {
+  id: string;
+  mode: InputFrameMode;
+  hasImage: boolean;
+  references: ReferenceInput[];
+}
+
+export function toFrameShape(frame: InputFrame): FrameShape {
+  return {
+    id: frame.id,
+    mode: frame.mode,
+    hasImage: frame.layers.some(VISIBLE_IMAGE),
+    references: frame.references,
+  };
+}
+
 /** Walk frames in order, emitting one slot per actually-populated frame
  * (Initial-with-visible-image = 1 slot, Reference = references.length slots).
  * Empty frames contribute nothing so the wire index always matches what the
@@ -72,13 +90,12 @@ const VISIBLE_IMAGE: (l: CanvasLayer) => l is ImageLayer = (l): l is ImageLayer 
  * Stable global ordering: when one frame's mode flips or its references[]
  * grows, every downstream slot shifts by the delta. Consumers that need a
  * specific slot's index should re-read after relevant store mutations. */
-export function enumerateWireSlots(frames: InputFrame[]): WireSlot[] {
+export function enumerateWireSlots(frames: FrameShape[]): WireSlot[] {
   const slots: WireSlot[] = [];
   let globalIndex = 1;
   for (const frame of frames) {
     if (frame.mode === "initial") {
-      const hasVisibleImage = frame.layers.some(VISIBLE_IMAGE);
-      if (hasVisibleImage) {
+      if (frame.hasImage) {
         slots.push({
           frameId: frame.id,
           localIndex: 0,
@@ -107,7 +124,7 @@ export function enumerateWireSlots(frames: InputFrame[]): WireSlot[] {
  * (no visible image layer in Initial, no references in Reference). Used by
  * the InputFramePanel header label. */
 export function wireIndexForFrame(frames: InputFrame[], frameId: string): number | null {
-  const slots = enumerateWireSlots(frames);
+  const slots = enumerateWireSlots(frames.map(toFrameShape));
   const slot = slots.find((s) => s.frameId === frameId);
   return slot ? slot.globalIndex : null;
 }
@@ -120,7 +137,7 @@ export function wireIndexForChild(
   frameId: string,
   refId: string,
 ): number | null {
-  const slots = enumerateWireSlots(frames);
+  const slots = enumerateWireSlots(frames.map(toFrameShape));
   const slot = slots.find((s) => s.frameId === frameId && s.refId === refId);
   return slot ? slot.globalIndex : null;
 }

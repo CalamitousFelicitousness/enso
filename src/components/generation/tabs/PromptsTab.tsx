@@ -160,21 +160,18 @@ export function PromptsTab() {
   // independently of the image, so they're never advisory. With multi-Input
   // frames the advisory only fires when every populated frame is Reference -
   // a single Initial frame is enough to honor the user-set Size.
-  const inputFrames = useCanvasStore((s) => s.inputFrames);
-  const firstReferenceImage = useMemo(() => {
-    for (const f of inputFrames) {
+  const firstReferenceImage = useCanvasStore((s) => {
+    for (const f of s.inputFrames) {
       if (f.mode === "reference" && f.references.length > 0) {
         return f.references[0];
       }
     }
     return null;
-  }, [inputFrames]);
-  const hasAnyInitialImage = useMemo(
-    () =>
-      inputFrames.some(
-        (f) => f.mode === "initial" && f.layers.some((l) => l.type === "image" && l.visible),
-      ),
-    [inputFrames],
+  });
+  const hasAnyInitialImage = useCanvasStore((s) =>
+    s.inputFrames.some(
+      (f) => f.mode === "initial" && f.layers.some((l) => l.type === "image" && l.visible),
+    ),
   );
   const isCloud = activeModel != null && activeModel.source === "cloud";
   const referenceInactive =

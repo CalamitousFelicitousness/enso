@@ -14,6 +14,7 @@ import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable"
 import { Plus } from "lucide-react";
 import { useCanvasStore } from "@/stores/canvasStore";
 import { enumerateWireSlots } from "@/canvas/inputFrames";
+import { useFrameShapes } from "@/canvas/useFrameShapes";
 import type { CanvasLayout } from "@/canvas/useControlFrameLayout";
 import { InputFramePanel } from "./InputFramePanel";
 import type { ViewportState } from "@/canvas/viewportBus";
@@ -46,7 +47,7 @@ export function InputFramePanels({
   onRemoveFrame,
   onAddInputFrame,
 }: InputFramePanelsProps) {
-  const storeFrames = useCanvasStore((s) => s.inputFrames);
+  const storeFrames = useFrameShapes();
   const reorderInputFrames = useCanvasStore((s) => s.reorderInputFrames);
 
   // PointerSensor activation distance of 4px so a click without drag
