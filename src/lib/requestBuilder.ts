@@ -751,6 +751,7 @@ export function restoreFromResult(result: GenerationResult): void {
 
       if (result.inputMask && result.inputMask.length > 0) {
         canvas.clearMaskLinesInFrame(targetFrameId);
+        canvas.removeMaskLayersInFrame(targetFrameId);
         for (const line of result.inputMask) {
           canvas.addMaskLineToFrame(targetFrameId, line);
         }

@@ -824,27 +824,13 @@ export const useCanvasStore = create<CanvasState>()(
         })),
 
       clearMaskLinesInFrame: (frameId) =>
-        set((s) => {
-          const frame = s.inputFrames.find((f) => f.id === frameId);
-          if (!frame) return s;
-          for (const l of frame.layers) {
-            if (l.type === "mask") URL.revokeObjectURL((l as MaskObjectLayer).imageData);
-          }
-          return {
-            inputFrames: withFrame(s.inputFrames, frameId, (f) => {
-              const activeIsMask =
-                f.activeLayerId !== null &&
-                f.layers.find((l) => l.id === f.activeLayerId)?.type === "mask";
-              return {
-                ...f,
-                maskLines: [],
-                maskData: null,
-                layers: f.layers.filter((l) => l.type !== "mask"),
-                activeLayerId: activeIsMask ? null : f.activeLayerId,
-              };
-            }),
-          };
-        }),
+        set((s) => ({
+          inputFrames: withFrame(s.inputFrames, frameId, (f) => ({
+            ...f,
+            maskLines: [],
+            maskData: null,
+          })),
+        })),
 
       setMaskDataForFrame: (frameId, dataUrl) =>
         set((s) => ({

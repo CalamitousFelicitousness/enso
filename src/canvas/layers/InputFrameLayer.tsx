@@ -368,9 +368,11 @@ function InitialFrameFragment({
   const visibleImages = storeFrame.layers.filter(
     (l: CanvasLayer): l is ImageLayer => l.type === "image" && l.visible,
   );
-  const visibleMasks = storeFrame.layers.filter(
-    (l: CanvasLayer): l is MaskObjectLayer => l.type === "mask" && l.visible,
-  );
+  const visibleMasks = maskVisible
+    ? storeFrame.layers.filter(
+        (l: CanvasLayer): l is MaskObjectLayer => l.type === "mask" && l.visible,
+      )
+    : [];
   const hasLayers = visibleImages.length > 0;
   const borderColor = !hasLayers
     ? INPUT_COLOR_INACTIVE
@@ -437,7 +439,7 @@ function InitialFrameFragment({
               scaleX={mask.scaleX}
               scaleY={mask.scaleY}
               rotation={mask.rotation}
-              opacity={mask.opacity}
+              opacity={mask.opacity * maskColorAlpha}
               listening={!mask.locked}
               draggable={activeTool === "move" && !mask.locked}
               onDragMove={snapDragMove}
