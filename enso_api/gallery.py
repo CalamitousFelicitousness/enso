@@ -300,8 +300,10 @@ def register_api(app: FastAPI):  # register api
     # @app.get("/sdapi/v1/browser/thumb", response_model=dict)
     def get_thumb(file: str):
         """Return a thumbnail and metadata (EXIF, dimensions, size, mtime) for a single image or video file."""
+        decoded = unquote(file).replace("%3A", ":")
+        if not is_allowed_path(decoded):
+            raise HTTPException(status_code=403, detail="Path not allowed")
         try:
-            decoded = unquote(file).replace("%3A", ":")
             video_extensions = {".mp4", ".webm", ".mov", ".avi", ".mkv", ".flv", ".wmv", ".m4v"}
             ext = os.path.splitext(decoded)[1].lower()
             if ext in video_extensions:
