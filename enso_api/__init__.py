@@ -140,6 +140,7 @@ def register_api(app, dependencies=None):
             "/sdapi/v2/options-info": 0,
             "/sdapi/v2/secrets-status": 0,
             "/sdapi/v2/browser/thumb": 0,
+            "/sdapi/v2/browser/file": 0,
             "/sdapi/v2/browser/files": 0,
             "/sdapi/v2/browser/folders": 0,
             "/sdapi/v2/browser/folder-info": 0,

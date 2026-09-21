@@ -3,6 +3,7 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import { useGalleryStore } from "@/stores/galleryStore";
 import { useThumbnailLoader, useBackgroundPreloader } from "@/api/hooks/useGallery";
 import type { GalleryFile } from "@/api/types/gallery";
+import { browserFileUrl } from "@/api/browserFile";
 import { ConnectedGalleryCard } from "./GalleryCard";
 import { MasonryGrid } from "./MasonryGrid";
 import { sendImageToCanvas, fetchRemoteImage } from "@/lib/sendTo";
@@ -258,7 +259,7 @@ export function GalleryGrid({
     const f = contextFileRef.current;
     if (f) {
       void fetchRemoteImage(
-        `/file=${f.fullPath}`,
+        browserFileUrl(f.fullPath),
         f.relativePath.split("/").pop() ?? "image.png",
       ).then((blob) => sendImageToCanvas(blob));
     }

@@ -3,6 +3,7 @@ import { useGalleryStore } from "@/stores/galleryStore";
 import { useGenerationStore } from "@/stores/generationStore";
 import { parseGenerationInfo } from "@/lib/parseGenerationInfo";
 import { sendImageToCanvas, sendPromptToGeneration, fetchRemoteImage } from "@/lib/sendTo";
+import { browserFileUrl } from "@/api/browserFile";
 import { isVideoFile } from "@/lib/mediaType";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -79,7 +80,7 @@ export function GalleryMetadata() {
   }
 
   const filename = selectedFile.relativePath.split("/").pop() ?? selectedFile.relativePath;
-  const fullUrl = `/file=${selectedFile.fullPath}`;
+  const fullUrl = browserFileUrl(selectedFile.fullPath);
 
   const formatSize = (bytes: number) => {
     if (bytes < 1024) return `${bytes} B`;

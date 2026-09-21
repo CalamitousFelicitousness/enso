@@ -11374,6 +11374,42 @@
         ]
       }
     },
+    "/sdapi/v2/browser/file": {
+      "get": {
+        "description": "Serve a gallery file at full size, confined to the configured gallery roots.",
+        "operationId": "get_file_sdapi_v2_browser_file_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "path",
+            "required": true,
+            "schema": {
+              "title": "Path",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get File",
+        "tags": [
+          "Gallery"
+        ]
+      }
+    },
     "/sdapi/v2/browser/files": {
       "get": {
         "description": "List all files in a gallery folder recursively. Returns encoded path strings for client-side rendering.",

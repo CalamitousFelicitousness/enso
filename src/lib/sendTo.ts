@@ -12,6 +12,7 @@ import { engineToKind } from "@/lib/videoModel";
 import type { DragPayload } from "@/stores/dragStore";
 import type { LocalVideoModel } from "@/api/types/cloud";
 import type { VideoWireParams } from "@/api/types/wireParams";
+import { browserFileUrl } from "@/api/browserFile";
 import { VIDEO_PARAMS, WIRE_TO_STORE, coerce, type VideoJobType } from "@/lib/video/paramRegistry";
 
 export function extractFrameFromVideo(videoUrl: string, time: number): Promise<Blob> {
@@ -236,7 +237,7 @@ export async function payloadToFile(payload: DragPayload): Promise<File> {
 
   if (payload.type === "gallery-image" && payload.filePath) {
     return fetchRemoteImage(
-      `/file=${payload.filePath}`,
+      browserFileUrl(payload.filePath),
       payload.filePath.split("/").pop() ?? "gallery.png",
     );
   }
