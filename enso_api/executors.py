@@ -352,7 +352,7 @@ def execute_generate(params: dict, job_id: str) -> dict:
                 from modules.paths import resolve_output_path
 
                 try:
-                    output_dir = resolve_output_path(shared.opts.outdir_samples, shared.opts.outdir_txt2img_samples if not inits else shared.opts.outdir_img2img_samples)
+                    output_dir = resolve_output_path(shared.opts.outdir_samples, shared.opts.outdir_img2img_samples if inputs or inits else shared.opts.outdir_txt2img_samples)
                     img_info = img.info.get("parameters") if isinstance(getattr(img, "info", None), dict) else None
                     path_info = img_module.save_image(img, output_dir, "", seed=params.get("seed", -1), prompt=params.get("prompt", ""), info=img_info)
                     if path_info and len(path_info) > 0:
