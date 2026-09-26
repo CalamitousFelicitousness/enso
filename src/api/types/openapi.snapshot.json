@@ -2587,14 +2587,6 @@
             "title": "Include Mask",
             "type": "boolean"
           },
-          "init_control": {
-            "description": "Reference unit composited inputs",
-            "items": {
-              "type": "string"
-            },
-            "title": "Init Control",
-            "type": "array"
-          },
           "inits": {
             "description": "Pre-flattened init images for control-mode workflows",
             "items": {
@@ -10716,14 +10708,6 @@
             "default": false,
             "title": "Include Time",
             "type": "boolean"
-          },
-          "init_control": {
-            "description": "Reference unit composited inputs",
-            "items": {
-              "type": "string"
-            },
-            "title": "Init Control",
-            "type": "array"
           },
           "inits": {
             "description": "Pre-flattened init images for control-mode workflows",

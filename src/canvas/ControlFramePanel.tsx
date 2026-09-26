@@ -306,18 +306,11 @@ function UnitPanel({
 
   const imageDims = isOwner ? unit.imageDims : null;
   const unifiedIndex = unitIndex + 2;
-  const isReference = unit.unitType === "reference";
-  const panelColor = isReference ? INPUT_COLOR_REFERENCE : CONTROL_COLOR;
-  const roleLabel = isReference
-    ? "Reference"
-    : `Control: ${UNIT_TYPE_LABELS[unit.unitType] ?? unit.unitType}`;
-  const labelText = `Input ${unifiedIndex} (${roleLabel})`;
+  const labelText = `Input ${unifiedIndex} (Control: ${UNIT_TYPE_LABELS[unit.unitType] ?? unit.unitType})`;
 
   let sizeText: string | null = null;
   if (isOwner) {
-    if (isReference) {
-      sizeText = imageDims ? `${imageDims.w}\u00d7${imageDims.h}` : `${genW}\u00d7${genH}`;
-    } else if (unit.fitMode === "free") {
+    if (unit.fitMode === "free") {
       sizeText = imageDims ? `${imageDims.w}\u00d7${imageDims.h} free` : `${genW}\u00d7${genH}`;
     } else {
       const fitSuffix =
@@ -344,8 +337,6 @@ function UnitPanel({
       <Hand size={14} />
     );
 
-  const hasExpandableContent = !isReference;
-
   const infoContent = (
     <div className="flex flex-col gap-1.5">
       <InfoRow label="Type" value={UNIT_TYPE_LABELS[unit.unitType] ?? unit.unitType} />
@@ -353,7 +344,7 @@ function UnitPanel({
       {imageDims && (
         <InfoRow label="Dimensions" value={`${imageDims.w}\u00d7${imageDims.h}`} mono />
       )}
-      {!isReference && <InfoRow label="Fit" value={unit.fitMode} />}
+      <InfoRow label="Fit" value={unit.fitMode} />
     </div>
   );
 
@@ -374,7 +365,7 @@ function UnitPanel({
         <div className="flex items-center gap-2 min-w-0">
           <div
             className="shrink-0 rounded-full"
-            style={{ width: 6, height: 6, backgroundColor: panelColor }}
+            style={{ width: 6, height: 6, backgroundColor: CONTROL_COLOR }}
           />
           <span className="text-[11px] font-medium text-foreground truncate">{labelText}</span>
           {sizeText && (
@@ -412,7 +403,7 @@ function UnitPanel({
               </Button>
             </>
           )}
-          {isOwner && unit.image && !isReference && (
+          {isOwner && unit.image && (
             <>
               <Button
                 variant="ghost"
@@ -451,39 +442,37 @@ function UnitPanel({
               )}
             </>
           )}
-          {hasExpandableContent && (
-            <Button
-              variant="ghost"
-              size="icon-xs"
-              onClick={(e) => {
-                e.stopPropagation();
-                togglePanelCollapsed(`control:${unitIndex}`, collapsed);
-              }}
-              title={collapsed ? "Expand settings" : "Collapse settings"}
-              className="text-muted-foreground hover:bg-white/5"
-            >
-              {collapsed ? <ChevronDown size={12} /> : <ChevronUp size={12} />}
-            </Button>
-          )}
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            onClick={(e) => {
+              e.stopPropagation();
+              togglePanelCollapsed(`control:${unitIndex}`, collapsed);
+            }}
+            title={collapsed ? "Expand settings" : "Collapse settings"}
+            className="text-muted-foreground hover:bg-white/5"
+          >
+            {collapsed ? <ChevronDown size={12} /> : <ChevronUp size={12} />}
+          </Button>
         </div>
       </div>
 
       {/* Expandable section with tabs */}
-      {hasExpandableContent && !collapsed && (
+      {!collapsed && (
         <div style={{ borderTop: `1px solid ${GLASS_BORDER_SUBTLE}` }}>
           <div className="flex items-center gap-1 px-3 pt-2 pb-1">
             <DockTab
               active={activeTab === "info"}
               label="Info"
               icon={Layers}
-              accent={panelColor}
+              accent={CONTROL_COLOR}
               onClick={() => setActiveTab("info")}
             />
             <DockTab
               active={activeTab === "params"}
               label="Options"
               icon={SlidersHorizontal}
-              accent={panelColor}
+              accent={CONTROL_COLOR}
               onClick={() => setActiveTab("params")}
             />
           </div>
@@ -564,9 +553,6 @@ function ControlFrameStack({ frame, genSize, onPickImage, onClearImage }: Contro
   const ownerOverride = panelCollapsedOverrides.get(`control:${frame.unitIndex}`);
   const ownerCollapsed = ownerOverride !== undefined ? ownerOverride : !ownerHasImage;
 
-  const isReference = ownerUnit.unitType === "reference";
-  const tetherColor = isReference ? INPUT_COLOR_REFERENCE : CONTROL_COLOR;
-
   return (
     <div style={containerStyle} className="z-50">
       {referencingSlots.map((slot) => {
@@ -590,7 +576,7 @@ function ControlFrameStack({ frame, genSize, onPickImage, onClearImage }: Contro
         onPickImage={onPickImage}
         onClearImage={onClearImage}
       />
-      <Tether accent={tetherColor} height={ELEMENT_GAP / labelScale} />
+      <Tether accent={CONTROL_COLOR} height={ELEMENT_GAP / labelScale} />
     </div>
   );
 }

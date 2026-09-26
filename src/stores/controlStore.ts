@@ -2,8 +2,9 @@ import { create } from "zustand";
 import type { ControlUnit, ControlUnitType, ControlUnitSnapshot } from "@/api/types/control";
 import type { FreeTransform } from "@/lib/image";
 import { fileToBase64, base64ToFile, stripDataPrefix } from "@/lib/image";
+import { migrateUnitType } from "@/lib/controlUnitMigration";
 
-function defaultUnit(unitType: ControlUnitType = "reference"): ControlUnit {
+function defaultUnit(unitType: ControlUnitType = "controlnet"): ControlUnit {
   return {
     id: crypto.randomUUID(),
     enabled: false,
@@ -280,14 +281,11 @@ export const useControlStore = create<ControlState>()((set) => ({
         } else {
           imageSource = "canvas";
         }
-        // Migrate old unit types: "asset" → "reference", "reference" → "style_transfer"
-        let unitType = s.unitType as string;
-        if (unitType === "asset") unitType = "reference";
-        else if (unitType === "reference") unitType = "style_transfer";
+        const { unitType, retired } = migrateUnitType(s.unitType);
         return {
           id: crypto.randomUUID(),
-          enabled: s.enabled,
-          unitType: unitType as ControlUnitType,
+          enabled: s.enabled && !retired,
+          unitType,
           imageSource,
           processor: s.processor,
           model: s.model,

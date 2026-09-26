@@ -11,6 +11,7 @@ import { Plus, Trash2, PenLine } from "lucide-react";
 import type { ControlUnitType } from "@/api/types/control";
 import { UNIT_TYPE_LABELS, EXCLUSIVE_CONTROL_TYPES } from "@/api/types/control";
 import { useUnifiedInputs } from "@/hooks/useUnifiedInputs";
+import type { InputFrameMode } from "@/canvas/inputFrames";
 
 const UNIT_TYPE_OPTIONS: { value: ControlUnitType; label: string }[] = (
   Object.entries(UNIT_TYPE_LABELS) as [ControlUnitType, string][]
@@ -39,53 +40,64 @@ interface AddInputPopoverProps {
     label: string;
     disabled: boolean;
   }[];
-  onAdd: (unitType: ControlUnitType) => void;
-  disabled: boolean;
+  onAddUnit: (unitType: ControlUnitType) => void;
+  onAddFrame: (mode: InputFrameMode) => void;
+  unitsFull: boolean;
 }
 
-function AddInputPopover({ availableSubTypes, onAdd, disabled }: AddInputPopoverProps) {
+const FRAME_ENTRIES: { mode: InputFrameMode; label: string }[] = [
+  { mode: "initial", label: "Initial" },
+  { mode: "reference", label: "Reference" },
+];
+
+function entryClass(disabled: boolean, indent = false) {
+  return `flex w-full items-center rounded-sm px-2 py-1.5 text-sm ${indent ? "pl-4 " : ""}${disabled ? "opacity-40 cursor-not-allowed" : "hover:bg-accent hover:text-accent-foreground"}`;
+}
+
+function AddInputPopover({
+  availableSubTypes,
+  onAddUnit,
+  onAddFrame,
+  unitsFull,
+}: AddInputPopoverProps) {
   const [open, setOpen] = useState(false);
 
-  const handleAdd = useCallback(
-    (unitType: ControlUnitType) => {
-      onAdd(unitType);
-      setOpen(false);
-    },
-    [onAdd],
-  );
+  const closeAfter = useCallback((add: () => void) => {
+    add();
+    setOpen(false);
+  }, []);
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button variant="outline" size="sm" className="w-full" disabled={disabled}>
+        <Button variant="outline" size="sm" className="w-full">
           <Plus size={12} className="mr-1" /> Add Input
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-56 p-1" align="start">
-        <button
-          disabled
-          className="flex w-full items-center rounded-sm px-2 py-1.5 text-sm opacity-40 cursor-not-allowed"
-          title="Input 1 is always available as Initial"
-        >
-          Initial
-        </button>
-        <button
-          className="flex w-full items-center rounded-sm px-2 py-1.5 text-sm hover:bg-accent hover:text-accent-foreground"
-          onClick={() => handleAdd("reference")}
-        >
-          Reference
-        </button>
-        <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">Control</div>
-        {availableSubTypes.map((st) => (
+        {FRAME_ENTRIES.map(({ mode, label }) => (
           <button
-            key={st.value}
-            disabled={st.disabled}
-            className={`flex w-full items-center rounded-sm px-2 py-1.5 text-sm pl-4 ${st.disabled ? "opacity-40 cursor-not-allowed" : "hover:bg-accent hover:text-accent-foreground"}`}
-            onClick={() => !st.disabled && handleAdd(st.value)}
+            key={mode}
+            className={entryClass(false)}
+            onClick={() => closeAfter(() => onAddFrame(mode))}
           >
-            {st.label}
+            {label}
           </button>
         ))}
+        <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">Control</div>
+        {availableSubTypes.map((st) => {
+          const disabled = st.disabled || unitsFull;
+          return (
+            <button
+              key={st.value}
+              disabled={disabled}
+              className={entryClass(disabled, true)}
+              onClick={() => !disabled && closeAfter(() => onAddUnit(st.value))}
+            >
+              {st.label}
+            </button>
+          );
+        })}
       </PopoverContent>
     </Popover>
   );
@@ -98,6 +110,11 @@ export function ControlTab() {
   const addUnitWithType = useControlStore((s) => s.addUnitWithType);
   const reprocessOnGenerate = useUiStore((s) => s.reprocessOnGenerate);
   const setAutoUpdateProcessed = useUiStore((s) => s.setAutoUpdateProcessed);
+
+  const addInputFrame = useCallback((mode: InputFrameMode) => {
+    const state = useCanvasStore.getState();
+    state.setActiveInputFrame(state.addInputFrame({ mode }));
+  }, []);
 
   return (
     <div className="flex flex-col gap-3 text-sm">
@@ -126,8 +143,9 @@ export function ControlTab() {
 
       <AddInputPopover
         availableSubTypes={availableControlSubTypes}
-        onAdd={addUnitWithType}
-        disabled={units.length >= 10}
+        onAddUnit={addUnitWithType}
+        onAddFrame={addInputFrame}
+        unitsFull={units.length >= 10}
       />
     </div>
   );

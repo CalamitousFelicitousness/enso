@@ -164,8 +164,8 @@ export function ControlUnitControls({ index, compact }: ControlUnitControlsProps
   }, [controlModes, unit.model]);
 
   const type = unit.unitType;
-  const showProcessor = type !== "style_transfer" && type !== "ip" && type !== "reference";
-  const showModel = type !== "style_transfer" && type !== "ip" && type !== "reference";
+  const showProcessor = type !== "style_transfer" && type !== "ip";
+  const showModel = type !== "style_transfer" && type !== "ip";
   const showTiming = type === "controlnet" || type === "xs" || type === "ip";
   const showGuess = type === "controlnet";
   const showFactor = type === "t2i";

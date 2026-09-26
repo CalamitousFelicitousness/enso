@@ -1,10 +1,6 @@
 import type { FitMode, FreeTransform } from "@/lib/image";
 
-export type ControlUnitType =
-  "controlnet" | "t2i" | "xs" | "lite" | "style_transfer" | "ip" | "reference";
-
-/** High-level unified input roles visible to the user. */
-export type InputRole = "initial" | "reference" | "control";
+export type ControlUnitType = "controlnet" | "t2i" | "xs" | "lite" | "style_transfer" | "ip";
 
 /** Control sub-types that are mutually exclusive (all except IP-Adapter). */
 export const EXCLUSIVE_CONTROL_TYPES: ReadonlySet<ControlUnitType> = new Set<ControlUnitType>([
@@ -26,7 +22,6 @@ export const BACKEND_UNIT_TYPE: Partial<Record<ControlUnitType, string>> = {
 
 /** Human-readable labels for each unit type. */
 export const UNIT_TYPE_LABELS: Record<ControlUnitType, string> = {
-  reference: "Reference",
   controlnet: "ControlNet",
   t2i: "T2I-Adapter",
   xs: "XS",

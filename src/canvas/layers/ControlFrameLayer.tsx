@@ -1,11 +1,9 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { Layer, Rect, Text, Image as KonvaImage, Group, Transformer, Line } from "react-konva";
 import { useControlStore } from "@/stores/controlStore";
-import type { ControlUnitType } from "@/api/types/control";
 import { useCanvasStore } from "@/stores/canvasStore";
 import { computeFit, type FitMode, type FreeTransform } from "@/lib/image";
 import { useSnap } from "@/canvas/tools/useSnap";
-import { INPUT_COLOR_REFERENCE } from "@/canvas/ControlFramePanel";
 import {
   ELEMENT_GAP,
   PROCESSED_HEADER_HEIGHT,
@@ -262,7 +260,7 @@ export function ControlFrameLayer({ frames, onPickImage }: ControlFrameLayerProp
         const imgState = imageMap.get(frame.unitIndex);
         const hasImage = !!imgState;
         const unit = units[frame.unitIndex];
-        const fitMode = unit?.unitType === "reference" ? "contain" : (unit?.fitMode ?? "contain");
+        const fitMode = unit?.fitMode ?? "contain";
         const freeTransform = unit?.freeTransform ?? null;
 
         // Collect processed images for all slots
@@ -281,7 +279,6 @@ export function ControlFrameLayer({ frames, onPickImage }: ControlFrameLayerProp
           <ControlFrame
             key={frame.unitIndex}
             frame={frame}
-            unitType={unit?.unitType}
             hasImage={hasImage}
             image={imgState?.htmlImage ?? null}
             processedSlots={slotImages}
@@ -302,7 +299,6 @@ interface SlotImage {
 
 interface ControlFrameProps {
   frame: ControlFramePosition;
-  unitType?: ControlUnitType;
   hasImage: boolean;
   image: HTMLImageElement | null;
   processedSlots: SlotImage[];
@@ -329,7 +325,6 @@ function computeAutoCenter(
 
 function ControlFrame({
   frame,
-  unitType,
   hasImage,
   image,
   processedSlots,
@@ -337,7 +332,6 @@ function ControlFrame({
   freeTransform,
   onClick,
 }: ControlFrameProps) {
-  const borderColor = unitType === "reference" ? INPUT_COLOR_REFERENCE : BORDER_COLOR;
   const activeTool = useCanvasStore((s) => s.activeTool);
   const selectedControlFrame = useCanvasStore((s) => s.selectedControlFrame);
   const setFreeTransform = useControlStore((s) => s.setFreeTransform);
@@ -518,7 +512,7 @@ function ControlFrame({
         y={frame.y}
         width={frame.width}
         height={frame.height}
-        stroke={borderColor}
+        stroke={BORDER_COLOR}
         strokeWidth={1}
         {...(!hasImage && { dash: [8, 4] })}
         listening={false}
@@ -531,7 +525,7 @@ function ControlFrame({
           y={frame.y}
           w={frame.width}
           h={frame.height}
-          color={borderColor}
+          color={BORDER_COLOR}
         />
       )}
 

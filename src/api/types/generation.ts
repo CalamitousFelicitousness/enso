@@ -139,7 +139,6 @@ export interface ControlRequest {
         crop: boolean;
       }>
     | undefined;
-  init_control?: string[] | undefined;
   control?: ControlRequestUnit[] | undefined;
   schedulers_sigma?: string | undefined;
   schedulers_timestep_spacing?: string | undefined;

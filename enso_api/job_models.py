@@ -570,7 +570,6 @@ class Img2ImgMixin(StrictBaseModel):
     inputs: list[str] = Field(default_factory=list, description="Init images (upload refs or base64). Empty for txt2img.")
     inits: list[str] = Field(default_factory=list, description="Pre-flattened init images for control-mode workflows")
     mask: str | None = Field(default=None, description="Inpaint mask (upload ref or base64); white = inpaint area")
-    init_control: list[str] = Field(default_factory=list, description="Reference unit composited inputs")
     input_type: int = 0
     width_before: int = 512
     height_before: int = 512

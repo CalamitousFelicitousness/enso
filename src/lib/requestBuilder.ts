@@ -251,13 +251,7 @@ export async function buildControlRequest(): Promise<BuildResult> {
   // Resolve images for control units (may reference another unit's image via "unit:N")
   const controlUnitEntries = control.units
     .map((u, i) => ({ unit: u, image: resolveUnitImage(control.units, i) }))
-    .filter(
-      (e) =>
-        e.unit.enabled && e.unit.unitType !== "ip" && e.unit.unitType !== "reference" && e.image,
-    );
-  const referenceUnitEntries = control.units
-    .map((u, i) => ({ unit: u, image: resolveUnitImage(control.units, i) }))
-    .filter((e) => e.unit.enabled && e.unit.unitType === "reference" && e.image);
+    .filter((e) => e.unit.enabled && e.unit.unitType !== "ip" && e.image);
 
   if (enabledIPUnits.length > 0) {
     request.ip_adapter = await Promise.all(
@@ -331,31 +325,10 @@ export async function buildControlRequest(): Promise<BuildResult> {
     );
   }
 
-  if (referenceUnitEntries.length > 0) {
-    request.init_control = await Promise.all(
-      referenceUnitEntries.map(async (e) => {
-        if (e.unit.fitMode === "free" && e.image) {
-          const ft = e.unit.freeTransform ?? { x: 0, y: 0, scaleX: 1, scaleY: 1, rotation: 0 };
-          const composed = await compositeControlImage(
-            e.image,
-            ft,
-            gen.width,
-            gen.height,
-            displayScale,
-          );
-          return uploadBlob(composed, "control.png");
-        }
-        const composed = await compositeFitImage(e.image!, gen.width, gen.height, e.unit.fitMode);
-        return uploadBlob(composed, "control.png");
-      }),
-    );
-  }
-
   // Reference mode: upload source file raw via inputs - no flatten, no resize.
   // Server-side resize_init_images snaps to VAE alignment and overrides p.width/p.height
   // to the image's dimensions, so edit models (Klein/Kontext/Qwen Edit) and img2img
-  // pipelines all receive the image at native resolution. init_control would silently
-  // discard the image when no control units are active.
+  // pipelines all receive the image at native resolution.
   let inputBlob: Blob | undefined;
   if (inputRole === "reference" && primaryReferences.length > 0) {
     // Reference mode: upload each reference child raw. Local SD.Next

@@ -21,6 +21,14 @@ interface ResubmitOptions {
   errorMessage?: string;
 }
 
+/** Stored payloads can carry init_control, which the job schema no longer
+ * accepts; it reached no pipeline, so dropping it changes nothing. */
+function withoutRetiredFields(request: JobRequest): JobRequest {
+  if (!("init_control" in request)) return request;
+  const { init_control: _retired, ...current } = request;
+  return current;
+}
+
 /**
  * Submit an existing JobRequest as a new job, tracking it in the queue store
  * and persisting its payload for future retries. Used by QueueTab retry/
@@ -32,9 +40,10 @@ export function useResubmitJob() {
 
   return useCallback(
     async (
-      { domain, request, snapshot }: ResubmitArgs,
+      { domain, request: stored, snapshot }: ResubmitArgs,
       opts: ResubmitOptions = {},
     ): Promise<Job | null> => {
+      const request = withoutRetiredFields(stored);
       const priority = (request as { priority?: number }).priority ?? 0;
       try {
         const newJob = await submitJob.mutateAsync(request);
