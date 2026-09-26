@@ -728,12 +728,17 @@ export function restoreFromResult(result: GenerationResult): void {
 
   // Restore input image and mask if present (img2img history). Target the
   // focused Input frame so the user can compare against their current
-  // working state; falls back to the first Input frame if none focused.
+  // working state, or the first Initial frame when the focused one is a
+  // Reference frame, whose layers are not shown or sent.
   if (result.inputImage) {
     const w = num(p.width_before ?? p.width, 1024);
     const h = num(p.height_before ?? p.height, 1024);
     const canvas = useCanvasStore.getState();
-    const targetFrameId = canvas.activeInputFrameId ?? canvas.inputFrames[0]?.id ?? null;
+    const active = canvas.inputFrames.find((f) => f.id === canvas.activeInputFrameId);
+    const targetFrameId =
+      active?.mode === "initial"
+        ? active.id
+        : (canvas.inputFrames.find((f) => f.mode === "initial")?.id ?? null);
     if (targetFrameId) {
       canvas.restoreImageLayerToFrame(targetFrameId, base64ToBlob(result.inputImage), w, h);
 
