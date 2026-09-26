@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { ws, ensureWs } from "@/api/wsManager";
 import { useBackendStatusStore } from "@/stores/backendStatusStore";
 import { useDownloadStore, type DownloadProgress } from "@/stores/downloadStore";
+import { previewMimeType } from "@/lib/image";
 import { queryClient } from "@/main";
 
 /** Query keys to invalidate when the backend reconnects (e.g. after restart). */
@@ -47,7 +48,7 @@ export function useGlobalWs() {
     });
 
     const offBinary = ws.on("binary", (buf: ArrayBuffer) => {
-      const blob = new Blob([buf], { type: "image/jpeg" });
+      const blob = new Blob([buf], { type: previewMimeType(buf) });
       const url = URL.createObjectURL(blob);
       useBackendStatusStore.getState().setPreview(url);
     });

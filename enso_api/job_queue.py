@@ -1,6 +1,5 @@
 import asyncio
 import contextlib
-import io
 import json
 import os
 import shutil
@@ -10,6 +9,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 from enso_api.job_store import JobStore
 from enso_api.models import JobResult
+from enso_api.util import preview_image
 from enso_api.ws_models import (
     WsEventCompleted,
     WsEventError,
@@ -478,12 +478,8 @@ class JobQueue:
                     # Send preview image as binary if available
                     if state.id_live_preview != last_preview_id and state.current_image is not None:
                         last_preview_id = state.id_live_preview
-                        try:
-                            buf = io.BytesIO()
-                            state.current_image.save(buf, format="JPEG", quality=75)
-                            self._push_binary(job_id, buf.getvalue())
-                        except Exception:
-                            pass
+                        with contextlib.suppress(Exception):
+                            self._push_binary(job_id, preview_image(state.current_image))
             except Exception:
                 pass
             stop_event.wait(timeout=0.1)

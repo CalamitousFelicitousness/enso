@@ -7,6 +7,7 @@ import { useControlStore } from "@/stores/controlStore";
 import { useVideoStore } from "@/stores/videoStore";
 import { useProcessStore } from "@/stores/processStore";
 import { deleteJobPayload } from "@/lib/jobPayloadDb";
+import { previewMimeType } from "@/lib/image";
 import type { JobResult, JobWsEvent } from "@/api/types/v2";
 import { toast } from "sonner";
 
@@ -209,7 +210,7 @@ export function useJobTracker() {
         });
 
         const offBinary = manager.on("binary", (buf: ArrayBuffer) => {
-          const blob = new Blob([buf], { type: "image/jpeg" });
+          const blob = new Blob([buf], { type: previewMimeType(buf) });
           const url = URL.createObjectURL(blob);
           useJobQueueStore.getState().updatePreview(jobId, url);
         });

@@ -148,6 +148,12 @@ export function blobToBase64(blob: Blob): Promise<string> {
   });
 }
 
+/** MIME type of a live preview frame: WebP when the server kept its transparency, JPEG otherwise. */
+export function previewMimeType(frame: ArrayBuffer): string {
+  const tag = String.fromCharCode(...new Uint8Array(frame, 0, Math.min(12, frame.byteLength)));
+  return tag.startsWith("RIFF") && tag.slice(8) === "WEBP" ? "image/webp" : "image/jpeg";
+}
+
 export function createObjectUrl(base64: string, mimeType = "image/png"): string {
   const byteCharacters = atob(base64);
   const byteNumbers = new Array(byteCharacters.length);

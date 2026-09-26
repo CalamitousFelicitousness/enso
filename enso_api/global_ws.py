@@ -1,9 +1,10 @@
 import asyncio
-import io
 
 from fastapi import WebSocket, WebSocketDisconnect
 from modules.logger import log
 from starlette.websockets import WebSocketState
+
+from enso_api.util import preview_image
 
 
 class ConnectionManager:
@@ -65,9 +66,7 @@ async def push_progress(ws: WebSocket):
                 await manager.send_json(ws, {"type": "progress", "data": data})
                 if state.id_live_preview != last_preview_id and state.current_image is not None:
                     last_preview_id = state.id_live_preview
-                    buf = io.BytesIO()
-                    state.current_image.save(buf, format="JPEG", quality=75)
-                    await manager.send_bytes(ws, buf.getvalue())
+                    await manager.send_bytes(ws, await asyncio.to_thread(preview_image, state.current_image))
             elif state.job_count == 0 and (last_step != -1 or last_job != ""):
                 last_step = -1
                 last_job = ""
