@@ -839,23 +839,18 @@ export async function buildCloudImageRequest(): Promise<CloudImageJobParams> {
   const frameW = gen.width;
   const frameH = gen.height;
 
-  // walk inputFrames in order, building the wire images list.
-  // Initial frames with visible images contribute one flattened+optimized
-  // blob each; Reference frames contribute N raw-uploaded refs (no flatten,
-  // no provider optimization). The primary (first contributing Initial)
-  // frame determines strength + mask. Mixed Initial+Reference works -
-  // user's "paint Image 1, point at Image 2 as reference" workflow.
+  // One image per wire slot, in slot order. Initial slots contribute one
+  // flattened+optimized blob each; reference slots upload raw (no flatten,
+  // no provider optimization). The primary (first Initial) slot determines
+  // strength + mask. Mixed Initial+Reference works - user's "paint Image 1,
+  // point at Image 2 as reference" workflow.
+  const sources = wireSources(canvas.inputFrames);
 
-  // Resolve the primary Initial frame up front so size + autoSize gating
+  // Resolve the primary Initial slot up front so size + autoSize gating
   // can lock to the user's intent. Reference-only generations don't have
   // a strength surface, so isImg2Img is false in that case.
-  const firstInitialFrame =
-    canvas.inputFrames.find(
-      (f) =>
-        f.mode === "initial" &&
-        f.layers.some((l) => l.type === "image" && (l as ImageLayer).visible),
-    ) ?? null;
-  const isImg2Img = firstInitialFrame !== null;
+  const firstInitial = sources.find((s) => s.kind === "initial") ?? null;
+  const isImg2Img = firstInitial !== null;
 
   const effectiveSizeMode: SizeMode = isImg2Img ? img2img.sizeMode : "fixed";
   const targetSize = resolveGenerationSize(
@@ -893,44 +888,36 @@ export async function buildCloudImageRequest(): Promise<CloudImageJobParams> {
   let primaryOptimizedDims: { width: number; height: number } | null = null;
   const imageRefs: string[] = [];
 
-  for (const frame of canvas.inputFrames) {
-    if (frame.mode === "initial") {
-      const visible = frame.layers.filter((l): l is ImageLayer => l.type === "image" && l.visible);
-      if (visible.length === 0) continue;
-      // Flatten + optimize + upload this Initial frame's layers.
-      let imageBlob = await flattenCanvas(visible, frameW, frameH);
-      if (!imageBlob) continue;
-      const needsResize = targetSize.width !== frameW || targetSize.height !== frameH;
-      if (needsResize) {
-        imageBlob = await resizeBlob(imageBlob, targetSize.width, targetSize.height);
-      }
-      const limits = getInputLimits(model.provider, model.id);
-      const optimized = await optimizeImageForProvider(imageBlob, limits, model.provider);
-      const filename = `cloud-input.${optimized.format}`;
-      const ref = await uploadBlob(optimized.blob, filename);
-      imageRefs.push(ref);
-      if (frame === firstInitialFrame) {
-        primaryOptimizedDims = optimized.dimensions;
-        // The first Initial frame's optimized dimensions can differ from the
-        // user-set size when the provider's input limits clip aspect or
-        // longest-side. Echo those dims into request.size unless the caller
-        // explicitly asked for size="auto".
-        if (
-          !autoEnabled &&
-          (optimized.dimensions.width !== targetSize.width ||
-            optimized.dimensions.height !== targetSize.height)
-        ) {
-          request.size = `${optimized.dimensions.width}x${optimized.dimensions.height}`;
-        }
-      }
-    } else {
-      // Reference frame: raw-upload each child in wire order (no flatten,
-      // no optimization - sdnext's adapter dispatches per-provider). Only
-      // the active Reference arm contributes; the dormant Initial-arm
-      // layers stay untouched so toggling back restores the paint target.
-      for (const refInput of frame.references) {
-        const ref = await uploadFile(refInput.file);
-        imageRefs.push(ref);
+  for (const source of sources) {
+    if (source.kind === "reference") {
+      // Raw upload, no optimization - sdnext's adapter dispatches per-provider.
+      imageRefs.push(await uploadFile(source.reference.file));
+      continue;
+    }
+    // Flatten + optimize + upload this Initial slot's layers.
+    let imageBlob = await flattenCanvas(source.layers, frameW, frameH);
+    if (!imageBlob) continue;
+    const needsResize = targetSize.width !== frameW || targetSize.height !== frameH;
+    if (needsResize) {
+      imageBlob = await resizeBlob(imageBlob, targetSize.width, targetSize.height);
+    }
+    const limits = getInputLimits(model.provider, model.id);
+    const optimized = await optimizeImageForProvider(imageBlob, limits, model.provider);
+    const filename = `cloud-input.${optimized.format}`;
+    const ref = await uploadBlob(optimized.blob, filename);
+    imageRefs.push(ref);
+    if (source === firstInitial) {
+      primaryOptimizedDims = optimized.dimensions;
+      // The first Initial slot's optimized dimensions can differ from the
+      // user-set size when the provider's input limits clip aspect or
+      // longest-side. Echo those dims into request.size unless the caller
+      // explicitly asked for size="auto".
+      if (
+        !autoEnabled &&
+        (optimized.dimensions.width !== targetSize.width ||
+          optimized.dimensions.height !== targetSize.height)
+      ) {
+        request.size = `${optimized.dimensions.width}x${optimized.dimensions.height}`;
       }
     }
   }
@@ -942,12 +929,12 @@ export async function buildCloudImageRequest(): Promise<CloudImageJobParams> {
 
   request.images = imageRefs;
 
-  if (firstInitialFrame) {
-    // Strength + mask apply when an Initial frame contributes; mask pairs
-    // with the primary Initial frame's first slot.
+  if (firstInitial) {
+    // Strength + mask apply when an Initial slot contributes; mask pairs
+    // with the primary Initial slot.
     request.strength = gen.denoisingStrength;
-    const maskLines = firstInitialFrame.maskLines;
-    const maskObjects = firstInitialFrame.layers.filter(
+    const maskLines = firstInitial.frame.maskLines;
+    const maskObjects = firstInitial.frame.layers.filter(
       (l): l is MaskObjectLayer => l.type === "mask",
     );
     if (maskLines.length > 0 || maskObjects.length > 0) {
