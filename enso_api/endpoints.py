@@ -530,12 +530,15 @@ async def get_history_v2(
 
 
 def build_checkpoint_info() -> ResCheckpointV2:
+    from enso_api import condition_images
+
     if not shared.sd_loaded or shared.sd_model is None:
         return ResCheckpointV2(loaded=False)
     info = ResCheckpointV2(
         loaded=True,
         type=shared.sd_model_type,
         class_name=shared.sd_model.__class__.__name__,
+        max_input_images=condition_images.max_condition_images(shared.sd_model),
     )
     if hasattr(shared.sd_model, "sd_model_checkpoint"):
         info.checkpoint = shared.sd_model.sd_model_checkpoint

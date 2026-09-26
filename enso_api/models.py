@@ -464,6 +464,7 @@ class ResCheckpointV2(BaseModel):
     name: str | None = Field(default=None, title="Name")
     filename: str | None = Field(default=None, title="Filename")
     hash: str | None = Field(default=None, title="Hash")
+    max_input_images: int | None = Field(default=None, title="Max Input Images", description="Input images the loaded pipeline takes as one set; 1 for single-image models")
 
 
 class ReqSetCheckpointV2(BaseModel):

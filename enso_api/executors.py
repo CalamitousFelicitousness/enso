@@ -171,6 +171,10 @@ def execute_generate(params: dict, job_id: str) -> dict:
     from modules.control import run as control_run_module
     from modules.control.unit import Unit
 
+    from enso_api import condition_images
+
+    condition_images.validate(params, shared.sd_model)
+
     # Decode base64 images
     inputs = [helpers.decode_base64_to_image(x) for x in params.get("inputs", [])] if params.get("inputs") else None
     inits = [helpers.decode_base64_to_image(x) for x in params.get("inits", [])] if params.get("inits") else None
@@ -238,6 +242,9 @@ def execute_generate(params: dict, job_id: str) -> dict:
     run_args = {k: v for k, v in params.items() if k in valid_params and k not in skip_keys}
     run_args["sampler_index"] = sampler_index
     run_args["is_generator"] = True
+    if params.get("skip_processing") and inputs and not condition_images.declared_capacity(shared.sd_model):
+        inputs[0] = condition_images.align_first_input(inputs[0], shared.sd_model)
+        run_args["width_before"], run_args["height_before"] = inputs[0].size
     run_args["inputs"] = inputs
     run_args["inits"] = inits
     run_args["mask"] = mask

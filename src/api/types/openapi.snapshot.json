@@ -2934,6 +2934,12 @@
             "title": "Sequential Seed",
             "type": "boolean"
           },
+          "skip_processing": {
+            "default": false,
+            "description": "Send inputs without server preprocessing (resize-before, mask, control units); a multi-image model takes them as one set in list order",
+            "title": "Skip Processing",
+            "type": "boolean"
+          },
           "steps": {
             "default": 20,
             "title": "Steps",
@@ -7643,6 +7649,18 @@
             "title": "Loaded",
             "type": "boolean"
           },
+          "max_input_images": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Input images the loaded pipeline takes as one set; 1 for single-image models",
+            "title": "Max Input Images"
+          },
           "name": {
             "anyOf": [
               {
@@ -11064,6 +11082,12 @@
           "sequential_seed": {
             "default": false,
             "title": "Sequential Seed",
+            "type": "boolean"
+          },
+          "skip_processing": {
+            "default": false,
+            "description": "Send inputs without server preprocessing (resize-before, mask, control units); a multi-image model takes them as one set in list order",
+            "title": "Skip Processing",
             "type": "boolean"
           },
           "steps": {
