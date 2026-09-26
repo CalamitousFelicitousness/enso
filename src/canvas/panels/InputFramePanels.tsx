@@ -16,6 +16,7 @@ import { useCanvasStore } from "@/stores/canvasStore";
 import { enumerateWireSlots } from "@/canvas/inputFrames";
 import { useFrameShapes } from "@/canvas/useFrameShapes";
 import type { CanvasLayout } from "@/canvas/useControlFrameLayout";
+import { INPUTS_FULL_HINT } from "@/canvas/useInputsAtCapacity";
 import { InputFramePanel } from "./InputFramePanel";
 import type { ViewportState } from "@/canvas/viewportBus";
 
@@ -95,6 +96,7 @@ export function InputFramePanels({
             onClearFrame={onClearFrame}
             onRemoveFrame={onRemoveFrame}
             canRemove={canRemove}
+            atCapacity={layout.inputsAtCapacity}
           />
         ))}
       </SortableContext>
@@ -104,6 +106,7 @@ export function InputFramePanels({
           width={layout.displayW}
           viewport={viewport}
           labelScale={labelScale}
+          disabled={layout.inputsAtCapacity}
           onClick={onAddInputFrame}
         />
       )}
@@ -120,6 +123,7 @@ interface AddInputFrameButtonProps {
   width: number;
   viewport: ViewportState;
   labelScale: number;
+  disabled: boolean;
   onClick: () => void;
 }
 
@@ -128,6 +132,7 @@ function AddInputFrameButton({
   width,
   viewport,
   labelScale,
+  disabled,
   onClick,
 }: AddInputFrameButtonProps) {
   const combinedScale = viewport.scale * labelScale;
@@ -150,7 +155,9 @@ function AddInputFrameButton({
       <button
         type="button"
         onClick={onClick}
-        className="flex w-full items-center justify-center gap-1.5 rounded-md border border-dashed border-white/15 bg-white/[0.02] px-3 py-2 text-[11px] font-medium text-muted-foreground transition-colors hover:border-white/30 hover:bg-white/[0.04] hover:text-foreground"
+        disabled={disabled}
+        title={disabled ? INPUTS_FULL_HINT : undefined}
+        className="flex w-full items-center justify-center gap-1.5 rounded-md border border-dashed border-white/15 bg-white/[0.02] px-3 py-2 text-[11px] font-medium text-muted-foreground transition-colors hover:border-white/30 hover:bg-white/[0.04] hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-white/15 disabled:hover:bg-white/[0.02] disabled:hover:text-muted-foreground"
       >
         <Plus size={14} />
         Add Input Frame

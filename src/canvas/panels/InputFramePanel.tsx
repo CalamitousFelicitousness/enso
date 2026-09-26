@@ -26,6 +26,7 @@ import { MaskParams } from "@/components/generation/MaskParams";
 import { StrengthSlider } from "@/components/generation/StrengthSlider";
 import type { InputFramePosition } from "@/canvas/inputFrameTypes";
 import type { ViewportState } from "@/canvas/viewportBus";
+import { INPUTS_FULL_HINT } from "@/canvas/useInputsAtCapacity";
 
 // HTML hints for the Initial / Reference mode toggle, rendered through the
 // styled Tooltip path (matte glass + <b>/<i>/<br> formatting) rather than the
@@ -34,13 +35,18 @@ const INITIAL_MODE_HINT =
   "<b>Initial</b> sends the canvas as an <i>img2img</i> init image.<br><br>" +
   "All visible layers are flattened at the frame's generation size, then " +
   "denoising strength controls how far the result departs from it. Mask " +
-  "painting (inpaint) applies in this mode.<br><br>Holds a single composited image.";
+  "painting (inpaint) applies in this mode.<br><br>Holds a single composited image. " +
+  "When other frames hold images too, it goes to the model as one image of the set, " +
+  "and strength and masks no longer apply.";
 
 const REFERENCE_MODE_HINT =
-  "<b>Reference</b> sends source files at their native resolution, not flattened " +
-  "or resized to the frame.<br><br>Used by any model that accepts multiple image " +
-  "inputs, local (<i>Klein</i>, <i>Kontext</i>, <i>Qwen Edit</i>) or cloud.<br><br>" +
-  "A Reference frame can hold a grid of several images.";
+  "<b>Reference</b> sends source files as they are, not flattened or resized to " +
+  "the frame; the model scales each one itself. Suits edit models such as " +
+  "<i>Kontext</i>, <i>Klein</i> and <i>Qwen-Image</i>.<br><br>" +
+  "A Reference frame can hold a grid of several images. Several inputs reach the " +
+  "model together, numbered as the canvas shows them, on models that take more " +
+  "than one image (<i>Qwen-Image 2.1</i>, <i>Qwen Edit Plus</i>, multi-image cloud " +
+  "models). Once a model's limit is reached, the add buttons are greyed out.";
 
 interface InputFramePanelProps {
   frame: InputFramePosition;
@@ -64,6 +70,8 @@ interface InputFramePanelProps {
    * remains (canRemove === false). */
   onRemoveFrame?: ((frameId: string) => void) | undefined;
   canRemove?: boolean | undefined;
+  /** The input frames hold as many images as the active model takes. */
+  atCapacity?: boolean | undefined;
 }
 
 export function InputFramePanel({
@@ -77,6 +85,7 @@ export function InputFramePanel({
   onClearFrame,
   onRemoveFrame,
   canRemove = true,
+  atCapacity = false,
 }: InputFramePanelProps) {
   const storeFrame = useCanvasStore((s) => s.inputFrames.find((f) => f.id === frame.frameId));
   const setFrameMode = useCanvasStore((s) => s.setFrameMode);
@@ -143,6 +152,8 @@ export function InputFramePanel({
   const handleAddRef = () => onAddReferenceChild?.(frame.frameId);
   const handleClear = () => onClearFrame?.(frame.frameId);
   const handleRemove = () => onRemoveFrame?.(frame.frameId);
+  // A reference child is always another slot; a layer is one only on an empty frame
+  const addBlocked = atCapacity && (isReference || layerCount === 0);
 
   // The overlay speaks ids; map them to this frame's reference indices.
   const handleChildReorder = (activeId: string, overId: string) => {
@@ -216,8 +227,11 @@ export function InputFramePanel({
       <Button
         variant="ghost"
         size="icon-xs"
-        title={isReference ? "Add reference image" : "Add image layer"}
+        title={
+          addBlocked ? INPUTS_FULL_HINT : isReference ? "Add reference image" : "Add image layer"
+        }
         onClick={isReference ? handleAddRef : handlePickImage}
+        disabled={addBlocked}
       >
         <ImagePlus size={12} />
       </Button>

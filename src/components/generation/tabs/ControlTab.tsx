@@ -11,6 +11,7 @@ import { Plus, Trash2, PenLine } from "lucide-react";
 import type { ControlUnitType } from "@/api/types/control";
 import { UNIT_TYPE_LABELS, EXCLUSIVE_CONTROL_TYPES } from "@/api/types/control";
 import { useUnifiedInputs } from "@/hooks/useUnifiedInputs";
+import { useInputsAtCapacity, INPUTS_FULL_HINT } from "@/canvas/useInputsAtCapacity";
 import type { InputFrameMode } from "@/canvas/inputFrames";
 
 const UNIT_TYPE_OPTIONS: { value: ControlUnitType; label: string }[] = (
@@ -43,6 +44,7 @@ interface AddInputPopoverProps {
   onAddUnit: (unitType: ControlUnitType) => void;
   onAddFrame: (mode: InputFrameMode) => void;
   unitsFull: boolean;
+  framesFull: boolean;
 }
 
 const FRAME_ENTRIES: { mode: InputFrameMode; label: string }[] = [
@@ -59,6 +61,7 @@ function AddInputPopover({
   onAddUnit,
   onAddFrame,
   unitsFull,
+  framesFull,
 }: AddInputPopoverProps) {
   const [open, setOpen] = useState(false);
 
@@ -70,7 +73,7 @@ function AddInputPopover({
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button variant="outline" size="sm" className="w-full">
+        <Button variant="outline" size="sm" className="w-full" disabled={unitsFull && framesFull}>
           <Plus size={12} className="mr-1" /> Add Input
         </Button>
       </PopoverTrigger>
@@ -78,8 +81,10 @@ function AddInputPopover({
         {FRAME_ENTRIES.map(({ mode, label }) => (
           <button
             key={mode}
-            className={entryClass(false)}
-            onClick={() => closeAfter(() => onAddFrame(mode))}
+            disabled={framesFull}
+            title={framesFull ? INPUTS_FULL_HINT : undefined}
+            className={entryClass(framesFull)}
+            onClick={() => !framesFull && closeAfter(() => onAddFrame(mode))}
           >
             {label}
           </button>
@@ -110,6 +115,7 @@ export function ControlTab() {
   const addUnitWithType = useControlStore((s) => s.addUnitWithType);
   const reprocessOnGenerate = useUiStore((s) => s.reprocessOnGenerate);
   const setAutoUpdateProcessed = useUiStore((s) => s.setAutoUpdateProcessed);
+  const framesFull = useInputsAtCapacity();
 
   const addInputFrame = useCallback((mode: InputFrameMode) => {
     const state = useCanvasStore.getState();
@@ -146,6 +152,7 @@ export function ControlTab() {
         onAddUnit={addUnitWithType}
         onAddFrame={addInputFrame}
         unitsFull={units.length >= 10}
+        framesFull={framesFull}
       />
     </div>
   );

@@ -14,6 +14,7 @@ import {
 import { useSubmitJob } from "@/api/hooks/useJobs";
 import { useJobQueueStore, strippedSnapshot, type JobSnapshot } from "@/stores/jobStore";
 import { putJobPayload } from "@/lib/jobPayloadDb";
+import { UserAbortError } from "@/hooks/useSubmitToQueue";
 import { countAxisValues, groupAxisOptions } from "@/lib/xyzGrid";
 import type { JobRequest, XyzGridJobParams } from "@/api/types/v2";
 import {
@@ -346,6 +347,7 @@ export function XyzGridDialog({ open, onOpenChange, buildRequest }: XyzGridDialo
       });
       onOpenChange(false);
     } catch (err) {
+      if (err instanceof UserAbortError) return;
       toast.error("Failed to submit XYZ Grid", {
         description: err instanceof Error ? err.message : String(err),
       });

@@ -11,6 +11,7 @@ import {
   buildCloudImageRequest,
   buildDetailRequest,
   restoreFromResult,
+  InputRefusal,
 } from "@/lib/requestBuilder";
 import { blobToBase64 } from "@/lib/image";
 import { snapshotUnits } from "@/stores/controlStore";
@@ -87,16 +88,22 @@ export const ActionBar = memo(function ActionBar() {
     // through the shared ["checkpoint"] query and load mutation refreshes the
     // dropdown's loaded-model label and dedupes a single load across the
     // batch/xyz paths, which call buildRequest once.
+    let maxInputImages: number | null = null;
     if (activeModel?.source === "local") {
-      const loaded = await queryClient.fetchQuery({
-        queryKey: ["checkpoint"],
-        queryFn: () => api.get<CheckpointInfoV2>("/sdapi/v2/checkpoint"),
-        staleTime: 30_000,
-      });
+      const fetchCheckpoint = (staleTime: number) =>
+        queryClient.fetchQuery({
+          queryKey: ["checkpoint"],
+          queryFn: () => api.get<CheckpointInfoV2>("/sdapi/v2/checkpoint"),
+          staleTime,
+        });
+      let loaded = await fetchCheckpoint(30_000);
       if (!loaded.loaded || loaded.title !== activeModel.title) {
         toast.info("Loading model", { description: activeModel.title });
         await loadModel.mutateAsync(activeModel.title);
+        // The input limit belongs to the model just loaded
+        loaded = await fetchCheckpoint(0);
       }
+      maxInputImages = loaded.max_input_images ?? null;
     }
 
     // Record the prompt being generated into the prompt-history popover.
@@ -138,7 +145,15 @@ export const ActionBar = memo(function ActionBar() {
     const primaryFrame = canvasState.inputFrames[0] ?? null;
     const isImg2Img =
       primaryFrame?.mode === "initial" && primaryFrame.layers.some((l) => l.type === "image");
-    const { request, inputBlob } = await buildControlRequest();
+    const { request, inputBlob } = await buildControlRequest({ maxInputImages }).catch(
+      (err: unknown) => {
+        if (err instanceof InputRefusal) {
+          toast.warning("Can't generate with several input images", { description: err.message });
+          throw new UserAbortError(err.message);
+        }
+        throw err;
+      },
+    );
     const inputImage = isImg2Img && inputBlob ? await blobToBase64(inputBlob) : undefined;
     const maskLines = primaryFrame?.mode === "initial" ? primaryFrame.maskLines : [];
     const inputMask = isImg2Img && maskLines.length > 0 ? maskLines.slice() : undefined;

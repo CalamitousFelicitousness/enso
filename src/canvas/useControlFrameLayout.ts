@@ -5,6 +5,7 @@ import { useUiStore } from "@/stores/uiStore";
 import { useFrameShapes } from "@/canvas/useFrameShapes";
 import { useImg2ImgStore } from "@/stores/img2imgStore";
 import { useModelSelectionStore } from "@/stores/modelSelectionStore";
+import { useInputsAtCapacity } from "@/canvas/useInputsAtCapacity";
 import { resolveGenerationSize } from "@/lib/sizeCompute";
 import { enumerateWireSlots } from "@/canvas/inputFrames";
 import {
@@ -82,6 +83,8 @@ export interface CanvasLayout {
    * below the last Input frame, useful for placing the +Add Input Frame
    * affordance and computing canvas-mode totalBounds. */
   inputColumnBottom: number;
+  /** The input frames hold as many images as the active model takes. */
+  inputsAtCapacity: boolean;
 }
 
 export function useControlFrameLayout(): CanvasLayout {
@@ -98,6 +101,7 @@ export function useControlFrameLayout(): CanvasLayout {
   const megapixelTarget = useImg2ImgStore((s) => s.megapixelTarget);
   const autoSize = useImg2ImgStore((s) => s.autoSize);
   const activeModel = useModelSelectionStore((s) => s.activeModel);
+  const inputsAtCapacity = useInputsAtCapacity();
 
   return useMemo(() => {
     const isAutoFit = hasAnyInputImage && autoFitFrame;
@@ -221,8 +225,6 @@ export function useControlFrameLayout(): CanvasLayout {
     // child cells per the user's mockup. The wireIndex on each entry comes
     // from enumerateWireSlots so the panel header and child badges show
     // the global wire position, not within-frame indexing.
-    const activeMaxInputImages =
-      activeModel?.source === "cloud" ? (activeModel.max_input_images ?? null) : null;
     const inputFramesPositions: InputFramePosition[] = [];
     const wireSlots = enumerateWireSlots(storeInputFrames);
     let stackY = 0;
@@ -247,8 +249,7 @@ export function useControlFrameLayout(): CanvasLayout {
         // matches Initial frames in the same column (dw) so the input
         // column has uniform width regardless of frame mode.
         const refs = storeFrame.references;
-        const atCapacity = activeMaxInputImages != null && refs.length >= activeMaxInputImages;
-        const includeAddCell = !atCapacity;
+        const includeAddCell = !inputsAtCapacity;
         const cols = computeReferenceGridColumns(refs.length);
         const rows = computeReferenceGridRows(refs.length, cols, includeAddCell);
         const motherW = dw;
@@ -337,6 +338,7 @@ export function useControlFrameLayout(): CanvasLayout {
       outputDisplayH,
       inputFrames: inputFramesPositions,
       inputColumnBottom,
+      inputsAtCapacity,
     };
   }, [
     units,
@@ -352,5 +354,6 @@ export function useControlFrameLayout(): CanvasLayout {
     megapixelTarget,
     autoSize,
     activeModel,
+    inputsAtCapacity,
   ]);
 }

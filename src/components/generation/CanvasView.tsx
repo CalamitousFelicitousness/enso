@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState, memo } from "react";
+import { toast } from "sonner";
 import { useCanvasStore } from "@/stores/canvasStore";
 import { mainViewport } from "@/canvas/viewportAdapter";
 import { CanvasSurface, type SurfacePoint } from "@/canvas/CanvasSurface";
@@ -16,6 +17,7 @@ import { ControlFramePanels } from "@/canvas/ControlFramePanel";
 import { InputFramePanels } from "@/canvas/panels/InputFramePanels";
 import { CanvasProgressOverlay } from "@/canvas/CanvasProgressOverlay";
 import { useControlFrameLayout } from "@/canvas/useControlFrameLayout";
+import { INPUTS_FULL_HINT } from "@/canvas/useInputsAtCapacity";
 import { getOrderedFrames } from "@/canvas/frameList";
 import { ModeToggle } from "./ModeToggle";
 import { RotateCcw, X, Plus } from "lucide-react";
@@ -162,13 +164,29 @@ export const CanvasView = memo(function CanvasView() {
     [pickTarget, addFiles, setUnitImage, setUnitParam],
   );
 
-  const openPicker = useCallback((target: PickTarget) => {
-    setPickTarget(target);
-    if (fileInputRef.current) {
-      fileInputRef.current.multiple = !("unit" in target);
-      fileInputRef.current.click();
-    }
-  }, []);
+  // A pick that would give an input frame another slot is refused once the
+  // frames hold as many images as the model takes. Adding a layer to a frame
+  // that already sends an image adds no slot.
+  const openPicker = useCallback(
+    (target: PickTarget) => {
+      if (!("unit" in target) && layout.inputsAtCapacity) {
+        const frame = targetFrame(target.frameId);
+        const addsSlot =
+          frame?.mode === "reference" ||
+          !frame?.layers.some((l) => l.type === "image" && l.visible);
+        if (addsSlot) {
+          toast.info(INPUTS_FULL_HINT);
+          return;
+        }
+      }
+      setPickTarget(target);
+      if (fileInputRef.current) {
+        fileInputRef.current.multiple = !("unit" in target);
+        fileInputRef.current.click();
+      }
+    },
+    [layout.inputsAtCapacity],
+  );
 
   const handleResetZoom = useCallback(() => {
     if (canvasMode === "focus") {

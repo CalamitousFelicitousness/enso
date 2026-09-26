@@ -1,8 +1,10 @@
 import { useMemo } from "react";
 import { useModelSelectionStore } from "@/stores/modelSelectionStore";
+import { useCurrentCheckpoint } from "@/api/hooks/useModels";
 import { showImagesTab } from "@/lib/tabVisibility";
 import type { ImagesSubTab } from "@/lib/constants";
-import type { UnifiedModel } from "@/api/types/cloud";
+import type { LocalModel, UnifiedModel } from "@/api/types/cloud";
+import type { CheckpointInfoV2 } from "@/api/types/models";
 
 /**
  * Per-feature capability flags for the active model. Local models support
@@ -22,10 +24,6 @@ export interface ModelSupports {
   sampler: boolean;
   refine: boolean;
   scripts: boolean;
-  /** Whether the model accepts more than one input image. Drives the Reference
-   * filmstrip's multi-slot UI (when false, falls back to single-image
-   * Reference). Mirrors CloudModel.multi_image. */
-  multiImage: boolean;
 }
 
 export interface ModelCapabilities {
@@ -34,11 +32,9 @@ export interface ModelCapabilities {
   supports: ModelSupports;
   /** True when the named left-rail sub-tab should be visible for the active model. */
   showTab: (tabId: ImagesSubTab) => boolean;
-  /** Cap on input image count for the active model. Null when no advertised
-   * limit. Filmstrip uses it to disable the AddSlot once at capacity. Lives
-   * outside ModelSupports because it's not a boolean. Mirrors
-   * CloudModel.max_input_images on the wire (renamed in sdnext c79dd3f23
-   * to disambiguate from NanoGPT's output-n cap). */
+  /** Most input images the active model takes in one request; null while
+   * unknown or when the model advertises no limit. Local models report it on
+   * /sdapi/v2/checkpoint once loaded; cloud models as max_input_images. */
   maxInputImages: number | null;
 }
 
@@ -55,11 +51,6 @@ const LOCAL_SUPPORTS: ModelSupports = {
   sampler: true,
   refine: true,
   scripts: true,
-  // Local checkpoints don't multiplex multi-image through this surface;
-  // multi-input ControlNet/IP-Adapter has its own path. The filmstrip
-  // stays single-image-fallback for local; ControlTab is the multi-input
-  // home for local workflows.
-  multiImage: false,
 };
 
 // Local video models live in the Video view's own panel and don't touch any
@@ -78,11 +69,21 @@ const LOCAL_VIDEO_SUPPORTS: ModelSupports = {
   sampler: false,
   refine: false,
   scripts: false,
-  multiImage: false,
 };
+
+/** The loaded checkpoint's input limit when it is the selected model. Selecting
+ * only updates the store, so a different checkpoint may still be loaded. */
+function loadedInputLimit(
+  model: LocalModel | null,
+  checkpoint: CheckpointInfoV2 | undefined,
+): number | null {
+  if (!model || !checkpoint?.loaded || checkpoint.title !== model.title) return null;
+  return checkpoint.max_input_images ?? null;
+}
 
 export function useModelCapabilities(): ModelCapabilities {
   const model = useModelSelectionStore((s) => s.activeModel);
+  const { data: checkpoint } = useCurrentCheckpoint();
   return useMemo(() => {
     if (!model || model.source === "local") {
       return {
@@ -90,7 +91,7 @@ export function useModelCapabilities(): ModelCapabilities {
         model,
         supports: LOCAL_SUPPORTS,
         showTab: (tabId) => showImagesTab(tabId, LOCAL_SUPPORTS),
-        maxInputImages: null,
+        maxInputImages: loadedInputLimit(model, checkpoint),
       };
     }
     if (model.source === "local-video") {
@@ -122,9 +123,6 @@ export function useModelCapabilities(): ModelCapabilities {
       // Provider-advertised modalities.
       img2img: mods.includes("image-to-image"),
       inpaint: mods.includes("inpaint"),
-      // Multi-image capability surfaced. Defaults to false on
-      // older sdnext builds that don't advertise the field yet.
-      multiImage: model.multi_image ?? false,
     };
     return {
       kind: "cloud",
@@ -133,5 +131,5 @@ export function useModelCapabilities(): ModelCapabilities {
       showTab: (tabId) => showImagesTab(tabId, supports),
       maxInputImages: model.max_input_images ?? null,
     };
-  }, [model]);
+  }, [model, checkpoint]);
 }

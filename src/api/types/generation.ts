@@ -120,6 +120,7 @@ export interface ControlRequest {
   jpeg_quality?: number | undefined;
   input_type?: number | undefined;
   inputs?: string[] | undefined;
+  skip_processing?: boolean | undefined;
   inits?: string[] | undefined;
   mask?: string | undefined;
   mask_blur?: number | undefined;

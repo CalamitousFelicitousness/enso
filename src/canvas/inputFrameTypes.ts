@@ -59,8 +59,8 @@ export interface ReferenceFramePosition {
   motherH: number;
   /** Per-child cell positions in render order. */
   children: ReferenceChildPosition[];
-  /** Position of the trailing +Add cell, or null when the active model's
-   * max_input_images cap is reached (UI hides the affordance at capacity). */
+  /** Position of the trailing +Add cell, or null when the input frames already
+   * hold as many images as the active model takes. */
   addCellPosition: { x: number; y: number; w: number; h: number } | null;
   /** Wire index of the first child in this mother. Used by the panel
    * label ("Input 2 (Reference, 4 images)" where 2 is the first child's

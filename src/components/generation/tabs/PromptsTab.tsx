@@ -3,6 +3,8 @@ import { useGenerationStore } from "@/stores/generationStore";
 import { useUiStore } from "@/stores/uiStore";
 import { useImg2ImgStore } from "@/stores/img2imgStore";
 import { useCanvasStore } from "@/stores/canvasStore";
+import { useFrameShapes } from "@/canvas/useFrameShapes";
+import { enumerateWireSlots } from "@/canvas/inputFrames";
 import { useIsImg2Img } from "@/hooks/useIsImg2Img";
 import { useAspectLock, useAspectPresets } from "@/hooks/useAspectLock";
 import { useModelSelectionStore } from "@/stores/modelSelectionStore";
@@ -73,6 +75,7 @@ export function PromptsTab() {
   const setMegapixelTarget = useImg2ImgStore((s) => s.setMegapixelTarget);
   const resizeMethod = useImg2ImgStore((s) => s.resizeMethod);
   const setResizeMethod = useImg2ImgStore((s) => s.setResizeMethod);
+  const multiInput = enumerateWireSlots(useFrameShapes()).length > 1;
   const autoSize = useImg2ImgStore((s) => s.autoSize);
   const setAutoSize = useImg2ImgStore((s) => s.setAutoSize);
   const upscalerGroups = useUpscalerGroups({ excludeLatent: true });
@@ -388,7 +391,14 @@ export function PromptsTab() {
 
           {/* Resize method (shown when scale/megapixel active) */}
           {!isFixed && (
-            <div className="flex items-center gap-2">
+            <div
+              className="flex items-center gap-2"
+              title={
+                multiInput
+                  ? "With several input images, Initial frames are resized before sending and this setting does not apply"
+                  : undefined
+              }
+            >
               <ParamLabel className="text-2xs text-muted-foreground w-16 flex-shrink-0">
                 Resize
               </ParamLabel>
@@ -396,6 +406,7 @@ export function PromptsTab() {
                 value={resizeMethod}
                 onValueChange={setResizeMethod}
                 groups={upscalerGroups}
+                disabled={multiInput}
                 className="h-6 text-2xs flex-1"
               />
             </div>

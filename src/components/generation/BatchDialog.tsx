@@ -4,6 +4,7 @@ import { Loader2 } from "lucide-react";
 import { useSubmitJob } from "@/api/hooks/useJobs";
 import { useJobQueueStore, strippedSnapshot, type JobSnapshot } from "@/stores/jobStore";
 import { putJobPayload } from "@/lib/jobPayloadDb";
+import { UserAbortError } from "@/hooks/useSubmitToQueue";
 import type { JobRequest } from "@/api/types/v2";
 import {
   Dialog,
@@ -60,6 +61,7 @@ export function BatchDialog({ open, onOpenChange, buildRequest }: BatchDialogPro
       });
       onOpenChange(false);
     } catch (err) {
+      if (err instanceof UserAbortError) return;
       toast.error("Failed to submit batch", {
         description: err instanceof Error ? err.message : String(err),
       });

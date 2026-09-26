@@ -120,6 +120,26 @@ export function enumerateWireSlots(frames: FrameShape[]): WireSlot[] {
   return slots;
 }
 
+/** What one wire slot sends: an Initial frame's visible image layers, which the
+ * caller flattens, or one reference child sent as-is. */
+export type WireSource =
+  | { kind: "initial"; slot: WireSlot; frame: InputFrame; layers: ImageLayer[] }
+  | { kind: "reference"; slot: WireSlot; frame: InputFrame; reference: ReferenceInput };
+
+/** The content behind each wire slot, in wire order. Built on
+ * enumerateWireSlots so the order sent matches the numbers the canvas shows. */
+export function wireSources(frames: InputFrame[]): WireSource[] {
+  return enumerateWireSlots(frames.map(toFrameShape)).flatMap((slot): WireSource[] => {
+    const frame = frames.find((f) => f.id === slot.frameId);
+    if (!frame) return [];
+    if (slot.mode === "initial") {
+      return [{ kind: "initial", slot, frame, layers: frame.layers.filter(VISIBLE_IMAGE) }];
+    }
+    const reference = frame.references[slot.localIndex];
+    return reference ? [{ kind: "reference", slot, frame, reference }] : [];
+  });
+}
+
 /** First wire index this frame contributes, or null when the frame is empty
  * (no visible image layer in Initial, no references in Reference). Used by
  * the InputFramePanel header label. */

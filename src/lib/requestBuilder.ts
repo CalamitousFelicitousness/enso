@@ -2,7 +2,8 @@
 //
 // For img2img: visible canvas layers are flattened into a single image at frame
 // resolution via flattenCanvas(), then uploaded as the init image. The backend
-// receives exactly what the user sees inside the generation frame.
+// receives exactly what the user sees inside the generation frame. Several
+// input slots go out as one condition set in canvas order.
 // See flattenCanvas.ts and resize.ts for the compositing and resize pipeline.
 
 import { useGenerationStore } from "@/stores/generationStore";
@@ -17,6 +18,7 @@ import { flattenCanvas, compositeControlImage, compositeFitImage } from "@/lib/f
 import { uploadFiles, uploadBlob, uploadFile } from "@/lib/upload";
 import { base64ToBlob } from "@/lib/utils";
 import { REFERENCE_HEIGHT } from "@/canvas/useControlFrameLayout";
+import { wireSources, type WireSource } from "@/canvas/inputFrames";
 import { resolveGenerationSize } from "@/lib/sizeCompute";
 import type { SizeMode } from "@/lib/sizeCompute";
 import type { ControlRequest, GenerationInfo } from "@/api/types/generation";
@@ -27,6 +29,16 @@ import type { WireParams, WireOverrides } from "@/api/types/wireParams";
 export interface BuildResult {
   request: ControlRequest;
   inputBlob?: Blob | undefined;
+}
+
+export interface ControlBuildOptions {
+  /** Most input images the loaded model takes in one request; null when unknown. */
+  maxInputImages: number | null;
+}
+
+/** The canvas holds inputs the loaded model cannot take as they are. */
+export class InputRefusal extends Error {
+  override name = "InputRefusal";
 }
 
 /** Strip undefined-valued keys so the wire payload stays minimal.
@@ -51,7 +63,75 @@ function serializeDetailerEntry(entry: DetailerModelEntry): DetailerModelRef {
   return stripped as DetailerModelEntry;
 }
 
-export async function buildControlRequest(): Promise<BuildResult> {
+/** Why several inputs cannot go out as one set: the model's limit, and settings
+ * that would be dropped or would rerun on the output without the other inputs. */
+function multiInputRefusals(
+  sources: WireSource[],
+  maxInputImages: number | null,
+  gen: GenerationState,
+  sendsControlUnits: boolean,
+): string[] {
+  const reasons: string[] = [];
+  if (maxInputImages != null && sources.length > maxInputImages) {
+    const takes = maxInputImages === 1 ? "one input image" : `up to ${maxInputImages} input images`;
+    reasons.push(`The loaded model takes ${takes}; the canvas holds ${sources.length}`);
+  }
+  const hasMask = sources.some(
+    (s) =>
+      s.kind === "initial" &&
+      (s.frame.maskLines.length > 0 || s.frame.layers.some((l) => l.type === "mask")),
+  );
+  const settings: [string, boolean][] = [
+    ["mask", hasMask],
+    ["control units", sendsControlUnits],
+    ["hires fix", gen.hiresEnabled],
+    ["refiner", gen.refinerEnabled],
+    ["detailer", gen.detailerEnabled],
+    ["color correction", gen.colorCorrectionEnabled],
+    ["checkpoint override", "sd_model_checkpoint" in gen.overrideSettings],
+  ];
+  const conflicts = settings.filter(([, on]) => on).map(([label]) => label);
+  if (conflicts.length > 0) {
+    reasons.push(`Not available with several input images: ${conflicts.join(", ")}`);
+  }
+  return reasons;
+}
+
+/** Several slots as one condition set, in slot order: Initial slots flattened and
+ * resized to the output size here, references raw. Returns the first Initial
+ * slot at frame size for the job snapshot. */
+async function addConditionSet(
+  request: ControlRequest,
+  sources: WireSource[],
+  gen: GenerationState,
+  target: { width: number; height: number },
+): Promise<Blob | undefined> {
+  let snapshotImage: Blob | undefined;
+  const refs: string[] = [];
+  for (const source of sources) {
+    if (source.kind === "reference") {
+      refs.push(await uploadFile(source.reference.file));
+      continue;
+    }
+    const flat = await flattenCanvas(source.layers, gen.width, gen.height);
+    if (!flat) throw new Error("Failed to flatten an input frame");
+    snapshotImage ??= flat;
+    refs.push(await uploadBlob(await resizeBlob(flat, target.width, target.height), "input.png"));
+  }
+  request.inputs = refs;
+  request.skip_processing = true;
+  request.input_type = 1;
+  request.width_before = target.width;
+  request.height_before = target.height;
+  // batch_size above the input count pads the set with copies of its last image
+  request.batch_count = gen.batchCount * gen.batchSize;
+  request.batch_size = 1;
+  return snapshotImage;
+}
+
+export async function buildControlRequest({
+  maxInputImages,
+}: ControlBuildOptions): Promise<BuildResult> {
   const gen = useGenerationStore.getState();
   const scripts = useScriptStore.getState();
   const control = useControlStore.getState();
@@ -59,20 +139,10 @@ export async function buildControlRequest(): Promise<BuildResult> {
   const canvas = useCanvasStore.getState();
   const ui = useUiStore.getState();
 
-  // Read input state from the first inputFrame (single-Initial /
-  // single-Reference on the local SD.Next path - multi-Initial out of
-  // scope per plan, multi-Reference falls through to the first Reference
-  // frame until the local backend grows a multi-image surface).
-  const primaryFrame = canvas.inputFrames[0] ?? null;
-  const primaryLayers =
-    primaryFrame?.layers.filter((l): l is ImageLayer => l.type === "image" && l.visible) ?? [];
-  const primaryMaskLines = primaryFrame?.maskLines ?? [];
-  const primaryMaskObjects =
-    primaryFrame?.layers.filter((l): l is MaskObjectLayer => l.type === "mask") ?? [];
-  const primaryReferences = primaryFrame?.references ?? [];
-  const hasInputImage = primaryLayers.length > 0;
-  const inputRole = primaryFrame?.mode ?? "initial";
-  const isImg2Img = hasInputImage && inputRole === "initial";
+  // One entry per image the canvas numbers, in that order. A single slot keeps
+  // the img2img and raw-reference paths; several go out as one condition set.
+  const sources = wireSources(canvas.inputFrames);
+  const multiInput = sources.length > 1;
 
   const request: ControlRequest = {
     prompt: gen.prompt,
@@ -253,6 +323,12 @@ export async function buildControlRequest(): Promise<BuildResult> {
     .map((u, i) => ({ unit: u, image: resolveUnitImage(control.units, i) }))
     .filter((e) => e.unit.enabled && e.unit.unitType !== "ip" && e.image);
 
+  if (multiInput) {
+    const sendsControlUnits = controlUnitEntries.length > 0 || enabledIPUnits.length > 0;
+    const reasons = multiInputRefusals(sources, maxInputImages, gen, sendsControlUnits);
+    if (reasons.length > 0) throw new InputRefusal(`${reasons.join(". ")}.`);
+  }
+
   if (enabledIPUnits.length > 0) {
     request.ip_adapter = await Promise.all(
       enabledIPUnits.map(async (u) => ({
@@ -325,24 +401,31 @@ export async function buildControlRequest(): Promise<BuildResult> {
     );
   }
 
-  // Reference mode: upload source file raw via inputs - no flatten, no resize.
-  // Server-side resize_init_images snaps to VAE alignment and overrides p.width/p.height
-  // to the image's dimensions, so edit models (Klein/Kontext/Qwen Edit) and img2img
-  // pipelines all receive the image at native resolution.
   let inputBlob: Blob | undefined;
-  if (inputRole === "reference" && primaryReferences.length > 0) {
-    // Reference mode: upload each reference child raw. Local SD.Next
-    // typically consumes the first via inputs[0]; multi-reference on the
-    // local backend isn't generally supported, but emitting all refs in
-    // wire order keeps the door open for backends that grow it.
-    const refIds = await Promise.all(primaryReferences.map((r) => uploadFile(r.file)));
-    request.inputs = refIds;
+  const primary: WireSource | undefined = sources[0];
+  if (multiInput) {
+    // Size mode applies only when an Initial slot is on the canvas, as in the
+    // layout, so the size the canvas shows is the size sent.
+    const hasInitial = sources.some((s) => s.kind === "initial");
+    const sizeMode: SizeMode = ui.autoFitFrame && hasInitial ? img2img.sizeMode : "fixed";
+    const target = resolveGenerationSize(
+      sizeMode,
+      gen.width,
+      gen.height,
+      img2img.scaleFactor,
+      img2img.megapixelTarget,
+    );
+    inputBlob = await addConditionSet(request, sources, gen, target);
+  } else if (primary?.kind === "reference") {
+    // Reference slot: upload the source file raw - no flatten, no resize.
+    // Server-side resize_init_images snaps to VAE alignment and overrides
+    // p.width/p.height to the image's dimensions, so edit models (Klein/Kontext/
+    // Qwen Edit) and img2img pipelines all receive the image at native resolution.
+    request.inputs = [await uploadFile(primary.reference.file)];
     request.input_type = 1;
-    inputBlob = primaryReferences[0].file;
-  }
-
-  // img2img: add inputs, mask, inpainting params
-  if (isImg2Img) {
+    inputBlob = primary.reference.file;
+  } else if (primary?.kind === "initial") {
+    // img2img: add inputs, mask, inpainting params
     const frameW = gen.width;
     const frameH = gen.height;
     const isAutoFit = ui.autoFitFrame;
@@ -359,10 +442,8 @@ export async function buildControlRequest(): Promise<BuildResult> {
     request.height_before = genSize.height;
     request.input_type = 1;
 
-    // Flatten the primary frame's image layers at full frame size.
-    // sources layers from inputFrames[0].layers; multi-Initial on the
-    // local SD.Next path is out of scope per plan.
-    const flattenedBlob = await flattenCanvas(primaryLayers, frameW, frameH);
+    // Flatten the slot's image layers at full frame size.
+    const flattenedBlob = await flattenCanvas(primary.layers, frameW, frameH);
     if (flattenedBlob) {
       inputBlob = flattenedBlob;
       const ref = await uploadBlob(flattenedBlob, "input.png");
@@ -377,8 +458,9 @@ export async function buildControlRequest(): Promise<BuildResult> {
       request.resize_name_before = img2img.resizeMethod;
     }
 
-    // Composite the primary frame's mask objects + any uncommitted strokes.
-    const maskBlob = await exportMask(primaryMaskObjects, primaryMaskLines, frameW, frameH);
+    // Composite the frame's mask objects + any uncommitted strokes.
+    const maskObjects = primary.frame.layers.filter((l): l is MaskObjectLayer => l.type === "mask");
+    const maskBlob = await exportMask(maskObjects, primary.frame.maskLines, frameW, frameH);
     if (maskBlob) {
       request.mask = await uploadBlob(maskBlob, "mask.png");
       request.mask_blur = img2img.maskBlur;
