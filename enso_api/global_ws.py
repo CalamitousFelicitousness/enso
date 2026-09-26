@@ -4,7 +4,7 @@ from fastapi import WebSocket, WebSocketDisconnect
 from modules.logger import log
 from starlette.websockets import WebSocketState
 
-from enso_api.util import preview_image
+from enso_api.util import job_progress, preview_image
 
 
 class ConnectionManager:
@@ -42,10 +42,12 @@ manager = ConnectionManager()
 async def push_progress(ws: WebSocket):
     from modules import shared
 
+    from enso_api.job_queue import job_queue
+
     last_step = -1
     last_job = ""
     last_textinfo = None
-    last_preview_id = -1
+    last_preview = shared.state.current_image
     last_download_snapshot = None
     while ws.client_state == WebSocketState.CONNECTED:
         try:
@@ -54,7 +56,9 @@ async def push_progress(ws: WebSocket):
             current_job = state.job
             current_textinfo = state.textinfo
             changed = current_step != last_step or current_job != last_job or current_textinfo != last_textinfo
-            if state.job_count > 0 and changed:
+            # A nested sdnext task's end() zeroes job_count mid-job, so Enso's own job counts as busy
+            busy = state.job_count > 0 or job_queue.running_job_id is not None
+            if busy and changed:
                 last_step = current_step
                 last_job = current_job
                 last_textinfo = current_textinfo
@@ -62,17 +66,20 @@ async def push_progress(ws: WebSocket):
                 data = status.dict() if hasattr(status, "dict") else status.model_dump()
                 data["step"] = current_step
                 data["steps"] = state.sampling_steps
+                data["progress"], data["eta"] = job_progress(state, status)
                 data["textinfo"] = current_textinfo
                 await manager.send_json(ws, {"type": "progress", "data": data})
-                if state.id_live_preview != last_preview_id and state.current_image is not None:
-                    last_preview_id = state.id_live_preview
-                    await manager.send_bytes(ws, await asyncio.to_thread(preview_image, state.current_image))
-            elif state.job_count == 0 and (last_step != -1 or last_job != ""):
+            elif not busy and (last_step != -1 or last_job != ""):
                 last_step = -1
                 last_job = ""
                 last_textinfo = None
                 status = state.status()
                 await manager.send_json(ws, {"type": "status", "data": status.dict() if hasattr(status, "dict") else status.model_dump()})
+            # A step's preview is decoded after the step changes, and sdnext resets id_live_preview
+            # on every begin(), so a new image object is the signal, checked on every tick
+            if busy and state.current_image is not None and state.current_image is not last_preview:
+                last_preview = state.current_image
+                await manager.send_bytes(ws, await asyncio.to_thread(preview_image, last_preview))
             # Push download progress when downloads are active
             try:
                 from modules.civitai.download_civitai import download_manager

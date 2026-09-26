@@ -9,7 +9,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 from enso_api.job_store import JobStore
 from enso_api.models import JobResult
-from enso_api.util import preview_image
+from enso_api.util import job_progress, preview_image
 from enso_api.ws_models import (
     WsEventCompleted,
     WsEventError,
@@ -171,6 +171,11 @@ class JobQueue:
         self._current_job_id: str | None = None
         self._initialized = False
         self.output_register_failures = 0
+
+    @property
+    def running_job_id(self) -> str | None:
+        """Local job being executed, or None."""
+        return self._current_job_id
 
     def init(self, data_path: str, legacy_path: str | None = None) -> None:
         if self._initialized:
@@ -414,7 +419,7 @@ class JobQueue:
         last_step = -1
         last_job = ""
         last_textinfo = None
-        last_preview_id = -1
+        last_preview = None
         # Stage tracking state
         stage_index = 0
         stage_name = stages[0] if stages else ""
@@ -447,8 +452,7 @@ class JobQueue:
                     status = state.status()
                     step = current_step
                     steps = state.sampling_steps
-                    progress_val = status.progress if hasattr(status, "progress") else 0
-                    eta_val = status.eta if hasattr(status, "eta") else None
+                    progress_val, eta_val = job_progress(state, status)
                     # Item-count jobs (metadata sweeps, hashing) never set
                     # sampling_steps, which zeroes status.progress and eta
                     if steps == 0 and getattr(status, "jobs", 0) > 0:
@@ -475,9 +479,9 @@ class JobQueue:
                     self.push_progress(job_id, progress_event.model_dump(exclude_none=True))
                     # Decode current latent into a preview image (bypasses the api guard in set_current_image)
                     state.do_set_current_image()
-                    # Send preview image as binary if available
-                    if state.id_live_preview != last_preview_id and state.current_image is not None:
-                        last_preview_id = state.id_live_preview
+                    # A new preview is a new image object; sdnext resets id_live_preview on every begin()
+                    if state.current_image is not None and state.current_image is not last_preview:
+                        last_preview = state.current_image
                         with contextlib.suppress(Exception):
                             self._push_binary(job_id, preview_image(state.current_image))
             except Exception:

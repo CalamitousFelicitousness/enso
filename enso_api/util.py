@@ -4,6 +4,23 @@ import io
 import os
 
 
+def job_progress(state, status) -> tuple[float, float | None]:
+    """Progress and ETA of the running job.
+
+    sdnext keeps one job slot, and a nested task's end() clears its job counters.
+    On models that encode inside the pipeline call that leaves status.progress at
+    0 for the whole denoising loop, so sampling steps carry it instead, timed from
+    that end(), which also resets time_start.
+    """
+    progress = getattr(status, "progress", 0) or 0
+    eta = getattr(status, "eta", None)
+    if getattr(status, "jobs", 0) == 0 and state.sampling_steps > 0:
+        progress = round(min(1, max(state.sampling_step, 0) / state.sampling_steps), 2)
+        elapsed = getattr(status, "elapsed", None)
+        eta = round(elapsed / progress - elapsed, 2) if progress > 0 and elapsed else None
+    return progress, eta
+
+
 def preview_image(image) -> bytes:
     """Live preview bytes: WebP when some pixels are transparent, which JPEG cannot store; JPEG otherwise."""
     buf = io.BytesIO()
