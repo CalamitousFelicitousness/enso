@@ -4,7 +4,7 @@
 // Shared by the Input frames (canvasStore) and the video references mother
 // frame (videoCanvasStore) - callers translate ids to their store's indices.
 
-import { useMemo, type CSSProperties } from "react";
+import { useMemo, type CSSProperties, type ReactNode } from "react";
 import { DndContext, PointerSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, horizontalListSortingStrategy, useSortable } from "@dnd-kit/sortable";
 import { X } from "lucide-react";
@@ -20,6 +20,8 @@ interface ReferenceSortableOverlayProps {
   onRemove: (refId: string) => void;
   /** Capture-phase pointer-down on any cell (e.g. focusing the slot for paste). */
   onCellPointerDown?: (() => void) | undefined;
+  /** Shown in the bottom-left corner of the cell with this id. */
+  mark?: { refId: string; node: ReactNode } | null | undefined;
 }
 
 export function ReferenceSortableOverlay({
@@ -28,6 +30,7 @@ export function ReferenceSortableOverlay({
   onReorder,
   onRemove,
   onCellPointerDown,
+  mark,
 }: ReferenceSortableOverlayProps) {
   // 4px activation distance so a click without drag doesn't trigger a reorder.
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
@@ -49,6 +52,7 @@ export function ReferenceSortableOverlay({
             viewport={viewport}
             onRemove={onRemove}
             onCellPointerDown={onCellPointerDown}
+            mark={mark?.refId === cell.refId ? mark.node : null}
           />
         ))}
       </SortableContext>
@@ -61,6 +65,7 @@ interface ReferenceCellOverlayProps {
   viewport: ViewportState;
   onRemove: (refId: string) => void;
   onCellPointerDown?: (() => void) | undefined;
+  mark: ReactNode;
 }
 
 function ReferenceCellOverlay({
@@ -68,6 +73,7 @@ function ReferenceCellOverlay({
   viewport,
   onRemove,
   onCellPointerDown,
+  mark,
 }: ReferenceCellOverlayProps) {
   // useSortable binds this overlay to the parent SortableContext's items
   // list. Listeners are spread on the overlay wrapper so a pointer-down
@@ -115,6 +121,7 @@ function ReferenceCellOverlay({
       >
         <X size={10} />
       </button>
+      {mark && <div className="absolute bottom-1 left-1">{mark}</div>}
     </div>
   );
 }

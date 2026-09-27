@@ -141,6 +141,8 @@ export interface FrameHeaderProps {
   mode: "panel" | "hat";
   color: string;
   label: string;
+  /** Shown right after the label in panel mode. */
+  labelAdornment?: ReactNode;
   sizeText?: string | undefined;
   canvasX: number;
   canvasY?: number | undefined;
@@ -161,6 +163,7 @@ export function FrameHeader({
   mode,
   color,
   label,
+  labelAdornment,
   sizeText,
   canvasX,
   canvasY = 0,
@@ -227,6 +230,7 @@ export function FrameHeader({
               style={{ width: 6, height: 6, backgroundColor: color }}
             />
             <span className="text-[11px] font-medium text-foreground truncate">{label}</span>
+            {labelAdornment}
             {sizeText && (
               <span className="text-[10px] text-muted-foreground font-mono tabular-nums shrink-0">
                 {sizeText}

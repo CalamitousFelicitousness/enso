@@ -17,6 +17,7 @@ import { enumerateWireSlots } from "@/canvas/inputFrames";
 import { useFrameShapes } from "@/canvas/useFrameShapes";
 import type { CanvasLayout } from "@/canvas/useControlFrameLayout";
 import { INPUTS_FULL_HINT } from "@/canvas/useInputsAtCapacity";
+import { useSizeSourceMark } from "@/canvas/useSizeSource";
 import { InputFramePanel } from "./InputFramePanel";
 import type { ViewportState } from "@/canvas/viewportBus";
 
@@ -56,10 +57,12 @@ export function InputFramePanels({
   // accidentally triggering a frame reorder.
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
 
+  const slots = useMemo(() => enumerateWireSlots(storeFrames), [storeFrames]);
+  const sizeSource = useSizeSourceMark(slots.length);
+
   // Wire indices flatten across all frames; compute once per render so
   // each panel reads its slot's globalIndex via a single Map lookup.
   const wireIndexByFrame = useMemo(() => {
-    const slots = enumerateWireSlots(storeFrames);
     const map = new Map<string, number>();
     for (const slot of slots) {
       // First slot in the frame wins (Reference frames have N slots; only
@@ -67,7 +70,7 @@ export function InputFramePanels({
       if (!map.has(slot.frameId)) map.set(slot.frameId, slot.globalIndex);
     }
     return map;
-  }, [storeFrames]);
+  }, [slots]);
 
   const handleDragEnd = (e: DragEndEvent) => {
     if (!e.over || e.active.id === e.over.id) return;
@@ -97,6 +100,7 @@ export function InputFramePanels({
             onRemoveFrame={onRemoveFrame}
             canRemove={canRemove}
             atCapacity={layout.inputsAtCapacity}
+            sizeSource={sizeSource?.frameId === frame.frameId ? sizeSource : null}
           />
         ))}
       </SortableContext>

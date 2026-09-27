@@ -4,9 +4,17 @@ import { useGenerationStore } from "@/stores/generationStore";
 import { useUiStore } from "@/stores/uiStore";
 import { base64ToBlob } from "@/lib/utils";
 import { createIdbStorage } from "@/lib/idbStorage";
-import { createInitialFrame, createReferenceFrame } from "@/canvas/inputFrames";
+import {
+  createInitialFrame,
+  createReferenceFrame,
+  resolveSizeSource,
+  sourceImageSize,
+  wireSources,
+} from "@/canvas/inputFrames";
+import { fitFrameContent, fitImageLayer } from "@/canvas/frameFit";
+import { snapTo8 } from "@/lib/sizeCompute";
 import type { FrameId } from "@/canvas/frameList";
-import type { InputFrame, InputFrameMode } from "@/canvas/inputFrames";
+import type { InputFrame, InputFrameMode, SizeSourceRef } from "@/canvas/inputFrames";
 import type { ViewportState } from "@/canvas/viewportBus";
 
 export type ToolType =
@@ -137,6 +145,9 @@ interface CanvasState {
   activeInputFrameId: string | null;
   filmstripDrag: Map<string, FilmstripDragState>;
   inputFrameDrag: { fromIndex: number; toIndex: number | null } | null;
+  /** The input image whose size the frame takes while Fit is on; null for Input 1. */
+  sizeSource: SizeSourceRef | null;
+  setSizeSource: (pick: SizeSourceRef | null) => void;
 
   // Frame lifecycle
   addInputFrame: (opts?: { mode?: InputFrameMode; position?: "end" | "start" | number }) => string;
@@ -274,6 +285,7 @@ interface PersistedCanvasState {
   modeLocked: boolean;
   inputFrames: PersistedInputFrame[];
   activeInputFrameId: string | null;
+  sizeSource?: SizeSourceRef | null;
 }
 
 const canvasIdbStorage = createIdbStorage<PersistedCanvasState>("enso-canvas", "state", {
@@ -485,6 +497,8 @@ export const useCanvasStore = create<CanvasState>()(
       activeInputFrameId: seedFrame.id,
       filmstripDrag: new Map<string, FilmstripDragState>(),
       inputFrameDrag: null,
+      sizeSource: null,
+      setSizeSource: (pick) => set({ sizeSource: pick }),
 
       setCanvasMode: (mode) =>
         set((s) => ({
@@ -624,17 +638,10 @@ export const useCanvasStore = create<CanvasState>()(
       addImageLayerToFrame: (frameId, file, objectUrl, w, h) => {
         const frame = get().inputFrames.find((f) => f.id === frameId);
         if (!frame) return;
-        const gen = useGenerationStore.getState();
-        const autoFit = useUiStore.getState().autoFitFrame;
-        const isFirst = frame.layers.length === 0 && autoFit;
-        if (isFirst) {
-          const snapW = Math.round(w / 8) * 8;
-          const snapH = Math.round(h / 8) * 8;
-          gen.setParam("width", snapW);
-          gen.setParam("height", snapH);
-        }
-        const frameW = isFirst ? Math.round(w / 8) * 8 : gen.width;
-        const frameH = isFirst ? Math.round(h / 8) * 8 : gen.height;
+        const { width: frameW, height: frameH } = useGenerationStore.getState();
+        // A frame's first image fits inside the frame; the frame itself follows
+        // the size source (syncFrameToSizeSource)
+        const first = !frame.layers.some((l) => l.type === "image");
         const id = crypto.randomUUID();
         const layer: ImageLayer = {
           id,
@@ -655,10 +662,11 @@ export const useCanvasStore = create<CanvasState>()(
           scaleX: 1,
           scaleY: 1,
         };
+        const placed = first ? fitImageLayer(layer, frameW, frameH) : layer;
         set((s) => ({
           inputFrames: withFrame(s.inputFrames, frameId, (f) => ({
             ...f,
-            layers: [...f.layers, layer],
+            layers: [...f.layers, placed],
             activeLayerId: id,
           })),
         }));
@@ -998,6 +1006,7 @@ export const useCanvasStore = create<CanvasState>()(
           references: frame.references.map(stripReferenceInputForPersist),
         })),
         activeInputFrameId: state.activeInputFrameId,
+        sizeSource: state.sizeSource,
       }),
       merge: (persisted, current) => {
         const saved = persisted as Partial<PersistedCanvasState> | undefined;
@@ -1029,8 +1038,59 @@ export const useCanvasStore = create<CanvasState>()(
               }))
             : current.inputFrames,
           activeInputFrameId: saved.activeInputFrameId ?? current.activeInputFrameId,
+          sizeSource: saved.sizeSource ?? null,
         };
       },
     },
   ),
 );
+
+/** Frame size of the size source image, snapped like any generation size. */
+function sizeSourceFrame(state: CanvasState): { width: number; height: number } | null {
+  const source = resolveSizeSource(wireSources(state.inputFrames), state.sizeSource);
+  if (!source) return null;
+  const { width, height } = sourceImageSize(source);
+  return { width: Math.max(64, snapTo8(width)), height: Math.max(64, snapTo8(height)) };
+}
+
+const frameKey = (frame: { width: number; height: number } | null) =>
+  frame ? `${frame.width}x${frame.height}` : null;
+
+let lastSourceFrame: string | null = null;
+
+/** With Fit on, the frame takes the size source's size whenever that size
+ * changes, and each frame's content is fitted to it. Width and Height typed
+ * in by hand stand until then. */
+function syncFrameToSizeSource(force: boolean) {
+  const frame = sizeSourceFrame(useCanvasStore.getState());
+  const key = frameKey(frame);
+  if (!force && key === lastSourceFrame) return;
+  lastSourceFrame = key;
+  if (!frame || !useUiStore.getState().autoFitFrame) return;
+  const gen = useGenerationStore.getState();
+  gen.setParam("width", frame.width);
+  gen.setParam("height", frame.height);
+  useCanvasStore.setState((s) => ({
+    inputFrames: s.inputFrames.map((f) => fitFrameContent(f, frame.width, frame.height)),
+  }));
+}
+
+let sizeSyncStarted = false;
+
+// Starts after hydration, so a reload keeps the saved size and layout
+function startSizeSourceSync() {
+  if (sizeSyncStarted) return;
+  sizeSyncStarted = true;
+  lastSourceFrame = frameKey(sizeSourceFrame(useCanvasStore.getState()));
+  useCanvasStore.subscribe((state, prev) => {
+    if (state.inputFrames !== prev.inputFrames || state.sizeSource !== prev.sizeSource) {
+      syncFrameToSizeSource(false);
+    }
+  });
+  useUiStore.subscribe((state, prev) => {
+    if (state.autoFitFrame && !prev.autoFitFrame) syncFrameToSizeSource(true);
+  });
+}
+
+useCanvasStore.persist.onFinishHydration(startSizeSourceSync);
+if (useCanvasStore.persist.hasHydrated()) startSizeSourceSync();

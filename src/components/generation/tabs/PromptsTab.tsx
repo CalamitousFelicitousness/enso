@@ -4,15 +4,20 @@ import { useUiStore } from "@/stores/uiStore";
 import { useImg2ImgStore } from "@/stores/img2imgStore";
 import { useCanvasStore } from "@/stores/canvasStore";
 import { useFrameShapes } from "@/canvas/useFrameShapes";
-import { enumerateWireSlots } from "@/canvas/inputFrames";
-import { useIsImg2Img } from "@/hooks/useIsImg2Img";
+import { enumerateWireSlots, parseSizeSourceValue } from "@/canvas/inputFrames";
+import { useSizeSourceOptions, useSizeSourceValue } from "@/canvas/useSizeSource";
 import { useAspectLock, useAspectPresets } from "@/hooks/useAspectLock";
 import { useModelSelectionStore } from "@/stores/modelSelectionStore";
 import { useShallow } from "zustand/react/shallow";
 import { usePromptStyles } from "@/api/hooks/useNetworks";
 import { useUpscalerGroups } from "@/api/hooks/useModels";
 import { cn } from "@/lib/utils";
-import { resolveGenerationSize, formatMegapixels } from "@/lib/sizeCompute";
+import {
+  resolveGenerationSize,
+  formatMegapixels,
+  serverSizesFromImage,
+  sizeModesApply,
+} from "@/lib/sizeCompute";
 import type { SizeMode } from "@/lib/sizeCompute";
 import type { AspectPreset } from "@/lib/aspect";
 import type { ParamDescriptor } from "@/api/types/cloud";
@@ -22,7 +27,7 @@ import { StylePicker } from "../StylePicker";
 import { ParamSlider } from "../ParamSlider";
 import { AspectRatioControl } from "../AspectRatioControl";
 import { SectionLeader, SectionDivider } from "@/components/ui/section-leader";
-import { ParamGrid } from "../ParamRow";
+import { ParamGrid, ParamRow } from "../ParamRow";
 import { ParamLabel } from "../ParamLabel";
 import { Button } from "@/components/ui/button";
 import { Combobox } from "@/components/ui/combobox";
@@ -38,6 +43,21 @@ const GENERIC_CLOUD_PRESETS: AspectPreset[] = [
   { label: "768x1024", w: 768, h: 1024 },
   { label: "1280x720", w: 1280, h: 720 },
 ];
+
+/** Picks the input image the frame takes its size from. */
+function SizeFromSelect() {
+  const options = useSizeSourceOptions();
+  const value = useSizeSourceValue();
+  const setSizeSource = useCanvasStore((s) => s.setSizeSource);
+  return (
+    <Combobox
+      value={value}
+      onValueChange={(v) => setSizeSource(parseSizeSourceValue(v))}
+      options={options}
+      className="h-6 text-2xs w-full"
+    />
+  );
+}
 
 function parseSizeOptions(params: ParamDescriptor[] | null): AspectPreset[] | null {
   if (!params) return null;
@@ -64,7 +84,6 @@ export function PromptsTab() {
   );
   const setParam = useGenerationStore((s) => s.setParam);
   const { data: styles } = usePromptStyles();
-  const isImg2Img = useIsImg2Img();
   const autoFitFrame = useUiStore((s) => s.autoFitFrame);
   const setAutoFitFrame = useUiStore((s) => s.setAutoFitFrame);
   const sizeMode = useImg2ImgStore((s) => s.sizeMode);
@@ -75,7 +94,9 @@ export function PromptsTab() {
   const setMegapixelTarget = useImg2ImgStore((s) => s.setMegapixelTarget);
   const resizeMethod = useImg2ImgStore((s) => s.resizeMethod);
   const setResizeMethod = useImg2ImgStore((s) => s.setResizeMethod);
-  const multiInput = enumerateWireSlots(useFrameShapes()).length > 1;
+  const frameShapes = useFrameShapes();
+  const slots = useMemo(() => enumerateWireSlots(frameShapes), [frameShapes]);
+  const multiInput = slots.length > 1;
   const autoSize = useImg2ImgStore((s) => s.autoSize);
   const setAutoSize = useImg2ImgStore((s) => s.setAutoSize);
   const upscalerGroups = useUpscalerGroups({ excludeLatent: true });
@@ -157,12 +178,10 @@ export function PromptsTab() {
     return { w, h };
   }, [lastInfo, state.width, state.height]);
 
-  // Reference mode on local models sends the source file raw via `inputs`. The
-  // server's resize_init_images then overrides p.width/p.height to match the
-  // image, so Size is informational here. Cloud models honor request.size
-  // independently of the image, so they're never advisory. With multi-Input
-  // frames the advisory only fires when every populated frame is Reference -
-  // a single Initial frame is enough to honor the user-set Size.
+  // A lone Reference on a local model is sent raw via `inputs`, and the
+  // server's resize_init_images overrides p.width/p.height to match it, so
+  // Size is informational there. Cloud models honor request.size, and several
+  // inputs go out with the frame size in the request.
   const firstReferenceImage = useCanvasStore((s) => {
     for (const f of s.inputFrames) {
       if (f.mode === "reference" && f.references.length > 0) {
@@ -171,14 +190,8 @@ export function PromptsTab() {
     }
     return null;
   });
-  const hasAnyInitialImage = useCanvasStore((s) =>
-    s.inputFrames.some(
-      (f) => f.mode === "initial" && f.layers.some((l) => l.type === "image" && l.visible),
-    ),
-  );
   const isCloud = activeModel != null && activeModel.source === "cloud";
-  const referenceInactive =
-    firstReferenceImage != null && !hasAnyInitialImage && activeModel != null && !isCloud;
+  const referenceInactive = activeModel != null && serverSizesFromImage(slots, !isCloud);
   // Auto dims Size whenever the user toggle is on (cloud). The provider may
   // still reject the auto value at submission time; that's caught via the
   // job-error path, not by client-side UI suppression.
@@ -195,10 +208,10 @@ export function PromptsTab() {
     }
     if (referenceInactive && firstReferenceImage) {
       notes.push(
-        "Inactive in Reference mode on local models &mdash; " +
-          `output resolution is set by the input image ` +
+        "Inactive for a single Reference on local models &mdash; " +
+          `output resolution is set by that image ` +
           `(${firstReferenceImage.naturalWidth}&times;${firstReferenceImage.naturalHeight}). ` +
-          "Switch to Initial to control output size.",
+          "Add another input image or switch to Initial to control output size.",
       );
     }
     if (notes.length === 0) return base;
@@ -208,7 +221,7 @@ export function PromptsTab() {
   }, [autoInactive, referenceInactive, firstReferenceImage]);
   const aspectPresets = useAspectPresets();
 
-  const showSizeModes = isImg2Img && autoFitFrame;
+  const showSizeModes = sizeModesApply(autoFitFrame, slots, !isCloud);
   const effectiveSizeMode: SizeMode = showSizeModes ? sizeMode : "fixed";
   const isFixed = effectiveSizeMode === "fixed";
 
@@ -261,9 +274,9 @@ export function PromptsTab() {
         collapsible
         tooltip={sizeTooltip}
         action={
-          isImg2Img || isCloud ? (
+          slots.length > 0 || isCloud ? (
             <div className="flex items-center gap-1">
-              {isImg2Img && (
+              {slots.length > 0 && (
                 <Button
                   variant={autoFitFrame ? "default" : "outline"}
                   size="sm"
@@ -271,7 +284,7 @@ export function PromptsTab() {
                   className="h-5 px-1.5 text-3xs rounded"
                   title={
                     autoFitFrame
-                      ? "Fit on: dropping the first image onto an empty canvas resizes the frame to match that image's dimensions"
+                      ? "Fit on: the frame takes the size of one input image, Input 1 unless you pick another in Size from"
                       : "Fit off: frame stays at the width and height you set, regardless of image size"
                   }
                 >
@@ -304,7 +317,17 @@ export function PromptsTab() {
           className={cn("flex flex-col gap-2 transition-opacity", sizeIsAdvisory && "opacity-60")}
           title={sizeIsAdvisory ? sizeTooltip.replace(/<[^>]*>/g, "") : undefined}
         >
-          {/* Size mode pill selector (img2img + auto-fit only) */}
+          {autoFitFrame && multiInput && (
+            <ParamRow
+              label="Size from"
+              tooltip="The input image the frame takes its size and shape from; Scale and Megapixel work from it. Input 1 unless you pick another."
+              keywords={["size source", "base image", "output size", "aspect", "reference size"]}
+            >
+              <SizeFromSelect />
+            </ParamRow>
+          )}
+
+          {/* Size mode pill selector (while an input image sets the frame size) */}
           {showSizeModes && (
             <SegmentedControl
               options={[

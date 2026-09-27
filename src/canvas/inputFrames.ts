@@ -140,6 +140,54 @@ export function wireSources(frames: InputFrame[]): WireSource[] {
   });
 }
 
+/** An input image picked to set the frame size: a frame, plus one of its
+ * references when the pick was made in Reference mode. */
+export interface SizeSourceRef {
+  frameId: string;
+  refId: string | null;
+}
+
+export function sizeSourceRef(source: WireSource): SizeSourceRef {
+  return {
+    frameId: source.frame.id,
+    refId: source.kind === "reference" ? source.reference.id : null,
+  };
+}
+
+/** A SizeSourceRef as one string, for store selectors and select values. */
+export function sizeSourceValue(ref: SizeSourceRef): string {
+  return `${ref.frameId}/${ref.refId ?? ""}`;
+}
+
+export function parseSizeSourceValue(value: string): SizeSourceRef {
+  const [frameId, refId] = value.split("/");
+  return { frameId, refId: refId || null };
+}
+
+/** The source that sets the frame size: the picked image while it is still
+ * sent, else Input 1. A pick follows its frame across a mode switch, to the
+ * frame's first reference or back to its Initial slot. */
+export function resolveSizeSource(
+  sources: WireSource[],
+  pick: SizeSourceRef | null,
+): WireSource | null {
+  const picked = pick
+    ? sources.find(
+        (s) =>
+          s.frame.id === pick.frameId &&
+          (s.kind === "initial" || pick.refId === null || s.reference.id === pick.refId),
+      )
+    : undefined;
+  return picked ?? sources[0] ?? null;
+}
+
+/** Natural pixel size of a source's image: the reference, or an Initial
+ * slot's first visible layer. */
+export function sourceImageSize(source: WireSource): { width: number; height: number } {
+  const image = source.kind === "reference" ? source.reference : source.layers[0];
+  return { width: image.naturalWidth, height: image.naturalHeight };
+}
+
 /** First wire index this frame contributes, or null when the frame is empty
  * (no visible image layer in Initial, no references in Reference). Used by
  * the InputFramePanel header label. */

@@ -19,8 +19,7 @@ import { uploadFiles, uploadBlob, uploadFile } from "@/lib/upload";
 import { base64ToBlob } from "@/lib/utils";
 import { REFERENCE_HEIGHT } from "@/canvas/useControlFrameLayout";
 import { wireSources, type WireSource } from "@/canvas/inputFrames";
-import { resolveGenerationSize } from "@/lib/sizeCompute";
-import type { SizeMode } from "@/lib/sizeCompute";
+import { effectiveSizeMode, resolveGenerationSize } from "@/lib/sizeCompute";
 import type { ControlRequest, GenerationInfo } from "@/api/types/generation";
 import type { DetailerModelEntry, DetailerModelRef, DetailerOverrides } from "@/api/types/v2";
 import { BACKEND_UNIT_TYPE } from "@/api/types/control";
@@ -404,12 +403,10 @@ export async function buildControlRequest({
   let inputBlob: Blob | undefined;
   const primary: WireSource | undefined = sources[0];
   if (multiInput) {
-    // Size mode applies only when an Initial slot is on the canvas, as in the
-    // layout, so the size the canvas shows is the size sent.
-    const hasInitial = sources.some((s) => s.kind === "initial");
-    const sizeMode: SizeMode = ui.autoFitFrame && hasInitial ? img2img.sizeMode : "fixed";
+    // The size rule the canvas layout shows, so the size on screen is the size sent
+    const slots = sources.map((s) => s.slot);
     const target = resolveGenerationSize(
-      sizeMode,
+      effectiveSizeMode(img2img.sizeMode, ui.autoFitFrame, slots, true),
       gen.width,
       gen.height,
       img2img.scaleFactor,
@@ -428,10 +425,9 @@ export async function buildControlRequest({
     // img2img: add inputs, mask, inpainting params
     const frameW = gen.width;
     const frameH = gen.height;
-    const isAutoFit = ui.autoFitFrame;
-    const effectiveSizeMode: SizeMode = isAutoFit ? img2img.sizeMode : "fixed";
+    const sizeMode = effectiveSizeMode(img2img.sizeMode, ui.autoFitFrame, [primary.slot], true);
     const genSize = resolveGenerationSize(
-      effectiveSizeMode,
+      sizeMode,
       frameW,
       frameH,
       img2img.scaleFactor,
@@ -453,7 +449,7 @@ export async function buildControlRequest({
     // Force resize_mode_before=1 (Fixed) + resize_name_before when scale/megapixel
     // so the backend resizes the init image to the computed target dimensions.
     // Both fields are required: run.py zeros resize_mode when resize_name is 'None'.
-    if (effectiveSizeMode !== "fixed") {
+    if (sizeMode !== "fixed") {
       request.resize_mode_before = 1;
       request.resize_name_before = img2img.resizeMethod;
     }
@@ -846,15 +842,15 @@ export async function buildCloudImageRequest(): Promise<CloudImageJobParams> {
   // point at Image 2 as reference" workflow.
   const sources = wireSources(canvas.inputFrames);
 
-  // Resolve the primary Initial slot up front so size + autoSize gating
-  // can lock to the user's intent. Reference-only generations don't have
-  // a strength surface, so isImg2Img is false in that case.
+  // The primary Initial slot carries strength and the mask; reference-only
+  // generations have no strength surface.
   const firstInitial = sources.find((s) => s.kind === "initial") ?? null;
-  const isImg2Img = firstInitial !== null;
 
-  const effectiveSizeMode: SizeMode = isImg2Img ? img2img.sizeMode : "fixed";
+  // The size rule the canvas layout shows
+  const slots = sources.map((s) => s.slot);
+  const fit = useUiStore.getState().autoFitFrame;
   const targetSize = resolveGenerationSize(
-    effectiveSizeMode,
+    effectiveSizeMode(img2img.sizeMode, fit, slots, false),
     frameW,
     frameH,
     img2img.scaleFactor,

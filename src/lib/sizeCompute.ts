@@ -1,3 +1,5 @@
+import type { WireSlot } from "@/canvas/inputFrames";
+
 export type SizeMode = "fixed" | "scale" | "megapixel";
 
 // Diffusion models require dimensions that are multiples of 8. Each dimension is
@@ -48,6 +50,27 @@ export function resolveGenerationSize(
     default:
       return { width: frameW, height: frameH };
   }
+}
+
+/** A lone Reference on a local model goes out as-is, and the server sizes the
+ * output from the image itself. */
+export function serverSizesFromImage(slots: readonly WireSlot[], local: boolean): boolean {
+  return local && slots.length === 1 && slots[0].mode === "reference";
+}
+
+/** Scale and Megapixel apply while Fit sizes the frame from an input image
+ * and the request carries that size; otherwise the frame size is sent as is. */
+export function sizeModesApply(fit: boolean, slots: readonly WireSlot[], local: boolean): boolean {
+  return fit && slots.length > 0 && !serverSizesFromImage(slots, local);
+}
+
+export function effectiveSizeMode(
+  sizeMode: SizeMode,
+  fit: boolean,
+  slots: readonly WireSlot[],
+  local: boolean,
+): SizeMode {
+  return sizeModesApply(fit, slots, local) ? sizeMode : "fixed";
 }
 
 /** Compute final output size after hires fix (if enabled). */

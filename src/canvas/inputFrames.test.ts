@@ -3,11 +3,17 @@ import type { ImageLayer, ReferenceInput } from "@/stores/canvasStore";
 import {
   createInitialFrame,
   createReferenceFrame,
+  parseSizeSourceValue,
+  resolveSizeSource,
+  sizeSourceRef,
+  sizeSourceValue,
+  sourceImageSize,
   wireSources,
   type InputFrame,
+  type SizeSourceRef,
 } from "./inputFrames";
 
-function layer(id: string, visible = true): ImageLayer {
+function layer(id: string, visible = true, width = 64, height = 64): ImageLayer {
   return {
     id,
     type: "image",
@@ -17,25 +23,25 @@ function layer(id: string, visible = true): ImageLayer {
     name: id,
     imageData: "",
     file: new File([], `${id}.png`),
-    naturalWidth: 64,
-    naturalHeight: 64,
+    naturalWidth: width,
+    naturalHeight: height,
     x: 0,
     y: 0,
-    width: 64,
-    height: 64,
+    width,
+    height,
     rotation: 0,
     scaleX: 1,
     scaleY: 1,
   };
 }
 
-function reference(id: string): ReferenceInput {
+function reference(id: string, width = 64, height = 64): ReferenceInput {
   return {
     id,
     imageData: "",
     file: new File([], `${id}.png`),
-    naturalWidth: 64,
-    naturalHeight: 64,
+    naturalWidth: width,
+    naturalHeight: height,
     filename: `${id}.png`,
   };
 }
@@ -91,5 +97,57 @@ describe("wireSources", () => {
     const flippedBack: InputFrame = { ...initial(layer("man")), references: [reference("dog")] };
     expect(summary([flipped])).toEqual(["1:reference:dog"]);
     expect(summary([flippedBack])).toEqual(["1:initial:man"]);
+  });
+});
+
+describe("resolveSizeSource", () => {
+  const man = initial(layer("man", true, 1336, 744));
+  const refs = referenceFrame(reference("dog", 1024, 1536), reference("cat", 800, 600));
+
+  const sized = (frames: InputFrame[], pick: SizeSourceRef | null) => {
+    const source = resolveSizeSource(wireSources(frames), pick);
+    if (!source) return null;
+    const { width, height } = sourceImageSize(source);
+    return `${source.slot.globalIndex}:${width}x${height}`;
+  };
+
+  it("defaults to Input 1", () => {
+    expect(sized([man, refs], null)).toBe("1:1336x744");
+    expect(sized([refs, man], null)).toBe("1:1024x1536");
+  });
+
+  it("keeps a picked image wherever it moves", () => {
+    const cat = { frameId: refs.id, refId: "cat" };
+    expect(sized([man, refs], cat)).toBe("3:800x600");
+    expect(sized([refs, man], cat)).toBe("2:800x600");
+    expect(sized([refs, man], { frameId: man.id, refId: null })).toBe("3:1336x744");
+  });
+
+  it("falls back to Input 1 once the picked image is gone", () => {
+    expect(sized([man, refs], { frameId: refs.id, refId: "gone" })).toBe("1:1336x744");
+    expect(sized([refs], { frameId: man.id, refId: null })).toBe("1:1024x1536");
+  });
+
+  it("follows a pick across its frame's mode switch", () => {
+    const flipped: InputFrame = {
+      ...man,
+      mode: "reference",
+      references: [reference("seed", 1336, 744)],
+    };
+    expect(sized([refs, flipped], { frameId: man.id, refId: null })).toBe("3:1336x744");
+    const back: InputFrame = { ...refs, mode: "initial", layers: [layer("paint", true, 512, 512)] };
+    expect(sized([man, back], { frameId: refs.id, refId: "cat" })).toBe("2:512x512");
+  });
+
+  it("names the source it resolved to", () => {
+    const sources = wireSources([man, refs]);
+    for (const source of sources) {
+      const named = parseSizeSourceValue(sizeSourceValue(sizeSourceRef(source)));
+      expect(resolveSizeSource(sources, named)).toBe(source);
+    }
+  });
+
+  it("finds nothing without an input image", () => {
+    expect(sized([initial(), referenceFrame()], null)).toBeNull();
   });
 });

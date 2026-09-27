@@ -6,7 +6,7 @@ import { useFrameShapes } from "@/canvas/useFrameShapes";
 import { useImg2ImgStore } from "@/stores/img2imgStore";
 import { useModelSelectionStore } from "@/stores/modelSelectionStore";
 import { useInputsAtCapacity } from "@/canvas/useInputsAtCapacity";
-import { resolveGenerationSize } from "@/lib/sizeCompute";
+import { effectiveSizeMode, resolveGenerationSize } from "@/lib/sizeCompute";
 import { enumerateWireSlots } from "@/canvas/inputFrames";
 import {
   INPUT_FRAME_GAP,
@@ -94,7 +94,6 @@ export function useControlFrameLayout(): CanvasLayout {
   const frameH = useGenerationStore((s) => s.height);
   const lastResult = useGenerationStore((s) => s.results[0]);
   const storeInputFrames = useFrameShapes();
-  const hasAnyInputImage = storeInputFrames.some((f) => f.mode === "initial" && f.hasImage);
   const autoFitFrame = useUiStore((s) => s.autoFitFrame);
   const sizeMode = useImg2ImgStore((s) => s.sizeMode);
   const scaleFactor = useImg2ImgStore((s) => s.scaleFactor);
@@ -104,10 +103,10 @@ export function useControlFrameLayout(): CanvasLayout {
   const inputsAtCapacity = useInputsAtCapacity();
 
   return useMemo(() => {
-    const isAutoFit = hasAnyInputImage && autoFitFrame;
-    const effectiveSizeMode = isAutoFit ? sizeMode : "fixed";
+    const wireSlots = enumerateWireSlots(storeInputFrames);
+    const isCloudModel = activeModel?.source === "cloud";
     const genSize = resolveGenerationSize(
-      effectiveSizeMode,
+      effectiveSizeMode(sizeMode, autoFitFrame, wireSlots, !isCloudModel),
       frameW,
       frameH,
       scaleFactor,
@@ -126,8 +125,7 @@ export function useControlFrameLayout(): CanvasLayout {
     // plausible output shape before the user generates rather than the
     // possibly-stale user-set dims. Height stays at frameH so the output
     // frame's display height matches REFERENCE_HEIGHT (header alignment).
-    const isCloudModel = activeModel?.source === "cloud";
-    const isAutoActive = autoSize && isCloudModel === true;
+    const isAutoActive = autoSize && isCloudModel;
     let predictedOutputAspect: number | null = null;
     if (isAutoActive) {
       if (lastResult?.info) {
@@ -226,7 +224,6 @@ export function useControlFrameLayout(): CanvasLayout {
     // from enumerateWireSlots so the panel header and child badges show
     // the global wire position, not within-frame indexing.
     const inputFramesPositions: InputFramePosition[] = [];
-    const wireSlots = enumerateWireSlots(storeInputFrames);
     let stackY = 0;
     for (const storeFrame of storeInputFrames) {
       if (storeFrame.mode === "initial") {
@@ -347,7 +344,6 @@ export function useControlFrameLayout(): CanvasLayout {
     frameH,
     lastResult,
     storeInputFrames,
-    hasAnyInputImage,
     autoFitFrame,
     sizeMode,
     scaleFactor,

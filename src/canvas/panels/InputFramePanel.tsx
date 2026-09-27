@@ -6,7 +6,7 @@
 
 import { useMemo, useState } from "react";
 import { useSortable } from "@dnd-kit/sortable";
-import { GripVertical, ImagePlus, Info, Settings, Trash2, X } from "lucide-react";
+import { GripVertical, ImagePlus, Info, Scan, Settings, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { KeepAlivePanel, KeepAliveSwitch } from "@/components/ui/keep-alive";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -19,8 +19,9 @@ import {
 } from "@/canvas/ControlFramePanel";
 import { useCanvasStore } from "@/stores/canvasStore";
 import type { ImageLayer } from "@/stores/canvasStore";
-import type { InputFrameMode } from "@/canvas/inputFrames";
+import type { InputFrameMode, SizeSourceRef } from "@/canvas/inputFrames";
 import { ReferenceSortableOverlay } from "@/canvas/ReferenceSortableOverlay";
+import { SIZE_SOURCE_HINT } from "@/canvas/useSizeSource";
 import { LayerPanel } from "@/components/generation/LayerPanel";
 import { MaskParams } from "@/components/generation/MaskParams";
 import { StrengthSlider } from "@/components/generation/StrengthSlider";
@@ -72,6 +73,26 @@ interface InputFramePanelProps {
   canRemove?: boolean | undefined;
   /** The input frames hold as many images as the active model takes. */
   atCapacity?: boolean | undefined;
+  /** Set when the image the frame size comes from is in this frame. */
+  sizeSource?: SizeSourceRef | null | undefined;
+}
+
+/** Marks the input image the frame size comes from. */
+function SizeSourceBadge({ onImage = false }: { onImage?: boolean }) {
+  return (
+    <span
+      role="img"
+      aria-label={SIZE_SOURCE_HINT}
+      title={SIZE_SOURCE_HINT}
+      className={
+        onImage
+          ? "grid h-5 w-5 place-items-center rounded-full bg-black/60 text-white"
+          : "shrink-0 text-muted-foreground"
+      }
+    >
+      <Scan size={onImage ? 10 : 11} />
+    </span>
+  );
 }
 
 export function InputFramePanel({
@@ -86,6 +107,7 @@ export function InputFramePanel({
   onRemoveFrame,
   canRemove = true,
   atCapacity = false,
+  sizeSource = null,
 }: InputFramePanelProps) {
   const storeFrame = useCanvasStore((s) => s.inputFrames.find((f) => f.id === frame.frameId));
   const setFrameMode = useCanvasStore((s) => s.setFrameMode);
@@ -323,6 +345,9 @@ export function InputFramePanel({
         mode="panel"
         color={accent}
         label={label}
+        labelAdornment={
+          !isReference && sizeSource && sizeSource.refId === null ? <SizeSourceBadge /> : undefined
+        }
         sizeText={sizeText || undefined}
         canvasX={canvasX}
         canvasY={canvasY}
@@ -345,6 +370,11 @@ export function InputFramePanel({
           viewport={viewport}
           onReorder={handleChildReorder}
           onRemove={(refId) => removeReferenceFromFrame(frame.frameId, refId)}
+          mark={
+            sizeSource?.refId
+              ? { refId: sizeSource.refId, node: <SizeSourceBadge onImage /> }
+              : null
+          }
         />
       )}
     </>
