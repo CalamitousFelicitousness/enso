@@ -2,7 +2,8 @@
 // no React, no store dependencies, no Konva. The layout engine
 // (useControlFrameLayout) consumes these to compute per-frame positions.
 
-/** Vertical gap between Input frames in the stack, display units. */
+/** Vertical gap between an Input frame and the floating panel of the next
+ * frame in the stack, display units. */
 export const INPUT_FRAME_GAP = 16;
 
 /** Gap between adjacent reference children inside a Reference mother frame,

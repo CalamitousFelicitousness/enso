@@ -33,6 +33,8 @@ const FRAME_GAP = 48;
 export const ELEMENT_GAP = 16;
 /** Height of the per-unit processed image header bar (matches HEADER_HEIGHT in ControlFramePanel) */
 export const PROCESSED_HEADER_HEIGHT = 30;
+/** Collapsed floating panel before the label scale: HEADER_HEIGHT plus its 1px border in ControlFramePanel */
+const PANEL_HEIGHT = 32;
 
 export interface ProcessedSlot {
   unitIndex: number;
@@ -75,9 +77,9 @@ export interface CanvasLayout {
   outputDisplayH: number;
   /** Per-Input-frame layout positions for the multi-Input-frame stack. One
    * entry per frame in `canvasStore.inputFrames` in store order. Vertical
-   * stack with INPUT_FRAME_GAP spacing. Initial frames carry display dims
-   * matching the generation resolution; Reference frames are mother-grid
-   * shells with child cell positions baked in. */
+   * stack with room for each frame's floating panel above it. Initial frames
+   * carry display dims matching the generation resolution; Reference frames
+   * are mother-grid shells with child cell positions baked in. */
   inputFrames: InputFramePosition[];
   /** Bottom edge of the input column (display units). Y position immediately
    * below the last Input frame, useful for placing the +Add Input Frame
@@ -95,6 +97,7 @@ export function useControlFrameLayout(): CanvasLayout {
   const lastResult = useGenerationStore((s) => s.results[0]);
   const storeInputFrames = useFrameShapes();
   const autoFitFrame = useUiStore((s) => s.autoFitFrame);
+  const labelScale = useUiStore((s) => s.canvasLabelScale);
   const sizeMode = useImg2ImgStore((s) => s.sizeMode);
   const scaleFactor = useImg2ImgStore((s) => s.scaleFactor);
   const megapixelTarget = useImg2ImgStore((s) => s.megapixelTarget);
@@ -224,6 +227,8 @@ export function useControlFrameLayout(): CanvasLayout {
     // from enumerateWireSlots so the panel header and child badges show
     // the global wire position, not within-frame indexing.
     const inputFramesPositions: InputFramePosition[] = [];
+    // A frame's panel floats ELEMENT_GAP above it and renders at the label scale
+    const stackGap = INPUT_FRAME_GAP + PANEL_HEIGHT * labelScale + ELEMENT_GAP;
     let stackY = 0;
     for (const storeFrame of storeInputFrames) {
       if (storeFrame.mode === "initial") {
@@ -240,7 +245,7 @@ export function useControlFrameLayout(): CanvasLayout {
           wireIndex,
         };
         inputFramesPositions.push(f);
-        stackY += dh + INPUT_FRAME_GAP;
+        stackY += dh + stackGap;
       } else {
         // Reference mode: mother frame with grid of children. Mother width
         // matches Initial frames in the same column (dw) so the input
@@ -306,12 +311,12 @@ export function useControlFrameLayout(): CanvasLayout {
           firstChildWireIndex,
         };
         inputFramesPositions.push(f);
-        stackY += motherH + INPUT_FRAME_GAP;
+        stackY += motherH + stackGap;
       }
     }
-    // stackY trailed by an extra INPUT_FRAME_GAP after the last frame; back
-    // it out for the column bottom.
-    const inputColumnBottom = inputFramesPositions.length > 0 ? stackY - INPUT_FRAME_GAP : 0;
+    // stackY trailed by an extra stackGap after the last frame; back it out
+    // for the column bottom.
+    const inputColumnBottom = inputFramesPositions.length > 0 ? stackY - stackGap : 0;
 
     // Extend totalBounds.maxY to include the input column bottom so canvas-
     // mode auto-fit accommodates multiple stacked frames. Output column
@@ -345,6 +350,7 @@ export function useControlFrameLayout(): CanvasLayout {
     lastResult,
     storeInputFrames,
     autoFitFrame,
+    labelScale,
     sizeMode,
     scaleFactor,
     megapixelTarget,
