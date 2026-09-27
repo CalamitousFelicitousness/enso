@@ -165,6 +165,22 @@ def install_detailer_per_model_patch(model_entries):
     return restore
 
 
+# GenerateParams fields execute_generate passes to control_run itself, or not at all
+SKIP_KEYS = {"type", "inputs", "inits", "mask", "control", "ip_adapter", "save_images", "sampler_name", "script_name", "script_args", "alwayson_scripts", "extra", "priority"}
+# GenerateParams fields read by Enso that control_run has no keyword for
+LOCAL_KEYS = {"width", "height", "mask_blur", "inpaint_full_res", "inpaint_full_res_padding", "inpainting_mask_invert", "detailer_defaults", "live_previews"}
+
+
+def unforwarded_generate_fields() -> list[str]:
+    """GenerateParams fields that neither reach control_run nor are read by Enso."""
+    from modules.control import run as control_run_module
+
+    from enso_api.job_models import GenerateParams
+
+    taken = set(inspect.signature(control_run_module.control_run).parameters)
+    return sorted(set(GenerateParams.model_fields) - taken - SKIP_KEYS - LOCAL_KEYS)
+
+
 def execute_generate(params: dict, job_id: str) -> dict:
     from modules import processing_helpers, shared
     from modules.api import helpers
@@ -238,8 +254,8 @@ def execute_generate(params: dict, job_id: str) -> dict:
 
     # Build args dict for control_run, only passing params it accepts
     valid_params = set(inspect.signature(control_run_module.control_run).parameters.keys())
-    skip_keys = {"type", "inputs", "inits", "mask", "control", "ip_adapter", "save_images", "sampler_name", "script_name", "script_args", "alwayson_scripts", "extra", "priority"}
-    run_args = {k: v for k, v in params.items() if k in valid_params and k not in skip_keys}
+    # control_run's own cfg_true of 0 switches off the true CFG some pipelines run by default
+    run_args = {k: v for k, v in {"cfg_true": -1.0, **params}.items() if k in valid_params and k not in SKIP_KEYS}
     run_args["sampler_index"] = sampler_index
     run_args["is_generator"] = True
     run_args["inputs"] = inputs

@@ -42,11 +42,11 @@ export interface ControlRequest {
   hr_resize_mode?: number | undefined;
   hr_resize_context?: string | undefined;
   hr_force?: boolean | undefined;
-  cfg_end?: number | undefined;
-  diffusers_guidance_rescale?: number | undefined;
-  image_cfg_scale?: number | undefined;
-  pag_scale?: number | undefined;
-  pag_adaptive?: number | undefined;
+  cfg_stop?: number | undefined;
+  cfg_rescale?: number | undefined;
+  cfg_image?: number | undefined;
+  cfg_true?: number | undefined;
+  cfg_adaptive?: number | undefined;
   subseed?: number | undefined;
   subseed_strength?: number | undefined;
   refiner_steps?: number | undefined;
@@ -111,10 +111,6 @@ export interface ControlRequest {
   grid_save?: boolean | undefined;
   grid_format?: string | undefined;
   return_grid?: boolean | undefined;
-  save_mask?: boolean | undefined;
-  save_mask_composite?: boolean | undefined;
-  return_mask?: boolean | undefined;
-  return_mask_composite?: boolean | undefined;
   keep_incomplete?: boolean | undefined;
   image_metadata?: boolean | undefined;
   jpeg_quality?: number | undefined;
@@ -184,7 +180,6 @@ export interface ControlRequest {
   extra?: Record<string, unknown> | undefined;
   script_name?: string | undefined;
   script_args?: unknown[] | undefined;
-  send_images?: boolean | undefined;
   save_images?: boolean | undefined;
   live_previews?: boolean | undefined;
   alwayson_scripts?: Record<string, unknown> | undefined;

@@ -8,6 +8,7 @@ import {
   type JobSnapshot,
 } from "@/stores/jobStore";
 import { putJobPayload } from "@/lib/jobPayloadDb";
+import { currentJobRequest } from "@/lib/retiredJobFields";
 import type { Job, JobRequest } from "@/api/types/v2";
 
 interface ResubmitArgs {
@@ -19,14 +20,6 @@ interface ResubmitArgs {
 interface ResubmitOptions {
   successMessage?: string;
   errorMessage?: string;
-}
-
-/** Stored payloads can carry init_control, which the job schema no longer
- * accepts; it reached no pipeline, so dropping it changes nothing. */
-function withoutRetiredFields(request: JobRequest): JobRequest {
-  if (!("init_control" in request)) return request;
-  const { init_control: _retired, ...current } = request;
-  return current;
 }
 
 /**
@@ -43,7 +36,7 @@ export function useResubmitJob() {
       { domain, request: stored, snapshot }: ResubmitArgs,
       opts: ResubmitOptions = {},
     ): Promise<Job | null> => {
-      const request = withoutRetiredFields(stored);
+      const request = currentJobRequest(stored);
       const priority = (request as { priority?: number }).priority ?? 0;
       try {
         const newJob = await submitJob.mutateAsync(request);

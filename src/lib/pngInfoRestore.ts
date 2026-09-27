@@ -19,6 +19,7 @@ const KEY_MAP: Record<string, string> = {
   "Batch count": "batchCount",
 
   // Guidance
+  "CFG stop": "cfgEnd",
   "CFG end": "cfgEnd",
   "CFG rescale": "guidanceRescale",
   "Image CFG scale": "imageCfgScale",
@@ -110,6 +111,9 @@ export function restoreFromPngInfo(parameters: Record<string, unknown>) {
       update[storeKey] = toDisplayString(val);
     }
   }
+
+  // sdnext records Attention guidance left at the model default as -1; the slider's 0 is that default
+  if (typeof update["pagScale"] === "number" && update["pagScale"] < 0) update["pagScale"] = 0;
 
   // Auto-enable hires when any hires param is present
   if (

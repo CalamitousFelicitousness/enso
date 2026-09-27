@@ -94,20 +94,15 @@ class JobBase(StrictBaseModel):
 
 
 class GuidanceMixin(StrictBaseModel):
-    """Classifier-free guidance, CFG end, image CFG, CLIP skip."""
+    """Guidance under control_run's keyword names, and CLIP skip."""
 
     cfg_scale: float = 7.0
-    cfg_end: float = 1.0
-    diffusers_guidance_rescale: float = 0.0
-    image_cfg_scale: float = 6.0
+    cfg_stop: float = 1.0
+    cfg_rescale: float = 0.0
+    cfg_image: float = 6.0
+    cfg_true: float = Field(default=-1.0, description="True CFG on pipelines that take it, PAG on SD 1.5 and SDXL text-to-image; -1 keeps the model default")
+    cfg_adaptive: float = 0.5
     clip_skip: int = 1
-
-
-class PagMixin(StrictBaseModel):
-    """Perturbed Attention Guidance."""
-
-    pag_scale: float = 0.0
-    pag_adaptive: float = 0.5
 
 
 class SeedMixin(StrictBaseModel):
@@ -547,14 +542,9 @@ class OutputSavingMixin(StrictBaseModel):
     grid_save: bool = False
     grid_format: str = "png"
     return_grid: bool = False
-    save_mask: bool = False
-    save_mask_composite: bool = False
-    return_mask: bool = False
-    return_mask_composite: bool = False
     keep_incomplete: bool = False
     image_metadata: bool = True
     jpeg_quality: int = 95
-    send_images: bool = True
 
 
 class Img2ImgMixin(StrictBaseModel):
@@ -626,7 +616,6 @@ class GenerateParams(
     TeaCacheMixin,
     TokenMergeMixin,
     LoraMixin,
-    PagMixin,
     GuidanceMixin,
     SeedMixin,
     BatchMixin,
@@ -634,7 +623,6 @@ class GenerateParams(
     ScriptsMixin,
     ControlMixin,
     OutputSavingMixin,
-    OverrideSettingsMixin,
     JobBase,
 ):
     """Standard txt2img / img2img / control generation."""

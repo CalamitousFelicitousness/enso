@@ -231,8 +231,7 @@ export interface XyzGridJobParams {
   ip_adapter?: Record<string, unknown>[] | undefined;
   save_images?: boolean | undefined;
   clip_skip?: number | undefined;
-  cfg_end?: number | undefined;
-  override_settings?: Record<string, unknown> | undefined;
+  cfg_stop?: number | undefined;
   x_axis?: XyzAxisInput | null | undefined;
   y_axis?: XyzAxisInput | null | undefined;
   z_axis?: XyzAxisInput | null | undefined;

@@ -88,9 +88,9 @@ export function GuidanceTab() {
       <SectionLeader title="Attention Guidance" collapsible defaultCollapsed>
         <ParamGrid>
           <ParamSlider
-            label="PAG scale"
-            tooltip="Perturbed Attention Guidance scale. Improves sample quality by guiding denoising away from structurally degraded self-attention maps. Works without a negative prompt. 0 disables PAG. Recommended value around 3.0; too high may over-smooth textures."
-            keywords={["pag", "perturbed attention", "guidance"]}
+            label="Attention guidance"
+            tooltip="Extra guidance whose kind depends on the model.<br>- <b>SD 1.5 and SDXL</b>: Perturbed Attention Guidance (PAG) for text-to-image, on top of <b><i>Guidance scale</i></b>. Improves structure and detail without a negative prompt; around 3 is typical, too high over-smooths textures.<br>- <b>FLUX.1, Qwen-Image and other flow models that take it</b>: true classifier-free guidance, which gives the negative prompt its effect. 1 or below turns it off.<br><br>0 keeps the model's default: <i>Qwen-Image</i> and <i>Qwen Edit Plus</i> run true CFG 4 by default, most others run without it."
+            keywords={["pag", "perturbed attention", "true cfg", "negative prompt"]}
             value={state.pagScale}
             onChange={set.pagScale}
             min={0}
@@ -100,7 +100,7 @@ export function GuidanceTab() {
 
           <ParamSlider
             label="Adaptive"
-            tooltip="Decay rate for the Perturbed Attention Guidance (PAG) component of <b><i>PAG scale</i></b>. Higher values cause PAG strength to decay faster across the denoising steps.<br><br>Only takes effect on <i>SD 1.5</i> and <i>SDXL</i> when <b><i>PAG scale</i></b> is non-zero. Has no effect on <i>Flux</i>, <i>QwenImage</i>, <i>HiDream</i>, or other flow-matching models.<br><br>Default 0.5 applies moderate decay. Set to 0 to keep PAG at full strength for the entire process."
+            tooltip="Decay rate for Perturbed Attention Guidance (PAG). Higher values make PAG weaken faster across the denoising steps.<br><br>Only takes effect on <i>SD 1.5</i> and <i>SDXL</i> text-to-image when <b><i>Attention guidance</i></b> is above 0. Has no effect on <i>Flux</i>, <i>Qwen-Image</i>, <i>HiDream</i>, or other flow-matching models.<br><br>Default 0.5 applies moderate decay. Set to 0 to keep PAG at full strength for the entire process."
             keywords={["pag", "adaptive", "scaling"]}
             value={state.pagAdaptive}
             onChange={set.pagAdaptive}

@@ -2160,14 +2160,35 @@
             "title": "Batch Size",
             "type": "integer"
           },
-          "cfg_end": {
-            "default": 1,
-            "title": "Cfg End",
+          "cfg_adaptive": {
+            "default": 0.5,
+            "title": "Cfg Adaptive",
+            "type": "number"
+          },
+          "cfg_image": {
+            "default": 6,
+            "title": "Cfg Image",
+            "type": "number"
+          },
+          "cfg_rescale": {
+            "default": 0,
+            "title": "Cfg Rescale",
             "type": "number"
           },
           "cfg_scale": {
             "default": 7,
             "title": "Cfg Scale",
+            "type": "number"
+          },
+          "cfg_stop": {
+            "default": 1,
+            "title": "Cfg Stop",
+            "type": "number"
+          },
+          "cfg_true": {
+            "default": -1,
+            "description": "True CFG on pipelines that take it, PAG on SD 1.5 and SDXL text-to-image; -1 keeps the model default",
+            "title": "Cfg True",
             "type": "number"
           },
           "clip_skip": {
@@ -2230,11 +2251,6 @@
             },
             "title": "Detailer models",
             "type": "array"
-          },
-          "diffusers_guidance_rescale": {
-            "default": 0,
-            "title": "Diffusers Guidance Rescale",
-            "type": "number"
           },
           "enable_hr": {
             "default": false,
@@ -2557,11 +2573,6 @@
             "title": "Hypertile Vae Tile",
             "type": "integer"
           },
-          "image_cfg_scale": {
-            "default": 6,
-            "title": "Image Cfg Scale",
-            "type": "number"
-          },
           "image_metadata": {
             "default": true,
             "title": "Image Metadata",
@@ -2698,21 +2709,6 @@
             "title": "Negative Prompt",
             "type": "string"
           },
-          "override_settings": {
-            "additionalProperties": true,
-            "title": "Override Settings",
-            "type": "object"
-          },
-          "pag_adaptive": {
-            "default": 0.5,
-            "title": "Pag Adaptive",
-            "type": "number"
-          },
-          "pag_scale": {
-            "default": 0,
-            "title": "Pag Scale",
-            "type": "number"
-          },
           "priority": {
             "default": 0,
             "description": "Higher runs first; 0 is normal priority",
@@ -2769,16 +2765,6 @@
             "title": "Return Grid",
             "type": "boolean"
           },
-          "return_mask": {
-            "default": false,
-            "title": "Return Mask",
-            "type": "boolean"
-          },
-          "return_mask_composite": {
-            "default": false,
-            "title": "Return Mask Composite",
-            "type": "boolean"
-          },
           "sampler_name": {
             "default": "Default",
             "title": "Sampler Name",
@@ -2817,16 +2803,6 @@
           "save_images_before_refiner": {
             "default": false,
             "title": "Save Images Before Refiner",
-            "type": "boolean"
-          },
-          "save_mask": {
-            "default": false,
-            "title": "Save Mask",
-            "type": "boolean"
-          },
-          "save_mask_composite": {
-            "default": false,
-            "title": "Save Mask Composite",
             "type": "boolean"
           },
           "scale_by_after": {
@@ -2923,11 +2899,6 @@
             "default": -1,
             "title": "Seed",
             "type": "integer"
-          },
-          "send_images": {
-            "default": true,
-            "title": "Send Images",
-            "type": "boolean"
           },
           "sequential_seed": {
             "default": false,
@@ -10270,14 +10241,35 @@
             "title": "Batch Size",
             "type": "integer"
           },
-          "cfg_end": {
-            "default": 1,
-            "title": "Cfg End",
+          "cfg_adaptive": {
+            "default": 0.5,
+            "title": "Cfg Adaptive",
+            "type": "number"
+          },
+          "cfg_image": {
+            "default": 6,
+            "title": "Cfg Image",
+            "type": "number"
+          },
+          "cfg_rescale": {
+            "default": 0,
+            "title": "Cfg Rescale",
             "type": "number"
           },
           "cfg_scale": {
             "default": 7,
             "title": "Cfg Scale",
+            "type": "number"
+          },
+          "cfg_stop": {
+            "default": 1,
+            "title": "Cfg Stop",
+            "type": "number"
+          },
+          "cfg_true": {
+            "default": -1,
+            "description": "True CFG on pipelines that take it, PAG on SD 1.5 and SDXL text-to-image; -1 keeps the model default",
+            "title": "Cfg True",
             "type": "number"
           },
           "clip_skip": {
@@ -10340,11 +10332,6 @@
             },
             "title": "Detailer models",
             "type": "array"
-          },
-          "diffusers_guidance_rescale": {
-            "default": 0,
-            "title": "Diffusers Guidance Rescale",
-            "type": "number"
           },
           "draw_legend": {
             "default": true,
@@ -10672,11 +10659,6 @@
             "title": "Hypertile Vae Tile",
             "type": "integer"
           },
-          "image_cfg_scale": {
-            "default": 6,
-            "title": "Image Cfg Scale",
-            "type": "number"
-          },
           "image_metadata": {
             "default": true,
             "title": "Image Metadata",
@@ -10843,21 +10825,6 @@
             "title": "Negative Prompt",
             "type": "string"
           },
-          "override_settings": {
-            "additionalProperties": true,
-            "title": "Override Settings",
-            "type": "object"
-          },
-          "pag_adaptive": {
-            "default": 0.5,
-            "title": "Pag Adaptive",
-            "type": "number"
-          },
-          "pag_scale": {
-            "default": 0,
-            "title": "Pag Scale",
-            "type": "number"
-          },
           "priority": {
             "default": 0,
             "description": "Higher runs first; 0 is normal priority",
@@ -10919,16 +10886,6 @@
             "title": "Return Grid",
             "type": "boolean"
           },
-          "return_mask": {
-            "default": false,
-            "title": "Return Mask",
-            "type": "boolean"
-          },
-          "return_mask_composite": {
-            "default": false,
-            "title": "Return Mask Composite",
-            "type": "boolean"
-          },
           "sampler_name": {
             "default": "Default",
             "title": "Sampler Name",
@@ -10967,16 +10924,6 @@
           "save_images_before_refiner": {
             "default": false,
             "title": "Save Images Before Refiner",
-            "type": "boolean"
-          },
-          "save_mask": {
-            "default": false,
-            "title": "Save Mask",
-            "type": "boolean"
-          },
-          "save_mask_composite": {
-            "default": false,
-            "title": "Save Mask Composite",
             "type": "boolean"
           },
           "scale_by_after": {
@@ -11073,11 +11020,6 @@
             "default": -1,
             "title": "Seed",
             "type": "integer"
-          },
-          "send_images": {
-            "default": true,
-            "title": "Send Images",
-            "type": "boolean"
           },
           "sequential_seed": {
             "default": false,

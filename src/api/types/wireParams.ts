@@ -10,6 +10,12 @@ interface LegacyAliasWire {
   height?: number;
   diffusers_pag_scale?: number;
   diffusers_pag_adaptive?: number;
+  // V2 guidance names before they took control_run's keywords
+  cfg_end?: number;
+  diffusers_guidance_rescale?: number;
+  image_cfg_scale?: number;
+  pag_scale?: number;
+  pag_adaptive?: number;
 }
 
 // V1 flat detailer keys, predating the V2 detailer_defaults block.

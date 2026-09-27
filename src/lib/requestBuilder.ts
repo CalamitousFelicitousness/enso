@@ -154,11 +154,12 @@ export async function buildControlRequest({
     cfg_scale: gen.cfgScale,
     save_images: true,
     live_previews: ui.livePreviews,
-    cfg_end: gen.cfgEnd,
-    diffusers_guidance_rescale: gen.guidanceRescale,
-    image_cfg_scale: gen.imageCfgScale,
-    pag_scale: gen.pagScale,
-    pag_adaptive: gen.pagAdaptive,
+    cfg_stop: gen.cfgEnd,
+    cfg_rescale: gen.guidanceRescale,
+    cfg_image: gen.imageCfgScale,
+    // 0 on the slider keeps the model default, which the server reads from -1
+    cfg_true: gen.pagScale > 0 ? gen.pagScale : -1,
+    cfg_adaptive: gen.pagAdaptive,
     seed: gen.seed,
     subseed: gen.subseed,
     subseed_strength: gen.subseedStrength,
@@ -561,13 +562,13 @@ export function extractParamsFromResult(result: GenerationResult): Partial<Gener
     batchSize: num(p.batch_size, 1),
     batchCount: num(p.batch_count ?? p.n_iter, 1),
 
-    // Guidance - control uses pag_scale/pag_adaptive, legacy uses diffusers_ prefix
+    // Guidance - control_run's names, then the V2 names before them, then the legacy diffusers_ prefix
     cfgScale: num(p.cfg_scale, 7),
-    cfgEnd: num(p.cfg_end, 1),
-    guidanceRescale: num(p.diffusers_guidance_rescale, 0),
-    imageCfgScale: num(p.image_cfg_scale, 6),
-    pagScale: num(p.pag_scale ?? p.diffusers_pag_scale, 0),
-    pagAdaptive: num(p.pag_adaptive ?? p.diffusers_pag_adaptive, 0.5),
+    cfgEnd: num(p.cfg_stop ?? p.cfg_end, 1),
+    guidanceRescale: num(p.cfg_rescale ?? p.diffusers_guidance_rescale, 0),
+    imageCfgScale: num(p.cfg_image ?? p.image_cfg_scale, 6),
+    pagScale: Math.max(0, num(p.cfg_true ?? p.pag_scale ?? p.diffusers_pag_scale, 0)),
+    pagAdaptive: num(p.cfg_adaptive ?? p.pag_adaptive ?? p.diffusers_pag_adaptive, 0.5),
     denoisingStrength: num(p.denoising_strength, 0.5),
 
     // Seed - use resolved values from info when available

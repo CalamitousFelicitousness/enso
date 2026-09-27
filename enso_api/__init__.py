@@ -38,6 +38,16 @@ def register_api(app, dependencies=None):
     # as a 500 on the first client submit.
     validate_registries()
 
+    # control_run takes generate fields by name, so a keyword renamed in sdnext
+    # would drop its field from every job without an error
+    from modules.logger import log
+
+    from enso_api.executors import unforwarded_generate_fields
+
+    unforwarded = unforwarded_generate_fields()
+    if unforwarded:
+        log.warning(f"Enso: control_run does not take these generate fields, so they have no effect: {', '.join(unforwarded)}")
+
     staging_dir = os.path.join(shared.opts.temp_dir or tempfile.gettempdir(), "uploads")
     init_upload_store(staging_dir, ttl=1800)
 
@@ -176,7 +186,5 @@ def register_api(app, dependencies=None):
             "/sdapi/v2/xyz-grid/preview": 5,
         }
     )
-
-    from modules.logger import log
 
     log.info("Enso API: registered")
