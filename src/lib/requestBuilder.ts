@@ -122,7 +122,7 @@ async function addConditionSet(
   request.input_type = 1;
   request.width_before = target.width;
   request.height_before = target.height;
-  // batch_size above the input count pads the set with copies of its last image
+  // QwenImageEditPlusPipeline refuses batch_size above 1
   request.batch_count = gen.batchCount * gen.batchSize;
   request.batch_size = 1;
   return snapshotImage;

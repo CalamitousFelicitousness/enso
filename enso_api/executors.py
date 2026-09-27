@@ -242,11 +242,6 @@ def execute_generate(params: dict, job_id: str) -> dict:
     run_args = {k: v for k, v in params.items() if k in valid_params and k not in skip_keys}
     run_args["sampler_index"] = sampler_index
     run_args["is_generator"] = True
-    if params.get("skip_processing") and inputs and not condition_images.declared_capacity(shared.sd_model):
-        width = params.get("width_before", inputs[0].width)
-        height = params.get("height_before", inputs[0].height)
-        inputs[0] = condition_images.fit_first_input(inputs[0], width, height, shared.sd_model)
-        run_args["width_before"], run_args["height_before"] = inputs[0].size
     run_args["inputs"] = inputs
     run_args["inits"] = inits
     run_args["mask"] = mask
