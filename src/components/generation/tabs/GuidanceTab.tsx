@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { useGenerationStore } from "@/stores/generationStore";
+import { useModelCapabilities } from "@/hooks/useModelCapabilities";
 import { useShallow } from "zustand/react/shallow";
 import { ParamSlider } from "../ParamSlider";
 import { SectionLeader, SectionDivider } from "@/components/ui/section-leader";
@@ -30,6 +31,13 @@ export function GuidanceTab() {
     [setParam],
   );
 
+  // Every setting stays live until the loaded pipeline is known
+  const guidance = useModelCapabilities().guidance;
+  const cfg = guidance?.cfg_applicable ?? true;
+  const trueCfg = guidance?.true_cfg_applicable ?? true;
+  const rescale = guidance?.rescale_applicable ?? true;
+  const pag = guidance?.pag_applicable ?? true;
+
   return (
     <div className="flex flex-col gap-3 text-sm">
       <SectionLeader title="Guidance" collapsible>
@@ -43,6 +51,12 @@ export function GuidanceTab() {
             min={0}
             max={30}
             step={0.5}
+            disabled={!cfg}
+            disabledHint={
+              trueCfg
+                ? "The loaded model ignores Guidance scale; set its CFG with Attention guidance"
+                : "The loaded model ignores Guidance scale"
+            }
           />
 
           <ParamSlider
@@ -54,6 +68,8 @@ export function GuidanceTab() {
             min={0}
             max={1}
             step={0.1}
+            disabled={!cfg && !pag}
+            disabledHint="The loaded model ignores Guidance scale, so there is no guidance to end early"
           />
         </ParamGrid>
         <ParamSlider
@@ -65,6 +81,8 @@ export function GuidanceTab() {
           min={0}
           max={1}
           step={0.05}
+          disabled={!rescale}
+          disabledHint="The loaded model does not rescale guidance"
         />
       </SectionLeader>
 
@@ -96,6 +114,8 @@ export function GuidanceTab() {
             min={0}
             max={30}
             step={0.05}
+            disabled={!trueCfg && !pag}
+            disabledHint="The loaded model uses neither true CFG nor PAG"
           />
 
           <ParamSlider
@@ -107,6 +127,8 @@ export function GuidanceTab() {
             min={0}
             max={1}
             step={0.05}
+            disabled={!pag}
+            disabledHint="Adaptive shapes PAG, which runs only on SD 1.5 and SDXL"
           />
         </ParamGrid>
       </SectionLeader>

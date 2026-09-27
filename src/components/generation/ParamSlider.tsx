@@ -47,6 +47,8 @@ export interface ParamSliderProps {
   step?: number | undefined;
   disabled?: boolean | undefined;
   tooltip?: string | undefined;
+  /** Shown in place of the tooltip while disabled: why the setting does nothing. */
+  disabledHint?: string | undefined;
   suffix?: string | undefined;
   decimals?: number | undefined;
   notches?: number[] | undefined;
@@ -67,6 +69,7 @@ export const ParamSlider = memo(function ParamSlider({
   step = 1,
   disabled,
   tooltip,
+  disabledHint,
   suffix,
   decimals: decimalsProp,
   notches,
@@ -278,7 +281,7 @@ export const ParamSlider = memo(function ParamSlider({
 
   // ── Context menu ───────────────────────────────────────────────
 
-  const helpText = tooltip ?? getParamHelp(label);
+  const helpText = disabled && disabledHint ? disabledHint : (tooltip ?? getParamHelp(label));
   const hasReset = defaultValue !== undefined;
   const isAtDefault = hasReset && value === defaultValue;
   const hasContextItems = hasReset || !!helpText;
@@ -300,12 +303,14 @@ export const ParamSlider = memo(function ParamSlider({
       aria-valuemax={max}
       aria-valuenow={value}
       aria-label={tooltip ? stripParamHelpHtml(tooltip) : label}
+      aria-disabled={disabled || undefined}
       tabIndex={disabled ? -1 : 0}
       title={helpText ? stripParamHelpHtml(helpText) : undefined}
       className={cn(
         "relative h-5 rounded-sm bg-muted/60 select-none overflow-hidden",
+        // the handlers ignore a disabled slider; hover still shows why it is disabled
         disabled
-          ? "opacity-50 pointer-events-none"
+          ? "opacity-50 cursor-not-allowed"
           : dragging
             ? "cursor-grabbing"
             : "cursor-ew-resize",
@@ -401,7 +406,12 @@ export const ParamSlider = memo(function ParamSlider({
             e.stopPropagation();
             startEdit();
           }}
-          className="absolute inset-y-0 right-1.5 flex items-center text-3xs font-mono tabular-nums text-foreground/80 pointer-events-auto cursor-text leading-none hover:underline hover:decoration-dotted hover:underline-offset-2 hover:decoration-muted-foreground"
+          className={cn(
+            "absolute inset-y-0 right-1.5 flex items-center text-3xs font-mono tabular-nums text-foreground/80 leading-none",
+            disabled
+              ? "pointer-events-none"
+              : "pointer-events-auto cursor-text hover:underline hover:decoration-dotted hover:underline-offset-2 hover:decoration-muted-foreground",
+          )}
         >
           {formatValue(value, decimals, suffix)}
         </span>
@@ -416,7 +426,10 @@ export const ParamSlider = memo(function ParamSlider({
       <ContextMenuTrigger asChild>{trackContent}</ContextMenuTrigger>
       <ContextMenuContent>
         {hasReset && (
-          <ContextMenuItem disabled={isAtDefault} onSelect={() => onChange(defaultValue)}>
+          <ContextMenuItem
+            disabled={disabled || isAtDefault}
+            onSelect={() => onChange(defaultValue)}
+          >
             Reset to default ({formatValue(defaultValue, decimals)})
           </ContextMenuItem>
         )}

@@ -455,6 +455,15 @@ class ResHistoryV2(BaseModel):
     limit: int = Field(title="Limit")
 
 
+class CheckpointGuidanceV2(BaseModel):
+    """Guidance settings the loaded pipeline applies."""
+
+    cfg_applicable: bool = Field(description="The pipeline call takes guidance_scale")
+    true_cfg_applicable: bool = Field(description="The pipeline call takes true_cfg_scale")
+    rescale_applicable: bool = Field(description="The pipeline call takes guidance_rescale")
+    pag_applicable: bool = Field(description="sdnext applies PAG to this model family: SD 1.5 and SDXL, text-to-image")
+
+
 class ResCheckpointV2(BaseModel):
     loaded: bool = Field(title="Loaded")
     type: str | None = Field(default=None, title="Type")
@@ -465,6 +474,7 @@ class ResCheckpointV2(BaseModel):
     filename: str | None = Field(default=None, title="Filename")
     hash: str | None = Field(default=None, title="Hash")
     max_input_images: int | None = Field(default=None, title="Max Input Images", description="Input images the loaded pipeline takes as one set; 1 for single-image models")
+    guidance: CheckpointGuidanceV2 | None = Field(default=None, title="Guidance")
 
 
 class ReqSetCheckpointV2(BaseModel):

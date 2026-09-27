@@ -1,6 +1,7 @@
 import type { ItemSamplerV2 } from "@/lib/openapi-generated/types.gen";
 
 export type {
+  CheckpointGuidanceV2,
   ItemExtensionV2 as Extension,
   ItemExtraNetworkDetail as NetworkDetail,
   ItemExtraNetworkV2 as ExtraNetworkV2,

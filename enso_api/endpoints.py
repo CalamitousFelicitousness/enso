@@ -51,6 +51,7 @@ version_normalize = {
     "zImage": "Z-Image",
 }
 from enso_api.models import (
+    CheckpointGuidanceV2,
     ItemDetailerV2,
     ItemEmbeddingV2,
     ItemExtensionV2,
@@ -529,6 +530,20 @@ async def get_history_v2(
 # --- Checkpoint ---
 
 
+def checkpoint_guidance(model) -> CheckpointGuidanceV2:
+    """Guidance settings that reach the loaded pipeline."""
+    from modules import processing_args
+
+    # the names set_pipeline_args keeps; it drops every other pipeline kwarg
+    call = set(processing_args.get_params(model))
+    return CheckpointGuidanceV2(
+        cfg_applicable="guidance_scale" in call,
+        true_cfg_applicable="true_cfg_scale" in call,
+        rescale_applicable="guidance_rescale" in call,
+        pag_applicable=shared.sd_model_type in ("sd", "sdxl"),
+    )
+
+
 def build_checkpoint_info() -> ResCheckpointV2:
     from enso_api import condition_images
 
@@ -539,6 +554,7 @@ def build_checkpoint_info() -> ResCheckpointV2:
         type=shared.sd_model_type,
         class_name=shared.sd_model.__class__.__name__,
         max_input_images=condition_images.max_condition_images(shared.sd_model),
+        guidance=checkpoint_guidance(shared.sd_model),
     )
     if hasattr(shared.sd_model, "sd_model_checkpoint"):
         info.checkpoint = shared.sd_model.sd_model_checkpoint

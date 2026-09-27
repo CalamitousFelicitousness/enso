@@ -81,6 +81,39 @@
         "title": "CaptionParams",
         "type": "object"
       },
+      "CheckpointGuidanceV2": {
+        "description": "Guidance settings the loaded pipeline applies.",
+        "properties": {
+          "cfg_applicable": {
+            "description": "The pipeline call takes guidance_scale",
+            "title": "Cfg Applicable",
+            "type": "boolean"
+          },
+          "pag_applicable": {
+            "description": "sdnext applies PAG to this model family: SD 1.5 and SDXL, text-to-image",
+            "title": "Pag Applicable",
+            "type": "boolean"
+          },
+          "rescale_applicable": {
+            "description": "The pipeline call takes guidance_rescale",
+            "title": "Rescale Applicable",
+            "type": "boolean"
+          },
+          "true_cfg_applicable": {
+            "description": "The pipeline call takes true_cfg_scale",
+            "title": "True Cfg Applicable",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "cfg_applicable",
+          "true_cfg_applicable",
+          "rescale_applicable",
+          "pag_applicable"
+        ],
+        "title": "CheckpointGuidanceV2",
+        "type": "object"
+      },
       "CloudChatMessage": {
         "additionalProperties": false,
         "description": "One chat turn.",
@@ -7604,6 +7637,17 @@
               }
             ],
             "title": "Filename"
+          },
+          "guidance": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CheckpointGuidanceV2"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Guidance"
           },
           "hash": {
             "anyOf": [

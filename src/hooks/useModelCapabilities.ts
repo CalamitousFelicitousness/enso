@@ -4,7 +4,7 @@ import { useCurrentCheckpoint } from "@/api/hooks/useModels";
 import { showImagesTab } from "@/lib/tabVisibility";
 import type { ImagesSubTab } from "@/lib/constants";
 import type { LocalModel, UnifiedModel } from "@/api/types/cloud";
-import type { CheckpointInfoV2 } from "@/api/types/models";
+import type { CheckpointGuidanceV2, CheckpointInfoV2 } from "@/api/types/models";
 
 /**
  * Per-feature capability flags for the active model. Local models support
@@ -36,6 +36,8 @@ export interface ModelCapabilities {
    * unknown or when the model advertises no limit. Local models report it on
    * /sdapi/v2/checkpoint once loaded; cloud models as max_input_images. */
   maxInputImages: number | null;
+  /** Guidance settings the loaded local pipeline applies; null while unknown. */
+  guidance: CheckpointGuidanceV2 | null;
 }
 
 const LOCAL_SUPPORTS: ModelSupports = {
@@ -71,14 +73,14 @@ const LOCAL_VIDEO_SUPPORTS: ModelSupports = {
   scripts: false,
 };
 
-/** The loaded checkpoint's input limit when it is the selected model. Selecting
- * only updates the store, so a different checkpoint may still be loaded. */
-function loadedInputLimit(
+/** The loaded checkpoint when it is the selected model. Selecting only updates
+ * the store, so a different checkpoint may still be loaded. */
+function loadedCheckpoint(
   model: LocalModel | null,
   checkpoint: CheckpointInfoV2 | undefined,
-): number | null {
+): CheckpointInfoV2 | null {
   if (!model || !checkpoint?.loaded || checkpoint.title !== model.title) return null;
-  return checkpoint.max_input_images ?? null;
+  return checkpoint;
 }
 
 export function useModelCapabilities(): ModelCapabilities {
@@ -86,12 +88,14 @@ export function useModelCapabilities(): ModelCapabilities {
   const { data: checkpoint } = useCurrentCheckpoint();
   return useMemo(() => {
     if (!model || model.source === "local") {
+      const loaded = loadedCheckpoint(model, checkpoint);
       return {
         kind: "local",
         model,
         supports: LOCAL_SUPPORTS,
         showTab: (tabId) => showImagesTab(tabId, LOCAL_SUPPORTS),
-        maxInputImages: loadedInputLimit(model, checkpoint),
+        maxInputImages: loaded?.max_input_images ?? null,
+        guidance: loaded?.guidance ?? null,
       };
     }
     if (model.source === "local-video") {
@@ -103,6 +107,7 @@ export function useModelCapabilities(): ModelCapabilities {
         // survives via its "always" gate.
         showTab: (tabId) => showImagesTab(tabId, LOCAL_VIDEO_SUPPORTS),
         maxInputImages: null,
+        guidance: null,
       };
     }
     const caps = model.capabilities;
@@ -130,6 +135,7 @@ export function useModelCapabilities(): ModelCapabilities {
       supports,
       showTab: (tabId) => showImagesTab(tabId, supports),
       maxInputImages: model.max_input_images ?? null,
+      guidance: null,
     };
   }, [model, checkpoint]);
 }
