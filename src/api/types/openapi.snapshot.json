@@ -7687,6 +7687,18 @@
             ],
             "title": "Name"
           },
+          "size_multiple": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Width and height keep their requested value at multiples of this; the server rounds other sizes",
+            "title": "Size Multiple"
+          },
           "title": {
             "anyOf": [
               {

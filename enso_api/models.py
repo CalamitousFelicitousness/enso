@@ -475,6 +475,7 @@ class ResCheckpointV2(BaseModel):
     hash: str | None = Field(default=None, title="Hash")
     max_input_images: int | None = Field(default=None, title="Max Input Images", description="Input images the loaded pipeline takes as one set; 1 for single-image models")
     guidance: CheckpointGuidanceV2 | None = Field(default=None, title="Guidance")
+    size_multiple: int | None = Field(default=None, title="Size Multiple", description="Width and height keep their requested value at multiples of this; the server rounds other sizes")
 
 
 class ReqSetCheckpointV2(BaseModel):

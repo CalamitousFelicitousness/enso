@@ -38,6 +38,9 @@ export interface ModelCapabilities {
   maxInputImages: number | null;
   /** Guidance settings the loaded local pipeline applies; null while unknown. */
   guidance: CheckpointGuidanceV2 | null;
+  /** Width and height multiple the loaded local pipeline keeps a requested
+   * size at; null while unknown. */
+  sizeMultiple: number | null;
 }
 
 const LOCAL_SUPPORTS: ModelSupports = {
@@ -96,6 +99,7 @@ export function useModelCapabilities(): ModelCapabilities {
         showTab: (tabId) => showImagesTab(tabId, LOCAL_SUPPORTS),
         maxInputImages: loaded?.max_input_images ?? null,
         guidance: loaded?.guidance ?? null,
+        sizeMultiple: loaded?.size_multiple ?? null,
       };
     }
     if (model.source === "local-video") {
@@ -108,6 +112,7 @@ export function useModelCapabilities(): ModelCapabilities {
         showTab: (tabId) => showImagesTab(tabId, LOCAL_VIDEO_SUPPORTS),
         maxInputImages: null,
         guidance: null,
+        sizeMultiple: null,
       };
     }
     const caps = model.capabilities;
@@ -136,6 +141,7 @@ export function useModelCapabilities(): ModelCapabilities {
       showTab: (tabId) => showImagesTab(tabId, supports),
       maxInputImages: model.max_input_images ?? null,
       guidance: null,
+      sizeMultiple: null,
     };
   }, [model, checkpoint]);
 }

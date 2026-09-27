@@ -225,6 +225,7 @@ export function PromptsTab() {
   const effectiveSizeMode: SizeMode = showSizeModes ? sizeMode : "fixed";
   const isFixed = effectiveSizeMode === "fixed";
 
+  const sizeMultiple = useCanvasStore((s) => s.sizeMultiple);
   const genSize = useMemo(
     () =>
       resolveGenerationSize(
@@ -233,19 +234,21 @@ export function PromptsTab() {
         state.height,
         scaleFactor,
         megapixelTarget,
+        sizeMultiple,
       ),
-    [effectiveSizeMode, state.width, state.height, scaleFactor, megapixelTarget],
+    [effectiveSizeMode, state.width, state.height, scaleFactor, megapixelTarget, sizeMultiple],
   );
 
   const onWidth = useCallback((v: number) => setParam("width", v), [setParam]);
   const onHeight = useCallback((v: number) => setParam("height", v), [setParam]);
+  const axis = useMemo(() => ({ ...IMAGE_AXIS, multiple: sizeMultiple }), [sizeMultiple]);
   const aspect = useAspectLock({
     width: state.width,
     height: state.height,
     onWidth,
     onHeight,
-    widthRule: IMAGE_AXIS,
-    heightRule: IMAGE_AXIS,
+    widthRule: axis,
+    heightRule: axis,
   });
 
   const set = useMemo(
@@ -346,13 +349,13 @@ export function PromptsTab() {
             <div className="flex-1 min-w-0">
               <ParamSlider
                 label="Width"
-                tooltip="Output width in pixels, in steps of 8. Generation time and VRAM scale with width x height; sizes far above the model's native resolution invite doubled subjects and stretched composition."
+                tooltip="Output width in pixels, in steps the loaded model keeps exactly: 8 for SD and SDXL, 16 for FLUX.2 and Qwen-Image, 32 for Qwen-Image 2.1. Generation time and VRAM scale with width x height; sizes far above the model's native resolution invite doubled subjects and stretched composition."
                 keywords={["size", "dimensions", "resolution", "aspect", "landscape"]}
                 value={isFixed ? state.width : genSize.width}
                 onChange={aspect.setWidth}
                 min={aspect.widthBounds.min}
                 max={aspect.widthBounds.max}
-                step={8}
+                step={sizeMultiple}
                 disabled={!isFixed}
               />
             </div>
@@ -372,13 +375,13 @@ export function PromptsTab() {
             <div className="flex-1 min-w-0">
               <ParamSlider
                 label="Height"
-                tooltip="Output height in pixels, in steps of 8. Generation time and VRAM scale with width x height; sizes far above the model's native resolution invite doubled subjects and stretched composition."
+                tooltip="Output height in pixels, in steps the loaded model keeps exactly: 8 for SD and SDXL, 16 for FLUX.2 and Qwen-Image, 32 for Qwen-Image 2.1. Generation time and VRAM scale with width x height; sizes far above the model's native resolution invite doubled subjects and stretched composition."
                 keywords={["size", "dimensions", "resolution", "aspect", "portrait"]}
                 value={isFixed ? state.height : genSize.height}
                 onChange={aspect.setHeight}
                 min={aspect.heightBounds.min}
                 max={aspect.heightBounds.max}
-                step={8}
+                step={sizeMultiple}
                 disabled={!isFixed}
               />
             </div>

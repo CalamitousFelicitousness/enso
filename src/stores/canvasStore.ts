@@ -12,7 +12,7 @@ import {
   wireSources,
 } from "@/canvas/inputFrames";
 import { fitFrameContent, fitImageLayer } from "@/canvas/frameFit";
-import { snapTo8 } from "@/lib/sizeCompute";
+import { DEFAULT_SIZE_MULTIPLE, snapSize } from "@/lib/sizeCompute";
 import type { FrameId } from "@/canvas/frameList";
 import type { InputFrame, InputFrameMode, SizeSourceRef } from "@/canvas/inputFrames";
 import type { ViewportState } from "@/canvas/viewportBus";
@@ -148,6 +148,9 @@ interface CanvasState {
   /** The input image whose size the frame takes while Fit is on; null for Input 1. */
   sizeSource: SizeSourceRef | null;
   setSizeSource: (pick: SizeSourceRef | null) => void;
+  /** Width and height step of the loaded model; not persisted. */
+  sizeMultiple: number;
+  setSizeMultiple: (multiple: number) => void;
 
   // Frame lifecycle
   addInputFrame: (opts?: { mode?: InputFrameMode; position?: "end" | "start" | number }) => string;
@@ -499,6 +502,8 @@ export const useCanvasStore = create<CanvasState>()(
       inputFrameDrag: null,
       sizeSource: null,
       setSizeSource: (pick) => set({ sizeSource: pick }),
+      sizeMultiple: DEFAULT_SIZE_MULTIPLE,
+      setSizeMultiple: (multiple) => set({ sizeMultiple: multiple }),
 
       setCanvasMode: (mode) =>
         set((s) => ({
@@ -1050,7 +1055,10 @@ function sizeSourceFrame(state: CanvasState): { width: number; height: number } 
   const source = resolveSizeSource(wireSources(state.inputFrames), state.sizeSource);
   if (!source) return null;
   const { width, height } = sourceImageSize(source);
-  return { width: Math.max(64, snapTo8(width)), height: Math.max(64, snapTo8(height)) };
+  return {
+    width: snapSize(width, state.sizeMultiple),
+    height: snapSize(height, state.sizeMultiple),
+  };
 }
 
 const frameKey = (frame: { width: number; height: number } | null) =>
@@ -1075,6 +1083,18 @@ function syncFrameToSizeSource(force: boolean) {
   }));
 }
 
+/** A model with another size multiple re-snaps the frame: from the size source
+ * while Fit has one, else the current Width and Height. */
+function snapFrameToMultiple(multiple: number) {
+  if (useUiStore.getState().autoFitFrame && sizeSourceFrame(useCanvasStore.getState())) {
+    syncFrameToSizeSource(true);
+    return;
+  }
+  const gen = useGenerationStore.getState();
+  gen.setParam("width", snapSize(gen.width, multiple));
+  gen.setParam("height", snapSize(gen.height, multiple));
+}
+
 let sizeSyncStarted = false;
 
 // Starts after hydration, so a reload keeps the saved size and layout
@@ -1082,8 +1102,14 @@ function startSizeSourceSync() {
   if (sizeSyncStarted) return;
   sizeSyncStarted = true;
   lastSourceFrame = frameKey(sizeSourceFrame(useCanvasStore.getState()));
+  // the loaded model can report its multiple before the canvas hydrates
+  const { sizeMultiple } = useCanvasStore.getState();
+  const { width, height } = useGenerationStore.getState();
+  if (width % sizeMultiple !== 0 || height % sizeMultiple !== 0) snapFrameToMultiple(sizeMultiple);
   useCanvasStore.subscribe((state, prev) => {
-    if (state.inputFrames !== prev.inputFrames || state.sizeSource !== prev.sizeSource) {
+    if (state.sizeMultiple !== prev.sizeMultiple) {
+      snapFrameToMultiple(state.sizeMultiple);
+    } else if (state.inputFrames !== prev.inputFrames || state.sizeSource !== prev.sizeSource) {
       syncFrameToSizeSource(false);
     }
   });

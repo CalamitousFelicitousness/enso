@@ -13,6 +13,7 @@ import {
   restoreFromResult,
   InputRefusal,
 } from "@/lib/requestBuilder";
+import { DEFAULT_SIZE_MULTIPLE } from "@/lib/sizeCompute";
 import { blobToBase64 } from "@/lib/image";
 import { snapshotUnits } from "@/stores/controlStore";
 import { useModelSelectionStore } from "@/stores/modelSelectionStore";
@@ -89,6 +90,7 @@ export const ActionBar = memo(function ActionBar() {
     // dropdown's loaded-model label and dedupes a single load across the
     // batch/xyz paths, which call buildRequest once.
     let maxInputImages: number | null = null;
+    let sizeMultiple = DEFAULT_SIZE_MULTIPLE;
     if (activeModel?.source === "local") {
       const fetchCheckpoint = (staleTime: number) =>
         queryClient.fetchQuery({
@@ -100,10 +102,11 @@ export const ActionBar = memo(function ActionBar() {
       if (!loaded.loaded || loaded.title !== activeModel.title) {
         toast.info("Loading model", { description: activeModel.title });
         await loadModel.mutateAsync(activeModel.title);
-        // The input limit belongs to the model just loaded
+        // The input limit and size multiple belong to the model just loaded
         loaded = await fetchCheckpoint(0);
       }
       maxInputImages = loaded.max_input_images ?? null;
+      sizeMultiple = loaded.size_multiple ?? DEFAULT_SIZE_MULTIPLE;
     }
 
     // Record the prompt being generated into the prompt-history popover.
@@ -145,15 +148,16 @@ export const ActionBar = memo(function ActionBar() {
     const primaryFrame = canvasState.inputFrames[0] ?? null;
     const isImg2Img =
       primaryFrame?.mode === "initial" && primaryFrame.layers.some((l) => l.type === "image");
-    const { request, inputBlob } = await buildControlRequest({ maxInputImages }).catch(
-      (err: unknown) => {
-        if (err instanceof InputRefusal) {
-          toast.warning("Can't generate with several input images", { description: err.message });
-          throw new UserAbortError(err.message);
-        }
-        throw err;
-      },
-    );
+    const { request, inputBlob } = await buildControlRequest({
+      maxInputImages,
+      sizeMultiple,
+    }).catch((err: unknown) => {
+      if (err instanceof InputRefusal) {
+        toast.warning("Can't generate with several input images", { description: err.message });
+        throw new UserAbortError(err.message);
+      }
+      throw err;
+    });
     const inputImage = isImg2Img && inputBlob ? await blobToBase64(inputBlob) : undefined;
     const maskLines = primaryFrame?.mode === "initial" ? primaryFrame.maskLines : [];
     const inputMask = isImg2Img && maskLines.length > 0 ? maskLines.slice() : undefined;

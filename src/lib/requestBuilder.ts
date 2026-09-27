@@ -19,7 +19,12 @@ import { uploadFiles, uploadBlob, uploadFile } from "@/lib/upload";
 import { base64ToBlob } from "@/lib/utils";
 import { REFERENCE_HEIGHT } from "@/canvas/useControlFrameLayout";
 import { wireSources, type WireSource } from "@/canvas/inputFrames";
-import { effectiveSizeMode, resolveGenerationSize } from "@/lib/sizeCompute";
+import {
+  DEFAULT_SIZE_MULTIPLE,
+  effectiveSizeMode,
+  resolveGenerationSize,
+  snapSize,
+} from "@/lib/sizeCompute";
 import type { ControlRequest, GenerationInfo } from "@/api/types/generation";
 import type { DetailerModelEntry, DetailerModelRef, DetailerOverrides } from "@/api/types/v2";
 import { BACKEND_UNIT_TYPE } from "@/api/types/control";
@@ -33,6 +38,8 @@ export interface BuildResult {
 export interface ControlBuildOptions {
   /** Most input images the loaded model takes in one request; null when unknown. */
   maxInputImages: number | null;
+  /** Width and height multiple the loaded model keeps a size at. */
+  sizeMultiple: number;
 }
 
 /** The canvas holds inputs the loaded model cannot take as they are. */
@@ -130,6 +137,7 @@ async function addConditionSet(
 
 export async function buildControlRequest({
   maxInputImages,
+  sizeMultiple,
 }: ControlBuildOptions): Promise<BuildResult> {
   const gen = useGenerationStore.getState();
   const scripts = useScriptStore.getState();
@@ -149,8 +157,9 @@ export async function buildControlRequest({
     styles: gen.styles,
     sampler_name: gen.sampler,
     steps: gen.steps,
-    width_before: gen.width,
-    height_before: gen.height,
+    // A model loaded for this job can take a coarser multiple than the canvas has snapped to yet
+    width_before: snapSize(gen.width, sizeMultiple),
+    height_before: snapSize(gen.height, sizeMultiple),
     cfg_scale: gen.cfgScale,
     save_images: true,
     live_previews: ui.livePreviews,
@@ -412,6 +421,7 @@ export async function buildControlRequest({
       gen.height,
       img2img.scaleFactor,
       img2img.megapixelTarget,
+      sizeMultiple,
     );
     inputBlob = await addConditionSet(request, sources, gen, target);
   } else if (primary?.kind === "reference") {
@@ -433,6 +443,7 @@ export async function buildControlRequest({
       frameH,
       img2img.scaleFactor,
       img2img.megapixelTarget,
+      sizeMultiple,
     );
 
     request.width_before = genSize.width;
@@ -447,10 +458,11 @@ export async function buildControlRequest({
       request.inputs = [ref];
     }
 
-    // Force resize_mode_before=1 (Fixed) + resize_name_before when scale/megapixel
-    // so the backend resizes the init image to the computed target dimensions.
+    // Force resize_mode_before=1 (Fixed) + resize_name_before when the generation
+    // size is not the frame's (scale/megapixel, or a coarser size multiple) so the
+    // backend resizes the init image to it.
     // Both fields are required: run.py zeros resize_mode when resize_name is 'None'.
-    if (sizeMode !== "fixed") {
+    if (genSize.width !== frameW || genSize.height !== frameH) {
       request.resize_mode_before = 1;
       request.resize_name_before = img2img.resizeMethod;
     }
@@ -856,6 +868,7 @@ export async function buildCloudImageRequest(): Promise<CloudImageJobParams> {
     frameH,
     img2img.scaleFactor,
     img2img.megapixelTarget,
+    DEFAULT_SIZE_MULTIPLE,
   );
 
   // Auto-size modifier: when on, send size="auto" regardless of the model's

@@ -9,6 +9,7 @@ as their v1 counterparts.
 """
 
 import asyncio
+import math
 import os
 from datetime import datetime
 from typing import Any, Literal
@@ -544,6 +545,13 @@ def checkpoint_guidance(model) -> CheckpointGuidanceV2:
     )
 
 
+def checkpoint_size_multiple(model) -> int:
+    """Multiple that neither the output size nor an init image is rounded off."""
+    from modules import sd_vae
+
+    return math.lcm(int(sd_vae.get_vae_scale_factor(model)), int(sd_vae.get_vae_scale_factor(model, init_image=True)))
+
+
 def build_checkpoint_info() -> ResCheckpointV2:
     from enso_api import condition_images
 
@@ -555,6 +563,7 @@ def build_checkpoint_info() -> ResCheckpointV2:
         class_name=shared.sd_model.__class__.__name__,
         max_input_images=condition_images.max_condition_images(shared.sd_model),
         guidance=checkpoint_guidance(shared.sd_model),
+        size_multiple=checkpoint_size_multiple(shared.sd_model),
     )
     if hasattr(shared.sd_model, "sd_model_checkpoint"):
         info.checkpoint = shared.sd_model.sd_model_checkpoint

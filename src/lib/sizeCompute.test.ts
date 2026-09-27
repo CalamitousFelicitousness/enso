@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import type { WireSlot } from "@/canvas/inputFrames";
-import { effectiveSizeMode } from "./sizeCompute";
+import {
+  effectiveSizeMode,
+  resolveGenerationSize,
+  resolveOutputSize,
+  snapSize,
+} from "./sizeCompute";
 
 const initialSlot: WireSlot = { frameId: "a", localIndex: 0, globalIndex: 1, mode: "initial" };
 const referenceSlot = (index: number): WireSlot => ({
@@ -27,5 +32,58 @@ describe("effectiveSizeMode", () => {
   it("leaves a lone local Reference to the server", () => {
     expect(effectiveSizeMode("megapixel", true, [referenceSlot(0)], true)).toBe("fixed");
     expect(effectiveSizeMode("megapixel", true, [referenceSlot(0)], false)).toBe("megapixel");
+  });
+});
+
+describe("snapSize", () => {
+  it("rounds to the nearest multiple", () => {
+    expect(snapSize(1000, 8)).toBe(1000);
+    expect(snapSize(1000, 16)).toBe(1008);
+    expect(snapSize(1000, 32)).toBe(992);
+  });
+
+  it("keeps at least 64 pixels, on the multiple", () => {
+    expect(snapSize(10, 8)).toBe(64);
+    expect(snapSize(10, 48)).toBe(96);
+  });
+});
+
+describe("resolveGenerationSize", () => {
+  it("snaps a fixed size to the model's multiple", () => {
+    expect(resolveGenerationSize("fixed", 1000, 1000, 1, 1, 16)).toEqual({
+      width: 1008,
+      height: 1008,
+    });
+  });
+
+  it("sizes Megapixel on the model's multiple", () => {
+    expect(resolveGenerationSize("megapixel", 2752, 1536, 1, 1, 8)).toEqual({
+      width: 1336,
+      height: 744,
+    });
+    expect(resolveGenerationSize("megapixel", 2752, 1536, 1, 1, 32)).toEqual({
+      width: 1344,
+      height: 736,
+    });
+  });
+});
+
+describe("resolveOutputSize", () => {
+  it("rounds a hires size down to the multiple, as the server does", () => {
+    expect(resolveOutputSize({ width: 1000, height: 1000 }, true, 1.5, 0, 0, 8)).toEqual({
+      width: 1496,
+      height: 1496,
+    });
+    expect(resolveOutputSize({ width: 1008, height: 1008 }, true, 1.5, 0, 0, 16)).toEqual({
+      width: 1504,
+      height: 1504,
+    });
+  });
+
+  it("is the generation size without hires", () => {
+    expect(resolveOutputSize({ width: 1008, height: 1008 }, false, 2, 0, 0, 16)).toEqual({
+      width: 1008,
+      height: 1008,
+    });
   });
 });

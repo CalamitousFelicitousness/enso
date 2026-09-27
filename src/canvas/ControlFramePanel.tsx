@@ -826,6 +826,7 @@ export function ControlFramePanels({ layout, onPickImage, onClearImage }: Contro
   const hiresScale = useGenerationStore((s) => s.hiresScale);
   const hiresResizeX = useGenerationStore((s) => s.hiresResizeX);
   const hiresResizeY = useGenerationStore((s) => s.hiresResizeY);
+  const sizeMultiple = useCanvasStore((s) => s.sizeMultiple);
 
   const { genSize, displayW } = layout;
   const genSizeText = `${genSize.width}\u00d7${genSize.height}`;
@@ -835,6 +836,7 @@ export function ControlFramePanels({ layout, onPickImage, onClearImage }: Contro
     hiresScale,
     hiresResizeX,
     hiresResizeY,
+    sizeMultiple,
   );
   const outputSizeText = `${outputSize.width}\u00d7${outputSize.height}`;
 

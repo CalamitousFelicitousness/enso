@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { useControlStore } from "@/stores/controlStore";
 import { useGenerationStore } from "@/stores/generationStore";
 import { useUiStore } from "@/stores/uiStore";
+import { useCanvasStore } from "@/stores/canvasStore";
 import { useFrameShapes } from "@/canvas/useFrameShapes";
 import { useImg2ImgStore } from "@/stores/img2imgStore";
 import { useModelSelectionStore } from "@/stores/modelSelectionStore";
@@ -103,6 +104,7 @@ export function useControlFrameLayout(): CanvasLayout {
   const megapixelTarget = useImg2ImgStore((s) => s.megapixelTarget);
   const autoSize = useImg2ImgStore((s) => s.autoSize);
   const activeModel = useModelSelectionStore((s) => s.activeModel);
+  const sizeMultiple = useCanvasStore((s) => s.sizeMultiple);
   const inputsAtCapacity = useInputsAtCapacity();
 
   return useMemo(() => {
@@ -114,6 +116,7 @@ export function useControlFrameLayout(): CanvasLayout {
       frameH,
       scaleFactor,
       megapixelTarget,
+      sizeMultiple,
     );
 
     // Normalize all layout positions to display units so that UI panels
@@ -356,6 +359,7 @@ export function useControlFrameLayout(): CanvasLayout {
     megapixelTarget,
     autoSize,
     activeModel,
+    sizeMultiple,
     inputsAtCapacity,
   ]);
 }
