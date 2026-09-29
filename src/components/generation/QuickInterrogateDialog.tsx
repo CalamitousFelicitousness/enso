@@ -29,6 +29,7 @@ export function QuickInterrogateDialog({ open, onOpenChange, file }: QuickInterr
   const [caption, setCaption] = useState<string | null>(null);
   const [isRunning, setIsRunning] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const abortedRef = useRef(false);
 
   const { data: captionOpts } = useOptionsSubset(["caption_default_type"]);
@@ -43,6 +44,7 @@ export function QuickInterrogateDialog({ open, onOpenChange, file }: QuickInterr
     async (imageFile: File) => {
       setIsRunning(true);
       setCaption(null);
+      setError(null);
       abortedRef.current = false;
       try {
         const ref = await uploadFile(imageFile);
@@ -105,9 +107,9 @@ export function QuickInterrogateDialog({ open, onOpenChange, file }: QuickInterr
         }
       } catch (err) {
         if (!abortedRef.current) {
-          toast.error("Interrogation failed", {
-            description: err instanceof Error ? err.message : String(err),
-          });
+          const message = err instanceof Error ? err.message : String(err);
+          setError(message);
+          toast.error("Interrogation failed", { description: message });
         }
       } finally {
         if (!abortedRef.current) setIsRunning(false);
@@ -131,6 +133,7 @@ export function QuickInterrogateDialog({ open, onOpenChange, file }: QuickInterr
       if (!nextOpen) {
         abortedRef.current = true;
         setCaption(null);
+        setError(null);
         setIsRunning(false);
         if (previewUrl) URL.revokeObjectURL(previewUrl);
         setPreviewUrl(null);
@@ -196,6 +199,10 @@ export function QuickInterrogateDialog({ open, onOpenChange, file }: QuickInterr
               ) : caption ? (
                 <div className="bg-muted/30 rounded p-3 text-2xs whitespace-pre-wrap break-words">
                   {caption}
+                </div>
+              ) : error ? (
+                <div className="text-2xs text-destructive whitespace-pre-wrap break-words">
+                  {error}
                 </div>
               ) : !file ? (
                 <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
