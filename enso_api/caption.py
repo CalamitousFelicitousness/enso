@@ -98,10 +98,10 @@ async def post_vlm_v2(req: ReqVqaV2):
     """Caption an image using a Vision-Language Model."""
 
     def _run():
-        from modules.api.caption import do_vqa, validate_image
+        from modules.api.caption import do_caption, validate_image
 
         image = validate_image(req.image)
-        return do_vqa(image, req)
+        return do_caption(image, req)
 
     answer, annotated_b64 = await asyncio.to_thread(_run)
     return ResVqaV2(ok=True, answer=answer, annotated_image=annotated_b64)

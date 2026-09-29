@@ -7,7 +7,7 @@ identical results:
     v2 generate  -> modules.control.run.control_run()          (same as v1 /control, /txt2img, /img2img)
     v2 process   -> modules.postprocessing.run_postprocessing() (same as v1 /process with script_args)
     v2 upscale   -> execute_process with only the Upscale script
-    v2 caption   -> modules.api.caption.do_vqa/openclip/tagger (same as v1 /vqa, /openclip, /tagger)
+    v2 caption   -> modules.api.caption.do_caption/openclip/tagger (same as v1 /vqa, /openclip, /tagger)
     v2 enhance   -> scripts.prompt_enhance.enhance()           (same as v1 /prompt-enhance)
     v2 detect    -> shared.detailer.predict()                  (same as v1 /detect)
     v2 preprocess-> modules.control.processors.Processor       (same as v1 /preprocess)
@@ -608,10 +608,13 @@ def execute_caption(params: dict, job_id: str) -> dict:  # pylint: disable=unuse
     jobid = shared.state.begin("API-V2-CAP", api=True)
     try:
         if backend == "vlm":
-            from modules.api.caption import ReqVQA, do_vqa
+            from modules.api.caption import ReqVQA, do_caption
 
-            req = ReqVQA(image="", model=model, prompt=params.get("prompt"))
-            answer, _annotated = do_vqa(image, req)
+            fields = {"model": model} if model else {}
+            if params.get("prompt"):
+                fields["question"] = params["prompt"]
+            req = ReqVQA(image="", **fields)
+            answer, _annotated = do_caption(image, req)
             caption_text = answer
         elif backend == "openclip":
             from modules.api.caption import ReqCaptionOpenCLIP, do_openclip
