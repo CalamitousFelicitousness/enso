@@ -1,15 +1,29 @@
+import { formatErrorDetail } from "./errorDetail";
+
 export class ApiError extends Error {
   status: number;
   statusText: string;
   body: unknown;
 
   constructor(status: number, statusText: string, body: unknown) {
-    super(`API Error ${status}: ${statusText}`);
+    super(`API Error ${status}: ${formatErrorDetail(body) ?? statusText}`);
     this.name = "ApiError";
     this.status = status;
     this.statusText = statusText;
     this.body = body;
   }
+}
+
+/** ApiError for a failed response; the body is read once, then parsed as JSON when it is JSON. */
+async function responseError(response: Response): Promise<ApiError> {
+  const text = await response.text();
+  let body: unknown = text;
+  try {
+    body = JSON.parse(text);
+  } catch {
+    // plain-text or HTML error body
+  }
+  return new ApiError(response.status, response.statusText, body);
 }
 
 export class ApiClient {
@@ -54,15 +68,7 @@ export class ApiClient {
       ...options,
       headers: { ...this.getHeaders(), ...options.headers },
     });
-    if (!response.ok) {
-      let body: unknown;
-      try {
-        body = await response.json();
-      } catch {
-        body = await response.text();
-      }
-      throw new ApiError(response.status, response.statusText, body);
-    }
+    if (!response.ok) throw await responseError(response);
     const contentType = response.headers.get("content-type");
     if (contentType?.includes("application/json")) {
       return response.json() as Promise<T>;
@@ -110,15 +116,7 @@ export class ApiClient {
       body: formData,
       ...(signal !== undefined && { signal }),
     });
-    if (!response.ok) {
-      let body: unknown;
-      try {
-        body = await response.json();
-      } catch {
-        body = await response.text();
-      }
-      throw new ApiError(response.status, response.statusText, body);
-    }
+    if (!response.ok) throw await responseError(response);
     return response.json() as Promise<T>;
   }
 
@@ -130,9 +128,7 @@ export class ApiClient {
       ...(body != null && { body: JSON.stringify(body) }),
       ...(signal !== undefined && { signal }),
     });
-    if (!response.ok) {
-      throw new ApiError(response.status, response.statusText, null);
-    }
+    if (!response.ok) throw await responseError(response);
     return response.blob();
   }
 
