@@ -42,11 +42,17 @@ def register_api(app, dependencies=None):
     # would drop its field from every job without an error
     from modules.logger import log
 
-    from enso_api.executors import unforwarded_generate_fields
+    from enso_api.executors import missing_sdnext_names, unforwarded_generate_fields
 
     unforwarded = unforwarded_generate_fields()
     if unforwarded:
         log.warning(f"Enso: control_run does not take these generate fields, so they have no effect: {', '.join(unforwarded)}")
+
+    # executors import these sdnext names lazily, so a rename would otherwise
+    # surface as a 500 on the first job that needs it
+    missing = missing_sdnext_names()
+    if missing:
+        log.warning(f"Enso: sdnext no longer provides these names, so the jobs using them will fail: {', '.join(missing)}")
 
     staging_dir = os.path.join(shared.opts.temp_dir or tempfile.gettempdir(), "uploads")
     init_upload_store(staging_dir, ttl=1800)

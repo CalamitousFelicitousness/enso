@@ -182,6 +182,33 @@ def unforwarded_generate_fields() -> list[str]:
     return sorted(set(GenerateParams.model_fields) - taken - SKIP_KEYS - LOCAL_KEYS)
 
 
+# sdnext names the executors import lazily from modules every branch carries;
+# a rename there would otherwise surface as a 500 on first use
+SDNEXT_NAMES: dict[str, tuple[str, ...]] = {
+    "modules.api.caption": ("ReqVQA", "ReqCaptionOpenCLIP", "ReqTagger", "do_caption", "do_openclip", "do_tagger", "validate_image"),
+    "modules.api.helpers": ("decode_base64_to_image",),
+    "modules.postprocessing": ("run_postprocessing",),
+    "modules.processing_helpers": ("get_fixed_seed",),
+    "modules.ui_video_vlm": ("enhance_prompt",),
+    "modules.video_models.video_run": ("VideoError", "resolve_model", "run"),
+}
+
+
+def missing_sdnext_names() -> list[str]:
+    """Entries of SDNEXT_NAMES the running sdnext does not provide, as module.name."""
+    import importlib
+
+    missing = []
+    for module_name, names in SDNEXT_NAMES.items():
+        try:
+            module = importlib.import_module(module_name)
+        except Exception as e:
+            missing.append(f"{module_name} ({type(e).__name__}: {e})")
+            continue
+        missing.extend(f"{module_name}.{name}" for name in names if not hasattr(module, name))
+    return missing
+
+
 def execute_generate(params: dict, job_id: str) -> dict:
     from modules import processing_helpers, shared
     from modules.api import helpers
