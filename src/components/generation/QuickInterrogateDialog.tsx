@@ -35,9 +35,9 @@ export function QuickInterrogateDialog({ open, onOpenChange, file }: QuickInterr
   const defaultType = (captionOpts?.["caption_default_type"] as CaptionDefaultType) ?? "VLM";
   const method = CAPTION_TYPE_MAP[defaultType] ?? "vlm";
 
-  const openclipMut = useOpenClipCaption();
-  const taggerMut = useTaggerCaption();
-  const vqaMut = useVqaCaption();
+  const { mutateAsync: runOpenClip } = useOpenClipCaption();
+  const { mutateAsync: runTagger } = useTaggerCaption();
+  const { mutateAsync: runVqa } = useVqaCaption();
 
   const runCaption = useCallback(
     async (imageFile: File) => {
@@ -53,7 +53,7 @@ export function QuickInterrogateDialog({ open, onOpenChange, file }: QuickInterr
 
         if (method === "vlm") {
           const s = settings.vlm;
-          const res = await vqaMut.mutateAsync({
+          const res = await runVqa({
             image: ref,
             model: s.model,
             question: s.task,
@@ -69,7 +69,7 @@ export function QuickInterrogateDialog({ open, onOpenChange, file }: QuickInterr
           result = res.answer ?? undefined;
         } else if (method === "openclip") {
           const s = settings.openclip;
-          const res = await openclipMut.mutateAsync({
+          const res = await runOpenClip({
             image: ref,
             clip_model: s.clipModel,
             blip_model: s.blipModel,
@@ -85,7 +85,7 @@ export function QuickInterrogateDialog({ open, onOpenChange, file }: QuickInterr
           result = res.caption ?? undefined;
         } else {
           const s = settings.tagger;
-          const res = await taggerMut.mutateAsync({
+          const res = await runTagger({
             image: ref,
             model: s.model,
             threshold: s.threshold,
@@ -113,21 +113,17 @@ export function QuickInterrogateDialog({ open, onOpenChange, file }: QuickInterr
         if (!abortedRef.current) setIsRunning(false);
       }
     },
-    [method, vqaMut, openclipMut, taggerMut],
+    [method, runVqa, runOpenClip, runTagger],
   );
 
   // Auto-run when dialog opens with a file
   useEffect(() => {
-    if (open && file) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- side effect (URL.createObjectURL) drives state
-      setPreviewUrl(URL.createObjectURL(file));
-      void runCaption(file);
-    }
-    return () => {
-      if (previewUrl) URL.revokeObjectURL(previewUrl);
-    };
-    // Only trigger on open/file changes, not previewUrl
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    if (!open || !file) return;
+    const url = URL.createObjectURL(file);
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- side effect (URL.createObjectURL) drives state
+    setPreviewUrl(url);
+    void runCaption(file);
+    return () => URL.revokeObjectURL(url);
   }, [open, file, runCaption]);
 
   const handleClose = useCallback(
