@@ -5,6 +5,7 @@ import { Wifi, WifiOff, Loader2 } from "lucide-react";
 
 const SYNC_TEXT = {
   "in-sync": "Frontend up to date",
+  "reload-needed": "New frontend build available - reload the page",
   "dist-stale": "Frontend out of date - restart SD.Next",
   dev: "Dev server (working tree)",
   unknown: "Frontend sync unknown",

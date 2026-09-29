@@ -7,6 +7,7 @@ import { Section, Row, BarRow } from "../shared";
 
 const SYNC_LABELS: Record<VersionSyncState, { text: string; dot: string }> = {
   "in-sync": { text: "Up to date", dot: "bg-emerald-500" },
+  "reload-needed": { text: "New build available - reload", dot: "bg-amber-500" },
   "dist-stale": { text: "Out of date - restart SD.Next", dot: "bg-amber-500" },
   dev: { text: "Dev server", dot: "bg-sky-500" },
   unknown: { text: "Unknown", dot: "bg-muted-foreground" },

@@ -13,6 +13,7 @@ const RECONNECT_INVALIDATE_KEYS = [
   "memory",
   "gpu",
   "server-info",
+  "frontend-build",
 ];
 
 export function useGlobalWs() {
