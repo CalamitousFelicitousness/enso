@@ -4,7 +4,7 @@ import type { MaskLine } from "@/stores/img2imgStore";
 import type { ControlUnitSnapshot } from "@/api/types/control";
 
 export type JobDomain =
-  "generate" | "upscale" | "rembg" | "video" | "framepack" | "ltx" | "xyz-grid";
+  "generate" | "upscale" | "rembg" | "process" | "video" | "framepack" | "ltx" | "xyz-grid";
 
 /**
  * Captured workspace state for a submitted job, discriminated by the
@@ -406,6 +406,7 @@ export function selectPendingJobsSorted(state: JobQueueState): TrackedJob[] {
 export const selectGenerateActive = selectDomainActive("generate");
 export const selectUpscaleActive = selectDomainActive("upscale");
 export const selectRembgActive = selectDomainActive("rembg");
+export const selectProcessActive = selectDomainActive("process");
 export const selectVideoActive = selectDomainActive("video");
 export const selectFramepackActive = selectDomainActive("framepack");
 export const selectLtxActive = selectDomainActive("ltx");
@@ -413,7 +414,9 @@ export const selectLtxActive = selectDomainActive("ltx");
 export const selectVideoProgress = selectDomainProgress("video");
 export const selectFramepackProgress = selectDomainProgress("framepack");
 export const selectLtxProgress = selectDomainProgress("ltx");
+export const selectProcessProgress = selectDomainProgress("process");
 
 export const selectVideoRunning = selectDomainRunning("video");
+export const selectProcessRunning = selectDomainRunning("process");
 export const selectFramepackRunning = selectDomainRunning("framepack");
 export const selectLtxRunning = selectDomainRunning("ltx");

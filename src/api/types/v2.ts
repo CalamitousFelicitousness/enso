@@ -259,6 +259,180 @@ export interface RembgJobParams {
   priority?: number | undefined;
 }
 
+/** Mirrors ProcessUpscaleParams in enso_api/job_models.py; field names are
+ * the sdnext script's control names. */
+export interface ProcessUpscaleParams {
+  upscale_mode: number;
+  upscale_by: number;
+  upscale_to_width: number;
+  upscale_to_height: number;
+  upscale_crop: boolean;
+  upscaler_1_name: string;
+  upscaler_2_name: string;
+  upscaler_2_visibility: number;
+}
+
+export interface ProcessDetailerParams {
+  defaults: DetailerOverrides;
+  models: DetailerModelRef[];
+  sampler: string;
+  prediction: string;
+  shift: number;
+  cfg_scale: number;
+  options: string[];
+  seed: number;
+}
+
+export interface ProcessGradingParams {
+  brightness: number;
+  contrast: number;
+  saturation: number;
+  hue: number;
+  gamma: number;
+  sharpness: number;
+  color_temp: number;
+  shadows: number;
+  midtones: number;
+  highlights: number;
+  clahe_clip: number;
+  clahe_grid: number;
+  shadows_tint: string;
+  highlights_tint: string;
+  split_tone_balance: number;
+  vignette: number;
+  grain: number;
+  lut_cube_file: string;
+  lut_strength: number;
+}
+
+export interface ProcessRembgParams {
+  model: string;
+  merge_alpha: boolean;
+  refine: boolean;
+  mask_only: boolean;
+  postprocess_mask: boolean;
+  alpha_matting: boolean;
+  alpha_matting_foreground_threshold: number;
+  alpha_matting_background_threshold: number;
+  alpha_matting_erode_size: number;
+}
+
+export interface ProcessNudenetParams {
+  enabled: boolean;
+  lang: boolean;
+  policy: boolean;
+  banned: boolean;
+  metadata: boolean;
+  save_copy: boolean;
+  score: number;
+  blocks: number;
+  censor: string[];
+  method: string;
+  overlay: string;
+  allowed: string;
+  alphabet: string;
+  words: string;
+  policy_model: string;
+  policy_text: string;
+}
+
+export interface ProcessSeedvrParams {
+  seedvr_enabled: boolean;
+  seedvr_selected: string;
+  seedvr_scale: number;
+  seedvr_seed: number;
+  seedvr_steps: number;
+  seedvr_cfg_scale: number;
+  seedvr_cfg_rescale: number;
+  seedvr_tile_size: number;
+  seedvr_tile_overlap: number;
+  seedvr_batch_size: number;
+  seedvr_batch_overlap: number;
+  seedvr_offload: boolean;
+  seedvr_interpolate: number;
+  seedvr_codec: string;
+  seedvr_codec_opt: string;
+  seedvr_vae_memory: number;
+  seedvr_vae_tile_encode: boolean;
+  seedvr_vae_tile_decode: boolean;
+}
+
+export interface ProcessPixelartParams {
+  pixelart_enabled: boolean;
+  pixelart_block_size: number;
+  pixelart_edge_block_size: number;
+  pixelart_use_edge_detection: boolean;
+  pixelart_image_weight: number;
+  pixelart_sharpen_amount: number;
+}
+
+export interface ProcessDlssParams {
+  dlss_enabled: string[];
+  dlss_graph: boolean;
+  dlss_chunk: number;
+  dlss_full: boolean;
+  nr_profile: string;
+  nr_motion: string;
+  nr_scale: number;
+  nr_intensity: number;
+  nr_blend: number;
+  nr_detail: number;
+  nr_colour: number;
+  nr_radius: number;
+  nr_threshold: number;
+  nr_normalized: number;
+  nr_local_tone: number;
+  nr_local_structure: number;
+  nr_skin_structure: number;
+  nr_mask_structure: number;
+  ss_profile: string;
+  ss_scale: number;
+  ss_detail: number;
+  ss_colour: number;
+  ss_radius: number;
+  ss_threshold: number;
+  fg_profile: string;
+  fg_mode: string;
+  fg_factor: number;
+  fg_threshold: number;
+}
+
+export interface ProcessCreateVideoParams {
+  filename: string;
+  video_type: string;
+  duration: number;
+  loop: boolean;
+  pad: number;
+  interpolate: number;
+  scale: number;
+  change: number;
+}
+
+export type ProcessMode = "image" | "batch" | "folder" | "video";
+
+/** Mirrors ProcessParams in enso_api/job_models.py. A section left out
+ * leaves that script disabled on the server. */
+export interface ProcessJobParams {
+  type: "process";
+  mode: ProcessMode;
+  images?: string[] | undefined;
+  video?: string | undefined;
+  input_dir?: string | undefined;
+  output_dir?: string | undefined;
+  show_results?: boolean | undefined;
+  save_output?: boolean | undefined;
+  upscale?: ProcessUpscaleParams | undefined;
+  detailer?: ProcessDetailerParams | undefined;
+  grading?: ProcessGradingParams | undefined;
+  rembg?: ProcessRembgParams | undefined;
+  nudenet?: ProcessNudenetParams | undefined;
+  seedvr?: ProcessSeedvrParams | undefined;
+  pixelart?: ProcessPixelartParams | undefined;
+  dlss?: ProcessDlssParams | undefined;
+  create_video?: ProcessCreateVideoParams | undefined;
+  priority?: number | undefined;
+}
+
 export interface MetadataSweepJobParams {
   type: "metadata-sweep";
   mode?: "scan" | "update" | undefined;
@@ -269,6 +443,7 @@ export type JobRequest =
   | GenerateJobRequest
   | UpscaleJobParams
   | RembgJobParams
+  | ProcessJobParams
   | MetadataSweepJobParams
   | CaptionJobParams
   | EnhanceJobParams

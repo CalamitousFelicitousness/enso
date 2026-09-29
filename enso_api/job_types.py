@@ -34,6 +34,7 @@ from enso_api.job_models import JobRequest
 JOB_TYPE_META: dict[str, dict[str, str]] = {
     "generate": {"title": "Generate", "category": "core"},
     "upscale": {"title": "Upscale", "category": "core"},
+    "process": {"title": "Process", "category": "core"},
     "caption": {"title": "Caption", "category": "core"},
     "enhance": {"title": "Prompt Enhance", "category": "core"},
     "detect": {"title": "Detect", "category": "core"},

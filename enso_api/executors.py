@@ -5,7 +5,8 @@ corresponding v1 endpoint.  This ensures both API versions produce
 identical results:
 
     v2 generate  -> modules.control.run.control_run()          (same as v1 /control, /txt2img, /img2img)
-    v2 upscale   -> modules.postprocessing.run_extras()        (same as v1 /extra-single-image)
+    v2 process   -> modules.postprocessing.run_postprocessing() (same as v1 /process with script_args)
+    v2 upscale   -> execute_process with only the Upscale script
     v2 caption   -> modules.api.caption.do_vqa/openclip/tagger (same as v1 /vqa, /openclip, /tagger)
     v2 enhance   -> scripts.prompt_enhance.enhance()           (same as v1 /prompt-enhance)
     v2 detect    -> shared.detailer.predict()                  (same as v1 /detect)
@@ -17,7 +18,7 @@ identical results:
     v2 loader-load  -> modules.ui_models_load.load_model()     (v2-only, job-based component loader)
     v2 lora-extract -> modules.lora.lora_extract.make_lora()   (v2-only, job-based LoRA extraction)
     v2 hf-download  -> modules.models_hf.hf_download_model()   (v2-only, job-based HF download)
-    v2 rembg     -> modules.rembg.ben2 / rembg.remove()        (same as v1 /rembg)
+    v2 rembg     -> execute_process with only the Remove background script
 
 Do NOT duplicate processing logic here.  If v1 has a function for it,
 call that function.
@@ -447,72 +448,153 @@ def execute_generate(params: dict, job_id: str) -> dict:
 
 
 def execute_upscale(params: dict, job_id: str) -> dict:
+    """The pre-process wire shape: a process job running only the Upscale script."""
+    return execute_process(
+        {
+            "mode": "image",
+            "images": [params.get("image", "")],
+            "save_output": True,
+            "upscale": {
+                "upscale_mode": params.get("resize_mode", 0),
+                "upscale_by": params.get("scale", 2.0),
+                "upscale_to_width": params.get("width", 0),
+                "upscale_to_height": params.get("height", 0),
+                "upscale_crop": params.get("crop", True),
+                "upscaler_1_name": params.get("upscaler", "None"),
+                "upscaler_2_name": params.get("upscaler_2", "None"),
+                "upscaler_2_visibility": params.get("upscaler_2_visibility", 0.0),
+            },
+        },
+        job_id,
+    )
+
+
+def execute_process(params: dict, job_id: str) -> dict:
+    """SD.Next's postprocessing pipeline over one image, a batch, a server folder or a video.
+
+    Image and batch outputs are saved here (or staged when save_output is
+    false) so their paths are known; in folder mode sdnext saves into
+    output_dir itself and the returned images are previews. The batch video
+    is written here rather than by the Create Video script, whose save runs
+    on a thread and never reports the file.
+    """
     from modules import images as img_module
-    from modules import postprocessing, shared
+    from modules import postprocessing, scripts_manager, shared
+    from modules import video as video_module
     from modules.api import helpers
     from modules.paths import resolve_output_path
 
-    image = helpers.decode_base64_to_image(params.get("image", ""))
-    upscaler = params.get("upscaler", "None")
-    scale = params.get("scale", 2.0)
-    resize_mode = params.get("resize_mode", 0)
-    width = params.get("width", 0)
-    height = params.get("height", 0)
-    crop = params.get("crop", True)
-    upscaler_2 = params.get("upscaler_2", "None")
-    upscaler_2_visibility = params.get("upscaler_2_visibility", 0.0)
+    from enso_api.postprocess import build_script_args, log_control_drift, resolve_path_ref
+    from enso_api.temp_store import get_staging_dir, stage_image
+    from enso_api.video_result import build_video_ref, probe_video_file
 
-    # save_output=False: sdnext's async save thread clears shared.state.results
-    # during its own begin/end cycle, so we can't reliably read the saved path
-    # from state. Save the returned PIL image explicitly instead.
-    jobid = shared.state.begin("API-V2-UP", api=True)
+    log_control_drift()
+    mode = params.get("mode", "image")
+    extras_mode = {"image": 0, "batch": 1, "folder": 2, "video": 3}[mode]
+    image = None
+    image_folder: list = []
+    input_dir = params.get("input_dir", "") if mode == "folder" else ""
+    output_dir = params.get("output_dir", "") if mode == "folder" else ""
+    video_in = ""
+    if mode == "image":
+        image = helpers.decode_base64_to_image((params.get("images") or [""])[0])
+    elif mode == "batch":
+        image_folder = [helpers.decode_base64_to_image(ref) for ref in params.get("images") or []]
+    elif mode == "video":
+        video_in = resolve_path_ref(params.get("video"))
+        if not video_in or not os.path.isfile(video_in):
+            raise ValueError("execute_process: video input not found")
+    save_output = params.get("save_output", True)
+    create_video = params.get("create_video") if mode in ("batch", "folder") else None
+    show_results = params.get("show_results", True) or create_video is not None
+
+    script_args, detailer_entries = build_script_args(params)
+    args = scripts_manager.scripts_postproc.create_args_for_run(script_args)
+    restore = install_detailer_per_model_patch(detailer_entries) if detailer_entries else None
+    jobid = shared.state.begin("API-V2-PROC", api=True)
     try:
-        result = postprocessing.run_extras(
-            extras_mode=0,
-            resize_mode=resize_mode,
-            image=image,
-            image_folder="",
-            input_dir="",
-            output_dir="",
-            video="",
-            show_extras_results=False,
-            save_output=False,
-            extras_upscaler_1=upscaler,
-            upscaling_resize=scale,
-            upscaling_resize_w=width,
-            upscaling_resize_h=height,
-            upscaling_crop=crop,
-            extras_upscaler_2=upscaler_2,
-            extras_upscaler_2_visibility=upscaler_2_visibility,
+        outputs, video_out, info, _params = postprocessing.run_postprocessing(
+            extras_mode,
+            image,
+            image_folder,
+            input_dir,
+            output_dir,
+            video_in,
+            show_results,
+            *args,
+            save_output=(mode == "folder" and save_output),
         )
     finally:
         shared.state.end(jobid)
+        if restore:
+            restore()
+    outputs = outputs or []
 
-    output_image = result[0][0] if result and result[0] else None
+    if mode == "video":
+        if not video_out or not os.path.isfile(str(video_out)):
+            raise RuntimeError(f"Process: {info or 'no video produced'}")
+        if os.path.realpath(str(video_out)) == os.path.realpath(video_in):
+            raise RuntimeError("Process: no video-capable script ran; enable SeedVR or DLSS")
+    elif mode != "folder" and not outputs:
+        raise RuntimeError(f"Process: {info or 'no output produced'}")
+
+    outpath = resolve_output_path(shared.opts.outdir_samples, shared.opts.outdir_extras_samples)
     image_refs = []
-    if output_image is not None:
-        try:
-            output_dir = resolve_output_path(shared.opts.outdir_samples, shared.opts.outdir_extras_samples)
-            path_info = img_module.save_image(output_image, output_dir, "", grid=False, pnginfo_section_name="extras")
-            fpath = path_info[0] if isinstance(path_info, (list, tuple)) else path_info
-            if fpath and os.path.isfile(str(fpath)):
-                fpath = str(fpath)
-                ext = os.path.splitext(fpath)[1].lstrip(".").lower()
-                image_refs.append(
-                    {
-                        "index": 0,
-                        "path": fpath,
-                        "url": f"/sdapi/v2/jobs/{job_id}/images/0",
-                        "width": output_image.width,
-                        "height": output_image.height,
-                        "format": ext or "png",
-                        "size": os.path.getsize(fpath),
-                    }
-                )
-        except Exception as e:
-            log.warning(f"Job {job_id}: failed to save upscale result: {e}")
+    staged = False
 
-    return {"images": image_refs, "info": {}, "params": {k: v for k, v in params.items() if k not in ("type", "image")}}
+    def file_ref(index, fpath, img, temp=False):
+        ext = os.path.splitext(fpath)[1].lstrip(".").lower()
+        ref = {"index": index, "path": fpath, "url": f"/sdapi/v2/jobs/{job_id}/images/{index}", "width": img.width, "height": img.height, "format": ext or "png", "size": os.path.getsize(fpath)}
+        if temp:
+            ref["temp"] = True
+        return ref
+
+    for i, img in enumerate(outputs):
+        if mode != "folder" and save_output:
+            fpath, _txt, _exif = img_module.save_image(img, path=outpath, extension=shared.opts.samples_format, info=img.info.get("postprocessing"), grid=False, pnginfo_section_name="extras", existing_info=img.info)
+            if fpath and os.path.isfile(str(fpath)):
+                image_refs.append(file_ref(i, str(fpath), img))
+            continue
+        try:
+            stage = stage_image(job_id, i, img)
+        except Exception as e:
+            log.warning(f"Job {job_id}: failed to stage image {i}: {e}")
+            continue
+        if stage:
+            image_refs.append(file_ref(i, stage["path"], img, temp=True))
+            staged = True
+
+    video_refs = []
+    if mode == "video":
+        video_refs.append(build_video_ref(job_id, 0, str(video_out), probe=probe_video_file(str(video_out))))
+    elif create_video and len(outputs) >= 2:
+        path = video_module.save_video(
+            None,
+            outputs,
+            filename=create_video.get("filename") or None,
+            video_type=create_video.get("video_type", "MP4"),
+            duration=create_video.get("duration", 2.0),
+            loop=create_video.get("loop", True),
+            interpolate=create_video.get("interpolate", 0),
+            scale=create_video.get("scale", 1.0),
+            pad=create_video.get("pad", 1),
+            change=create_video.get("change", 0.3),
+            sync=True,
+        )
+        if path and os.path.isfile(str(path)):
+            video_refs.append(build_video_ref(job_id, 0, str(path), probe=probe_video_file(str(path))))
+        else:
+            log.warning(f"Job {job_id}: batch video was not written: {path}")
+
+    result_info = {"postprocessing": info, "mode": mode, "count": len(outputs)}
+    if mode == "folder":
+        result_info["output_dir"] = output_dir or outpath
+    result = {"images": image_refs, "videos": video_refs, "info": result_info, "params": {k: v for k, v in params.items() if k not in ("type", "images", "video")}}
+    if staged:
+        root = get_staging_dir()
+        if root:
+            result["_staging_dir"] = os.path.join(root, job_id)
+    return result
 
 
 def execute_caption(params: dict, job_id: str) -> dict:  # pylint: disable=unused-argument
@@ -1395,51 +1477,26 @@ def execute_metadata_sweep(params: dict, job_id: str) -> dict:  # pylint: disabl
 
 
 def execute_rembg(params: dict, job_id: str) -> dict:
-    from modules import shared
-    from modules.api import helpers
-
-    image = helpers.decode_base64_to_image(params.get("image", ""))
-    model = params.get("model", "ben2")
-    return_mask = params.get("return_mask", False)
-    refine = params.get("refine", False)
-
-    jobid = shared.state.begin("API-V2-REMBG", api=True)
-    try:
-        if model == "ben2":
-            from modules.rembg import ben2
-
-            result_image = ben2.remove(image, refine=refine)
-        else:
-            from installer import install
-
-            for pkg in ["dctorch==0.1.2", "pymatting", "pooch", "rembg"]:
-                install(pkg, no_deps=True, ignore=False)
-            import rembg
-
-            result_image = rembg.remove(
-                image,
-                session=rembg.new_session(model),
-                only_mask=return_mask,
-                alpha_matting=params.get("alpha_matting", False),
-                alpha_matting_foreground_threshold=params.get("alpha_matting_foreground_threshold", 240),
-                alpha_matting_background_threshold=params.get("alpha_matting_background_threshold", 10),
-                alpha_matting_erode_size=params.get("alpha_matting_erode_size", 10),
-            )
-        from modules import images as img_module
-
-        output_dir = shared.opts.outdir_extras_samples if hasattr(shared.opts, "outdir_extras_samples") else shared.opts.outdir_txt2img_samples
-        path_info = img_module.save_image(result_image, output_dir, "", prompt=f"rembg-{model}")
-    finally:
-        shared.state.end(jobid)
-
-    image_refs = []
-    if path_info:
-        fpath = path_info[0] if isinstance(path_info, (list, tuple)) else str(path_info)
-        if os.path.isfile(str(fpath)):
-            ext = os.path.splitext(str(fpath))[1].lstrip(".").lower()
-            image_refs.append({"index": 0, "path": str(fpath), "url": f"/sdapi/v2/jobs/{job_id}/images/0", "width": result_image.width, "height": result_image.height, "format": ext or "png", "size": os.path.getsize(str(fpath))})
-
-    return {"images": image_refs, "info": {"model": model}, "params": {k: v for k, v in params.items() if k not in ("type", "image")}}
+    """The pre-process wire shape: a process job running only the Remove background script."""
+    return execute_process(
+        {
+            "mode": "image",
+            "images": [params.get("image", "")],
+            "save_output": True,
+            "rembg": {
+                "model": params.get("model", "ben2"),
+                "merge_alpha": False,
+                "refine": params.get("refine", False),
+                "mask_only": params.get("return_mask", False),
+                "postprocess_mask": False,
+                "alpha_matting": params.get("alpha_matting", False),
+                "alpha_matting_foreground_threshold": params.get("alpha_matting_foreground_threshold", 240),
+                "alpha_matting_background_threshold": params.get("alpha_matting_background_threshold", 10),
+                "alpha_matting_erode_size": params.get("alpha_matting_erode_size", 10),
+            },
+        },
+        job_id,
+    )
 
 
 from enso_api.cloud.executor import (
@@ -1453,6 +1510,7 @@ from enso_api.cloud.executor import (
 EXECUTORS = {
     "generate": {"fn": execute_generate, "lock": True},
     "upscale": {"fn": execute_upscale, "lock": True},
+    "process": {"fn": execute_process, "lock": True},
     "caption": {"fn": execute_caption, "lock": True},
     "enhance": {"fn": execute_enhance, "lock": True},
     "detect": {"fn": execute_detect, "lock": True},

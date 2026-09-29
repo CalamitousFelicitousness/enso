@@ -619,6 +619,31 @@ class ResScriptsV2(BaseModel):
     scripts: list[ItemScriptV2] = Field(title="Scripts")
 
 
+class ItemPostprocessControlV2(BaseModel):
+    name: str = Field(title="Name", description="Keyword the script's process() takes")
+    label: str = Field(default="", title="Label")
+    kind: str = Field(title="Kind", description="Gradio component: slider, checkbox, dropdown, checkboxgroup, textbox, number, colorpicker, file, state")
+    value: Any = Field(default=None, title="Default")
+    minimum: float | None = Field(default=None, title="Minimum")
+    maximum: float | None = Field(default=None, title="Maximum")
+    step: float | None = Field(default=None, title="Step")
+    choices: list[Any] | None = Field(default=None, title="Choices")
+    multiselect: bool = Field(default=False, title="Multiselect")
+    visible: bool = Field(default=True, title="Visible", description="False for controls the Gradio tab hides, such as SeedVR's video block on an image input")
+
+
+class ItemPostprocessScriptV2(BaseModel):
+    name: str = Field(title="Name", description="Script name, the key of its args")
+    field: str | None = Field(default=None, title="Field", description="ProcessParams field that carries this script's args; None for a script without a typed model")
+    video: bool = Field(default=False, title="Video", description="Runs on a video input")
+    batch: bool = Field(default=False, title="Batch", description="Runs once over every output of a batch or folder run")
+    controls: list[ItemPostprocessControlV2] = Field(default_factory=list, title="Controls")
+
+
+class ResPostprocessScriptsV2(BaseModel):
+    scripts: list[ItemPostprocessScriptV2] = Field(title="Scripts", description="In the server's run order")
+
+
 # --- Server info models (v2) ---
 
 

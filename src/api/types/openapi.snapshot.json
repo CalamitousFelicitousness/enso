@@ -4272,6 +4272,135 @@
         "title": "ItemOptionInfoV2",
         "type": "object"
       },
+      "ItemPostprocessControlV2": {
+        "properties": {
+          "choices": {
+            "anyOf": [
+              {
+                "items": {},
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Choices"
+          },
+          "kind": {
+            "description": "Gradio component: slider, checkbox, dropdown, checkboxgroup, textbox, number, colorpicker, file, state",
+            "title": "Kind",
+            "type": "string"
+          },
+          "label": {
+            "default": "",
+            "title": "Label",
+            "type": "string"
+          },
+          "maximum": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Maximum"
+          },
+          "minimum": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Minimum"
+          },
+          "multiselect": {
+            "default": false,
+            "title": "Multiselect",
+            "type": "boolean"
+          },
+          "name": {
+            "description": "Keyword the script's process() takes",
+            "title": "Name",
+            "type": "string"
+          },
+          "step": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Step"
+          },
+          "value": {
+            "title": "Default"
+          },
+          "visible": {
+            "default": true,
+            "description": "False for controls the Gradio tab hides, such as SeedVR's video block on an image input",
+            "title": "Visible",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "name",
+          "kind"
+        ],
+        "title": "ItemPostprocessControlV2",
+        "type": "object"
+      },
+      "ItemPostprocessScriptV2": {
+        "properties": {
+          "batch": {
+            "default": false,
+            "description": "Runs once over every output of a batch or folder run",
+            "title": "Batch",
+            "type": "boolean"
+          },
+          "controls": {
+            "items": {
+              "$ref": "#/components/schemas/ItemPostprocessControlV2"
+            },
+            "title": "Controls",
+            "type": "array"
+          },
+          "field": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "ProcessParams field that carries this script's args; None for a script without a typed model",
+            "title": "Field"
+          },
+          "name": {
+            "description": "Script name, the key of its args",
+            "title": "Name",
+            "type": "string"
+          },
+          "video": {
+            "default": false,
+            "description": "Runs on a video input",
+            "title": "Video",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "ItemPostprocessScriptV2",
+        "type": "object"
+      },
       "ItemPreprocessorV2": {
         "properties": {
           "group": {
@@ -5957,6 +6086,876 @@
           }
         },
         "title": "PreprocessParams",
+        "type": "object"
+      },
+      "ProcessCreateVideoParams": {
+        "additionalProperties": false,
+        "description": "Args of the \"Create Video\" script: one video from every output of a batch or folder run.",
+        "properties": {
+          "change": {
+            "default": 0.3,
+            "title": "Change",
+            "type": "number"
+          },
+          "duration": {
+            "default": 2,
+            "title": "Duration",
+            "type": "number"
+          },
+          "filename": {
+            "default": "",
+            "description": "Output name; empty uses the samples filename pattern",
+            "title": "Filename",
+            "type": "string"
+          },
+          "interpolate": {
+            "default": 0,
+            "title": "Interpolate",
+            "type": "integer"
+          },
+          "loop": {
+            "default": true,
+            "title": "Loop",
+            "type": "boolean"
+          },
+          "pad": {
+            "default": 1,
+            "title": "Pad",
+            "type": "integer"
+          },
+          "scale": {
+            "default": 1,
+            "title": "Scale",
+            "type": "number"
+          },
+          "video_type": {
+            "default": "MP4",
+            "description": "GIF, PNG or MP4",
+            "title": "Video Type",
+            "type": "string"
+          }
+        },
+        "title": "ProcessCreateVideoParams",
+        "type": "object"
+      },
+      "ProcessDetailerParams": {
+        "additionalProperties": false,
+        "description": "Args of the \"Detailer\" script plus Enso's per-model schema.\n\n``defaults`` and ``models`` follow :class:`DetailerMixin`: the executor\ninstalls the same per-model restore patch the generate path uses, so\ndetection settings come from the request rather than the global options\nthe Gradio Process tab writes. The sampler block is the script's own.",
+        "properties": {
+          "cfg_scale": {
+            "default": 6,
+            "title": "Cfg Scale",
+            "type": "number"
+          },
+          "defaults": {
+            "$ref": "#/components/schemas/DetailerOverrides"
+          },
+          "models": {
+            "description": "Detector models to run, in order; a bare name uses ``defaults``",
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "$ref": "#/components/schemas/DetailerModelEntry"
+                }
+              ]
+            },
+            "title": "Models",
+            "type": "array"
+          },
+          "options": {
+            "description": "Any of: low order, thresholding, dynamic, rescale",
+            "items": {
+              "type": "string"
+            },
+            "title": "Options",
+            "type": "array"
+          },
+          "prediction": {
+            "default": "default",
+            "description": "default, epsilon, sample, v_prediction, flow_prediction",
+            "title": "Prediction",
+            "type": "string"
+          },
+          "sampler": {
+            "default": "Default",
+            "description": "Sampler for the inpaint pass; Default keeps the model scheduler",
+            "title": "Sampler",
+            "type": "string"
+          },
+          "seed": {
+            "default": -1,
+            "title": "Seed",
+            "type": "integer"
+          },
+          "shift": {
+            "default": 3,
+            "title": "Shift",
+            "type": "number"
+          }
+        },
+        "title": "ProcessDetailerParams",
+        "type": "object"
+      },
+      "ProcessDlssParams": {
+        "additionalProperties": false,
+        "description": "Args of the \"nVidia DLSS\" script.",
+        "properties": {
+          "dlss_chunk": {
+            "default": 131072,
+            "title": "Dlss Chunk",
+            "type": "integer"
+          },
+          "dlss_enabled": {
+            "description": "Any of: NeuralRender, SuperRes, FrameGen",
+            "items": {
+              "type": "string"
+            },
+            "title": "Dlss Enabled",
+            "type": "array"
+          },
+          "dlss_full": {
+            "default": false,
+            "title": "Dlss Full",
+            "type": "boolean"
+          },
+          "dlss_graph": {
+            "default": false,
+            "title": "Dlss Graph",
+            "type": "boolean"
+          },
+          "fg_factor": {
+            "default": 2,
+            "title": "Fg Factor",
+            "type": "integer"
+          },
+          "fg_mode": {
+            "default": "fps",
+            "title": "Fg Mode",
+            "type": "string"
+          },
+          "fg_profile": {
+            "default": "None",
+            "title": "Fg Profile",
+            "type": "string"
+          },
+          "fg_threshold": {
+            "default": 0.4,
+            "title": "Fg Threshold",
+            "type": "number"
+          },
+          "nr_blend": {
+            "default": 0.73974,
+            "title": "Nr Blend",
+            "type": "number"
+          },
+          "nr_colour": {
+            "default": 1,
+            "title": "Nr Colour",
+            "type": "number"
+          },
+          "nr_detail": {
+            "default": 1,
+            "title": "Nr Detail",
+            "type": "number"
+          },
+          "nr_intensity": {
+            "default": 1,
+            "title": "Nr Intensity",
+            "type": "number"
+          },
+          "nr_local_structure": {
+            "default": 1,
+            "title": "Nr Local Structure",
+            "type": "number"
+          },
+          "nr_local_tone": {
+            "default": 1,
+            "title": "Nr Local Tone",
+            "type": "number"
+          },
+          "nr_mask_structure": {
+            "default": 0,
+            "title": "Nr Mask Structure",
+            "type": "number"
+          },
+          "nr_motion": {
+            "default": "Medium",
+            "title": "Nr Motion",
+            "type": "string"
+          },
+          "nr_normalized": {
+            "default": 0,
+            "title": "Nr Normalized",
+            "type": "number"
+          },
+          "nr_profile": {
+            "default": "Standard",
+            "title": "Nr Profile",
+            "type": "string"
+          },
+          "nr_radius": {
+            "default": 4,
+            "title": "Nr Radius",
+            "type": "number"
+          },
+          "nr_scale": {
+            "default": 1,
+            "title": "Nr Scale",
+            "type": "number"
+          },
+          "nr_skin_structure": {
+            "default": 0,
+            "title": "Nr Skin Structure",
+            "type": "number"
+          },
+          "nr_threshold": {
+            "default": 0.3,
+            "title": "Nr Threshold",
+            "type": "number"
+          },
+          "ss_colour": {
+            "default": 1,
+            "title": "Ss Colour",
+            "type": "number"
+          },
+          "ss_detail": {
+            "default": 1,
+            "title": "Ss Detail",
+            "type": "number"
+          },
+          "ss_profile": {
+            "default": "Ultra",
+            "title": "Ss Profile",
+            "type": "string"
+          },
+          "ss_radius": {
+            "default": 4,
+            "title": "Ss Radius",
+            "type": "number"
+          },
+          "ss_scale": {
+            "default": 2,
+            "title": "Ss Scale",
+            "type": "number"
+          },
+          "ss_threshold": {
+            "default": 0.4,
+            "title": "Ss Threshold",
+            "type": "number"
+          }
+        },
+        "title": "ProcessDlssParams",
+        "type": "object"
+      },
+      "ProcessGradingParams": {
+        "additionalProperties": false,
+        "description": "Args of the \"Color Grading\" script (modules.processing_grading.GradingParams).",
+        "properties": {
+          "brightness": {
+            "default": 0,
+            "title": "Brightness",
+            "type": "number"
+          },
+          "clahe_clip": {
+            "default": 0,
+            "title": "Clahe Clip",
+            "type": "number"
+          },
+          "clahe_grid": {
+            "default": 8,
+            "title": "Clahe Grid",
+            "type": "integer"
+          },
+          "color_temp": {
+            "default": 6500,
+            "title": "Color Temp",
+            "type": "number"
+          },
+          "contrast": {
+            "default": 0,
+            "title": "Contrast",
+            "type": "number"
+          },
+          "gamma": {
+            "default": 1,
+            "title": "Gamma",
+            "type": "number"
+          },
+          "grain": {
+            "default": 0,
+            "title": "Grain",
+            "type": "number"
+          },
+          "highlights": {
+            "default": 0,
+            "title": "Highlights",
+            "type": "number"
+          },
+          "highlights_tint": {
+            "default": "#ffffff",
+            "title": "Highlights Tint",
+            "type": "string"
+          },
+          "hue": {
+            "default": 0,
+            "title": "Hue",
+            "type": "number"
+          },
+          "lut_cube_file": {
+            "default": "",
+            "description": "Upload ref or server path of a .cube LUT",
+            "title": "Lut Cube File",
+            "type": "string"
+          },
+          "lut_strength": {
+            "default": 1,
+            "title": "Lut Strength",
+            "type": "number"
+          },
+          "midtones": {
+            "default": 0,
+            "title": "Midtones",
+            "type": "number"
+          },
+          "saturation": {
+            "default": 0,
+            "title": "Saturation",
+            "type": "number"
+          },
+          "shadows": {
+            "default": 0,
+            "title": "Shadows",
+            "type": "number"
+          },
+          "shadows_tint": {
+            "default": "#000000",
+            "title": "Shadows Tint",
+            "type": "string"
+          },
+          "sharpness": {
+            "default": 0,
+            "title": "Sharpness",
+            "type": "number"
+          },
+          "split_tone_balance": {
+            "default": 0.5,
+            "title": "Split Tone Balance",
+            "type": "number"
+          },
+          "vignette": {
+            "default": 0,
+            "title": "Vignette",
+            "type": "number"
+          }
+        },
+        "title": "ProcessGradingParams",
+        "type": "object"
+      },
+      "ProcessNudenetParams": {
+        "additionalProperties": false,
+        "description": "Args of the \"NudeNet\" script.",
+        "properties": {
+          "allowed": {
+            "default": "eng",
+            "title": "Allowed",
+            "type": "string"
+          },
+          "alphabet": {
+            "default": "latn",
+            "title": "Alphabet",
+            "type": "string"
+          },
+          "banned": {
+            "default": false,
+            "title": "Banned",
+            "type": "boolean"
+          },
+          "blocks": {
+            "default": 3,
+            "title": "Blocks",
+            "type": "integer"
+          },
+          "censor": {
+            "description": "NudeNet labels to censor",
+            "items": {
+              "type": "string"
+            },
+            "title": "Censor",
+            "type": "array"
+          },
+          "enabled": {
+            "default": true,
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "lang": {
+            "default": false,
+            "title": "Lang",
+            "type": "boolean"
+          },
+          "metadata": {
+            "default": true,
+            "title": "Metadata",
+            "type": "boolean"
+          },
+          "method": {
+            "default": "pixelate",
+            "description": "none, pixelate, blur, image, block",
+            "title": "Method",
+            "type": "string"
+          },
+          "overlay": {
+            "default": "",
+            "title": "Overlay",
+            "type": "string"
+          },
+          "policy": {
+            "default": false,
+            "title": "Policy",
+            "type": "boolean"
+          },
+          "policy_model": {
+            "default": "",
+            "title": "Policy Model",
+            "type": "string"
+          },
+          "policy_text": {
+            "default": "",
+            "title": "Policy Text",
+            "type": "string"
+          },
+          "save_copy": {
+            "default": false,
+            "description": "The script's `copy` control, renamed because `copy` is a BaseModel method",
+            "title": "Save Copy",
+            "type": "boolean"
+          },
+          "score": {
+            "default": 0.2,
+            "title": "Score",
+            "type": "number"
+          },
+          "words": {
+            "default": "",
+            "title": "Words",
+            "type": "string"
+          }
+        },
+        "title": "ProcessNudenetParams",
+        "type": "object"
+      },
+      "ProcessParams": {
+        "additionalProperties": false,
+        "description": "The Process tab: SD.Next's postprocessing pipeline over one or more inputs.\n\nEvery enabled script runs in the server's configured order\n(``postprocessing_operation_order``, then script order). Image scripts\nskip a video input; only SeedVR and DLSS take one.",
+        "properties": {
+          "create_video": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProcessCreateVideoParams"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "detailer": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProcessDetailerParams"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "dlss": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProcessDlssParams"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "grading": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProcessGradingParams"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "images": {
+            "description": "Upload refs or base64 images; image mode uses the first, batch mode all",
+            "items": {
+              "type": "string"
+            },
+            "title": "Images",
+            "type": "array"
+          },
+          "input_dir": {
+            "default": "",
+            "description": "Server directory to read (folder mode)",
+            "title": "Input Dir",
+            "type": "string"
+          },
+          "live_previews": {
+            "default": true,
+            "description": "Stream live latent previews over WebSocket; set false to skip the per-step preview decode",
+            "title": "Live Previews",
+            "type": "boolean"
+          },
+          "mode": {
+            "default": "image",
+            "enum": [
+              "image",
+              "batch",
+              "folder",
+              "video"
+            ],
+            "title": "Mode",
+            "type": "string"
+          },
+          "nudenet": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProcessNudenetParams"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "output_dir": {
+            "default": "",
+            "description": "Server directory to write (folder mode); empty uses the extras output directory",
+            "title": "Output Dir",
+            "type": "string"
+          },
+          "pixelart": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProcessPixelartParams"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "priority": {
+            "default": 0,
+            "description": "Higher runs first; 0 is normal priority",
+            "title": "Priority",
+            "type": "integer"
+          },
+          "rembg": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProcessRembgParams"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "save_output": {
+            "default": true,
+            "description": "Save results to the extras output directory; false keeps them job-scoped",
+            "title": "Save Output",
+            "type": "boolean"
+          },
+          "seedvr": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProcessSeedvrParams"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "show_results": {
+            "default": true,
+            "description": "Folder mode: return the processed images as results",
+            "title": "Show Results",
+            "type": "boolean"
+          },
+          "type": {
+            "const": "process",
+            "default": "process",
+            "title": "Type",
+            "type": "string"
+          },
+          "upscale": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProcessUpscaleParams"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "video": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Upload ref of the input video (video mode)",
+            "title": "Video"
+          }
+        },
+        "title": "ProcessParams",
+        "type": "object"
+      },
+      "ProcessPixelartParams": {
+        "additionalProperties": false,
+        "description": "Args of the \"PixelArt\" script.",
+        "properties": {
+          "pixelart_block_size": {
+            "default": 8,
+            "title": "Pixelart Block Size",
+            "type": "integer"
+          },
+          "pixelart_edge_block_size": {
+            "default": 4,
+            "title": "Pixelart Edge Block Size",
+            "type": "integer"
+          },
+          "pixelart_enabled": {
+            "default": true,
+            "title": "Pixelart Enabled",
+            "type": "boolean"
+          },
+          "pixelart_image_weight": {
+            "default": 1,
+            "title": "Pixelart Image Weight",
+            "type": "number"
+          },
+          "pixelart_sharpen_amount": {
+            "default": 0.1,
+            "title": "Pixelart Sharpen Amount",
+            "type": "number"
+          },
+          "pixelart_use_edge_detection": {
+            "default": true,
+            "title": "Pixelart Use Edge Detection",
+            "type": "boolean"
+          }
+        },
+        "title": "ProcessPixelartParams",
+        "type": "object"
+      },
+      "ProcessRembgParams": {
+        "additionalProperties": false,
+        "description": "Args of the \"Remove background\" script.",
+        "properties": {
+          "alpha_matting": {
+            "default": false,
+            "title": "Alpha Matting",
+            "type": "boolean"
+          },
+          "alpha_matting_background_threshold": {
+            "default": 10,
+            "title": "Alpha Matting Background Threshold",
+            "type": "integer"
+          },
+          "alpha_matting_erode_size": {
+            "default": 10,
+            "title": "Alpha Matting Erode Size",
+            "type": "integer"
+          },
+          "alpha_matting_foreground_threshold": {
+            "default": 240,
+            "title": "Alpha Matting Foreground Threshold",
+            "type": "integer"
+          },
+          "mask_only": {
+            "default": false,
+            "title": "Mask Only",
+            "type": "boolean"
+          },
+          "merge_alpha": {
+            "default": false,
+            "title": "Merge Alpha",
+            "type": "boolean"
+          },
+          "model": {
+            "default": "ben2",
+            "description": "none, lucida, ben2, silueta, u2net, u2net_human_seg, isnet-general-use, isnet-anime",
+            "title": "Model",
+            "type": "string"
+          },
+          "postprocess_mask": {
+            "default": false,
+            "title": "Postprocess Mask",
+            "type": "boolean"
+          },
+          "refine": {
+            "default": false,
+            "description": "ben2 only: refine the foreground edge",
+            "title": "Refine",
+            "type": "boolean"
+          }
+        },
+        "title": "ProcessRembgParams",
+        "type": "object"
+      },
+      "ProcessSeedvrParams": {
+        "additionalProperties": false,
+        "description": "Args of the \"SeedVR\" script.",
+        "properties": {
+          "seedvr_batch_overlap": {
+            "default": 0,
+            "title": "Seedvr Batch Overlap",
+            "type": "integer"
+          },
+          "seedvr_batch_size": {
+            "default": 1,
+            "title": "Seedvr Batch Size",
+            "type": "integer"
+          },
+          "seedvr_cfg_rescale": {
+            "default": 0,
+            "title": "Seedvr Cfg Rescale",
+            "type": "number"
+          },
+          "seedvr_cfg_scale": {
+            "default": 1.5,
+            "title": "Seedvr Cfg Scale",
+            "type": "number"
+          },
+          "seedvr_codec": {
+            "default": "libx264",
+            "title": "Seedvr Codec",
+            "type": "string"
+          },
+          "seedvr_codec_opt": {
+            "default": "crf=16",
+            "title": "Seedvr Codec Opt",
+            "type": "string"
+          },
+          "seedvr_enabled": {
+            "default": true,
+            "title": "Seedvr Enabled",
+            "type": "boolean"
+          },
+          "seedvr_interpolate": {
+            "default": 0,
+            "title": "Seedvr Interpolate",
+            "type": "integer"
+          },
+          "seedvr_offload": {
+            "default": true,
+            "title": "Seedvr Offload",
+            "type": "boolean"
+          },
+          "seedvr_scale": {
+            "default": 2,
+            "title": "Seedvr Scale",
+            "type": "number"
+          },
+          "seedvr_seed": {
+            "default": -1,
+            "title": "Seedvr Seed",
+            "type": "integer"
+          },
+          "seedvr_selected": {
+            "default": "SeedVR2 3B",
+            "title": "Seedvr Selected",
+            "type": "string"
+          },
+          "seedvr_steps": {
+            "default": 1,
+            "title": "Seedvr Steps",
+            "type": "integer"
+          },
+          "seedvr_tile_overlap": {
+            "default": 0.25,
+            "title": "Seedvr Tile Overlap",
+            "type": "number"
+          },
+          "seedvr_tile_size": {
+            "default": 1024,
+            "title": "Seedvr Tile Size",
+            "type": "integer"
+          },
+          "seedvr_vae_memory": {
+            "default": 0.5,
+            "title": "Seedvr Vae Memory",
+            "type": "number"
+          },
+          "seedvr_vae_tile_decode": {
+            "default": true,
+            "title": "Seedvr Vae Tile Decode",
+            "type": "boolean"
+          },
+          "seedvr_vae_tile_encode": {
+            "default": true,
+            "title": "Seedvr Vae Tile Encode",
+            "type": "boolean"
+          }
+        },
+        "title": "ProcessSeedvrParams",
+        "type": "object"
+      },
+      "ProcessUpscaleParams": {
+        "additionalProperties": false,
+        "description": "Args of the \"Upscale\" script.",
+        "properties": {
+          "upscale_by": {
+            "default": 2,
+            "title": "Upscale By",
+            "type": "number"
+          },
+          "upscale_crop": {
+            "default": true,
+            "title": "Upscale Crop",
+            "type": "boolean"
+          },
+          "upscale_mode": {
+            "default": 0,
+            "description": "0 = scale by factor, 1 = scale to width x height",
+            "title": "Upscale Mode",
+            "type": "integer"
+          },
+          "upscale_to_height": {
+            "default": 1024,
+            "title": "Upscale To Height",
+            "type": "integer"
+          },
+          "upscale_to_width": {
+            "default": 1024,
+            "title": "Upscale To Width",
+            "type": "integer"
+          },
+          "upscaler_1_name": {
+            "default": "None",
+            "title": "Upscaler 1 Name",
+            "type": "string"
+          },
+          "upscaler_2_name": {
+            "default": "None",
+            "title": "Upscaler 2 Name",
+            "type": "string"
+          },
+          "upscaler_2_visibility": {
+            "default": 0,
+            "title": "Upscaler 2 Visibility",
+            "type": "number"
+          }
+        },
+        "title": "ProcessUpscaleParams",
         "type": "object"
       },
       "RamMemoryV2": {
@@ -8146,6 +9145,23 @@
           "ok"
         ],
         "title": "ResPngInfoV2",
+        "type": "object"
+      },
+      "ResPostprocessScriptsV2": {
+        "properties": {
+          "scripts": {
+            "description": "In the server's run order",
+            "items": {
+              "$ref": "#/components/schemas/ItemPostprocessScriptV2"
+            },
+            "title": "Scripts",
+            "type": "array"
+          }
+        },
+        "required": [
+          "scripts"
+        ],
+        "title": "ResPostprocessScriptsV2",
         "type": "object"
       },
       "ResPreprocessV2": {
@@ -14456,6 +15472,7 @@
                     "model-replace": "#/components/schemas/ModelReplaceParams",
                     "model-save": "#/components/schemas/ModelSaveParams",
                     "preprocess": "#/components/schemas/PreprocessParams",
+                    "process": "#/components/schemas/ProcessParams",
                     "rembg": "#/components/schemas/RembgParams",
                     "upscale": "#/components/schemas/UpscaleParams",
                     "video": "#/components/schemas/VideoParams",
@@ -14523,6 +15540,9 @@
                   },
                   {
                     "$ref": "#/components/schemas/RembgParams"
+                  },
+                  {
+                    "$ref": "#/components/schemas/ProcessParams"
                   },
                   {
                     "$ref": "#/components/schemas/CloudImageParams"
@@ -15948,6 +16968,28 @@
         "summary": "Post Png Info V2",
         "tags": [
           "Server"
+        ]
+      }
+    },
+    "/sdapi/v2/postprocess/scripts": {
+      "get": {
+        "description": "List the postprocessing scripts in the server's run order, with their controls.",
+        "operationId": "get_postprocess_scripts_v2_sdapi_v2_postprocess_scripts_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResPostprocessScriptsV2"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Postprocess Scripts V2",
+        "tags": [
+          "Process"
         ]
       }
     },

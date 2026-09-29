@@ -80,6 +80,10 @@ def register_api(app, dependencies=None):
 
     app.include_router(xyz_grid_router, dependencies=deps)
 
+    from enso_api.postprocess import router as postprocess_router
+
+    app.include_router(postprocess_router, dependencies=deps)
+
     # Global WebSocket (progress push, interrupt/skip)
     from enso_api.global_ws import register_ws
 

@@ -84,13 +84,21 @@ function routeResult(domain: JobDomain, result: JobResult, snapshot: TrackedJob[
         timestamp: Date.now(),
       });
     }
-  } else if (domain === "upscale" || domain === "rembg") {
-    const img = result.images[0];
-    if (img) {
-      useProcessStore
-        .getState()
-        .setResult(`${api.getBaseUrl()}${img.url}`, img.width, img.height, domain);
-    }
+  } else if (domain === "process" || domain === "upscale" || domain === "rembg") {
+    const base = api.getBaseUrl();
+    const vid = result.videos?.[0];
+    const info = result.info?.["postprocessing"];
+    useProcessStore.getState().setResults(
+      result.images.map((img) => ({
+        url: `${base}${img.url}`,
+        width: img.width,
+        height: img.height,
+      })),
+      vid
+        ? { url: `${base}${vid.url}`, width: vid.width, height: vid.height, duration: vid.duration }
+        : null,
+      typeof info === "string" && info ? info : null,
+    );
   }
 }
 

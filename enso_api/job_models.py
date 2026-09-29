@@ -20,7 +20,7 @@ Cloud-specific parameter classes live in ``enso_api/cloud/models.py``.
 
 from typing import Annotated, Any, Literal
 
-from pydantic import ConfigDict, Field, field_validator
+from pydantic import ConfigDict, Field, field_validator, model_validator
 
 from enso_api.cloud.models import (
     CloudChatParams,
@@ -1015,6 +1015,227 @@ class RembgParams(JobBase):
     alpha_matting_erode_size: int = 10
 
 
+# --- Process (postprocessing pipeline) ---------------------------------------
+#
+# One optional sub-model per SD.Next postprocessing script. Field names are the
+# script's Gradio control names verbatim, so execute_process can hand each
+# sub-model straight to ScriptPostprocessingRunner.create_args_for_run under the
+# script's name. An absent sub-model leaves that script's args as None, which
+# every script treats as disabled. enso_api.postprocess logs any control the
+# server has that these models lack, and vice versa.
+
+
+class ProcessUpscaleParams(StrictBaseModel):
+    """Args of the "Upscale" script."""
+
+    upscale_mode: int = Field(default=0, description="0 = scale by factor, 1 = scale to width x height")
+    upscale_by: float = 2.0
+    upscale_to_width: int = 1024
+    upscale_to_height: int = 1024
+    upscale_crop: bool = True
+    upscaler_1_name: str = "None"
+    upscaler_2_name: str = "None"
+    upscaler_2_visibility: float = 0.0
+
+
+class ProcessDetailerParams(StrictBaseModel):
+    """Args of the "Detailer" script plus Enso's per-model schema.
+
+    ``defaults`` and ``models`` follow :class:`DetailerMixin`: the executor
+    installs the same per-model restore patch the generate path uses, so
+    detection settings come from the request rather than the global options
+    the Gradio Process tab writes. The sampler block is the script's own.
+    """
+
+    defaults: DetailerOverrides = Field(default_factory=DetailerOverrides)
+    models: list[DetailerModelRef] = Field(default_factory=list, description="Detector models to run, in order; a bare name uses ``defaults``")
+    sampler: str = Field(default="Default", description="Sampler for the inpaint pass; Default keeps the model scheduler")
+    prediction: str = Field(default="default", description="default, epsilon, sample, v_prediction, flow_prediction")
+    shift: float = 3.0
+    cfg_scale: float = 6.0
+    options: list[str] = Field(default_factory=lambda: ["low order"], description="Any of: low order, thresholding, dynamic, rescale")
+    seed: int = -1
+
+
+class ProcessGradingParams(StrictBaseModel):
+    """Args of the "Color Grading" script (modules.processing_grading.GradingParams)."""
+
+    brightness: float = 0.0
+    contrast: float = 0.0
+    saturation: float = 0.0
+    hue: float = 0.0
+    gamma: float = 1.0
+    sharpness: float = 0.0
+    color_temp: float = 6500.0
+    shadows: float = 0.0
+    midtones: float = 0.0
+    highlights: float = 0.0
+    clahe_clip: float = 0.0
+    clahe_grid: int = 8
+    shadows_tint: str = "#000000"
+    highlights_tint: str = "#ffffff"
+    split_tone_balance: float = 0.5
+    vignette: float = 0.0
+    grain: float = 0.0
+    lut_cube_file: str = Field(default="", description="Upload ref or server path of a .cube LUT")
+    lut_strength: float = 1.0
+
+
+class ProcessRembgParams(StrictBaseModel):
+    """Args of the "Remove background" script."""
+
+    model: str = Field(default="ben2", description="none, lucida, ben2, silueta, u2net, u2net_human_seg, isnet-general-use, isnet-anime")
+    merge_alpha: bool = False
+    refine: bool = Field(default=False, description="ben2 only: refine the foreground edge")
+    mask_only: bool = False
+    postprocess_mask: bool = False
+    alpha_matting: bool = False
+    alpha_matting_foreground_threshold: int = 240
+    alpha_matting_background_threshold: int = 10
+    alpha_matting_erode_size: int = 10
+
+
+class ProcessNudenetParams(StrictBaseModel):
+    """Args of the "NudeNet" script."""
+
+    enabled: bool = True
+    lang: bool = False
+    policy: bool = False
+    banned: bool = False
+    metadata: bool = True
+    save_copy: bool = Field(default=False, description="The script's `copy` control, renamed because `copy` is a BaseModel method")
+    score: float = 0.2
+    blocks: int = 3
+    censor: list[str] = Field(default_factory=list, description="NudeNet labels to censor")
+    method: str = Field(default="pixelate", description="none, pixelate, blur, image, block")
+    overlay: str = ""
+    allowed: str = "eng"
+    alphabet: str = "latn"
+    words: str = ""
+    policy_model: str = ""
+    policy_text: str = ""
+
+
+class ProcessSeedvrParams(StrictBaseModel):
+    """Args of the "SeedVR" script."""
+
+    seedvr_enabled: bool = True
+    seedvr_selected: str = "SeedVR2 3B"
+    seedvr_scale: float = 2.0
+    seedvr_seed: int = -1
+    seedvr_steps: int = 1
+    seedvr_cfg_scale: float = 1.5
+    seedvr_cfg_rescale: float = 0.0
+    seedvr_tile_size: int = 1024
+    seedvr_tile_overlap: float = 0.25
+    seedvr_batch_size: int = 1
+    seedvr_batch_overlap: int = 0
+    seedvr_offload: bool = True
+    seedvr_interpolate: int = 0
+    seedvr_codec: str = "libx264"
+    seedvr_codec_opt: str = "crf=16"
+    seedvr_vae_memory: float = 0.5
+    seedvr_vae_tile_encode: bool = True
+    seedvr_vae_tile_decode: bool = True
+
+
+class ProcessPixelartParams(StrictBaseModel):
+    """Args of the "PixelArt" script."""
+
+    pixelart_enabled: bool = True
+    pixelart_block_size: int = 8
+    pixelart_edge_block_size: int = 4
+    pixelart_use_edge_detection: bool = True
+    pixelart_image_weight: float = 1.0
+    pixelart_sharpen_amount: float = 0.1
+
+
+class ProcessDlssParams(StrictBaseModel):
+    """Args of the "nVidia DLSS" script."""
+
+    dlss_enabled: list[str] = Field(default_factory=list, description="Any of: NeuralRender, SuperRes, FrameGen")
+    dlss_graph: bool = False
+    dlss_chunk: int = 131072
+    dlss_full: bool = False
+    nr_profile: str = "Standard"
+    nr_motion: str = "Medium"
+    nr_scale: float = 1.0
+    nr_intensity: float = 1.0
+    nr_blend: float = 0.73974
+    nr_detail: float = 1.0
+    nr_colour: float = 1.0
+    nr_radius: float = 4.0
+    nr_threshold: float = 0.3
+    nr_normalized: float = 0.0
+    nr_local_tone: float = 1.0
+    nr_local_structure: float = 1.0
+    nr_skin_structure: float = 0.0
+    nr_mask_structure: float = 0.0
+    ss_profile: str = "Ultra"
+    ss_scale: float = 2.0
+    ss_detail: float = 1.0
+    ss_colour: float = 1.0
+    ss_radius: float = 4.0
+    ss_threshold: float = 0.4
+    fg_profile: str = "None"
+    fg_mode: str = "fps"
+    fg_factor: int = 2
+    fg_threshold: float = 0.4
+
+
+class ProcessCreateVideoParams(StrictBaseModel):
+    """Args of the "Create Video" script: one video from every output of a batch or folder run."""
+
+    filename: str = Field(default="", description="Output name; empty uses the samples filename pattern")
+    video_type: str = Field(default="MP4", description="GIF, PNG or MP4")
+    duration: float = 2.0
+    loop: bool = True
+    pad: int = 1
+    interpolate: int = 0
+    scale: float = 1.0
+    change: float = 0.3
+
+
+ProcessMode = Literal["image", "batch", "folder", "video"]
+
+
+class ProcessParams(JobBase):
+    """The Process tab: SD.Next's postprocessing pipeline over one or more inputs.
+
+    Every enabled script runs in the server's configured order
+    (``postprocessing_operation_order``, then script order). Image scripts
+    skip a video input; only SeedVR and DLSS take one.
+    """
+
+    type: Literal["process"] = "process"
+    mode: ProcessMode = "image"
+    images: list[str] = Field(default_factory=list, description="Upload refs or base64 images; image mode uses the first, batch mode all")
+    video: str | None = Field(default=None, description="Upload ref of the input video (video mode)")
+    input_dir: str = Field(default="", description="Server directory to read (folder mode)")
+    output_dir: str = Field(default="", description="Server directory to write (folder mode); empty uses the extras output directory")
+    show_results: bool = Field(default=True, description="Folder mode: return the processed images as results")
+    save_output: bool = Field(default=True, description="Save results to the extras output directory; false keeps them job-scoped")
+    upscale: ProcessUpscaleParams | None = None
+    detailer: ProcessDetailerParams | None = None
+    grading: ProcessGradingParams | None = None
+    rembg: ProcessRembgParams | None = None
+    nudenet: ProcessNudenetParams | None = None
+    seedvr: ProcessSeedvrParams | None = None
+    pixelart: ProcessPixelartParams | None = None
+    dlss: ProcessDlssParams | None = None
+    create_video: ProcessCreateVideoParams | None = None
+
+    @model_validator(mode="after")
+    def check_inputs_for_mode(self):
+        if self.mode in ("image", "batch") and not self.images:
+            raise ValueError(f"{self.mode} mode needs at least one image")
+        if self.mode == "folder" and not self.input_dir:
+            raise ValueError("folder mode needs input_dir")
+        if self.mode == "video" and not self.video:
+            raise ValueError("video mode needs a video")
+        return self
+
+
 # --- The discriminated union -----------------------------------------------
 
 
@@ -1039,6 +1260,7 @@ JobRequest = Annotated[
     | HfDownloadParams
     | MetadataSweepParams
     | RembgParams
+    | ProcessParams
     | CloudImageParams
     | CloudChatParams
     | CloudTtsParams
