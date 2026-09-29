@@ -159,6 +159,17 @@ def compute_stages(job_type: str, params: dict) -> list[str] | None:
     return stages
 
 
+def job_failure(e: Exception) -> tuple[int | None, str]:
+    """HTTP-semantic code and job error text for an executor exception."""
+    # VideoError carries code; sdnext's API helpers raise HTTPException with status_code and detail
+    code = getattr(e, "code", None)
+    if not isinstance(code, int):
+        code = getattr(e, "status_code", None)
+    detail = getattr(e, "detail", None)
+    message = detail if isinstance(detail, str) and detail else f"{type(e).__name__}: {e}"
+    return (code if isinstance(code, int) else None), message
+
+
 class JobQueue:
     def __init__(self):
         self.store: JobStore | None = None
@@ -366,16 +377,14 @@ class JobQueue:
             self.push_progress(job_id, WsEventCompleted(result=JobResult.from_result_dict(result)).model_dump(exclude_none=True))
             log.info(f"Job queue: completed id={job_id}")
         except Exception as e:
-            # Typed rejections (VideoError-style, code with HTTP semantics)
-            # are expected client errors: one line, no traceback
-            code = getattr(e, "code", None)
-            if isinstance(code, int) and 400 <= code < 500:
-                log.info(f"Job queue: rejected id={job_id} type={job_type} code={code} error={e}")
+            # Typed rejections (4xx code) are expected client errors: one line, no traceback
+            code, error_msg = job_failure(e)
+            if code is not None and 400 <= code < 500:
+                log.info(f"Job queue: rejected id={job_id} type={job_type} code={code} error={error_msg}")
             else:
                 from modules import errors
 
                 errors.display(e, f"Job queue: {job_type}")
-            error_msg = f"{type(e).__name__}: {e}"
             self.store.update_status(job_id, "failed", completed_at=JobStore.now(), error=error_msg)
             self.push_progress(job_id, WsEventError(error=error_msg).model_dump(exclude_none=True))
             if job_id in self._cancel_ids:
