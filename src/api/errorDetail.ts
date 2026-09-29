@@ -38,8 +38,9 @@ export function formatValidationIssues(issues: ValidationIssue[]): string | null
 
 /**
  * The reason a failed response gives, as one line: FastAPI's string detail, its
- * validation issues, or a plain-text body. Null when there is none, including
- * an HTML error page from a proxy.
+ * validation issues, the exception sdnext's handler reports in `errors` (with
+ * its class from `error`), or a plain-text body. Null when there is none,
+ * including an HTML error page from a proxy.
  */
 export function formatErrorDetail(body: unknown): string | null {
   if (typeof body === "string") {
@@ -47,8 +48,12 @@ export function formatErrorDetail(body: unknown): string | null {
     return text && !text.startsWith("<") ? text.split("\n")[0] : null;
   }
   if (typeof body !== "object" || body === null) return null;
-  const { detail } = body as { detail?: unknown };
-  if (typeof detail === "string") return detail.trim() || null;
+  const { detail, error, errors } = body as { detail?: unknown; error?: unknown; errors?: unknown };
+  if (typeof detail === "string" && detail.trim()) return detail.trim();
   if (Array.isArray(detail)) return formatValidationIssues(detail as ValidationIssue[]);
+  if (typeof errors === "string" && errors.trim()) {
+    const reason = errors.trim().split("\n")[0];
+    return typeof error === "string" && error ? `${error}: ${reason}` : reason;
+  }
   return null;
 }

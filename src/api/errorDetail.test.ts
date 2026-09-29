@@ -65,4 +65,27 @@ describe("formatErrorDetail", () => {
     expect(formatErrorDetail({ detail: [] })).toBeNull();
     expect(formatErrorDetail(null)).toBeNull();
   });
+
+  it("names the exception sdnext's handler reports when detail is empty", () => {
+    expect(formatErrorDetail(UNHANDLED)).toBe(
+      "ImportError: cannot import name 'do_vqa' from 'modules.api.caption' (modules/api/caption.py)",
+    );
+    expect(
+      formatErrorDetail({
+        ...UNHANDLED,
+        error: "RuntimeError",
+        errors: "CUDA driver error: device not ready\nFailed to create GPU mapping",
+      }),
+    ).toBe("RuntimeError: CUDA driver error: device not ready");
+    expect(formatErrorDetail({ error: "", errors: "" })).toBeNull();
+  });
 });
+
+// Shape of sdnext's generic API exception handler: the reason sits in `errors`, detail stays empty
+const UNHANDLED = {
+  error: "ImportError",
+  code: 500,
+  detail: "",
+  body: "",
+  errors: "cannot import name 'do_vqa' from 'modules.api.caption' (modules/api/caption.py)",
+};
