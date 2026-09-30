@@ -13328,7 +13328,7 @@
     },
     "/sdapi/v2/civitai/download": {
       "post": {
-        "description": "Queue a download. Returns the download item with its ID.",
+        "description": "Queue a download. Returns the download item with its ID.\n\nCallers send either url + filename, or version_id + file_id, in which case\nthe server resolves the url, save name, hash and companion type itself.",
         "operationId": "post_download_sdapi_v2_civitai_download_post",
         "requestBody": {
           "content": {
@@ -14381,6 +14381,63 @@
           }
         },
         "summary": "Get Version",
+        "tags": [
+          "CivitAI"
+        ]
+      }
+    },
+    "/sdapi/v2/civitai/version/{version_id}/names": {
+      "get": {
+        "description": "Save names for every file of a version, as the download route would choose them.",
+        "operationId": "get_version_names_sdapi_v2_civitai_version__version_id__names_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "version_id",
+            "required": true,
+            "schema": {
+              "title": "Version Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Version Names",
         "tags": [
           "CivitAI"
         ]
