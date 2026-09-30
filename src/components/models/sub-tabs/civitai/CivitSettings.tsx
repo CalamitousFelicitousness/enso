@@ -62,6 +62,17 @@ export function CivitSettings() {
               onCheckedChange={(v) => save.mutate({ discard_hash_mismatch: v })}
             />
           </div>
+          <div className="flex items-center justify-between gap-2">
+            <Label htmlFor="save-precision" className="text-xs">
+              Always add the precision to saved file names
+            </Label>
+            <Switch
+              id="save-precision"
+              size="sm"
+              checked={settings.save_precision}
+              onCheckedChange={(v) => save.mutate({ save_precision: v })}
+            />
+          </div>
         </div>
       )}
     </div>

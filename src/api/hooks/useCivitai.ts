@@ -14,6 +14,7 @@ import type {
   CivitBookmarkEntry,
   CivitBannedEntry,
   CivitVersion,
+  CivitVersionNames,
   CivitTagResponse,
   CivitCreatorResponse,
   CivitUserProfile,
@@ -150,7 +151,10 @@ export function useCivitSaveSettings() {
   return useMutation({
     mutationFn: (req: CivitSettingsUpdate) =>
       api.post<CivitSettings>("/sdapi/v2/civitai/settings", req),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["civitai-settings"] }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["civitai-settings"] });
+      void qc.invalidateQueries({ queryKey: ["civitai-version-names"] });
+    },
   });
 }
 
@@ -226,6 +230,18 @@ export function useCivitVersion(versionId: number | null) {
     queryFn: () => api.get<CivitVersion>(`/sdapi/v2/civitai/version/${versionId}`),
     enabled: versionId !== null,
     staleTime: 60_000,
+  });
+}
+
+// The server peeks every file of the version on the first call, so a large
+// version answers after a few seconds; names only change with the files or
+// the save_precision setting.
+export function useCivitVersionNames(versionId: number | null) {
+  return useQuery({
+    queryKey: ["civitai-version-names", versionId],
+    queryFn: () => api.get<CivitVersionNames>(`/sdapi/v2/civitai/version/${versionId}/names`),
+    enabled: versionId !== null,
+    staleTime: Infinity,
   });
 }
 

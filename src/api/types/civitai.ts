@@ -66,6 +66,14 @@ export interface CivitEarlyAccessConfig {
   donationGoal?: number;
 }
 
+// Parent summary the version endpoint carries alongside the files.
+export interface CivitVersionModel {
+  name: string;
+  type: string;
+  nsfw: boolean;
+  poi: boolean;
+}
+
 export interface CivitVersion {
   id: number;
   modelId: number;
@@ -82,6 +90,7 @@ export interface CivitVersion {
   images: CivitImage[];
   nsfwLevel: number;
   downloadUrl: string;
+  model?: CivitVersionModel | null;
 }
 
 export interface CivitCreator {
@@ -159,8 +168,11 @@ export interface CivitDownloadStatus {
   completed: CivitDownloadItem[];
 }
 
+// Either url with filename, or version_id with file_id: the server then
+// resolves url, file name, hash and companion routing from the version, and
+// any field sent explicitly wins.
 export interface CivitDownloadRequest {
-  url: string;
+  url?: string | undefined;
   filename?: string | undefined;
   folder?: string | undefined;
   model_type?: string | undefined;
@@ -171,6 +183,7 @@ export interface CivitDownloadRequest {
   creator?: string | undefined;
   model_id?: number | undefined;
   version_id?: number | undefined;
+  file_id?: number | undefined;
   version_name?: string | undefined;
   nsfw?: boolean | undefined;
 }
@@ -182,6 +195,7 @@ export interface CivitSettings {
   save_type_folders: string;
   discard_hash_mismatch: boolean;
   download_workers: number;
+  save_precision: boolean;
 }
 
 export interface CivitSettingsUpdate {
@@ -189,6 +203,7 @@ export interface CivitSettingsUpdate {
   save_subfolder_enabled?: boolean | undefined;
   save_subfolder?: string | undefined;
   discard_hash_mismatch?: boolean | undefined;
+  save_precision?: boolean | undefined;
 }
 
 // Same ProbeResult shape the local model endpoints use.
@@ -302,4 +317,23 @@ export interface CivitSearchParams {
   cursor?: string | undefined;
   username?: string | undefined;
   favorites?: boolean | undefined;
+}
+
+// One file of GET /civitai/version/{id}/names: the name the server will save
+// it under, with the variant and role that name carries.
+export interface CivitFileName {
+  id: number;
+  name: string;
+  save_name: string;
+  type: string;
+  variant: string | null;
+  role: string | null;
+  size: string | null;
+  sha256: string | null;
+}
+
+export interface CivitVersionNames {
+  version_id: number;
+  precision: boolean;
+  files: CivitFileName[];
 }

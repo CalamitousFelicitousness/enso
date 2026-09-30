@@ -38,6 +38,7 @@ import {
   useCivitRemoveBookmark,
   useCivitBanned,
   useCivitAddBanned,
+  useCivitVersionNames,
   useCivitRemoveBanned,
   useCivitCheckLocal,
   useCivitVersion,
@@ -84,13 +85,8 @@ import {
   civitaiModelUrl,
   civitaiUserUrl,
   civitBaseFamily,
-  civitFileSaveName,
-  civitFileVariant,
-  civitFileRole,
   civitFilePeekTargets,
-  civitRoleFromMetadata,
   precisionFromDtype,
-  precisionClaimSatisfied,
   quantFormatLabel,
 } from "@/lib/civitai";
 import {
@@ -246,12 +242,8 @@ function VersionSection({
   const [confirmFile, setConfirmFile] = useState<CivitFile | null>(null);
   const download = useCivitDownload();
 
-  const roleContext = useMemo(
-    () => ({ name: version.name, baseModel: version.baseModel, modelName }),
-    [version.name, version.baseModel, modelName],
-  );
-  // Header probes drive expert-role resolution, arch/precision truth badges,
-  // and training metadata; the backend caches by file id so repeats are free.
+  // Header probes drive the arch/precision truth badges and training
+  // metadata; the backend caches by file id so repeats are free.
   const peekTargets = useMemo(
     () => (open ? civitFilePeekTargets(version.files) : []),
     [open, version.files],
@@ -267,24 +259,15 @@ function VersionSection({
       staleTime: Infinity,
     })),
   });
-  const peekRoles = new Map<number, string | null>();
   const peekProbes = new Map<number, CivitProbe>();
-  const peekVariants = new Map<number, string>();
   peekTargets.forEach((f, i) => {
-    const data = peekResults[i]?.data;
-    peekRoles.set(f.id, civitRoleFromMetadata(data?.metadata, roleContext));
-    if (data?.probe) {
-      peekProbes.set(f.id, data.probe);
-      // upgrade a generic metadata variant to the dtype-exact token; the fp8
-      // element type is header truth regardless of quant container
-      const claimed = civitFileVariant(f);
-      const exact = data.probe.ok ? precisionFromDtype(data.probe.dominant_dtype) : null;
-      if (claimed && exact && exact !== claimed && precisionClaimSatisfied(claimed, exact)) {
-        peekVariants.set(f.id, exact);
-      }
-    }
+    const probe = peekResults[i]?.data?.probe;
+    if (probe) peekProbes.set(f.id, probe);
   });
-  const saveContext = { ...roleContext, roles: peekRoles, variants: peekVariants };
+  // The server owns the naming rules; rows show Civitai's own names until
+  // its save names arrive.
+  const { data: names } = useCivitVersionNames(open ? version.id : null);
+  const fileNames = new Map(names?.files.map((f) => [f.id, f]) ?? []);
   const baseFamily = civitBaseFamily(version.baseModel);
   let found: Record<string, string> | null = null;
   for (const f of peekTargets) {
@@ -346,18 +329,15 @@ function VersionSection({
   const hasSome = downloadedCount > 0 && !hasAll;
 
   function handleDownload(file: CivitFile) {
-    // Companion files route to their own type's folder, not the model's.
-    const routeType = file.type === "VAE" || file.type === "Text Encoder" ? file.type : modelType;
+    // The server resolves url, save name, hash and companion routing from the
+    // version; the rest feeds the folder template.
     download.mutate({
-      url: file.downloadUrl,
-      filename: civitFileSaveName(file, version.files, saveContext),
-      model_type: routeType,
-      expected_hash: file.hashes.SHA256 ?? undefined,
+      version_id: version.id,
+      file_id: file.id,
       model_name: modelName,
       base_model: version.baseModel,
       creator: creatorName,
       model_id: modelId,
-      version_id: version.id,
       version_name: version.name,
       nsfw: modelNsfw,
     });
@@ -523,9 +503,10 @@ function VersionSection({
             <div className="rounded-md border border-border/30 overflow-hidden">
               {version.files.map((f, i) => {
                 const localMatch = f.hashes.SHA256 ? localFiles[f.hashes.SHA256] : undefined;
-                const saveName = civitFileSaveName(f, version.files, saveContext);
-                const variant = peekVariants.get(f.id) ?? civitFileVariant(f);
-                const role = peekRoles.get(f.id) ?? civitFileRole(f, roleContext);
+                const named = fileNames.get(f.id);
+                const saveName = named?.save_name;
+                const variant = named?.variant ?? null;
+                const role = named?.role ?? null;
                 const probe = peekProbes.get(f.id);
                 const probeKind = probe?.arch.kind;
                 const archMismatch =
@@ -543,9 +524,7 @@ function VersionSection({
                     ? precisionFromDtype(probe.dominant_dtype)
                     : null;
                 const fpMismatch =
-                  claimedFp &&
-                  actualFp &&
-                  !precisionClaimSatisfied(claimedFp.toLowerCase(), actualFp)
+                  claimedFp && actualFp && !actualFp.startsWith(claimedFp.toLowerCase())
                     ? actualFp
                     : null;
                 const quantScheme =
@@ -554,7 +533,8 @@ function VersionSection({
                     : probe?.quant.scheme === "scaled_fp8"
                       ? `scaled ${quantFormatLabel(probe.quant.format) ?? "fp8"}`
                       : null;
-                const failedError = !localMatch ? failedDownloads.get(saveName) : undefined;
+                const failedError =
+                  !localMatch && saveName ? failedDownloads.get(saveName) : undefined;
                 const scanFailed =
                   (f.pickleScanResult && f.pickleScanResult !== "Success") ||
                   (f.virusScanResult && f.virusScanResult !== "Success");
@@ -572,8 +552,11 @@ function VersionSection({
                     className={`grid ${isEarlyAccess || failedError ? "grid-cols-[1fr_5rem_auto]" : "grid-cols-[1fr_5rem_2.5rem]"} items-center gap-2 px-3 py-2 text-xs ${i > 0 ? "border-t border-border/20" : ""}`}
                   >
                     <span className="flex items-center gap-1.5 min-w-0">
-                      <span className="truncate min-w-0" title={saveName}>
-                        {f.name}
+                      <span
+                        className="truncate min-w-0"
+                        title={saveName && saveName !== f.name ? f.name : undefined}
+                      >
+                        {saveName ?? f.name}
                       </span>
                       {f.type !== "Model" && (
                         <Badge variant="outline" className="text-4xs px-1 py-0 shrink-0">
@@ -647,7 +630,7 @@ function VersionSection({
                         <span title={`Downloaded: ${localMatch.filename}`}>
                           <Check className="h-4 w-4 text-green-500" />
                         </span>
-                      ) : activeDownloads.has(saveName) ? (
+                      ) : saveName && activeDownloads.has(saveName) ? (
                         <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
                       ) : (
                         <>
