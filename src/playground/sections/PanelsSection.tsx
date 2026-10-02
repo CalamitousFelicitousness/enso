@@ -16,6 +16,9 @@ const networkMocks = [
   { queryKey: ["options"], data: mockOptions },
 ];
 
+// No checkpoint loaded: every guidance setting stays enabled.
+const guidanceMocks = [{ queryKey: ["checkpoint"], data: { loaded: false } }];
+
 /**
  * On-demand panel workspace.
  *
@@ -37,11 +40,13 @@ export function PanelsSection() {
 
       {/* Each panel row is isolated so portals/popovers don't interfere */}
 
-      {/* GuidanceTab - Tier 1, no API hooks needed */}
+      {/* GuidanceTab - Tier 2, reads the loaded checkpoint's guidance support */}
       <div className="flex items-start gap-6 flex-wrap">
-        <PlaygroundPanel title="GuidanceTab" tag="example" width={280}>
-          <GuidanceTab />
-        </PlaygroundPanel>
+        <PlaygroundQueryProvider mocks={guidanceMocks}>
+          <PlaygroundPanel title="GuidanceTab" tag="example" width={280}>
+            <GuidanceTab />
+          </PlaygroundPanel>
+        </PlaygroundQueryProvider>
       </div>
 
       {/* NetworksTab - Tier 4, needs query mocks */}
