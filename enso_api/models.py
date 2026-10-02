@@ -455,6 +455,9 @@ class ResHistoryV2(BaseModel):
     limit: int = Field(title="Limit")
 
 
+DetailerMode = Literal["inpaint", "custom", "edit", "none"]
+
+
 class CheckpointGuidanceV2(BaseModel):
     """Guidance settings the loaded pipeline applies."""
 
@@ -475,6 +478,8 @@ class ResCheckpointV2(BaseModel):
     hash: str | None = Field(default=None, title="Hash")
     max_input_images: int | None = Field(default=None, title="Max Input Images", description="Input images the loaded pipeline takes as one set; 1 for single-image models")
     request_sets_size: bool | None = Field(default=None, title="Request Sets Size", description="The request's width and height set the output size, also for a single input image sent unprocessed")
+    detailer_mode: DetailerMode | None = Field(default=None, title="Detailer Mode", description="How the detailer runs: through the inpaint pipeline, as loaded, or with each region as the condition image; none when it cannot")
+    strength_applicable: bool | None = Field(default=None, title="Strength Applicable", description="An image-to-image pass on the loaded pipeline takes a denoising strength")
     guidance: CheckpointGuidanceV2 | None = Field(default=None, title="Guidance")
     size_multiple: int | None = Field(default=None, title="Size Multiple", description="Width and height keep their requested value at multiples of this; the server rounds other sizes")
 
@@ -667,7 +672,6 @@ class ServerCapabilities(BaseModel):
 class ServerModelInfo(BaseModel):
     name: str | None = None
     type: str | None = None
-    supports_strength: bool = True
 
 
 class ExtensionVersionV2(BaseModel):

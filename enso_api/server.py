@@ -1,5 +1,4 @@
 import functools
-import inspect
 import os
 import re
 import subprocess
@@ -28,34 +27,6 @@ from enso_api.models import (
 router = APIRouter(prefix="/sdapi/v2", tags=["Server"])
 
 EXT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-
-
-def pipeline_supports_strength(model) -> bool:
-    """True when img2img on the loaded model takes a strength parameter, on the
-    pipeline itself or on the img2img class sdnext switches it to."""
-    pipe = getattr(model, "pipe", model)
-    classes = [type(pipe)]
-    try:
-        from diffusers.pipelines import auto_pipeline
-
-        classes.append(
-            auto_pipeline._get_task_class(  # pylint: disable=protected-access
-                auto_pipeline.AUTO_IMAGE2IMAGE_PIPELINES_MAPPING,
-                type(pipe).__name__,
-                throw_error_if_not_exist=False,
-            )
-        )
-    except Exception:
-        pass
-    for cls in classes:
-        if cls is None:
-            continue
-        try:
-            if "strength" in inspect.signature(cls.__call__, follow_wrapped=True).parameters:
-                return True
-        except (TypeError, ValueError):
-            continue
-    return False
 
 
 def detect_video_capability() -> bool:
@@ -99,14 +70,13 @@ async def get_server_info_v2():
     ver = installer.get_version()
     model_name = getattr(shared.opts, "sd_model_checkpoint", None)
     model_type = type(model_data.sd_model).__name__ if model_data.sd_model is not None else None
-    supports_strength = pipeline_supports_strength(model_data.sd_model) if model_data.sd_model is not None else True
     capabilities = ServerCapabilities(video=detect_video_capability())
     return ResServerInfoV2(
         version=VersionInfoV2(**{k: str(v) for k, v in ver.items() if k in VersionInfoV2.model_fields}),
         backend=shared.backend.name if hasattr(shared.backend, "name") else str(shared.backend),
         platform=devices.get_device_name() if hasattr(devices, "get_device_name") else str(shared.device),
         capabilities=capabilities,
-        model=ServerModelInfo(name=model_name, type=model_type, supports_strength=supports_strength),
+        model=ServerModelInfo(name=model_name, type=model_type),
         extension=extension_version(),
     )
 

@@ -14,6 +14,8 @@ interface DetailerModelRowProps {
   onUpdate: (entry: DetailerModelEntry) => void;
   onRemove: () => void;
   disabled?: boolean;
+  /** Why Strength does nothing on the loaded model; unset while it applies. */
+  strengthIgnoredHint?: string | undefined;
   level?: 0 | 1 | 2;
 }
 
@@ -29,6 +31,7 @@ export function DetailerModelRow({
   onUpdate,
   onRemove,
   disabled,
+  strengthIgnoredHint,
   level = 1,
 }: DetailerModelRowProps) {
   // Build typed setter pairs: (key) => { onOverride, onClear }.
@@ -93,6 +96,8 @@ export function DetailerModelRow({
             max={1}
             step={0.01}
             decimals={2}
+            disabled={strengthIgnoredHint !== undefined}
+            disabledHint={strengthIgnoredHint}
           />
           <InheritableSlider
             label="Steps"

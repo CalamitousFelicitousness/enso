@@ -1,5 +1,5 @@
 import { useMemo, useCallback } from "react";
-import { Info } from "lucide-react";
+import { ParamNotice, ParamNoticeAction } from "../ParamNotice";
 import { useGenerationStore } from "@/stores/generationStore";
 import { useUiStore } from "@/stores/uiStore";
 import { useImg2ImgStore } from "@/stores/img2imgStore";
@@ -369,20 +369,13 @@ export function PromptsTab() {
           </div>
 
           {lockedFrameId && (
-            <div className="flex items-start gap-1.5 rounded border border-border/40 bg-muted/30 px-2 py-1.5 text-3xs text-muted-foreground">
-              <Info size={11} className="mt-px shrink-0" />
-              <span>
-                {lockedHint} To choose another size,{" "}
-                <button
-                  type="button"
-                  onClick={() => setFrameMode(lockedFrameId, "initial")}
-                  className="text-foreground underline decoration-dotted underline-offset-2 hover:decoration-solid"
-                >
-                  switch Input 1 to Initial
-                </button>
-                {frame.pending ? " or load the model." : "."}
-              </span>
-            </div>
+            <ParamNotice>
+              {lockedHint} To choose another size,{" "}
+              <ParamNoticeAction onClick={() => setFrameMode(lockedFrameId, "initial")}>
+                switch Input 1 to Initial
+              </ParamNoticeAction>
+              {frame.pending ? " or load the model." : "."}
+            </ParamNotice>
           )}
 
           {/* Scale slider */}

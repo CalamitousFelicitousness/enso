@@ -1,4 +1,4 @@
-import type { ItemSamplerV2 } from "@/lib/openapi-generated/types.gen";
+import type { ItemSamplerV2, ResCheckpointV2 } from "@/lib/openapi-generated/types.gen";
 
 export type {
   CheckpointGuidanceV2,
@@ -21,3 +21,6 @@ export type {
 export type SamplerV2 = Omit<ItemSamplerV2, "group"> & {
   group: "Standard" | "FlowMatch" | "Res4Lyf";
 };
+
+/** How the detailer runs on a loaded pipeline; "none" when it cannot. */
+export type DetailerMode = NonNullable<ResCheckpointV2["detailer_mode"]>;

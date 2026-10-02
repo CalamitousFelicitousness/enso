@@ -5,6 +5,7 @@ import type { MaskLine } from "@/stores/img2imgStore";
 import type { ControlUnitSnapshot } from "@/api/types/control";
 import type { DetailerOverrides, DetailerModelEntry } from "@/api/types/v2";
 import type { WireParams } from "@/api/types/wireParams";
+import { DEFAULT_HIRES_UPSCALER } from "@/lib/hires";
 
 export interface GenerationResult {
   id: string;
@@ -230,7 +231,7 @@ export const defaultParams = {
   dynamic: false,
   rescale: false,
   hiresEnabled: false,
-  hiresUpscaler: "Latent",
+  hiresUpscaler: DEFAULT_HIRES_UPSCALER,
   hiresScale: 2,
   hiresSteps: 0,
   hiresDenoising: 0.5,

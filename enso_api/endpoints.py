@@ -9,6 +9,7 @@ as their v1 counterparts.
 """
 
 import asyncio
+import inspect
 import math
 import os
 from datetime import datetime
@@ -552,6 +553,43 @@ def checkpoint_size_multiple(model) -> int:
     return math.lcm(int(sd_vae.get_vae_scale_factor(model)), int(sd_vae.get_vae_scale_factor(model, init_image=True)))
 
 
+def checkpoint_strength_applicable(model) -> bool:
+    """An image-to-image pass takes a strength, on the pipeline itself or on the img2img class sdnext switches it to."""
+    pipe = getattr(model, "pipe", model)
+    classes = [type(pipe)]
+    try:
+        from diffusers.pipelines import auto_pipeline
+
+        classes.append(
+            auto_pipeline._get_task_class(  # pylint: disable=protected-access
+                auto_pipeline.AUTO_IMAGE2IMAGE_PIPELINES_MAPPING,
+                type(pipe).__name__,
+                throw_error_if_not_exist=False,
+            )
+        )
+    except Exception:
+        pass
+    for cls in classes:
+        if cls is None:
+            continue
+        try:
+            if "strength" in inspect.signature(cls.__call__, follow_wrapped=True).parameters:
+                return True
+        except (TypeError, ValueError):
+            continue
+    return False
+
+
+def checkpoint_detailer_mode(model) -> str | None:
+    """How the detailer runs on the pipeline; None when sdnext does not report it."""
+    from modules.detailer import detailer
+
+    get_mode = getattr(detailer, "get_mode", None)  # sdnext without the detailer on condition-image models has no mode to report
+    if get_mode is None:
+        return None
+    return get_mode(model) or "none"
+
+
 def build_checkpoint_info() -> ResCheckpointV2:
     from enso_api import condition_images
 
@@ -563,6 +601,8 @@ def build_checkpoint_info() -> ResCheckpointV2:
         class_name=shared.sd_model.__class__.__name__,
         max_input_images=condition_images.max_condition_images(shared.sd_model),
         request_sets_size=condition_images.request_sets_size(shared.sd_model),
+        detailer_mode=checkpoint_detailer_mode(shared.sd_model),
+        strength_applicable=checkpoint_strength_applicable(shared.sd_model),
         guidance=checkpoint_guidance(shared.sd_model),
         size_multiple=checkpoint_size_multiple(shared.sd_model),
     )

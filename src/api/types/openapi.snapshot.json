@@ -8626,6 +8626,24 @@
             ],
             "title": "Class Name"
           },
+          "detailer_mode": {
+            "anyOf": [
+              {
+                "enum": [
+                  "inpaint",
+                  "custom",
+                  "edit",
+                  "none"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "How the detailer runs: through the inpaint pipeline, as loaded, or with each region as the condition image; none when it cannot",
+            "title": "Detailer Mode"
+          },
           "filename": {
             "anyOf": [
               {
@@ -8709,6 +8727,18 @@
             ],
             "description": "Width and height keep their requested value at multiples of this; the server rounds other sizes",
             "title": "Size Multiple"
+          },
+          "strength_applicable": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "An image-to-image pass on the loaded pipeline takes a denoising strength",
+            "title": "Strength Applicable"
           },
           "title": {
             "anyOf": [
@@ -9664,11 +9694,6 @@
               }
             ],
             "title": "Name"
-          },
-          "supports_strength": {
-            "default": true,
-            "title": "Supports Strength",
-            "type": "boolean"
           },
           "type": {
             "anyOf": [

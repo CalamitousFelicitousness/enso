@@ -22,8 +22,9 @@ import { useSubmitToQueue, UserAbortError } from "@/hooks/useSubmitToQueue";
 import { sendToJob } from "@/hooks/useJobTracker";
 import { useCancelJob } from "@/api/hooks/useJobs";
 import { useLoadModel } from "@/api/hooks/useModels";
+import { useModelCapabilities } from "@/hooks/useModelCapabilities";
 import { api } from "@/api/client";
-import type { CheckpointInfoV2 } from "@/api/types/models";
+import type { CheckpointInfoV2, DetailerMode } from "@/api/types/models";
 import { useQueryClient } from "@tanstack/react-query";
 import { Play, Square, SkipForward, History, ChevronDown, Layers, Grid3X3 } from "lucide-react";
 import { ProgressRing } from "@/components/ui/progress-ring";
@@ -57,13 +58,15 @@ export const ActionBar = memo(function ActionBar() {
   const runningJob = useJobQueueStore(selectRunningJob);
   const pendingCount = useJobQueueStore(selectPendingCount);
 
+  const detailerUnavailable = useModelCapabilities().detailerMode === "none";
   const detailOnlyBlockReason = useMemo(() => {
     if (!detailerOnly) return null;
     if (!detailerEnabled) return "Enable detailer first";
+    if (detailerUnavailable) return "The loaded model cannot run the detailer";
     if (!hasInputImage) return "Detail only requires an image on the canvas";
     if (detailerModelCount === 0) return "Select at least one detailer model";
     return null;
-  }, [detailerEnabled, detailerOnly, hasInputImage, detailerModelCount]);
+  }, [detailerEnabled, detailerOnly, detailerUnavailable, hasInputImage, detailerModelCount]);
 
   const [batchOpen, setBatchOpen] = useState(false);
   const [xyzOpen, setXyzOpen] = useState(false);
@@ -92,6 +95,8 @@ export const ActionBar = memo(function ActionBar() {
     let maxInputImages: number | null = null;
     let requestSetsSize: boolean | null = null;
     let sizeMultiple = DEFAULT_SIZE_MULTIPLE;
+    let detailerMode: DetailerMode | null = null;
+    let strengthSupported = true;
     // The canvas sized a lone Reference from the model it knew before this load
     let referenceSets = activeModel?.source !== "cloud";
     if (activeModel?.source === "local") {
@@ -113,6 +118,8 @@ export const ActionBar = memo(function ActionBar() {
       maxInputImages = loaded.max_input_images ?? null;
       requestSetsSize = loaded.request_sets_size ?? null;
       sizeMultiple = loaded.size_multiple ?? DEFAULT_SIZE_MULTIPLE;
+      detailerMode = loaded.detailer_mode ?? null;
+      strengthSupported = loaded.strength_applicable ?? true;
     }
 
     // Record the prompt being generated into the prompt-history popover.
@@ -159,6 +166,8 @@ export const ActionBar = memo(function ActionBar() {
       requestSetsSize,
       sizeMultiple,
       referenceSets,
+      strengthSupported,
+      detailerMode,
     }).catch((err: unknown) => {
       if (err instanceof InputRefusal) {
         toast.warning("Can't generate with these input images", { description: err.message });

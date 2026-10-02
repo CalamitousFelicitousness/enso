@@ -19,6 +19,7 @@ import { uploadFiles, uploadBlob, uploadFile } from "@/lib/upload";
 import { base64ToBlob } from "@/lib/utils";
 import { REFERENCE_HEIGHT } from "@/canvas/useControlFrameLayout";
 import { sourceImageSize, wireSources, type WireSource } from "@/canvas/inputFrames";
+import { DEFAULT_HIRES_UPSCALER, effectiveHires } from "@/lib/hires";
 import {
   DEFAULT_SIZE_MULTIPLE,
   effectiveSizeMode,
@@ -29,6 +30,7 @@ import {
 } from "@/lib/sizeCompute";
 import type { ControlRequest, GenerationInfo } from "@/api/types/generation";
 import type { DetailerModelEntry, DetailerModelRef, DetailerOverrides } from "@/api/types/v2";
+import type { DetailerMode } from "@/api/types/models";
 import { BACKEND_UNIT_TYPE } from "@/api/types/control";
 import type { WireParams, WireOverrides } from "@/api/types/wireParams";
 
@@ -47,6 +49,11 @@ export interface ControlBuildOptions {
   /** The canvas showed a lone Reference at the image's size, from the model
    * it knew before any load for this job (referenceSetsSize). */
   referenceSets: boolean;
+  /** An image-to-image pass on the loaded pipeline takes a denoising strength. */
+  strengthSupported: boolean;
+  /** How the detailer runs on the loaded pipeline, "none" when it cannot;
+   * null when unknown. */
+  detailerMode: DetailerMode | null;
 }
 
 /** The canvas holds inputs the loaded model cannot take as they are. */
@@ -144,6 +151,8 @@ export async function buildControlRequest({
   requestSetsSize,
   sizeMultiple,
   referenceSets,
+  strengthSupported,
+  detailerMode,
 }: ControlBuildOptions): Promise<BuildResult> {
   const gen = useGenerationStore.getState();
   const scripts = useScriptStore.getState();
@@ -162,6 +171,10 @@ export async function buildControlRequest({
   const asSet = sources.length > 1 || (loneReference && requestSetsSize === true);
   // The frame showed the lone Reference's own size, so that size is sent
   const shownFromImage = serverSizesFromImage(slots, referenceSets);
+  const hires = effectiveHires(
+    { upscaler: gen.hiresUpscaler, force: gen.hiresForce, denoising: gen.hiresDenoising },
+    { pixelInput: requestSetsSize === true, strength: strengthSupported },
+  );
 
   const request: ControlRequest = {
     prompt: gen.prompt,
@@ -188,11 +201,11 @@ export async function buildControlRequest({
     batch_count: gen.batchCount,
     denoising_strength: gen.denoisingStrength,
     enable_hr: gen.hiresEnabled,
-    hr_upscaler: gen.hiresUpscaler,
+    hr_upscaler: hires.upscaler,
     hr_scale: gen.hiresScale,
     hr_second_pass_steps: gen.hiresSteps,
-    hr_denoising_strength: gen.hiresDenoising,
-    hr_force: gen.hiresForce,
+    hr_denoising_strength: hires.denoising,
+    hr_force: hires.force,
     // Scale mode (resize_x/y == 0): pure direct resize via mode 1. Fixed mode: user's fit choice.
     // Mode 0 is SD.Next's "disabled" sentinel and would skip the upscale step entirely.
     hr_resize_mode: gen.hiresResizeX === 0 && gen.hiresResizeY === 0 ? 1 : gen.hiresResizeMode,
@@ -213,9 +226,11 @@ export async function buildControlRequest({
         }
       : {}),
     ...(gen.refinerEnabled
+      ? { refiner_steps: gen.refinerSteps, refiner_start: gen.refinerStart }
+      : {}),
+    // The hires pass and the refiner both take these in place of the main prompt
+    ...(gen.refinerEnabled || gen.hiresEnabled
       ? {
-          refiner_steps: gen.refinerSteps,
-          refiner_start: gen.refinerStart,
           refiner_prompt: gen.refinerPrompt || undefined,
           refiner_negative: gen.refinerNegative || undefined,
         }
@@ -315,7 +330,7 @@ export async function buildControlRequest({
   };
 
   // Detailer (V2 schema: defaults block + per-model entries)
-  if (gen.detailerEnabled) {
+  if (gen.detailerEnabled && detailerMode !== "none") {
     request.detailer_enabled = true;
     request.detailer_defaults = stripUndefined(gen.detailerDefaults);
     request.detailer_models = gen.detailerModels.map(serializeDetailerEntry);
@@ -609,7 +624,7 @@ export function extractParamsFromResult(result: GenerationResult): Partial<Gener
 
     // Hires
     hiresEnabled: bool(p.enable_hr, false),
-    hiresUpscaler: str(p.hr_upscaler, "Latent"),
+    hiresUpscaler: str(p.hr_upscaler, DEFAULT_HIRES_UPSCALER),
     hiresScale: num(p.hr_scale, 2),
     hiresSteps: num(p.hr_second_pass_steps, 0),
     hiresDenoising: num(p.hr_denoising_strength, 0.5),

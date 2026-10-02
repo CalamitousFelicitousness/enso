@@ -14,7 +14,13 @@ import { Input } from "@/components/ui/input";
 import { PromptField } from "../PromptField";
 import { Combobox } from "@/components/ui/combobox";
 import { DetailerModelRow } from "../DetailerModelRow";
+import { ParamNotice } from "../ParamNotice";
+import { useModelCapabilities } from "@/hooks/useModelCapabilities";
+import { useStrengthSupported } from "@/hooks/useStrengthSupported";
 import type { DetailerOverrides, DetailerModelEntry } from "@/api/types/v2";
+
+const STRENGTH_IGNORED_HINT =
+  "The loaded model has no strength setting. It redraws each detected region in full from the detailer prompt.";
 
 /** Helper: update one field on detailerDefaults via setParam.
  *
@@ -42,6 +48,12 @@ export function DetailTab() {
   );
   const setParam = useGenerationStore((s) => s.setParam);
   const { data: models } = useDetailerModels();
+  const { detailerMode } = useModelCapabilities();
+  const strengthSupported = useStrengthSupported();
+  const unavailable = detailerMode === "none";
+  // The model redraws each detected region from a prompt, with no strength to hold it back
+  const redraws = detailerMode === "edit" && !strengthSupported;
+  const active = state.detailerEnabled && !unavailable;
 
   const setDefault = useMemo(
     () => makeDefaultsSetters(state.detailerDefaults, setParam),
@@ -118,13 +130,25 @@ export function DetailTab() {
   // Pull defaults values with safe fallbacks for the global (non-inheritable) sliders
   const d = state.detailerDefaults;
 
+  const promptMissing =
+    redraws &&
+    active &&
+    state.detailerModels.some((m) => (m.prompt ?? d.prompt ?? "").trim() === "");
+
   return (
     <div className="flex flex-col gap-3 text-sm">
+      {unavailable && (
+        <ParamNotice>
+          The loaded model cannot run the detailer, so it is left out of the generation.
+        </ParamNotice>
+      )}
+
       <SectionLeader
         title="Detailer"
         enableable
         enabled={state.detailerEnabled}
         onToggleEnabled={set.detailerEnabled}
+        parentDisabled={unavailable}
       >
         <div className="flex flex-col gap-2">
           <label
@@ -159,7 +183,7 @@ export function DetailTab() {
 
       <SectionDivider />
 
-      <div className={state.detailerEnabled ? "" : "opacity-40 pointer-events-none"}>
+      <div className={active ? "" : "opacity-40 pointer-events-none"}>
         <div className="flex flex-col gap-3">
           {/* Per-model rows: collapsed by default; click to expand and override per detector */}
           {state.detailerModels.length > 0 && (
@@ -173,6 +197,7 @@ export function DetailTab() {
                     onUpdate={(next) => updateModelAt(i, next)}
                     onRemove={() => removeModelAt(i)}
                     disabled={!state.detailerEnabled}
+                    strengthIgnoredHint={redraws ? STRENGTH_IGNORED_HINT : undefined}
                   />
                 ))}
               </div>
@@ -192,6 +217,13 @@ export function DetailTab() {
                   placeholder="Detailer prompt (optional)"
                   className="min-h-12"
                 />
+                {promptMissing && (
+                  <ParamNotice>
+                    This model redraws each detected region from a prompt. With none set it follows
+                    the main prompt, so an edit instruction is carried out again inside every
+                    region. Describe what the region should show, such as a detailed face.
+                  </ParamNotice>
+                )}
               </div>
 
               <div className="flex flex-col gap-1">
@@ -229,7 +261,8 @@ export function DetailTab() {
                 min={0}
                 max={1}
                 step={0.01}
-                disabled={!state.detailerEnabled}
+                disabled={!state.detailerEnabled || redraws}
+                disabledHint={redraws ? STRENGTH_IGNORED_HINT : undefined}
               />
             </ParamGrid>
             <ParamSlider

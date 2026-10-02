@@ -4,7 +4,7 @@ import { useCurrentCheckpoint } from "@/api/hooks/useModels";
 import { showImagesTab } from "@/lib/tabVisibility";
 import type { ImagesSubTab } from "@/lib/constants";
 import type { LocalModel, UnifiedModel } from "@/api/types/cloud";
-import type { CheckpointGuidanceV2, CheckpointInfoV2 } from "@/api/types/models";
+import type { CheckpointGuidanceV2, CheckpointInfoV2, DetailerMode } from "@/api/types/models";
 
 /**
  * Per-feature capability flags for the active model. Local models support
@@ -39,6 +39,12 @@ export interface ModelCapabilities {
   /** The request sets the loaded local pipeline's output size, also from a
    * single input image; null while unknown and for other models. */
   requestSetsSize: boolean | null;
+  /** How the detailer runs on the loaded local pipeline, "none" when it
+   * cannot; null while unknown and for other models. */
+  detailerMode: DetailerMode | null;
+  /** An image-to-image pass on the loaded local pipeline takes a denoising
+   * strength; true while unknown and for other models. */
+  strengthSupported: boolean;
   /** Guidance settings the loaded local pipeline applies; null while unknown. */
   guidance: CheckpointGuidanceV2 | null;
   /** Width and height multiple the loaded local pipeline keeps a requested
@@ -102,6 +108,8 @@ export function useModelCapabilities(): ModelCapabilities {
         showTab: (tabId) => showImagesTab(tabId, LOCAL_SUPPORTS),
         maxInputImages: loaded?.max_input_images ?? null,
         requestSetsSize: loaded?.request_sets_size ?? null,
+        detailerMode: loaded?.detailer_mode ?? null,
+        strengthSupported: loaded?.strength_applicable ?? true,
         guidance: loaded?.guidance ?? null,
         sizeMultiple: loaded?.size_multiple ?? null,
       };
@@ -116,6 +124,8 @@ export function useModelCapabilities(): ModelCapabilities {
         showTab: (tabId) => showImagesTab(tabId, LOCAL_VIDEO_SUPPORTS),
         maxInputImages: null,
         requestSetsSize: null,
+        detailerMode: null,
+        strengthSupported: true,
         guidance: null,
         sizeMultiple: null,
       };
@@ -146,6 +156,8 @@ export function useModelCapabilities(): ModelCapabilities {
       showTab: (tabId) => showImagesTab(tabId, supports),
       maxInputImages: model.max_input_images ?? null,
       requestSetsSize: null,
+      detailerMode: null,
+      strengthSupported: true,
       guidance: null,
       sizeMultiple: null,
     };

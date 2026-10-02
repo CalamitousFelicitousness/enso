@@ -3,6 +3,11 @@ import { useGenerationStore } from "@/stores/generationStore";
 import { useShallow } from "zustand/react/shallow";
 import { useSamplerList, useUpscalerGroups } from "@/api/hooks/useModels";
 import { HIRES_SIZE_MODES, HIRES_FIT_MODES, HIRES_CONTEXT_MODES } from "@/lib/constants";
+import { effectiveHires } from "@/lib/hires";
+import { cn } from "@/lib/utils";
+import { useModelCapabilities } from "@/hooks/useModelCapabilities";
+import { useStrengthSupported } from "@/hooks/useStrengthSupported";
+import { ParamNotice, ParamNoticeAction } from "../ParamNotice";
 import { ParamSlider } from "../ParamSlider";
 import { SectionLeader, SectionDivider } from "@/components/ui/section-leader";
 import { ParamRow, ParamGrid } from "../ParamRow";
@@ -46,8 +51,18 @@ export function RefineTab() {
     })),
   );
   const setParam = useGenerationStore((s) => s.setParam);
-  const upscalerGroups = useUpscalerGroups();
+  // A pipeline that reads its input as pixels takes no latent upscaler
+  const pixelInput = useModelCapabilities().requestSetsSize === true;
+  const strengthSupported = useStrengthSupported();
+  const hires = effectiveHires(
+    { upscaler: state.hiresUpscaler, force: state.hiresForce, denoising: state.hiresDenoising },
+    { pixelInput, strength: strengthSupported },
+  );
+  const upscalerGroups = useUpscalerGroups({ excludeLatent: pixelInput });
+  const afterUpscalerGroups = useUpscalerGroups();
   const { data: samplers } = useSamplerList();
+  const refinePromptUsed = state.hiresEnabled || state.refinerEnabled;
+  const hasRefinePrompt = state.refinerPrompt.trim() !== "";
 
   // Derive size mode from store: fixed dims set = "fixed", otherwise "scale"
   const sizeMode = state.hiresResizeX > 0 || state.hiresResizeY > 0 ? "fixed" : "scale";
@@ -97,6 +112,12 @@ export function RefineTab() {
 
   const showContextDropdown = state.hiresResizeMode === 5;
 
+  const openRefinePrompt = useCallback(() => {
+    document.dispatchEvent(
+      new CustomEvent("param-section-expand", { detail: { section: "refine prompt" } }),
+    );
+  }, []);
+
   return (
     <div className="flex flex-col gap-3 text-sm">
       <SectionLeader
@@ -127,25 +148,6 @@ export function RefineTab() {
             max={150}
           />
         </ParamGrid>
-
-        <div className="flex flex-col gap-1">
-          <Label className="text-2xs text-muted-foreground">Refiner prompt</Label>
-          <PromptField
-            value={state.refinerPrompt}
-            onChange={set.refinerPrompt}
-            placeholder="Refiner prompt (optional)"
-            className="min-h-12"
-          />
-        </div>
-        <div className="flex flex-col gap-1">
-          <Label className="text-2xs text-muted-foreground">Refiner negative</Label>
-          <PromptField
-            value={state.refinerNegative}
-            onChange={set.refinerNegative}
-            placeholder="Refiner negative prompt (optional)"
-            className="min-h-9"
-          />
-        </div>
       </SectionLeader>
 
       <SectionDivider />
@@ -160,11 +162,11 @@ export function RefineTab() {
         <div className="flex flex-col gap-2">
           <ParamRow
             label="Upscaler"
-            tooltip="Upscaler model used to enlarge the image before the hires diffusion pass."
-            keywords={["hires", "model", "esrgan", "siax"]}
+            tooltip="Upscaler used to enlarge the image before the hires diffusion pass.<br><br><b>Latent</b> upscalers enlarge the model's internal image and always run the second pass. Models that read their input as a picture, such as <i>Qwen-Image</i>, <i>Klein</i> and <i>Kontext</i>, list only the other upscalers."
+            keywords={["hires", "model", "esrgan", "siax", "latent"]}
           >
             <Combobox
-              value={state.hiresUpscaler}
+              value={hires.upscaler}
               onValueChange={set.hiresUpscaler}
               groups={upscalerGroups}
               className="h-6 text-2xs"
@@ -285,6 +287,8 @@ export function RefineTab() {
               min={0}
               max={1}
               step={0.05}
+              disabled={!strengthSupported}
+              disabledHint="The loaded model has no denoise setting. Its hires pass redraws the image from the prompt and the upscaled picture."
             />
             <ParamSlider
               label="Steps"
@@ -299,11 +303,66 @@ export function RefineTab() {
 
           <label
             data-param="force hires"
-            className="flex items-center gap-1.5 text-2xs text-muted-foreground cursor-pointer"
+            title={
+              pixelInput
+                ? "Always on for the loaded model: without the second pass, hires would only resize the image."
+                : undefined
+            }
+            className={cn(
+              "flex items-center gap-1.5 text-2xs text-muted-foreground",
+              pixelInput ? "cursor-not-allowed" : "cursor-pointer",
+            )}
           >
-            <Checkbox checked={state.hiresForce} onCheckedChange={set.hiresForce} />
+            <Checkbox
+              checked={hires.force}
+              onCheckedChange={set.hiresForce}
+              disabled={pixelInput}
+            />
             Force hires
           </label>
+
+          {pixelInput && state.hiresEnabled && !hasRefinePrompt && (
+            <ParamNotice>
+              On this model the hires pass follows the main prompt again, so an edit instruction is
+              applied a second time. To only refine the image,{" "}
+              <ParamNoticeAction onClick={openRefinePrompt}>set a Refine prompt</ParamNoticeAction>.
+            </ParamNotice>
+          )}
+        </div>
+      </SectionLeader>
+
+      <SectionDivider />
+
+      <SectionLeader
+        title="Refine Prompt"
+        collapsible
+        defaultCollapsed={!hasRefinePrompt && state.refinerNegative.trim() === ""}
+        tooltip="Prompt and negative prompt for the hires pass and the refiner, in place of the main ones. Leave a field empty to use the main prompt for it.<br><br>On edit models such as <i>Qwen-Image</i>, <i>Klein</i> and <i>Kontext</i> the main prompt is an instruction, which these passes would carry out again; a refine prompt that describes the finished image avoids that."
+      >
+        <div
+          className={cn(
+            "flex flex-col gap-1.5",
+            !refinePromptUsed && "opacity-35 pointer-events-none",
+          )}
+        >
+          <div className="flex flex-col gap-1">
+            <Label className="text-2xs text-muted-foreground">Prompt</Label>
+            <PromptField
+              value={state.refinerPrompt}
+              onChange={set.refinerPrompt}
+              placeholder="Refine prompt (optional)"
+              className="min-h-12"
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <Label className="text-2xs text-muted-foreground">Negative</Label>
+            <PromptField
+              value={state.refinerNegative}
+              onChange={set.refinerNegative}
+              placeholder="Refine negative prompt (optional)"
+              className="min-h-9"
+            />
+          </div>
         </div>
       </SectionLeader>
 
@@ -325,7 +384,7 @@ export function RefineTab() {
             <Combobox
               value={state.upscaleAfterUpscaler}
               onValueChange={set.upscaleAfterUpscaler}
-              groups={upscalerGroups}
+              groups={afterUpscalerGroups}
               className="h-6 text-2xs"
             />
           </ParamRow>
