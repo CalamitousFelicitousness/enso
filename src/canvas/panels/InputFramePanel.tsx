@@ -33,17 +33,21 @@ import { INPUTS_FULL_HINT } from "@/canvas/useInputsAtCapacity";
 // styled Tooltip path (matte glass + <b>/<i>/<br> formatting) rather than the
 // native title attribute.
 const INITIAL_MODE_HINT =
-  "<b>Initial</b> sends the canvas as an <i>img2img</i> init image.<br><br>" +
-  "All visible layers are flattened at the frame's generation size, then " +
-  "denoising strength controls how far the result departs from it. Mask " +
-  "painting (inpaint) applies in this mode.<br><br>Holds a single composited image. " +
-  "When other frames hold images too, it goes to the model as one image of the set, " +
-  "and strength and masks no longer apply.";
+  "<b>Initial</b> sends exactly what the frame shows: all visible layers " +
+  "flattened at the output size, so you decide the composition and framing.<br><br>" +
+  "On models with <i>Denoise</i>, it sets how far the result departs from this " +
+  "image, and mask painting (inpaint) applies. Edit models such as <i>Klein</i> " +
+  "and <i>Qwen-Image</i> take it as the image to edit.<br><br>" +
+  "When other frames hold images too, it goes to the model as one image of the " +
+  "set, without Denoise or mask.";
 
 const REFERENCE_MODE_HINT =
-  "<b>Reference</b> sends source files as they are, not flattened or resized to " +
-  "the frame; the model scales each one itself. Suits edit models such as " +
+  "<b>Reference</b> sends source files as they are, not flattened or cropped " +
+  "to the frame. The model reads each one and composes the output itself, so " +
+  "a reference can differ in shape from the output. Suits edit models such as " +
   "<i>Kontext</i>, <i>Klein</i> and <i>Qwen-Image</i>.<br><br>" +
+  "Models that take a single input image generate at its size; Size shows when " +
+  "that applies.<br><br>" +
   "A Reference frame can hold a grid of several images. Several inputs reach the " +
   "model together, numbered as the canvas shows them, on models that take more " +
   "than one image (<i>Qwen-Image 2.1</i>, <i>Qwen Edit Plus</i>, multi-image cloud " +

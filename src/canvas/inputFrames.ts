@@ -120,6 +120,15 @@ export function enumerateWireSlots(frames: FrameShape[]): WireSlot[] {
   return slots;
 }
 
+/** Natural size of the Reference when it is the only image sent, else null. */
+export function loneReferenceSize(frames: FrameShape[]): { width: number; height: number } | null {
+  const slots = enumerateWireSlots(frames);
+  if (slots.length !== 1 || slots[0].mode !== "reference") return null;
+  const slot = slots[0];
+  const reference = frames.find((f) => f.id === slot.frameId)?.references[slot.localIndex];
+  return reference ? { width: reference.naturalWidth, height: reference.naturalHeight } : null;
+}
+
 /** What one wire slot sends: an Initial frame's visible image layers, which the
  * caller flattens, or one reference child sent as-is. */
 export type WireSource =

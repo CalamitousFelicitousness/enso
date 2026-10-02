@@ -1,10 +1,10 @@
-"""Several input images passed to a multi-image model as one condition set.
+"""Input images passed to a multi-image model as one condition set.
 
 sdnext loaders declare ``max_condition_images`` on pipelines that take a flat
 image list as one set shared by every sample; for any other pipeline a list in
 ``inputs`` means one image per run. ``skip_processing`` sends ``inputs`` to the
-pipeline without server preprocessing, which is how several canvas inputs
-reach such a model.
+pipeline without server preprocessing, which is how canvas inputs reach such a
+model as a set, and how a single one keeps the requested output size.
 """
 
 MODEL_AXIS = "[Model] Model"
@@ -21,8 +21,13 @@ def max_condition_images(model) -> int:
     return int(getattr(model, "max_condition_images", None) or 1)
 
 
+def request_sets_size(model) -> bool:
+    """The pipeline declares its condition images, so the request sets its output size."""
+    return int(getattr(model, "max_condition_images", None) or 0) > 0
+
+
 def skipped_settings(params: dict) -> list[str]:
-    """Settings a skip_processing job would ignore, or apply to the output without the other inputs."""
+    """Settings that apply only to a processed input, which a skip_processing job does not have."""
     extra = params.get("extra") or {}
     checks = (
         ("inpaint mask", bool(params.get("mask"))),
@@ -31,10 +36,6 @@ def skipped_settings(params: dict) -> list[str]:
         ("control units", bool(params.get("control"))),
         ("IP-Adapter", bool(params.get("ip_adapter"))),
         ("batch size above 1", params.get("batch_size", 1) > 1),
-        ("hires fix", bool(params.get("enable_hr"))),
-        ("refiner", params.get("refiner_steps", 0) > 0 or params.get("refiner_start", 0) > 0),
-        ("detailer", bool(params.get("detailer_enabled"))),
-        ("color correction", bool(params.get("img2img_color_correction"))),
         ("checkpoint override", bool(extra.get("sd_model_checkpoint"))),
     )
     return [label for label, hit in checks if hit]

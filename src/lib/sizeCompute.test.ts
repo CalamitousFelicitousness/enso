@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import type { WireSlot } from "@/canvas/inputFrames";
 import {
   effectiveSizeMode,
+  imageOutputSize,
+  referenceSetsSize,
   resolveGenerationSize,
   resolveOutputSize,
   snapSize,
@@ -29,9 +31,31 @@ describe("effectiveSizeMode", () => {
     expect(effectiveSizeMode("megapixel", true, [], true)).toBe("fixed");
   });
 
-  it("leaves a lone local Reference to the server", () => {
+  it("sizes a lone Reference from the image only where the model does", () => {
     expect(effectiveSizeMode("megapixel", true, [referenceSlot(0)], true)).toBe("fixed");
     expect(effectiveSizeMode("megapixel", true, [referenceSlot(0)], false)).toBe("megapixel");
+  });
+});
+
+describe("referenceSetsSize", () => {
+  it("takes the image's size on a local model the request does not size", () => {
+    expect(referenceSetsSize(true, false)).toBe(true);
+    expect(referenceSetsSize(true, null)).toBe(true);
+  });
+
+  it("takes the requested size where the request sets it, and on a cloud model", () => {
+    expect(referenceSetsSize(true, true)).toBe(false);
+    expect(referenceSetsSize(false, null)).toBe(false);
+  });
+});
+
+describe("imageOutputSize", () => {
+  it("rounds each side up to the multiple, as the server does", () => {
+    expect(imageOutputSize({ width: 1001, height: 700 }, 8)).toEqual({ width: 1008, height: 704 });
+    expect(imageOutputSize({ width: 1024, height: 1024 }, 32)).toEqual({
+      width: 1024,
+      height: 1024,
+    });
   });
 });
 

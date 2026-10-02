@@ -18,11 +18,13 @@ import { flattenCanvas, compositeControlImage, compositeFitImage } from "@/lib/f
 import { uploadFiles, uploadBlob, uploadFile } from "@/lib/upload";
 import { base64ToBlob } from "@/lib/utils";
 import { REFERENCE_HEIGHT } from "@/canvas/useControlFrameLayout";
-import { wireSources, type WireSource } from "@/canvas/inputFrames";
+import { sourceImageSize, wireSources, type WireSource } from "@/canvas/inputFrames";
 import {
   DEFAULT_SIZE_MULTIPLE,
   effectiveSizeMode,
+  imageOutputSize,
   resolveGenerationSize,
+  serverSizesFromImage,
   snapSize,
 } from "@/lib/sizeCompute";
 import type { ControlRequest, GenerationInfo } from "@/api/types/generation";
@@ -38,8 +40,13 @@ export interface BuildResult {
 export interface ControlBuildOptions {
   /** Most input images the loaded model takes in one request; null when unknown. */
   maxInputImages: number | null;
+  /** The request sets the loaded pipeline's output size, also from one input image. */
+  requestSetsSize: boolean | null;
   /** Width and height multiple the loaded model keeps a size at. */
   sizeMultiple: number;
+  /** The canvas showed a lone Reference at the image's size, from the model
+   * it knew before any load for this job (referenceSetsSize). */
+  referenceSets: boolean;
 }
 
 /** The canvas holds inputs the loaded model cannot take as they are. */
@@ -69,9 +76,9 @@ function serializeDetailerEntry(entry: DetailerModelEntry): DetailerModelRef {
   return stripped as DetailerModelEntry;
 }
 
-/** Why several inputs cannot go out as one set: the model's limit, and settings
- * that would be dropped or would rerun on the output without the other inputs. */
-function multiInputRefusals(
+/** Why the inputs cannot go out as one set: the model's limit, and settings the
+ * server applies only to a processed input. */
+function conditionSetRefusals(
   sources: WireSource[],
   maxInputImages: number | null,
   gen: GenerationState,
@@ -90,15 +97,12 @@ function multiInputRefusals(
   const settings: [string, boolean][] = [
     ["mask", hasMask],
     ["control units", sendsControlUnits],
-    ["hires fix", gen.hiresEnabled],
-    ["refiner", gen.refinerEnabled],
-    ["detailer", gen.detailerEnabled],
-    ["color correction", gen.colorCorrectionEnabled],
     ["checkpoint override", "sd_model_checkpoint" in gen.overrideSettings],
   ];
   const conflicts = settings.filter(([, on]) => on).map(([label]) => label);
   if (conflicts.length > 0) {
-    reasons.push(`Not available with several input images: ${conflicts.join(", ")}`);
+    const inputs = sources.length > 1 ? "several input images" : "a Reference image";
+    reasons.push(`Not available with ${inputs}: ${conflicts.join(", ")}`);
   }
   return reasons;
 }
@@ -137,7 +141,9 @@ async function addConditionSet(
 
 export async function buildControlRequest({
   maxInputImages,
+  requestSetsSize,
   sizeMultiple,
+  referenceSets,
 }: ControlBuildOptions): Promise<BuildResult> {
   const gen = useGenerationStore.getState();
   const scripts = useScriptStore.getState();
@@ -146,10 +152,16 @@ export async function buildControlRequest({
   const canvas = useCanvasStore.getState();
   const ui = useUiStore.getState();
 
-  // One entry per image the canvas numbers, in that order. A single slot keeps
-  // the img2img and raw-reference paths; several go out as one condition set.
+  // One entry per image the canvas numbers, in that order. Several go out as one
+  // condition set, and so does a lone Reference on a pipeline whose output size
+  // the request sets. A single slot otherwise keeps the img2img and
+  // raw-reference paths.
   const sources = wireSources(canvas.inputFrames);
-  const multiInput = sources.length > 1;
+  const slots = sources.map((s) => s.slot);
+  const loneReference = sources.length === 1 && sources[0].kind === "reference";
+  const asSet = sources.length > 1 || (loneReference && requestSetsSize === true);
+  // The frame showed the lone Reference's own size, so that size is sent
+  const shownFromImage = serverSizesFromImage(slots, referenceSets);
 
   const request: ControlRequest = {
     prompt: gen.prompt,
@@ -332,9 +344,9 @@ export async function buildControlRequest({
     .map((u, i) => ({ unit: u, image: resolveUnitImage(control.units, i) }))
     .filter((e) => e.unit.enabled && e.unit.unitType !== "ip" && e.image);
 
-  if (multiInput) {
+  if (asSet) {
     const sendsControlUnits = controlUnitEntries.length > 0 || enabledIPUnits.length > 0;
-    const reasons = multiInputRefusals(sources, maxInputImages, gen, sendsControlUnits);
+    const reasons = conditionSetRefusals(sources, maxInputImages, gen, sendsControlUnits);
     if (reasons.length > 0) throw new InputRefusal(`${reasons.join(". ")}.`);
   }
 
@@ -412,31 +424,38 @@ export async function buildControlRequest({
 
   let inputBlob: Blob | undefined;
   const primary: WireSource | undefined = sources[0];
-  if (multiInput) {
+  if (asSet) {
     // The size rule the canvas layout shows, so the size on screen is the size sent
-    const slots = sources.map((s) => s.slot);
-    const target = resolveGenerationSize(
-      effectiveSizeMode(img2img.sizeMode, ui.autoFitFrame, slots, true),
-      gen.width,
-      gen.height,
-      img2img.scaleFactor,
-      img2img.megapixelTarget,
-      sizeMultiple,
-    );
+    const target = shownFromImage
+      ? imageOutputSize(sourceImageSize(sources[0]), sizeMultiple)
+      : resolveGenerationSize(
+          effectiveSizeMode(img2img.sizeMode, ui.autoFitFrame, slots, referenceSets),
+          gen.width,
+          gen.height,
+          img2img.scaleFactor,
+          img2img.megapixelTarget,
+          sizeMultiple,
+        );
     inputBlob = await addConditionSet(request, sources, gen, target);
   } else if (primary?.kind === "reference") {
-    // Reference slot: upload the source file raw - no flatten, no resize.
-    // Server-side resize_init_images snaps to VAE alignment and overrides
-    // p.width/p.height to the image's dimensions, so edit models (Klein/Kontext/
-    // Qwen Edit) and img2img pipelines all receive the image at native resolution.
+    // The source file as it is. A model that takes one input image generates at
+    // the image's size, rounded up to its multiple.
+    const size = imageOutputSize(sourceImageSize(primary), sizeMultiple);
     request.inputs = [await uploadFile(primary.reference.file)];
     request.input_type = 1;
+    request.width_before = size.width;
+    request.height_before = size.height;
     inputBlob = primary.reference.file;
   } else if (primary?.kind === "initial") {
     // img2img: add inputs, mask, inpainting params
     const frameW = gen.width;
     const frameH = gen.height;
-    const sizeMode = effectiveSizeMode(img2img.sizeMode, ui.autoFitFrame, [primary.slot], true);
+    const sizeMode = effectiveSizeMode(
+      img2img.sizeMode,
+      ui.autoFitFrame,
+      [primary.slot],
+      referenceSets,
+    );
     const genSize = resolveGenerationSize(
       sizeMode,
       frameW,

@@ -57,25 +57,45 @@ export function resolveGenerationSize(
   }
 }
 
-/** A lone Reference on a local model goes out as-is, and the server sizes the
- * output from the image itself. */
-export function serverSizesFromImage(slots: readonly WireSlot[], local: boolean): boolean {
-  return local && slots.length === 1 && slots[0].mode === "reference";
+/** A local model generates a lone Reference at the image's size unless the
+ * request sets its output size, as it does for a cloud model. Unknown (the
+ * selected model is not loaded) counts as the image's size. */
+export function referenceSetsSize(local: boolean, requestSetsSize: boolean | null): boolean {
+  return local && requestSetsSize !== true;
+}
+
+/** The output takes the size of the lone Reference sent. */
+export function serverSizesFromImage(slots: readonly WireSlot[], referenceSets: boolean): boolean {
+  return referenceSets && slots.length === 1 && slots[0].mode === "reference";
+}
+
+/** Output size the server makes from an image it sizes from: each side
+ * rounded up to the multiple. */
+export function imageOutputSize(
+  image: { width: number; height: number },
+  multiple: number,
+): { width: number; height: number } {
+  const up = (value: number) => Math.ceil(value / multiple) * multiple;
+  return { width: up(image.width), height: up(image.height) };
 }
 
 /** Scale and Megapixel apply while Fit sizes the frame from an input image
  * and the request carries that size; otherwise the frame size is sent as is. */
-export function sizeModesApply(fit: boolean, slots: readonly WireSlot[], local: boolean): boolean {
-  return fit && slots.length > 0 && !serverSizesFromImage(slots, local);
+export function sizeModesApply(
+  fit: boolean,
+  slots: readonly WireSlot[],
+  referenceSets: boolean,
+): boolean {
+  return fit && slots.length > 0 && !serverSizesFromImage(slots, referenceSets);
 }
 
 export function effectiveSizeMode(
   sizeMode: SizeMode,
   fit: boolean,
   slots: readonly WireSlot[],
-  local: boolean,
+  referenceSets: boolean,
 ): SizeMode {
-  return sizeModesApply(fit, slots, local) ? sizeMode : "fixed";
+  return sizeModesApply(fit, slots, referenceSets) ? sizeMode : "fixed";
 }
 
 /** Final output size after hires fix, rounded down to the size multiple as the server does. */

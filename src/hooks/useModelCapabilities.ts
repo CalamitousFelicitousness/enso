@@ -36,6 +36,9 @@ export interface ModelCapabilities {
    * unknown or when the model advertises no limit. Local models report it on
    * /sdapi/v2/checkpoint once loaded; cloud models as max_input_images. */
   maxInputImages: number | null;
+  /** The request sets the loaded local pipeline's output size, also from a
+   * single input image; null while unknown and for other models. */
+  requestSetsSize: boolean | null;
   /** Guidance settings the loaded local pipeline applies; null while unknown. */
   guidance: CheckpointGuidanceV2 | null;
   /** Width and height multiple the loaded local pipeline keeps a requested
@@ -98,6 +101,7 @@ export function useModelCapabilities(): ModelCapabilities {
         supports: LOCAL_SUPPORTS,
         showTab: (tabId) => showImagesTab(tabId, LOCAL_SUPPORTS),
         maxInputImages: loaded?.max_input_images ?? null,
+        requestSetsSize: loaded?.request_sets_size ?? null,
         guidance: loaded?.guidance ?? null,
         sizeMultiple: loaded?.size_multiple ?? null,
       };
@@ -111,6 +115,7 @@ export function useModelCapabilities(): ModelCapabilities {
         // survives via its "always" gate.
         showTab: (tabId) => showImagesTab(tabId, LOCAL_VIDEO_SUPPORTS),
         maxInputImages: null,
+        requestSetsSize: null,
         guidance: null,
         sizeMultiple: null,
       };
@@ -140,6 +145,7 @@ export function useModelCapabilities(): ModelCapabilities {
       supports,
       showTab: (tabId) => showImagesTab(tabId, supports),
       maxInputImages: model.max_input_images ?? null,
+      requestSetsSize: null,
       guidance: null,
       sizeMultiple: null,
     };

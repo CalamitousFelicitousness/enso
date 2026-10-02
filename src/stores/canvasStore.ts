@@ -629,6 +629,41 @@ export const useCanvasStore = create<CanvasState>()(
               };
             }
           }
+          // The reverse: entering Initial with no visible image seeds a layer
+          // from references[0], fitted inside the frame like a first image.
+          const firstRef = frame.references[0];
+          const hasImage = frame.layers.some((l) => l.type === "image" && l.visible);
+          if (mode === "initial" && firstRef && !hasImage) {
+            const { width: frameW, height: frameH } = useGenerationStore.getState();
+            const seedLayer: ImageLayer = {
+              id: crypto.randomUUID(),
+              type: "image",
+              name: firstRef.filename,
+              visible: true,
+              opacity: 1,
+              locked: false,
+              imageData: URL.createObjectURL(firstRef.file),
+              file: firstRef.file,
+              naturalWidth: firstRef.naturalWidth,
+              naturalHeight: firstRef.naturalHeight,
+              x: 0,
+              y: 0,
+              width: firstRef.naturalWidth,
+              height: firstRef.naturalHeight,
+              rotation: 0,
+              scaleX: 1,
+              scaleY: 1,
+            };
+            const placed = fitImageLayer(seedLayer, frameW, frameH);
+            return {
+              inputFrames: withFrame(s.inputFrames, frameId, (f) => ({
+                ...f,
+                mode,
+                layers: [...f.layers, placed],
+                activeLayerId: placed.id,
+              })),
+            };
+          }
           return {
             inputFrames: withFrame(s.inputFrames, frameId, (f) => ({
               ...f,

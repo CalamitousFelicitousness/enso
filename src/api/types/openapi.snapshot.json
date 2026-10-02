@@ -8686,6 +8686,18 @@
             ],
             "title": "Name"
           },
+          "request_sets_size": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The request's width and height set the output size, also for a single input image sent unprocessed",
+            "title": "Request Sets Size"
+          },
           "size_multiple": {
             "anyOf": [
               {

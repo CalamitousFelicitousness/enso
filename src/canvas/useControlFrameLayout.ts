@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { useControlStore } from "@/stores/controlStore";
 import { useGenerationStore } from "@/stores/generationStore";
+import { useFrameSize } from "@/canvas/useFrameSize";
 import { useUiStore } from "@/stores/uiStore";
 import { useCanvasStore } from "@/stores/canvasStore";
 import { useFrameShapes } from "@/canvas/useFrameShapes";
@@ -93,8 +94,7 @@ export interface CanvasLayout {
 export function useControlFrameLayout(): CanvasLayout {
   const units = useControlStore((s) => s.units);
   const compositeProcessed = useControlStore((s) => s.compositeProcessed);
-  const frameW = useGenerationStore((s) => s.width);
-  const frameH = useGenerationStore((s) => s.height);
+  const { width: frameW, height: frameH, referenceSets } = useFrameSize();
   const lastResult = useGenerationStore((s) => s.results[0]);
   const storeInputFrames = useFrameShapes();
   const autoFitFrame = useUiStore((s) => s.autoFitFrame);
@@ -111,7 +111,7 @@ export function useControlFrameLayout(): CanvasLayout {
     const wireSlots = enumerateWireSlots(storeInputFrames);
     const isCloudModel = activeModel?.source === "cloud";
     const genSize = resolveGenerationSize(
-      effectiveSizeMode(sizeMode, autoFitFrame, wireSlots, !isCloudModel),
+      effectiveSizeMode(sizeMode, autoFitFrame, wireSlots, referenceSets),
       frameW,
       frameH,
       scaleFactor,
@@ -350,6 +350,7 @@ export function useControlFrameLayout(): CanvasLayout {
     compositeProcessed,
     frameW,
     frameH,
+    referenceSets,
     lastResult,
     storeInputFrames,
     autoFitFrame,

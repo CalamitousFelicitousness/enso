@@ -13,7 +13,7 @@ import {
   restoreFromResult,
   InputRefusal,
 } from "@/lib/requestBuilder";
-import { DEFAULT_SIZE_MULTIPLE } from "@/lib/sizeCompute";
+import { DEFAULT_SIZE_MULTIPLE, referenceSetsSize } from "@/lib/sizeCompute";
 import { blobToBase64 } from "@/lib/image";
 import { snapshotUnits } from "@/stores/controlStore";
 import { useModelSelectionStore } from "@/stores/modelSelectionStore";
@@ -90,7 +90,10 @@ export const ActionBar = memo(function ActionBar() {
     // dropdown's loaded-model label and dedupes a single load across the
     // batch/xyz paths, which call buildRequest once.
     let maxInputImages: number | null = null;
+    let requestSetsSize: boolean | null = null;
     let sizeMultiple = DEFAULT_SIZE_MULTIPLE;
+    // The canvas sized a lone Reference from the model it knew before this load
+    let referenceSets = activeModel?.source !== "cloud";
     if (activeModel?.source === "local") {
       const fetchCheckpoint = (staleTime: number) =>
         queryClient.fetchQuery({
@@ -99,6 +102,8 @@ export const ActionBar = memo(function ActionBar() {
           staleTime,
         });
       let loaded = await fetchCheckpoint(30_000);
+      const shown = loaded.loaded && loaded.title === activeModel.title;
+      referenceSets = referenceSetsSize(true, shown ? (loaded.request_sets_size ?? null) : null);
       if (!loaded.loaded || loaded.title !== activeModel.title) {
         toast.info("Loading model", { description: activeModel.title });
         await loadModel.mutateAsync(activeModel.title);
@@ -106,6 +111,7 @@ export const ActionBar = memo(function ActionBar() {
         loaded = await fetchCheckpoint(0);
       }
       maxInputImages = loaded.max_input_images ?? null;
+      requestSetsSize = loaded.request_sets_size ?? null;
       sizeMultiple = loaded.size_multiple ?? DEFAULT_SIZE_MULTIPLE;
     }
 
@@ -150,10 +156,12 @@ export const ActionBar = memo(function ActionBar() {
       primaryFrame?.mode === "initial" && primaryFrame.layers.some((l) => l.type === "image");
     const { request, inputBlob } = await buildControlRequest({
       maxInputImages,
+      requestSetsSize,
       sizeMultiple,
+      referenceSets,
     }).catch((err: unknown) => {
       if (err instanceof InputRefusal) {
-        toast.warning("Can't generate with several input images", { description: err.message });
+        toast.warning("Can't generate with these input images", { description: err.message });
         throw new UserAbortError(err.message);
       }
       throw err;

@@ -1,9 +1,11 @@
 import { useMemo, useCallback } from "react";
+import { Info } from "lucide-react";
 import { useGenerationStore } from "@/stores/generationStore";
 import { useUiStore } from "@/stores/uiStore";
 import { useImg2ImgStore } from "@/stores/img2imgStore";
 import { useCanvasStore } from "@/stores/canvasStore";
 import { useFrameShapes } from "@/canvas/useFrameShapes";
+import { useFrameSize } from "@/canvas/useFrameSize";
 import { enumerateWireSlots, parseSizeSourceValue } from "@/canvas/inputFrames";
 import { useSizeSourceOptions, useSizeSourceValue } from "@/canvas/useSizeSource";
 import { useAspectLock, useAspectPresets } from "@/hooks/useAspectLock";
@@ -12,12 +14,7 @@ import { useShallow } from "zustand/react/shallow";
 import { usePromptStyles } from "@/api/hooks/useNetworks";
 import { useUpscalerGroups } from "@/api/hooks/useModels";
 import { cn } from "@/lib/utils";
-import {
-  resolveGenerationSize,
-  formatMegapixels,
-  serverSizesFromImage,
-  sizeModesApply,
-} from "@/lib/sizeCompute";
+import { resolveGenerationSize, formatMegapixels, sizeModesApply } from "@/lib/sizeCompute";
 import type { SizeMode } from "@/lib/sizeCompute";
 import type { AspectPreset } from "@/lib/aspect";
 import type { ParamDescriptor } from "@/api/types/cloud";
@@ -168,60 +165,28 @@ export function PromptsTab() {
       return null;
     }
   }, [lastResult]);
-  const lastResultSize = useMemo(() => {
-    if (!lastInfo) return null;
-    const w = lastInfo.width;
-    const h = lastInfo.height;
-    if (typeof w !== "number" || typeof h !== "number") return null;
-    if (w <= 0 || h <= 0) return null;
-    if (w === state.width && h === state.height) return null;
-    return { w, h };
-  }, [lastInfo, state.width, state.height]);
-
-  // A lone Reference on a local model is sent raw via `inputs`, and the
-  // server's resize_init_images overrides p.width/p.height to match it, so
-  // Size is informational there. Cloud models honor request.size, and several
-  // inputs go out with the frame size in the request.
-  const firstReferenceImage = useCanvasStore((s) => {
-    for (const f of s.inputFrames) {
-      if (f.mode === "reference" && f.references.length > 0) {
-        return f.references[0];
-      }
-    }
-    return null;
-  });
   const isCloud = activeModel != null && activeModel.source === "cloud";
-  const referenceInactive = activeModel != null && serverSizesFromImage(slots, !isCloud);
   // Auto dims Size whenever the user toggle is on (cloud). The provider may
   // still reject the auto value at submission time; that's caught via the
   // job-error path, not by client-side UI suppression.
   const autoInactive = isCloud && autoSize;
-  const sizeIsAdvisory = referenceInactive || autoInactive;
-  const sizeTooltip = useMemo(() => {
-    const base = "Output dimensions in pixels.";
-    const notes: string[] = [];
-    if (autoInactive) {
-      notes.push(
-        "Auto modifier is on &mdash; the server picks output dimensions. " +
-          "Turn Auto off to control output size.",
-      );
-    }
-    if (referenceInactive && firstReferenceImage) {
-      notes.push(
-        "Inactive for a single Reference on local models &mdash; " +
-          `output resolution is set by that image ` +
-          `(${firstReferenceImage.naturalWidth}&times;${firstReferenceImage.naturalHeight}). ` +
-          "Add another input image or switch to Initial to control output size.",
-      );
-    }
-    if (notes.length === 0) return base;
-    return (
-      `${base}<br><br>` + notes.map((n) => `<span style="opacity:0.7">${n}</span>`).join("<br><br>")
-    );
-  }, [autoInactive, referenceInactive, firstReferenceImage]);
+  const sizeTooltip = autoInactive
+    ? "Output dimensions in pixels.<br><br>" +
+      '<span style="opacity:0.7">Auto is on, so the server picks the output size. ' +
+      "Turn Auto off to set it here.</span>"
+    : "Output dimensions in pixels.";
   const aspectPresets = useAspectPresets();
 
-  const showSizeModes = sizeModesApply(autoFitFrame, slots, !isCloud);
+  // A lone Reference on a model that generates at the image's size fixes the frame
+  const frame = useFrameSize();
+  const locked = frame.lockedTo != null;
+  const setFrameMode = useCanvasStore((s) => s.setFrameMode);
+  const lockedFrameId = locked ? slots[0].frameId : null;
+  const lockedHint = frame.pending
+    ? `The selected model is not loaded yet, so the output takes the size of Input 1: ${frame.width}×${frame.height}.`
+    : `This model generates at the size of its input image: ${frame.width}×${frame.height}.`;
+
+  const showSizeModes = sizeModesApply(autoFitFrame, slots, frame.referenceSets);
   const effectiveSizeMode: SizeMode = showSizeModes ? sizeMode : "fixed";
   const isFixed = effectiveSizeMode === "fixed";
 
@@ -238,6 +203,17 @@ export function PromptsTab() {
       ),
     [effectiveSizeMode, state.width, state.height, scaleFactor, megapixelTarget, sizeMultiple],
   );
+
+  const shownSize = isFixed ? { width: frame.width, height: frame.height } : genSize;
+  const lastResultSize = useMemo(() => {
+    if (!lastInfo || locked) return null;
+    const w = lastInfo.width;
+    const h = lastInfo.height;
+    if (typeof w !== "number" || typeof h !== "number") return null;
+    if (w <= 0 || h <= 0) return null;
+    if (w === shownSize.width && h === shownSize.height) return null;
+    return { w, h };
+  }, [lastInfo, locked, shownSize.width, shownSize.height]);
 
   const onWidth = useCallback((v: number) => setParam("width", v), [setParam]);
   const onHeight = useCallback((v: number) => setParam("height", v), [setParam]);
@@ -281,14 +257,17 @@ export function PromptsTab() {
             <div className="flex items-center gap-1">
               {slots.length > 0 && (
                 <Button
-                  variant={autoFitFrame ? "default" : "outline"}
+                  variant={autoFitFrame || locked ? "default" : "outline"}
                   size="sm"
                   onClick={() => setAutoFitFrame(!autoFitFrame)}
+                  disabled={locked}
                   className="h-5 px-1.5 text-3xs rounded"
                   title={
-                    autoFitFrame
-                      ? "Fit on: the frame takes the size of one input image, Input 1 unless you pick another in Size from"
-                      : "Fit off: frame stays at the width and height you set, regardless of image size"
+                    locked
+                      ? lockedHint
+                      : autoFitFrame
+                        ? "Fit on: the frame takes the size of one input image, Input 1 unless you pick another in Size from"
+                        : "Fit off: frame stays at the width and height you set, regardless of image size"
                   }
                 >
                   Fit
@@ -317,8 +296,8 @@ export function PromptsTab() {
         }
       >
         <div
-          className={cn("flex flex-col gap-2 transition-opacity", sizeIsAdvisory && "opacity-60")}
-          title={sizeIsAdvisory ? sizeTooltip.replace(/<[^>]*>/g, "") : undefined}
+          className={cn("flex flex-col gap-2 transition-opacity", autoInactive && "opacity-60")}
+          title={autoInactive ? sizeTooltip.replace(/<[^>]*>/g, "") : undefined}
         >
           {autoFitFrame && multiInput && (
             <ParamRow
@@ -351,12 +330,13 @@ export function PromptsTab() {
                 label="Width"
                 tooltip="Output width in pixels, in steps the loaded model keeps exactly: 8 for SD and SDXL, 16 for FLUX.2 and Qwen-Image, 32 for Qwen-Image 2.1. Generation time and VRAM scale with width x height; sizes far above the model's native resolution invite doubled subjects and stretched composition."
                 keywords={["size", "dimensions", "resolution", "aspect", "landscape"]}
-                value={isFixed ? state.width : genSize.width}
+                value={shownSize.width}
                 onChange={aspect.setWidth}
                 min={aspect.widthBounds.min}
                 max={aspect.widthBounds.max}
                 step={sizeMultiple}
-                disabled={!isFixed}
+                disabled={!isFixed || locked}
+                disabledHint={locked ? lockedHint : undefined}
               />
             </div>
             <div data-param="aspect ratio" className="shrink-0">
@@ -365,7 +345,7 @@ export function PromptsTab() {
                 activePreset={aspect.activePreset}
                 onSelectPreset={aspect.selectPreset}
                 onSwap={aspect.swap}
-                disabled={!isFixed}
+                disabled={!isFixed || locked}
                 isPresetDisabled={(p) => !aspect.fitsPreset(p)}
                 absolutePresets={cloudSizePresets}
                 onSelectAbsolute={aspect.selectAbsolute}
@@ -377,15 +357,33 @@ export function PromptsTab() {
                 label="Height"
                 tooltip="Output height in pixels, in steps the loaded model keeps exactly: 8 for SD and SDXL, 16 for FLUX.2 and Qwen-Image, 32 for Qwen-Image 2.1. Generation time and VRAM scale with width x height; sizes far above the model's native resolution invite doubled subjects and stretched composition."
                 keywords={["size", "dimensions", "resolution", "aspect", "portrait"]}
-                value={isFixed ? state.height : genSize.height}
+                value={shownSize.height}
                 onChange={aspect.setHeight}
                 min={aspect.heightBounds.min}
                 max={aspect.heightBounds.max}
                 step={sizeMultiple}
-                disabled={!isFixed}
+                disabled={!isFixed || locked}
+                disabledHint={locked ? lockedHint : undefined}
               />
             </div>
           </div>
+
+          {lockedFrameId && (
+            <div className="flex items-start gap-1.5 rounded border border-border/40 bg-muted/30 px-2 py-1.5 text-3xs text-muted-foreground">
+              <Info size={11} className="mt-px shrink-0" />
+              <span>
+                {lockedHint} To choose another size,{" "}
+                <button
+                  type="button"
+                  onClick={() => setFrameMode(lockedFrameId, "initial")}
+                  className="text-foreground underline decoration-dotted underline-offset-2 hover:decoration-solid"
+                >
+                  switch Input 1 to Initial
+                </button>
+                {frame.pending ? " or load the model." : "."}
+              </span>
+            </div>
+          )}
 
           {/* Scale slider */}
           {effectiveSizeMode === "scale" && (

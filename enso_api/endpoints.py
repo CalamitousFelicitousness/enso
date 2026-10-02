@@ -562,6 +562,7 @@ def build_checkpoint_info() -> ResCheckpointV2:
         type=shared.sd_model_type,
         class_name=shared.sd_model.__class__.__name__,
         max_input_images=condition_images.max_condition_images(shared.sd_model),
+        request_sets_size=condition_images.request_sets_size(shared.sd_model),
         guidance=checkpoint_guidance(shared.sd_model),
         size_multiple=checkpoint_size_multiple(shared.sd_model),
     )
