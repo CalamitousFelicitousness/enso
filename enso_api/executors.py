@@ -209,6 +209,16 @@ def missing_sdnext_names() -> list[str]:
     return missing
 
 
+class GenerationFailed(Exception):
+    """control_run ended without an image; sdnext has already logged the cause."""
+
+    logged = True
+
+    def __init__(self, detail: str):
+        super().__init__(detail)
+        self.detail = detail
+
+
 def execute_generate(params: dict, job_id: str) -> dict:
     from modules import processing_helpers, shared
     from modules.api import helpers
@@ -355,7 +365,11 @@ def execute_generate(params: dict, job_id: str) -> dict:
 
         output_images = []
         output_processed = []
+        stop_message = None
         for item in res:
+            if isinstance(item, str):  # control_run stopping early with its reason
+                stop_message = item
+                continue
             if len(item) > 0 and (isinstance(item[0], list) or item[0] is None):
                 output_images += item[0] if item[0] is not None else []
             if len(item) > 1 and item[1] is not None:
@@ -367,6 +381,13 @@ def execute_generate(params: dict, job_id: str) -> dict:
         shared.state.end(jobid)
         if detailer_restore is not None:
             detailer_restore()
+
+    # control_run logs a pipeline exception and returns no image instead of raising
+    if not output_images:
+        from enso_api.job_queue import job_queue
+
+        if not job_queue.stopped_by_user(job_id):
+            raise GenerationFailed(stop_message or "No image was generated. The Console shows the reason.")
 
     # Collect saved file paths
     image_refs = []

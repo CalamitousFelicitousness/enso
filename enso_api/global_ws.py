@@ -102,6 +102,10 @@ async def handle_command(ws: WebSocket, data: dict):
     from modules import shared
 
     msg_type = data.get("type", "")
+    if msg_type in ("interrupt", "skip"):
+        from enso_api.job_queue import job_queue
+
+        job_queue.note_user_stop()
     if msg_type == "interrupt":
         shared.state.interrupt()
         await manager.send_json(ws, {"type": "ack", "data": {"command": "interrupt"}})

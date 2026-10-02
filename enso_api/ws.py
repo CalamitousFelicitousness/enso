@@ -64,6 +64,8 @@ async def ws_job_endpoint(ws: WebSocket, job_id: str):
                 while True:
                     data = await ws.receive_json()
                     msg_type = data.get("type", "")
+                    if msg_type in ("interrupt", "skip"):
+                        job_queue.note_user_stop()
                     if msg_type == "interrupt":
                         from modules import shared
 

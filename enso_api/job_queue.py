@@ -177,6 +177,7 @@ class JobQueue:
         self._cloud_pool: ThreadPoolExecutor | None = None
         self._job_event = threading.Event()
         self._cancel_ids: set[str] = set()
+        self.stopped_ids: set[str] = set()
         self._subscribers: dict[str, list[asyncio.Queue]] = {}
         self._sub_lock = threading.Lock()
         self._current_job_id: str | None = None
@@ -187,6 +188,15 @@ class JobQueue:
     def running_job_id(self) -> str | None:
         """Local job being executed, or None."""
         return self._current_job_id
+
+    def note_user_stop(self) -> None:
+        """Stop or Skip pressed while a local job runs."""
+        if self._current_job_id is not None:
+            self.stopped_ids.add(self._current_job_id)
+
+    def stopped_by_user(self, job_id: str) -> bool:
+        """The user cancelled, stopped or skipped this job while it ran."""
+        return job_id in self._cancel_ids or job_id in self.stopped_ids
 
     def init(self, data_path: str, legacy_path: str | None = None) -> None:
         if self._initialized:
@@ -381,6 +391,8 @@ class JobQueue:
             code, error_msg = job_failure(e)
             if code is not None and 400 <= code < 500:
                 log.info(f"Job queue: rejected id={job_id} type={job_type} code={code} error={error_msg}")
+            elif getattr(e, "logged", False):
+                log.error(f"Job queue: failed id={job_id} type={job_type} error={error_msg}")
             else:
                 from modules import errors
 
@@ -396,6 +408,7 @@ class JobQueue:
             poller.join(timeout=2.0)
             shared.state.disable_preview = False
             self._current_job_id = None
+            self.stopped_ids.discard(job_id)
             if self.store.next_pending():
                 self._job_event.set()
 
