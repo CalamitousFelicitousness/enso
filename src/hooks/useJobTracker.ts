@@ -20,14 +20,6 @@ function isTerminal(status: string) {
 function routeResult(domain: JobDomain, result: JobResult, snapshot: TrackedJob["snapshot"]) {
   if (domain === "generate") {
     if (result.images.length > 0) {
-      const isHires = result.params?.["enable_hr"] === true || result.info?.["enable_hr"] === true;
-      const hasMultipleImages = result.images.length > 1;
-      let baseImage: string | undefined;
-      let finalImages = result.images.map((img) => img.url);
-      if (isHires && hasMultipleImages) {
-        baseImage = result.images[0].url;
-        finalImages = result.images.slice(1).map((img) => img.url);
-      }
       // Only the "control" snapshot variant captures inputImage/inputMask/controlUnits.
       // Detail jobs capture inputImage only; cloud/none jobs capture nothing.
       const inputImage =
@@ -36,7 +28,7 @@ function routeResult(domain: JobDomain, result: JobResult, snapshot: TrackedJob[
       const controlUnits = snapshot.kind === "control" ? snapshot.controlUnits : undefined;
       useGenerationStore.getState().addResult({
         id: crypto.randomUUID(),
-        images: finalImages,
+        images: result.images.map((img) => img.url),
         // Server returns snake_case JSON; the structural assignment to
         // WireParams here crosses the wire-contract boundary.
         parameters: result.params,
@@ -45,7 +37,6 @@ function routeResult(domain: JobDomain, result: JobResult, snapshot: TrackedJob[
         inputImage,
         inputMask,
         controlUnits,
-        baseImage,
       });
     }
     if (result.processed?.length > 0) {

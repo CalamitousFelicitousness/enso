@@ -19,8 +19,6 @@ export interface GenerationResult {
   inputMask?: MaskLine[] | undefined;
   /** Control unit settings + images captured at generation time. */
   controlUnits?: ControlUnitSnapshot[] | undefined;
-  /** Pre-hires-fix base image URL, stored when generation used enable_hr. */
-  baseImage?: string | undefined;
 }
 
 export const generationHistoryDb = createIdbListDb<GenerationResult>({

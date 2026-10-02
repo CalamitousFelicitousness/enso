@@ -152,7 +152,7 @@ export const ResultGallery = memo(function ResultGallery() {
   }, [contextMenu]);
 
   const handleContextAction = useCallback(
-    (action: "restore" | "compare" | "compareWith" | "beforeAfter") => {
+    (action: "restore" | "compare" | "compareWith") => {
       if (!contextMenu) return;
       const result = useGenerationStore
         .getState()
@@ -170,15 +170,6 @@ export const ResultGallery = memo(function ResultGallery() {
         setCompareCandidate({ resultId, imageIndex });
         setComparePickMode(true);
         toast.info("Click another thumbnail to compare");
-      } else if (action === "beforeAfter" && result.baseImage) {
-        const srcA = result.baseImage;
-        const srcB = resolveImageSrc(result.images[imageIndex]);
-        useComparisonStore
-          .getState()
-          .openComparison(
-            { src: srcA, label: "Before (base)", resultId, imageIndex },
-            { src: srcB, label: "After (final)", resultId, imageIndex },
-          );
       }
     },
     [contextMenu],
@@ -306,7 +297,6 @@ export const ResultGallery = memo(function ResultGallery() {
                 imageIndex: 0,
                 image: result.images[0],
                 key: `${result.id}-0`,
-                hasBaseImage: !!result.baseImage,
               }}
               result={result}
               size={thumbSize}
@@ -401,18 +391,6 @@ export const ResultGallery = memo(function ResultGallery() {
           >
             Compare with...
           </button>
-          {(() => {
-            const r = results.find((r) => r.id === contextMenu.resultId);
-            return r?.baseImage ? (
-              <button
-                type="button"
-                className="w-full text-left px-2 py-1 rounded-sm hover:bg-accent"
-                onClick={() => handleContextAction("beforeAfter")}
-              >
-                Before / After
-              </button>
-            ) : null;
-          })()}
         </div>
       )}
 
@@ -535,7 +513,6 @@ const BatchTile = memo(function BatchTile({
                 imageIndex: ii,
                 image: img,
                 key: `${result.id}-${ii}`,
-                hasBaseImage: !!result.baseImage,
               }}
               result={result}
               size={POPOVER_THUMB}
@@ -562,7 +539,6 @@ interface ResultThumbProps {
     imageIndex: number;
     image: string;
     key: string;
-    hasBaseImage: boolean;
   };
   result: GenerationResult;
   size: number;
