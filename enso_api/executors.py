@@ -214,9 +214,10 @@ class GenerationFailed(Exception):
 
     logged = True
 
-    def __init__(self, detail: str):
-        super().__init__(detail)
-        self.detail = detail
+    def __init__(self, reason: str | None):
+        self.reason = reason  # control_run's own stop message, when it gave one
+        self.detail = reason or "No image was generated. The Console shows the reason."
+        super().__init__(self.detail)
 
 
 def execute_generate(params: dict, job_id: str) -> dict:
@@ -387,7 +388,7 @@ def execute_generate(params: dict, job_id: str) -> dict:
         from enso_api.job_queue import job_queue
 
         if not job_queue.stopped_by_user(job_id):
-            raise GenerationFailed(stop_message or "No image was generated. The Console shows the reason.")
+            raise GenerationFailed(stop_message)
 
     # Collect saved file paths
     image_refs = []

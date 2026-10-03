@@ -8,6 +8,7 @@ import threading
 from concurrent.futures import ThreadPoolExecutor
 
 from enso_api.job_store import JobStore
+from enso_api.job_warnings import JobLogCapture
 from enso_api.models import JobResult
 from enso_api.util import job_progress, preview_image
 from enso_api.ws_models import (
@@ -366,6 +367,8 @@ class JobQueue:
         poller = threading.Thread(target=self._progress_poller, args=(job_id, poller_stop, stages), daemon=True, name=f"v2-progress-{job_id[:8]}")
         poller.start()
 
+        capture = JobLogCapture()
+        log.addHandler(capture)
         try:
             from modules.call_queue import queue_lock
 
@@ -381,6 +384,8 @@ class JobQueue:
                 if isinstance(params, str):
                     params = json.loads(params)
                 result = executor_fn(params, job_id)
+            if capture.entries:
+                result["warnings"] = capture.entries
             self.output_register_failures += assign_output_urls(self.store, result, job_id)
             result_json = json.dumps(result, default=str)
             self.store.update_status(job_id, "completed", completed_at=JobStore.now(), result=result_json)
@@ -392,6 +397,8 @@ class JobQueue:
             if code is not None and 400 <= code < 500:
                 log.info(f"Job queue: rejected id={job_id} type={job_type} code={code} error={error_msg}")
             elif getattr(e, "logged", False):
+                # the executor's own reason, else the error sdnext logged for it
+                error_msg = getattr(e, "reason", None) or capture.first_error() or error_msg
                 log.error(f"Job queue: failed id={job_id} type={job_type} error={error_msg}")
             else:
                 from modules import errors
@@ -404,6 +411,7 @@ class JobQueue:
                 self.store.update_status(job_id, "cancelled", completed_at=JobStore.now())
                 self.push_progress(job_id, WsEventStatus(status="cancelled").model_dump(exclude_none=True))
         finally:
+            log.removeHandler(capture)
             poller_stop.set()
             poller.join(timeout=2.0)
             shared.state.disable_preview = False

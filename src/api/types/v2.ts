@@ -515,6 +515,13 @@ export interface VideoRef {
   duration: number | null;
 }
 
+/** One line sdnext logged at warning level or above while the job ran.
+ * Mirrors JobWarning in enso_api/models.py. */
+export interface JobWarning {
+  level: "warning" | "error";
+  message: string;
+}
+
 export interface JobResult {
   images: ImageRef[];
   processed: ImageRef[];
@@ -523,6 +530,8 @@ export interface JobResult {
   videos?: VideoRef[] | undefined;
   info: Record<string, unknown>;
   params: Record<string, unknown>;
+  /** Empty or absent when the job logged none. */
+  warnings?: JobWarning[] | undefined;
 }
 
 export type JobStatus = "pending" | "running" | "completed" | "failed" | "cancelled";

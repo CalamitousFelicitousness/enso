@@ -4999,6 +4999,13 @@
             },
             "title": "Videos",
             "type": "array"
+          },
+          "warnings": {
+            "items": {
+              "$ref": "#/components/schemas/JobWarning"
+            },
+            "title": "Warnings",
+            "type": "array"
           }
         },
         "required": [
@@ -5006,9 +5013,33 @@
           "processed",
           "videos",
           "info",
-          "params"
+          "params",
+          "warnings"
         ],
         "title": "JobResult",
+        "type": "object"
+      },
+      "JobWarning": {
+        "description": "One line sdnext logged at warning level or above while the job ran.",
+        "properties": {
+          "level": {
+            "enum": [
+              "warning",
+              "error"
+            ],
+            "title": "Level",
+            "type": "string"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          }
+        },
+        "required": [
+          "level",
+          "message"
+        ],
+        "title": "JobWarning",
         "type": "object"
       },
       "LoaderComponentOverrideV2": {

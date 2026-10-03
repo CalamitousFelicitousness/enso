@@ -3,7 +3,7 @@ import { persist } from "zustand/middleware";
 import { createIdbListDb } from "@/lib/idbListDb";
 import type { MaskLine } from "@/stores/img2imgStore";
 import type { ControlUnitSnapshot } from "@/api/types/control";
-import type { DetailerOverrides, DetailerModelEntry } from "@/api/types/v2";
+import type { DetailerOverrides, DetailerModelEntry, JobWarning } from "@/api/types/v2";
 import type { WireParams } from "@/api/types/wireParams";
 import { DEFAULT_HIRES_UPSCALER } from "@/lib/hires";
 
@@ -19,6 +19,8 @@ export interface GenerationResult {
   inputMask?: MaskLine[] | undefined;
   /** Control unit settings + images captured at generation time. */
   controlUnits?: ControlUnitSnapshot[] | undefined;
+  /** Lines the server logged at warning level or above during the job. */
+  warnings?: JobWarning[] | undefined;
 }
 
 export const generationHistoryDb = createIdbListDb<GenerationResult>({

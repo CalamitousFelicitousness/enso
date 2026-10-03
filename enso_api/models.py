@@ -79,6 +79,13 @@ class VideoRef(BaseModel):
     duration: float | None = None
 
 
+class JobWarning(BaseModel):
+    """One line sdnext logged at warning level or above while the job ran."""
+
+    level: Literal["warning", "error"]
+    message: str
+
+
 class JobResult(BaseModel):
     """The result payload attached to a completed JobResponse.
 
@@ -93,6 +100,7 @@ class JobResult(BaseModel):
     videos: list[VideoRef]
     info: dict
     params: dict
+    warnings: list[JobWarning]
 
     @classmethod
     def from_result_dict(cls, result: dict) -> "JobResult":
@@ -109,6 +117,7 @@ class JobResult(BaseModel):
             videos=result.get("videos", []),
             info=result.get("info", {}),
             params=result.get("params", {}),
+            warnings=result.get("warnings", []),
         )
 
 

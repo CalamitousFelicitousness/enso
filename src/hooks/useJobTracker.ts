@@ -37,6 +37,7 @@ function routeResult(domain: JobDomain, result: JobResult, snapshot: TrackedJob[
         inputImage,
         inputMask,
         controlUnits,
+        warnings: result.warnings,
       });
     }
     if (result.processed?.length > 0) {

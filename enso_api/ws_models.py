@@ -111,7 +111,7 @@ if __name__ == "__main__":
         WsEventProgress(step=5, steps=20, progress=0.25, eta=12.5, task="Base", stage=0, stage_name="Generate", stage_count=2, phase=None),
         WsEventCloudProgress(phase="processing", detail="Polling NanoGPT", progress=0.5, position=3, elapsed=8.0),
         WsEventStages(stages=["Generate", "Hires", "Detailer"]),
-        WsEventCompleted(result=JobResult(images=[], processed=[], videos=[], info={}, params={})),
+        WsEventCompleted(result=JobResult(images=[], processed=[], videos=[], info={}, params={}, warnings=[])),
         WsEventError(error="ValueError: bad input"),
         WsEventCancelled(),
         WsEventPing(),

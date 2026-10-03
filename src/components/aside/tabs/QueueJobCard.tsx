@@ -15,6 +15,7 @@ import type { TrackedJob, JobDomain } from "@/stores/jobStore";
 import { useCancelJob } from "@/api/hooks/useJobs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { JobWarnings } from "@/components/generation/JobWarnings";
 
 const DOMAIN_ICONS: Record<JobDomain, typeof Image> = {
   generate: Image,
@@ -122,6 +123,7 @@ export function QueueJobCard({
         <Badge variant={statusBadgeVariant(job.status)} className="text-4xs px-1 py-0 shrink-0">
           {job.status}
         </Badge>
+        <JobWarnings warnings={job.result?.warnings} />
         {/* Reorder buttons for pending */}
         {isPending && onMoveUp && (
           <Button

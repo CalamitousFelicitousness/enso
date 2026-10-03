@@ -18,6 +18,7 @@ import { getJobPayload } from "@/lib/jobPayloadDb";
 import { resolveImageSrc } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { JobWarnings } from "@/components/generation/JobWarnings";
 
 const TYPE_ICONS: Record<string, typeof Image> = {
   generate: Image,
@@ -131,6 +132,7 @@ export function HistoryJobCard({ job }: HistoryJobCardProps) {
           <Badge variant={statusBadgeVariant(job.status)} className="text-4xs px-1 py-0 shrink-0">
             {job.status}
           </Badge>
+          <JobWarnings warnings={job.result?.warnings} />
         </div>
 
         {job.status === "failed" && job.error && (

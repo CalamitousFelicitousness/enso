@@ -26,6 +26,7 @@ import { KeepAlivePanel } from "@/components/ui/keep-alive";
 import { downloadImage, generateImageFilename, resolveImageSrc } from "@/lib/utils";
 import type { GenerationInfo } from "@/api/types/generation";
 import { loadImageFile } from "@/lib/image";
+import { JobWarnings } from "@/components/generation/JobWarnings";
 import {
   ELEMENT_GAP,
   PROCESSED_HEADER_HEIGHT,
@@ -662,6 +663,7 @@ function OutputFramePanel({
 
   const actions = (
     <>
+      <JobWarnings warnings={selectedResult?.warnings} />
       <Button
         variant="ghost"
         size="icon-xs"
