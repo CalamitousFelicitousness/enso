@@ -22,9 +22,14 @@ export class WebSocketManager {
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private listeners = new Map<keyof WsEvents, Set<(...args: never[]) => void>>();
 
-  constructor(url: string, ticketFn?: () => Promise<string>) {
+  constructor(
+    url: string,
+    ticketFn?: () => Promise<string>,
+    options?: { maxReconnectAttempts?: number },
+  ) {
     this.url = url;
     this.ticketFn = ticketFn ?? null;
+    this.maxReconnectAttempts = options?.maxReconnectAttempts ?? this.maxReconnectAttempts;
   }
 
   connect(): void {
