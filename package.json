@@ -27,6 +27,7 @@
     "locale:refresh": "tsx scripts/locale-refresh.ts",
     "locale:check": "tsx scripts/locale-check.ts",
     "test": "vitest run",
+    "test:e2e": "playwright test",
     "check": "pnpm run typecheck && pnpm run lint && pnpm run format:check && pnpm run format:py:check && pnpm run test"
   },
   "dependencies": {
@@ -71,6 +72,7 @@
     "@eslint/compat": "^2.1.0",
     "@eslint/js": "^10.0.1",
     "@hey-api/openapi-ts": "0.99.0",
+    "@playwright/test": "^1.63.0",
     "@total-typescript/ts-reset": "^0.6.1",
     "@types/node": "^25.9.5",
     "@types/react": "^19.2.17",
