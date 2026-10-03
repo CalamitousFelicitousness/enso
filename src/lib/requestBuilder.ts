@@ -456,6 +456,13 @@ export async function buildControlRequest({
     // The source file as it is. A model that takes one input image generates at
     // the image's size, rounded up to its multiple.
     const size = imageOutputSize(sourceImageSize(primary), sizeMultiple);
+    // The canvas showed the Size set, going by what this model reported when it
+    // was last loaded; it now reports otherwise.
+    if (!shownFromImage) {
+      throw new InputRefusal(
+        `The loaded model generates at the size of its input image, ${size.width}×${size.height}, and Size now shows that. Generate again to use it.`,
+      );
+    }
     request.inputs = [await uploadFile(primary.reference.file)];
     request.input_type = 1;
     request.width_before = size.width;

@@ -17,6 +17,7 @@ import { DEFAULT_SIZE_MULTIPLE, referenceSetsSize } from "@/lib/sizeCompute";
 import { blobToBase64 } from "@/lib/image";
 import { snapshotUnits } from "@/stores/controlStore";
 import { useModelSelectionStore } from "@/stores/modelSelectionStore";
+import { useModelCapabilityStore, type ModelCapabilityRecord } from "@/stores/modelCapabilityStore";
 import { usePromptHistoryStore } from "@/stores/promptHistoryStore";
 import { useSubmitToQueue, UserAbortError } from "@/hooks/useSubmitToQueue";
 import { sendToJob } from "@/hooks/useJobTracker";
@@ -108,7 +109,13 @@ export const ActionBar = memo(function ActionBar() {
         });
       let loaded = await fetchCheckpoint(30_000);
       const shown = loaded.loaded && loaded.title === activeModel.title;
-      referenceSets = referenceSetsSize(true, shown ? (loaded.request_sets_size ?? null) : null);
+      // For a pick not loaded yet, the canvas went by what the model reported when last loaded
+      const remembered: ModelCapabilityRecord | undefined =
+        useModelCapabilityStore.getState().byTitle[activeModel.title];
+      referenceSets = referenceSetsSize(
+        true,
+        (shown ? loaded.request_sets_size : remembered?.request_sets_size) ?? null,
+      );
       if (!loaded.loaded || loaded.title !== activeModel.title) {
         toast.info("Loading model", { description: activeModel.title });
         await loadModel.mutateAsync(activeModel.title);

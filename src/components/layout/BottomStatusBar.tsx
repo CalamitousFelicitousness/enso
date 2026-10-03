@@ -8,6 +8,7 @@ import { useJobList } from "@/api/hooks/useJobs";
 import { useBackendStatusStore } from "@/stores/backendStatusStore";
 
 import { LoadedModelsPanel } from "@/components/layout/LoadedModelsPanel";
+import { formatPipelineClass } from "@/lib/pipelineClass";
 
 // ---------------------------------------------------------------------------
 // Inline sub-components
@@ -156,6 +157,7 @@ export function BottomStatusBar() {
   // Model name
   const modelName = checkpoint?.name ?? null;
   const modelLoaded = checkpoint?.loaded ?? false;
+  const pipelineClass = formatPipelineClass(checkpoint?.class_name);
 
   // Active LoRAs
   const loras = loadedModels?.filter((m) => m.category === "lora").map((m) => m.name) ?? [];
@@ -193,6 +195,14 @@ export function BottomStatusBar() {
         ) : modelName && modelLoaded ? (
           <>
             <span className="text-2xs font-medium text-foreground truncate">{modelName}</span>
+            {pipelineClass && (
+              <>
+                <span className="text-3xs text-muted-foreground/50">·</span>
+                <span className="text-3xs text-muted-foreground/70 whitespace-nowrap">
+                  {pipelineClass}
+                </span>
+              </>
+            )}
             {loras.length > 0 && (
               <>
                 <span className="text-3xs text-muted-foreground/50">·</span>

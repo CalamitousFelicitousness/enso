@@ -1,6 +1,11 @@
 import { useMemo } from "react";
 import { useModelSelectionStore } from "@/stores/modelSelectionStore";
 import { useCurrentCheckpoint } from "@/api/hooks/useModels";
+import {
+  capabilityRecord,
+  useModelCapabilityStore,
+  type ModelCapabilityRecord,
+} from "@/stores/modelCapabilityStore";
 import { showImagesTab } from "@/lib/tabVisibility";
 import type { ImagesSubTab } from "@/lib/constants";
 import type { LocalModel, UnifiedModel } from "@/api/types/cloud";
@@ -85,22 +90,28 @@ const LOCAL_VIDEO_SUPPORTS: ModelSupports = {
   scripts: false,
 };
 
-/** The loaded checkpoint when it is the selected model. Selecting only updates
- * the store, so a different checkpoint may still be loaded. */
-function loadedCheckpoint(
+/** What the selected model's pipeline reports: the loaded checkpoint when it is
+ * the selected model, else what that model reported when it was last loaded.
+ * A pick only updates the store, so a different checkpoint may be loaded. */
+function knownCapabilities(
   model: LocalModel | null,
   checkpoint: CheckpointInfoV2 | undefined,
-): CheckpointInfoV2 | null {
-  if (!model || !checkpoint?.loaded || checkpoint.title !== model.title) return null;
-  return checkpoint;
+  remembered: ModelCapabilityRecord | undefined,
+): ModelCapabilityRecord | null {
+  if (!model) return null;
+  if (checkpoint?.loaded && checkpoint.title === model.title) return capabilityRecord(checkpoint);
+  return remembered ?? null;
 }
 
 export function useModelCapabilities(): ModelCapabilities {
   const model = useModelSelectionStore((s) => s.activeModel);
   const { data: checkpoint } = useCurrentCheckpoint();
+  const remembered = useModelCapabilityStore((s) =>
+    model?.source === "local" ? s.byTitle[model.title] : undefined,
+  );
   return useMemo(() => {
     if (!model || model.source === "local") {
-      const loaded = loadedCheckpoint(model, checkpoint);
+      const loaded = knownCapabilities(model, checkpoint, remembered);
       return {
         kind: "local",
         model,
@@ -161,5 +172,5 @@ export function useModelCapabilities(): ModelCapabilities {
       guidance: null,
       sizeMultiple: null,
     };
-  }, [model, checkpoint]);
+  }, [model, checkpoint, remembered]);
 }

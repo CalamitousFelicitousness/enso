@@ -12,7 +12,7 @@ import { useJobTracker } from "@/hooks/useJobTracker";
 import { useGlobalWs } from "@/hooks/useGlobalWs";
 import { useShortcutDispatcher } from "@/hooks/useShortcutDispatcher";
 import { useShortcut } from "@/hooks/useShortcut";
-import { useModelDefaultsSuggester } from "@/hooks/useModelDefaultsSuggester";
+import { useLoadedModelNotice } from "@/hooks/useLoadedModelNotice";
 import { useModelSync } from "@/hooks/useModelSync";
 import { useSizeMultipleSync } from "@/hooks/useSizeMultipleSync";
 import { ShortcutOverlay } from "@/components/ShortcutOverlay";
@@ -26,7 +26,7 @@ export function AppShell() {
   useJobTracker();
   useGlobalWs();
   useShortcutDispatcher();
-  useModelDefaultsSuggester();
+  useLoadedModelNotice();
   useModelSync();
   useSizeMultipleSync();
 

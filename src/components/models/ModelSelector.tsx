@@ -6,6 +6,7 @@ import {
   useUnloadModel,
   useCurrentCheckpoint,
   useIsModelLoading,
+  useModelLoadingTarget,
 } from "@/api/hooks/useModels";
 import { useAllCloudModels } from "@/api/hooks/useCloudModels";
 import {
@@ -46,11 +47,6 @@ import {
   CommandList,
 } from "@/components/ui/command";
 
-function formatPipelineClass(cls: string | null | undefined): string | null {
-  if (!cls) return null;
-  return cls.replace(/Pipeline$/, "").replace(/Img2Img$|Inpaint$/, "");
-}
-
 function formatPricing(pricing: CloudModel["pricing"]): string {
   if (!pricing) return "";
   if (pricing.per_image) return `$${pricing.per_image}/img`;
@@ -79,6 +75,7 @@ export function ModelSelector() {
   const unloadModel = useUnloadModel();
   const refreshModels = useRefreshModels();
   const isModelLoading = useIsModelLoading();
+  const loadingTarget = useModelLoadingTarget();
 
   // Video-side mutations.
   const loadVideoModel = useLoadVideoModel();
@@ -98,36 +95,46 @@ export function ModelSelector() {
   const showLocalVideo = activeNavView === "video";
   const showCloudVideo = activeNavView === "video";
 
-  // Display name follows activeModel directly - manual-load semantics mean
-  // "what's selected" is the most useful indicator. Falls back to the
-  // server-loaded checkpoint when no model is selected so first-load shows
-  // something meaningful.
+  const configured = options?.["sd_model_checkpoint"] as string | undefined;
+  const configuredName = models?.find((m) => m.title === configured)?.model_name ?? configured;
+
+  // The selection. For local image models useModelSync keeps it on the loaded
+  // checkpoint, so it differs only after a pick that has not been loaded yet.
   const displayName = isCloud
     ? (activeModel.name ?? "Cloud model")
     : isLocalVideo
       ? activeModel.name
       : isLocalImage
-        ? activeModel.title
-        : ((options?.["sd_model_checkpoint"] as string) ?? "No model selected");
-
-  const pipelineClass = isLocalImage ? formatPipelineClass(checkpoint?.class_name) : null;
+        ? activeModel.model_name
+        : (configuredName ?? "No model selected");
 
   // Whether the selected model is the one the backend currently has loaded.
   // Drives the merged Load/Reload control: matched -> reload it, mismatched ->
   // load the selection. Local image compares against the loaded checkpoint;
-  // local video carries its own loaded flag.
+  // local video carries its own loaded flag. A local pick counts as loaded
+  // until the server first reports its model, so a page load does not flash Load.
   const selectedIsLoaded =
     activeModel?.source === "local"
-      ? !!checkpoint?.loaded && checkpoint.title === activeModel.title
+      ? checkpoint === undefined || (!!checkpoint.loaded && checkpoint.title === activeModel.title)
       : activeModel?.source === "local-video"
         ? activeModel.loaded
         : false;
+
+  // A local pick that is not loaded waits for Load, or for Generate to load it
+  const pendingLoad = (isLocalImage || isLocalVideo) && !selectedIsLoaded;
+  const pendingHint =
+    "Not loaded yet. It loads when you generate, or now with Load." +
+    (!isLocalImage
+      ? ""
+      : checkpoint?.loaded
+        ? ` The server has ${checkpoint.name ?? checkpoint.title ?? "another model"} loaded.`
+        : " The server has no model loaded.");
 
   function handleSelectLocal(model: NonNullable<typeof models>[number]) {
     setOpen(false);
     const localModel: LocalModel = { ...model, source: "local" };
     setActiveModel(localModel);
-    toast.success("Model selected", { description: model.title });
+    toast.success("Model selected", { description: model.model_name });
   }
 
   function handleSelectLocalVideo(model: LocalVideoModel) {
@@ -217,17 +224,25 @@ export function ModelSelector() {
     unloadFramePack.isPending ||
     unloadVideoModel.isPending;
   const anyLoadActionPending = isModelLoading || anyVideoMutationPending;
+  // A load from this page or from Generate; unload and list refresh share the mutation key
+  const loadingModel =
+    loadingTarget !== null ||
+    reloadModel.isPending ||
+    loadVideoModel.isPending ||
+    loadFramePack.isPending;
 
   return (
-    <div className="flex items-center gap-1">
+    <div className="flex min-w-0 items-center gap-1">
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <Button
             variant="secondary"
             size="sm"
             disabled={isModelLoading}
+            title={displayName}
+            // One width for every model, so the controls beside it stay put
             className={cn(
-              "min-w-0 max-w-md justify-between text-xs h-7 px-2",
+              "w-[26rem] min-w-0 shrink justify-between text-xs h-7 px-2",
               isModelLoading && "opacity-60",
             )}
           >
@@ -252,7 +267,8 @@ export function ModelSelector() {
                 <CommandGroup heading="Local">
                   {models?.map((model) => (
                     <CommandItem
-                      key={model.hash || model.title}
+                      key={model.title}
+                      // The title includes the hash, so a hash from image metadata finds its model
                       value={model.title}
                       onSelect={() => handleSelectLocal(model)}
                       className={cn(
@@ -262,12 +278,7 @@ export function ModelSelector() {
                           "font-semibold !text-primary",
                       )}
                     >
-                      <span className="truncate flex-1">{model.title}</span>
-                      {model.hash && (
-                        <span className="text-3xs text-muted-foreground font-mono pl-2">
-                          {model.hash.slice(0, 8)}
-                        </span>
-                      )}
+                      <span className="truncate flex-1">{model.model_name}</span>
                     </CommandItem>
                   ))}
                 </CommandGroup>
@@ -387,37 +398,69 @@ export function ModelSelector() {
         </PopoverContent>
       </Popover>
 
-      {pipelineClass && (
-        <span className="text-3xs text-muted-foreground whitespace-nowrap">{pipelineClass}</span>
-      )}
-      {isCloud && <span className="text-3xs text-sky-400 whitespace-nowrap">Cloud</span>}
-      {isLocalVideo && <span className="text-3xs text-emerald-400 whitespace-nowrap">Video</span>}
-
       {/* Unified action row: always visible. The Load/Reload control and
           Unload mute when they wouldn't do anything (cloud active, or Unload
           on a generic/LTX video model where no unload endpoint exists).
           Refresh stays active everywhere since invalidating list queries is a
-          context-free escape hatch. */}
+          context-free escape hatch. Load/Reload keeps one width in every
+          state; amber marks a pick that still has to be loaded. */}
       <Button
-        variant="ghost"
-        size="icon-sm"
-        title={selectedIsLoaded ? "Reload current model" : "Load selected model"}
+        variant="outline"
+        size="sm"
+        className={cn(
+          "h-6 w-[5.5rem] gap-1 px-2 text-2xs",
+          (pendingLoad || loadingModel) &&
+            "border-amber-400/40 bg-amber-400/10 text-amber-400 hover:bg-amber-400/20 hover:text-amber-300",
+        )}
+        title={
+          loadingModel
+            ? "Loading the model"
+            : selectedIsLoaded
+              ? "Reload current model"
+              : pendingLoad
+                ? pendingHint
+                : "Load selected model"
+        }
         disabled={!canLoadOrReload || anyLoadActionPending}
         onClick={handleLoadOrReload}
       >
-        {selectedIsLoaded ? <RotateCw size={14} /> : <Upload size={14} />}
+        {loadingModel ? (
+          <>
+            <RefreshCw size={12} className="animate-spin" />
+            Loading
+          </>
+        ) : selectedIsLoaded ? (
+          <>
+            <RotateCw size={12} />
+            Reload
+          </>
+        ) : (
+          <>
+            <Upload size={12} />
+            Load
+          </>
+        )}
       </Button>
       <Button
-        variant="ghost"
-        size="icon-sm"
+        variant="outline"
+        size="sm"
+        className="h-6 gap-1 px-2 text-2xs"
         title="Unload current model"
         disabled={!canUnload || anyLoadActionPending}
         onClick={handleUnload}
       >
-        <ArrowBigDownDash size={14} />
+        <ArrowBigDownDash size={12} />
+        Unload
       </Button>
-      <Button variant="ghost" size="icon-sm" title="Refresh model lists" onClick={handleRefresh}>
-        <FolderSync size={14} />
+      <Button
+        variant="outline"
+        size="sm"
+        className="h-6 gap-1 px-2 text-2xs"
+        title="Refresh model lists"
+        onClick={handleRefresh}
+      >
+        <FolderSync size={12} />
+        Refresh
       </Button>
     </div>
   );

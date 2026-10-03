@@ -34,8 +34,7 @@ function collect(caps: VideoModelCaps): [string, number | boolean][] {
 
 /** On a video model switch: clamp constrained params unconditionally,
  * re-default params the user has not touched, and offer the rest as a
- * one-toast suggestion (auto-applied when the model-defaults setting is on).
- * Mirrors useModelDefaultsSuggester's prevRef/skip-first-render shape. */
+ * one-toast suggestion (auto-applied when the model-defaults setting is on). */
 export function useVideoCapsDefaults() {
   const activeModel = useModelSelectionStore((s) => s.activeModel);
   const caps = useActiveVideoCaps();
