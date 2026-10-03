@@ -43,6 +43,9 @@ export function useGlobalWs() {
         store.setStatus(msg.data);
       } else if (msg.type === "status" && msg.data) {
         store.setStatus(msg.data);
+      } else if (msg.type === "model") {
+        // The server's loaded image model changed, from this page or any other client
+        void queryClient.invalidateQueries({ queryKey: ["checkpoint"] });
       } else if (msg.type === "download" && Array.isArray(msg.data)) {
         useDownloadStore.getState().updateFromWs(msg.data as DownloadProgress[]);
       }

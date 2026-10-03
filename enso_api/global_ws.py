@@ -39,6 +39,14 @@ class ConnectionManager:
 manager = ConnectionManager()
 
 
+def loaded_model_title() -> str | None:
+    """Title of the loaded image model, None when nothing is loaded; never starts a load."""
+    from modules.modeldata import model_data
+
+    info = getattr(model_data.sd_model, "sd_checkpoint_info", None)
+    return getattr(info, "title", None)
+
+
 async def push_progress(ws: WebSocket):
     from modules import shared
 
@@ -49,8 +57,14 @@ async def push_progress(ws: WebSocket):
     last_textinfo = None
     last_preview = shared.state.current_image
     last_download_snapshot = None
+    last_model = loaded_model_title()
     while ws.client_state == WebSocketState.CONNECTED:
         try:
+            # A load or unload from any client, or a restart's startup load
+            model = loaded_model_title()
+            if model != last_model:
+                last_model = model
+                await manager.send_json(ws, {"type": "model", "data": {"title": model}})
             state = shared.state
             current_step = state.sampling_step
             current_job = state.job
