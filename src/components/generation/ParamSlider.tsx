@@ -6,6 +6,7 @@ import {
   ContextMenuItem,
   ContextMenuSeparator,
 } from "@/components/ui/context-menu";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { getParamHelp, stripParamHelpHtml } from "@/data/parameterHelp";
 import { cn } from "@/lib/utils";
 
@@ -84,6 +85,8 @@ export const ParamSlider = memo(function ParamSlider({
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState("");
   const [dragging, setDragging] = useState(false);
+  const [hovered, setHovered] = useState(false);
+  const [showHelp, setShowHelp] = useState(false);
 
   // ── Refs ────────────────────────────────────────────────────────
   const trackRef = useRef<HTMLDivElement>(null);
@@ -96,6 +99,16 @@ export const ParamSlider = memo(function ParamSlider({
     shiftHeld: false,
     lastValue: 0,
   });
+  const hoverTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const helpTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
+
+  useEffect(
+    () => () => {
+      clearTimeout(hoverTimer.current);
+      clearTimeout(helpTimer.current);
+    },
+    [],
+  );
 
   // ── Helpers ────────────────────────────────────────────────────
 
@@ -123,6 +136,9 @@ export const ParamSlider = memo(function ParamSlider({
 
   const handlePointerDown = useCallback(
     (e: React.PointerEvent) => {
+      // a press hides the hint until the pointer leaves and comes back, as a native title does
+      clearTimeout(hoverTimer.current);
+      setHovered(false);
       if (disabled || editing) return;
       if ((e.target as HTMLElement).dataset["valueSpan"] !== undefined) return;
       if (e.button !== 0) return;
@@ -286,10 +302,10 @@ export const ParamSlider = memo(function ParamSlider({
   const isAtDefault = hasReset && value === defaultValue;
   const hasContextItems = hasReset || !!helpText;
 
-  const [showHelp, setShowHelp] = useState(false);
   const triggerHelp = useCallback(() => {
+    clearTimeout(helpTimer.current);
     setShowHelp(true);
-    setTimeout(() => setShowHelp(false), 3000);
+    helpTimer.current = setTimeout(() => setShowHelp(false), 3000);
   }, []);
 
   // ── Render ─────────────────────────────────────────────────────
@@ -305,7 +321,6 @@ export const ParamSlider = memo(function ParamSlider({
       aria-label={tooltip ? stripParamHelpHtml(tooltip) : label}
       aria-disabled={disabled || undefined}
       tabIndex={disabled ? -1 : 0}
-      title={helpText ? stripParamHelpHtml(helpText) : undefined}
       className={cn(
         "relative h-5 rounded-sm bg-muted/60 select-none overflow-hidden",
         // the handlers ignore a disabled slider; hover still shows why it is disabled
@@ -316,6 +331,13 @@ export const ParamSlider = memo(function ParamSlider({
             : "cursor-ew-resize",
         "focus-visible:ring-1 focus-visible:ring-ring/50",
       )}
+      onPointerEnter={() => {
+        hoverTimer.current = setTimeout(() => setHovered(true), 300);
+      }}
+      onPointerLeave={() => {
+        clearTimeout(hoverTimer.current);
+        setHovered(false);
+      }}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
@@ -358,14 +380,6 @@ export const ParamSlider = memo(function ParamSlider({
           />
         );
       })}
-
-      {/* Help tooltip */}
-      {showHelp && helpText && (
-        <div
-          className="absolute -top-8 left-0 right-0 text-3xs bg-popover/90 backdrop-blur-sm px-2 py-1 rounded-sm pointer-events-none z-10 max-w-[200px]"
-          dangerouslySetInnerHTML={{ __html: helpText }}
-        />
-      )}
 
       {/* Label text */}
       <span className="absolute inset-y-0 left-1.5 flex items-center text-3xs text-muted-foreground pointer-events-none leading-none">
@@ -419,11 +433,23 @@ export const ParamSlider = memo(function ParamSlider({
     </div>
   );
 
-  if (!hasContextItems) return trackContent;
+  const withHelp = (trigger: React.ReactElement) =>
+    helpText ? (
+      <Tooltip open={hovered || showHelp}>
+        <TooltipTrigger asChild>{trigger}</TooltipTrigger>
+        <TooltipContent>
+          <span dangerouslySetInnerHTML={{ __html: helpText }} />
+        </TooltipContent>
+      </Tooltip>
+    ) : (
+      trigger
+    );
+
+  if (!hasContextItems) return withHelp(trackContent);
 
   return (
     <ContextMenu>
-      <ContextMenuTrigger asChild>{trackContent}</ContextMenuTrigger>
+      {withHelp(<ContextMenuTrigger asChild>{trackContent}</ContextMenuTrigger>)}
       <ContextMenuContent>
         {hasReset && (
           <ContextMenuItem
