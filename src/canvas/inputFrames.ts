@@ -120,6 +120,28 @@ export function enumerateWireSlots(frames: FrameShape[]): WireSlot[] {
   return slots;
 }
 
+/** "Input N" of a frame: its place in the list, whatever it holds. */
+export function framePosition(frames: { id: string }[], frameId: string): number | null {
+  const index = frames.findIndex((f) => f.id === frameId);
+  return index === -1 ? null : index + 1;
+}
+
+/** "Input N" of a control unit. Units have no place among the frames, so they
+ * follow them. */
+export function controlUnitPosition(frameCount: number, unitIndex: number): number {
+  return frameCount + 1 + unitIndex;
+}
+
+/** The images a frame sends, by the numbers a prompt uses: "Image 2" or
+ * "Image 2-4". Null when it sends none. */
+export function imageRangeLabel(slots: WireSlot[], frameId: string): string | null {
+  const own = slots.filter((s) => s.frameId === frameId);
+  if (own.length === 0) return null;
+  const first = own[0].globalIndex;
+  const last = own[own.length - 1].globalIndex;
+  return first === last ? `Image ${first}` : `Image ${first}-${last}`;
+}
+
 /** Natural size of the Reference when it is the only image sent, else null. */
 export function loneReferenceSize(frames: FrameShape[]): { width: number; height: number } | null {
   const slots = enumerateWireSlots(frames);

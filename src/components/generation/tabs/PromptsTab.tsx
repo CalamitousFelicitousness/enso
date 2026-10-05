@@ -6,7 +6,7 @@ import { useImg2ImgStore } from "@/stores/img2imgStore";
 import { useCanvasStore } from "@/stores/canvasStore";
 import { useFrameShapes } from "@/canvas/useFrameShapes";
 import { useFrameSize } from "@/canvas/useFrameSize";
-import { enumerateWireSlots, parseSizeSourceValue } from "@/canvas/inputFrames";
+import { enumerateWireSlots, framePosition, parseSizeSourceValue } from "@/canvas/inputFrames";
 import { useSizeSourceOptions, useSizeSourceValue } from "@/canvas/useSizeSource";
 import { useAspectLock, useAspectPresets } from "@/hooks/useAspectLock";
 import { useModelSelectionStore } from "@/stores/modelSelectionStore";
@@ -182,8 +182,9 @@ export function PromptsTab() {
   const locked = frame.lockedTo != null;
   const setFrameMode = useCanvasStore((s) => s.setFrameMode);
   const lockedFrameId = locked ? slots[0].frameId : null;
+  const lockedPosition = lockedFrameId ? framePosition(frameShapes, lockedFrameId) : null;
   const lockedHint = frame.pending
-    ? `The selected model is not loaded yet, so the output takes the size of Input 1: ${frame.width}×${frame.height}.`
+    ? `The selected model is not loaded yet, so the output takes the size of Image 1: ${frame.width}×${frame.height}.`
     : `This model generates at the size of its input image: ${frame.width}×${frame.height}.`;
 
   const showSizeModes = sizeModesApply(autoFitFrame, slots, frame.referenceSets);
@@ -266,7 +267,7 @@ export function PromptsTab() {
                     locked
                       ? lockedHint
                       : autoFitFrame
-                        ? "Fit on: the frame takes the size of one input image, Input 1 unless you pick another in Size from"
+                        ? "Fit on: the frame takes the size of one input image, Image 1 unless you pick another in Size from"
                         : "Fit off: frame stays at the width and height you set, regardless of image size"
                   }
                 >
@@ -302,7 +303,7 @@ export function PromptsTab() {
           {autoFitFrame && multiInput && (
             <ParamRow
               label="Size from"
-              tooltip="The input image the frame takes its size and shape from; Scale and Megapixel work from it. Input 1 unless you pick another."
+              tooltip="The input image the frame takes its size and shape from; Scale and Megapixel work from it. Image 1 unless you pick another."
               keywords={["size source", "base image", "output size", "aspect", "reference size"]}
             >
               <SizeFromSelect />
@@ -372,7 +373,7 @@ export function PromptsTab() {
             <ParamNotice>
               {lockedHint} To choose another size,{" "}
               <ParamNoticeAction onClick={() => setFrameMode(lockedFrameId, "initial")}>
-                switch Input 1 to Initial
+                switch Input {lockedPosition} to Initial
               </ParamNoticeAction>
               {frame.pending ? " or load the model." : "."}
             </ParamNotice>

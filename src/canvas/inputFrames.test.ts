@@ -1,13 +1,18 @@
 import { describe, expect, it } from "vitest";
 import type { ImageLayer, ReferenceInput } from "@/stores/canvasStore";
 import {
+  controlUnitPosition,
   createInitialFrame,
   createReferenceFrame,
+  enumerateWireSlots,
+  framePosition,
+  imageRangeLabel,
   parseSizeSourceValue,
   resolveSizeSource,
   sizeSourceRef,
   sizeSourceValue,
   sourceImageSize,
+  toFrameShape,
   wireSources,
   type InputFrame,
   type SizeSourceRef,
@@ -149,5 +154,28 @@ describe("resolveSizeSource", () => {
 
   it("finds nothing without an input image", () => {
     expect(sized([initial(), referenceFrame()], null)).toBeNull();
+  });
+});
+
+describe("input numbering", () => {
+  const frames = [
+    referenceFrame(reference("a"), reference("b"), reference("c")),
+    initial(),
+    initial(layer("x")),
+  ];
+  const slots = enumerateWireSlots(frames.map(toFrameShape));
+
+  it("numbers frames by their place in the list, empty ones included", () => {
+    expect(frames.map((f) => framePosition(frames, f.id))).toEqual([1, 2, 3]);
+    expect(framePosition(frames, "missing")).toBeNull();
+  });
+
+  it("places control units after the frames", () => {
+    expect(controlUnitPosition(frames.length, 0)).toBe(4);
+    expect(controlUnitPosition(frames.length, 2)).toBe(6);
+  });
+
+  it("names the images a frame sends by the numbers a prompt uses", () => {
+    expect(frames.map((f) => imageRangeLabel(slots, f.id))).toEqual(["Image 1-3", null, "Image 4"]);
   });
 });

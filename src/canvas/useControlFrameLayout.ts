@@ -45,7 +45,6 @@ export interface ProcessedSlot {
 
 export interface ControlFramePosition {
   unitIndex: number;
-  unifiedIndex: number;
   x: number;
   y: number;
   width: number;
@@ -204,7 +203,6 @@ export function useControlFrameLayout(): CanvasLayout {
       cursorX -= size.width + FRAME_GAP;
       controlFrames.push({
         unitIndex: entry.index,
-        unifiedIndex: storeInputFrames.length + 1 + entry.index,
         x: cursorX,
         y: 0,
         width: size.width,

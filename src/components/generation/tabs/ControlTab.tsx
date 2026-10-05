@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from "react";
-import { useControlStore } from "@/stores/controlStore";
+import { useControlStore, unitNotSentReason } from "@/stores/controlStore";
 import { useCanvasStore } from "@/stores/canvasStore";
 import { useUiStore } from "@/stores/uiStore";
 import { Switch } from "@/components/ui/switch";
@@ -12,14 +12,21 @@ import type { ControlUnitType } from "@/api/types/control";
 import { UNIT_TYPE_LABELS, EXCLUSIVE_CONTROL_TYPES } from "@/api/types/control";
 import { useUnifiedInputs } from "@/hooks/useUnifiedInputs";
 import { useInputsAtCapacity, INPUTS_FULL_HINT } from "@/canvas/useInputsAtCapacity";
-import type { InputFrameMode } from "@/canvas/inputFrames";
+import {
+  controlUnitPosition,
+  enumerateWireSlots,
+  imageRangeLabel,
+  type InputFrameMode,
+} from "@/canvas/inputFrames";
+import { useFrameShapes } from "@/canvas/useFrameShapes";
 
 const UNIT_TYPE_OPTIONS: { value: ControlUnitType; label: string }[] = (
   Object.entries(UNIT_TYPE_LABELS) as [ControlUnitType, string][]
 ).map(([value, label]) => ({ value, label }));
 
 function CanvasInputRows() {
-  const inputFrames = useCanvasStore((s) => s.inputFrames);
+  const inputFrames = useFrameShapes();
+  const slots = useMemo(() => enumerateWireSlots(inputFrames), [inputFrames]);
   return (
     <>
       {inputFrames.map((f, i) => (
@@ -28,7 +35,9 @@ function CanvasInputRows() {
           <span className="text-2xs flex-1">
             {f.mode === "reference" ? "Reference" : "Initial"}
           </span>
-          <span className="text-2xs text-muted-foreground">Input frame</span>
+          <span className="text-2xs text-muted-foreground">
+            {imageRangeLabel(slots, f.id) ?? "empty"}
+          </span>
         </div>
       ))}
     </>
@@ -140,7 +149,7 @@ export function ControlTab() {
           <ControlUnitRow
             key={unit.id}
             index={i}
-            unifiedIndex={inputFramesCount + 1 + i}
+            unifiedIndex={controlUnitPosition(inputFramesCount, i)}
             inputFramesCount={inputFramesCount}
             canRemove={units.length > 1}
           />
@@ -197,7 +206,7 @@ function ControlUnitRow({ index, unifiedIndex, inputFramesCount, canRemove }: Co
       if (i !== index && u.imageSource === "separate") {
         opts.push({
           value: `unit:${i}`,
-          label: `Input ${inputFramesCount + 1 + i} (${UNIT_TYPE_LABELS[u.unitType] ?? u.unitType}) image`,
+          label: `Input ${controlUnitPosition(inputFramesCount, i)} (${UNIT_TYPE_LABELS[u.unitType] ?? u.unitType}) image`,
         });
       }
     });
@@ -212,6 +221,7 @@ function ControlUnitRow({ index, unifiedIndex, inputFramesCount, canRemove }: Co
 
   const showEditOnCanvas =
     unit.enabled && (unit.imageSource === "separate" || unit.imageSource.startsWith("unit:"));
+  const notSent = unitNotSentReason(units, index);
 
   return (
     <div className="flex flex-col gap-1.5 p-2 rounded-md border border-border">
@@ -267,6 +277,11 @@ function ControlUnitRow({ index, unifiedIndex, inputFramesCount, canRemove }: Co
           </Button>
         )}
       </div>
+
+      {/* Row 3: fixed-height status, so the row does not grow when it appears */}
+      <p className="h-3 text-3xs leading-3 text-amber-500 truncate" title={notSent?.hint}>
+        {notSent ? `Not sent: ${notSent.short}` : ""}
+      </p>
     </div>
   );
 }

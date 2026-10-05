@@ -34,6 +34,7 @@ import {
   type ControlFramePosition,
 } from "./useControlFrameLayout";
 import { resolveOutputSize } from "@/lib/sizeCompute";
+import { controlUnitPosition } from "./inputFrames";
 
 export const HEADER_HEIGHT = 30;
 const DRAWER_MAX_HEIGHT = 420;
@@ -304,14 +305,14 @@ function UnitPanel({
   const unit = useControlStore((s) => s.units[unitIndex]);
   const setUnitParam = useControlStore((s) => s.setUnitParam);
   const setFreeTransform = useControlStore((s) => s.setFreeTransform);
+  const frameCount = useCanvasStore((s) => s.inputFrames.length);
   const { width: genW, height: genH } = genSize;
   const [activeTab, setActiveTab] = useState<"info" | "params">("info");
 
   if (!unit) return null;
 
   const imageDims = isOwner ? unit.imageDims : null;
-  const unifiedIndex = unitIndex + 2;
-  const labelText = `Input ${unifiedIndex} (Control: ${UNIT_TYPE_LABELS[unit.unitType] ?? unit.unitType})`;
+  const labelText = `Input ${controlUnitPosition(frameCount, unitIndex)} (Control: ${UNIT_TYPE_LABELS[unit.unitType] ?? unit.unitType})`;
 
   let sizeText: string | null = null;
   if (isOwner) {
@@ -823,6 +824,7 @@ export function ControlFramePanels({ layout, onPickImage, onClearImage }: Contro
   const viewport = useCanvasStore((s) => s.viewport);
   const labelScale = useUiStore((s) => s.canvasLabelScale);
   const units = useControlStore((s) => s.units);
+  const frameCount = useCanvasStore((s) => s.inputFrames.length);
 
   const hiresEnabled = useGenerationStore((s) => s.hiresEnabled);
   const hiresScale = useGenerationStore((s) => s.hiresScale);
@@ -869,7 +871,9 @@ export function ControlFramePanels({ layout, onPickImage, onClearImage }: Contro
             PROCESSED_HEADER_HEIGHT +
             slotIdx * (frame.height + ELEMENT_GAP + PROCESSED_HEADER_HEIGHT);
           const slotLabel =
-            activeSlots.length > 1 ? `Processed (Input ${slot.unitIndex + 2})` : "Processed";
+            activeSlots.length > 1
+              ? `Processed (Input ${controlUnitPosition(frameCount, slot.unitIndex)})`
+              : "Processed";
           const unit = units[slot.unitIndex];
           return (
             <ProcessedFrameHeader

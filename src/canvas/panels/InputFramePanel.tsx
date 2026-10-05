@@ -4,7 +4,7 @@
 // item under the orchestrator's vertical DndContext; Reference frames
 // mount the shared ReferenceSortableOverlay for child reorder and removal.
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { GripVertical, ImagePlus, Info, Scan, Settings, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -55,11 +55,11 @@ const REFERENCE_MODE_HINT =
 
 interface InputFramePanelProps {
   frame: InputFramePosition;
-  /** Global wire index of the frame's first slot, or null when the frame
-   * is empty (no visible image in Initial, no references in Reference).
-   * Drives the "Input N (mode)" label - the orchestrator computes this
-   * once for the whole stack via enumerateWireSlots. */
-  wireIndex: number | null;
+  /** The frame's place in the list: "Input N". */
+  position: number;
+  /** The images the frame sends, as a prompt numbers them ("Image 2-3");
+   * null when it sends none. */
+  images: string | null;
   viewport: ViewportState;
   labelScale: number;
   /** Generation size (display in the size text for Initial frames). */
@@ -101,7 +101,8 @@ function SizeSourceBadge({ onImage = false }: { onImage?: boolean }) {
 
 export function InputFramePanel({
   frame,
-  wireIndex,
+  position,
+  images,
   viewport,
   labelScale,
   genSize,
@@ -144,23 +145,8 @@ export function InputFramePanel({
       ? INPUT_COLOR_ACTIVE
       : INPUT_COLOR_INACTIVE;
 
-  // Label format mirrors the legacy "Input 1 (Initial)" / "Input 1 (Reference)"
-  // pattern, with wireIndex sourced from the global slot enumeration and
-  // a "K images" suffix for Reference frames to surface child count up front.
-  const label = useMemo(() => {
-    const numberPart = wireIndex != null ? `Input ${wireIndex}` : "Input (empty)";
-    if (isReference) {
-      const suffix = refCount > 0 ? `, ${refCount} ${refCount === 1 ? "image" : "images"}` : "";
-      return `${numberPart} (Reference${suffix})`;
-    }
-    return `${numberPart} (Initial)`;
-  }, [wireIndex, isReference, refCount]);
-
-  const sizeText = useMemo(() => {
-    if (isReference) return refCount > 0 ? `${refCount} ref` : "";
-    if (layerCount === 0) return "";
-    return `${genSize.width}×${genSize.height}`;
-  }, [isReference, refCount, layerCount, genSize.width, genSize.height]);
+  const label = `Input ${position} (${isReference ? "Reference" : "Initial"})`;
+  const sizeText = images ?? "empty";
 
   if (!storeFrame) return null;
 
@@ -312,7 +298,7 @@ export function InputFramePanel({
           {isReference ? (
             <>
               <InfoLine label="References" value={String(refCount)} />
-              <InfoLine label="Wire" value={wireIndex != null ? `image ${wireIndex}+` : "-"} />
+              <InfoLine label="Sends" value={images ?? "-"} />
             </>
           ) : (
             <>
@@ -322,7 +308,7 @@ export function InputFramePanel({
                 label="Dimensions"
                 value={layerCount > 0 ? `${genSize.width}×${genSize.height}` : "-"}
               />
-              <InfoLine label="Wire" value={wireIndex != null ? `image ${wireIndex}` : "-"} />
+              <InfoLine label="Sends" value={images ?? "-"} />
             </>
           )}
         </div>
@@ -352,7 +338,7 @@ export function InputFramePanel({
         labelAdornment={
           !isReference && sizeSource && sizeSource.refId === null ? <SizeSourceBadge /> : undefined
         }
-        sizeText={sizeText || undefined}
+        sizeText={sizeText}
         canvasX={canvasX}
         canvasY={canvasY}
         frameW={frameW}

@@ -13,7 +13,7 @@ import { DndContext, PointerSensor, useSensor, useSensors, type DragEndEvent } f
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { Plus } from "lucide-react";
 import { useCanvasStore } from "@/stores/canvasStore";
-import { enumerateWireSlots } from "@/canvas/inputFrames";
+import { enumerateWireSlots, imageRangeLabel } from "@/canvas/inputFrames";
 import { useFrameShapes } from "@/canvas/useFrameShapes";
 import type { CanvasLayout } from "@/canvas/useControlFrameLayout";
 import { INPUTS_FULL_HINT } from "@/canvas/useInputsAtCapacity";
@@ -60,18 +60,6 @@ export function InputFramePanels({
   const slots = useMemo(() => enumerateWireSlots(storeFrames), [storeFrames]);
   const sizeSource = useSizeSourceMark(slots.length);
 
-  // Wire indices flatten across all frames; compute once per render so
-  // each panel reads its slot's globalIndex via a single Map lookup.
-  const wireIndexByFrame = useMemo(() => {
-    const map = new Map<string, number>();
-    for (const slot of slots) {
-      // First slot in the frame wins (Reference frames have N slots; only
-      // the first sets the panel label index).
-      if (!map.has(slot.frameId)) map.set(slot.frameId, slot.globalIndex);
-    }
-    return map;
-  }, [slots]);
-
   const handleDragEnd = (e: DragEndEvent) => {
     if (!e.over || e.active.id === e.over.id) return;
     const fromIndex = storeFrames.findIndex((f) => f.id === e.active.id);
@@ -86,11 +74,12 @@ export function InputFramePanels({
   return (
     <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
       <SortableContext items={frameIds} strategy={verticalListSortingStrategy}>
-        {layout.inputFrames.map((frame) => (
+        {layout.inputFrames.map((frame, index) => (
           <InputFramePanel
             key={frame.frameId}
             frame={frame}
-            wireIndex={wireIndexByFrame.get(frame.frameId) ?? null}
+            position={index + 1}
+            images={imageRangeLabel(slots, frame.frameId)}
             viewport={viewport}
             labelScale={labelScale}
             genSize={layout.genSize}

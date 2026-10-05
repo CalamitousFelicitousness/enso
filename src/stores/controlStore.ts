@@ -36,6 +36,28 @@ function defaultUnit(unitType: ControlUnitType = "controlnet"): ControlUnit {
   };
 }
 
+/** Why an enabled unit is left out of the request (buildControlRequest's unit
+ * filters): a short reason and the full hint. Null when it is sent or off. */
+export function unitNotSentReason(
+  units: ControlUnit[],
+  index: number,
+): { short: string; hint: string } | null {
+  const unit = units[index];
+  if (!unit?.enabled) return null;
+  if (unit.unitType === "ip") {
+    return unit.images.length === 0
+      ? { short: "no reference images", hint: "Add reference images on the canvas panel." }
+      : null;
+  }
+  if (resolveUnitImage(units, index)) return null;
+  return unit.imageSource === "canvas"
+    ? {
+        short: "choose Own image",
+        hint: "A control input set to Input 1 image is not sent to the model. Choose Own image and give it a picture.",
+      }
+    : { short: "no picture", hint: "Give this control input a picture on the canvas." };
+}
+
 /** Resolve the actual image for a control unit, following "unit:N" references. */
 export function resolveUnitImage(units: ControlUnit[], index: number): File | null {
   const unit = units[index];

@@ -27,7 +27,7 @@ export function useSizeSourceOptions(): SizeSourceOption[] {
       .map((source) => {
         const { width, height } = sourceImageSize(source);
         const kind = source.kind === "initial" ? "Initial" : "Reference";
-        const label = `Input ${source.slot.globalIndex} · ${kind} · ${width}×${height}`;
+        const label = `Image ${source.slot.globalIndex} · ${kind} · ${width}×${height}`;
         return `${sizeSourceValue(sizeSourceRef(source))}\t${label}`;
       })
       .join("\n"),
