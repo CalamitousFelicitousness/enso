@@ -7,7 +7,7 @@
 // match the display rendering in InputFrameLayer.tsx (Konva scene graph). Both codepaths
 // independently implement the same transforms. Changes to one must update the other.
 
-import type { ImageLayer } from "@/stores/canvasStore";
+import type { PlacedPicture } from "@/lib/inputs/types";
 import type { FreeTransform, FitMode } from "@/lib/image";
 import { computeFit } from "@/lib/image";
 import { resizeCanvas, canvasFitsLimit } from "@/lib/resize";
@@ -22,27 +22,33 @@ function loadImage(src: string): Promise<HTMLImageElement> {
 }
 
 /**
- * Composites all visible image layers within the frame bounds into a single
- * PNG Blob. When the composite involves significant downscaling, an internal
+ * Composites the given pictures, bottom to top, within the frame bounds into a
+ * single PNG Blob. Null when there is none; throws when one has no bytes.
+ * When the composite involves significant downscaling, an internal
  * 2× oversampled canvas is used so that Canvas 2D's bilinear interpolation
  * operates on more source data, then the final resize to frameWidth×frameHeight
  * is performed via WASM MKS2021 for maximum quality.
  */
 export async function flattenCanvas(
-  layers: ImageLayer[],
+  layers: PlacedPicture[],
   frameWidth: number,
   frameHeight: number,
 ): Promise<Blob | null> {
   const visible = layers.filter((l) => l.visible);
   if (visible.length === 0) return null;
+  const files: Blob[] = [];
+  for (const { file } of visible) {
+    if (!file) throw new Error("A layer's picture could not be read");
+    files.push(file);
+  }
 
   // Determine if any layer is being downscaled significantly (>25% reduction).
   // If so, composite at 2× the target to give bilinear more source pixels,
   // then let MKS2021 handle the final high-quality downsample.
   let needsHQResize = false;
-  for (const layer of visible) {
-    const drawnW = Math.abs(layer.scaleX) * frameWidth;
-    const drawnH = Math.abs(layer.scaleY) * frameHeight;
+  for (const { transform } of visible) {
+    const drawnW = Math.abs(transform.scaleX) * frameWidth;
+    const drawnH = Math.abs(transform.scaleY) * frameHeight;
     if (drawnW > frameWidth * 1.25 || drawnH > frameHeight * 1.25) {
       needsHQResize = true;
       break;
@@ -62,15 +68,17 @@ export async function flattenCanvas(
   const ctx = canvas.getContext("2d")!;
   ctx.imageSmoothingQuality = "high";
 
-  for (const layer of visible) {
-    const img = await createImageBitmap(layer.file);
+  for (const [i, layer] of visible.entries()) {
+    const { transform } = layer;
+    const img = await createImageBitmap(files[i]);
     ctx.save();
-    ctx.translate(layer.x * scale, layer.y * scale);
-    ctx.rotate((layer.rotation * Math.PI) / 180);
-    ctx.scale(layer.scaleX * scale, layer.scaleY * scale);
+    ctx.translate(transform.x * scale, transform.y * scale);
+    ctx.rotate((transform.rotation * Math.PI) / 180);
+    ctx.scale(transform.scaleX * scale, transform.scaleY * scale);
     ctx.globalAlpha = layer.opacity;
     ctx.drawImage(img, 0, 0);
     ctx.restore();
+    img.close();
   }
 
   // Final high-quality resize from internal resolution to target frame size

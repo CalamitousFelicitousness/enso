@@ -6,7 +6,7 @@ import { labelComponents, MASK_ALPHA_THRESHOLD } from "./components";
 import { placedBounds } from "./geometry";
 import type { RegionOverlap } from "./identity";
 import type { BakeInput, BakeOutput, BakedRegion, MaskSource } from "./protocol";
-import type { MaskLine } from "@/stores/canvasStore";
+import type { MaskStroke } from "@/lib/inputs/types";
 
 type Ctx = OffscreenCanvasRenderingContext2D;
 
@@ -26,7 +26,7 @@ function drawMask(ctx: Ctx, mask: MaskSource, image: ImageBitmap) {
 }
 
 /** Only alpha matters downstream: brushes add coverage, erasers cut it. */
-function drawStrokes(ctx: Ctx, lines: MaskLine[]) {
+function drawStrokes(ctx: Ctx, lines: MaskStroke[]) {
   ctx.lineJoin = "round";
   ctx.lineCap = "round";
   ctx.strokeStyle = "#fff";

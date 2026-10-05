@@ -25,7 +25,6 @@ import { Button } from "@/components/ui/button";
 import { KeepAlivePanel } from "@/components/ui/keep-alive";
 import { downloadImage, generateImageFilename, resolveImageSrc } from "@/lib/utils";
 import type { GenerationInfo } from "@/api/types/generation";
-import { loadImageFile } from "@/lib/image";
 import { JobWarnings } from "@/components/generation/JobWarnings";
 import {
   ELEMENT_GAP,
@@ -34,7 +33,9 @@ import {
   type ControlFramePosition,
 } from "./useControlFrameLayout";
 import { resolveOutputSize } from "@/lib/sizeCompute";
-import { controlUnitPosition } from "./inputFrames";
+import { controlUnitPosition } from "@/lib/inputs/outline";
+import { useInputStore } from "@/stores/inputStore";
+import { addFilesToInputs } from "@/inputs/route";
 
 export const HEADER_HEIGHT = 30;
 const DRAWER_MAX_HEIGHT = 420;
@@ -146,6 +147,8 @@ export interface FrameHeaderProps {
   /** Shown right after the label in panel mode. */
   labelAdornment?: ReactNode;
   sizeText?: string | undefined;
+  /** Shown after the size text: a state the frame is in. */
+  status?: ReactNode;
   canvasX: number;
   canvasY?: number | undefined;
   frameW: number;
@@ -167,6 +170,7 @@ export function FrameHeader({
   label,
   labelAdornment,
   sizeText,
+  status,
   canvasX,
   canvasY = 0,
   frameW,
@@ -238,6 +242,7 @@ export function FrameHeader({
                 {sizeText}
               </span>
             )}
+            {status}
           </div>
           <div className="flex items-center gap-0.5 shrink-0">
             {actions}
@@ -305,7 +310,7 @@ function UnitPanel({
   const unit = useControlStore((s) => s.units[unitIndex]);
   const setUnitParam = useControlStore((s) => s.setUnitParam);
   const setFreeTransform = useControlStore((s) => s.setFreeTransform);
-  const frameCount = useCanvasStore((s) => s.inputFrames.length);
+  const frameCount = useInputStore((s) => s.frames.length);
   const { width: genW, height: genH } = genSize;
   const [activeTab, setActiveTab] = useState<"info" | "params">("info");
 
@@ -605,7 +610,6 @@ function OutputFramePanel({
   const selectedResultId = useGenerationStore((s) => s.selectedResultId);
   const selectedImageIndex = useGenerationStore((s) => s.selectedImageIndex);
   const results = useGenerationStore((s) => s.results);
-  const addImageLayerToFrame = useCanvasStore((s) => s.addImageLayerToFrame);
   const panelCollapsedOverrides = useCanvasStore((s) => s.panelCollapsedOverrides);
   const togglePanelCollapsed = useCanvasStore((s) => s.togglePanelCollapsed);
   const [activeTab, setActiveTab] = useState<"info" | "params">("info");
@@ -639,19 +643,8 @@ function OutputFramePanel({
     if (!imageUrl) return;
     const resp = await fetch(imageUrl);
     const blob = await resp.blob();
-    const loaded = await loadImageFile(new File([blob], "from-output.png", { type: "image/png" }));
-    const state = useCanvasStore.getState();
-    const target = state.activeInputFrameId ?? state.inputFrames[0]?.id;
-    if (target) {
-      addImageLayerToFrame(
-        target,
-        loaded.file,
-        loaded.objectUrl,
-        loaded.naturalWidth,
-        loaded.naturalHeight,
-      );
-    }
-  }, [selectedResult, selectedImageIndex, addImageLayerToFrame]);
+    await addFilesToInputs([new File([blob], "from-output.png", { type: "image/png" })]);
+  }, [selectedResult, selectedImageIndex]);
 
   const handleDownload = useCallback(() => {
     if (!selectedResult || selectedImageIndex === null) return;
@@ -824,7 +817,7 @@ export function ControlFramePanels({ layout, onPickImage, onClearImage }: Contro
   const viewport = useCanvasStore((s) => s.viewport);
   const labelScale = useUiStore((s) => s.canvasLabelScale);
   const units = useControlStore((s) => s.units);
-  const frameCount = useCanvasStore((s) => s.inputFrames.length);
+  const frameCount = useInputStore((s) => s.frames.length);
 
   const hiresEnabled = useGenerationStore((s) => s.hiresEnabled);
   const hiresScale = useGenerationStore((s) => s.hiresScale);
@@ -890,9 +883,8 @@ export function ControlFramePanels({ layout, onPickImage, onClearImage }: Contro
         });
       })}
 
-      {/* The singular Input panel mount is dropped. The new
-          per-frame InputFramePanels orchestrator (mounted from
-          CanvasView) renders one panel per frame in inputFrames. */}
+      {/* Input frames get their panels from InputFramePanels, mounted by
+          CanvasView. */}
 
       <OutputFramePanel
         canvasX={layout.outputX}

@@ -1,57 +1,67 @@
-import { useCallback } from "react";
-import { useCanvasStore, type ImageLayer } from "@/stores/canvasStore";
+import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCanvasStore } from "@/stores/canvasStore";
+import { useInputStore } from "@/stores/inputStore";
 import type Konva from "konva";
 import type { useSnap } from "./useSnap";
 
 export type Snap = ReturnType<typeof useSnap>;
 
-/** Select, drag and transform handlers for the per-frame image and mask
+/** Select, drag and transform handlers for the per-frame picture and mask
  * nodes, shared by the layers that render them. */
 export function useLayerInteraction(snap: Snap) {
-  const setActiveInputFrame = useCanvasStore((s) => s.setActiveInputFrame);
-  const setActiveLayerInFrame = useCanvasStore((s) => s.setActiveLayerInFrame);
-  const updateLayerInFrame = useCanvasStore((s) => s.updateLayerInFrame);
+  // useSnap hands out a new object every render (its guides are state); the
+  // handlers reach it through a ref so they keep their identity.
+  const snapRef = useRef(snap);
+  useEffect(() => {
+    snapRef.current = snap;
+  });
 
   const onLayerClick = useCallback(
     (frameId: string, layerId: string, e: Konva.KonvaEventObject<MouseEvent>) => {
       if (e.evt.button !== 0 || useCanvasStore.getState().activeTool !== "move") return;
       e.cancelBubble = true;
-      setActiveInputFrame(frameId);
-      setActiveLayerInFrame(frameId, layerId);
+      const inputs = useInputStore.getState();
+      inputs.selectFrame(frameId);
+      inputs.setActiveItem({ frameId, id: layerId });
     },
-    [setActiveInputFrame, setActiveLayerInFrame],
+    [],
   );
 
   const onLayerDragEnd = useCallback(
     (frameId: string, layerId: string, e: Konva.KonvaEventObject<DragEvent>) => {
-      snap.clearGuides();
-      updateLayerInFrame(frameId, layerId, {
+      snapRef.current.clearGuides();
+      useInputStore.getState().patchTransform(frameId, layerId, {
         x: e.target.x(),
         y: e.target.y(),
-      } as Partial<ImageLayer>);
+      });
     },
-    [snap, updateLayerInFrame],
+    [],
   );
 
   const onLayerTransformEnd = useCallback(
     (frameId: string, layerId: string, e: Konva.KonvaEventObject<Event>) => {
-      snap.clearGuides();
+      snapRef.current.clearGuides();
       const node = e.target as Konva.Image;
-      updateLayerInFrame(frameId, layerId, {
+      useInputStore.getState().patchTransform(frameId, layerId, {
         x: node.x(),
         y: node.y(),
         scaleX: node.scaleX(),
         scaleY: node.scaleY(),
         rotation: node.rotation(),
-      } as Partial<ImageLayer>);
+      });
     },
-    [snap, updateLayerInFrame],
+    [],
   );
 
-  return {
-    onLayerClick,
-    onLayerDragEnd,
-    onLayerTransformEnd,
-    onLayerDragMove: snap.handleDragMove,
-  };
+  const onLayerDragMove = useCallback(
+    (e: Konva.KonvaEventObject<DragEvent>) => snapRef.current.handleDragMove(e),
+    [],
+  );
+
+  return useMemo(
+    () => ({ onLayerClick, onLayerDragEnd, onLayerTransformEnd, onLayerDragMove }),
+    [onLayerClick, onLayerDragEnd, onLayerTransformEnd, onLayerDragMove],
+  );
 }
+
+export type LayerInteraction = ReturnType<typeof useLayerInteraction>;

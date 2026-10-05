@@ -4,12 +4,11 @@ import { useGenerationStore } from "@/stores/generationStore";
 import { useFrameSize } from "@/canvas/useFrameSize";
 import { useUiStore } from "@/stores/uiStore";
 import { useCanvasStore } from "@/stores/canvasStore";
-import { useFrameShapes } from "@/canvas/useFrameShapes";
+import { useOutline } from "@/inputs/useOutline";
 import { useImg2ImgStore } from "@/stores/img2imgStore";
 import { useModelSelectionStore } from "@/stores/modelSelectionStore";
 import { useInputsAtCapacity } from "@/canvas/useInputsAtCapacity";
 import { effectiveSizeMode, resolveGenerationSize } from "@/lib/sizeCompute";
-import { enumerateWireSlots } from "@/canvas/inputFrames";
 import {
   INPUT_FRAME_GAP,
   REFERENCE_CHILD_GAP,
@@ -77,7 +76,7 @@ export interface CanvasLayout {
   outputDisplayW: number;
   outputDisplayH: number;
   /** Per-Input-frame layout positions for the multi-Input-frame stack. One
-   * entry per frame in `canvasStore.inputFrames` in store order. Vertical
+   * entry per input frame in list order. Vertical
    * stack with room for each frame's floating panel above it. Initial frames
    * carry display dims matching the generation resolution; Reference frames
    * are mother-grid shells with child cell positions baked in. */
@@ -95,7 +94,7 @@ export function useControlFrameLayout(): CanvasLayout {
   const compositeProcessed = useControlStore((s) => s.compositeProcessed);
   const { width: frameW, height: frameH, referenceSets } = useFrameSize();
   const lastResult = useGenerationStore((s) => s.results[0]);
-  const storeInputFrames = useFrameShapes();
+  const outline = useOutline();
   const autoFitFrame = useUiStore((s) => s.autoFitFrame);
   const labelScale = useUiStore((s) => s.canvasLabelScale);
   const sizeMode = useImg2ImgStore((s) => s.sizeMode);
@@ -107,10 +106,9 @@ export function useControlFrameLayout(): CanvasLayout {
   const inputsAtCapacity = useInputsAtCapacity();
 
   return useMemo(() => {
-    const wireSlots = enumerateWireSlots(storeInputFrames);
     const isCloudModel = activeModel?.source === "cloud";
     const genSize = resolveGenerationSize(
-      effectiveSizeMode(sizeMode, autoFitFrame, wireSlots, referenceSets),
+      effectiveSizeMode(sizeMode, autoFitFrame, outline.sent, referenceSets),
       frameW,
       frameH,
       scaleFactor,
@@ -222,28 +220,24 @@ export function useControlFrameLayout(): CanvasLayout {
     }
 
     // ── multi-Input-frame positions ────────────────────────────
-    // One InputFramePosition per frame in canvasStore.inputFrames, stacked
-    // vertically. Reference frames render as a mother frame with a grid of
-    // child cells per the user's mockup. The wireIndex on each entry comes
-    // from enumerateWireSlots so the panel header and child badges show
-    // the global wire position, not within-frame indexing.
+    // One InputFramePosition per input frame, stacked vertically. Reference
+    // frames render as a mother frame with a grid of child cells.
     const inputFramesPositions: InputFramePosition[] = [];
     // A frame's panel floats ELEMENT_GAP above it and renders at the label scale
     const stackGap = INPUT_FRAME_GAP + PANEL_HEIGHT * labelScale + ELEMENT_GAP;
     let stackY = 0;
-    for (const storeFrame of storeInputFrames) {
-      if (storeFrame.mode === "initial") {
-        const wireIndex = wireSlots.find((s) => s.frameId === storeFrame.id)?.globalIndex ?? null;
+    for (const entry of outline.entries) {
+      if (entry.role === "initial") {
         const f: InitialFramePosition = {
           kind: "initial",
-          frameId: storeFrame.id,
+          frameId: entry.frameId,
           x: 0,
           y: stackY,
           frameW,
           frameH,
           displayW: dw,
           displayH: dh,
-          wireIndex,
+          filled: entry.sent.length > 0,
         };
         inputFramesPositions.push(f);
         stackY += dh + stackGap;
@@ -251,7 +245,7 @@ export function useControlFrameLayout(): CanvasLayout {
         // Reference mode: mother frame with grid of children. Mother width
         // matches Initial frames in the same column (dw) so the input
         // column has uniform width regardless of frame mode.
-        const refs = storeFrame.references;
+        const refs = entry.slots;
         const includeAddCell = !inputsAtCapacity;
         const cols = computeReferenceGridColumns(refs.length);
         const rows = computeReferenceGridRows(refs.length, cols, includeAddCell);
@@ -271,19 +265,16 @@ export function useControlFrameLayout(): CanvasLayout {
         const motherY = stackY;
         const contentX = motherX + REFERENCE_MOTHER_PADDING;
         const contentY = motherY + REFERENCE_MOTHER_PADDING;
-        const children: ReferenceChildPosition[] = refs.map((ref, i) => {
+        const children: ReferenceChildPosition[] = refs.map((slot, i) => {
           const col = i % cols;
           const row = Math.floor(i / cols);
-          const wireIndex =
-            wireSlots.find((s) => s.frameId === storeFrame.id && s.refId === ref.id)?.globalIndex ??
-            -1;
           return {
-            refId: ref.id,
+            refId: slot.pictureId,
             x: contentX + col * (cellW + REFERENCE_CHILD_GAP),
             y: contentY + row * (cellH + REFERENCE_CHILD_GAP),
             displayW: cellW,
             displayH: cellH,
-            wireIndex,
+            wireIndex: slot.address?.n ?? null,
           };
         });
         let addCellPosition: { x: number; y: number; w: number; h: number } | null = null;
@@ -298,18 +289,15 @@ export function useControlFrameLayout(): CanvasLayout {
             h: cellH,
           };
         }
-        const firstChildWireIndex =
-          wireSlots.find((s) => s.frameId === storeFrame.id)?.globalIndex ?? null;
         const f: MotherFramePosition = {
           kind: "reference",
-          frameId: storeFrame.id,
+          frameId: entry.frameId,
           x: motherX,
           y: motherY,
           motherW,
           motherH,
           children,
           addCellPosition,
-          firstChildWireIndex,
         };
         inputFramesPositions.push(f);
         stackY += motherH + stackGap;
@@ -350,7 +338,7 @@ export function useControlFrameLayout(): CanvasLayout {
     frameH,
     referenceSets,
     lastResult,
-    storeInputFrames,
+    outline,
     autoFitFrame,
     labelScale,
     sizeMode,

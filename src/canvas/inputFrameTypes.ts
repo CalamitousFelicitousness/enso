@@ -19,10 +19,8 @@ export interface InitialFramePosition {
   /** Display-space dimensions = frameW/H * displayScale. */
   displayW: number;
   displayH: number;
-  /** 1-based global wire index when this frame contributes a slot to the
-   * wire's images[] array. Null when the frame has no visible image layer
-   * yet, in which case the UI shows "empty" rather than a number. */
-  wireIndex: number | null;
+  /** The frame sends a picture. */
+  filled: boolean;
 }
 
 /** One child cell inside a Reference mother frame's grid. Position is
@@ -35,9 +33,8 @@ export interface ReferenceChildPosition {
   y: number;
   displayW: number;
   displayH: number;
-  /** 1-based global wire index of this reference child. Always populated
-   * for children that appear in the layout. */
-  wireIndex: number;
+  /** 1-based number this child is sent as; null while it is not sent. */
+  wireIndex: number | null;
   /** Compact per-modality address ("P2", "V1", "A1·V1") when the layout
    * carries mixed media; badge falls back to wireIndex when absent. */
   badge?: string;
@@ -62,10 +59,6 @@ export interface ReferenceFramePosition {
   /** Position of the trailing +Add cell, or null when the input frames already
    * hold as many images as the active model takes. */
   addCellPosition: { x: number; y: number; w: number; h: number } | null;
-  /** Wire index of the first child in this mother. Used by the panel
-   * label ("Input 2 (Reference, 4 images)" where 2 is the first child's
-   * wire index). Null when references is empty. */
-  firstChildWireIndex: number | null;
 }
 
 /** Discriminated union the layout engine emits per Input frame, the Konva

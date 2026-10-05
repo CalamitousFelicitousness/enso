@@ -6,7 +6,7 @@
 
 import { useState } from "react";
 import { useSortable } from "@dnd-kit/sortable";
-import { GripVertical, ImagePlus, Info, Scan, Settings, Trash2, X } from "lucide-react";
+import { Eye, GripVertical, ImagePlus, Info, Scan, Settings, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { KeepAlivePanel, KeepAliveSwitch } from "@/components/ui/keep-alive";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -17,9 +17,10 @@ import {
   INPUT_COLOR_INACTIVE,
   INPUT_COLOR_REFERENCE,
 } from "@/canvas/ControlFramePanel";
-import { useCanvasStore } from "@/stores/canvasStore";
-import type { ImageLayer } from "@/stores/canvasStore";
-import type { InputFrameMode, SizeSourceRef } from "@/canvas/inputFrames";
+import { useInputStore } from "@/stores/inputStore";
+import type { SizeSourcePick } from "@/lib/inputs/outline";
+import { positionLabel, roleLabel } from "@/lib/inputs/text";
+import { composedPictures, type FrameRole } from "@/lib/inputs/types";
 import { ReferenceSortableOverlay } from "@/canvas/ReferenceSortableOverlay";
 import { SIZE_SOURCE_HINT } from "@/canvas/useSizeSource";
 import { LayerPanel } from "@/components/generation/LayerPanel";
@@ -60,6 +61,8 @@ interface InputFramePanelProps {
   /** The images the frame sends, as a prompt numbers them ("Image 2-3");
    * null when it sends none. */
   images: string | null;
+  /** Pictures the frame holds that its last role switch hid. */
+  hiddenBySwitch: number;
   viewport: ViewportState;
   labelScale: number;
   /** Generation size (display in the size text for Initial frames). */
@@ -69,7 +72,7 @@ interface InputFramePanelProps {
   onPickImage?: ((frameId: string) => void) | undefined;
   /** Reference mode: open file picker to append a new reference child. */
   onAddReferenceChild?: ((frameId: string) => void) | undefined;
-  /** Clear all content in the frame (layers + mask + references). */
+  /** Clear all content in the frame (pictures and mask). */
   onClearFrame?: ((frameId: string) => void) | undefined;
   /** Remove the frame from the input column. Disabled when only one frame
    * remains (canRemove === false). */
@@ -78,7 +81,7 @@ interface InputFramePanelProps {
   /** The input frames hold as many images as the active model takes. */
   atCapacity?: boolean | undefined;
   /** Set when the image the frame size comes from is in this frame. */
-  sizeSource?: SizeSourceRef | null | undefined;
+  sizeSource?: SizeSourcePick | null | undefined;
 }
 
 /** Marks the input image the frame size comes from. */
@@ -103,6 +106,7 @@ export function InputFramePanel({
   frame,
   position,
   images,
+  hiddenBySwitch,
   viewport,
   labelScale,
   genSize,
@@ -114,10 +118,12 @@ export function InputFramePanel({
   atCapacity = false,
   sizeSource = null,
 }: InputFramePanelProps) {
-  const storeFrame = useCanvasStore((s) => s.inputFrames.find((f) => f.id === frame.frameId));
-  const setFrameMode = useCanvasStore((s) => s.setFrameMode);
-  const reorderReferenceInFrame = useCanvasStore((s) => s.reorderReferenceInFrame);
-  const removeReferenceFromFrame = useCanvasStore((s) => s.removeReferenceFromFrame);
+  const storeFrame = useInputStore((s) => s.frames.find((f) => f.id === frame.frameId));
+  const switchRole = useInputStore((s) => s.switchRole);
+  const movePicture = useInputStore((s) => s.movePicture);
+  const removePicture = useInputStore((s) => s.removePicture);
+  const setPictureVisible = useInputStore((s) => s.setPictureVisible);
+  const showHiddenBySwitch = useInputStore((s) => s.showHiddenBySwitch);
 
   // dnd-kit Sortable for whole-frame vertical reorder. The drag activator
   // is the GripVertical handle inside the panel header - pointer-down on
@@ -132,12 +138,11 @@ export function InputFramePanel({
   // Derive values from storeFrame with defensive fallbacks so all hooks
   // below can run unconditionally; the early return on missing storeFrame
   // comes after the hook list.
-  const isReference = storeFrame?.mode === "reference";
-  const refCount = storeFrame?.references.length ?? 0;
-  const visibleImages =
-    storeFrame?.layers.filter((l): l is ImageLayer => l.type === "image" && l.visible) ?? [];
-  const layerCount = visibleImages.length;
-  const maskLineCount = storeFrame?.maskLines.length ?? 0;
+  const isReference = storeFrame?.role === "reference";
+  const refCount = frame.kind === "reference" ? frame.children.length : 0;
+  const layerCount = storeFrame ? composedPictures(storeFrame).length : 0;
+  const maskLineCount = storeFrame?.mask.strokes.length ?? 0;
+  const unreadable = storeFrame?.pictures.filter((p) => !p.file).length ?? 0;
 
   const accent = isReference
     ? INPUT_COLOR_REFERENCE
@@ -145,7 +150,7 @@ export function InputFramePanel({
       ? INPUT_COLOR_ACTIVE
       : INPUT_COLOR_INACTIVE;
 
-  const label = `Input ${position} (${isReference ? "Reference" : "Initial"})`;
+  const label = `${positionLabel(position)} (${roleLabel(isReference ? "reference" : "initial")})`;
   const sizeText = images ?? "empty";
 
   if (!storeFrame) return null;
@@ -156,9 +161,9 @@ export function InputFramePanel({
   const canvasY = frame.y;
   const frameW = frame.kind === "initial" ? frame.displayW : frame.motherW;
 
-  const handleModeSwitch = (mode: InputFrameMode) => {
-    if (mode === storeFrame.mode) return;
-    setFrameMode(frame.frameId, mode);
+  const handleModeSwitch = (role: FrameRole) => {
+    if (role === storeFrame.role) return;
+    switchRole(frame.frameId, role);
   };
   const handlePickImage = () => onPickImage?.(frame.frameId);
   const handleAddRef = () => onAddReferenceChild?.(frame.frameId);
@@ -167,14 +172,51 @@ export function InputFramePanel({
   // A reference child is always another slot; a layer is one only on an empty frame
   const addBlocked = atCapacity && (isReference || layerCount === 0);
 
-  // The overlay speaks ids; map them to this frame's reference indices.
+  // The overlay speaks ids; map them to places in this frame's picture list.
   const handleChildReorder = (activeId: string, overId: string) => {
     if (!storeFrame) return;
-    const fromIndex = storeFrame.references.findIndex((r) => r.id === activeId);
-    const toIndex = storeFrame.references.findIndex((r) => r.id === overId);
+    const fromIndex = storeFrame.pictures.findIndex((p) => p.id === activeId);
+    const toIndex = storeFrame.pictures.findIndex((p) => p.id === overId);
     if (fromIndex < 0 || toIndex < 0) return;
-    reorderReferenceInFrame(frame.frameId, fromIndex, toIndex);
+    movePicture(frame.frameId, fromIndex, toIndex);
   };
+
+  // A hidden picture stays in its cell, dimmed; this is the way back.
+  const cellNote = (pictureId: string) => {
+    const picture = storeFrame.pictures.find((p) => p.id === pictureId);
+    if (!picture || picture.visible) return null;
+    return (
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          setPictureVisible(frame.frameId, pictureId, true);
+        }}
+        onPointerDown={(e) => e.stopPropagation()}
+        title="Hidden: not sent. Click to show it again."
+        className="pointer-events-auto flex items-center gap-1 rounded-full bg-black/70 px-2 py-0.5 text-[10px] text-white hover:bg-black/90"
+      >
+        <Eye size={10} />
+        Hidden
+      </button>
+    );
+  };
+
+  // Pictures a role switch hid are out of sight in both roles; say so here.
+  const hiddenStatus = hiddenBySwitch > 0 && (
+    <button
+      type="button"
+      onClick={() => showHiddenBySwitch(frame.frameId)}
+      title={
+        isReference
+          ? "Layers of this frame's Initial role, hidden while it is Reference and not sent. Click to show them as references."
+          : "Pictures hidden when this frame became Initial; they are not sent. Click to show them as layers."
+      }
+      className="shrink-0 rounded-full bg-amber-500/15 px-1.5 text-[10px] font-medium text-amber-400 hover:bg-amber-500/25"
+    >
+      {hiddenBySwitch} hidden
+    </button>
+  );
 
   // Compact Mode toggle pill (Initial / Reference). Rendered in the
   // FrameHeader's subheader slot, above the Info/Options tab bar.
@@ -299,6 +341,7 @@ export function InputFramePanel({
             <>
               <InfoLine label="References" value={String(refCount)} />
               <InfoLine label="Sends" value={images ?? "-"} />
+              {unreadable > 0 && <InfoLine label="Could not be read" value={String(unreadable)} />}
             </>
           ) : (
             <>
@@ -309,6 +352,7 @@ export function InputFramePanel({
                 value={layerCount > 0 ? `${genSize.width}×${genSize.height}` : "-"}
               />
               <InfoLine label="Sends" value={images ?? "-"} />
+              {unreadable > 0 && <InfoLine label="Could not be read" value={String(unreadable)} />}
             </>
           )}
         </div>
@@ -336,9 +380,12 @@ export function InputFramePanel({
         color={accent}
         label={label}
         labelAdornment={
-          !isReference && sizeSource && sizeSource.refId === null ? <SizeSourceBadge /> : undefined
+          !isReference && sizeSource && sizeSource.pictureId === null ? (
+            <SizeSourceBadge />
+          ) : undefined
         }
         sizeText={sizeText}
+        status={hiddenStatus}
         canvasX={canvasX}
         canvasY={canvasY}
         frameW={frameW}
@@ -359,12 +406,13 @@ export function InputFramePanel({
           cells={frame.children}
           viewport={viewport}
           onReorder={handleChildReorder}
-          onRemove={(refId) => removeReferenceFromFrame(frame.frameId, refId)}
+          onRemove={(pictureId) => removePicture(frame.frameId, pictureId)}
           mark={
-            sizeSource?.refId
-              ? { refId: sizeSource.refId, node: <SizeSourceBadge onImage /> }
+            sizeSource?.pictureId
+              ? { refId: sizeSource.pictureId, node: <SizeSourceBadge onImage /> }
               : null
           }
+          cellNote={cellNote}
         />
       )}
     </>

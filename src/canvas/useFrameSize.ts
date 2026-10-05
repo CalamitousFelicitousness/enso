@@ -1,8 +1,9 @@
 import { useMemo } from "react";
 import { useCanvasStore } from "@/stores/canvasStore";
 import { useGenerationStore } from "@/stores/generationStore";
-import { useFrameShapes } from "@/canvas/useFrameShapes";
-import { loneReferenceSize } from "@/canvas/inputFrames";
+import { useInputStore } from "@/stores/inputStore";
+import { loneReference } from "@/lib/inputs/outline";
+import { outlineOf } from "@/inputs/useOutline";
 import { useModelCapabilities } from "@/hooks/useModelCapabilities";
 import { imageOutputSize, referenceSetsSize } from "@/lib/sizeCompute";
 
@@ -24,12 +25,12 @@ export interface FrameSize {
 export function useFrameSize(): FrameSize {
   const width = useGenerationStore((s) => s.width);
   const height = useGenerationStore((s) => s.height);
-  const frames = useFrameShapes();
+  const lone = useInputStore((s) => loneReference(outlineOf(s.frames)));
   const { kind, requestSetsSize } = useModelCapabilities();
   const multiple = useCanvasStore((s) => s.sizeMultiple);
   return useMemo(() => {
     const referenceSets = referenceSetsSize(kind !== "cloud", requestSetsSize);
-    const lockedTo = referenceSets ? loneReferenceSize(frames) : null;
+    const lockedTo = referenceSets && lone ? { width: lone.width, height: lone.height } : null;
     const size = lockedTo ? imageOutputSize(lockedTo, multiple) : { width, height };
     return {
       ...size,
@@ -37,5 +38,5 @@ export function useFrameSize(): FrameSize {
       lockedTo,
       pending: kind !== "cloud" && requestSetsSize == null,
     };
-  }, [width, height, frames, kind, requestSetsSize, multiple]);
+  }, [width, height, lone, kind, requestSetsSize, multiple]);
 }

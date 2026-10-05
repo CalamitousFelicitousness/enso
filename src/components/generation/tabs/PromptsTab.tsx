@@ -4,10 +4,15 @@ import { useGenerationStore } from "@/stores/generationStore";
 import { useUiStore } from "@/stores/uiStore";
 import { useImg2ImgStore } from "@/stores/img2imgStore";
 import { useCanvasStore } from "@/stores/canvasStore";
-import { useFrameShapes } from "@/canvas/useFrameShapes";
+import { useInputStore } from "@/stores/inputStore";
+import { useOutline } from "@/inputs/useOutline";
+import { positionLabel } from "@/lib/inputs/text";
 import { useFrameSize } from "@/canvas/useFrameSize";
-import { enumerateWireSlots, framePosition, parseSizeSourceValue } from "@/canvas/inputFrames";
-import { useSizeSourceOptions, useSizeSourceValue } from "@/canvas/useSizeSource";
+import {
+  parseSizeSourceValue,
+  useSizeSourceOptions,
+  useSizeSourceValue,
+} from "@/canvas/useSizeSource";
 import { useAspectLock, useAspectPresets } from "@/hooks/useAspectLock";
 import { useModelSelectionStore } from "@/stores/modelSelectionStore";
 import { useShallow } from "zustand/react/shallow";
@@ -45,7 +50,7 @@ const GENERIC_CLOUD_PRESETS: AspectPreset[] = [
 function SizeFromSelect() {
   const options = useSizeSourceOptions();
   const value = useSizeSourceValue();
-  const setSizeSource = useCanvasStore((s) => s.setSizeSource);
+  const setSizeSource = useInputStore((s) => s.setSizeSource);
   return (
     <Combobox
       value={value}
@@ -91,8 +96,8 @@ export function PromptsTab() {
   const setMegapixelTarget = useImg2ImgStore((s) => s.setMegapixelTarget);
   const resizeMethod = useImg2ImgStore((s) => s.resizeMethod);
   const setResizeMethod = useImg2ImgStore((s) => s.setResizeMethod);
-  const frameShapes = useFrameShapes();
-  const slots = useMemo(() => enumerateWireSlots(frameShapes), [frameShapes]);
+  const outline = useOutline();
+  const slots = outline.sent;
   const multiInput = slots.length > 1;
   const autoSize = useImg2ImgStore((s) => s.autoSize);
   const setAutoSize = useImg2ImgStore((s) => s.setAutoSize);
@@ -180,9 +185,9 @@ export function PromptsTab() {
   // A lone Reference on a model that generates at the image's size fixes the frame
   const frame = useFrameSize();
   const locked = frame.lockedTo != null;
-  const setFrameMode = useCanvasStore((s) => s.setFrameMode);
+  const switchRole = useInputStore((s) => s.switchRole);
   const lockedFrameId = locked ? slots[0].frameId : null;
-  const lockedPosition = lockedFrameId ? framePosition(frameShapes, lockedFrameId) : null;
+  const lockedEntry = outline.entries.find((e) => e.frameId === lockedFrameId);
   const lockedHint = frame.pending
     ? `The selected model is not loaded yet, so the output takes the size of Image 1: ${frame.width}×${frame.height}.`
     : `This model generates at the size of its input image: ${frame.width}×${frame.height}.`;
@@ -372,8 +377,8 @@ export function PromptsTab() {
           {lockedFrameId && (
             <ParamNotice>
               {lockedHint} To choose another size,{" "}
-              <ParamNoticeAction onClick={() => setFrameMode(lockedFrameId, "initial")}>
-                switch Input {lockedPosition} to Initial
+              <ParamNoticeAction onClick={() => switchRole(lockedFrameId, "initial")}>
+                switch {lockedEntry ? positionLabel(lockedEntry.position) : "the frame"} to Initial
               </ParamNoticeAction>
               {frame.pending ? " or load the model." : "."}
             </ParamNotice>

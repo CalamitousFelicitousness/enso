@@ -10,9 +10,8 @@ export interface UnifiedInputsResult {
 
 /** Returns the lockedControlType for exclusive control-unit types (only one
  * t2i/style_transfer/ip can be active at a time) and the per-subtype availability
- * map used by the "Add Input > Control" popover. Canvas-side Input frames live
- * in canvasStore.inputFrames and are surfaced separately; this hook is now
- * control-unit-only after the multi-Input-frame rewire. */
+ * map used by the "Add Input > Control" popover. Input frames live in the
+ * input store and are listed separately; this hook covers control units only. */
 export function useUnifiedInputs(): UnifiedInputsResult {
   const units = useControlStore((s) => s.units);
 

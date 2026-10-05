@@ -1,6 +1,7 @@
 import { useCallback, useRef } from "react";
 import { useCanvasStore } from "@/stores/canvasStore";
-import type { MaskLine } from "@/stores/img2imgStore";
+import { useInputStore } from "@/stores/inputStore";
+import type { MaskStroke } from "@/lib/inputs/types";
 import type { CanvasLayout } from "@/canvas/useControlFrameLayout";
 import type Konva from "konva";
 
@@ -18,8 +19,7 @@ interface UseMaskPaintOptions {
  * pointer lands inside, and projects subsequent points into that frame's
  * local pixel space. The active <Line> + <Circle> Konva nodes live
  * inside the pinned (= focused) frame's displayScale group, so the
- * stroke renders pixel-for-pixel with what eventually commits to
- * `frame.maskLines`.
+ * stroke renders pixel-for-pixel with what the frame's mask then holds.
  *
  * Pin-on-pointerdown invariant: the pinned frame is captured at stroke
  * start and never re-resolved mid-drag. A stroke that drags off-frame
@@ -28,7 +28,7 @@ interface UseMaskPaintOptions {
 export function useMaskPaint({ stageRef, spaceHeld, layout }: UseMaskPaintOptions) {
   const isDrawing = useRef(false);
   const pointsBuffer = useRef<number[]>([]);
-  const toolRef = useRef<MaskLine["tool"]>("brush");
+  const toolRef = useRef<MaskStroke["tool"]>("brush");
   const strokeWidthRef = useRef(20);
   const pinnedFrameId = useRef<string | null>(null);
 
@@ -88,7 +88,7 @@ export function useMaskPaint({ stageRef, spaceHeld, layout }: UseMaskPaintOption
 
   const projectToFocusedFrame = useCallback(
     (stage: Konva.Stage): { x: number; y: number } | null => {
-      const focusedId = useCanvasStore.getState().activeInputFrameId;
+      const focusedId = useInputStore.getState().selectedFrameId;
       let targetId: string | null = focusedId;
       if (!targetId) {
         const firstInitial = layout.inputFrames.find((f) => f.kind === "initial");
@@ -123,9 +123,9 @@ export function useMaskPaint({ stageRef, spaceHeld, layout }: UseMaskPaintOption
       const hit = hitTestInitialFrame(stage);
       if (!hit) return;
 
-      const { activeTool, brushSize, setActiveInputFrame } = useCanvasStore.getState();
+      const { activeTool, brushSize } = useCanvasStore.getState();
       pinnedFrameId.current = hit.frameId;
-      setActiveInputFrame(hit.frameId);
+      useInputStore.getState().selectFrame(hit.frameId);
       toolRef.current = activeTool === "maskEraser" ? "eraser" : "brush";
       strokeWidthRef.current = brushSize;
       pointsBuffer.current = [hit.x, hit.y];
@@ -199,7 +199,7 @@ export function useMaskPaint({ stageRef, spaceHeld, layout }: UseMaskPaintOption
     pinnedFrameId.current = null;
 
     if (frameId && pointsBuffer.current.length >= 2) {
-      useCanvasStore.getState().addMaskLineToFrame(frameId, {
+      useInputStore.getState().addStroke(frameId, {
         points: pointsBuffer.current.slice(),
         strokeWidth: strokeWidthRef.current,
         tool: toolRef.current,

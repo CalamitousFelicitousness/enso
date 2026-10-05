@@ -1,7 +1,8 @@
 import { useGenerationStore } from "@/stores/generationStore";
-import { useCanvasStore, type ImageLayer } from "@/stores/canvasStore";
+import { useInputStore } from "@/stores/inputStore";
 import { flattenCanvas } from "@/lib/flattenCanvas";
 import { uploadBlob } from "@/lib/upload";
+import { firstComposite } from "@/lib/inputs/outline";
 import type { DetailJobParams } from "@/api/types/v2";
 import { serializeDetailerEntry, stripUndefined } from "./wire";
 
@@ -14,17 +15,14 @@ export interface BuildDetailResult {
  * The backend will skip encode/base/hires entirely and run only the detailer on the input. */
 export async function buildDetailRequest(): Promise<BuildDetailResult> {
   const gen = useGenerationStore.getState();
-  const canvas = useCanvasStore.getState();
 
-  // Detail-only sources the first Initial frame's layers (matches the
-  // chrome's focused-frame model).
-  const primaryFrame = canvas.inputFrames[0] ?? null;
-  const imageLayers = primaryFrame?.layers.filter((l): l is ImageLayer => l.type === "image") ?? [];
-  if (imageLayers.length === 0) {
+  // Detail-only runs on the first Initial frame that sends a picture.
+  const layers = firstComposite(useInputStore.getState().frames);
+  if (!layers) {
     throw new Error("Detail only requires an image on the canvas");
   }
 
-  const flattenedBlob = await flattenCanvas(imageLayers, gen.width, gen.height);
+  const flattenedBlob = await flattenCanvas(layers, gen.width, gen.height);
   if (!flattenedBlob) {
     throw new Error("Failed to flatten canvas for detail job");
   }

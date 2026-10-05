@@ -8,8 +8,7 @@
 
 import { ensureMaskBitmap } from "@/lib/mask/bitmaps";
 import { MASK_ALPHA_THRESHOLD } from "@/lib/mask/components";
-import type { MaskObjectLayer } from "@/stores/canvasStore";
-import type { MaskLine } from "@/stores/img2imgStore";
+import type { MaskObject, MaskStroke } from "@/lib/inputs/types";
 
 /**
  * Render mask objects as white-on-transparent onto an existing canvas context.
@@ -18,7 +17,7 @@ import type { MaskLine } from "@/stores/img2imgStore";
  */
 async function renderMaskObjects(
   ctx: CanvasRenderingContext2D,
-  masks: MaskObjectLayer[],
+  masks: MaskObject[],
 ): Promise<void> {
   if (masks.length === 0) return;
 
@@ -36,9 +35,9 @@ async function renderMaskObjects(
 
   for (const { mask: m, img } of loaded) {
     tmpCtx.save();
-    tmpCtx.translate(m.x, m.y);
-    tmpCtx.rotate((m.rotation * Math.PI) / 180);
-    tmpCtx.scale(m.scaleX, m.scaleY);
+    tmpCtx.translate(m.transform.x, m.transform.y);
+    tmpCtx.rotate((m.transform.rotation * Math.PI) / 180);
+    tmpCtx.scale(m.transform.scaleX, m.transform.scaleY);
     tmpCtx.drawImage(img, 0, 0, m.width, m.height);
     tmpCtx.restore();
   }
@@ -62,7 +61,7 @@ async function renderMaskObjects(
 }
 
 /** Render mask strokes as white-on-black onto the canvas. */
-function renderStrokes(ctx: CanvasRenderingContext2D, lines: MaskLine[]) {
+function renderStrokes(ctx: CanvasRenderingContext2D, lines: MaskStroke[]) {
   for (const line of lines) {
     ctx.lineJoin = "round";
     ctx.lineCap = "round";
@@ -94,8 +93,8 @@ function renderStrokes(ctx: CanvasRenderingContext2D, lines: MaskLine[]) {
  * objects + uncommitted stroke buffer; no global state read.
  */
 export async function exportMask(
-  maskObjects: MaskObjectLayer[],
-  lines: MaskLine[],
+  maskObjects: MaskObject[],
+  lines: MaskStroke[],
   width: number,
   height: number,
 ): Promise<Blob | null> {

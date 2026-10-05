@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import type { WireSlot } from "@/canvas/inputFrames";
 import {
   effectiveSizeMode,
   imageOutputSize,
@@ -9,14 +8,8 @@ import {
   snapSize,
 } from "./sizeCompute";
 
-const initialSlot: WireSlot = { frameId: "a", localIndex: 0, globalIndex: 1, mode: "initial" };
-const referenceSlot = (index: number): WireSlot => ({
-  frameId: "b",
-  refId: `r${index}`,
-  localIndex: index,
-  globalIndex: index + 1,
-  mode: "reference",
-});
+const initialSlot = { role: "initial" } as const;
+const referenceSlot = (_index: number) => ({ role: "reference" }) as const;
 
 describe("effectiveSizeMode", () => {
   it("applies the size mode while Fit sizes the frame from an input image", () => {

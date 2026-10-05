@@ -1,4 +1,4 @@
-import type { MaskLine } from "@/stores/canvasStore";
+import type { MaskStroke } from "@/lib/inputs/types";
 import type { RegionOverlap } from "./identity";
 
 /** A mask layer as the bake reads it. Rotation in degrees, as Konva stores it. */
@@ -18,7 +18,7 @@ export interface BakeInput {
   width: number;
   height: number;
   masks: MaskSource[];
-  lines: MaskLine[];
+  lines: MaskStroke[];
   /** Display colour as #rrggbb; baked into the region pixels. */
   color: string;
 }

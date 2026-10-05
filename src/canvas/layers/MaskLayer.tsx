@@ -6,28 +6,32 @@
 // underneath. The moment a bake lands, its bitmaps replace the pending
 // lines with the same pixels.
 
-import { useCallback, useEffect, useState } from "react";
+import { memo, useCallback, useEffect, useState } from "react";
 import { Group, Image as KonvaImage, Layer, Line } from "react-konva";
 import { useCanvasStore } from "@/stores/canvasStore";
-import type { CanvasLayer, MaskObjectLayer } from "@/stores/canvasStore";
+import { useInputStore } from "@/stores/inputStore";
+import type { MaskContent, MaskObject } from "@/lib/inputs/types";
 import { ensureMaskBitmap, maskBitmap } from "@/lib/mask/bitmaps";
 import { requestMaskBake } from "@/lib/mask/baker";
-import { useLayerInteraction, type Snap } from "@/canvas/tools/useLayerInteraction";
-import type { InputFrame } from "@/canvas/inputFrames";
+import {
+  useLayerInteraction,
+  type LayerInteraction,
+  type Snap,
+} from "@/canvas/tools/useLayerInteraction";
 import type { InitialFramePosition, InputFramePosition } from "@/canvas/inputFrameTypes";
 import type Konva from "konva";
+
+type SetNodeRef = (frameId: string, layerId: string, node: Konva.Image | null) => void;
 
 interface MaskLayerProps {
   frames: InputFramePosition[];
   displayScale: number;
-  setNodeRef: (frameId: string, layerId: string, node: Konva.Image | null) => void;
+  setNodeRef: SetNodeRef;
   snap: Snap;
   /** useMaskPaint's callback for the active stroke node, attached inside the
-   * focused frame's displayScale group so coordinates match frame.maskLines. */
+   * selected frame's displayScale group so coordinates are frame pixels. */
   setActiveLineNode?: ((node: Konva.Line | null) => void) | undefined;
 }
-
-const isMask = (l: CanvasLayer): l is MaskObjectLayer => l.type === "mask";
 
 export function MaskLayer({
   frames,
@@ -36,9 +40,8 @@ export function MaskLayer({
   snap,
   setActiveLineNode,
 }: MaskLayerProps) {
-  const storeFrames = useCanvasStore((s) => s.inputFrames);
-  const focusedInputFrameId = useCanvasStore((s) => s.activeInputFrameId);
-  const activeTool = useCanvasStore((s) => s.activeTool);
+  const selectedFrameId = useInputStore((s) => s.selectedFrameId);
+  const draggable = useCanvasStore((s) => s.activeTool === "move");
   const maskVisible = useCanvasStore((s) => s.maskVisible);
   const maskColor = useCanvasStore((s) => s.maskColor);
   const maskColorRgb = maskColor.slice(0, 7);
@@ -62,109 +65,91 @@ export function MaskLayer({
     layerNode.getNativeCanvasElement().style.opacity = String(maskColorAlpha);
   }, [layerNode, maskColorAlpha]);
 
-  // Pending strokes get baked; masks restored from storage get decoded.
-  const [, setDecoded] = useState(0);
-  useEffect(() => {
-    let cancelled = false;
-    for (const frame of storeFrames) {
-      if (frame.mode !== "initial") continue;
-      if (frame.maskLines.length > 0) requestMaskBake(frame.id);
-      for (const layer of frame.layers) {
-        if (!isMask(layer) || !layer.visible || maskBitmap(layer)) continue;
-        void ensureMaskBitmap(layer.blob).then(() => {
-          if (!cancelled) setDecoded((n) => n + 1);
-        });
-      }
-    }
-    return () => {
-      cancelled = true;
-    };
-  }, [storeFrames]);
-
   if (frames.length === 0) return null;
 
   return (
     <Layer ref={layerRef} visible={maskVisible}>
-      {frames.map((frame) => {
-        if (frame.kind !== "initial") return null;
-        const storeFrame = storeFrames.find((f) => f.id === frame.frameId);
-        if (!storeFrame || storeFrame.mode !== "initial") return null;
-        return (
-          <MaskFrameFragment
+      {frames.map((frame) =>
+        frame.kind === "initial" ? (
+          <MaskFrame
             key={frame.frameId}
             frame={frame}
-            storeFrame={storeFrame}
             displayScale={displayScale}
-            isFocused={focusedInputFrameId === frame.frameId}
-            activeTool={activeTool}
+            isSelected={selectedFrameId === frame.frameId}
+            draggable={draggable}
             maskColorRgb={maskColorRgb}
             setNodeRef={setNodeRef}
             interaction={interaction}
             setActiveLineNode={setActiveLineNode}
           />
-        );
-      })}
+        ) : null,
+      )}
     </Layer>
   );
 }
 
-interface MaskFrameFragmentProps {
+const NO_MASK: MaskContent = { objects: [], strokes: [] };
+
+interface MaskFrameProps {
   frame: InitialFramePosition;
-  storeFrame: InputFrame;
   displayScale: number;
-  isFocused: boolean;
-  activeTool: string;
+  isSelected: boolean;
+  draggable: boolean;
   maskColorRgb: string;
-  setNodeRef: (frameId: string, layerId: string, node: Konva.Image | null) => void;
-  interaction: ReturnType<typeof useLayerInteraction>;
+  setNodeRef: SetNodeRef;
+  interaction: LayerInteraction;
   setActiveLineNode?: ((node: Konva.Line | null) => void) | undefined;
 }
 
-function MaskFrameFragment({
+const MaskFrame = memo(function MaskFrame({
   frame,
-  storeFrame,
   displayScale,
-  isFocused,
-  activeTool,
+  isSelected,
+  draggable,
   maskColorRgb,
   setNodeRef,
   interaction,
   setActiveLineNode,
-}: MaskFrameFragmentProps) {
-  const masks = storeFrame.layers.filter((l): l is MaskObjectLayer => isMask(l) && l.visible);
+}: MaskFrameProps) {
+  const mask = useInputStore((s) => s.frames.find((f) => f.id === frame.frameId)?.mask) ?? NO_MASK;
+
+  // Pending strokes get baked; masks restored from storage get decoded.
+  const [, setDecoded] = useState(0);
+  useEffect(() => {
+    let cancelled = false;
+    if (mask.strokes.length > 0) requestMaskBake(frame.frameId);
+    for (const object of mask.objects) {
+      if (!object.visible || maskBitmap(object)) continue;
+      void ensureMaskBitmap(object.blob).then(() => {
+        if (!cancelled) setDecoded((n) => n + 1);
+      });
+    }
+    return () => {
+      cancelled = true;
+    };
+  }, [mask, frame.frameId]);
+
   const clipToFrame = (ctx: Konva.Context) => {
     ctx.rect(0, 0, frame.frameW, frame.frameH);
   };
 
   return (
     <Group x={frame.x} y={frame.y} scaleX={displayScale} scaleY={displayScale}>
-      {masks.map((mask) => {
-        const img = maskBitmap(mask);
-        if (!img) return null;
-        return (
-          <KonvaImage
-            key={mask.id}
-            ref={(node) => setNodeRef(frame.frameId, mask.id, node)}
-            image={img}
-            x={mask.x}
-            y={mask.y}
-            width={mask.width}
-            height={mask.height}
-            scaleX={mask.scaleX}
-            scaleY={mask.scaleY}
-            rotation={mask.rotation}
-            listening={!mask.locked}
-            draggable={activeTool === "move" && !mask.locked}
-            onDragMove={interaction.onLayerDragMove}
-            onDragEnd={(e) => interaction.onLayerDragEnd(frame.frameId, mask.id, e)}
-            onTransformEnd={(e) => interaction.onLayerTransformEnd(frame.frameId, mask.id, e)}
-            onClick={(e) => interaction.onLayerClick(frame.frameId, mask.id, e)}
+      {mask.objects.map((object) =>
+        object.visible ? (
+          <MaskNode
+            key={object.id}
+            frameId={frame.frameId}
+            object={object}
+            draggable={draggable && !object.locked}
+            setNodeRef={setNodeRef}
+            interaction={interaction}
           />
-        );
-      })}
-      {storeFrame.maskLines.length > 0 && (
+        ) : null,
+      )}
+      {mask.strokes.length > 0 && (
         <Group clipFunc={clipToFrame} listening={false}>
-          {storeFrame.maskLines.map((line, i) => (
+          {mask.strokes.map((line, i) => (
             <Line
               key={i}
               points={line.points}
@@ -178,7 +163,7 @@ function MaskFrameFragment({
           ))}
         </Group>
       )}
-      {isFocused && setActiveLineNode && (
+      {isSelected && setActiveLineNode && (
         <Group clipFunc={clipToFrame} listening={false}>
           <Line
             ref={setActiveLineNode}
@@ -193,5 +178,42 @@ function MaskFrameFragment({
         </Group>
       )}
     </Group>
+  );
+});
+
+interface MaskNodeProps {
+  frameId: string;
+  object: MaskObject;
+  draggable: boolean;
+  setNodeRef: SetNodeRef;
+  interaction: LayerInteraction;
+}
+
+function MaskNode({ frameId, object, draggable, setNodeRef, interaction }: MaskNodeProps) {
+  const nodeRef = useCallback(
+    (node: Konva.Image | null) => setNodeRef(frameId, object.id, node),
+    [frameId, object.id, setNodeRef],
+  );
+  const image = maskBitmap(object);
+  if (!image) return null;
+  const { transform } = object;
+  return (
+    <KonvaImage
+      ref={nodeRef}
+      image={image}
+      x={transform.x}
+      y={transform.y}
+      width={object.width}
+      height={object.height}
+      scaleX={transform.scaleX}
+      scaleY={transform.scaleY}
+      rotation={transform.rotation}
+      listening={!object.locked}
+      draggable={draggable}
+      onDragMove={interaction.onLayerDragMove}
+      onDragEnd={(e) => interaction.onLayerDragEnd(frameId, object.id, e)}
+      onTransformEnd={(e) => interaction.onLayerTransformEnd(frameId, object.id, e)}
+      onClick={(e) => interaction.onLayerClick(frameId, object.id, e)}
+    />
   );
 }

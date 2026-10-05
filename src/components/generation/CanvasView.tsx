@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useRef, useState, memo } from "react";
 import { toast } from "sonner";
 import { useCanvasStore } from "@/stores/canvasStore";
+import { useInputStore } from "@/stores/inputStore";
+import { addFilesToInputs } from "@/inputs/route";
+import { composedPictures } from "@/lib/inputs/types";
 import { mainViewport } from "@/canvas/viewportAdapter";
 import { CanvasSurface, type SurfacePoint } from "@/canvas/CanvasSurface";
 import { useControlStore } from "@/stores/controlStore";
@@ -10,7 +13,6 @@ import { useShortcut } from "@/hooks/useShortcut";
 import { useKeepAliveVisible } from "@/components/ui/keep-alive";
 import { payloadToFile } from "@/lib/sendTo";
 import type { DragPayload } from "@/stores/dragStore";
-import { loadImageFile } from "@/lib/image";
 import { CanvasStage } from "@/canvas/CanvasStage";
 import { CanvasToolbar } from "@/canvas/CanvasToolbar";
 import { ControlFramePanels } from "@/canvas/ControlFramePanel";
@@ -31,29 +33,23 @@ function contains(p: SurfacePoint, x: number, y: number, w: number, h: number): 
   return p.canvasX >= x && p.canvasX <= x + w && p.canvasY >= y && p.canvasY <= y + h;
 }
 
-/** The frame files go to: the given one, else the active one, else the first. */
+/** The frame files go to: the given one, else the selected one, else the first. */
 function targetFrame(frameId: string | null) {
-  const state = useCanvasStore.getState();
-  const id = frameId ?? state.activeInputFrameId ?? state.inputFrames[0]?.id;
-  return state.inputFrames.find((f) => f.id === id) ?? null;
+  const state = useInputStore.getState();
+  const id = frameId ?? state.selectedFrameId ?? state.frames[0]?.id;
+  return state.frames.find((f) => f.id === id) ?? null;
 }
 
 export const CanvasView = memo(function CanvasView() {
   const visible = useKeepAliveVisible();
   useShortcutScope("canvas", visible);
   const setViewport = useCanvasStore((s) => s.setViewport);
-  // File-input handlers route to per-frame mutations on the focused
-  // inputFrame.
-  const focusedFrameInitialHasImages = useCanvasStore((s) => {
-    const f = s.inputFrames.find((fr) => fr.id === s.activeInputFrameId) ?? s.inputFrames[0];
-    return f?.mode === "initial" && f.layers.some((l) => l.type === "image" && l.visible);
+  const selectedInitialHasImages = useInputStore((s) => {
+    const f = s.frames.find((fr) => fr.id === s.selectedFrameId) ?? s.frames[0];
+    return f?.role === "initial" && composedPictures(f).length > 0;
   });
-  const hasAnyContent = useCanvasStore((s) =>
-    s.inputFrames.some(
-      (f) =>
-        (f.mode === "initial" && f.layers.length > 0) ||
-        (f.mode === "reference" && f.references.length > 0),
-    ),
+  const hasAnyContent = useInputStore((s) =>
+    s.frames.some((f) => f.pictures.length > 0 || f.mask.objects.length > 0),
   );
   const labelScale = useUiStore((s) => s.canvasLabelScale ?? 1);
   const canvasMode = useCanvasStore((s) => s.canvasMode);
@@ -70,27 +66,9 @@ export const CanvasView = memo(function CanvasView() {
 
   const layout = useControlFrameLayout();
 
-  // Route dropped/pasted/picked images into an input frame: the one under the
-  // drop or behind the clicked control, else the active one. Initial frames
-  // receive image layers, Reference frames reference children. Every file is
-  // decoded before any is added, so they land in the order given rather than
-  // the order their decodes finish; that order is the order sent.
-  const addFiles = useCallback(async (files: File[], frameId: string | null = null) => {
-    const decoded = await Promise.allSettled(
-      files.filter((f) => f.type.startsWith("image/")).map(loadImageFile),
-    );
-    const frame = targetFrame(frameId);
-    if (!frame) return;
-    const state = useCanvasStore.getState();
-    if (frameId) state.setActiveInputFrame(frame.id);
-    const add =
-      frame.mode === "reference" ? state.appendReferenceToFrame : state.addImageLayerToFrame;
-    for (const result of decoded) {
-      if (result.status !== "fulfilled") continue;
-      const { file, objectUrl, naturalWidth, naturalHeight } = result.value;
-      add(frame.id, file, objectUrl, naturalWidth, naturalHeight);
-    }
-  }, []);
+  // Dropped, pasted and picked images go into an input frame: the one under
+  // the drop or behind the clicked control, else the selected one.
+  const addFiles = addFilesToInputs;
 
   // Which control frame a drop landed on, or -1 for the canvas itself
   const hitTestControlFrame = useCallback(
@@ -172,8 +150,7 @@ export const CanvasView = memo(function CanvasView() {
       if (!("unit" in target) && layout.inputsAtCapacity) {
         const frame = targetFrame(target.frameId);
         const addsSlot =
-          frame?.mode === "reference" ||
-          !frame?.layers.some((l) => l.type === "image" && l.visible);
+          !frame || frame.role === "reference" || composedPictures(frame).length === 0;
         if (addsSlot) {
           toast.info(INPUTS_FULL_HINT);
           return;
@@ -246,21 +223,15 @@ export const CanvasView = memo(function CanvasView() {
   }, [canvasMode, focusedFrameId, layout, setFocusedFrame]);
 
   const handleClearFrame = useCallback((frameId: string) => {
-    const state = useCanvasStore.getState();
-    state.clearLayersInFrame(frameId);
-    state.clearReferencesInFrame(frameId);
-    state.clearMaskLinesInFrame(frameId);
-    state.removeMaskLayersInFrame(frameId);
+    useInputStore.getState().clearFrame(frameId);
   }, []);
 
   const handleRemoveFrame = useCallback((frameId: string) => {
-    useCanvasStore.getState().removeInputFrame(frameId);
+    useInputStore.getState().removeFrame(frameId);
   }, []);
 
   const handleClearAll = useCallback(() => {
-    for (const frame of useCanvasStore.getState().inputFrames) {
-      handleClearFrame(frame.id);
-    }
+    for (const frame of useInputStore.getState().frames) handleClearFrame(frame.id);
   }, [handleClearFrame]);
 
   const viewport = useCanvasStore((s) => s.viewport);
@@ -270,13 +241,11 @@ export const CanvasView = memo(function CanvasView() {
     [openPicker],
   );
 
-  // +Add Input Frame from the column-bottom DOM button.
-  // Creates a new Initial frame and focuses it so subsequent picks /
-  // drops route there.
+  // Add Input Frame from the column-bottom DOM button: a new Initial frame,
+  // selected so the next pick or paste lands in it.
   const handleAddInputFrame = useCallback(() => {
-    const state = useCanvasStore.getState();
-    const newId = state.addInputFrame({ mode: "initial" });
-    state.setActiveInputFrame(newId);
+    const inputs = useInputStore.getState();
+    inputs.selectFrame(inputs.addFrame("initial"));
   }, []);
 
   const handlePasteFiles = useCallback(
@@ -286,7 +255,7 @@ export const CanvasView = memo(function CanvasView() {
     [addFiles],
   );
 
-  // -1 picks into the active input frame
+  // -1 picks into the selected input frame
   const handlePickImage = useCallback(
     (unitIndex: number) => openPicker(unitIndex >= 0 ? { unit: unitIndex } : { frameId: null }),
     [openPicker],
@@ -374,11 +343,9 @@ export const CanvasView = memo(function CanvasView() {
         )}
       </div>
 
-      {/* Mask painting toolbar gates on the focused frame: shows only when
-        the focused frame is Initial and has at least one visible image.
-        Mask painting will eventually be per-frame entirely; for
-        now the toolbar still drives the global mask paint flow. */}
-      {focusedFrameInitialHasImages && <CanvasToolbar />}
+      {/* The mask toolbar shows while the selected frame is Initial and has
+        at least one visible picture to paint over. */}
+      {selectedInitialHasImages && <CanvasToolbar />}
 
       {/* Generation progress overlay - not affected by pan/zoom */}
       <CanvasProgressOverlay />

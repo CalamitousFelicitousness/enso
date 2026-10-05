@@ -1,44 +1,48 @@
 import { useGenerationStore } from "@/stores/generationStore";
 import { useModelSelectionStore } from "@/stores/modelSelectionStore";
 import { useImg2ImgStore } from "@/stores/img2imgStore";
-import { useCanvasStore, type MaskObjectLayer } from "@/stores/canvasStore";
+import { useInputStore } from "@/stores/inputStore";
 import { useUiStore } from "@/stores/uiStore";
 import { exportMask } from "@/lib/exportMask";
 import { flattenCanvas } from "@/lib/flattenCanvas";
-import { uploadBlob, uploadFile } from "@/lib/upload";
+import { uploadBlob } from "@/lib/upload";
 import { resizeBlob } from "@/lib/resize";
 import { getInputLimits } from "@/lib/cloudLimits";
 import { optimizeImageForProvider } from "@/lib/imageOptimize";
-import { wireSources } from "@/canvas/inputFrames";
+import { computeOutline } from "@/lib/inputs/outline";
+import { unreadableText } from "@/lib/inputs/text";
+import { composedPictures } from "@/lib/inputs/types";
 import { DEFAULT_SIZE_MULTIPLE, effectiveSizeMode, resolveGenerationSize } from "@/lib/sizeCompute";
 import type { CloudImageJobParams, CloudModel } from "@/api/types/cloud";
 
 export async function buildCloudImageRequest(): Promise<CloudImageJobParams> {
   const { activeModel } = useModelSelectionStore.getState();
   const gen = useGenerationStore.getState();
-  const canvas = useCanvasStore.getState();
+  const { frames } = useInputStore.getState();
   const img2img = useImg2ImgStore.getState();
   const model = activeModel as CloudModel;
 
   const frameW = gen.width;
   const frameH = gen.height;
 
-  // One image per wire slot, in slot order. Initial slots contribute one
-  // flattened+optimized blob each; reference slots upload raw (no flatten,
-  // no provider optimization). The primary (first Initial) slot determines
-  // strength + mask. Mixed Initial+Reference works - user's "paint Image 1,
-  // point at Image 2 as reference" workflow.
-  const sources = wireSources(canvas.inputFrames);
+  // One image per sent picture, in the order sent. An Initial frame gives one
+  // flattened+optimized blob; a reference uploads raw (no flatten, no provider
+  // optimization). The first Initial frame determines strength + mask. Mixed
+  // Initial+Reference works: paint Image 1, point at Image 2 as reference.
+  const outline = computeOutline(frames);
+  const unreadable = unreadableText(outline.entries);
+  if (unreadable) throw new Error(unreadable);
+  const { sent } = outline;
+  const frameOf = (frameId: string) => frames.find((f) => f.id === frameId);
 
-  // The primary Initial slot carries strength and the mask; reference-only
+  // The first Initial frame carries strength and the mask; reference-only
   // generations have no strength surface.
-  const firstInitial = sources.find((s) => s.kind === "initial") ?? null;
+  const firstInitial = sent.find((s) => s.role === "initial") ?? null;
 
   // The size rule the canvas layout shows
-  const slots = sources.map((s) => s.slot);
   const fit = useUiStore.getState().autoFitFrame;
   const targetSize = resolveGenerationSize(
-    effectiveSizeMode(img2img.sizeMode, fit, slots, false),
+    effectiveSizeMode(img2img.sizeMode, fit, sent, false),
     frameW,
     frameH,
     img2img.scaleFactor,
@@ -73,14 +77,17 @@ export async function buildCloudImageRequest(): Promise<CloudImageJobParams> {
   let primaryOptimizedDims: { width: number; height: number } | null = null;
   const imageRefs: string[] = [];
 
-  for (const source of sources) {
-    if (source.kind === "reference") {
+  for (const source of sent) {
+    const frame = frameOf(source.frameId);
+    if (!frame) continue;
+    if (source.role === "reference") {
       // Raw upload, no optimization - sdnext's adapter dispatches per-provider.
-      imageRefs.push(await uploadFile(source.reference.file));
+      const picture = frame.pictures.find((p) => p.id === source.pictureId);
+      if (picture?.file) imageRefs.push(await uploadBlob(picture.file, picture.name));
       continue;
     }
-    // Flatten + optimize + upload this Initial slot's layers.
-    let imageBlob = await flattenCanvas(source.layers, frameW, frameH);
+    // Flatten + optimize + upload this Initial frame's pictures.
+    let imageBlob = await flattenCanvas(composedPictures(frame), frameW, frameH);
     if (!imageBlob) continue;
     const needsResize = targetSize.width !== frameW || targetSize.height !== frameH;
     if (needsResize) {
@@ -114,16 +121,14 @@ export async function buildCloudImageRequest(): Promise<CloudImageJobParams> {
 
   request.images = imageRefs;
 
-  if (firstInitial) {
-    // Strength + mask apply when an Initial slot contributes; mask pairs
-    // with the primary Initial slot.
+  const maskFrame = firstInitial && frameOf(firstInitial.frameId);
+  if (maskFrame) {
+    // Strength + mask apply when an Initial frame contributes; the mask is
+    // the first Initial frame's.
     request.strength = gen.denoisingStrength;
-    const maskLines = firstInitial.frame.maskLines;
-    const maskObjects = firstInitial.frame.layers.filter(
-      (l): l is MaskObjectLayer => l.type === "mask",
-    );
-    if (maskLines.length > 0 || maskObjects.length > 0) {
-      let maskBlob = await exportMask(maskObjects, maskLines, frameW, frameH);
+    const { strokes, objects } = maskFrame.mask;
+    if (strokes.length > 0 || objects.length > 0) {
+      let maskBlob = await exportMask(objects, strokes, frameW, frameH);
       const needsResize = targetSize.width !== frameW || targetSize.height !== frameH;
       if (maskBlob && needsResize) {
         maskBlob = await resizeBlob(maskBlob, targetSize.width, targetSize.height);

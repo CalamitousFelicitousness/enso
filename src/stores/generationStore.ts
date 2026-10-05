@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { createIdbListDb } from "@/lib/idbListDb";
-import type { MaskLine } from "@/stores/img2imgStore";
+import type { MaskStroke } from "@/lib/inputs/types";
 import type { ControlUnitSnapshot } from "@/api/types/control";
 import type { DetailerOverrides, DetailerModelEntry, JobWarning } from "@/api/types/v2";
 import type { WireParams } from "@/api/types/wireParams";
@@ -16,7 +16,7 @@ export interface GenerationResult {
   /** Flattened canvas base64 captured at generation time. Persisted to IndexedDB with the result. */
   inputImage?: string | undefined;
   /** Mask strokes captured at generation time. Persisted to IndexedDB with the result. */
-  inputMask?: MaskLine[] | undefined;
+  inputMask?: MaskStroke[] | undefined;
   /** Control unit settings + images captured at generation time. */
   controlUnits?: ControlUnitSnapshot[] | undefined;
   /** Lines the server logged at warning level or above during the job. */

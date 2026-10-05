@@ -9,6 +9,7 @@ import { contrastText } from "@/lib/utils";
 import { useResolvedTheme } from "@/hooks/useResolvedTheme";
 import { useVersionWatch } from "@/hooks/useVersionWatch";
 import { useStorageProblems } from "@/hooks/useStorageProblems";
+import { useInputNotices } from "@/hooks/useInputNotices";
 import "./App.css";
 
 function App() {
@@ -17,6 +18,7 @@ function App() {
   const resolvedTheme = useResolvedTheme();
   useVersionWatch();
   useStorageProblems();
+  useInputNotices();
 
   // Bootstrap stored backend connection before queries fire
   useEffect(() => {

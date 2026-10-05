@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useState } from "react";
 import { useControlStore, unitNotSentReason } from "@/stores/controlStore";
 import { useCanvasStore } from "@/stores/canvasStore";
+import { useInputStore } from "@/stores/inputStore";
 import { useUiStore } from "@/stores/uiStore";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -12,32 +13,29 @@ import type { ControlUnitType } from "@/api/types/control";
 import { UNIT_TYPE_LABELS, EXCLUSIVE_CONTROL_TYPES } from "@/api/types/control";
 import { useUnifiedInputs } from "@/hooks/useUnifiedInputs";
 import { useInputsAtCapacity, INPUTS_FULL_HINT } from "@/canvas/useInputsAtCapacity";
-import {
-  controlUnitPosition,
-  enumerateWireSlots,
-  imageRangeLabel,
-  type InputFrameMode,
-} from "@/canvas/inputFrames";
-import { useFrameShapes } from "@/canvas/useFrameShapes";
+import { controlUnitPosition } from "@/lib/inputs/outline";
+import { roleLabel, sentLabel } from "@/lib/inputs/text";
+import type { FrameRole } from "@/lib/inputs/types";
+import { useOutline } from "@/inputs/useOutline";
 
 const UNIT_TYPE_OPTIONS: { value: ControlUnitType; label: string }[] = (
   Object.entries(UNIT_TYPE_LABELS) as [ControlUnitType, string][]
 ).map(([value, label]) => ({ value, label }));
 
 function CanvasInputRows() {
-  const inputFrames = useFrameShapes();
-  const slots = useMemo(() => enumerateWireSlots(inputFrames), [inputFrames]);
+  const { entries } = useOutline();
   return (
     <>
-      {inputFrames.map((f, i) => (
-        <div key={f.id} className="flex items-center gap-1.5 p-2 rounded-md border border-border">
-          <span className="text-2xs text-muted-foreground font-mono w-4 shrink-0">{i + 1}</span>
-          <span className="text-2xs flex-1">
-            {f.mode === "reference" ? "Reference" : "Initial"}
+      {entries.map((entry) => (
+        <div
+          key={entry.frameId}
+          className="flex items-center gap-1.5 p-2 rounded-md border border-border"
+        >
+          <span className="text-2xs text-muted-foreground font-mono w-4 shrink-0">
+            {entry.position}
           </span>
-          <span className="text-2xs text-muted-foreground">
-            {imageRangeLabel(slots, f.id) ?? "empty"}
-          </span>
+          <span className="text-2xs flex-1">{roleLabel(entry.role)}</span>
+          <span className="text-2xs text-muted-foreground">{sentLabel(entry.sent) ?? "empty"}</span>
         </div>
       ))}
     </>
@@ -51,12 +49,12 @@ interface AddInputPopoverProps {
     disabled: boolean;
   }[];
   onAddUnit: (unitType: ControlUnitType) => void;
-  onAddFrame: (mode: InputFrameMode) => void;
+  onAddFrame: (role: FrameRole) => void;
   unitsFull: boolean;
   framesFull: boolean;
 }
 
-const FRAME_ENTRIES: { mode: InputFrameMode; label: string }[] = [
+const FRAME_ENTRIES: { mode: FrameRole; label: string }[] = [
   { mode: "initial", label: "Initial" },
   { mode: "reference", label: "Reference" },
 ];
@@ -120,15 +118,15 @@ function AddInputPopover({
 export function ControlTab() {
   const { availableControlSubTypes } = useUnifiedInputs();
   const units = useControlStore((s) => s.units);
-  const inputFramesCount = useCanvasStore((s) => s.inputFrames.length);
+  const inputFramesCount = useInputStore((s) => s.frames.length);
   const addUnitWithType = useControlStore((s) => s.addUnitWithType);
   const reprocessOnGenerate = useUiStore((s) => s.reprocessOnGenerate);
   const setAutoUpdateProcessed = useUiStore((s) => s.setAutoUpdateProcessed);
   const framesFull = useInputsAtCapacity();
 
-  const addInputFrame = useCallback((mode: InputFrameMode) => {
-    const state = useCanvasStore.getState();
-    state.setActiveInputFrame(state.addInputFrame({ mode }));
+  const addInputFrame = useCallback((role: FrameRole) => {
+    const inputs = useInputStore.getState();
+    inputs.selectFrame(inputs.addFrame(role));
   }, []);
 
   return (

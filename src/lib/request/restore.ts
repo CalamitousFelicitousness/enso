@@ -2,7 +2,7 @@ import { useGenerationStore } from "@/stores/generationStore";
 import type { GenerationResult, GenerationState } from "@/stores/generationStore";
 import { useControlStore } from "@/stores/controlStore";
 import { useImg2ImgStore } from "@/stores/img2imgStore";
-import { useCanvasStore } from "@/stores/canvasStore";
+import { useInputStore } from "@/stores/inputStore";
 import { base64ToBlob } from "@/lib/utils";
 import { DEFAULT_HIRES_UPSCALER } from "@/lib/hires";
 import type { GenerationInfo } from "@/api/types/generation";
@@ -261,27 +261,30 @@ export function restoreFromResult(result: GenerationResult): void {
   const num = (v: unknown, fallback: number) => (typeof v === "number" ? v : fallback);
 
   // Restore input image and mask if present (img2img history). Target the
-  // focused Input frame so the user can compare against their current
-  // working state, or the first Initial frame when the focused one is a
-  // Reference frame, whose layers are not shown or sent.
+  // selected Input frame so the user can compare against their current
+  // working state, or the first Initial frame when the selected one is a
+  // Reference frame, which would send the image uncropped.
   if (result.inputImage) {
-    const w = num(p.width_before ?? p.width, 1024);
-    const h = num(p.height_before ?? p.height, 1024);
-    const canvas = useCanvasStore.getState();
-    const active = canvas.inputFrames.find((f) => f.id === canvas.activeInputFrameId);
+    const width = num(p.width_before ?? p.width, 1024);
+    const height = num(p.height_before ?? p.height, 1024);
+    const inputs = useInputStore.getState();
+    const selected = inputs.frames.find((f) => f.id === inputs.selectedFrameId);
     const targetFrameId =
-      active?.mode === "initial"
-        ? active.id
-        : (canvas.inputFrames.find((f) => f.mode === "initial")?.id ?? null);
+      selected?.role === "initial"
+        ? selected.id
+        : (inputs.frames.find((f) => f.role === "initial")?.id ?? null);
     if (targetFrameId) {
-      canvas.restoreImageLayerToFrame(targetFrameId, base64ToBlob(result.inputImage), w, h);
+      const file = new File([base64ToBlob(result.inputImage)], "restored.png", {
+        type: "image/png",
+      });
+      // The stored image is the frame as it was sent: it replaces the
+      // frame's pictures and the masks baked over them.
+      inputs.setOnlyPicture(targetFrameId, { file, name: "Restored input", width, height });
+      inputs.clearMaskObjects(targetFrameId);
 
       if (result.inputMask && result.inputMask.length > 0) {
-        canvas.clearMaskLinesInFrame(targetFrameId);
-        canvas.removeMaskLayersInFrame(targetFrameId);
-        for (const line of result.inputMask) {
-          canvas.addMaskLineToFrame(targetFrameId, line);
-        }
+        inputs.clearStrokes(targetFrameId);
+        for (const line of result.inputMask) inputs.addStroke(targetFrameId, line);
       }
     }
   }

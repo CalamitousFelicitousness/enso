@@ -28,7 +28,15 @@ export function usePromptEnhancer({ type, getPrompt, getVisionImage }: PromptEnh
       toast.warning("Enter a prompt first");
       return;
     }
-    const image = enhanceStore.useVision ? await getVisionImage() : null;
+    let image: string | null = null;
+    if (enhanceStore.useVision) {
+      try {
+        image = await getVisionImage();
+      } catch (err) {
+        toast.error(`Enhance failed: ${err instanceof Error ? err.message : "no vision image"}`);
+        return;
+      }
+    }
     const req: PromptEnhanceRequest = {
       prompt,
       type,

@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import type { JobRequest, JobResult, JobStatus } from "@/api/types/v2";
-import type { MaskLine } from "@/stores/img2imgStore";
+import type { MaskStroke } from "@/lib/inputs/types";
 import type { ControlUnitSnapshot } from "@/api/types/control";
 
 export type JobDomain =
@@ -20,7 +20,7 @@ export type JobSnapshot =
   | {
       kind: "control";
       inputImage?: string | undefined;
-      inputMask?: MaskLine[] | undefined;
+      inputMask?: MaskStroke[] | undefined;
       controlUnits: ControlUnitSnapshot[];
     }
   | {

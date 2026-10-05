@@ -2,11 +2,11 @@ import { useVideoStore } from "@/stores/videoStore";
 import { useVideoCanvasStore } from "@/stores/videoCanvasStore";
 import { useProcessStore } from "@/stores/processStore";
 import { useGenerationStore } from "@/stores/generationStore";
-import { useCanvasStore } from "@/stores/canvasStore";
 import { useUiStore } from "@/stores/uiStore";
 import type { VideoSubTab } from "@/lib/constants";
 import { useModelSelectionStore } from "@/stores/modelSelectionStore";
 import { loadImageFile, base64ToFile } from "@/lib/image";
+import { addFilesToInputs } from "@/inputs/route";
 import { resolveImageSrc } from "@/lib/utils";
 import { engineToKind } from "@/lib/videoModel";
 import type { DragPayload } from "@/stores/dragStore";
@@ -105,18 +105,7 @@ export async function fetchRemoteImage(url: string, filename = "image.png"): Pro
 }
 
 export async function sendImageToCanvas(file: File) {
-  const loaded = await loadImageFile(file);
-  const state = useCanvasStore.getState();
-  const target = state.activeInputFrameId ?? state.inputFrames[0]?.id;
-  if (target) {
-    state.addImageLayerToFrame(
-      target,
-      loaded.file,
-      loaded.objectUrl,
-      loaded.naturalWidth,
-      loaded.naturalHeight,
-    );
-  }
+  await addFilesToInputs([file]);
   useUiStore.getState().setNavView("images");
 }
 

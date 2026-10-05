@@ -5,7 +5,8 @@ import {
   selectGenerateActive,
   selectPendingCount,
 } from "@/stores/jobStore";
-import { useCanvasStore } from "@/stores/canvasStore";
+import { useInputStore } from "@/stores/inputStore";
+import { isPlaced } from "@/lib/inputs/types";
 import { buildControlRequest, InputRefusal } from "@/lib/request/buildGenerate";
 import { buildCloudImageRequest } from "@/lib/request/buildCloudImage";
 import { buildDetailRequest } from "@/lib/request/buildDetail";
@@ -48,8 +49,8 @@ export const ActionBar = memo(function ActionBar() {
   const detailerEnabled = useGenerationStore((s) => s.detailerEnabled);
   const detailerOnly = useGenerationStore((s) => s.detailerOnly);
   const detailerModelCount = useGenerationStore((s) => s.detailerModels.length);
-  const hasInputImage = useCanvasStore((s) =>
-    s.inputFrames.some((f) => f.mode === "initial" && f.layers.some((l) => l.type === "image")),
+  const hasInputImage = useInputStore((s) =>
+    s.frames.some((f) => f.role === "initial" && f.pictures.some(isPlaced)),
   );
 
   const isActive = useJobQueueStore(selectGenerateActive);
@@ -161,10 +162,8 @@ export const ActionBar = memo(function ActionBar() {
       };
     }
 
-    const canvasState = useCanvasStore.getState();
-    const primaryFrame = canvasState.inputFrames[0] ?? null;
-    const isImg2Img =
-      primaryFrame?.mode === "initial" && primaryFrame.layers.some((l) => l.type === "image");
+    const primaryFrame = useInputStore.getState().frames[0] ?? null;
+    const isImg2Img = primaryFrame?.role === "initial" && primaryFrame.pictures.some(isPlaced);
     const { request, inputBlob } = await buildControlRequest({
       maxInputImages,
       requestSetsSize,
@@ -180,7 +179,7 @@ export const ActionBar = memo(function ActionBar() {
       throw err;
     });
     const inputImage = isImg2Img && inputBlob ? await blobToBase64(inputBlob) : undefined;
-    const maskLines = primaryFrame?.mode === "initial" ? primaryFrame.maskLines : [];
+    const maskLines = primaryFrame?.role === "initial" ? primaryFrame.mask.strokes : [];
     const inputMask = isImg2Img && maskLines.length > 0 ? maskLines.slice() : undefined;
     const controlUnits = await snapshotUnits();
     clearSelection();

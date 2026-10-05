@@ -1,7 +1,7 @@
 // Viewport-transformed DOM overlays for a reference grid's child cells: one
 // transparent sortable div per Konva cell hosting the dnd-kit drag activator
 // and a hover X-remove button. Konva owns the pixels; this owns the gestures.
-// Shared by the Input frames (canvasStore) and the video references mother
+// Shared by the Input frames (inputStore) and the video references mother
 // frame (videoCanvasStore) - callers translate ids to their store's indices.
 
 import { useMemo, type CSSProperties, type ReactNode } from "react";
@@ -22,6 +22,8 @@ interface ReferenceSortableOverlayProps {
   onCellPointerDown?: (() => void) | undefined;
   /** Shown in the bottom-left corner of the cell with this id. */
   mark?: { refId: string; node: ReactNode } | null | undefined;
+  /** Shown across the middle of a cell: what state its picture is in. */
+  cellNote?: ((refId: string) => ReactNode) | undefined;
 }
 
 export function ReferenceSortableOverlay({
@@ -31,6 +33,7 @@ export function ReferenceSortableOverlay({
   onRemove,
   onCellPointerDown,
   mark,
+  cellNote,
 }: ReferenceSortableOverlayProps) {
   // 4px activation distance so a click without drag doesn't trigger a reorder.
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
@@ -53,6 +56,7 @@ export function ReferenceSortableOverlay({
             onRemove={onRemove}
             onCellPointerDown={onCellPointerDown}
             mark={mark?.refId === cell.refId ? mark.node : null}
+            note={cellNote?.(cell.refId)}
           />
         ))}
       </SortableContext>
@@ -66,6 +70,7 @@ interface ReferenceCellOverlayProps {
   onRemove: (refId: string) => void;
   onCellPointerDown?: (() => void) | undefined;
   mark: ReactNode;
+  note?: ReactNode;
 }
 
 function ReferenceCellOverlay({
@@ -74,6 +79,7 @@ function ReferenceCellOverlay({
   onRemove,
   onCellPointerDown,
   mark,
+  note,
 }: ReferenceCellOverlayProps) {
   // useSortable binds this overlay to the parent SortableContext's items
   // list. Listeners are spread on the overlay wrapper so a pointer-down
@@ -122,6 +128,9 @@ function ReferenceCellOverlay({
         <X size={10} />
       </button>
       {mark && <div className="absolute bottom-1 left-1">{mark}</div>}
+      {note && (
+        <div className="pointer-events-none absolute inset-0 grid place-items-center">{note}</div>
+      )}
     </div>
   );
 }

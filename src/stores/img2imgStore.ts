@@ -4,13 +4,6 @@ import type { SizeMode } from "@/lib/sizeCompute";
 
 export type { SizeMode };
 
-// Canonical MaskLine type lives on canvasStore now. Re-exported here for
-// the small set of consumers that imported it from this module before
-// the per-frame migration; future code should import directly from
-// canvasStore.
-import type { MaskLine } from "@/stores/canvasStore";
-export type { MaskLine };
-
 interface Img2ImgState {
   // Resize mode
   resizeMode: number;
@@ -26,7 +19,7 @@ interface Img2ImgState {
   // is determined by the input image and pipeline anyway).
   autoSize: boolean;
 
-  // Mask params (mask content itself lives per-Input-frame on canvasStore)
+  // Mask params (the mask itself belongs to its input frame)
   maskBlur: number;
   inpaintFullRes: boolean;
   inpaintFullResPadding: number;

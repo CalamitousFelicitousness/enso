@@ -1,4 +1,7 @@
-import type { WireSlot } from "@/canvas/inputFrames";
+import type { FrameRole } from "@/lib/inputs/types";
+
+/** The pictures a request sends, as far as sizing needs them. */
+type Sent = readonly { role: FrameRole }[];
 
 export type SizeMode = "fixed" | "scale" | "megapixel";
 
@@ -65,8 +68,8 @@ export function referenceSetsSize(local: boolean, requestSetsSize: boolean | nul
 }
 
 /** The output takes the size of the lone Reference sent. */
-export function serverSizesFromImage(slots: readonly WireSlot[], referenceSets: boolean): boolean {
-  return referenceSets && slots.length === 1 && slots[0].mode === "reference";
+export function serverSizesFromImage(sent: Sent, referenceSets: boolean): boolean {
+  return referenceSets && sent.length === 1 && sent[0].role === "reference";
 }
 
 /** Output size the server makes from an image it sizes from: each side
@@ -81,21 +84,17 @@ export function imageOutputSize(
 
 /** Scale and Megapixel apply while Fit sizes the frame from an input image
  * and the request carries that size; otherwise the frame size is sent as is. */
-export function sizeModesApply(
-  fit: boolean,
-  slots: readonly WireSlot[],
-  referenceSets: boolean,
-): boolean {
-  return fit && slots.length > 0 && !serverSizesFromImage(slots, referenceSets);
+export function sizeModesApply(fit: boolean, sent: Sent, referenceSets: boolean): boolean {
+  return fit && sent.length > 0 && !serverSizesFromImage(sent, referenceSets);
 }
 
 export function effectiveSizeMode(
   sizeMode: SizeMode,
   fit: boolean,
-  slots: readonly WireSlot[],
+  sent: Sent,
   referenceSets: boolean,
 ): SizeMode {
-  return sizeModesApply(fit, slots, referenceSets) ? sizeMode : "fixed";
+  return sizeModesApply(fit, sent, referenceSets) ? sizeMode : "fixed";
 }
 
 /** Final output size after hires fix, rounded down to the size multiple as the server does. */

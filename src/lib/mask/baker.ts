@@ -1,12 +1,12 @@
 // Turns a frame's pending mask strokes into mask layers. One bake per frame
-// at a time; strokes committed meanwhile stay in maskLines (rendered as
-// pending lines) and go into the next bake. A result is applied only if the
+// at a time; strokes committed meanwhile stay pending (rendered as lines)
+// and go into the next bake. A result is applied only if the
 // frame's masks, size and consumed lines are still what the bake saw.
 
-import { useCanvasStore, type MaskLine, type MaskObjectLayer } from "@/stores/canvasStore";
+import { useCanvasStore } from "@/stores/canvasStore";
 import { useGenerationStore } from "@/stores/generationStore";
-import type { CanvasLayer } from "@/stores/canvasStore";
-import type { InputFrame } from "@/canvas/inputFrames";
+import { useInputStore } from "@/stores/inputStore";
+import type { Frame, MaskObject, MaskStroke } from "@/lib/inputs/types";
 import { assignIdentities } from "./identity";
 import { rememberMaskBitmap } from "./bitmaps";
 import type { BakeInput, BakeOutput, BakeRequest, BakeResponse, MaskSource } from "./protocol";
@@ -82,19 +82,19 @@ import.meta.hot?.dispose(() => {
 interface Snapshot {
   width: number;
   height: number;
-  masks: MaskObjectLayer[];
+  masks: MaskObject[];
 }
 
 interface Job {
   frameId: string;
-  lines: MaskLine[];
+  lines: MaskStroke[];
   snapshot: Snapshot;
 }
 
 interface FrameState {
   inFlight: Job | null;
   failures: number;
-  failedLines: MaskLine[] | null;
+  failedLines: MaskStroke[] | null;
 }
 
 const frames = new Map<string, FrameState>();
@@ -108,43 +108,28 @@ function stateFor(frameId: string): FrameState {
   return fs;
 }
 
-const isMask = (l: CanvasLayer): l is MaskObjectLayer => l.type === "mask";
-
-function findFrame(frameId: string): InputFrame | undefined {
-  return useCanvasStore.getState().inputFrames.find((f) => f.id === frameId);
+function findFrame(frameId: string): Frame | undefined {
+  return useInputStore.getState().frames.find((f) => f.id === frameId);
 }
 
-function toSource(m: MaskObjectLayer): MaskSource {
-  return {
-    id: m.id,
-    blob: m.blob,
-    x: m.x,
-    y: m.y,
-    width: m.width,
-    height: m.height,
-    scaleX: m.scaleX,
-    scaleY: m.scaleY,
-    rotation: m.rotation,
-  };
+function toSource(m: MaskObject): MaskSource {
+  return { id: m.id, blob: m.blob, width: m.width, height: m.height, ...m.transform };
 }
 
-function snapshotMatches(snap: Snapshot, frame: InputFrame): boolean {
+function snapshotMatches(snap: Snapshot, frame: Frame): boolean {
   const { width, height } = useGenerationStore.getState();
-  if (frame.mode !== "initial" || snap.width !== width || snap.height !== height) return false;
-  const masks = frame.layers.filter(isMask);
+  if (frame.role !== "initial" || snap.width !== width || snap.height !== height) return false;
+  const masks = frame.mask.objects;
   if (masks.length !== snap.masks.length) return false;
+  // a mask edit makes a new transform object, so identity is equality
   return masks.every((m, i) => {
     const o = snap.masks[i];
     return (
       m.id === o.id &&
       m.blob === o.blob &&
-      m.x === o.x &&
-      m.y === o.y &&
       m.width === o.width &&
       m.height === o.height &&
-      m.scaleX === o.scaleX &&
-      m.scaleY === o.scaleY &&
-      m.rotation === o.rotation &&
+      m.transform === o.transform &&
       m.visible === o.visible
     );
   });
@@ -154,8 +139,8 @@ function reconcile(frameId: string): void {
   const fs = stateFor(frameId);
   if (fs.inFlight) return;
   const frame = findFrame(frameId);
-  if (!frame || frame.mode !== "initial" || frame.maskLines.length === 0) return;
-  if (fs.failedLines !== frame.maskLines) {
+  if (!frame || frame.role !== "initial" || frame.mask.strokes.length === 0) return;
+  if (fs.failedLines !== frame.mask.strokes) {
     fs.failures = 0;
     fs.failedLines = null;
   }
@@ -163,16 +148,16 @@ function reconcile(frameId: string): void {
   const { width, height } = useGenerationStore.getState();
   if (width <= 0 || height <= 0) return;
 
-  const lines = frame.maskLines;
+  const lines = frame.mask.strokes;
   const drawable = lines.filter((l) => l.points.length >= 4);
   if (drawable.length === 0) {
-    useCanvasStore.getState().clearMaskLinesInFrame(frameId);
+    useInputStore.getState().clearStrokes(frameId);
     return;
   }
   const bakeHost = getHost();
   if (!bakeHost) return;
 
-  const masks = frame.layers.filter(isMask);
+  const masks = frame.mask.objects;
   const job: Job = { frameId, lines, snapshot: { width, height, masks } };
   fs.inFlight = job;
   const input: BakeInput = {
@@ -194,8 +179,8 @@ function applyResult(fs: FrameState, job: Job, output: BakeOutput): void {
   const current =
     frame &&
     snapshotMatches(job.snapshot, frame) &&
-    frame.maskLines.length >= job.lines.length &&
-    job.lines.every((line, i) => frame.maskLines[i] === line);
+    frame.mask.strokes.length >= job.lines.length &&
+    job.lines.every((line, i) => frame.mask.strokes[i] === line);
   if (!current) {
     // The store moved on; the lines are still pending, so bake them again.
     reconcile(job.frameId);
@@ -203,31 +188,24 @@ function applyResult(fs: FrameState, job: Job, output: BakeOutput): void {
   }
 
   const continued = assignIdentities(output.regions);
-  const layers: MaskObjectLayer[] = output.regions.map((region, i) => {
+  const objects: MaskObject[] = output.regions.map((region, i) => {
     const prevId = continued[i];
-    const prev = prevId
-      ? (frame.layers.find((l) => l.id === prevId) as MaskObjectLayer)
-      : undefined;
+    const prev = prevId ? frame.mask.objects.find((m) => m.id === prevId) : undefined;
     rememberMaskBitmap(region.blob, region.bitmap);
     return {
       id: prev?.id ?? crypto.randomUUID(),
-      type: "mask",
+      // every bake draws new pixels, so every region is new content
+      cid: crypto.randomUUID(),
+      blob: region.blob,
       name: prev?.name ?? `Mask ${region.x},${region.y}`,
       visible: prev?.visible ?? true,
-      opacity: prev?.opacity ?? 1,
       locked: prev?.locked ?? true,
-      imageData: URL.createObjectURL(region.blob),
-      blob: region.blob,
-      x: region.x,
-      y: region.y,
       width: region.width,
       height: region.height,
-      scaleX: 1,
-      scaleY: 1,
-      rotation: 0,
+      transform: { x: region.x, y: region.y, scaleX: 1, scaleY: 1, rotation: 0 },
     };
   });
-  useCanvasStore.getState().applyMaskBake(job.frameId, { consumedLines: job.lines.length, layers });
+  useInputStore.getState().applyBake(job.frameId, job.lines.length, objects);
   fs.failures = 0;
   fs.failedLines = null;
   reconcile(job.frameId);
@@ -236,7 +214,7 @@ function applyResult(fs: FrameState, job: Job, output: BakeOutput): void {
 function recordFailure(fs: FrameState, job: Job, err: unknown): void {
   fs.inFlight = null;
   fs.failures += 1;
-  fs.failedLines = findFrame(job.frameId)?.maskLines ?? null;
+  fs.failedLines = findFrame(job.frameId)?.mask.strokes ?? null;
   console.error("Mask bake failed", err);
   if (fs.failures >= MAX_FAILURES) {
     console.warn("Mask baking paused for this frame; its strokes stay pending and still export.");

@@ -1,6 +1,6 @@
 import { useCallback } from "react";
 import { useImg2ImgStore } from "@/stores/img2imgStore";
-import { useCanvasStore } from "@/stores/canvasStore";
+import { useInputStore } from "@/stores/inputStore";
 import { getParamHelp } from "@/data/parameterHelp";
 import { SectionLeader } from "@/components/ui/section-leader";
 import { ParamSlider } from "@/components/generation/ParamSlider";
@@ -8,18 +8,11 @@ import { Switch } from "@/components/ui/switch";
 import { ParamLabel } from "./ParamLabel";
 
 export function MaskParams() {
-  const maskLineCount = useCanvasStore((s) =>
-    s.inputFrames.reduce(
-      (count, f) => (f.mode === "initial" ? count + f.maskLines.length : count),
-      0,
-    ),
+  const maskLineCount = useInputStore((s) =>
+    s.frames.reduce((n, f) => (f.role === "initial" ? n + f.mask.strokes.length : n), 0),
   );
-  const maskObjectCount = useCanvasStore((s) =>
-    s.inputFrames.reduce(
-      (count, f) =>
-        f.mode === "initial" ? count + f.layers.filter((l) => l.type === "mask").length : count,
-      0,
-    ),
+  const maskObjectCount = useInputStore((s) =>
+    s.frames.reduce((n, f) => (f.role === "initial" ? n + f.mask.objects.length : n), 0),
   );
   const maskBlur = useImg2ImgStore((s) => s.maskBlur);
   const inpaintFullRes = useImg2ImgStore((s) => s.inpaintFullRes);

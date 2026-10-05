@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { useGenerationStore } from "@/stores/generationStore";
-import { useCanvasStore } from "@/stores/canvasStore";
+import { useIsImg2Img } from "@/hooks/useIsImg2Img";
 import { useStrengthSupported } from "@/hooks/useStrengthSupported";
 import { useShallow } from "zustand/react/shallow";
 import { useSamplerList, useCurrentCheckpoint } from "@/api/hooks/useModels";
@@ -51,11 +51,7 @@ export function SamplerTab() {
     })),
   );
   const setParam = useGenerationStore((s) => s.setParam);
-  const hasInitialImage = useCanvasStore((s) =>
-    s.inputFrames.some(
-      (f) => f.mode === "initial" && f.layers.some((l) => l.type === "image" && l.visible),
-    ),
-  );
+  const hasInitialImage = useIsImg2Img();
   const strengthSupported = useStrengthSupported();
   const lastResult = useGenerationStore((s) => s.results[0]);
   const { data: checkpoint } = useCurrentCheckpoint();

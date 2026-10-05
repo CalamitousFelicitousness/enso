@@ -1,23 +1,28 @@
 import { describe, expect, it } from "vitest";
-import type { WireSlot } from "@/canvas/inputFrames";
-import { planInputs, type InputPlanContext, type PlanSlot } from "./inputPlan";
+import type { SentInput } from "@/lib/inputs/outline";
+import type { FrameRole } from "@/lib/inputs/types";
+import { planInputs, type InputPlanContext } from "./inputPlan";
 
 function slot(
-  mode: WireSlot["mode"],
-  globalIndex: number,
-  imageSize = { width: 640, height: 480 },
-  hasMask = false,
-): PlanSlot {
+  role: FrameRole,
+  n: number,
+  size = { width: 640, height: 480 },
+  masked = false,
+): SentInput {
   return {
-    slot: { frameId: `f${globalIndex}`, localIndex: 0, globalIndex, mode },
-    imageSize,
-    hasMask,
+    address: { kind: "image", n },
+    frameId: `f${n}`,
+    role,
+    pictureId: role === "reference" ? `p${n}` : null,
+    ...size,
+    masked,
+    unreadable: false,
   };
 }
 
-function context(slots: PlanSlot[], patch: Partial<InputPlanContext> = {}): InputPlanContext {
+function context(sent: SentInput[], patch: Partial<InputPlanContext> = {}): InputPlanContext {
   return {
-    slots,
+    sent,
     frame: { width: 1024, height: 768 },
     sizeMode: "fixed",
     autoFit: false,

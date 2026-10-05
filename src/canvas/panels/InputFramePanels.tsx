@@ -1,20 +1,15 @@
-// Orchestrator for the per-Input-frame DOM panels. Maps the layout's
-// inputFrames array to N InputFramePanel components, wraps in a
-// DndContext + verticalListSortingStrategy SortableContext (
-// wires onDragEnd; leaves it as a no-op), and renders the
-// +Add Input Frame placeholder at the bottom of the input column.
-//
-// commits this file without mounting it in CanvasView;
-// adds the <InputFramePanels /> mount and drops the legacy
-// ReferenceFilmstripOverlay + ControlFramePanels InputFramePanel mount.
+// Orchestrator for the per-Input-frame DOM panels. Maps the layout's input
+// frames to InputFramePanel components inside a vertical dnd-kit sortable
+// context for frame reorder, and renders the Add Input Frame button at the
+// bottom of the input column.
 
 import { useMemo } from "react";
 import { DndContext, PointerSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { Plus } from "lucide-react";
-import { useCanvasStore } from "@/stores/canvasStore";
-import { enumerateWireSlots, imageRangeLabel } from "@/canvas/inputFrames";
-import { useFrameShapes } from "@/canvas/useFrameShapes";
+import { useInputStore } from "@/stores/inputStore";
+import { sentLabel } from "@/lib/inputs/text";
+import { useOutline } from "@/inputs/useOutline";
 import type { CanvasLayout } from "@/canvas/useControlFrameLayout";
 import { INPUTS_FULL_HINT } from "@/canvas/useInputsAtCapacity";
 import { useSizeSourceMark } from "@/canvas/useSizeSource";
@@ -29,13 +24,11 @@ interface InputFramePanelsProps {
   onPickImage?: (frameId: string) => void;
   /** Open the file picker scoped to a Reference frame's +Add cell. */
   onAddReferenceChild?: (frameId: string) => void;
-  /** Drop all content in a frame (layers + mask + references). */
+  /** Drop all content in a frame (pictures and mask). */
   onClearFrame?: (frameId: string) => void;
   /** Remove a frame from the input column entirely. */
   onRemoveFrame?: (frameId: string) => void;
-  /** Add a new Input frame at the end of the column. wires
-   * default-mode + drag-onto-empty-canvas semantics; leaves a
-   * placeholder button. */
+  /** Add a new Input frame at the end of the column. */
   onAddInputFrame?: () => void;
 }
 
@@ -49,49 +42,53 @@ export function InputFramePanels({
   onRemoveFrame,
   onAddInputFrame,
 }: InputFramePanelsProps) {
-  const storeFrames = useFrameShapes();
-  const reorderInputFrames = useCanvasStore((s) => s.reorderInputFrames);
+  const outline = useOutline();
+  const moveFrame = useInputStore((s) => s.moveFrame);
 
   // PointerSensor activation distance of 4px so a click without drag
   // bubbles to the panel itself (focus, button clicks, etc.) instead of
   // accidentally triggering a frame reorder.
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
 
-  const slots = useMemo(() => enumerateWireSlots(storeFrames), [storeFrames]);
-  const sizeSource = useSizeSourceMark(slots.length);
+  const sizeSource = useSizeSourceMark(outline.sent.length);
 
   const handleDragEnd = (e: DragEndEvent) => {
     if (!e.over || e.active.id === e.over.id) return;
-    const fromIndex = storeFrames.findIndex((f) => f.id === e.active.id);
-    const toIndex = storeFrames.findIndex((f) => f.id === e.over!.id);
+    const fromIndex = outline.entries.findIndex((f) => f.frameId === e.active.id);
+    const toIndex = outline.entries.findIndex((f) => f.frameId === e.over!.id);
     if (fromIndex < 0 || toIndex < 0) return;
-    reorderInputFrames(fromIndex, toIndex);
+    moveFrame(fromIndex, toIndex);
   };
 
-  const canRemove = storeFrames.length > 1;
+  const canRemove = outline.entries.length > 1;
   const frameIds = layout.inputFrames.map((f) => f.frameId);
 
   return (
     <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
       <SortableContext items={frameIds} strategy={verticalListSortingStrategy}>
-        {layout.inputFrames.map((frame, index) => (
-          <InputFramePanel
-            key={frame.frameId}
-            frame={frame}
-            position={index + 1}
-            images={imageRangeLabel(slots, frame.frameId)}
-            viewport={viewport}
-            labelScale={labelScale}
-            genSize={layout.genSize}
-            onPickImage={onPickImage}
-            onAddReferenceChild={onAddReferenceChild}
-            onClearFrame={onClearFrame}
-            onRemoveFrame={onRemoveFrame}
-            canRemove={canRemove}
-            atCapacity={layout.inputsAtCapacity}
-            sizeSource={sizeSource?.frameId === frame.frameId ? sizeSource : null}
-          />
-        ))}
+        {layout.inputFrames.map((frame) => {
+          const entry = outline.entries.find((e) => e.frameId === frame.frameId);
+          if (!entry) return null;
+          return (
+            <InputFramePanel
+              key={frame.frameId}
+              frame={frame}
+              position={entry.position}
+              images={sentLabel(entry.sent)}
+              hiddenBySwitch={entry.hiddenBySwitch}
+              viewport={viewport}
+              labelScale={labelScale}
+              genSize={layout.genSize}
+              onPickImage={onPickImage}
+              onAddReferenceChild={onAddReferenceChild}
+              onClearFrame={onClearFrame}
+              onRemoveFrame={onRemoveFrame}
+              canRemove={canRemove}
+              atCapacity={layout.inputsAtCapacity}
+              sizeSource={sizeSource?.frameId === frame.frameId ? sizeSource : null}
+            />
+          );
+        })}
       </SortableContext>
       {onAddInputFrame && (
         <AddInputFrameButton

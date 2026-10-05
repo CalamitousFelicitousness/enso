@@ -1,20 +1,14 @@
 import { useGenerationStore } from "@/stores/generationStore";
-import { useCanvasStore } from "@/stores/canvasStore";
-import type { ImageLayer } from "@/stores/canvasStore";
+import { useInputStore } from "@/stores/inputStore";
 import { flattenCanvas } from "@/lib/flattenCanvas";
 import { uploadBlob } from "@/lib/upload";
+import { firstComposite } from "@/lib/inputs/outline";
 
-/** Vision image for prompt enhance: the first Initial frame, flattened. */
+/** Vision image for prompt enhance: the first Initial frame that sends a
+ * picture, flattened. Null when there is none. */
 export async function imageCanvasVisionSource(): Promise<string | null> {
   const { width, height } = useGenerationStore.getState();
-  const inputFrames = useCanvasStore.getState().inputFrames;
-  const firstInitial = inputFrames.find(
-    (f) => f.mode === "initial" && f.layers.some((l) => l.type === "image"),
-  );
-  const layers: ImageLayer[] =
-    firstInitial && firstInitial.mode === "initial"
-      ? firstInitial.layers.filter((l): l is ImageLayer => l.type === "image")
-      : [];
-  const blob = await flattenCanvas(layers, width, height);
+  const layers = firstComposite(useInputStore.getState().frames);
+  const blob = layers ? await flattenCanvas(layers, width, height) : null;
   return blob ? await uploadBlob(blob, "vision.png") : null;
 }

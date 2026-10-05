@@ -2,10 +2,12 @@ import { useRef, useEffect, useState, useCallback } from "react";
 import { Stage } from "react-konva";
 import { useCanvasStore } from "@/stores/canvasStore";
 import { useGenerationStore } from "@/stores/generationStore";
+import { useInputStore } from "@/stores/inputStore";
 import { usePanZoom } from "./tools/usePanZoom";
 import { useMaskPaint } from "./tools/useMaskPaint";
 import { useImageTransform } from "./tools/useImageTransform";
 import { useSnap } from "./tools/useSnap";
+import { useTransformerTarget } from "./tools/useTransformerTarget";
 import { InputFrameLayer } from "./layers/InputFrameLayer";
 import { MaskLayer } from "./layers/MaskLayer";
 import { ChromeLayer } from "./layers/ChromeLayer";
@@ -57,7 +59,7 @@ export function CanvasStage({
   const canvasMode = useCanvasStore((s) => s.canvasMode);
   const focusedFrameId = useCanvasStore((s) => s.focusedFrameId);
   const focusFitTrigger = useCanvasStore((s) => s.focusFitTrigger);
-  const activeInputFrameId = useCanvasStore((s) => s.activeInputFrameId);
+  const selectedFrameId = useInputStore((s) => s.selectedFrameId);
   const visible = useKeepAliveVisible();
 
   const panZoom = usePanZoom({
@@ -68,27 +70,21 @@ export function CanvasStage({
     enabled: visible,
   });
   const maskPaint = useMaskPaint({ stageRef, spaceHeld: panZoom.spaceHeld, layout });
-  const imageTransform = useImageTransform(stageRef, trRef);
+  const imageTransform = useImageTransform(stageRef);
 
   const { outputX, processedX, showProcessedFrame, controlFrames, totalBounds, displayScale } =
     layout;
 
-  // Per-node Konva map, keyed `${frameId}:${layerId}`. Image nodes register
-  // from InputFrameLayer and mask nodes from MaskLayer; the Transformer
-  // attaches through it so its target is unambiguous across frames.
-  const nodeMap = useRef<Map<string, Konva.Image>>(new Map());
-  const setNodeRef = useCallback((frameId: string, layerId: string, node: Konva.Image | null) => {
-    const key = `${frameId}:${layerId}`;
-    if (node) nodeMap.current.set(key, node);
-    else nodeMap.current.delete(key);
-  }, []);
+  // Picture nodes register from InputFrameLayer and mask nodes from
+  // MaskLayer; the Transformer finds its target among them.
+  const { setNodeRef } = useTransformerTarget(trRef);
 
   // Snap targets the focused Initial frame's bounds in pixel space. Using
   // (frame.x / ds, frame.y / ds) re-expresses the display-space frame
   // origin in pixel-space so it aligns with the per-image x/y which are
   // already in pixel-space relative to that origin.
   const focusedInitial = layout.inputFrames.find(
-    (f): f is InitialFramePosition => f.kind === "initial" && f.frameId === activeInputFrameId,
+    (f): f is InitialFramePosition => f.kind === "initial" && f.frameId === selectedFrameId,
   );
   const snap = useSnap(
     focusedInitial?.frameW ?? 0,
@@ -229,14 +225,12 @@ export function CanvasStage({
 
             {/* InputFrameLayer renders all Input frames (Initial + Reference)
               as canvas-native chrome and owns per-frame image-layer
-              interaction (drag, scale, rotate, select) plus the Transformer
-              attach logic. Masks and paint strokes render on MaskLayer above
-              it; the cursor, Transformer and snap guides on ChromeLayer. */}
+              interaction (drag, scale, rotate, select). Masks and paint
+              strokes render on MaskLayer above it; the cursor, Transformer
+              and snap guides on ChromeLayer. */}
             <InputFrameLayer
               frames={layout.inputFrames}
               displayScale={displayScale}
-              trRef={trRef}
-              nodeMap={nodeMap}
               setNodeRef={setNodeRef}
               snap={snap}
               onPickInputFile={onPickInputFile}

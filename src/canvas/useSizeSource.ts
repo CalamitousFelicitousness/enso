@@ -1,15 +1,9 @@
 import { useMemo } from "react";
-import { useCanvasStore } from "@/stores/canvasStore";
+import { useInputStore } from "@/stores/inputStore";
 import { useUiStore } from "@/stores/uiStore";
-import {
-  parseSizeSourceValue,
-  resolveSizeSource,
-  sizeSourceRef,
-  sizeSourceValue,
-  sourceImageSize,
-  wireSources,
-  type SizeSourceRef,
-} from "@/canvas/inputFrames";
+import { resolveSizeSource, sizeSourcePick, type SizeSourcePick } from "@/lib/inputs/outline";
+import { addressLabel, roleLabel } from "@/lib/inputs/text";
+import { outlineOf } from "@/inputs/useOutline";
 
 export const SIZE_SOURCE_HINT = "Output size is based on this image";
 
@@ -18,17 +12,25 @@ export interface SizeSourceOption {
   label: string;
 }
 
+/** A SizeSourcePick as one string, for store selectors and select values. */
+function pickValue(pick: SizeSourcePick): string {
+  return `${pick.frameId}/${pick.pictureId ?? ""}`;
+}
+
+export function parseSizeSourceValue(value: string): SizeSourcePick {
+  const [frameId, pictureId] = value.split("/");
+  return { frameId, pictureId: pictureId || null };
+}
+
 // Selectors return strings, so mask strokes and layer moves re-render nothing
 
 /** Every input image that can set the frame size, as the Size from list shows it. */
 export function useSizeSourceOptions(): SizeSourceOption[] {
-  const rows = useCanvasStore((s) =>
-    wireSources(s.inputFrames)
-      .map((source) => {
-        const { width, height } = sourceImageSize(source);
-        const kind = source.kind === "initial" ? "Initial" : "Reference";
-        const label = `Image ${source.slot.globalIndex} · ${kind} · ${width}×${height}`;
-        return `${sizeSourceValue(sizeSourceRef(source))}\t${label}`;
+  const rows = useInputStore((s) =>
+    outlineOf(s.frames)
+      .sent.map((input) => {
+        const label = `${addressLabel(input.address)} · ${roleLabel(input.role)} · ${input.width}×${input.height}`;
+        return `${pickValue(sizeSourcePick(input))}\t${label}`;
       })
       .join("\n"),
   );
@@ -47,19 +49,19 @@ export function useSizeSourceOptions(): SizeSourceOption[] {
 /** The input image that sets the frame size, as a Size from value; "" when the
  * canvas holds no input image. */
 export function useSizeSourceValue(): string {
-  return useCanvasStore((s) => {
-    const source = resolveSizeSource(wireSources(s.inputFrames), s.sizeSource);
-    return source ? sizeSourceValue(sizeSourceRef(source)) : "";
+  return useInputStore((s) => {
+    const source = resolveSizeSource(outlineOf(s.frames).sent, s.sizeSource);
+    return source ? pickValue(sizeSourcePick(source)) : "";
   });
 }
 
 /** The size source to mark on the canvas: only while Fit is on and more than
  * one input image could set the size. */
-export function useSizeSourceMark(slotCount: number): SizeSourceRef | null {
+export function useSizeSourceMark(sentCount: number): SizeSourcePick | null {
   const fit = useUiStore((s) => s.autoFitFrame);
   const value = useSizeSourceValue();
   return useMemo(
-    () => (fit && slotCount > 1 && value ? parseSizeSourceValue(value) : null),
-    [fit, slotCount, value],
+    () => (fit && sentCount > 1 && value ? parseSizeSourceValue(value) : null),
+    [fit, sentCount, value],
   );
 }
