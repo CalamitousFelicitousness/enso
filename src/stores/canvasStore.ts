@@ -4,6 +4,7 @@ import { useGenerationStore } from "@/stores/generationStore";
 import { useUiStore } from "@/stores/uiStore";
 import { base64ToBlob } from "@/lib/utils";
 import { createIdbStorage } from "@/lib/idbStorage";
+import { reportStorageProblem } from "@/lib/storageHealth";
 import {
   createInitialFrame,
   createReferenceFrame,
@@ -293,6 +294,8 @@ interface PersistedCanvasState {
 
 const canvasIdbStorage = createIdbStorage<PersistedCanvasState>("enso-canvas", "state", {
   legacyKey: "enso-canvas",
+  onWriteError: () => reportStorageProblem({ kind: "write", id: "canvas", what: "canvas inputs" }),
+  onWriteRecovered: () => reportStorageProblem({ kind: "resolved", id: "canvas" }),
 });
 
 function rehydrateLayer(saved: PersistedLayer): ImageLayer | MaskObjectLayer {
@@ -1020,6 +1023,22 @@ export const useCanvasStore = create<CanvasState>()(
       name: "enso-canvas-v4",
       storage: canvasIdbStorage,
       version: 4,
+      onRehydrateStorage: () => (_state, error) => {
+        if (!error) {
+          reportStorageProblem({ kind: "resolved", id: "canvas" });
+          return;
+        }
+        reportStorageProblem({
+          kind: "read",
+          id: "canvas",
+          what: "canvas inputs",
+          retry: () => void useCanvasStore.persist.rehydrate(),
+          startEmpty: () => {
+            canvasIdbStorage.startEmpty();
+            startSizeSourceSync();
+          },
+        });
+      },
       migrate: (persisted, version) => {
         if (version !== 3) return EMPTY_RECORD;
         return migrateV3(persisted as LegacyPersistedCanvasState);

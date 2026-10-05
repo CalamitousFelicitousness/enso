@@ -1,101 +1,69 @@
 import type { PersistStorage, StorageValue } from "zustand/middleware";
 
-interface IdbStorageOptions {
-  /** Quiet time a burst of writes waits for before it reaches IndexedDB. */
+/** Where records live. Rejections carry a non-null Error. */
+export interface KeyValueBackend {
+  /** Resolves null when the key is absent. */
+  get(key: string): Promise<unknown>;
+  set(key: string, value: unknown): Promise<void>;
+  delete(key: string): Promise<void>;
+}
+
+interface GatedStorageOptions<S> {
+  /** Quiet time a burst of writes waits for before it reaches the backend. */
   debounceMs?: number;
   /** Record read when the store's own key is empty. Left untouched so the
    * build that wrote it can still hydrate after a rollback. */
   legacyKey?: string;
+  /** Builds the first record when the store's own key and legacyKey are both
+   * empty. Its result is written before the read resolves. */
+  seed?: () => Promise<StorageValue<S> | null>;
+  /** Called for every failed write. */
+  onWriteError?: (error: unknown) => void;
+  /** Called for the write that ends a streak of failures. */
+  onWriteRecovered?: () => void;
+  /** Whether two states would store the same record. A state that matches
+   * the one last read or written is not written again. */
+  same?: (a: S, b: S) => boolean;
 }
 
-/** Zustand PersistStorage backed by IndexedDB. Records are stored as
- * structured-clone objects: File and Blob fields are cloned by handle, so a
- * write costs the main thread nothing beyond the debounce. Records written
- * as JSON strings by earlier builds are still read. */
-export function createIdbStorage<S>(
-  dbName: string,
-  storeName: string,
-  options: IdbStorageOptions = {},
-): PersistStorage<S> {
-  const { debounceMs = 2000, legacyKey } = options;
-  let dbPromise: Promise<IDBDatabase> | null = null;
+export interface GatedStorage<S> extends PersistStorage<S> {
+  /** Lets writes through after a failed read. The next write replaces the
+   * record that could not be read. */
+  startEmpty(): void;
+  /** Tries the last failed write again, unless a newer one is waiting. */
+  retry(): void;
+}
 
-  function openDb(): Promise<IDBDatabase> {
-    if (!dbPromise) {
-      dbPromise = new Promise<IDBDatabase>((resolve, reject) => {
-        const req = indexedDB.open(dbName, 1);
-        req.onupgradeneeded = () => {
-          if (!req.result.objectStoreNames.contains(storeName)) {
-            req.result.createObjectStore(storeName);
-          }
-        };
-        req.onsuccess = () => resolve(req.result);
-        req.onerror = () => reject(req.error ?? new Error("IDB request failed"));
-      });
-    }
-    return dbPromise;
-  }
-
-  function idbGet(key: string): Promise<unknown> {
-    return openDb().then(
-      (db) =>
-        new Promise((resolve, reject) => {
-          const tx = db.transaction(storeName, "readonly");
-          const req = tx.objectStore(storeName).get(key);
-          req.onsuccess = () => resolve(req.result ?? null);
-          req.onerror = () => reject(req.error ?? new Error("IDB request failed"));
-        }),
-    );
-  }
-
-  function idbSet(key: string, value: unknown): Promise<void> {
-    return openDb().then(
-      (db) =>
-        new Promise((resolve, reject) => {
-          const tx = db.transaction(storeName, "readwrite");
-          // put() throws synchronously on an uncloneable value.
-          tx.objectStore(storeName).put(value, key);
-          tx.oncomplete = () => resolve();
-          tx.onerror = () => reject(tx.error ?? new Error("IDB transaction failed"));
-        }),
-    );
-  }
-
-  function idbDelete(key: string): Promise<void> {
-    return openDb().then(
-      (db) =>
-        new Promise((resolve, reject) => {
-          const tx = db.transaction(storeName, "readwrite");
-          tx.objectStore(storeName).delete(key);
-          tx.oncomplete = () => resolve();
-          tx.onerror = () => reject(tx.error ?? new Error("IDB transaction failed"));
-        }),
-    );
-  }
+/** Debounced PersistStorage over a key-value backend. Writes pass only once
+ * the stored record has been read, so state that never saw the record cannot
+ * replace it. */
+export function createGatedStorage<S>(
+  backend: KeyValueBackend,
+  label: string,
+  options: GatedStorageOptions<S> = {},
+): GatedStorage<S> {
+  const { debounceMs = 2000, legacyKey, seed, onWriteError, onWriteRecovered, same } = options;
 
   function decode(raw: unknown): StorageValue<S> | null {
     if (raw === null || raw === undefined) return null;
     if (typeof raw !== "string") return raw as StorageValue<S>;
     try {
       return JSON.parse(raw) as StorageValue<S>;
-    } catch (err) {
-      console.error(`[idb] ${dbName}/${storeName}: unreadable record`, err);
-      return null;
+    } catch (cause) {
+      throw new Error(`[idb] ${label}: unreadable record`, { cause });
     }
   }
 
   let pendingKey: string | null = null;
   let pendingValue: StorageValue<S> | null = null;
   let timer: ReturnType<typeof setTimeout> | null = null;
-  let writing = false;
-  let reportedFailure = false;
-
-  // Gate: suppress writes until the first getItem settles (hydration
-  // complete). Without this, Zustand persist middleware can queue a setItem
-  // with pre-hydration (empty/default) state before hydration finishes
-  // reading from IDB, and the debounced flush writes that stale state over
-  // the real data.
-  let hydrated = false;
+  /** The value on its way to the backend, while a write is in flight. */
+  let writing: StorageValue<S> | null = null;
+  let failing = false;
+  let failed: { key: string; value: StorageValue<S> } | null = null;
+  let open = false;
+  /** What the backend holds, as far as this storage knows. */
+  let stored: StorageValue<S> | null = null;
 
   function flush() {
     if (writing || pendingKey === null || pendingValue === null) return;
@@ -107,15 +75,23 @@ export function createIdbStorage<S>(
       clearTimeout(timer);
       timer = null;
     }
-    writing = true;
-    idbSet(k, v)
+    writing = v;
+    backend
+      .set(k, v)
+      .then(() => {
+        stored = v;
+        failed = null;
+        if (failing) onWriteRecovered?.();
+        failing = false;
+      })
       .catch((err: unknown) => {
-        if (reportedFailure) return;
-        reportedFailure = true;
-        console.error(`[idb] ${dbName}/${storeName}: write failed`, err);
+        console.error(`[idb] ${label}: write failed`, err);
+        failed = { key: k, value: v };
+        failing = true;
+        onWriteError?.(err);
       })
       .finally(() => {
-        writing = false;
+        writing = null;
         if (pendingKey !== null) flush();
       });
   }
@@ -129,15 +105,33 @@ export function createIdbStorage<S>(
   }
 
   return {
-    getItem: (key) =>
-      idbGet(key)
-        .then((raw) => (raw === null && legacyKey ? idbGet(legacyKey) : raw))
-        .then(decode)
-        .finally(() => {
-          hydrated = true;
-        }),
+    getItem: async (key) => {
+      // A read in progress closes the gate again: what was queued belongs to
+      // state the record is about to replace, or must not replace if it fails.
+      open = false;
+      pendingKey = null;
+      pendingValue = null;
+      failed = null;
+      if (timer) {
+        clearTimeout(timer);
+        timer = null;
+      }
+      let raw = await backend.get(key);
+      if (raw === null && legacyKey) raw = await backend.get(legacyKey);
+      let value = decode(raw);
+      if (value === null && seed) {
+        value = await seed();
+        if (value !== null) await backend.set(key, value);
+      }
+      stored = value;
+      open = true;
+      return value;
+    },
     setItem: (key, value) => {
-      if (!hydrated) return;
+      if (!open) return;
+      // the value a finished or running write leaves in the backend
+      const latest = pendingValue ?? writing ?? stored;
+      if (same && latest && same(latest.state, value.state)) return;
       pendingKey = key;
       pendingValue = value;
       if (timer) clearTimeout(timer);
@@ -150,9 +144,96 @@ export function createIdbStorage<S>(
         clearTimeout(timer);
         timer = null;
       }
-      idbDelete(key).catch((err: unknown) => {
-        console.error(`[idb] ${dbName}/${storeName}: delete failed`, err);
+      backend.delete(key).catch((err: unknown) => {
+        console.error(`[idb] ${label}: delete failed`, err);
       });
     },
+    startEmpty: () => {
+      stored = null;
+      open = true;
+    },
+    retry: () => {
+      if (!failed || pendingKey !== null) return;
+      pendingKey = failed.key;
+      pendingValue = failed.value;
+      flush();
+    },
   };
+}
+
+/** One object store of an IndexedDB database as a key-value backend. */
+export function idbBackend(dbName: string, storeName: string): KeyValueBackend {
+  let dbPromise: Promise<IDBDatabase> | null = null;
+
+  function openDb(): Promise<IDBDatabase> {
+    if (!dbPromise) {
+      dbPromise = new Promise<IDBDatabase>((resolve, reject) => {
+        const req = indexedDB.open(dbName, 1);
+        req.onupgradeneeded = () => {
+          if (!req.result.objectStoreNames.contains(storeName)) {
+            req.result.createObjectStore(storeName);
+          }
+        };
+        req.onsuccess = () => {
+          const db = req.result;
+          // let another tab's upgrade or delete through; the next use opens again
+          db.onversionchange = () => {
+            db.close();
+            dbPromise = null;
+          };
+          resolve(db);
+        };
+        req.onerror = () => {
+          dbPromise = null;
+          reject(req.error ?? new Error("IDB request failed"));
+        };
+      });
+    }
+    return dbPromise;
+  }
+
+  function write(run: (store: IDBObjectStore) => void): Promise<void> {
+    return openDb().then(
+      (db) =>
+        new Promise((resolve, reject) => {
+          const tx = db.transaction(storeName, "readwrite");
+          tx.oncomplete = () => resolve();
+          tx.onerror = () => reject(tx.error ?? new Error("IDB transaction failed"));
+          // a failed commit (quota, a Blob that cannot be stored) only aborts
+          tx.onabort = () => reject(tx.error ?? new Error("IDB transaction aborted"));
+          // put() throws synchronously on an uncloneable value.
+          run(tx.objectStore(storeName));
+          // without waiting for the request's callback, so a write issued as
+          // the page goes away still lands
+          tx.commit();
+        }),
+    );
+  }
+
+  return {
+    get: (key) =>
+      openDb().then(
+        (db) =>
+          new Promise((resolve, reject) => {
+            const tx = db.transaction(storeName, "readonly");
+            const req = tx.objectStore(storeName).get(key);
+            req.onsuccess = () => resolve(req.result ?? null);
+            req.onerror = () => reject(req.error ?? new Error("IDB request failed"));
+          }),
+      ),
+    set: (key, value) => write((store) => store.put(value, key)),
+    delete: (key) => write((store) => store.delete(key)),
+  };
+}
+
+/** Zustand PersistStorage backed by IndexedDB. Records are stored as
+ * structured-clone objects: File and Blob fields are cloned by handle, so a
+ * write costs the main thread nothing beyond the debounce. Records written
+ * as JSON strings by earlier builds are still read. */
+export function createIdbStorage<S>(
+  dbName: string,
+  storeName: string,
+  options: GatedStorageOptions<S> = {},
+): GatedStorage<S> {
+  return createGatedStorage(idbBackend(dbName, storeName), `${dbName}/${storeName}`, options);
 }

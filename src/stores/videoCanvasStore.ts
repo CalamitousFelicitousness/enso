@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { base64ToBlob } from "@/lib/utils";
 import { createIdbStorage } from "@/lib/idbStorage";
+import { reportStorageProblem } from "@/lib/storageHealth";
 import type { ReferenceKind } from "@/lib/video/referenceMedia";
 import type { ViewportState } from "@/canvas/viewportBus";
 
@@ -88,7 +89,12 @@ interface LegacyPersistedVideoCanvasState {
 const videoCanvasIdbStorage = createIdbStorage<PersistedVideoCanvasState>(
   "enso-video-canvas",
   "state",
-  { legacyKey: "enso-video-canvas" },
+  {
+    legacyKey: "enso-video-canvas",
+    onWriteError: () =>
+      reportStorageProblem({ kind: "write", id: "video-canvas", what: "video inputs" }),
+    onWriteRecovered: () => reportStorageProblem({ kind: "resolved", id: "video-canvas" }),
+  },
 );
 
 function stripFrame(frame: VideoFrameImage): PersistedFrame {
@@ -229,6 +235,19 @@ export const useVideoCanvasStore = create<VideoCanvasState>()(
       name: "enso-video-canvas-v1",
       storage: videoCanvasIdbStorage,
       version: 1,
+      onRehydrateStorage: () => (_state, error) => {
+        if (!error) {
+          reportStorageProblem({ kind: "resolved", id: "video-canvas" });
+          return;
+        }
+        reportStorageProblem({
+          kind: "read",
+          id: "video-canvas",
+          what: "video inputs",
+          retry: () => void useVideoCanvasStore.persist.rehydrate(),
+          startEmpty: () => videoCanvasIdbStorage.startEmpty(),
+        });
+      },
       migrate: (persisted, version) => {
         if (version !== 0) return FRESH_RECORD;
         const legacy = persisted as LegacyPersistedVideoCanvasState;

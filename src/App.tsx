@@ -8,6 +8,7 @@ import { api } from "@/api/client";
 import { contrastText } from "@/lib/utils";
 import { useResolvedTheme } from "@/hooks/useResolvedTheme";
 import { useVersionWatch } from "@/hooks/useVersionWatch";
+import { useStorageProblems } from "@/hooks/useStorageProblems";
 import "./App.css";
 
 function App() {
@@ -15,6 +16,7 @@ function App() {
   const uiScale = useUiStore((s) => s.uiScale);
   const resolvedTheme = useResolvedTheme();
   useVersionWatch();
+  useStorageProblems();
 
   // Bootstrap stored backend connection before queries fire
   useEffect(() => {
