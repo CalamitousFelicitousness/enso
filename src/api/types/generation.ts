@@ -1,189 +1,39 @@
-import type { DetailerOverrides, DetailerModelRef } from "./v2";
+import type {
+  ControlUnitParams,
+  DetailerModelEntry as WireDetailerModelEntry,
+  DetailerOverrides as WireDetailerOverrides,
+  GenerateParams,
+  IpAdapterUnitParams,
+} from "@/lib/openapi-generated/types.gen";
+import type { DetailerModelEntry, DetailerOverrides } from "./v2";
 
-export interface ControlRequestUnit {
-  process: string;
-  model: string;
-  strength: number;
-  start: number;
-  end: number;
-  override?: string | undefined;
-  unit_type?: string | undefined;
-  mode?: string | undefined;
-  guess?: boolean | undefined;
-  factor?: number | undefined;
-  attention?: string | undefined;
-  fidelity?: number | undefined;
-  query_weight?: number | undefined;
-  adain_weight?: number | undefined;
-  process_params?: Record<string, unknown> | undefined;
-  image?: string | undefined;
-}
+/** A generated wire type whose fields may also be set to undefined, which JSON
+ * drops; builders assign conditionally under exactOptionalPropertyTypes. */
+type Settable<T> = { [K in keyof T]?: T[K] | undefined };
 
-export interface ControlRequest {
+/** `Client` while it names exactly the fields of `Wire`, else `never`. */
+type SameFields<Client, Wire> = [keyof Client, keyof Wire] extends [keyof Wire, keyof Client]
+  ? Client
+  : never;
+
+export type ControlRequestUnit = Settable<ControlUnitParams>;
+export type IpAdapterRequestUnit = Settable<IpAdapterUnitParams>;
+
+/** Body of a generate job, from the server's schema. The detailer fields keep
+ * the client's types (absent where the server allows null), checked against
+ * the server's field names. */
+export type ControlRequest = Settable<
+  Omit<
+    GenerateParams,
+    "type" | "priority" | "control" | "ip_adapter" | "detailer_defaults" | "detailer_models"
+  >
+> & {
   prompt: string;
-  negative_prompt?: string | undefined;
-  styles?: string[] | undefined;
-  sampler_name?: string | undefined;
-  steps?: number | undefined;
-  width_before?: number | undefined;
-  height_before?: number | undefined;
-  cfg_scale?: number | undefined;
-  seed?: number | undefined;
-  batch_size?: number | undefined;
-  batch_count?: number | undefined;
-  denoising_strength?: number | undefined;
-  enable_hr?: boolean | undefined;
-  hr_upscaler?: string | undefined;
-  hr_scale?: number | undefined;
-  hr_second_pass_steps?: number | undefined;
-  hr_resize_x?: number | undefined;
-  hr_resize_y?: number | undefined;
-  hr_denoising_strength?: number | undefined;
-  hr_resize_mode?: number | undefined;
-  hr_resize_context?: string | undefined;
-  hr_force?: boolean | undefined;
-  cfg_stop?: number | undefined;
-  cfg_rescale?: number | undefined;
-  cfg_image?: number | undefined;
-  cfg_true?: number | undefined;
-  cfg_adaptive?: number | undefined;
-  subseed?: number | undefined;
-  subseed_strength?: number | undefined;
-  refiner_steps?: number | undefined;
-  refiner_start?: number | undefined;
-  refiner_prompt?: string | undefined;
-  refiner_negative?: string | undefined;
-  clip_skip?: number | undefined;
-  vae_type?: string | undefined;
-  tiling?: boolean | undefined;
-  hidiffusion?: boolean | undefined;
-  hdr_mode?: number | undefined;
-  hdr_brightness?: number | undefined;
-  hdr_sharpen?: number | undefined;
-  hdr_color?: number | undefined;
-  hdr_clamp?: boolean | undefined;
-  hdr_boundary?: number | undefined;
-  hdr_threshold?: number | undefined;
-  hdr_maximize?: boolean | undefined;
-  hdr_max_center?: number | undefined;
-  hdr_max_boundary?: number | undefined;
-  hdr_color_picker?: string | undefined;
-  hdr_tint_ratio?: number | undefined;
-  hdr_apply_hires?: boolean | undefined;
-  grading_brightness?: number | undefined;
-  grading_contrast?: number | undefined;
-  grading_saturation?: number | undefined;
-  grading_hue?: number | undefined;
-  grading_gamma?: number | undefined;
-  grading_sharpness?: number | undefined;
-  grading_color_temp?: number | undefined;
-  grading_shadows?: number | undefined;
-  grading_midtones?: number | undefined;
-  grading_highlights?: number | undefined;
-  grading_clahe_clip?: number | undefined;
-  grading_clahe_grid?: number | undefined;
-  grading_shadows_tint?: string | undefined;
-  grading_highlights_tint?: string | undefined;
-  grading_split_tone_balance?: number | undefined;
-  grading_vignette?: number | undefined;
-  grading_grain?: number | undefined;
-  grading_lut_file?: string | undefined;
-  grading_lut_strength?: number | undefined;
-  // V2 detailer schema (mirrors DetailerMixin in enso_api/job_models.py).
-  // detailer_models entries are bare strings (= use defaults) or full
-  // DetailerModelEntry objects with per-model overrides.
-  detailer_enabled?: boolean | undefined;
-  detailer_defaults?: DetailerOverrides | undefined;
-  detailer_models?: DetailerModelRef[] | undefined;
-  img2img_color_correction?: boolean | undefined;
-  color_correction_method?: string | undefined;
-  img2img_background_color?: string | undefined;
-  img2img_fix_steps?: boolean | undefined;
-  mask_apply_overlay?: boolean | undefined;
-  include_mask?: boolean | undefined;
-  inpainting_mask_weight?: number | undefined;
-  samples_save?: boolean | undefined;
-  samples_format?: string | undefined;
-  save_images_before_highres_fix?: boolean | undefined;
-  save_images_before_refiner?: boolean | undefined;
-  save_images_before_detailer?: boolean | undefined;
-  save_images_before_color_correction?: boolean | undefined;
-  grid_save?: boolean | undefined;
-  grid_format?: string | undefined;
-  return_grid?: boolean | undefined;
-  keep_incomplete?: boolean | undefined;
-  image_metadata?: boolean | undefined;
-  jpeg_quality?: number | undefined;
-  input_type?: number | undefined;
-  inputs?: string[] | undefined;
-  skip_processing?: boolean | undefined;
-  inits?: string[] | undefined;
-  mask?: string | undefined;
-  mask_blur?: number | undefined;
-  inpaint_full_res?: boolean | undefined;
-  inpaint_full_res_padding?: number | undefined;
-  inpainting_mask_invert?: number | undefined;
-  resize_mode_before?: number | undefined;
-  resize_name_before?: string | undefined;
-  ip_adapter?:
-    | Array<{
-        adapter: string;
-        images: string[];
-        masks?: string[] | undefined;
-        scale: number;
-        start: number;
-        end: number;
-        crop: boolean;
-      }>
-    | undefined;
   control?: ControlRequestUnit[] | undefined;
-  schedulers_sigma?: string | undefined;
-  schedulers_timestep_spacing?: string | undefined;
-  schedulers_beta_schedule?: string | undefined;
-  schedulers_prediction_type?: string | undefined;
-  schedulers_shift?: number | undefined;
-  schedulers_base_shift?: number | undefined;
-  schedulers_max_shift?: number | undefined;
-  schedulers_sigma_adjust?: number | undefined;
-  schedulers_sigma_adjust_min?: number | undefined;
-  schedulers_sigma_adjust_max?: number | undefined;
-  schedulers_use_thresholding?: boolean | undefined;
-  schedulers_dynamic_shift?: boolean | undefined;
-  schedulers_rescale_betas?: boolean | undefined;
-  schedulers_use_loworder?: boolean | undefined;
-  schedulers_timesteps?: string | undefined;
-  sequential_seed?: boolean | undefined;
-  freeu_enabled?: boolean | undefined;
-  freeu_b1?: number | undefined;
-  freeu_b2?: number | undefined;
-  freeu_s1?: number | undefined;
-  freeu_s2?: number | undefined;
-  hypertile_unet_enabled?: boolean | undefined;
-  hypertile_hires_only?: boolean | undefined;
-  hypertile_unet_tile?: number | undefined;
-  hypertile_unet_min_tile?: number | undefined;
-  hypertile_unet_swap_size?: number | undefined;
-  hypertile_unet_depth?: number | undefined;
-  hypertile_vae_enabled?: boolean | undefined;
-  hypertile_vae_tile?: number | undefined;
-  hypertile_vae_swap_size?: number | undefined;
-  teacache_enabled?: boolean | undefined;
-  teacache_thresh?: number | undefined;
-  token_merging_method?: string | undefined;
-  tome_ratio?: number | undefined;
-  todo_ratio?: number | undefined;
-  lora_fuse_native?: boolean | undefined;
-  lora_fuse_diffusers?: boolean | undefined;
-  lora_force_reload?: boolean | undefined;
-  extra_networks_default_multiplier?: number | undefined;
-  lora_apply_tags?: number | undefined;
-  extra?: Record<string, unknown> | undefined;
-  script_name?: string | undefined;
-  script_args?: unknown[] | undefined;
-  save_images?: boolean | undefined;
-  live_previews?: boolean | undefined;
-  alwayson_scripts?: Record<string, unknown> | undefined;
-}
+  ip_adapter?: IpAdapterRequestUnit[] | undefined;
+  detailer_defaults?: SameFields<DetailerOverrides, WireDetailerOverrides> | undefined;
+  detailer_models?: (string | SameFields<DetailerModelEntry, WireDetailerModelEntry>)[] | undefined;
+};
 
 export interface ControlResponse {
   images: string[];
