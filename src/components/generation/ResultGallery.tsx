@@ -2,7 +2,7 @@ import { useGenerationStore } from "@/stores/generationStore";
 import type { GenerationResult } from "@/stores/generationStore";
 import { useComparisonStore } from "@/stores/comparisonStore";
 import { useUiStore } from "@/stores/uiStore";
-import { restoreFromResult } from "@/lib/requestBuilder";
+import { restoreFromResult } from "@/lib/request/restore";
 import {
   cn,
   downloadImage,

@@ -13,7 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useGenerationStore, type GenerationResult } from "@/stores/generationStore";
-import { extractParamsFromResult } from "@/lib/requestBuilder";
+import { extractParamsFromResult } from "@/lib/request/restore";
 import type { GenerationState } from "@/stores/generationStore";
 
 interface GenerationDiffDialogProps {

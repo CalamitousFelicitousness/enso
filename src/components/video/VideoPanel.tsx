@@ -21,7 +21,7 @@ import { useVideoCapsDefaults } from "@/hooks/useVideoCapsDefaults";
 import { sendToJob } from "@/hooks/useJobTracker";
 import { useCancelJob } from "@/api/hooks/useJobs";
 import { useLoadVideoModel, useLoadFramePack } from "@/api/hooks/useVideo";
-import { buildCloudVideoRequest } from "@/lib/requestBuilder";
+import { buildCloudVideoRequest } from "@/lib/request/buildCloudVideo";
 import { buildVideoPayload } from "@/lib/video/buildVideoPayload";
 import { resolveVideoUi, kindToDomain } from "@/lib/videoModel";
 import { Button } from "@/components/ui/button";

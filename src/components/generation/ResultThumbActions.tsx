@@ -1,6 +1,6 @@
 import { useCallback } from "react";
 import { History, ImagePlus, ArrowUpCircle, GitCompareArrows, Download } from "lucide-react";
-import { restoreFromResult } from "@/lib/requestBuilder";
+import { restoreFromResult } from "@/lib/request/restore";
 import { sendResultToCanvas, sendResultToUpscale } from "@/lib/sendTo";
 import { downloadImage, generateImageFilename } from "@/lib/utils";
 import type { GenerationResult } from "@/stores/generationStore";

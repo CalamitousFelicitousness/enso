@@ -6,13 +6,10 @@ import {
   selectPendingCount,
 } from "@/stores/jobStore";
 import { useCanvasStore } from "@/stores/canvasStore";
-import {
-  buildControlRequest,
-  buildCloudImageRequest,
-  buildDetailRequest,
-  restoreFromResult,
-  InputRefusal,
-} from "@/lib/requestBuilder";
+import { buildControlRequest, InputRefusal } from "@/lib/request/buildGenerate";
+import { buildCloudImageRequest } from "@/lib/request/buildCloudImage";
+import { buildDetailRequest } from "@/lib/request/buildDetail";
+import { restoreFromResult } from "@/lib/request/restore";
 import { DEFAULT_SIZE_MULTIPLE, referenceSetsSize } from "@/lib/sizeCompute";
 import { blobToBase64 } from "@/lib/image";
 import { snapshotUnits } from "@/stores/controlStore";
