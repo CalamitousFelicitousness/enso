@@ -74,5 +74,64 @@ export default defineConfig([
       "react-refresh/only-export-components": "off",
     },
   },
+  {
+    // Pure modules: values in, values out. They run in the node test
+    // environment, so nothing here may reach a store, React or the DOM.
+    files: [
+      "src/lib/inputs/**/*.ts",
+      "src/lib/request/generateParams.ts",
+      "src/lib/request/inputPlan.ts",
+      "src/lib/request/wire.ts",
+    ],
+    rules: {
+      "@typescript-eslint/no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: [
+                "@/stores/*",
+                "@/hooks/*",
+                "@/components/*",
+                "@/canvas/*",
+                "@/inputs/*",
+                "@/api/client",
+                "react",
+                "react-dom",
+                "react-konva",
+                "konva",
+                "zustand",
+                "zustand/*",
+                "@tanstack/*",
+                "sonner",
+              ],
+              allowTypeImports: true,
+              message: "Pure modules take what they need as arguments.",
+            },
+          ],
+        },
+      ],
+      "no-restricted-globals": [
+        "error",
+        ...[
+          "window",
+          "document",
+          "navigator",
+          "localStorage",
+          "sessionStorage",
+          "indexedDB",
+          "fetch",
+          "Image",
+          "createImageBitmap",
+          "OffscreenCanvas",
+        ].map((name) => ({ name, message: "Pure modules do not touch the browser." })),
+      ],
+      "no-restricted-properties": [
+        "error",
+        { object: "URL", property: "createObjectURL", message: "Object URLs belong to media." },
+        { object: "URL", property: "revokeObjectURL", message: "Object URLs belong to media." },
+      ],
+    },
+  },
   prettier,
 ]);
