@@ -27,8 +27,6 @@ interface CanvasState {
   brushSize: number;
   maskVisible: boolean;
   maskColor: string;
-  /** The processed composite the last job returned, by url; not persisted. */
-  processedUrl: string | null;
   /** Per-dock collapse override map, keyed by FrameId string: `input:${uuid}`
    * for frames, `"output"` for the Output dock. */
   panelCollapsedOverrides: Map<string, boolean>;
@@ -52,7 +50,6 @@ interface CanvasState {
   setBrushSize: (size: number) => void;
   setMaskVisible: (visible: boolean) => void;
   setMaskColor: (color: string) => void;
-  setProcessedUrl: (url: string | null) => void;
   togglePanelCollapsed: (key: string, currentCollapsed: boolean) => void;
   setSizeMultiple: (multiple: number) => void;
 }
@@ -115,7 +112,6 @@ export const useCanvasStore = create<CanvasState>()(
       brushSize: 20,
       maskVisible: true,
       maskColor: "#ff000080",
-      processedUrl: null,
       panelCollapsedOverrides: new Map<string, boolean>(),
       canvasMode: "focus",
       focusedFrameId: null,
@@ -141,7 +137,6 @@ export const useCanvasStore = create<CanvasState>()(
       setBrushSize: (size) => set({ brushSize: size }),
       setMaskVisible: (visible) => set({ maskVisible: visible }),
       setMaskColor: (color) => set({ maskColor: color }),
-      setProcessedUrl: (url) => set({ processedUrl: url }),
       setSizeMultiple: (multiple) => set({ sizeMultiple: multiple }),
 
       togglePanelCollapsed: (key, currentCollapsed: boolean) =>

@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import type { SentInput } from "@/lib/inputs/outline";
 import type { FrameRole } from "@/lib/inputs/types";
-import { planInputs, type InputPlanContext } from "./inputPlan";
+import { effectiveSizeMode, imageOutputSize, resolveGenerationSize } from "@/lib/sizeCompute";
+import { planInputs, sendSize, type InputPlanContext } from "./inputPlan";
 
 function slot(
   role: FrameRole,
@@ -17,6 +18,7 @@ function slot(
     ...size,
     masked,
     unreadable: false,
+    map: null,
   };
 }
 
@@ -201,5 +203,64 @@ describe("planInputs", () => {
       refusal:
         "The loaded model takes up to 3 input images; the canvas holds 4. Not available with several input images: control units.",
     });
+  });
+});
+
+/** The size the canvas shows the request generating at, as useCanvasLayout
+ * and the processing env compute it: the frame (a lone Reference's own size
+ * where it sets the frame) under the size mode that applies. */
+function canvasSize(ctx: InputPlanContext): { width: number; height: number } {
+  const [only, ...rest] = ctx.sent;
+  const lone = only && rest.length === 0 && only.role === "reference" ? only : null;
+  const shown = ctx.referenceSets && lone ? imageOutputSize(lone, ctx.sizeMultiple) : ctx.frame;
+  return resolveGenerationSize(
+    effectiveSizeMode(ctx.sizeMode, ctx.autoFit, ctx.sent, ctx.referenceSets),
+    shown.width,
+    shown.height,
+    ctx.scaleFactor,
+    ctx.megapixelTarget,
+    ctx.sizeMultiple,
+  );
+}
+
+describe("sendSize", () => {
+  const sized = (ctx: InputPlanContext) => {
+    const planned = planInputs(ctx);
+    if (!planned.ok) throw new Error(planned.refusal);
+    return sendSize(planned.plan, ctx.frame, ctx.sizeMultiple);
+  };
+
+  it.each([
+    ["nothing sent", context([])],
+    [
+      "nothing sent, off the size multiple",
+      context([], { frame: { width: 1020, height: 770 }, sizeMultiple: 16 }),
+    ],
+    ["one Initial frame", context([slot("initial", 1)])],
+    [
+      "one Initial frame under Scale",
+      context([slot("initial", 1)], { autoFit: true, sizeMode: "scale", scaleFactor: 1.5 }),
+    ],
+    [
+      "a set under Megapixel",
+      context([slot("initial", 1), slot("reference", 2)], {
+        ...edit,
+        autoFit: true,
+        sizeMode: "megapixel",
+        megapixelTarget: 2,
+      }),
+    ],
+    [
+      "a lone Reference that sets the frame",
+      context([slot("reference", 1, { width: 530, height: 962 })]),
+    ],
+    ["a lone Reference sent as a set", context([slot("reference", 1)], edit)],
+  ])("is the size the canvas shows: %s", (_name, ctx) => {
+    expect(sized(ctx)).toEqual(canvasSize(ctx));
+  });
+
+  it("is the generation size the request sends for a canvas without input pictures", () => {
+    const ctx = context([], { frame: { width: 1020, height: 770 }, sizeMultiple: 16 });
+    expect(sized(ctx)).toEqual({ width: 1024, height: 768 });
   });
 });

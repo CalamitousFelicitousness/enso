@@ -1,10 +1,13 @@
 // What the frame list means: where each frame stands, what it sends, the
-// number each sent picture answers to, and what keeps the request from being
-// built. Both the canvas and the Input tab read their labels from here, and
-// the request builder sends exactly `sent`, `controls` and `ipAdapters`.
+// number each sent picture answers to, the map each processed picture is
+// sent as, and what keeps the request from being built. Both the canvas and
+// the Input tab read their labels from here, and the request builder sends
+// exactly `sent`, `controls` and `ipAdapters`.
 
+import { compositeSpec, completeParams, fileSpec, mapKey, type PictureSpec } from "./freshness";
 import { unreadableText } from "./text";
 import {
+  activeProcessor,
   composedPictures,
   hasMask,
   isComposed,
@@ -14,15 +17,33 @@ import {
   type Frame,
   type FrameRole,
   type IpAdapterSettings,
+  type JsonValue,
   type MediaKind,
   type PlacedPicture,
-  type ProcessedPreview,
+  type ProcessorSpec,
+  type Size,
 } from "./types";
 
 /** How a prompt names a sent picture: "Image 3". Counted per kind across all frames. */
 export interface Address {
   kind: MediaKind;
   n: number;
+}
+
+/** Where a processed picture's map stands. "needed": no map for this content
+ * yet; "unknown": the cache has not been asked yet. */
+export type MapState = "current" | "needed" | "queued" | "processing" | "failed" | "unknown";
+
+/** The map a picture is sent as: its key, what it is made from, and where it stands. */
+export interface MapSlot {
+  key: string;
+  processor: ProcessorSpec;
+  /** Parameters as sent: the frame's over the server's defaults. */
+  params: Record<string, JsonValue>;
+  spec: PictureSpec;
+  state: MapState;
+  /** Why the processor failed, with state "failed". */
+  reason: string | null;
 }
 
 export interface SentInput {
@@ -38,6 +59,9 @@ export interface SentInput {
   masked: boolean;
   /** Bytes it is made of could not be read. */
   unreadable: boolean;
+  /** The map sent in the picture's place, when the frame has a processor
+   * and the outline was given the processing facts. */
+  map: MapSlot | null;
 }
 
 /** "off": switched off. "empty": on, with nothing to send. "notSent": on and
@@ -71,20 +95,23 @@ export interface OutlineEntry {
   hiddenBySwitch: number;
   /** Position of the frame a Control frame takes its picture from, when linked. */
   linkedTo: number | null;
-  /** A Control frame holds a processed map. */
-  processed: boolean;
+  /** The processor the frame's pictures go through, by id, whether or not
+   * the frame sends; null when it has none or its role takes none. */
+  processor: string | null;
+  /** The maps this frame's sent pictures are replaced by. */
+  maps: MapSlot[];
   /** The problems this frame is part of. */
   blockedBy: ProblemCode[];
 }
 
 /** A Control frame's picture as it travels: the composite of `sourceFrameId`
- * under the frame's settings. */
+ * under the frame's settings, or its map. */
 export interface ControlSend {
   frameId: string;
   position: number;
   sourceFrameId: string;
   settings: ControlSettings;
-  processed: ProcessedPreview | null;
+  map: MapSlot | null;
   unreadable: boolean;
 }
 
@@ -96,8 +123,8 @@ export interface IpAdapterSend {
   unreadable: boolean;
 }
 
-/** Something the request cannot carry as the frames stand. Each one has a fix
- * in problems.ts and words in text.ts. */
+/** Something the request cannot carry as the frames stand. Each one has words
+ * in text.ts and a fix: in problems.ts, or, for `cloudMaps`, a processing job. */
 export type OutlineProblem =
   | { code: "mixedControlTypes"; frames: { position: number; type: ControlType }[] }
   /** More images sent than the model takes: `over` lists the pictures past
@@ -114,7 +141,9 @@ export type OutlineProblem =
   /** Initial frames with a mask while the images go out as a set, which takes no mask. */
   | { code: "maskWithSet"; positions: number[]; images: number }
   /** Control and IP-Adapter frames sending while the images go out as a set. */
-  | { code: "controlWithSet"; positions: number[]; images: number };
+  | { code: "controlWithSet"; positions: number[]; images: number }
+  /** Frames whose map is not current on a model that runs elsewhere and cannot process. */
+  | { code: "cloudMaps"; positions: number[] };
 
 export interface Outline {
   entries: OutlineEntry[];
@@ -128,6 +157,33 @@ export interface Outline {
   problems: OutlineProblem[];
 }
 
+/** What the outline needs to say where each map stands. Without it no slot
+ * is computed and `map` is null everywhere. */
+export interface ProcessingEnv {
+  /** The runner's revision, part of every key. */
+  revision: string;
+  /** Each processor's default parameters, by id. */
+  defaults: Record<string, Record<string, JsonValue>>;
+  /** Keys whose map the cache holds. */
+  current: Pick<ReadonlySet<string>, "has">;
+  /** Keys the cache has been asked about, found or not. */
+  lookedUp: ReadonlySet<string>;
+  /** Keys a job is making. */
+  pending: ReadonlyMap<string, "queued" | "processing">;
+  /** Keys whose last run failed, with the reason. */
+  failed: ReadonlyMap<string, string>;
+  /** The model runs elsewhere and cannot process, so every map must be current. */
+  cloud: boolean;
+  /** Counts every change to the cache, the jobs and the failures, for callers
+   * that key a cache of outlines on these facts. */
+  stamp: number;
+  /** Width and Height as set. */
+  frame: Size;
+  /** The size the model generates at, which a set, a separate init and
+   * every control picture are resized to before they go out. */
+  target: Size;
+}
+
 export interface OutlineEnv {
   /** The loaded checkpoint carries its control model, so a ControlNet frame needs none. */
   controlUnified?: boolean;
@@ -135,9 +191,10 @@ export interface OutlineEnv {
   maxInputImages?: number | null;
   /** The request sets the output size, also from a single input image. */
   requestSetsSize?: boolean | null;
+  processing?: ProcessingEnv | null;
 }
 
-type Unnumbered = Omit<SentInput, "address"> & { kind: MediaKind };
+type Unnumbered = Omit<SentInput, "address" | "map"> & { kind: MediaKind };
 
 function frameSends(frame: Frame): Unnumbered[] {
   if (!frame.enabled) return [];
@@ -184,7 +241,22 @@ function controlSource(
   return { source: target, layers: composedPictures(target) };
 }
 
-type Settled = Omit<OutlineEntry, "blockedBy">;
+function mapState(key: string, env: ProcessingEnv): Pick<MapSlot, "state" | "reason"> {
+  if (env.current.has(key)) return { state: "current", reason: null };
+  const pending = env.pending.get(key);
+  if (pending) return { state: pending, reason: null };
+  const reason = env.failed.get(key);
+  if (reason !== undefined) return { state: "failed", reason };
+  return { state: env.lookedUp.has(key) ? "needed" : "unknown", reason: null };
+}
+
+function mapSlot(spec: PictureSpec, processor: ProcessorSpec, env: ProcessingEnv): MapSlot {
+  const params = completeParams(processor, env.defaults[processor.id]);
+  const key = mapKey(spec, processor, params, env.revision);
+  return { key, processor, params, spec, ...mapState(key, env) };
+}
+
+type Settled = Omit<OutlineEntry, "blockedBy" | "maps">;
 
 const ascending = (positions: Iterable<number>) => [...new Set(positions)].sort((a, b) => a - b);
 
@@ -238,6 +310,16 @@ function findProblems(
       frames: controls.map((c) => ({ position: c.position, type: c.settings.type })),
     });
   }
+  if (env.processing?.cloud) {
+    // Only the image list goes to a provider. A key not looked up yet is not
+    // a problem until the cache has answered.
+    const stale = (map: MapSlot | null) =>
+      map !== null && map.state !== "current" && map.state !== "unknown";
+    const positions = ascending(
+      sent.filter((s) => stale(s.map)).map((s) => positionOf.get(s.frameId) ?? 0),
+    );
+    if (positions.length > 0) problems.push({ code: "cloudMaps", positions });
+  }
   return problems;
 }
 
@@ -252,6 +334,7 @@ export function computeOutline(frames: Frame[], env: OutlineEnv = {}): Outline {
   const next: Record<MediaKind, number> = { image: 1, video: 1, audio: 1 };
   const controls: ControlSend[] = [];
   const ipAdapters: IpAdapterSend[] = [];
+  const sources = new Map<string, Frame>();
   const settled = frames.map((frame, index): Settled => {
     const position = index + 1;
     const shown = isComposed(frame.role) ? [] : frame.pictures.filter((p) => !p.hiddenBySwitch);
@@ -262,7 +345,7 @@ export function computeOutline(frames: Frame[], env: OutlineEnv = {}): Outline {
       role: frame.role,
       hiddenBySwitch: frame.pictures.filter((p) => p.hiddenBySwitch).length,
       linkedTo: frame.role === "control" && linkedIndex !== -1 ? linkedIndex + 1 : null,
-      processed: frame.role === "control" && frame.processed !== null,
+      processor: activeProcessor(frame)?.id ?? null,
     };
     const settle = (status: FrameStatus, notSent: NotSentReason | null = null) => ({
       ...entry,
@@ -280,13 +363,14 @@ export function computeOutline(frames: Frame[], env: OutlineEnv = {}): Outline {
       if (needsModel(frame.control, env) && frame.control.model === "None") {
         return settle("notSent", "noModel");
       }
+      sources.set(frame.id, resolved.source);
       controls.push({
         frameId: frame.id,
         position,
         sourceFrameId: resolved.source.id,
         settings: frame.control,
-        processed: frame.processed,
-        unreadable: resolved.layers.some((p) => p.file === null) || frame.processed?.blob === null,
+        map: null,
+        unreadable: resolved.layers.some((p) => p.file === null),
       });
       return settle("sent");
     }
@@ -304,7 +388,7 @@ export function computeOutline(frames: Frame[], env: OutlineEnv = {}): Outline {
       return settle("sent");
     }
     const sent = frameSends(frame).map(({ kind, ...rest }): SentInput => {
-      return { ...rest, address: { kind, n: next[kind]++ } };
+      return { ...rest, address: { kind, n: next[kind]++ }, map: null };
     });
     return {
       ...settle(sent.length > 0 ? "sent" : "empty"),
@@ -315,17 +399,56 @@ export function computeOutline(frames: Frame[], env: OutlineEnv = {}): Outline {
       })),
     };
   });
-  const sent = settled.flatMap((e) => e.sent);
+  const plain = settled.flatMap((e) => e.sent);
   const set =
-    sent.length > 1 ||
-    (sent.length === 1 && sent[0].role === "reference" && env.requestSetsSize === true);
-  const problems = findProblems(settled, sent, controls, ipAdapters, set, env);
-  const entries = settled.map((entry): OutlineEntry => ({
-    ...entry,
-    blockedBy: problems
-      .filter((p) => problemPositions(p).includes(entry.position))
-      .map((p) => p.code),
-  }));
+    plain.length > 1 ||
+    (plain.length === 1 && plain[0].role === "reference" && env.requestSetsSize === true);
+
+  // The maps, once it is known how the pictures travel: a plain img2img
+  // init goes out at frame size and the server resizes it; a set, a
+  // separate init beside control pictures, and every control picture are
+  // resized to the generation size first.
+  const processing = env.processing ?? null;
+  const frameOf = new Map(frames.map((f) => [f.id, f]));
+  const withMap = (input: SentInput): SentInput => {
+    const frame = frameOf.get(input.frameId);
+    const processor = frame && activeProcessor(frame);
+    if (!processing || !frame || !processor) return input;
+    if (input.pictureId !== null) {
+      const picture = frame.pictures.find((p) => p.id === input.pictureId);
+      return picture ? { ...input, map: mapSlot(fileSpec(picture), processor, processing) } : input;
+    }
+    const out = set || controls.length > 0 ? processing.target : processing.frame;
+    const spec = compositeSpec(composedPictures(frame), processing.frame, out);
+    return { ...input, map: mapSlot(spec, processor, processing) };
+  };
+  const mapped = processing
+    ? settled.map((e) => (e.sent.length > 0 ? { ...e, sent: e.sent.map(withMap) } : e))
+    : settled;
+  if (processing) {
+    for (const send of controls) {
+      const frame = frameOf.get(send.frameId);
+      const source = sources.get(send.frameId);
+      const processor = frame && activeProcessor(frame);
+      if (!frame || !source || !processor) continue;
+      const spec = compositeSpec(composedPictures(source), processing.frame, processing.target);
+      send.map = mapSlot(spec, processor, processing);
+    }
+  }
+  const sent = mapped.flatMap((e) => e.sent);
+  const problems = findProblems(mapped, sent, controls, ipAdapters, set, env);
+  const controlMaps = new Map(controls.map((c) => [c.frameId, c.map]));
+  const entries = mapped.map((entry): OutlineEntry => {
+    const own = controlMaps.get(entry.frameId);
+    const maps = own ? [own] : entry.sent.flatMap((s) => (s.map ? [s.map] : []));
+    return {
+      ...entry,
+      maps,
+      blockedBy: problems
+        .filter((p) => problemPositions(p).includes(entry.position))
+        .map((p) => p.code),
+    };
+  });
   return { entries, sent, controls, ipAdapters, set, problems };
 }
 
@@ -333,13 +456,16 @@ export function outlineEntry(outline: Outline, frameId: string): OutlineEntry | 
   return outline.entries.find((e) => e.frameId === frameId);
 }
 
+/** The first Initial frame that sends a picture. */
+export function firstInitialEntry(outline: Outline): OutlineEntry | undefined {
+  return outline.entries.find((e) => e.role === "initial" && e.sent.length > 0);
+}
+
 /** The layers of the first Initial frame that sends a picture, bottom to top;
  * null when none does. Throws, with words for the user, when one of the
  * layers could not be read. */
 export function firstComposite(frames: Frame[]): PlacedPicture[] | null {
-  const entry = computeOutline(frames).entries.find(
-    (e) => e.role === "initial" && e.sent.length > 0,
-  );
+  const entry = firstInitialEntry(computeOutline(frames));
   const frame = entry && frames.find((f) => f.id === entry.frameId);
   if (!entry || !frame) return null;
   const unreadable = unreadableText([entry]);
@@ -351,6 +477,18 @@ export function firstComposite(frames: Frame[]): PlacedPicture[] | null {
 export function loneReference(outline: Outline): SentInput | null {
   const [only, ...rest] = outline.sent;
   return only && rest.length === 0 && only.role === "reference" ? only : null;
+}
+
+/** The number a Control frame's picture would get if the frame were sent as
+ * an image instead (a Reference frame), or null when it would send nothing. */
+export function sentAsImage(
+  frames: Frame[],
+  frameId: string,
+  env: OutlineEnv = {},
+): Address | null {
+  const switched = frames.map((f): Frame => (f.id === frameId ? { ...f, role: "reference" } : f));
+  const entry = outlineEntry(computeOutline(switched, env), frameId);
+  return entry?.sent[0]?.address ?? null;
 }
 
 /** A sent picture picked to set the frame size: a frame, plus one of its

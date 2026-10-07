@@ -275,7 +275,6 @@ export function FrameDock({
           <InfoLine label="Layers" value={String(layerCount)} />
           {role === "initial" && <InfoLine label="Mask strokes" value={String(maskLineCount)} />}
           {role === "control" && <InfoLine label="Model" value={storeFrame.control.model} />}
-          {role === "control" && <InfoLine label="Processor" value={storeFrame.control.process} />}
           <InfoLine
             label="Dimensions"
             value={filled ? `${genSize.width}×${genSize.height}` : "-"}

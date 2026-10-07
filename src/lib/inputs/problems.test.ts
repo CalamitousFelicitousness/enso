@@ -51,14 +51,11 @@ describe("fixProblem", () => {
   it("drops what cannot be read and leaves the rest", () => {
     const frames = [
       frame("man", "initial", layer("m", { file: null }), layer("ok")),
-      {
-        ...unit("edges", "controlnet", layer("e")),
-        processed: { cid: "p", blob: null, width: 1, height: 1 },
-      },
+      unit("edges", "controlnet", layer("e"), layer("gone", { file: null })),
     ];
     const after = fixed(frames);
     expect(after[0].pictures.map((p) => p.id)).toEqual(["ok"]);
-    expect(after[1].processed).toBeNull();
+    expect(after[1].pictures.map((p) => p.id)).toEqual(["e"]);
     expect(computeOutline(after).problems).toEqual([]);
   });
 

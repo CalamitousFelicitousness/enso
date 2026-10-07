@@ -1,9 +1,15 @@
 // One fix per problem the outline reports: the frame list as the fix leaves
-// it. Positions are those of the list the problem was computed from.
+// it. Positions are those of the list the problem was computed from. The
+// one problem fixed by running a job, `cloudMaps`, leaves the list as it is.
 
 import { clearMaskObjects, clearStrokes, setEnabled, updateFrame } from "./reducers";
 import type { OutlineProblem } from "./outline";
 import type { Frame } from "./types";
+
+/** Whether the problem's fix is a processing job rather than a change to the frames. */
+export function fixRunsJob(problem: OutlineProblem): boolean {
+  return problem.code === "cloudMaps";
+}
 
 function turnOff(frames: Frame[], positions: number[]): Frame[] {
   return positions.reduce(
@@ -13,17 +19,11 @@ function turnOff(frames: Frame[], positions: number[]): Frame[] {
   );
 }
 
-/** A frame without the pictures, masks and map whose bytes are gone. */
+/** A frame without the pictures and masks whose bytes are gone. */
 function withoutUnreadable(frame: Frame): Frame {
   const pictures = frame.pictures.filter((p) => p.file !== null);
   const masks = frame.ipAdapter.masks.filter((p) => p.file !== null);
-  const processed = frame.processed?.blob === null ? null : frame.processed;
-  return {
-    ...frame,
-    pictures,
-    ipAdapter: { ...frame.ipAdapter, masks },
-    processed,
-  };
+  return { ...frame, pictures, ipAdapter: { ...frame.ipAdapter, masks } };
 }
 
 export function fixProblem(frames: Frame[], problem: OutlineProblem): Frame[] {
@@ -62,5 +62,7 @@ export function fixProblem(frames: Frame[], problem: OutlineProblem): Frame[] {
           ),
         frames,
       );
+    case "cloudMaps":
+      return frames;
   }
 }

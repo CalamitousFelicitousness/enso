@@ -16,6 +16,7 @@ const JOB_TYPE_TO_DOMAIN: Record<string, JobDomain> = {
   framepack: "framepack",
   ltx: "ltx",
   "xyz-grid": "xyz-grid",
+  preprocess: "preprocess",
   // Cloud executors piggyback on the local domains: cloud_image renders in
   // the images flow, cloud_video in the video flow. Discriminated downstream
   // by JobRequest.type. Without these entries, rehydrated cloud jobs fall

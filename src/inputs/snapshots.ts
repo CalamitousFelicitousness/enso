@@ -60,7 +60,7 @@ export function forgetInputs(key: string): void {
  * each result's inputs are deleted with that result alone. The record is
  * copied under a new key; the bytes it names are shared. */
 export async function cloneJobInputs(snapshot: JobSnapshot): Promise<JobSnapshot> {
-  if (snapshot.kind === "none" || !snapshot.inputsKey) return snapshot;
+  if (snapshot.kind === "none" || snapshot.kind === "maps" || !snapshot.inputsKey) return snapshot;
   try {
     const stored = await readDocument<ReadSnapshot>(
       SNAPSHOTS,

@@ -1,9 +1,9 @@
 import { frameBox, type FrameLayout } from "@/lib/inputs/layout";
 
 /** A canvas frame identifier. Used by focus mode, dock collapse keys and
- * per-frame state lookups. Input frames carry their UUID; output and
- * processed are singular. */
-export type FrameId = `input:${string}` | "output" | "processed";
+ * per-frame state lookups. Input frames carry their UUID; the output is
+ * singular. */
+export type FrameId = `input:${string}` | "output";
 
 export interface FrameBounds {
   id: FrameId;
@@ -18,12 +18,10 @@ export function inputFrameId(uuid: string): FrameId {
   return `input:${uuid}`;
 }
 
-export type ParsedFrameId =
-  { kind: "input"; id: string } | { kind: "output" } | { kind: "processed" };
+export type ParsedFrameId = { kind: "input"; id: string } | { kind: "output" };
 
 export function parseFrameId(fid: FrameId): ParsedFrameId {
   if (fid === "output") return { kind: "output" };
-  if (fid === "processed") return { kind: "processed" };
   if (fid.startsWith("input:")) return { kind: "input", id: fid.slice(6) };
   throw new Error(`unknown FrameId: ${fid as string}`);
 }
@@ -35,8 +33,7 @@ const LABEL_HEIGHT = 160;
 const TOOLBAR_RESERVE = 56;
 
 /** Every visible frame in focus-nav order: the frames by their place in the
- * list, whichever column they sit in, then the output, then the processed
- * composite when it shows. */
+ * list, whichever column they sit in, then the output. */
 export function getOrderedFrames(layout: FrameLayout): FrameBounds[] {
   const frames: FrameBounds[] = layout.frames.map((f) => ({
     id: inputFrameId(f.frameId),
@@ -49,15 +46,6 @@ export function getOrderedFrames(layout: FrameLayout): FrameBounds[] {
     width: layout.outputDisplayW,
     height: layout.outputDisplayH,
   });
-  if (layout.showProcessedFrame) {
-    frames.push({
-      id: "processed",
-      x: layout.processedX,
-      y: 0,
-      width: layout.outputDisplayW,
-      height: layout.outputDisplayH,
-    });
-  }
   return frames;
 }
 

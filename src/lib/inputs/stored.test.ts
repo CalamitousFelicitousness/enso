@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { frame, layer, maskObject, picture } from "./frames.fixture";
+import { reportLines } from "./report";
 import { defaultControl, defaultIpAdapter } from "./reducers";
 import {
   DOCUMENT_SCHEMA,
@@ -7,7 +8,9 @@ import {
   joinRemoval,
   joinSnapshot,
   joinWorking,
+  MAP_SCHEMA,
   NewerDocument,
+  readMap,
   readRemoval,
   readSnapshot,
   readStoredFrames,
@@ -98,13 +101,8 @@ describe("splitFrames and joinFrames", () => {
 function controlSample(): Frame[] {
   const own: Frame = {
     ...frame("edges", "control", layer("e")),
-    control: {
-      ...defaultControl(),
-      model: "Xinsir",
-      process: "Canny",
-      processParams: { low_threshold: 100, color_map: "None" },
-    },
-    processed: { cid: "cid-map", blob: new Blob(["map"]), width: 64, height: 64 },
+    control: { ...defaultControl(), model: "Xinsir" },
+    processor: { id: "Canny", params: { low_threshold: 100, color_map: "None" } },
   };
   const borrowed: Frame = { ...frame("borrow", "control"), fit: null, link: { frameId: "edges" } };
   const faces: Frame = {
@@ -122,28 +120,56 @@ describe("control and IP-Adapter frames", () => {
     expect(readStoredFrames(structuredClone(stored)).frames).toEqual(stored);
   });
 
-  it("name the cids of region masks and processed maps", () => {
+  it("name the cids of region masks", () => {
     const { frames: stored } = splitFrames(controlSample());
-    expect(readStoredFrames(stored).cids.sort()).toEqual([
-      "cid-e",
-      "cid-face",
-      "cid-map",
-      "cid-region",
-    ]);
-  });
-
-  it("keep a processed map whose bytes are gone, unreadable, and report it", () => {
-    const { frames: stored, blobs } = splitFrames(controlSample());
-    blobs.delete("cid-map");
-    const { frames, lost } = joinFrames(stored, blobs);
-    expect(frames[0].processed?.blob).toBeNull();
-    expect(lost.pictures).toEqual([{ frameId: "edges", name: "Processed map" }]);
+    expect(readStoredFrames(stored).cids.sort()).toEqual(["cid-e", "cid-face", "cid-region"]);
   });
 
   it("refuse a processor parameter that is not a JSON value", () => {
     const { frames: stored } = splitFrames(controlSample());
-    (stored[0].control.processParams as Record<string, unknown>)["low_threshold"] = Number.NaN;
-    expect(() => readStoredFrames(stored)).toThrow("frames[0].control.processParams.low_threshold");
+    if (stored[0].processor) stored[0].processor.params["low_threshold"] = Number.NaN;
+    expect(() => readStoredFrames(stored)).toThrow("frames[0].processor.params.low_threshold");
+  });
+
+  it("read a schema 2 frame's processor out of its control settings and drop its preview", () => {
+    const { frames: stored } = splitFrames(controlSample());
+    interface Schema2 {
+      control: Record<string, unknown>;
+      processor?: { id: string; params: unknown } | null;
+      processed?: unknown;
+    }
+    const old = structuredClone(stored) as unknown as Schema2[];
+    for (const f of old) {
+      f.control["process"] = f.processor?.id ?? "None";
+      f.control["processParams"] = f.processor?.params ?? {};
+      delete f.processor;
+      f.processed = null;
+    }
+    old[0].processed = { cid: "cid-map", width: 64, height: 64, missing: false };
+    const { frames, cids, notes } = readStoredFrames(old, 2);
+    expect(frames).toEqual(stored);
+    expect(cids).not.toContain("cid-map");
+    expect(notes).toEqual([{ kind: "previewDropped", position: 1 }]);
+    // the fields that left are refused on a schema 3 record
+    expect(() => readStoredFrames(old, 3)).toThrow(UnreadableDocument);
+  });
+
+  it("drop a schema 2 processor kept from a Control role, which did nothing, and say so", () => {
+    const [stored] = splitFrames([frame("was-control", "initial", layer("w"))]).frames;
+    const old = {
+      ...structuredClone(stored),
+      control: { ...defaultControl(), process: "Canny", processParams: { low_threshold: 50 } },
+      processed: null,
+    } as Record<string, unknown>;
+    delete old["processor"];
+    const { frames, notes } = readStoredFrames([old], 2);
+    expect(frames[0].processor).toBeNull();
+    expect(notes).toEqual([{ kind: "processorDropped", position: 1, processor: "Canny" }]);
+    expect(
+      reportLines({ lost: { pictures: [], maskObjects: 0 }, notes, legacyUnread: false }, () => 1),
+    ).toEqual([
+      "Input 1: the Canny processor it kept from when it was a Control frame is not carried over; it did nothing in this role.",
+    ]);
   });
 });
 
@@ -156,8 +182,8 @@ describe("readStoredFrames", () => {
 
   it("reads schema 1 frames with the later fields at their defaults", () => {
     const old = stored().map((f) => {
-      const { fit, link, control, ipAdapter, processed, ...rest } = f;
-      void [fit, link, control, ipAdapter, processed];
+      const { fit, link, control, ipAdapter, processor, ...rest } = f;
+      void [fit, link, control, ipAdapter, processor];
       return rest;
     });
     const { frames } = readStoredFrames(old, 1);
@@ -222,14 +248,14 @@ describe("the working document", () => {
     expect(readWorking(empty).record).toEqual(empty);
   });
 
-  it("reads a schema 1 document as schema 2", () => {
+  it("reads a schema 1 document as schema 3", () => {
     const old = record() as unknown as { schema: number; frames: Record<string, unknown>[] };
     old.schema = 1;
     for (const f of old.frames) {
-      for (const key of ["fit", "link", "control", "ipAdapter", "processed"]) delete f[key];
+      for (const key of ["fit", "link", "control", "ipAdapter", "processor"]) delete f[key];
     }
     const { record: read, cids } = readWorking(old);
-    expect(read.schema).toBe(2);
+    expect(read.schema).toBe(3);
     expect(read.frames).toEqual(record().frames);
     expect(cids.sort()).toEqual(["cid-a", "cid-b", "cid-base", "cid-m", "cid-top"]);
   });
@@ -329,5 +355,29 @@ describe("removal records", () => {
     const { removal, lost } = joinRemoval(record, new Map());
     expect(removal.content.kind === "picture" && removal.content.picture.file).toBeNull();
     expect(lost.pictures).toEqual([{ frameId: "refs", name: "b.png" }]);
+  });
+});
+
+describe("map records", () => {
+  const map = () => ({
+    schema: MAP_SCHEMA,
+    key: 'Canny|1|{}|{"cid":"a","kind":"file"}',
+    cid: "cid-map",
+    width: 64,
+    height: 64,
+    madeAt: 1000,
+    usedAt: 2000,
+  });
+
+  it("reads a record and names its cid", () => {
+    const { record, cids } = readMap(map());
+    expect(record).toEqual(map());
+    expect(cids).toEqual(["cid-map"]);
+  });
+
+  it("refuses a newer schema and anything it does not know", () => {
+    expect(() => readMap({ ...map(), schema: MAP_SCHEMA + 1 })).toThrow(NewerDocument);
+    expect(() => readMap({ ...map(), extra: 1 })).toThrow(UnreadableDocument);
+    expect(() => readMap({ ...map(), usedAt: "yesterday" })).toThrow(UnreadableDocument);
   });
 });

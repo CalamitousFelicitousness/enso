@@ -28,6 +28,7 @@ import {
   deleteDocument,
   enterTab,
   latestRevision,
+  MAPS,
   readDocument,
   SNAPSHOTS,
   TRASH,
@@ -36,6 +37,7 @@ import {
   type StoreReaders,
 } from "./db";
 import { decodeLegacyUnits } from "./legacyControl";
+import { mapsReader } from "./maps";
 import { snapshotCids } from "./snapshots";
 import { trashReader } from "./trash";
 
@@ -72,6 +74,7 @@ const READERS: StoreReaders = {
   [DOCUMENTS]: (record) => ({ cids: readWorking(record).cids }),
   [SNAPSHOTS]: (record) => ({ cids: snapshotCids(record) }),
   [TRASH]: trashReader,
+  [MAPS]: mapsReader,
 };
 
 /** The canvas record's formats, newest first. Version 3 is a JSON string. */
@@ -294,10 +297,16 @@ const backend: KeyValueBackend = {
     const before = own?.doc ?? EMPTY_WORKING;
     let imported = await importLegacy(before);
     const lost = own?.lost ?? NO_LOSS;
+    const upgraded = stored?.document.notes ?? [];
     // An import is stored before the store may write, so a reload cannot find
     // the frames without their marks or the marks without their frames. A
-    // loss is stored too, or it would be reported again on every load.
-    if (imported.doc !== before || lost.pictures.length > 0 || lost.maskObjects > 0) {
+    // loss or an upgrade is stored too, or it would be reported on every load.
+    if (
+      imported.doc !== before ||
+      lost.pictures.length > 0 ||
+      lost.maskObjects > 0 ||
+      upgraded.length > 0
+    ) {
       try {
         await store(imported.doc);
       } catch (err) {
@@ -314,7 +323,7 @@ const backend: KeyValueBackend = {
     }
     const findings: HydrationFindings = {
       lost,
-      notes: imported.notes,
+      notes: [...upgraded, ...imported.notes],
       offers: imported.offers,
       legacyUnread: imported.unread,
     };

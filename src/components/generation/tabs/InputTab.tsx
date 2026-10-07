@@ -3,13 +3,11 @@
 
 import { Locate } from "lucide-react";
 import { useInputStore } from "@/stores/inputStore";
-import { useUiStore } from "@/stores/uiStore";
 import { useModelCapabilities } from "@/hooks/useModelCapabilities";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { SectionDivider } from "@/components/ui/section-leader";
-import { useOutline } from "@/inputs/useOutline";
+import { useOutlineWithEnv } from "@/inputs/useOutline";
+import { applyFix } from "@/inputs/processing";
 import { revealFrame } from "@/inputs/reveal";
 import { outlineEntry, type Outline } from "@/lib/inputs/outline";
 import {
@@ -40,7 +38,7 @@ function summaryText(outline: Outline, limit: number | null): string {
 }
 
 export function InputTab() {
-  const outline = useOutline();
+  const { outline, env } = useOutlineWithEnv();
   const selectedFrameId = useInputStore((s) => s.selectedFrameId);
   const selectedRole = useInputStore((s) => {
     const frame = s.frames.find((f) => f.id === s.selectedFrameId);
@@ -50,9 +48,6 @@ export function InputTab() {
         : roleLabel(frame.role)
       : null;
   });
-  const fixProblem = useInputStore((s) => s.fixProblem);
-  const reprocessOnGenerate = useUiStore((s) => s.reprocessOnGenerate);
-  const setAutoUpdateProcessed = useUiStore((s) => s.setAutoUpdateProcessed);
   const { maxInputImages } = useModelCapabilities();
   const lockedType = outline.controls[0]?.settings.type ?? null;
   const problem = outline.problems[0];
@@ -60,16 +55,6 @@ export function InputTab() {
 
   return (
     <div className="flex flex-col gap-3 text-sm">
-      <div className="flex items-center justify-between">
-        <Label
-          className="text-2xs text-muted-foreground"
-          title="When on, processors run fresh every generation. When off, processed maps are sent as they are."
-        >
-          Re-process on generate
-        </Label>
-        <Switch checked={reprocessOnGenerate} onCheckedChange={setAutoUpdateProcessed} />
-      </div>
-
       <div className="flex items-center justify-between">
         <span className="text-2xs font-medium uppercase tracking-wider text-muted-foreground">
           Inputs
@@ -95,7 +80,7 @@ export function InputTab() {
               variant="outline"
               size="sm"
               className="h-5 shrink-0 rounded px-1.5 text-3xs"
-              onClick={() => fixProblem(problem)}
+              onClick={() => applyFix(env, problem)}
             >
               {fixLabel(problem)}
             </Button>

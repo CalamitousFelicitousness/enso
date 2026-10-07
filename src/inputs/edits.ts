@@ -2,30 +2,39 @@
 // removal writes a record the trash keeps for the retention period and offers
 // Undo; every change that renumbers the sent pictures says which.
 
+import { toast } from "sonner";
 import { useGenerationStore } from "@/stores/generationStore";
 import { useInputStore } from "@/stores/inputStore";
-import { outlineEntry, type SentInput } from "@/lib/inputs/outline";
+import { resizeBlob } from "@/lib/resize";
+import {
+  computeOutline,
+  outlineEntry,
+  type OutlineEnv,
+  type SentInput,
+} from "@/lib/inputs/outline";
 import { newFrame } from "@/lib/inputs/reducers";
 import { addressChanges } from "@/lib/inputs/renumber";
 import type { Removal } from "@/lib/inputs/stored";
 import { positionLabel, renumberText } from "@/lib/inputs/text";
 import {
+  composedPictures,
   hasMask,
+  isComposed,
   type ControlType,
   type Frame,
   type FrameRole,
   type Size,
 } from "@/lib/inputs/types";
+import { currentMap, touchMap } from "./maps";
 import { revealFrame } from "./reveal";
+import { keepingSize } from "./sizeSync";
+import { addFilesToInputs } from "./route";
 import { forgetRemoval, recordRemoval } from "./trash";
 import { offerUndo } from "./undo";
-import { outlineOf } from "./useOutline";
+import { outlineOf } from "./outlineOf";
 
 const holdsContent = (frame: Frame) =>
-  frame.pictures.length > 0 ||
-  hasMask(frame) ||
-  frame.ipAdapter.masks.length > 0 ||
-  frame.processed !== null;
+  frame.pictures.length > 0 || hasMask(frame) || frame.ipAdapter.masks.length > 0;
 
 const sentNow = (): SentInput[] => outlineOf(useInputStore.getState().frames).sent;
 
@@ -197,6 +206,101 @@ export function restoreFrames(frames: Frame[], size: Size): void {
     content: { kind: "frames", frames: previous.frames },
   };
   void removed(removal, "Inputs restored from the result", null, putBack);
+}
+
+/** The map in the pictures' place: a composed frame's composition becomes
+ * its map, drawn at the frame size so it fills the frame as before; a set
+ * frame's pictures each become their map; the processor goes. Only current
+ * maps are used; the frame as it was goes to the trash behind Undo. False
+ * when no map was current or the frame changed while the map was drawn. */
+export async function replaceWithMaps(env: OutlineEnv, frameId: string): Promise<boolean> {
+  const { frames } = useInputStore.getState();
+  const frame = frames.find((f) => f.id === frameId);
+  const entry = outlineEntry(computeOutline(frames, env), frameId);
+  if (!frame || !entry) return false;
+  const mapName = (name: string) =>
+    `${name.replace(/\.[^.]+$/, "")} (${frame.processor?.id ?? "map"}).png`;
+  let apply: () => void;
+  if (isComposed(frame.role)) {
+    const slot = entry.maps[0];
+    const map = slot?.state === "current" ? currentMap(slot.key) : null;
+    if (!slot || !map || slot.spec.kind !== "composite") return false;
+    const { width, height } = slot.spec;
+    let file: Blob;
+    try {
+      file = await resizeBlob(map.blob, width, height);
+    } catch (err) {
+      toast.error("Could not replace the pictures with the map", {
+        description: err instanceof Error ? err.message : String(err),
+      });
+      return false;
+    }
+    touchMap(slot.key);
+    // a linked Control frame's map is drawn from its source's pictures
+    const source = frames.find((f) => f.id === (frame.link?.frameId ?? frame.id)) ?? frame;
+    const name = mapName(composedPictures(source)[0]?.name ?? "picture");
+    apply = () =>
+      useInputStore.getState().replaceComposition(frameId, { file, name, width, height });
+  } else {
+    const maps = new Map<string, { file: Blob; name: string; width: number; height: number }>();
+    for (const input of entry.sent) {
+      const map = input.map?.state === "current" ? currentMap(input.map.key) : null;
+      const picture = frame.pictures.find((p) => p.id === input.pictureId);
+      if (!map || !picture || !input.map) continue;
+      touchMap(input.map.key);
+      maps.set(picture.id, {
+        file: map.blob,
+        name: mapName(picture.name),
+        width: map.width,
+        height: map.height,
+      });
+    }
+    if (maps.size === 0) return false;
+    apply = () => useInputStore.getState().replacePictures(frameId, maps);
+  }
+  if (useInputStore.getState().frames.find((f) => f.id === frameId) !== frame) {
+    toast.info("Nothing replaced: the frame changed while the map was being drawn");
+    return false;
+  }
+  const position = positionOf(frameId);
+  const before = sentNow();
+  // the map is drawn at the frame size, so the frame keeps its size both ways
+  keepingSize(apply);
+  const removal: Removal = {
+    removedAt: Date.now(),
+    from: { position, frameId, role: frame.role },
+    content: { kind: "contents", frame },
+  };
+  void removed(
+    removal,
+    `${positionLabel(position)}: pictures replaced with their map`,
+    renumberText(addressChanges(before, sentNow())),
+    () => keepingSize(() => useInputStore.getState().restoreFrame(frame)),
+  );
+  return true;
+}
+
+/** One file in the place of a composed frame's pictures, fitted inside the
+ * frame; the mask stays. The frame as it was goes to the trash behind Undo. */
+export async function replacePicture(frameId: string, file: File): Promise<void> {
+  const store = useInputStore.getState();
+  const frame = store.frames.find((f) => f.id === frameId);
+  if (!frame) return;
+  const position = positionOf(frameId);
+  const before = sentNow();
+  for (const picture of frame.pictures) store.removePicture(frameId, picture.id);
+  await addFilesToInputs([file], frameId);
+  const removal: Removal = {
+    removedAt: Date.now(),
+    from: { position, frameId, role: frame.role },
+    content: { kind: "contents", frame },
+  };
+  void removed(
+    removal,
+    `${positionLabel(position)}: picture replaced`,
+    renumberText(addressChanges(before, sentNow())),
+    () => useInputStore.getState().restoreFrame(frame),
+  );
 }
 
 /** Add a frame at the end of the list, give a Control frame its type, and

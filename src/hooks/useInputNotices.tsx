@@ -2,8 +2,10 @@ import { useEffect } from "react";
 import { toast } from "sonner";
 import { reportLines } from "@/lib/inputs/report";
 import { outlineEntry } from "@/lib/inputs/outline";
-import { outlineOf } from "@/inputs/useOutline";
+import { outlineOf } from "@/inputs/outlineOf";
+import { useMapLookups } from "@/inputs/useOutline";
 import { startSizeSync } from "@/inputs/sizeSync";
+import { startPendingSync } from "@/inputs/maps";
 import { useCapacitySync } from "@/inputs/capacity";
 import { runUndo } from "@/inputs/undo";
 import { useShortcut } from "@/hooks/useShortcut";
@@ -12,13 +14,17 @@ import { useInputStore } from "@/stores/inputStore";
 /** Tells the user what loading the stored inputs turned up, and offers to
  * bring in inputs an older build saved after the first import. Also starts
  * the size sync, which waits for the same load, keeps the model's image
- * limit on the store, and runs the pending undo on Ctrl+Z. */
+ * limit on the store, asks the map cache about the maps the frames name,
+ * keeps the maps being made on the tracked jobs, and runs the pending undo
+ * on Ctrl+Z. */
 export function useInputNotices() {
   const report = useInputStore((s) => s.report);
   const offers = useInputStore((s) => s.offers);
 
   useEffect(() => startSizeSync(), []);
+  useEffect(() => startPendingSync(), []);
   useCapacitySync();
+  useMapLookups();
   useShortcut("undo", () => void runUndo());
 
   useEffect(() => {

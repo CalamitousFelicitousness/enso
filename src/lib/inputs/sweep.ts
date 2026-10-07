@@ -52,3 +52,8 @@ export function planSweep(
 export function removalExpiry(removedAt: number): number {
   return removedAt + RETENTION_MS;
 }
+
+/** When a cached map may be dropped: the same period after it was last used. */
+export function mapExpiry(usedAt: number): number {
+  return usedAt + RETENTION_MS;
+}

@@ -59,7 +59,6 @@ interface UiState {
 
   // Canvas preferences
   autoFitFrame: boolean;
-  reprocessOnGenerate: boolean;
 
   // Model defaults
   autoApplyModelDefaults: boolean;
@@ -101,7 +100,6 @@ interface UiState {
   setResultThumbSize: (size: number) => void;
   setVideoResultThumbSize: (size: number) => void;
   setAutoFitFrame: (enabled: boolean) => void;
-  setAutoUpdateProcessed: (enabled: boolean) => void;
   setAutoApplyModelDefaults: (enabled: boolean) => void;
   setLivePreviews: (enabled: boolean) => void;
   toggleLeftPanel: () => void;
@@ -163,7 +161,6 @@ export const useUiStore = create<UiState>()(
       resultThumbSize: 56,
       videoResultThumbSize: 56,
       autoFitFrame: true,
-      reprocessOnGenerate: true,
       autoApplyModelDefaults: false,
       livePreviews: true,
       recentCommandIds: [],
@@ -189,7 +186,6 @@ export const useUiStore = create<UiState>()(
       setVideoResultThumbSize: (size) =>
         set({ videoResultThumbSize: Math.max(40, Math.min(120, size)) }),
       setAutoFitFrame: (enabled) => set({ autoFitFrame: enabled }),
-      setAutoUpdateProcessed: (enabled) => set({ reprocessOnGenerate: enabled }),
       setAutoApplyModelDefaults: (enabled) => set({ autoApplyModelDefaults: enabled }),
       setLivePreviews: (enabled) => set({ livePreviews: enabled }),
       toggleLeftPanel: () => set((s) => ({ leftPanelCollapsed: !s.leftPanelCollapsed })),

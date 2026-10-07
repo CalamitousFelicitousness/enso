@@ -7,13 +7,24 @@ import {
   outlineEntry,
   problemPositions,
   resolveSizeSource,
+  sentAsImage,
   sizeSourcePick,
   sizeSourceState,
   type Outline,
+  type ProcessingEnv,
   type SizeSourcePick,
 } from "./outline";
 import { defaultControl, defaultIpAdapter } from "./reducers";
-import { addressLabel, fixLabel, problemText, sentLabel, unreadableText } from "./text";
+import {
+  addressLabel,
+  fixLabel,
+  mapsWord,
+  problemText,
+  sendAsImageLabel,
+  sentLabel,
+  statusWord,
+  unreadableText,
+} from "./text";
 import type { ControlSettings, Frame, Picture } from "./types";
 
 /** Each sent picture as "Image 2 <- frame/picture", a composite as "frame/*". */
@@ -367,9 +378,9 @@ describe("control and IP-Adapter frames", () => {
   it("flags a control picture whose bytes are gone", () => {
     const outline = computeOutline([
       unit("edges", {}, layer("e", { file: null })),
-      { ...unit("map", {}, layer("m")), processed: { cid: "p", blob: null, width: 1, height: 1 } },
+      unit("depth", {}, layer("d")),
     ]);
-    expect(outline.controls.map((c) => c.unreadable)).toEqual([true, true]);
+    expect(outline.controls.map((c) => c.unreadable)).toEqual([true, false]);
   });
 });
 
@@ -481,5 +492,188 @@ describe("problems", () => {
     ]);
     expect(outline.problems.map(problemPositions)).toEqual([[1, 2]]);
     expect(fixLabel(outline.problems[0])).toBe("Turn off Input 2");
+  });
+});
+
+describe("maps", () => {
+  const canny = { id: "Canny", params: { low_threshold: 50 } };
+  const processing = (patch: Partial<ProcessingEnv> = {}): ProcessingEnv => ({
+    revision: "1",
+    defaults: { Canny: { low_threshold: 100, high_threshold: 200 } },
+    current: new Set(),
+    lookedUp: new Set(),
+    pending: new Map(),
+    failed: new Map(),
+    cloud: false,
+    stamp: 0,
+    frame: { width: 1024, height: 768 },
+    target: { width: 1024, height: 768 },
+    ...patch,
+  });
+  const processed = (f: Frame): Frame => ({ ...f, processor: canny });
+  const control = (id: string, ...pictures: Picture[]): Frame => ({
+    ...frame(id, "control", ...pictures),
+    control: { ...defaultControl(), model: "Xinsir" },
+  });
+
+  it("names each frame's processor, also while it is off, and none where the role takes none", () => {
+    const off: Frame = { ...processed(frame("off", "initial", layer("o"))), enabled: false };
+    const style: Frame = {
+      ...processed(control("style", layer("s"))),
+      control: { ...defaultControl(), type: "style_transfer", model: "x" },
+    };
+    const adapter: Frame = processed(frame("ip", "ipAdapter", picture("i")));
+    const outline = computeOutline([
+      processed(frame("man", "initial", layer("m"))),
+      off,
+      style,
+      adapter,
+    ]);
+    expect(outline.entries.map((e) => e.processor)).toEqual(["Canny", "Canny", null, null]);
+  });
+
+  it("gives every processed picture a map slot, and none without the processing facts", () => {
+    const frames = [
+      processed(frame("man", "initial", layer("m"))),
+      processed(frame("pets", "reference", picture("dog"), picture("cat"))),
+      frame("plain", "reference", picture("x")),
+      processed(control("edges", layer("e"))),
+    ];
+    const outline = computeOutline(frames, { processing: processing() });
+    expect(outline.sent.map((s) => s.map?.spec.kind ?? null)).toEqual([
+      "composite",
+      "file",
+      "file",
+      null,
+    ]);
+    expect(outline.controls[0].map?.spec.kind).toBe("composite");
+    expect(outline.entries.map((e) => e.maps.length)).toEqual([1, 2, 0, 1]);
+    // the frame's values over the server's defaults
+    expect(outline.sent[0].map?.params).toEqual({ low_threshold: 50, high_threshold: 200 });
+    expect(computeOutline(frames).sent.every((s) => s.map === null)).toBe(true);
+    expect(computeOutline(frames).controls[0].map).toBeNull();
+  });
+
+  it("names the state of each map from the cache, the jobs and the failures", () => {
+    const frames = [
+      processed(frame("pets", "reference", picture("a"), picture("b"), picture("c"))),
+    ];
+    const keys = computeOutline(frames, { processing: processing() }).sent.map((s) => s.map?.key);
+    const [a, b, c] = keys as string[];
+    const outline = computeOutline(frames, {
+      processing: processing({
+        current: new Set([a]),
+        lookedUp: new Set([a, b]),
+        pending: new Map([[c, "processing"]]),
+      }),
+    });
+    expect(outline.sent.map((s) => s.map?.state)).toEqual(["current", "needed", "processing"]);
+    expect(statusWord(outline.entries[0])).toBe("1 of 3 processing");
+    const failed = computeOutline(frames, {
+      processing: processing({ lookedUp: new Set([a, b, c]), failed: new Map([[b, "no map"]]) }),
+    });
+    expect(failed.sent[1].map).toMatchObject({ state: "failed", reason: "no map" });
+    expect(statusWord(failed.entries[0])).toBe("1 of 3 failed");
+    expect(mapsWord(failed.entries[0].maps)).toBe("1 of 3 failed");
+    const unknown = computeOutline(frames, { processing: processing() });
+    expect(unknown.sent.map((s) => s.map?.state)).toEqual(["unknown", "unknown", "unknown"]);
+    expect(statusWord(unknown.entries[0])).toBe("sent");
+    const current = computeOutline(frames, {
+      processing: processing({ current: new Set([a, b, c]), lookedUp: new Set([a, b, c]) }),
+    });
+    expect(statusWord(current.entries[0])).toBe("sent");
+  });
+
+  it("sizes a composite by how it travels", () => {
+    const man = processed(frame("man", "initial", layer("m")));
+    const env = processing({ target: { width: 2048, height: 1536 } });
+    const alone = computeOutline([man], { processing: env }).sent[0].map?.spec;
+    // a plain init goes out at frame size and the server resizes it
+    expect(alone?.kind === "composite" && alone.out).toBeNull();
+    // beside a control picture it is resized first
+    const beside = computeOutline([man, processed(control("edges", layer("e")))], {
+      processing: env,
+    });
+    const init = beside.sent[0].map?.spec;
+    expect(init?.kind === "composite" && init.out).toEqual({ width: 2048, height: 1536 });
+    const unit = beside.controls[0].map?.spec;
+    expect(unit?.kind === "composite" && unit.out).toEqual({ width: 2048, height: 1536 });
+    // in a set every member is resized first
+    const set = computeOutline([man, frame("ref", "reference", picture("r"))], { processing: env });
+    const member = set.sent[0].map?.spec;
+    expect(member?.kind === "composite" && member.out).toEqual({ width: 2048, height: 1536 });
+  });
+
+  it("takes a linked Control frame's map from its source's composite", () => {
+    const man = frame("man", "initial", layer("m"));
+    const linked: Frame = { ...processed(control("edges")), link: { frameId: "man" } };
+    const outline = computeOutline([man, linked], { processing: processing() });
+    const spec = outline.controls[0].map?.spec;
+    expect(spec?.kind === "composite" && spec.layers.map((l) => l.cid)).toEqual(["cid-m"]);
+  });
+
+  it("gives IP-Adapter and style transfer frames no map", () => {
+    const style: Frame = {
+      ...processed(control("style", layer("s"))),
+      control: { ...defaultControl(), type: "style_transfer" },
+    };
+    const adapter: Frame = {
+      ...processed(frame("faces", "ipAdapter", picture("f"))),
+      ipAdapter: { ...defaultIpAdapter(), adapter: "Base SDXL" },
+    };
+    const outline = computeOutline([style, adapter], { processing: processing() });
+    expect(outline.controls[0].map).toBeNull();
+    expect(outline.entries.map((e) => e.maps.length)).toEqual([0, 0]);
+  });
+
+  it("blocks a cloud model until every map is current, with Process now as the fix", () => {
+    const frames = [
+      processed(frame("man", "initial", layer("m"))),
+      processed(frame("pets", "reference", picture("dog"))),
+    ];
+    const keys = computeOutline(frames, { processing: processing() }).sent.map(
+      (s) => s.map?.key ?? "",
+    );
+    const stale = computeOutline(frames, {
+      processing: processing({ cloud: true, lookedUp: new Set(keys) }),
+    });
+    expect(stale.problems).toEqual([{ code: "cloudMaps", positions: [1, 2] }]);
+    expect(fixLabel(stale.problems[0])).toBe("Process now");
+    expect(problemText(stale.problems[0])).toBe(
+      "This model runs elsewhere and cannot process pictures: Inputs 1-2 must be processed first.",
+    );
+    expect(statusWord(stale.entries[0])).toBe("blocked");
+    const fine = computeOutline(frames, {
+      processing: processing({ cloud: true, current: new Set(keys), lookedUp: new Set(keys) }),
+    });
+    expect(fine.problems).toEqual([]);
+    // not yet looked up is not yet a problem
+    const unknown = computeOutline(frames, { processing: processing({ cloud: true }) });
+    expect(unknown.problems).toEqual([]);
+    // a local model processes for itself
+    const local = computeOutline(frames, { processing: processing({ lookedUp: new Set(keys) }) });
+    expect(local.problems).toEqual([]);
+  });
+
+  it("leaves control frames out of the cloud rule, since a provider receives none", () => {
+    const frames = [processed(control("edges", layer("e")))];
+    const key = computeOutline(frames, { processing: processing() }).controls[0].map?.key ?? "";
+    const outline = computeOutline(frames, {
+      processing: processing({ cloud: true, lookedUp: new Set([key]) }),
+    });
+    expect(outline.controls[0].map?.state).toBe("needed");
+    expect(outline.problems).toEqual([]);
+  });
+
+  it("says which number a Control frame would get if sent as an image", () => {
+    const frames = [
+      frame("man", "initial", layer("m")),
+      frame("edges", "control", layer("e")),
+      frame("ref", "reference", picture("r")),
+    ];
+    const address = sentAsImage(frames, "edges");
+    expect(address && sendAsImageLabel(address)).toBe("Send as Image 2 instead");
+    expect(sentAsImage(frames, "man")).toEqual({ kind: "image", n: 1 });
+    expect(sentAsImage([frame("empty", "control")], "empty")).toBeNull();
   });
 });

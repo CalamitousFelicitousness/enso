@@ -5,7 +5,7 @@
 import { planSweep, type Orphans } from "@/lib/inputs/sweep";
 
 const NAME = "enso-inputs";
-const VERSION = 3;
+const VERSION = 4;
 const BLOBS = "blobs";
 const META = "meta";
 const ORPHANS = "orphans";
@@ -18,6 +18,8 @@ export const DOCUMENTS = "documents";
 export const SNAPSHOTS = "snapshots";
 /** What user actions removed, kept until its record expires. */
 export const TRASH = "trash";
+/** The maps processors made, by map key, kept until a record expires. */
+export const MAPS = "maps";
 
 /** The database was created by a build with a newer layout. */
 export class NewerDatabase extends Error {
@@ -35,7 +37,7 @@ function open(): Promise<IDBDatabase> {
   opening ??= new Promise<IDBDatabase>((resolve, reject) => {
     const req = indexedDB.open(NAME, VERSION);
     req.onupgradeneeded = () => {
-      for (const store of [DOCUMENTS, SNAPSHOTS, TRASH, BLOBS, META]) {
+      for (const store of [DOCUMENTS, SNAPSHOTS, TRASH, MAPS, BLOBS, META]) {
         if (!req.result.objectStoreNames.contains(store)) req.result.createObjectStore(store);
       }
     };
@@ -126,21 +128,44 @@ export async function latestRevision(store: string, key: string): Promise<number
  *
  * Every request is issued at once and the transaction is told to commit, so a
  * write started as the page goes away lands whole or not at all. */
-export async function writeDocument(
+export function writeDocument(
   store: string,
   key: string,
   record: unknown,
   blobs: ReadonlyMap<string, Blob>,
   revision: number,
 ): Promise<void> {
+  return write(store, key, record, blobs, revision);
+}
+
+/** Store a record nobody else claims, such as a cached map: the same write
+ * without a revision, so the last writer wins. */
+export function writeRecord(
+  store: string,
+  key: string,
+  record: unknown,
+  blobs: ReadonlyMap<string, Blob>,
+): Promise<void> {
+  return write(store, key, record, blobs, null);
+}
+
+async function write(
+  store: string,
+  key: string,
+  record: unknown,
+  blobs: ReadonlyMap<string, Blob>,
+  revision: number | null,
+): Promise<void> {
   const db = await open();
   const tx = db.transaction([store, BLOBS, META], "readwrite");
   const done = finished(tx);
   let conflict = false;
-  const claim = tx.objectStore(META).add(true, claimKey(store, key, revision));
-  claim.onerror = () => {
-    conflict = claim.error?.name === "ConstraintError";
-  };
+  if (revision !== null) {
+    const claim = tx.objectStore(META).add(true, claimKey(store, key, revision));
+    claim.onerror = () => {
+      conflict = claim.error?.name === "ConstraintError";
+    };
+  }
   const fresh = [...blobs].filter(([cid]) => !held.has(cid));
   for (const [cid, blob] of fresh) tx.objectStore(BLOBS).put(blob, cid);
   tx.objectStore(store).put(record, key);

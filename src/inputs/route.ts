@@ -6,7 +6,7 @@ import { outlineEntry } from "@/lib/inputs/outline";
 import { positionLabel } from "@/lib/inputs/text";
 import { inputsReady, useInputStore, type NewPicture } from "@/stores/inputStore";
 import { imageSize } from "./media";
-import { outlineOf } from "./useOutline";
+import { outlineOf } from "./outlineOf";
 
 /** A type that says the file is something other than an image. A missing or
  * generic type says nothing: the server sends results and gallery files it

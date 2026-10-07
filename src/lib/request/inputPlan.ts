@@ -4,6 +4,7 @@ import {
   imageOutputSize,
   resolveGenerationSize,
   serverSizesFromImage,
+  snapSize,
   type SizeMode,
 } from "@/lib/sizeCompute";
 
@@ -132,4 +133,23 @@ export function planInputs(ctx: InputPlanContext): InputPlanResult {
       separateInit: ctx.sendsControlPictures,
     },
   };
+}
+
+/** The size the request generates at, which every picture resized before it
+ * goes out is drawn at: the members of a set, a separate init and each
+ * control picture. The canvas computes the same size for its map keys, so
+ * the map it shows is the map the request sends. */
+export function sendSize(plan: InputPlan, frame: Size, sizeMultiple: number): Size {
+  switch (plan.transport) {
+    case "set":
+    case "img2img":
+      return plan.target;
+    case "reference":
+      return plan.size;
+    case "none":
+      return {
+        width: snapSize(frame.width, sizeMultiple),
+        height: snapSize(frame.height, sizeMultiple),
+      };
+  }
 }

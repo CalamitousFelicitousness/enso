@@ -46,7 +46,7 @@ export class ApiClient {
     this.auth = null;
   }
 
-  private getAuthHeaders(): HeadersInit {
+  getAuthHeaders(): HeadersInit {
     const headers: HeadersInit = {};
     if (this.auth) {
       headers["Authorization"] = `Basic ${btoa(`${this.auth.username}:${this.auth.password}`)}`;

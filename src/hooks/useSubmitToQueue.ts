@@ -45,8 +45,8 @@ export function useSubmitToQueue({ domain, buildRequest }: SubmitOptions) {
       });
     } catch (err) {
       // Inputs stored for a job that never reached the queue
-      if (snapshot && snapshot.kind !== "none" && snapshot.inputsKey) {
-        forgetInputs(snapshot.inputsKey);
+      if (snapshot && (snapshot.kind === "control" || snapshot.kind === "detail")) {
+        if (snapshot.inputsKey) forgetInputs(snapshot.inputsKey);
       }
       if (err instanceof UserAbortError) return;
       toast.error("Failed to submit job", {

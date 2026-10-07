@@ -74,6 +74,14 @@ export function reportLines(
       lines.push(
         `${where}: this control unit borrowed its picture from a unit that has none, so it arrives without a picture.`,
       );
+    } else if (note.kind === "previewDropped") {
+      lines.push(
+        `${where}: its processed preview is not carried over; the map is made again when you generate.`,
+      );
+    } else if (note.kind === "processorDropped") {
+      lines.push(
+        `${where}: the ${note.processor} processor it kept from when it was a Control frame is not carried over; it did nothing in this role.`,
+      );
     } else {
       lines.push(
         `${where}: ${count(note.count, "item", "items")} this version does not know ${note.count === 1 ? "was" : "were"} left out.`,

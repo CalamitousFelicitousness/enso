@@ -9,7 +9,7 @@ import {
   type SizeSourceState,
 } from "@/lib/inputs/outline";
 import { addressLabel, roleLabel } from "@/lib/inputs/text";
-import { outlineOf } from "@/inputs/useOutline";
+import { outlineOf } from "@/inputs/outlineOf";
 
 export const SIZE_SOURCE_HINT = "Output size is based on this image";
 

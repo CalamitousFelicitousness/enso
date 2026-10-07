@@ -120,17 +120,20 @@ describe("controlToFrames", () => {
       strength: 0.8,
       end: 0.9,
       guess: true,
-      process: "Canny",
-      processParams: { low_threshold: 100 },
     });
+    expect(edges.processor).toEqual({ id: "Canny", params: { low_threshold: 100 } });
     expect(edges.link).toBeNull();
-    expect(edges.processed).toBeNull();
   });
 
-  it("keeps a processed map with the frame", () => {
-    const { frames } = convert([unit({ processedImage: bytes(1024, 512) })]);
-    expect(frames[0].processed).toMatchObject({ width: 1024, height: 512 });
-    expect(frames[0].processed?.blob).toBeInstanceOf(Blob);
+  it("gives a unit without a processor none", () => {
+    const { frames } = convert([unit({ processor: "None", processorParams: {} })]);
+    expect(frames[0].processor).toBeNull();
+  });
+
+  it("drops a processed preview and says so", () => {
+    const { frames, notes } = convert([unit({ processedImage: bytes(1024, 512) })]);
+    expect(frames[0].pictures).toHaveLength(1);
+    expect(notes).toEqual([{ kind: "previewDropped", position: 1 }]);
   });
 
   it("turns a free transform from display units into frame pixels", () => {

@@ -1,6 +1,6 @@
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { api } from "../client";
-import type { ControlUnitType, PreprocessorInfo, PreprocessResponse } from "../types/control";
+import type { ControlUnitType, PreprocessorInfo } from "../types/control";
 import { BACKEND_UNIT_TYPE } from "../types/control";
 
 const TYPES_WITH_MODELS: Set<ControlUnitType> = new Set([
@@ -29,20 +29,13 @@ export function useControlModes() {
   });
 }
 
-export function usePreprocessImage() {
-  return useMutation({
-    mutationFn: (req: {
-      image: string;
-      model: string;
-      params?: Record<string, unknown> | undefined;
-    }) => api.post<PreprocessResponse>("/sdapi/v2/preprocess", req),
-  });
-}
+/** The server's processors; the hook and the request builders share the cache entry. */
+export const preprocessorsQuery = {
+  queryKey: ["preprocessors"],
+  queryFn: () => api.get<PreprocessorInfo[]>("/sdapi/v2/preprocessors"),
+  staleTime: 60_000,
+};
 
 export function usePreprocessors() {
-  return useQuery({
-    queryKey: ["preprocessors"],
-    queryFn: () => api.get<PreprocessorInfo[]>("/sdapi/v2/preprocessors"),
-    staleTime: 60_000,
-  });
+  return useQuery(preprocessorsQuery);
 }

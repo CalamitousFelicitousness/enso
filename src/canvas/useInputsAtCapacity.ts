@@ -1,6 +1,6 @@
 import { useModelCapabilities } from "@/hooks/useModelCapabilities";
 import { useInputStore } from "@/stores/inputStore";
-import { outlineOf } from "@/inputs/useOutline";
+import { outlineOf } from "@/inputs/outlineOf";
 
 /** The input frames already send as many images as the active model takes. */
 export function useInputsAtCapacity(): boolean {

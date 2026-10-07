@@ -3,12 +3,11 @@ import { api } from "@/api/client";
 import { WebSocketManager } from "@/api/websocket";
 import { useJobQueueStore, type TrackedJob, type JobDomain } from "@/stores/jobStore";
 import { useGenerationStore } from "@/stores/generationStore";
-import { useCanvasStore } from "@/stores/canvasStore";
-import { useInputStore } from "@/stores/inputStore";
 import { useVideoStore } from "@/stores/videoStore";
 import { useProcessStore } from "@/stores/processStore";
 import { deleteJobPayload } from "@/lib/jobPayloadDb";
 import { forgetInputs } from "@/inputs/snapshots";
+import { installMaps } from "@/inputs/processing";
 import { previewMimeType } from "@/lib/image";
 import type { JobResult, JobWsEvent } from "@/api/types/v2";
 import { toast } from "sonner";
@@ -21,7 +20,8 @@ function isTerminal(status: string) {
 
 /** A job that produced no result has no use for the frames stored for it. */
 function forgetJobInputs(snapshot: TrackedJob["snapshot"] | undefined) {
-  if (snapshot && snapshot.kind !== "none" && snapshot.inputsKey) forgetInputs(snapshot.inputsKey);
+  if (!snapshot || snapshot.kind === "none" || snapshot.kind === "maps") return;
+  if (snapshot.inputsKey) forgetInputs(snapshot.inputsKey);
 }
 
 /** A job the user cancelled: the page's copy says so, and what was stored
@@ -36,7 +36,8 @@ export function markJobCancelled(jobId: string): void {
 function routeResult(domain: JobDomain, result: JobResult, snapshot: TrackedJob["snapshot"]) {
   if (domain === "generate") {
     if (result.images.length > 0) {
-      const inputsKey = snapshot.kind === "none" ? undefined : snapshot.inputsKey;
+      const inputsKey =
+        snapshot.kind === "control" || snapshot.kind === "detail" ? snapshot.inputsKey : undefined;
       useGenerationStore.getState().addResult({
         id: crypto.randomUUID(),
         images: result.images.map((img) => img.url),
@@ -48,14 +49,13 @@ function routeResult(domain: JobDomain, result: JobResult, snapshot: TrackedJob[
         inputsKey,
         warnings: result.warnings,
       });
-    } else if (snapshot.kind !== "none" && snapshot.inputsKey) {
-      forgetInputs(snapshot.inputsKey);
+    } else {
+      forgetJobInputs(snapshot);
     }
-    // The job's own processing supersedes the frames' preview maps
-    if (result.processed?.length > 0) {
-      useCanvasStore.getState().setProcessedUrl(`${api.getBaseUrl()}${result.processed[0].url}`);
-      useInputStore.getState().clearProcessed();
-    }
+    // The maps event carried these already, unless the page joined the job late
+    if (result.maps) void installMaps(result.maps, {});
+  } else if (domain === "preprocess") {
+    if (result.maps) void installMaps(result.maps, {});
   } else if (domain === "video" || domain === "framepack" || domain === "ltx") {
     // Every video executor populates result.videos with a single VideoRef
     // carrying its own thumbnail_url.
@@ -204,6 +204,9 @@ export function useJobTracker() {
                 s.updateStatus(jobId, data.status);
               }
               break;
+            case "maps":
+              void installMaps(data.maps, data.failed);
+              break;
             case "completed":
               s.completeJob(jobId, data.result);
               routeResult(
@@ -215,7 +218,12 @@ export function useJobTracker() {
               break;
             case "error":
               s.failJob(jobId, data.error);
-              toast.error("Generation failed", { description: data.error, duration: 8000 });
+              toast.error(
+                s.jobs.get(jobId)?.domain === "preprocess"
+                  ? "Processing failed"
+                  : "Generation failed",
+                { description: data.error, duration: 8000 },
+              );
               forgetJobInputs(s.jobs.get(jobId)?.snapshot);
               void deleteJobPayload(jobId);
               break;

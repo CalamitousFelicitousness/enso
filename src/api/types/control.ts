@@ -9,14 +9,12 @@ export const BACKEND_UNIT_TYPE: Partial<Record<ControlUnitType, string>> = {
   style_transfer: "reference",
 };
 
+/** Mirrors ItemPreprocessorV2 in enso_api/models.py. */
 export interface PreprocessorInfo {
   name: string;
   group: string;
+  /** Default parameters as they were when the server started. */
   params: Record<string, unknown>;
-}
-
-export interface PreprocessResponse {
-  ok: boolean;
-  model: string;
-  image: string;
+  /** The processing runner's revision, the same for every item; part of a map's identity. */
+  revision: string;
 }

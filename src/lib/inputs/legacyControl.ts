@@ -270,18 +270,15 @@ export function controlToFrames(
         fidelity: unit.fidelity,
         queryWeight: unit.queryWeight,
         adainWeight: unit.adainWeight,
-        process: unit.processor,
-        processParams: jsonParams(unit.processorParams),
       },
-      processed: unit.processedImage
-        ? {
-            cid: newCid(),
-            blob: unit.processedImage.blob,
-            width: unit.processedImage.width,
-            height: unit.processedImage.height,
-          }
-        : null,
+      processor:
+        unit.processor === "None"
+          ? null
+          : { id: unit.processor, params: jsonParams(unit.processorParams) },
     };
+    // The preview was made from the raw file, not the fitted picture, so it
+    // can never be the map of the frame; the frame makes its own.
+    if (unit.processedImage !== null) notes.push({ kind: "previewDropped", position });
     const match = /^unit:(\d+)$/.exec(unit.imageSource);
     if (unit.imageSource === "separate" && unit.image) {
       const fit = FITS.find((f) => f === unit.fitMode) ?? null;

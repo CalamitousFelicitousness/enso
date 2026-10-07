@@ -43,8 +43,7 @@ export type JsonValue =
   string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
 
 /** How a Control frame drives the model: which control model runs on the
- * frame's picture, with what weight, over which steps, and the sdnext
- * processor applied to the picture first ("None" sends it as it is). */
+ * frame's picture, with what weight, over which steps. */
 export interface ControlSettings {
   type: ControlType;
   model: string;
@@ -61,8 +60,14 @@ export interface ControlSettings {
   fidelity: number;
   queryWeight: number;
   adainWeight: number;
-  process: string;
-  processParams: Record<string, JsonValue>;
+}
+
+/** The sdnext processor a frame's pictures go through before the model sees
+ * them, one map per picture in the picture's place. `params` holds the
+ * values picked for it; the server's defaults fill the rest. */
+export interface ProcessorSpec {
+  id: string;
+  params: Record<string, JsonValue>;
 }
 
 /** How an IP-Adapter frame's pictures steer the model. */
@@ -136,16 +141,6 @@ export interface MaskContent {
   strokes: MaskStroke[];
 }
 
-/** The map Process made from a Control frame's picture, at the frame's size.
- * Sent in place of the picture while "Re-process on generate" is off. Null
- * when the stored bytes could not be read. */
-export interface ProcessedPreview {
-  cid: string;
-  blob: Blob | null;
-  width: number;
-  height: number;
-}
-
 export interface Frame {
   id: string;
   role: FrameRole;
@@ -163,8 +158,8 @@ export interface Frame {
   link: { frameId: string } | null;
   control: ControlSettings;
   ipAdapter: IpAdapterSettings;
-  /** Read while the frame is Control. */
-  processed: ProcessedPreview | null;
+  /** Read while the frame's role takes one (`takesProcessor`). */
+  processor: ProcessorSpec | null;
 }
 
 /** The selected layer of a frame: a picture or a mask object. */
@@ -180,6 +175,19 @@ export function isComposed(role: FrameRole): boolean {
 /** The frame's pictures feed a control model, not the model's image list. */
 export function feedsControl(role: FrameRole): boolean {
   return role === "control" || role === "ipAdapter";
+}
+
+/** Whether the frame's pictures can go through a processor: an image the
+ * model receives, or a control picture. IP-Adapter and style transfer take a
+ * picture, not a map. */
+export function takesProcessor(frame: Pick<Frame, "role" | "control">): boolean {
+  if (frame.role === "ipAdapter") return false;
+  return frame.role !== "control" || frame.control.type !== "style_transfer";
+}
+
+/** The processor the frame's pictures go through, or null. */
+export function activeProcessor(frame: Frame): ProcessorSpec | null {
+  return takesProcessor(frame) ? frame.processor : null;
 }
 
 export function isPlaced(picture: Picture): picture is PlacedPicture {

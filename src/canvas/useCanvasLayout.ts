@@ -6,12 +6,11 @@ import { useMemo } from "react";
 import { useGenerationStore } from "@/stores/generationStore";
 import { useFrameSize } from "@/canvas/useFrameSize";
 import { useUiStore } from "@/stores/uiStore";
-import { useCanvasStore } from "@/stores/canvasStore";
 import { useOutline } from "@/inputs/useOutline";
 import { useImg2ImgStore } from "@/stores/img2imgStore";
 import { useModelSelectionStore } from "@/stores/modelSelectionStore";
 import { useInputsAtCapacity } from "@/canvas/useInputsAtCapacity";
-import { effectiveSizeMode, resolveGenerationSize } from "@/lib/sizeCompute";
+import { useGenerationSize } from "@/canvas/useGenerationSize";
 import { computeCanvasLayout, type FrameLayout } from "@/lib/inputs/layout";
 
 export interface CanvasLayout extends FrameLayout {
@@ -27,30 +26,16 @@ export interface CanvasLayout extends FrameLayout {
 }
 
 export function useCanvasLayout(): CanvasLayout {
-  const { width: frameW, height: frameH, referenceSets } = useFrameSize();
+  const { width: frameW, height: frameH } = useFrameSize();
+  const genSize = useGenerationSize();
   const lastResult = useGenerationStore((s) => s.results[0]);
   const outline = useOutline();
-  const autoFitFrame = useUiStore((s) => s.autoFitFrame);
   const labelScale = useUiStore((s) => s.canvasLabelScale);
-  const sizeMode = useImg2ImgStore((s) => s.sizeMode);
-  const scaleFactor = useImg2ImgStore((s) => s.scaleFactor);
-  const megapixelTarget = useImg2ImgStore((s) => s.megapixelTarget);
   const autoSize = useImg2ImgStore((s) => s.autoSize);
   const activeModel = useModelSelectionStore((s) => s.activeModel);
-  const sizeMultiple = useCanvasStore((s) => s.sizeMultiple);
-  const compositeProcessed = useCanvasStore((s) => s.processedUrl !== null);
   const inputsAtCapacity = useInputsAtCapacity();
 
   return useMemo(() => {
-    const genSize = resolveGenerationSize(
-      effectiveSizeMode(sizeMode, autoFitFrame, outline.sent, referenceSets),
-      frameW,
-      frameH,
-      scaleFactor,
-      megapixelTarget,
-      sizeMultiple,
-    );
-
     // Auto on a cloud model: the server picks the size, so the output frame
     // takes the aspect of the last result, else the model's default, so the
     // canvas shows a plausible shape before the first generation.
@@ -84,24 +69,17 @@ export function useCanvasLayout(): CanvasLayout {
       output: { width: outputFrameW, height: outputFrameH },
       labelScale,
       inputsAtCapacity,
-      compositeProcessed,
     });
     return { ...layout, genSize, outputFrameW, outputFrameH, inputsAtCapacity };
   }, [
     frameW,
     frameH,
-    referenceSets,
+    genSize,
     lastResult,
     outline,
-    autoFitFrame,
     labelScale,
-    sizeMode,
-    scaleFactor,
-    megapixelTarget,
     autoSize,
     activeModel,
-    sizeMultiple,
-    compositeProcessed,
     inputsAtCapacity,
   ]);
 }

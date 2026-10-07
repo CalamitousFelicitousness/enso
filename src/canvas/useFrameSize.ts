@@ -3,7 +3,7 @@ import { useCanvasStore } from "@/stores/canvasStore";
 import { useGenerationStore } from "@/stores/generationStore";
 import { useInputStore } from "@/stores/inputStore";
 import { loneReference } from "@/lib/inputs/outline";
-import { outlineOf } from "@/inputs/useOutline";
+import { outlineOf } from "@/inputs/outlineOf";
 import { useModelCapabilities } from "@/hooks/useModelCapabilities";
 import { imageOutputSize, referenceSetsSize } from "@/lib/sizeCompute";
 

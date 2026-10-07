@@ -3,6 +3,8 @@
 
 import type {
   Address,
+  MapSlot,
+  MapState,
   NotSentReason,
   Outline,
   OutlineEntry,
@@ -92,7 +94,36 @@ export function linkedLabel(position: number): string {
   return `uses ${positionLabel(position)}`;
 }
 
-/** One word for what a frame does in the next request. */
+const MAP_STATE: Record<MapState, string> = {
+  current: "current",
+  needed: "needs processing",
+  queued: "queued",
+  processing: "processing",
+  failed: "failed",
+  unknown: "",
+};
+
+/** One word for where a map stands; nothing while the cache has not answered. */
+export function mapStateWord(state: MapState): string {
+  return MAP_STATE[state];
+}
+
+/** The states of several maps as the worst of them, with a count when they
+ * differ: "1 of 4 failed", "2 of 4 processing", "current". Null for none. */
+export function mapsWord(maps: MapSlot[]): string | null {
+  if (maps.length === 0) return null;
+  const order: MapState[] = ["failed", "processing", "queued", "needed", "unknown", "current"];
+  const worst = order.find((state) => maps.some((m) => m.state === state)) ?? "current";
+  const n = maps.filter((m) => m.state === worst).length;
+  const word = MAP_STATE[worst];
+  if (n === maps.length || word === "") return word;
+  return worst === "needed"
+    ? `${n} of ${maps.length} need processing`
+    : `${n} of ${maps.length} ${word}`;
+}
+
+/** One word for what a frame does in the next request. A sent frame whose
+ * maps are not all current says where they stand instead. */
 export function statusWord(entry: OutlineEntry): string {
   if (entry.blockedBy.length > 0) return "blocked";
   switch (entry.status) {
@@ -102,8 +133,72 @@ export function statusWord(entry: OutlineEntry): string {
       return "empty";
     case "notSent":
       return "not sent";
-    case "sent":
-      return "sent";
+    case "sent": {
+      const maps = mapsWord(entry.maps);
+      return maps && maps !== "current" ? maps : "sent";
+    }
+  }
+}
+
+/** Result kinds sdnext's processor groups stand for, shown before the tool name. */
+const RESULT_KIND: Record<string, string> = {
+  Pose: "Pose",
+  Edge: "Edges",
+  Depth: "Depth",
+  Normal: "Normals",
+  Segmentation: "Segments",
+};
+
+/** "Depth · Depth Anything V2 Small": what a processor makes, then its name. */
+export function processToLabel(group: string | null, name: string): string {
+  const kind = group === null ? null : (RESULT_KIND[group] ?? null);
+  return kind ? `${kind} · ${name}` : name;
+}
+
+/** The Process to choice that leaves pictures as they are. */
+export const PROCESS_TO_NONE = "Nothing";
+
+/** "Send as Image 3 instead": a Control frame without a model, sent as an image. */
+export function sendAsImageLabel(address: Address): string {
+  return `Send as ${addressLabel(address)} instead`;
+}
+
+/** Detail only runs on the first Initial frame's pictures, which a processor would replace. */
+export function detailProcessedText(position: number): string {
+  return `Detail only runs on the picture itself, and ${positionLabel(position)} is processed to a map`;
+}
+
+/** The map's processor failed, with the server's reason. */
+export function mapFailedText(reason: string): string {
+  return `Processing failed: ${reason}`;
+}
+
+/** What asking for maps came to: a job started, nothing to do and why, or
+ * a start that failed (said by its own notice). */
+export type ProcessOutcome = "started" | "none" | "current" | "busy" | "unavailable" | "failed";
+
+const PROCESS_OUTCOME: Record<Exclude<ProcessOutcome, "started" | "failed">, string> = {
+  none: "No input that is sent has a processor",
+  current: "Every map is current",
+  busy: "The maps are already being made",
+  unavailable: "The server has not listed its processors yet",
+};
+
+export function processOutcomeText(outcome: Exclude<ProcessOutcome, "started" | "failed">): string {
+  return PROCESS_OUTCOME[outcome];
+}
+
+/** Why a frame with a processor has no map: the server has not listed its
+ * processors, or the frame sends nothing. */
+export function noMapText(entry: OutlineEntry, listed: boolean): string {
+  if (!listed) return PROCESS_OUTCOME.unavailable;
+  switch (entry.status) {
+    case "off":
+      return "The frame is off, so nothing is processed";
+    case "notSent":
+      return "Not sent, so nothing is processed";
+    default:
+      return "Nothing to process yet";
   }
 }
 
@@ -150,6 +245,8 @@ export function problemText(problem: OutlineProblem): string {
       return `The mask on ${positionsLabel(problem.positions)} cannot be sent with ${imagesSent(problem.images)}.`;
     case "controlWithSet":
       return `${positionsLabel(problem.positions)} cannot be sent with ${imagesSent(problem.images)}.`;
+    case "cloudMaps":
+      return `This model runs elsewhere and cannot process pictures: ${positionsLabel(problem.positions)} must be processed first.`;
   }
 }
 
@@ -173,6 +270,8 @@ export function fixLabel(problem: OutlineProblem): string {
       return "Remove the unreadable pictures";
     case "maskWithSet":
       return "Clear the mask";
+    case "cloudMaps":
+      return "Process now";
   }
 }
 

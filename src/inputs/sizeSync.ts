@@ -9,7 +9,7 @@ import { useCanvasStore } from "@/stores/canvasStore";
 import { useGenerationStore } from "@/stores/generationStore";
 import { inputsReady, useInputStore } from "@/stores/inputStore";
 import { useUiStore } from "@/stores/uiStore";
-import { outlineOf } from "./useOutline";
+import { outlineOf } from "./outlineOf";
 
 /** Frame size of the size source picture, snapped like any generation size. */
 function sourceFrame(): Size | null {
@@ -26,8 +26,10 @@ function sourceFrame(): Size | null {
 const keyOf = (frame: Size | null) => (frame ? `${frame.width}x${frame.height}` : null);
 
 let lastSource: string | null = null;
+let keeping = false;
 
 function syncToSource(force: boolean): void {
+  if (keeping) return;
   const frame = sourceFrame();
   const key = keyOf(frame);
   if (!force && key === lastSource) return;
@@ -37,6 +39,20 @@ function syncToSource(force: boolean): void {
   gen.setParam("width", frame.width);
   gen.setParam("height", frame.height);
   useInputStore.getState().refitAll(frame);
+}
+
+/** Apply a change that keeps the frame size although the size source picture
+ * changes: a picture swapped for one drawn at the frame size, or an Undo
+ * putting such a swap back. Its size source is taken as applied, so Width,
+ * Height and every placement stay as they are. */
+export function keepingSize(apply: () => void): void {
+  keeping = true;
+  try {
+    apply();
+  } finally {
+    keeping = false;
+    lastSource = keyOf(sourceFrame());
+  }
 }
 
 /** A model with another size multiple re-snaps the frame: from the size source

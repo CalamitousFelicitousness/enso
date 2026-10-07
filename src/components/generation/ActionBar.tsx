@@ -6,10 +6,15 @@ import {
   selectPendingCount,
 } from "@/stores/jobStore";
 import { useInputStore } from "@/stores/inputStore";
-import { isPlaced } from "@/lib/inputs/types";
+import { activeProcessor, isPlaced } from "@/lib/inputs/types";
+import { firstInitialEntry } from "@/lib/inputs/outline";
 import { rememberInputs } from "@/inputs/snapshots";
-import { useOutline } from "@/inputs/useOutline";
-import { fixLabel, problemText } from "@/lib/inputs/text";
+import { applyFix } from "@/inputs/processing";
+import { outlineOf } from "@/inputs/outlineOf";
+import { useOutlineWithEnv } from "@/inputs/useOutline";
+import { processorFacts } from "@/lib/processorUtils";
+import { preprocessorsQuery } from "@/api/hooks/useControl";
+import { detailProcessedText, fixLabel, problemText } from "@/lib/inputs/text";
 import { buildControlRequest, InputRefusal } from "@/lib/request/buildGenerate";
 import { buildCloudImageRequest } from "@/lib/request/buildCloudImage";
 import { buildDetailRequest } from "@/lib/request/buildDetail";
@@ -67,12 +72,18 @@ export const ActionBar = memo(function ActionBar() {
   const hasInputImage = useInputStore((s) =>
     s.frames.some((f) => f.role === "initial" && f.pictures.some(isPlaced)),
   );
+  // Where Detail only would take its picture from, when a processor replaces it
+  const processedDetailSource = useInputStore((s) => {
+    const first = firstInitialEntry(outlineOf(s.frames));
+    const frame = first && s.frames.find((f) => f.id === first.frameId);
+    return first && frame && activeProcessor(frame) ? first.position : null;
+  });
 
   const isActive = useJobQueueStore(selectGenerateActive);
   const runningJob = useJobQueueStore(selectRunningJob);
   const pendingCount = useJobQueueStore(selectPendingCount);
-  const problems = useOutline().problems;
-  const fixProblem = useInputStore((s) => s.fixProblem);
+  const { outline, env } = useOutlineWithEnv();
+  const problems = outline.problems;
   const setImagesSubTab = useUiStore((s) => s.setImagesSubTab);
 
   const detailerUnavailable = useModelCapabilities().detailerMode === "none";
@@ -81,9 +92,17 @@ export const ActionBar = memo(function ActionBar() {
     if (!detailerEnabled) return "Enable detailer first";
     if (detailerUnavailable) return "The loaded model cannot run the detailer";
     if (!hasInputImage) return "Detail only requires an image on the canvas";
+    if (processedDetailSource !== null) return detailProcessedText(processedDetailSource);
     if (detailerModelCount === 0) return "Select at least one detailer model";
     return null;
-  }, [detailerEnabled, detailerOnly, detailerUnavailable, hasInputImage, detailerModelCount]);
+  }, [
+    detailerEnabled,
+    detailerOnly,
+    detailerUnavailable,
+    hasInputImage,
+    processedDetailSource,
+    detailerModelCount,
+  ]);
 
   const [batchOpen, setBatchOpen] = useState(false);
   const [xyzOpen, setXyzOpen] = useState(false);
@@ -170,8 +189,12 @@ export const ActionBar = memo(function ActionBar() {
       steps: submitted.steps,
     });
 
+    // Every map key names the server's processors: the list is fetched, not
+    // taken from a canvas that may not have it yet
+    const processors = processorFacts(await queryClient.fetchQuery(preprocessorsQuery));
+
     if (activeModel?.source === "cloud") {
-      const cloudRequest = await buildCloudImageRequest();
+      const cloudRequest = await buildCloudImageRequest(processors);
       clearSelection();
       return {
         payload: cloudRequest,
@@ -190,7 +213,7 @@ export const ActionBar = memo(function ActionBar() {
       };
     }
 
-    const { request } = await buildControlRequest({
+    const { request, mapKeys } = await buildControlRequest({
       maxInputImages,
       requestSetsSize,
       sizeMultiple,
@@ -199,6 +222,7 @@ export const ActionBar = memo(function ActionBar() {
       detailerMode,
       controlSeparateInit,
       controlUnified,
+      processors,
     }).catch((err: unknown) => {
       if (err instanceof InputRefusal) {
         toast.warning("Can't generate with these input images", { description: err.message });
@@ -210,7 +234,7 @@ export const ActionBar = memo(function ActionBar() {
     clearSelection();
     return {
       payload: { type: "generate" as const, ...request },
-      snapshot: { kind: "control" as const, inputsKey },
+      snapshot: { kind: "control" as const, inputsKey, mapKeys },
     };
   }, [clearSelection, loadModel, queryClient]);
 
@@ -226,13 +250,13 @@ export const ActionBar = memo(function ActionBar() {
     if (problem) {
       toast.warning("Can't generate with these inputs", {
         description: problemText(problem),
-        action: { label: fixLabel(problem), onClick: () => fixProblem(problem) },
+        action: { label: fixLabel(problem), onClick: () => applyFix(env, problem) },
       });
       setImagesSubTab("input");
       return;
     }
     void submit();
-  }, [isSubmitting, detailOnlyBlockReason, problems, fixProblem, setImagesSubTab, submit]);
+  }, [isSubmitting, detailOnlyBlockReason, problems, env, setImagesSubTab, submit]);
 
   const isGenerating = isActive || isSubmitting;
   const runningGenJob = useJobQueueStore(selectGenerateActive);

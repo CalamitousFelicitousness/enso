@@ -3,6 +3,7 @@
 
 import { centredTransform, fitTransform, refitFrame } from "./geometry";
 import {
+  composedPictures,
   isComposed,
   isPlaced,
   type ActiveItem,
@@ -15,7 +16,7 @@ import {
   type MaskStroke,
   type Picture,
   type PictureSource,
-  type ProcessedPreview,
+  type ProcessorSpec,
   type Size,
   type Transform,
 } from "./types";
@@ -34,8 +35,6 @@ export function defaultControl(): ControlSettings {
     fidelity: 0.5,
     queryWeight: 1,
     adainWeight: 1,
-    process: "None",
-    processParams: {},
   };
 }
 
@@ -60,7 +59,7 @@ export function newFrame(id: string, role: FrameRole): Frame {
     link: null,
     control: defaultControl(),
     ipAdapter: defaultIpAdapter(),
-    processed: null,
+    processor: null,
   };
 }
 
@@ -286,8 +285,34 @@ export function removeIpMask(frame: Frame, pictureId: string): Frame {
   return { ...frame, ipAdapter: { ...frame.ipAdapter, masks } };
 }
 
-export function setProcessed(frame: Frame, processed: ProcessedPreview | null): Frame {
-  return frame.processed === processed ? frame : { ...frame, processed };
+export function setProcessor(frame: Frame, processor: ProcessorSpec | null): Frame {
+  return frame.processor === processor ? frame : { ...frame, processor };
+}
+
+const AT_ORIGIN: Transform = { x: 0, y: 0, scaleX: 1, scaleY: 1, rotation: 0 };
+
+/** The map in the composition's place: the pictures the frame composes make
+ * way for one picture at frame size, at the origin, and the processor goes.
+ * A linked frame takes the map as its own picture and leaves its link.
+ * Pictures outside the composition (hidden, or never placed) stay. */
+export function replaceComposition(frame: Frame, map: PictureSource): Frame {
+  const composed = new Set(composedPictures(frame).map((p) => p.id));
+  const kept = frame.pictures.filter((p) => !composed.has(p.id));
+  return {
+    ...frame,
+    pictures: [{ ...newPicture(map), transform: AT_ORIGIN }, ...kept],
+    link: null,
+    processor: null,
+  };
+}
+
+/** Each picture's map in its place, keeping the slot order, and the processor goes. */
+export function replacePictures(frame: Frame, maps: ReadonlyMap<string, PictureSource>): Frame {
+  const pictures = frame.pictures.map((p) => {
+    const map = maps.get(p.id);
+    return map ? { ...newPicture(map), visible: p.visible, locked: p.locked } : p;
+  });
+  return { ...frame, pictures, processor: null };
 }
 
 export function addStroke(frame: Frame, stroke: MaskStroke): Frame {
@@ -395,8 +420,7 @@ export function insertPicture(frame: Frame, picture: Picture, at: number): Frame
 }
 
 /** Give a frame back what a clear took out of it, beside what it holds now:
- * pictures, mask objects, strokes and IP-Adapter masks are appended, and a
- * processed map is taken only where the frame has none. */
+ * pictures, mask objects, strokes and IP-Adapter masks are appended. */
 export function mergeContent(frame: Frame, from: Frame): Frame {
   const absent = <T extends { id: string }>(have: T[], add: T[]) =>
     add.filter((item) => !have.some((h) => h.id === item.id));
@@ -411,6 +435,5 @@ export function mergeContent(frame: Frame, from: Frame): Frame {
       ...frame.ipAdapter,
       masks: [...frame.ipAdapter.masks, ...absent(frame.ipAdapter.masks, from.ipAdapter.masks)],
     },
-    processed: frame.processed ?? from.processed,
   };
 }

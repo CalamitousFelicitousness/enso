@@ -21,7 +21,7 @@ import type {
   MaskStroke,
   Picture,
   PictureSource,
-  ProcessedPreview,
+  ProcessorSpec,
   Size,
   Transform,
 } from "@/lib/inputs/types";
@@ -92,6 +92,8 @@ interface InputState extends WorkingDocument {
   insertPicture: (frameId: string, picture: Picture, at: number) => void;
   /** What a clear took out of a frame, back beside what it holds now. */
   mergeContent: (frameId: string, from: Frame) => void;
+  /** A frame as it was, in place of the frame of the same id. */
+  restoreFrame: (frame: Frame) => void;
   /** Apply the fix for a problem the outline reports. */
   fixProblem: (problem: OutlineProblem) => void;
 
@@ -104,9 +106,12 @@ interface InputState extends WorkingDocument {
   /** Returns the new mask's id. */
   addIpMask: (frameId: string, picture: NewPicture) => string;
   removeIpMask: (frameId: string, pictureId: string) => void;
-  setProcessed: (frameId: string, processed: ProcessedPreview | null) => void;
-  /** Drop every Control frame's processed map, as a job's own processing replaces them. */
-  clearProcessed: () => void;
+  /** The processor the frame's pictures go through, or none. */
+  setProcessor: (frameId: string, processor: ProcessorSpec | null) => void;
+  /** The map in a composed frame's composition's place; the processor goes. */
+  replaceComposition: (frameId: string, map: NewPicture) => void;
+  /** Each picture's map in its place; the processor goes. */
+  replacePictures: (frameId: string, maps: ReadonlyMap<string, NewPicture>) => void;
 
   addStroke: (frameId: string, stroke: MaskStroke) => void;
   clearStrokes: (frameId: string) => void;
@@ -317,11 +322,8 @@ export const useInputStore = create<InputState>()(
           guardedFrame(frameId, (f) => reduce.setEnabled(f, enabled)),
         clearFrame: (frameId) =>
           editFrame(frameId, (f) =>
-            reduce.setProcessed(
-              reduce.clearIpMasks(
-                reduce.clearMaskObjects(reduce.clearStrokes(reduce.clearPictures(f))),
-              ),
-              null,
+            reduce.clearIpMasks(
+              reduce.clearMaskObjects(reduce.clearStrokes(reduce.clearPictures(f))),
             ),
           ),
         selectFrame: (frameId) =>
@@ -384,6 +386,7 @@ export const useInputStore = create<InputState>()(
         insertPicture: (frameId, picture, at) =>
           editFrame(frameId, (f) => reduce.insertPicture(f, picture, at)),
         mergeContent: (frameId, from) => editFrame(frameId, (f) => reduce.mergeContent(f, from)),
+        restoreFrame: (frame) => editFrame(frame.id, () => frame),
         fixProblem: (problem) => edit((frames) => fixProblem(frames, problem)),
 
         setFit: (frameId, fit) => editFrame(frameId, (f) => reduce.setFit(f, fit, frameSize())),
@@ -398,13 +401,14 @@ export const useInputStore = create<InputState>()(
         },
         removeIpMask: (frameId, pictureId) =>
           editFrame(frameId, (f) => reduce.removeIpMask(f, pictureId)),
-        setProcessed: (frameId, processed) =>
-          editFrame(frameId, (f) => reduce.setProcessed(f, processed)),
-        clearProcessed: () =>
-          edit((frames) => {
-            const next = frames.map((f) => reduce.setProcessed(f, null));
-            return next.every((f, i) => f === frames[i]) ? frames : next;
-          }),
+        setProcessor: (frameId, processor) =>
+          editFrame(frameId, (f) => reduce.setProcessor(f, processor)),
+        replaceComposition: (frameId, map) =>
+          editFrame(frameId, (f) => reduce.replaceComposition(f, named(map))),
+        replacePictures: (frameId, maps) =>
+          editFrame(frameId, (f) =>
+            reduce.replacePictures(f, new Map([...maps].map(([id, map]) => [id, named(map)]))),
+          ),
 
         addStroke: (frameId, stroke) => editFrame(frameId, (f) => reduce.addStroke(f, stroke)),
         clearStrokes: (frameId) => editFrame(frameId, reduce.clearStrokes),

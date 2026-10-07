@@ -17,7 +17,6 @@ function input(frames: Frame[], patch: Partial<LayoutInput> = {}): LayoutInput {
     output: { width: 1024, height: 512 },
     labelScale: 1,
     inputsAtCapacity: false,
-    compositeProcessed: false,
     ...patch,
   };
 }
@@ -62,21 +61,14 @@ describe("computeCanvasLayout", () => {
     ]);
   });
 
-  it("lowers the control column by a processed map and shows the processed frame", () => {
-    const mapped: Frame = {
+  it("stacks control frames at one gap whatever they hold", () => {
+    const processed: Frame = {
       ...control("c", layer("e")),
-      processed: { cid: "m", blob: new Blob(["m"]), width: 1, height: 1 },
+      processor: { id: "Canny", params: {} },
     };
-    const layout = computeCanvasLayout(input([mapped, control("d", layer("f"))]));
-    const [first, second] = layout.frames;
-    expect(first.kind === "composed" && first.processedY).toBe(512 + 16 + 30);
-    expect(frameBox(second).y).toBe(512 + 16 + 30 + 512 + 64);
-    expect(layout.showProcessedFrame).toBe(true);
-    expect(layout.totalBounds.maxX).toBe(1024 + 48 + 1024 + 48 + 1024);
-    // an off frame shows no map
-    const off = computeCanvasLayout(input([{ ...mapped, enabled: false }]));
-    expect(off.frames[0].kind === "composed" && off.frames[0].processedY).toBeNull();
-    expect(off.showProcessedFrame).toBe(false);
+    const layout = computeCanvasLayout(input([processed, control("d", layer("f"))]));
+    expect(frameBox(layout.frames[1]).y).toBe(512 + 64);
+    expect(layout.totalBounds.maxX).toBe(1024 + 48 + 1024);
   });
 
   it("keeps the add cell of an IP-Adapter frame when the input images are at capacity", () => {

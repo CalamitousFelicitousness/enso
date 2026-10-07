@@ -2,20 +2,31 @@ import { create } from "zustand";
 import type { JobRequest, JobResult, JobStatus } from "@/api/types/v2";
 
 export type JobDomain =
-  "generate" | "upscale" | "rembg" | "process" | "video" | "framepack" | "ltx" | "xyz-grid";
+  | "generate"
+  | "upscale"
+  | "rembg"
+  | "process"
+  | "preprocess"
+  | "video"
+  | "framepack"
+  | "ltx"
+  | "xyz-grid";
 
 /**
  * What of the workspace a submitted job was made from, by request kind.
  *
  * - "control": a canvas generation. `inputsKey` names the frames it was sent
- * with in the enso-inputs snapshots store, when they held anything.
+ * with in the enso-inputs snapshots store, when they held anything;
+ * `mapKeys` the maps the job makes before generating.
  * - "detail": a detailer-only run over the canvas, with the same key.
+ * - "maps": a processing job; `mapKeys` the maps it makes.
  * - "none": the payload is self-contained (cloud generations, upscale and
  * rembg, video jobs).
  */
 export type JobSnapshot =
-  | { kind: "control"; inputsKey?: string | undefined }
+  | { kind: "control"; inputsKey?: string | undefined; mapKeys?: string[] | undefined }
   | { kind: "detail"; inputsKey?: string | undefined }
+  | { kind: "maps"; mapKeys: string[] }
   | { kind: "none" };
 
 export interface TrackedJob {

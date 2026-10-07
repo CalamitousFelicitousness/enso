@@ -22,7 +22,13 @@ export type ImportNote =
    * picture was the canvas), or its kind no longer exists. */
   | { kind: "controlOff"; position: number; reason: "neverSent" | "retiredType" }
   /** A control unit borrowed its picture from a unit that has none; it arrives without one. */
-  | { kind: "controlUnlinked"; position: number };
+  | { kind: "controlUnlinked"; position: number }
+  /** A processed preview was made from the raw file, so it is not carried
+   * over; the map is made again when the frame is sent. */
+  | { kind: "previewDropped"; position: number }
+  /** A processor kept from the frame's Control role, which did nothing in its
+   * present role, is not carried over. */
+  | { kind: "processorDropped"; position: number; processor: string };
 
 export interface LegacyImport {
   frames: Frame[];

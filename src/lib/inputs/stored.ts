@@ -2,6 +2,7 @@
 // bytes are separate records written once, because the browser copies every
 // Blob in a record each time the record is put.
 
+import type { ImportNote } from "./legacy";
 import { loose, type Loose } from "./loose";
 import type { SizeSourcePick } from "./outline";
 import type {
@@ -17,14 +18,15 @@ import type {
   MaskStroke,
   MediaKind,
   Picture,
-  ProcessedPreview,
+  ProcessorSpec,
   Size,
   Transform,
 } from "./types";
 
 /** Bumped when an older build could misread what a newer one stores. Schema 1
- * frames had no fit, link, control, IP-Adapter or processed fields. */
-export const DOCUMENT_SCHEMA = 2;
+ * frames had no fit, link, control or IP-Adapter fields; schema 2 kept the
+ * processor inside the control settings and a processed preview per frame. */
+export const DOCUMENT_SCHEMA = 3;
 
 export interface StoredPicture extends Omit<Picture, "file"> {
   /** The bytes were already unreadable when this was stored. */
@@ -33,19 +35,14 @@ export interface StoredPicture extends Omit<Picture, "file"> {
 
 export type StoredMaskObject = Omit<MaskObject, "blob">;
 
-export interface StoredProcessed extends Omit<ProcessedPreview, "blob"> {
-  missing: boolean;
-}
-
 export interface StoredIpAdapter extends Omit<IpAdapterSettings, "masks"> {
   masks: StoredPicture[];
 }
 
-export interface StoredFrame extends Omit<Frame, "pictures" | "mask" | "ipAdapter" | "processed"> {
+export interface StoredFrame extends Omit<Frame, "pictures" | "mask" | "ipAdapter"> {
   pictures: StoredPicture[];
   mask: { objects: StoredMaskObject[]; strokes: MaskStroke[] };
   ipAdapter: StoredIpAdapter;
-  processed: StoredProcessed | null;
 }
 
 export interface SplitFrames {
@@ -69,18 +66,11 @@ function splitInto(frames: Frame[], blobs: Map<string, Blob>): StoredFrame[] {
       blobs.set(rest.cid, blob);
       return rest;
     });
-    let processed: StoredProcessed | null = null;
-    if (frame.processed) {
-      const { blob, ...rest } = frame.processed;
-      if (blob) blobs.set(rest.cid, blob);
-      processed = { ...rest, missing: blob === null };
-    }
     return {
       ...frame,
       pictures: frame.pictures.map(picture),
       mask: { objects, strokes: frame.mask.strokes },
       ipAdapter: { ...frame.ipAdapter, masks: frame.ipAdapter.masks.map(picture) },
-      processed,
     };
   });
 }
@@ -119,19 +109,11 @@ function joinInto(
       if (!blob) lost.maskObjects += 1;
       return blob ? [{ ...object, blob }] : [];
     });
-    let processed: ProcessedPreview | null = null;
-    if (frame.processed) {
-      const { missing, ...rest } = frame.processed;
-      const blob = blobs.get(rest.cid) ?? null;
-      if (!blob && !missing) lost.pictures.push({ frameId: frame.id, name: "Processed map" });
-      processed = { ...rest, blob };
-    }
     return {
       ...frame,
       pictures: frame.pictures.map(picture),
       mask: { objects, strokes: frame.mask.strokes },
       ipAdapter: { ...frame.ipAdapter, masks: frame.ipAdapter.masks.map(picture) },
-      processed,
     };
   });
 }
@@ -230,8 +212,6 @@ const CONTROL_DEFAULTS: ControlSettings = {
   fidelity: 0.5,
   queryWeight: 1,
   adainWeight: 1,
-  process: "None",
-  processParams: {},
 };
 
 const IP_ADAPTER_DEFAULTS: StoredIpAdapter = {
@@ -245,17 +225,25 @@ const IP_ADAPTER_DEFAULTS: StoredIpAdapter = {
 
 /** Reads stored frames field by field and keeps every cid it accepts, so a
  * field cannot be read without counting as a reference to its bytes. Frames
- * from schema 1 take the defaults for the fields that came later. */
+ * from an older schema take the defaults for the fields that came later, and
+ * the fields that left are read and dropped. */
 class FrameReader {
   readonly cids = new Set<string>();
+  /** What an upgrade from an older schema dropped, for the load report. */
+  readonly notes: ImportNote[] = [];
   private readonly schema: number;
 
   constructor(schema: number) {
     this.schema = schema;
   }
 
+  /** The record predates `schema`. */
+  private before(schema: number): boolean {
+    return this.schema < schema;
+  }
+
   private get upgrading(): boolean {
-    return this.schema < 2;
+    return this.before(2);
   }
 
   transform(value: unknown, path: string): Transform {
@@ -314,11 +302,23 @@ class FrameReader {
     });
   }
 
-  control(value: unknown, path: string): ControlSettings {
-    if (value === undefined && this.upgrading) return { ...CONTROL_DEFAULTS };
-    const c = fields<ControlSettings>(value, path);
-    const params = fields<Record<string, JsonValue>>(c.processParams, `${path}.processParams`);
-    return exact(c, path, {
+  params(value: unknown, path: string): Record<string, JsonValue> {
+    const params = fields<Record<string, JsonValue>>(value, path);
+    return Object.fromEntries(
+      Object.entries(params).map(([key, v]) => [key, json(v, `${path}.${key}`)]),
+    );
+  }
+
+  /** The control settings, plus the processor schema 2 kept inside them. */
+  control(
+    value: unknown,
+    path: string,
+  ): { control: ControlSettings; processor: ProcessorSpec | null } {
+    if (value === undefined && this.upgrading)
+      return { control: { ...CONTROL_DEFAULTS }, processor: null };
+    type Schema2 = ControlSettings & { process: string; processParams: Record<string, JsonValue> };
+    const c = fields<Schema2>(value, path);
+    const settings: ControlSettings = {
       type: oneOf(c.type, CONTROL_TYPES, `${path}.type`),
       model: text(c.model, `${path}.model`),
       mode: text(c.mode, `${path}.mode`),
@@ -331,10 +331,21 @@ class FrameReader {
       fidelity: num(c.fidelity, `${path}.fidelity`),
       queryWeight: num(c.queryWeight, `${path}.queryWeight`),
       adainWeight: num(c.adainWeight, `${path}.adainWeight`),
-      process: text(c.process, `${path}.process`),
-      processParams: Object.fromEntries(
-        Object.entries(params).map(([key, v]) => [key, json(v, `${path}.processParams.${key}`)]),
-      ),
+    };
+    if (!this.before(3)) return { control: exact(c, path, settings), processor: null };
+    const id = text(c.process, `${path}.process`);
+    const params = this.params(c.processParams, `${path}.processParams`);
+    exact(c, path, { ...settings, process: id, processParams: params });
+    return { control: settings, processor: id === "None" ? null : { id, params } };
+  }
+
+  processor(value: unknown, path: string): ProcessorSpec | null {
+    return orNull(value, (raw) => {
+      const p = fields<ProcessorSpec>(raw, path);
+      return exact(p, path, {
+        id: text(p.id, `${path}.id`),
+        params: this.params(p.params, `${path}.params`),
+      });
     });
   }
 
@@ -351,27 +362,30 @@ class FrameReader {
     });
   }
 
-  processed(value: unknown, path: string): StoredProcessed | null {
-    if (value === undefined && this.upgrading) return null;
-    return orNull(value, (raw) => {
-      const p = fields<StoredProcessed>(raw, path);
-      const cid = text(p.cid, `${path}.cid`);
-      this.cids.add(cid);
+  /** Schema 2's processed preview: read for its shape and dropped. Its bytes
+   * are not named, so the sweep lets them go. True when there was one. */
+  private dropPreview(value: unknown, path: string): boolean {
+    const preview = orNull(value, (raw) => {
+      const p = fields<{ cid: string; width: number; height: number; missing: boolean }>(raw, path);
       return exact(p, path, {
-        cid,
+        cid: text(p.cid, `${path}.cid`),
         width: num(p.width, `${path}.width`),
         height: num(p.height, `${path}.height`),
         missing: flag(p.missing, `${path}.missing`),
       });
     });
+    return preview !== null;
   }
 
-  frame(value: unknown, path: string): StoredFrame {
-    const f = fields<StoredFrame>(value, path);
+  /** `position` is the frame's place in its list, for the notes an upgrade leaves. */
+  frame(value: unknown, path: string, position = 0): StoredFrame {
+    type Schema2 = StoredFrame & { processed: unknown };
+    const f = fields<Schema2>(value, path);
     const mask = fields<StoredFrame["mask"]>(f.mask, `${path}.mask`);
     const later = <T>(raw: unknown, fallback: T, read: (raw: unknown) => T): T =>
       raw === undefined && this.upgrading ? fallback : read(raw);
-    return exact(f, path, {
+    const { control, processor: fromControl } = this.control(f.control, `${path}.control`);
+    const read: StoredFrame = {
       id: text(f.id, `${path}.id`),
       role: oneOf(f.role, ROLES, `${path}.role`),
       enabled: flag(f.enabled, `${path}.enabled`),
@@ -395,10 +409,21 @@ class FrameReader {
           });
         }),
       ),
-      control: this.control(f.control, `${path}.control`),
+      control,
       ipAdapter: this.ipAdapter(f.ipAdapter, `${path}.ipAdapter`),
-      processed: this.processed(f.processed, `${path}.processed`),
-    });
+      processor: this.before(3) ? null : this.processor(f.processor, `${path}.processor`),
+    };
+    if (!this.before(3)) return exact(f, path, read);
+    // Schema 2 ran a frame's processor only while it was a Control frame
+    if (fromControl && read.role === "control") read.processor = fromControl;
+    else if (fromControl) {
+      this.notes.push({ kind: "processorDropped", position, processor: fromControl.id });
+    }
+    if (f.processed !== undefined && this.dropPreview(f.processed, `${path}.processed`)) {
+      this.notes.push({ kind: "previewDropped", position });
+    }
+    exact(f, path, { ...read, processed: null });
+    return read;
   }
 }
 
@@ -406,6 +431,8 @@ export interface ReadFrames {
   frames: StoredFrame[];
   /** Every cid the frames name, once each. */
   cids: string[];
+  /** What reading frames of an older schema dropped. */
+  notes: ImportNote[];
 }
 
 /** Stored frames checked field by field. Throws on anything unexpected, a
@@ -413,8 +440,8 @@ export interface ReadFrames {
  * is left as it is instead of being read in part and written back. */
 export function readStoredFrames(value: unknown, schema = DOCUMENT_SCHEMA): ReadFrames {
   const reader = new FrameReader(schema);
-  const frames = list(value, "frames").map((f, i) => reader.frame(f, `frames[${i}]`));
-  return { frames, cids: [...reader.cids] };
+  const frames = list(value, "frames").map((f, i) => reader.frame(f, `frames[${i}]`, i + 1));
+  return { frames, cids: [...reader.cids], notes: reader.notes };
 }
 
 /** The inputs being worked on: the frames plus what the store keeps beside them. */
@@ -461,17 +488,20 @@ export interface ReadWorking {
   record: StoredWorking;
   /** Every cid the record names, once each. */
   cids: string[];
+  /** What reading a record of an older schema dropped, for the load report. */
+  notes: ImportNote[];
 }
 
 /** A stored working document checked field by field. Throws NewerDocument for
  * a schema this build does not know and UnreadableDocument for anything else
- * it cannot account for. A schema 1 record reads as schema 2 with defaults. */
+ * it cannot account for. An older record reads as the current schema, with
+ * defaults for the fields that came later. */
 export function readWorking(value: unknown): ReadWorking {
   const r = fields<StoredWorking>(value, "record");
   const schema = num(r.schema, "record.schema");
   if (schema > DOCUMENT_SCHEMA) throw new NewerDocument(schema);
   const imports = fields<Record<string, string>>(r.imports, "record.imports");
-  const { frames, cids } = readStoredFrames(r.frames, schema);
+  const { frames, cids, notes } = readStoredFrames(r.frames, schema);
   const record = exact(r, "record", {
     schema: DOCUMENT_SCHEMA,
     revision: num(r.revision, "record.revision"),
@@ -498,7 +528,7 @@ export function readWorking(value: unknown): ReadWorking {
       ]),
     ),
   });
-  return { record, cids };
+  return { record, cids, notes };
 }
 
 export function joinWorking(
@@ -714,4 +744,41 @@ export function joinRemoval(
     removal: { removedAt: record.removedAt, from: { ...record.from }, content: joined },
     lost,
   };
+}
+
+/** A cached map: the record names the map's bytes by cid like any document,
+ * and expires a retention period after the map was last used. */
+export interface StoredMap {
+  schema: number;
+  /** The key the map answers to (freshness.ts). */
+  key: string;
+  cid: string;
+  width: number;
+  height: number;
+  madeAt: number;
+  usedAt: number;
+}
+
+export const MAP_SCHEMA = 1;
+
+export interface ReadMap {
+  record: StoredMap;
+  cids: string[];
+}
+
+/** A stored map record checked field by field. */
+export function readMap(value: unknown): ReadMap {
+  const m = fields<StoredMap>(value, "map");
+  const schema = num(m.schema, "map.schema");
+  if (schema > MAP_SCHEMA) throw new NewerDocument(schema);
+  const record = exact(m, "map", {
+    schema: MAP_SCHEMA,
+    key: text(m.key, "map.key"),
+    cid: text(m.cid, "map.cid"),
+    width: num(m.width, "map.width"),
+    height: num(m.height, "map.height"),
+    madeAt: num(m.madeAt, "map.madeAt"),
+    usedAt: num(m.usedAt, "map.usedAt"),
+  });
+  return { record, cids: [record.cid] };
 }

@@ -12,7 +12,6 @@ import { FrameLayer } from "./layers/FrameLayer";
 import { MaskLayer } from "./layers/MaskLayer";
 import { ChromeLayer } from "./layers/ChromeLayer";
 import { OutputLayer } from "./layers/OutputLayer";
-import { ProcessedLayer } from "./layers/ProcessedLayer";
 import { getOrderedFrames, computeFocusViewport } from "./frameList";
 import type { CanvasLayout } from "./useCanvasLayout";
 import { frameBox, type ComposedFramePosition } from "@/lib/inputs/layout";
@@ -62,7 +61,7 @@ export function CanvasStage({ layout, onPickFile, onAddCell }: CanvasStageProps)
   const maskPaint = useMaskPaint({ stageRef, spaceHeld: panZoom.spaceHeld, layout });
   const imageTransform = useImageTransform(stageRef);
 
-  const { outputX, processedX, showProcessedFrame, totalBounds, displayScale } = layout;
+  const { outputX, totalBounds, displayScale } = layout;
 
   // Picture nodes register from FrameLayer and mask nodes from MaskLayer;
   // the Transformer finds its target among them.
@@ -262,14 +261,6 @@ export function CanvasStage({ layout, onPickFile, onAddCell }: CanvasStageProps)
               placeholderWidth={layout.outputDisplayW}
               placeholderHeight={layout.outputDisplayH}
             />
-
-            {showProcessedFrame && (
-              <ProcessedLayer
-                offsetX={processedX}
-                width={layout.outputDisplayW}
-                height={layout.outputDisplayH}
-              />
-            )}
 
             <ChromeLayer
               focusedFrame={focusedComposed}

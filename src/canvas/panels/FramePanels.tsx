@@ -1,24 +1,21 @@
 // The DOM chrome over the canvas: a dock per frame inside one sortable
-// context for frame reorder, the add buttons under each column, the Output
-// dock, and the processed hats.
+// context for frame reorder, the add buttons under each column, and the
+// Output dock.
 
 import { useMemo } from "react";
 import { DndContext, PointerSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { Plus } from "lucide-react";
-import { useInputStore } from "@/stores/inputStore";
 import { useCanvasStore } from "@/stores/canvasStore";
 import { useGenerationStore } from "@/stores/generationStore";
 import { useOutline } from "@/inputs/useOutline";
 import { moveFrame } from "@/inputs/edits";
-import { positionLabel } from "@/lib/inputs/text";
 import type { CanvasLayout } from "@/canvas/useCanvasLayout";
 import { INPUTS_FULL_HINT } from "@/inputs/capacity";
 import { useSizeSourceMark } from "@/canvas/useSizeSource";
 import { resolveOutputSize } from "@/lib/sizeCompute";
 import { FrameDock } from "./FrameDock";
 import { OutputFramePanel } from "./OutputFramePanel";
-import { ProcessedHat } from "./ProcessedHat";
 import type { ViewportState } from "@/canvas/viewportBus";
 
 interface FramePanelsProps {
@@ -74,7 +71,6 @@ export function FramePanels({
   const canRemove = outline.entries.length > 1;
   const frameIds = layout.frames.map((f) => f.frameId);
   const { genSize, displayW } = layout;
-  const genSizeText = `${genSize.width}×${genSize.height}`;
   const outputSize = resolveOutputSize(
     genSize,
     hiresEnabled,
@@ -111,22 +107,6 @@ export function FramePanels({
         })}
       </SortableContext>
 
-      {/* The processed map under each Control frame that has one */}
-      {layout.frames.map((frame) =>
-        frame.kind === "composed" && frame.processedY !== null ? (
-          <ControlProcessedHat
-            key={`processed-${frame.frameId}`}
-            frameId={frame.frameId}
-            position={outline.entries.find((e) => e.frameId === frame.frameId)?.position ?? 0}
-            canvasX={frame.x}
-            canvasY={frame.processedY}
-            frameW={frame.displayW}
-            viewport={viewport}
-            labelScale={labelScale}
-          />
-        ) : null,
-      )}
-
       {onAddInputFrame && (
         <AddFrameButton
           x={0}
@@ -160,55 +140,8 @@ export function FramePanels({
         labelScale={labelScale}
         sizeText={outputSizeText}
       />
-
-      {layout.showProcessedFrame && (
-        <CompositeProcessedHat
-          canvasX={layout.processedX}
-          frameW={layout.outputDisplayW}
-          viewport={viewport}
-          labelScale={labelScale}
-          sizeText={genSizeText}
-        />
-      )}
     </DndContext>
   );
-}
-
-/** The hat of a Control frame's own processed map. */
-function ControlProcessedHat({
-  frameId,
-  position,
-  ...rest
-}: {
-  frameId: string;
-  position: number;
-  canvasX: number;
-  canvasY: number;
-  frameW: number;
-  viewport: ViewportState;
-  labelScale: number;
-}) {
-  const blob = useInputStore(
-    (s) => s.frames.find((f) => f.id === frameId)?.processed?.blob ?? null,
-  );
-  return <ProcessedHat {...rest} label={`Processed (${positionLabel(position)})`} source={blob} />;
-}
-
-/** The hat of the composite beside the output: the last job's, else the first Control frame's map. */
-function CompositeProcessedHat(props: {
-  canvasX: number;
-  frameW: number;
-  viewport: ViewportState;
-  labelScale: number;
-  sizeText: string;
-}) {
-  const processedUrl = useCanvasStore((s) => s.processedUrl);
-  const firstMap = useInputStore(
-    (s) =>
-      s.frames.find((f) => f.role === "control" && f.enabled && f.processed?.blob)?.processed
-        ?.blob ?? null,
-  );
-  return <ProcessedHat {...props} source={processedUrl ?? firstMap} />;
 }
 
 interface AddFrameButtonProps {

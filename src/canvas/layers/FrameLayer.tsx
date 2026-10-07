@@ -10,7 +10,7 @@
 import { memo, useCallback } from "react";
 import { Group, Image as KonvaImage, Layer, Rect, Text } from "react-konva";
 import { CornerBrackets } from "@/canvas/layers/CornerBrackets";
-import { frameColor, PROCESSED_COLOR, UNREADABLE_COLOR } from "@/canvas/frameColors";
+import { frameColor, UNREADABLE_COLOR } from "@/canvas/frameColors";
 import { useCanvasStore } from "@/stores/canvasStore";
 import { useInputStore } from "@/stores/inputStore";
 import { useBlobImage } from "@/inputs/media";
@@ -142,7 +142,6 @@ const ComposedFrame = memo(function ComposedFrame({
   onClick,
 }: ComposedFrameProps) {
   const { pictures, linked } = useComposedSource(frame.frameId);
-  const processed = useFrame(frame.frameId)?.processed ?? null;
   const layers = pictures.filter((p): p is PlacedPicture => p.visible && isPlaced(p));
   const filled = layers.length > 0;
   const borderColor = frameColor(frame.role, filled);
@@ -223,16 +222,6 @@ const ComposedFrame = memo(function ComposedFrame({
           w={frame.displayW}
           h={frame.displayH}
           color={borderColor}
-        />
-      )}
-
-      {frame.processedY !== null && processed && (
-        <ProcessedSlot
-          x={frame.x}
-          y={frame.processedY}
-          width={frame.displayW}
-          height={frame.displayH}
-          blob={processed.blob}
         />
       )}
     </>
@@ -316,53 +305,6 @@ const PictureNode = memo(function PictureNode({
       onTransformEnd={(e) => interaction.onLayerTransformEnd(frameId, picture.id, e)}
       onClick={(e) => interaction.onLayerClick(frameId, picture.id, e)}
     />
-  );
-});
-
-/** The processed map under a Control frame, at the frame's size. */
-const ProcessedSlot = memo(function ProcessedSlot({
-  x,
-  y,
-  width,
-  height,
-  blob,
-}: {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  blob: Blob | null;
-}) {
-  const image = useBlobImage(blob);
-  return (
-    <Group>
-      {image && (
-        <KonvaImage image={image} x={x} y={y} width={width} height={height} listening={false} />
-      )}
-      {!blob && (
-        <Text
-          x={x}
-          y={y + height / 2 - 8}
-          width={width}
-          align="center"
-          text="Processed map could not be read"
-          fontFamily="IBM Plex Sans"
-          fontSize={14}
-          fill={UNREADABLE_COLOR}
-          listening={false}
-        />
-      )}
-      <Rect
-        x={x}
-        y={y}
-        width={width}
-        height={height}
-        stroke={blob ? PROCESSED_COLOR : UNREADABLE_COLOR}
-        strokeWidth={1}
-        listening={false}
-      />
-      <CornerBrackets x={x} y={y} w={width} h={height} color={PROCESSED_COLOR} />
-    </Group>
   );
 });
 

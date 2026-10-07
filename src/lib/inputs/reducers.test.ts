@@ -15,12 +15,14 @@ import {
   removeFrame,
   removeIpMask,
   removeItem,
+  replaceComposition,
+  replacePictures,
   setFit,
   setLink,
   setOnlyPicture,
   setPictureTransform,
   setPictureVisible,
-  setProcessed,
+  setProcessor,
   settleSelection,
   showHiddenBySwitch,
   switchRole,
@@ -391,7 +393,7 @@ describe("control and IP-Adapter frames", () => {
     expect(left.map((f) => f.link?.frameId ?? null)).toEqual([null, "other"]);
   });
 
-  it("sets links, settings, region masks and the processed map", () => {
+  it("sets links, settings, region masks and the processor", () => {
     const c = frame("c", "control");
     expect(setLink(c, "a").link).toEqual({ frameId: "a" });
     expect(setLink(c, null)).toBe(c);
@@ -406,9 +408,54 @@ describe("control and IP-Adapter frames", () => {
     expect(masked.ipAdapter.masks.map((m) => m.id)).toEqual(["m"]);
     expect(removeIpMask(masked, "m").ipAdapter.masks).toEqual([]);
     expect(removeIpMask(masked, "none")).toBe(masked);
-    const map = { cid: "map", blob: new Blob(["m"]), width: 8, height: 8 };
-    expect(setProcessed(c, map).processed).toBe(map);
-    expect(setProcessed(c, null)).toBe(c);
+    const canny = { id: "Canny", params: { low_threshold: 50 } };
+    expect(setProcessor(c, canny).processor).toBe(canny);
+    expect(setProcessor(c, null)).toBe(c);
+  });
+});
+
+describe("replaceComposition and replacePictures", () => {
+  it("puts the map in the composition's place and drops the processor", () => {
+    const f: Frame = {
+      ...frame("f", "initial", layer("base"), layer("top"), layer("hidden", { visible: false })),
+      processor: { id: "Canny", params: {} },
+    };
+    const next = replaceComposition(f, source("map", 1024, 1024));
+    expect(next.pictures.map((p) => p.id)).toEqual(["map", "hidden"]);
+    expect(next.pictures[0].transform).toEqual({ x: 0, y: 0, scaleX: 1, scaleY: 1, rotation: 0 });
+    expect(next.processor).toBeNull();
+    expect(next.mask).toBe(f.mask);
+  });
+
+  it("gives a linked frame the map as its own picture and leaves the link", () => {
+    const linked: Frame = {
+      ...setLink(frame("c", "control"), "source"),
+      processor: { id: "Canny", params: {} },
+    };
+    const next = replaceComposition(linked, source("map", 1024, 1024));
+    expect(next.link).toBeNull();
+    expect(next.pictures.map((p) => p.id)).toEqual(["map"]);
+  });
+
+  it("puts each picture's map in its slot, keeping the order and what is hidden", () => {
+    const f: Frame = {
+      ...frame("f", "reference", picture("a"), picture("b", { visible: false }), picture("c")),
+      processor: { id: "Canny", params: {} },
+    };
+    const next = replacePictures(
+      f,
+      new Map([
+        ["a", source("a-map")],
+        ["c", source("c-map")],
+      ]),
+    );
+    expect(next.pictures.map((p) => `${p.id}:${p.visible ? "on" : "off"}`)).toEqual([
+      "a-map:on",
+      "b:off",
+      "c-map:on",
+    ]);
+    expect(next.pictures[0].transform).toBeNull();
+    expect(next.processor).toBeNull();
   });
 });
 
@@ -429,7 +476,6 @@ describe("insertPicture and mergeContent", () => {
         objects: [maskObject("m")],
         strokes: [{ points: [0, 0, 1, 1], strokeWidth: 2, tool: "brush" }],
       },
-      processed: { cid: "p", blob: new Blob(["p"]), width: 1, height: 1 },
     };
     const now: Frame = {
       ...frame("f", "initial", layer("new")),
@@ -439,7 +485,6 @@ describe("insertPicture and mergeContent", () => {
     expect(merged.pictures.map((p) => p.id)).toEqual(["new", "old"]);
     expect(merged.mask.objects.map((m) => m.id)).toEqual(["m"]);
     expect(merged.mask.strokes.map((s) => s.points[0])).toEqual([2, 0]);
-    expect(merged.processed).toBe(was.processed);
     expect(mergeContent(merged, was).pictures.map((p) => p.id)).toEqual(["new", "old"]);
   });
 });

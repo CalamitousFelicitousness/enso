@@ -2,7 +2,9 @@ import { useGenerationStore } from "@/stores/generationStore";
 import { useInputStore } from "@/stores/inputStore";
 import { flattenCanvas } from "@/lib/flattenCanvas";
 import { uploadBlob } from "@/lib/upload";
-import { firstComposite } from "@/lib/inputs/outline";
+import { computeOutline, firstComposite, firstInitialEntry } from "@/lib/inputs/outline";
+import { detailProcessedText } from "@/lib/inputs/text";
+import { activeProcessor } from "@/lib/inputs/types";
 import type { DetailJobParams } from "@/api/types/v2";
 import { serializeDetailerEntry, stripUndefined } from "./wire";
 
@@ -15,8 +17,14 @@ export interface BuildDetailResult {
 export async function buildDetailRequest(): Promise<BuildDetailResult> {
   const gen = useGenerationStore.getState();
 
-  // Detail-only runs on the first Initial frame that sends a picture.
-  const layers = firstComposite(useInputStore.getState().frames);
+  // Detail-only runs on the first Initial frame that sends a picture, as it is
+  const { frames } = useInputStore.getState();
+  const first = firstInitialEntry(computeOutline(frames));
+  const source = first && frames.find((f) => f.id === first.frameId);
+  if (first && source && activeProcessor(source)) {
+    throw new Error(detailProcessedText(first.position));
+  }
+  const layers = firstComposite(frames);
   if (!layers) {
     throw new Error("Detail only requires an image on the canvas");
   }

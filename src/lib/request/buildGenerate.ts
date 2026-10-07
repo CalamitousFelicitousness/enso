@@ -4,11 +4,12 @@
 // resolution via flattenCanvas(), then uploaded as the init image. The backend
 // receives exactly what the user sees inside the generation frame. Several
 // input pictures go out as one condition set in the order the outline numbers
-// them; Control and IP-Adapter frames go out as the outline lists them.
+// them; Control and IP-Adapter frames go out as the outline lists them. A
+// processed picture goes out as its map when the cache holds it, else with
+// its processor and key for the server to make the map before generating.
 // See flattenCanvas.ts and resize.ts for the compositing and resize pipeline.
 
 import { useGenerationStore } from "@/stores/generationStore";
-import type { GenerationState } from "@/stores/generationStore";
 import { useScriptStore } from "@/stores/scriptStore";
 import { useImg2ImgStore } from "@/stores/img2imgStore";
 import { useInputStore } from "@/stores/inputStore";
@@ -16,11 +17,14 @@ import { useUiStore } from "@/stores/uiStore";
 import { exportMask } from "@/lib/exportMask";
 import { flattenCanvas } from "@/lib/flattenCanvas";
 import { uploadBlob } from "@/lib/upload";
-import { resizeBlob } from "@/lib/resize";
+import { currentMap, lookupMaps, mapFacts, touchMap, useMapStore } from "@/inputs/maps";
+import type { ProcessorFacts } from "@/lib/processorUtils";
 import {
   computeOutline,
   type ControlSend,
   type IpAdapterSend,
+  type MapSlot,
+  type Outline,
   type SentInput,
 } from "@/lib/inputs/outline";
 import {
@@ -34,13 +38,16 @@ import type { ControlRequest } from "@/api/types/generation";
 import type { DetailerMode } from "@/api/types/models";
 import { BACKEND_UNIT_TYPE } from "@/api/types/control";
 import { generationParams } from "./generateParams";
-import { planInputs } from "./inputPlan";
+import { planInputs, sendSize } from "./inputPlan";
 
 type ControlUnitWire = NonNullable<ControlRequest["control"]>[number];
 type IpAdapterWire = NonNullable<ControlRequest["ip_adapter"]>[number];
+type InputProcessWire = NonNullable<ControlRequest["input_process"]>[number];
 
 export interface BuildResult {
   request: ControlRequest;
+  /** The maps the job makes before generating, by key. */
+  mapKeys: string[];
 }
 
 export interface ControlBuildOptions {
@@ -64,6 +71,8 @@ export interface ControlBuildOptions {
   /** The loaded checkpoint carries its control model, so a ControlNet frame
    * needs none (`control_unified` on /sdapi/v2/checkpoint); null when unknown. */
   controlUnified: boolean | null;
+  /** The server's processors, which every map key names. */
+  processors: ProcessorFacts;
 }
 
 /** The canvas holds inputs the loaded model cannot take as they are. */
@@ -85,53 +94,98 @@ function fileOf(frames: Frame[], input: SentInput): Picture & { file: Blob } {
   return { ...picture, file: picture.file };
 }
 
+/** The map a slot is sent as, when the cache holds it. Sending it keeps its
+ * record from expiring. */
+function sentMap(slot: MapSlot | null): Blob | null {
+  const map = slot?.state === "current" ? currentMap(slot.key) : null;
+  if (slot && map) touchMap(slot.key);
+  return map?.blob ?? null;
+}
+
+/** The processor the server runs on a picture before the job, when the slot
+ * has one and no current map. */
+function processBefore(slot: MapSlot | null): InputProcessWire {
+  if (!slot || slot.state === "current") return null;
+  return { process: slot.processor.id, params: slot.params, key: slot.key };
+}
+
+/** The pictures that go out with a processor, aligned with `inputs`; absent
+ * when none does. */
+function inputProcess(sent: SentInput[]): InputProcessWire[] | undefined {
+  const entries = sent.map((s) => processBefore(s.map));
+  return entries.some((e) => e !== null) ? entries : undefined;
+}
+
+/** The outline with its maps as the cache knows them, once the cache has
+ * answered for every map it names, so a stored map is sent, not made again.
+ * Its keys name the pictures as this request sends them: placed in `frame`,
+ * drawn at `target` where they are resized before they go out. */
+async function outlineWithMaps(
+  frames: Frame[],
+  controlUnified: boolean,
+  processors: ProcessorFacts,
+  frame: Size,
+  target: Size,
+): Promise<Outline> {
+  const env = () => mapFacts(processors, useMapStore.getState(), false, frame, target);
+  const named = computeOutline(frames, { controlUnified, processing: env() });
+  await lookupMaps(named.entries.flatMap((e) => e.maps.map((m) => m.key)));
+  return computeOutline(frames, { controlUnified, processing: env() });
+}
+
 /** Several pictures as one condition set, in the order sent: Initial frames
- * flattened and resized to the output size here, references raw. */
+ * drawn at the output size here, references raw, a current map in its
+ * picture's place. */
 async function uploadConditionSet(
   sent: SentInput[],
   frames: Frame[],
-  gen: GenerationState,
+  frame: Size,
   target: Size,
 ): Promise<string[]> {
   const refs: string[] = [];
   for (const input of sent) {
+    const map = sentMap(input.map);
+    if (map) {
+      refs.push(await uploadBlob(map, "map.png"));
+      continue;
+    }
     if (input.role === "reference") {
       const picture = fileOf(frames, input);
       refs.push(await uploadBlob(picture.file, picture.name));
       continue;
     }
     const layers = composedPictures(frameOf(frames, input));
-    const flat = await flattenCanvas(layers, gen.width, gen.height);
+    const flat = await flattenCanvas(layers, frame.width, frame.height, target);
     if (!flat) throw new Error("Failed to flatten an input frame");
-    refs.push(await uploadBlob(await resizeBlob(flat, target.width, target.height), "input.png"));
+    refs.push(await uploadBlob(flat, "input.png"));
   }
   return refs;
 }
 
 /** A Control frame as a control unit: its source frame's composition at the
- * generation size as the unit's own picture. A processed map stands in for
- * the picture, unprocessed, unless the job processes afresh. */
+ * generation size as the unit's own picture, or its current map; with a
+ * processor and no map, the server makes the map before the job. */
 async function controlUnit(
   send: ControlSend,
   frames: Frame[],
   frame: Size,
   target: Size,
-  reprocess: boolean,
 ): Promise<ControlUnitWire> {
   const source = frames.find((f) => f.id === send.sourceFrameId);
   if (!source) throw new Error("A control frame's source is gone");
   const s = send.settings;
-  const map = reprocess ? null : send.processed?.blob;
+  const map = sentMap(send.map);
   let override: string;
   if (map) {
-    override = await uploadBlob(map, "processed.png");
+    override = await uploadBlob(map, "map.png");
   } else {
     const flat = await flattenCanvas(composedPictures(source), frame.width, frame.height, target);
     if (!flat) throw new Error("Failed to flatten a control frame");
     override = await uploadBlob(flat, "control.png");
   }
+  const before = processBefore(send.map);
   return {
-    process: map ? "None" : s.process,
+    process: before?.process ?? "None",
     model: s.model,
     strength: s.strength,
     start: s.start,
@@ -149,7 +203,7 @@ async function controlUnit(
           adain_weight: s.adainWeight,
         }
       : {}),
-    ...(Object.keys(s.processParams).length > 0 && !map ? { process_params: s.processParams } : {}),
+    ...(before ? { process_params: before.params, key: before.key } : {}),
   };
 }
 
@@ -187,6 +241,7 @@ export async function buildControlRequest({
   detailerMode,
   controlSeparateInit,
   controlUnified,
+  processors,
 }: ControlBuildOptions): Promise<BuildResult> {
   const gen = useGenerationStore.getState();
   const scripts = useScriptStore.getState();
@@ -204,14 +259,14 @@ export async function buildControlRequest({
   });
 
   // What the frames send, in the order the canvas numbers it
-  const outline = computeOutline(frames, { controlUnified: controlUnified === true });
-  const unreadable = unreadableText(outline.entries) ?? unreadableControlText(outline);
+  const unified = controlUnified === true;
+  const base = computeOutline(frames, { controlUnified: unified });
+  const unreadable = unreadableText(base.entries) ?? unreadableControlText(base);
   if (unreadable) throw new InputRefusal(unreadable);
-  const problem = outline.problems[0];
+  const problem = base.problems[0];
   if (problem) throw new InputRefusal(problemText(problem));
-  const { sent, controls, ipAdapters } = outline;
   const planned = planInputs({
-    sent,
+    sent: base.sent,
     frame: { width: gen.width, height: gen.height },
     sizeMode: img2img.sizeMode,
     autoFit: ui.autoFitFrame,
@@ -221,8 +276,8 @@ export async function buildControlRequest({
     maxInputImages,
     requestSetsSize,
     referenceSets,
-    sendsControlUnits: controls.length > 0 || ipAdapters.length > 0,
-    sendsControlPictures: controls.length > 0,
+    sendsControlUnits: base.controls.length > 0 || base.ipAdapters.length > 0,
+    sendsControlPictures: base.controls.length > 0,
     checkpointOverride: "sd_model_checkpoint" in gen.overrideSettings,
     batchCount: gen.batchCount,
     batchSize: gen.batchSize,
@@ -235,28 +290,28 @@ export async function buildControlRequest({
   }
 
   const frame: Size = { width: gen.width, height: gen.height };
-  // Control pictures go out at the size the model generates at
-  const controlTarget: Size =
-    plan.transport === "img2img" || plan.transport === "set"
-      ? plan.target
-      : plan.transport === "reference"
-        ? plan.size
-        : frame;
+  // Set members, a separate init and control pictures are drawn at the size the model generates at
+  const target = sendSize(plan, frame, sizeMultiple);
+  const { sent, controls, ipAdapters } = await outlineWithMaps(
+    frames,
+    unified,
+    processors,
+    frame,
+    target,
+  );
 
   if (ipAdapters.length > 0) {
     request.ip_adapter = await Promise.all(ipAdapters.map((send) => ipAdapterUnit(send, frames)));
   }
   if (controls.length > 0) {
     request.control = await Promise.all(
-      controls.map((send) =>
-        controlUnit(send, frames, frame, controlTarget, ui.reprocessOnGenerate),
-      ),
+      controls.map((send) => controlUnit(send, frames, frame, target)),
     );
   }
 
   const primary: SentInput | undefined = sent[0];
   if (plan.transport === "set") {
-    request.inputs = await uploadConditionSet(sent, frames, gen, plan.target);
+    request.inputs = await uploadConditionSet(sent, frames, frame, target);
     request.skip_processing = true;
     request.input_type = 1;
     request.width_before = plan.target.width;
@@ -264,9 +319,12 @@ export async function buildControlRequest({
     request.batch_count = plan.batchCount;
     request.batch_size = 1;
   } else if (plan.transport === "reference" && primary?.role === "reference") {
-    // The source file as it is
+    // The source file as it is, or its map
+    const map = sentMap(primary.map);
     const picture = fileOf(frames, primary);
-    request.inputs = [await uploadBlob(picture.file, picture.name)];
+    request.inputs = [
+      map ? await uploadBlob(map, "map.png") : await uploadBlob(picture.file, picture.name),
+    ];
     request.input_type = 1;
     request.width_before = plan.size.width;
     request.height_before = plan.size.height;
@@ -275,23 +333,24 @@ export async function buildControlRequest({
     request.width_before = plan.target.width;
     request.height_before = plan.target.height;
 
-    // Flatten the frame's pictures at full frame size.
+    // The frame's pictures at frame size for the server to resize, or drawn
+    // at the generation size when they travel beside control pictures; a
+    // current map was made at that same size and goes in their place.
     const source = frameOf(frames, primary);
-    const flattenedBlob = await flattenCanvas(composedPictures(source), frame.width, frame.height);
-    if (flattenedBlob) {
+    const drawnAt = plan.separateInit ? target : frame;
+    const init =
+      sentMap(primary.map) ??
+      (await flattenCanvas(composedPictures(source), frame.width, frame.height, drawnAt));
+    if (init) {
+      const ref = await uploadBlob(init, "input.png");
+      request.inputs = [ref];
       if (plan.separateInit) {
         // Control units bring their own pictures: the init travels separately (input_type 2),
-        // resized here because sdnext resizes a separate init with its global upscaler.
+        // drawn here because sdnext resizes a separate init with its global upscaler.
         // inputs repeats it so sdnext still sizes the unit pictures against it.
-        const init = plan.serverResize
-          ? await resizeBlob(flattenedBlob, plan.target.width, plan.target.height)
-          : flattenedBlob;
-        const ref = await uploadBlob(init, "input.png");
-        request.inputs = [ref];
         request.inits = [ref];
         request.input_type = 2;
       } else {
-        request.inputs = [await uploadBlob(flattenedBlob, "input.png")];
         request.input_type = 1;
         // Force resize_mode_before=1 (Fixed) + resize_name_before so the backend
         // resizes the init image to the generation size.
@@ -321,6 +380,12 @@ export async function buildControlRequest({
     }
   }
 
+  // The processors the server runs on the input images before the job
+  if (request.inputs && request.inputs.length > 0) {
+    const before = inputProcess(sent);
+    if (before) request.input_process = before;
+  }
+
   // User override settings (merged last to take priority)
   if (Object.keys(gen.overrideSettings).length > 0) {
     request.extra = {
@@ -329,5 +394,9 @@ export async function buildControlRequest({
     };
   }
 
-  return { request };
+  const mapKeys = [
+    ...sent.flatMap((s) => (processBefore(s.map) ? [s.map?.key ?? ""] : [])),
+    ...controls.flatMap((c) => (processBefore(c.map) ? [c.map?.key ?? ""] : [])),
+  ].filter(Boolean);
+  return { request, mapKeys };
 }

@@ -82,6 +82,7 @@ export function useVideoFrameLayout(): VideoCanvasLayout {
         displayW: cellW,
         displayH: cellH,
         wireIndex: i + 1,
+        map: null,
         badge: addresses[i]?.badge ?? String(i + 1),
       }));
       if (includeAdd) {

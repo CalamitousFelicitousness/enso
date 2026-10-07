@@ -1,8 +1,8 @@
 // Where the frames sit on the canvas, from the outline alone. Image frames
 // (Initial, Reference) stack in the input column at x = 0; control frames
 // (Control, IP-Adapter) stack in a column to its left; the output sits to the
-// right, and the processed composite beyond it. Everything is in display
-// units: frame pixels scaled so the frame is REFERENCE_HEIGHT tall.
+// right. Everything is in display units: frame pixels scaled so the frame is
+// REFERENCE_HEIGHT tall.
 
 import {
   computeReferenceGridColumns,
@@ -12,15 +12,13 @@ import {
   REFERENCE_MIN_CELL_HEIGHT,
   REFERENCE_MOTHER_PADDING,
 } from "./grid";
-import type { OutlineEntry } from "./outline";
+import type { MapSlot, OutlineEntry } from "./outline";
 import type { FrameRole, Size } from "./types";
 
 /** Every frame is laid out as if the generation frame were this many display units tall. */
 export const REFERENCE_HEIGHT = 512;
-/** Between a frame and its dock or processed map. */
+/** Between a frame and its dock. */
 export const ELEMENT_GAP = 16;
-/** The processed map's header bar. */
-export const PROCESSED_HEADER_HEIGHT = 30;
 /** Collapsed dock before the label scale: its header plus a 1px border. */
 const DOCK_HEIGHT = 32;
 const FRAME_GAP = 48;
@@ -42,8 +40,8 @@ export interface ComposedFramePosition {
   displayH: number;
   /** The frame sends a picture, or holds one no control model takes. */
   filled: boolean;
-  /** Display-space top of the processed map shown under a Control frame, when it has one. */
-  processedY: number | null;
+  /** The map the composite is sent as, when the frame has a processor. */
+  map: MapSlot | null;
 }
 
 /** One child cell inside a set frame's grid. Position is display-space
@@ -61,6 +59,8 @@ export interface ReferenceChildPosition {
   /** Compact per-modality address ("P2", "V1", "A1·V1") when the layout
    * carries mixed media; badge falls back to wireIndex when absent. */
   badge?: string;
+  /** The map the picture is sent as, when the frame has a processor. */
+  map: MapSlot | null;
 }
 
 /** A set frame: Reference or IP-Adapter, drawn as a mother frame with a grid
@@ -115,8 +115,6 @@ export interface LayoutInput {
   labelScale: number;
   /** No frame may take another picture that counts as an input image. */
   inputsAtCapacity: boolean;
-  /** A job left a processed composite to show beside the output. */
-  compositeProcessed: boolean;
 }
 
 export interface FrameLayout {
@@ -128,8 +126,6 @@ export interface FrameLayout {
   outputX: number;
   outputDisplayW: number;
   outputDisplayH: number;
-  processedX: number;
-  showProcessedFrame: boolean;
   /** Just below the last frame of each column; 0 when the column is empty. */
   inputColumnBottom: number;
   controlColumnBottom: number;
@@ -161,6 +157,7 @@ function setFrame(
     displayW: cellW,
     displayH: cellH,
     wireIndex: slot.address?.n ?? null,
+    map: entry.sent.find((s) => s.pictureId === slot.pictureId)?.map ?? null,
   }));
   const add = cell(entry.slots.length);
   return {
@@ -184,7 +181,6 @@ export function computeCanvasLayout(input: LayoutInput): FrameLayout {
   const outputDisplayW = output.width * displayScale;
   const outputDisplayH = output.height * displayScale;
   const outputX = displayW + FRAME_GAP;
-  const processedX = outputX + outputDisplayW + FRAME_GAP;
   const controlColumnX = -(displayW + FRAME_GAP);
   // A dock floats ELEMENT_GAP above its frame at the label scale
   const stackGap = INPUT_FRAME_GAP + DOCK_HEIGHT * labelScale + ELEMENT_GAP;
@@ -192,18 +188,12 @@ export function computeCanvasLayout(input: LayoutInput): FrameLayout {
   const frames: FramePosition[] = [];
   const bottoms = { input: 0, control: 0 };
   const started = { input: false, control: false };
-  let anyProcessed = false;
   for (const entry of input.entries) {
     const column = entry.role === "control" || entry.role === "ipAdapter" ? "control" : "input";
     const x = column === "control" ? controlColumnX : 0;
     const y = started[column] ? bottoms[column] + stackGap : 0;
     started[column] = true;
     if (entry.role === "initial" || entry.role === "control") {
-      const processedY =
-        entry.processed && entry.status !== "off"
-          ? y + displayH + ELEMENT_GAP + PROCESSED_HEADER_HEIGHT * labelScale
-          : null;
-      if (processedY !== null) anyProcessed = true;
       frames.push({
         kind: "composed",
         role: entry.role,
@@ -215,9 +205,9 @@ export function computeCanvasLayout(input: LayoutInput): FrameLayout {
         displayW,
         displayH,
         filled: entry.status === "sent" || entry.status === "notSent",
-        processedY,
+        map: entry.maps[0] ?? null,
       });
-      bottoms[column] = (processedY ?? y) + displayH;
+      bottoms[column] = y + displayH;
     } else {
       // A Reference cell counts as an input image; an IP-Adapter cell does not
       const addCell = entry.role === "ipAdapter" || !input.inputsAtCapacity;
@@ -227,7 +217,6 @@ export function computeCanvasLayout(input: LayoutInput): FrameLayout {
     }
   }
 
-  const showProcessedFrame = input.compositeProcessed || anyProcessed;
   return {
     frames,
     displayScale,
@@ -236,14 +225,12 @@ export function computeCanvasLayout(input: LayoutInput): FrameLayout {
     outputX,
     outputDisplayW,
     outputDisplayH,
-    processedX,
-    showProcessedFrame,
     inputColumnBottom: bottoms.input,
     controlColumnBottom: bottoms.control,
     controlColumnX,
     totalBounds: {
       minX: started.control ? controlColumnX : 0,
-      maxX: showProcessedFrame ? processedX + outputDisplayW : outputX + outputDisplayW,
+      maxX: outputX + outputDisplayW,
       maxY: Math.max(displayH, outputDisplayH, bottoms.input, bottoms.control),
     },
   };

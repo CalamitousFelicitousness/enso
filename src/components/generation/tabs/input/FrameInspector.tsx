@@ -11,7 +11,6 @@ import { ControlModelSection } from "./sections/ControlModelSection";
 import { InitialSection } from "./sections/InitialSection";
 import { IpAdapterSection } from "./sections/IpAdapterSection";
 import { PicturesSection } from "./sections/PicturesSection";
-import { ProcessorSection } from "./sections/ProcessorSection";
 import { SourceSection } from "./sections/SourceSection";
 import { TimingSection } from "./sections/TimingSection";
 
@@ -59,7 +58,6 @@ export function FrameInspector({ frameId, withRole = true }: FrameInspectorProps
           <SourceSection frame={frame} />
           {!frame.link && pictures}
           <ControlModelSection frame={frame} />
-          {frame.control.type !== "style_transfer" && <ProcessorSection frame={frame} />}
           {(frame.control.type === "controlnet" || frame.control.type === "xs") && (
             <TimingSection frame={frame} />
           )}
