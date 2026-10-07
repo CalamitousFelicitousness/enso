@@ -8720,6 +8720,18 @@
             ],
             "title": "Class Name"
           },
+          "control_unified": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The loaded pipeline carries its control model, so one control unit runs without a model of its own",
+            "title": "Control Unified"
+          },
           "detailer_mode": {
             "anyOf": [
               {

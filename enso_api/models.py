@@ -491,6 +491,7 @@ class ResCheckpointV2(BaseModel):
     request_sets_size: bool | None = Field(default=None, title="Request Sets Size", description="The request's width and height set the output size, also for a single input image sent unprocessed")
     detailer_mode: DetailerMode | None = Field(default=None, title="Detailer Mode", description="How the detailer runs: through the inpaint pipeline, as loaded, or with each region as the condition image; none when it cannot")
     strength_applicable: bool | None = Field(default=None, title="Strength Applicable", description="An image-to-image pass on the loaded pipeline takes a denoising strength")
+    control_unified: bool | None = Field(default=None, title="Control Unified", description="The loaded pipeline carries its control model, so one control unit runs without a model of its own")
     guidance: CheckpointGuidanceV2 | None = Field(default=None, title="Guidance")
     size_multiple: int | None = Field(default=None, title="Size Multiple", description="Width and height keep their requested value at multiples of this; the server rounds other sizes")
 

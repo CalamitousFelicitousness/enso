@@ -593,6 +593,8 @@ def checkpoint_detailer_mode(model) -> str | None:
 
 
 def build_checkpoint_info() -> ResCheckpointV2:
+    from modules.control.run import is_unified_model
+
     from enso_api import condition_images
 
     if not shared.sd_loaded or shared.sd_model is None:
@@ -607,6 +609,7 @@ def build_checkpoint_info() -> ResCheckpointV2:
         strength_applicable=checkpoint_strength_applicable(shared.sd_model),
         guidance=checkpoint_guidance(shared.sd_model),
         size_multiple=checkpoint_size_multiple(shared.sd_model),
+        control_unified=is_unified_model(),
     )
     if hasattr(shared.sd_model, "sd_model_checkpoint"):
         info.checkpoint = shared.sd_model.sd_model_checkpoint
