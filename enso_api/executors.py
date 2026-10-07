@@ -282,20 +282,19 @@ def execute_generate(params: dict, job_id: str) -> dict:
 
     # Build IP adapter args
     ip_adapter_args = {}
-    ip_adapter_list = params.get("ip_adapter") or []
+    ip_adapter_list = [ipa for ipa in params.get("ip_adapter") or [] if isinstance(ipa, dict) and ipa.get("images")]
     if ip_adapter_list:
-        ip_adapter_args = {"ip_adapter_names": [], "ip_adapter_scales": [], "ip_adapter_crops": [], "ip_adapter_starts": [], "ip_adapter_ends": [], "ip_adapter_images": [], "ip_adapter_masks": []}
-        for ipa in ip_adapter_list:
-            if not isinstance(ipa, dict) or not ipa.get("images"):
-                continue
-            ip_adapter_args["ip_adapter_names"].append(ipa.get("adapter", ""))
-            ip_adapter_args["ip_adapter_scales"].append(ipa.get("scale", 1.0))
-            ip_adapter_args["ip_adapter_starts"].append(ipa.get("start", 0.0))
-            ip_adapter_args["ip_adapter_ends"].append(ipa.get("end", 1.0))
-            ip_adapter_args["ip_adapter_crops"].append(ipa.get("crop", False))
-            ip_adapter_args["ip_adapter_images"].append([helpers.decode_base64_to_image(x) for x in ipa["images"]])
-            if ipa.get("masks"):
-                ip_adapter_args["ip_adapter_masks"].append([helpers.decode_base64_to_image(x) for x in ipa["masks"]])
+        images = [[helpers.decode_base64_to_image(x) for x in ipa["images"]] for ipa in ip_adapter_list]
+        masks = [[helpers.decode_base64_to_image(x) for x in ipa["masks"]] if ipa.get("masks") else None for ipa in ip_adapter_list]
+        ip_adapter_args = {
+            "ip_adapter_names": [ipa.get("adapter", "") for ipa in ip_adapter_list],
+            "ip_adapter_scales": [ipa.get("scale", 1.0) for ipa in ip_adapter_list],
+            "ip_adapter_crops": [ipa.get("crop", False) for ipa in ip_adapter_list],
+            "ip_adapter_starts": [ipa.get("start", 0.0) for ipa in ip_adapter_list],
+            "ip_adapter_ends": [ipa.get("end", 1.0) for ipa in ip_adapter_list],
+            "ip_adapter_images": images,
+            "ip_adapter_masks": control_units.masks_per_adapter(masks, images),
+        }
 
     save_images = params.get("save_images", True)
     sampler_name = params.get("sampler_name", "Default")
