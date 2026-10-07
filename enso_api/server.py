@@ -23,6 +23,7 @@ from enso_api.models import (
     ServerModelInfo,
     VersionInfoV2,
 )
+from enso_api.sdnext_features import control_separate_init
 
 router = APIRouter(prefix="/sdapi/v2", tags=["Server"])
 
@@ -70,7 +71,7 @@ async def get_server_info_v2():
     ver = installer.get_version()
     model_name = getattr(shared.opts, "sd_model_checkpoint", None)
     model_type = type(model_data.sd_model).__name__ if model_data.sd_model is not None else None
-    capabilities = ServerCapabilities(video=detect_video_capability())
+    capabilities = ServerCapabilities(video=detect_video_capability(), control_separate_init=control_separate_init())
     return ResServerInfoV2(
         version=VersionInfoV2(**{k: str(v) for k, v in ver.items() if k in VersionInfoV2.model_fields}),
         backend=shared.backend.name if hasattr(shared.backend, "name") else str(shared.backend),

@@ -676,6 +676,7 @@ class ServerCapabilities(BaseModel):
     control: bool = True
     video: bool = True
     websocket: bool = True
+    control_separate_init: bool = False
 
 
 class ServerModelInfo(BaseModel):

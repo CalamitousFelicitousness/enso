@@ -9689,6 +9689,11 @@
             "title": "Control",
             "type": "boolean"
           },
+          "control_separate_init": {
+            "default": false,
+            "title": "Control Separate Init",
+            "type": "boolean"
+          },
           "img2img": {
             "default": true,
             "title": "Img2Img",

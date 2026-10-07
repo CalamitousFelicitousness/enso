@@ -3,6 +3,7 @@
 from PIL import Image
 
 from enso_api.rejections import RequestRejected
+from enso_api.sdnext_features import CONTROL_SEPARATE_INIT_COMMITS
 
 
 class ControlUnitsError(RequestRejected):
@@ -21,11 +22,19 @@ def unit_types(control: list) -> list[str]:
     return types
 
 
-def validate(params: dict) -> None:
-    """Reject units of more than one type; control_run runs the first unit's type and skips the rest silently."""
-    types = unit_types(params.get("control") or [])
+def own_pictures(control: list) -> bool:
+    """Whether any unit brings its own picture."""
+    return any(isinstance(unit, dict) and (unit.get("override") or unit.get("image")) for unit in control)
+
+
+def validate(params: dict, control_separate_init: bool) -> None:
+    """Reject what control_run would run as something else: several unit types, or a unit's own picture beside a separate init image on an sdnext that hands the ControlNet the init instead."""
+    control = params.get("control") or []
+    types = unit_types(control)
     if len(types) > 1:
         raise ControlUnitsError(f"control units must share one type, got {', '.join(types)}")
+    if params.get("input_type") == 2 and params.get("inits") and own_pictures(control) and not control_separate_init:
+        raise ControlUnitsError(f"a control unit's own picture beside an init image needs an sdnext carrying commit {CONTROL_SEPARATE_INIT_COMMITS[0]} (dev, 2026-10-05)")
 
 
 def masks_per_adapter(masks: list[list[Image.Image] | None], images: list[list[Image.Image]]) -> list[list[Image.Image]]:
