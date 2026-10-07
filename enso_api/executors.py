@@ -381,7 +381,8 @@ def execute_generate(params: dict, job_id: str) -> dict:
                 continue
             if len(item) > 0 and (isinstance(item[0], list) or item[0] is None):
                 output_images += item[0] if item[0] is not None else []
-            if len(item) > 1 and item[1] is not None:
+            # control_run yields the processed picture before and after generation
+            if len(item) > 1 and item[1] is not None and all(item[1] is not kept for kept in output_processed):
                 output_processed.append(item[1])
 
         # Capture saved file paths BEFORE end() clears state.results
