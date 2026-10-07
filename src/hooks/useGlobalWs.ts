@@ -44,8 +44,11 @@ export function useGlobalWs() {
       } else if (msg.type === "status" && msg.data) {
         store.setStatus(msg.data);
       } else if (msg.type === "model") {
-        // The server's loaded image model changed, from this page or any other client
+        // The server's loaded image model changed, from this page or any other client;
+        // sdnext lists control models per model type
         void queryClient.invalidateQueries({ queryKey: ["checkpoint"] });
+        void queryClient.invalidateQueries({ queryKey: ["control-models"] });
+        void queryClient.invalidateQueries({ queryKey: ["control-modes"] });
       } else if (msg.type === "download" && Array.isArray(msg.data)) {
         useDownloadStore.getState().updateFromWs(msg.data as DownloadProgress[]);
       }
