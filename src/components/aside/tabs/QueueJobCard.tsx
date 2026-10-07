@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import type { TrackedJob, JobDomain } from "@/stores/jobStore";
 import { useCancelJob } from "@/api/hooks/useJobs";
+import { markJobCancelled } from "@/hooks/useJobTracker";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { JobWarnings } from "@/components/generation/JobWarnings";
@@ -108,8 +109,15 @@ export function QueueJobCard({
   const elapsed = useElapsed(job.createdAt, isRunning);
 
   const handleCancel = useCallback(() => {
-    cancelJob.mutate(job.id);
-  }, [cancelJob, job.id]);
+    // A queued job is cancelled once the server says so; a running one ends
+    // through its own socket
+    const queued = job.status === "pending";
+    cancelJob.mutate(job.id, {
+      onSuccess: () => {
+        if (queued) markJobCancelled(job.id);
+      },
+    });
+  }, [cancelJob, job.id, job.status]);
 
   return (
     <div className="space-y-1 px-3 py-1.5">

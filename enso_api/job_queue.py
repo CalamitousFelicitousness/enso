@@ -12,6 +12,7 @@ from enso_api.job_warnings import JobLogCapture
 from enso_api.models import JobResult
 from enso_api.util import job_progress, preview_image
 from enso_api.ws_models import (
+    WsEventCancelled,
     WsEventCompleted,
     WsEventError,
     WsEventProgress,
@@ -278,6 +279,7 @@ class JobQueue:
             cancelled = self.store.cancel(job_id)
             if cancelled:
                 release_uploads(job_id)
+                self.push_progress(job_id, WsEventCancelled().model_dump(exclude_none=True))
             return cancelled
         return self.store.delete(job_id)
 

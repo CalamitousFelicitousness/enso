@@ -24,6 +24,15 @@ function forgetJobInputs(snapshot: TrackedJob["snapshot"] | undefined) {
   if (snapshot && snapshot.kind !== "none" && snapshot.inputsKey) forgetInputs(snapshot.inputsKey);
 }
 
+/** A job the user cancelled: the page's copy says so, and what was stored
+ * for its result goes. Safe to call twice. */
+export function markJobCancelled(jobId: string): void {
+  const s = useJobQueueStore.getState();
+  s.updateStatus(jobId, "cancelled");
+  forgetJobInputs(s.jobs.get(jobId)?.snapshot);
+  void deleteJobPayload(jobId);
+}
+
 function routeResult(domain: JobDomain, result: JobResult, snapshot: TrackedJob["snapshot"]) {
   if (domain === "generate") {
     if (result.images.length > 0) {
@@ -188,7 +197,12 @@ export function useJobTracker() {
               );
               break;
             case "status":
-              s.updateStatus(jobId, data.status);
+              // A job that ended with a result or an error says so again in
+              // the event that carries it; taken from here, the socket would
+              // close before that event is read
+              if (data.status !== "completed" && data.status !== "failed") {
+                s.updateStatus(jobId, data.status);
+              }
               break;
             case "completed":
               s.completeJob(jobId, data.result);
@@ -206,9 +220,7 @@ export function useJobTracker() {
               void deleteJobPayload(jobId);
               break;
             case "cancelled":
-              s.updateStatus(jobId, "cancelled");
-              forgetJobInputs(s.jobs.get(jobId)?.snapshot);
-              void deleteJobPayload(jobId);
+              markJobCancelled(jobId);
               break;
           }
         });
