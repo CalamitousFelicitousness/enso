@@ -30,6 +30,8 @@ export interface InputPlanContext {
   /** The canvas showed a lone Reference at the image's size. */
   referenceSets: boolean;
   sendsControlUnits: boolean;
+  /** Control units bring their own pictures, so the init image travels beside them, not as them. */
+  sendsControlPictures: boolean;
   checkpointOverride: boolean;
   batchCount: number;
   batchSize: number;
@@ -42,8 +44,9 @@ export type InputPlan =
   | { transport: "set"; target: Size; batchCount: number }
   /** One source file as it is; the model generates at `size`. */
   | { transport: "reference"; size: Size }
-  /** One flattened frame; the server resizes it to `target` when `serverResize`. */
-  | { transport: "img2img"; target: Size; serverResize: boolean };
+  /** One flattened frame, resized to `target` when `serverResize`; with `separateInit` it
+   * goes as a separate init image (`input_type` 2) so control units keep their own pictures. */
+  | { transport: "img2img"; target: Size; serverResize: boolean; separateInit: boolean };
 
 export type InputPlanResult = { ok: true; plan: InputPlan } | { ok: false; refusal: string };
 
@@ -126,6 +129,7 @@ export function planInputs(ctx: InputPlanContext): InputPlanResult {
       target,
       // Scale, megapixel or a coarser size multiple: the server resizes the init image
       serverResize: target.width !== frame.width || target.height !== frame.height,
+      separateInit: ctx.sendsControlPictures,
     },
   };
 }

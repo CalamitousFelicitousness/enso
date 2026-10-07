@@ -33,6 +33,7 @@ function context(sent: SentInput[], patch: Partial<InputPlanContext> = {}): Inpu
     requestSetsSize: false,
     referenceSets: true,
     sendsControlUnits: false,
+    sendsControlPictures: false,
     checkpointOverride: false,
     batchCount: 1,
     batchSize: 1,
@@ -51,7 +52,24 @@ describe("planInputs", () => {
   it("sends one Initial frame as img2img at the frame size", () => {
     expect(planInputs(context([slot("initial", 1)]))).toEqual({
       ok: true,
-      plan: { transport: "img2img", target: { width: 1024, height: 768 }, serverResize: false },
+      plan: {
+        transport: "img2img",
+        target: { width: 1024, height: 768 },
+        serverResize: false,
+        separateInit: false,
+      },
+    });
+  });
+
+  it("sends the init separately when control units bring their own pictures", () => {
+    expect(planInputs(context([slot("initial", 1)], { sendsControlPictures: true }))).toEqual({
+      ok: true,
+      plan: {
+        transport: "img2img",
+        target: { width: 1024, height: 768 },
+        serverResize: false,
+        separateInit: true,
+      },
     });
   });
 
@@ -63,7 +81,12 @@ describe("planInputs", () => {
     });
     expect(planInputs(ctx)).toEqual({
       ok: true,
-      plan: { transport: "img2img", target: { width: 1536, height: 1152 }, serverResize: true },
+      plan: {
+        transport: "img2img",
+        target: { width: 1536, height: 1152 },
+        serverResize: true,
+        separateInit: false,
+      },
     });
   });
 
@@ -79,7 +102,12 @@ describe("planInputs", () => {
     });
     expect(planInputs(ctx)).toEqual({
       ok: true,
-      plan: { transport: "img2img", target: { width: 1008, height: 768 }, serverResize: true },
+      plan: {
+        transport: "img2img",
+        target: { width: 1008, height: 768 },
+        serverResize: true,
+        separateInit: false,
+      },
     });
   });
 

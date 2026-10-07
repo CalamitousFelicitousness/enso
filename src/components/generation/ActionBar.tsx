@@ -24,6 +24,7 @@ import { useLoadModel } from "@/api/hooks/useModels";
 import { useModelCapabilities } from "@/hooks/useModelCapabilities";
 import { api } from "@/api/client";
 import type { CheckpointInfoV2, DetailerMode } from "@/api/types/models";
+import type { ServerInfo } from "@/api/types/server";
 import { useQueryClient } from "@tanstack/react-query";
 import { Play, Square, SkipForward, History, ChevronDown, Layers, Grid3X3 } from "lucide-react";
 import { ProgressRing } from "@/components/ui/progress-ring";
@@ -96,6 +97,7 @@ export const ActionBar = memo(function ActionBar() {
     let sizeMultiple = DEFAULT_SIZE_MULTIPLE;
     let detailerMode: DetailerMode | null = null;
     let strengthSupported = true;
+    let controlSeparateInit: boolean | null = null;
     // The canvas sized a lone Reference from the model it knew before this load
     let referenceSets = activeModel?.source !== "cloud";
     if (activeModel?.source === "local") {
@@ -125,6 +127,13 @@ export const ActionBar = memo(function ActionBar() {
       sizeMultiple = loaded.size_multiple ?? DEFAULT_SIZE_MULTIPLE;
       detailerMode = loaded.detailer_mode ?? null;
       strengthSupported = loaded.strength_applicable ?? true;
+      // Whether this sdnext leaves a control unit its own picture beside an Initial picture
+      const info = await queryClient.fetchQuery({
+        queryKey: ["server-info"],
+        queryFn: () => api.get<ServerInfo>("/sdapi/v2/server-info"),
+        staleTime: 30_000,
+      });
+      controlSeparateInit = info.capabilities?.control_separate_init ?? null;
     }
 
     // Record the prompt being generated into the prompt-history popover.
@@ -171,6 +180,7 @@ export const ActionBar = memo(function ActionBar() {
       referenceSets,
       strengthSupported,
       detailerMode,
+      controlSeparateInit,
     }).catch((err: unknown) => {
       if (err instanceof InputRefusal) {
         toast.warning("Can't generate with these input images", { description: err.message });

@@ -45,3 +45,7 @@ export function unreadableText(entries: OutlineEntry[]): string | null {
   const where = blocked.map((e) => positionLabel(e.position)).join(", ");
   return `A stored picture in ${where} could not be read. Replace or remove it.`;
 }
+
+/** The server predates the sdnext change that lets a control unit keep its own picture beside an Initial picture. */
+export const CONTROL_PICTURE_SERVER_TEXT =
+  "Control pictures beside an Initial picture need a newer sdnext (the control fix of 2026-10-05). Update the server, or turn the control units off.";

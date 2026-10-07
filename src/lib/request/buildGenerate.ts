@@ -20,7 +20,7 @@ import { uploadFiles, uploadBlob } from "@/lib/upload";
 import { resizeBlob } from "@/lib/resize";
 import { REFERENCE_HEIGHT } from "@/canvas/useControlFrameLayout";
 import { computeOutline, type SentInput } from "@/lib/inputs/outline";
-import { unreadableText } from "@/lib/inputs/text";
+import { CONTROL_PICTURE_SERVER_TEXT, unreadableText } from "@/lib/inputs/text";
 import { composedPictures, type Frame, type Picture } from "@/lib/inputs/types";
 import type { ControlRequest } from "@/api/types/generation";
 import type { DetailerMode } from "@/api/types/models";
@@ -48,6 +48,9 @@ export interface ControlBuildOptions {
   /** How the detailer runs on the loaded pipeline, "none" when it cannot;
    * null when unknown. */
   detailerMode: DetailerMode | null;
+  /** The server's sdnext leaves a control unit its own picture beside a separate
+   * init image (server-info `capabilities.control_separate_init`); null when unknown. */
+  controlSeparateInit: boolean | null;
 }
 
 /** The canvas holds inputs the loaded model cannot take as they are. */
@@ -102,6 +105,7 @@ export async function buildControlRequest({
   referenceSets,
   strengthSupported,
   detailerMode,
+  controlSeparateInit,
 }: ControlBuildOptions): Promise<BuildResult> {
   const gen = useGenerationStore.getState();
   const scripts = useScriptStore.getState();
@@ -146,12 +150,17 @@ export async function buildControlRequest({
     requestSetsSize,
     referenceSets,
     sendsControlUnits: controlUnitEntries.length > 0 || enabledIPUnits.length > 0,
+    sendsControlPictures: controlUnitEntries.length > 0,
     checkpointOverride: "sd_model_checkpoint" in gen.overrideSettings,
     batchCount: gen.batchCount,
     batchSize: gen.batchSize,
   });
   if (!planned.ok) throw new InputRefusal(planned.refusal);
   const { plan } = planned;
+  // An older sdnext would hand the ControlNet the init image in place of the unit's picture
+  if (plan.transport === "img2img" && plan.separateInit && controlSeparateInit === false) {
+    throw new InputRefusal(CONTROL_PICTURE_SERVER_TEXT);
+  }
 
   if (enabledIPUnits.length > 0) {
     request.ip_adapter = await Promise.all(
@@ -251,23 +260,34 @@ export async function buildControlRequest({
     const frameH = gen.height;
     request.width_before = plan.target.width;
     request.height_before = plan.target.height;
-    request.input_type = 1;
 
     // Flatten the frame's pictures at full frame size.
     const frame = frameOf(frames, primary);
     const flattenedBlob = await flattenCanvas(composedPictures(frame), frameW, frameH);
     if (flattenedBlob) {
       inputBlob = flattenedBlob;
-      const ref = await uploadBlob(flattenedBlob, "input.png");
-      request.inputs = [ref];
-    }
-
-    // Force resize_mode_before=1 (Fixed) + resize_name_before so the backend
-    // resizes the init image to the generation size.
-    // Both fields are required: run.py zeros resize_mode when resize_name is 'None'.
-    if (plan.serverResize) {
-      request.resize_mode_before = 1;
-      request.resize_name_before = img2img.resizeMethod;
+      if (plan.separateInit) {
+        // Control units bring their own pictures: the init travels separately (input_type 2),
+        // resized here because sdnext resizes a separate init with its global upscaler.
+        // inputs repeats it so sdnext still sizes the unit pictures against it.
+        const init = plan.serverResize
+          ? await resizeBlob(flattenedBlob, plan.target.width, plan.target.height)
+          : flattenedBlob;
+        const ref = await uploadBlob(init, "input.png");
+        request.inputs = [ref];
+        request.inits = [ref];
+        request.input_type = 2;
+      } else {
+        request.inputs = [await uploadBlob(flattenedBlob, "input.png")];
+        request.input_type = 1;
+        // Force resize_mode_before=1 (Fixed) + resize_name_before so the backend
+        // resizes the init image to the generation size.
+        // Both fields are required: run.py zeros resize_mode when resize_name is 'None'.
+        if (plan.serverResize) {
+          request.resize_mode_before = 1;
+          request.resize_name_before = img2img.resizeMethod;
+        }
+      }
     }
 
     // Composite the frame's mask objects + any strokes not baked yet.
