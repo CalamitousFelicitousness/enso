@@ -6,6 +6,8 @@ import {
   applyBake,
   defaultControl,
   insertFrame,
+  insertPicture,
+  mergeContent,
   moveItem,
   movePicture,
   newFrame,
@@ -407,5 +409,37 @@ describe("control and IP-Adapter frames", () => {
     const map = { cid: "map", blob: new Blob(["m"]), width: 8, height: 8 };
     expect(setProcessed(c, map).processed).toBe(map);
     expect(setProcessed(c, null)).toBe(c);
+  });
+});
+
+describe("insertPicture and mergeContent", () => {
+  it("puts a picture back at its place, clamped, once", () => {
+    const f = frame("f", "reference", picture("a"), picture("c"));
+    const b = picture("b");
+    expect(insertPicture(f, b, 1).pictures.map((p) => p.id)).toEqual(["a", "b", "c"]);
+    expect(insertPicture(f, b, 9).pictures.map((p) => p.id)).toEqual(["a", "c", "b"]);
+    expect(insertPicture(f, b, -1).pictures.map((p) => p.id)).toEqual(["b", "a", "c"]);
+    expect(insertPicture(f, picture("a"), 0)).toBe(f);
+  });
+
+  it("gives back what a clear took out, beside what the frame holds now", () => {
+    const was: Frame = {
+      ...frame("f", "initial", layer("old")),
+      mask: {
+        objects: [maskObject("m")],
+        strokes: [{ points: [0, 0, 1, 1], strokeWidth: 2, tool: "brush" }],
+      },
+      processed: { cid: "p", blob: new Blob(["p"]), width: 1, height: 1 },
+    };
+    const now: Frame = {
+      ...frame("f", "initial", layer("new")),
+      mask: { objects: [], strokes: [{ points: [2, 2, 3, 3], strokeWidth: 2, tool: "brush" }] },
+    };
+    const merged = mergeContent(now, was);
+    expect(merged.pictures.map((p) => p.id)).toEqual(["new", "old"]);
+    expect(merged.mask.objects.map((m) => m.id)).toEqual(["m"]);
+    expect(merged.mask.strokes.map((s) => s.points[0])).toEqual([2, 0]);
+    expect(merged.processed).toBe(was.processed);
+    expect(mergeContent(merged, was).pictures.map((p) => p.id)).toEqual(["new", "old"]);
   });
 });

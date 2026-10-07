@@ -384,3 +384,33 @@ export function patchTransform(frame: Frame, itemId: string, patch: Partial<Tran
 export function removeItem(frame: Frame, itemId: string): Frame {
   return removeMaskObject(removePicture(frame, itemId), itemId);
 }
+
+/** Put a picture back at `at`, clamped to the list; one with that id already
+ * there is left alone. */
+export function insertPicture(frame: Frame, picture: Picture, at: number): Frame {
+  if (frame.pictures.some((p) => p.id === picture.id)) return frame;
+  const index = Math.max(0, Math.min(frame.pictures.length, at));
+  const pictures = [...frame.pictures.slice(0, index), picture, ...frame.pictures.slice(index)];
+  return { ...frame, pictures };
+}
+
+/** Give a frame back what a clear took out of it, beside what it holds now:
+ * pictures, mask objects, strokes and IP-Adapter masks are appended, and a
+ * processed map is taken only where the frame has none. */
+export function mergeContent(frame: Frame, from: Frame): Frame {
+  const absent = <T extends { id: string }>(have: T[], add: T[]) =>
+    add.filter((item) => !have.some((h) => h.id === item.id));
+  return {
+    ...frame,
+    pictures: [...frame.pictures, ...absent(frame.pictures, from.pictures)],
+    mask: {
+      objects: [...frame.mask.objects, ...absent(frame.mask.objects, from.mask.objects)],
+      strokes: [...frame.mask.strokes, ...from.mask.strokes],
+    },
+    ipAdapter: {
+      ...frame.ipAdapter,
+      masks: [...frame.ipAdapter.masks, ...absent(frame.ipAdapter.masks, from.ipAdapter.masks)],
+    },
+    processed: frame.processed ?? from.processed,
+  };
+}

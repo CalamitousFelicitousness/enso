@@ -5,13 +5,15 @@ import {
   firstComposite,
   loneReference,
   outlineEntry,
+  problemPositions,
   resolveSizeSource,
   sizeSourcePick,
+  sizeSourceState,
   type Outline,
   type SizeSourcePick,
 } from "./outline";
 import { defaultControl, defaultIpAdapter } from "./reducers";
-import { addressLabel, problemText, sentLabel, unreadableText } from "./text";
+import { addressLabel, fixLabel, problemText, sentLabel, unreadableText } from "./text";
 import type { ControlSettings, Frame, Picture } from "./types";
 
 /** Each sent picture as "Image 2 <- frame/picture", a composite as "frame/*". */
@@ -123,7 +125,7 @@ describe("computeOutline", () => {
     ]);
     expect(outline.sent.map((s) => s.unreadable)).toEqual([true, false, true, false]);
     expect(unreadableText(outline.entries)).toBe(
-      "A stored picture in Input 1, Input 2 could not be read. Replace or remove it.",
+      "A stored picture in Inputs 1-2 could not be read. Replace or remove it.",
     );
     expect(unreadableText(outline.entries.slice(2))).toBeNull();
   });
@@ -217,9 +219,20 @@ describe("resolveSizeSource", () => {
     expect(sized([refs, man], { frameId: "man", pictureId: null })).toBe("3:1336x744");
   });
 
-  it("falls back to the first picture once the pick is gone", () => {
-    expect(sized([man, refs], { frameId: "refs", pictureId: "gone" })).toBe("1:1336x744");
-    expect(sized([refs], { frameId: "man", pictureId: null })).toBe("1:1024x1536");
+  it("keeps the size once the pick is gone while other pictures are sent", () => {
+    expect(sized([man, refs], { frameId: "refs", pictureId: "gone" })).toBeNull();
+    expect(sized([refs], { frameId: "man", pictureId: null })).toBeNull();
+    const { sent } = computeOutline([refs]);
+    expect(sizeSourceState(sent, { frameId: "man", pictureId: null })).toEqual({
+      kind: "lost",
+      pick: { frameId: "man", pictureId: null },
+    });
+    expect(sizeSourceState(sent, null)).toMatchObject({ kind: "first" });
+    expect(sizeSourceState(sent, { frameId: "refs", pictureId: "cat" })).toMatchObject({
+      kind: "picked",
+      input: { pictureId: "cat" },
+    });
+    expect(sizeSourceState([], { frameId: "man", pictureId: null })).toEqual({ kind: "none" });
   });
 
   it("follows a pick across its frame's role switch", () => {
@@ -344,7 +357,7 @@ describe("control and IP-Adapter frames", () => {
       },
     ]);
     expect(problemText(outline.problems[0])).toBe(
-      "Control frames must share one type: Input 1 (ControlNet), Input 2 (T2I-Adapter), Input 3 (T2I-Adapter). Switch the type or turn some off.",
+      "Control frames must share one type: Input 1 (ControlNet), Input 2 (T2I-Adapter), Input 3 (T2I-Adapter).",
     );
     expect(computeOutline([unit("a", {}, layer("x")), unit("b", {}, layer("y"))]).problems).toEqual(
       [],
@@ -357,5 +370,116 @@ describe("control and IP-Adapter frames", () => {
       { ...unit("map", {}, layer("m")), processed: { cid: "p", blob: null, width: 1, height: 1 } },
     ]);
     expect(outline.controls.map((c) => c.unreadable)).toEqual([true, true]);
+  });
+});
+
+describe("problems", () => {
+  const unit = (id: string, type: ControlSettings["type"], ...pictures: Picture[]): Frame => ({
+    ...frame(id, "control", ...pictures),
+    control: { ...defaultControl(), model: "Xinsir", type },
+  });
+  const codes = (outline: Outline) => outline.problems.map((p) => p.code);
+
+  it("reports more images than the model takes, naming the frames past the limit", () => {
+    const frames = [
+      frame("man", "initial", layer("m")),
+      frame("pets", "reference", picture("dog"), picture("cat")),
+      frame("hat", "initial", layer("h")),
+    ];
+    const outline = computeOutline(frames, { maxInputImages: 2 });
+    expect(outline.problems).toMatchObject([
+      { code: "tooManyImages", limit: 2, sent: 4, positions: [2, 3] },
+    ]);
+    const problem = outline.problems[0];
+    expect(
+      problem.code === "tooManyImages" &&
+        problem.over.map((o) => `${o.position}/${o.pictureId ?? "*"}:${o.address.n}`),
+    ).toEqual(["2/cat:3", "3/*:4"]);
+    expect(outline.entries.map((e) => e.blockedBy)).toEqual([
+      [],
+      ["tooManyImages"],
+      ["tooManyImages"],
+    ]);
+    expect(problemText(outline.problems[0])).toBe(
+      "This model takes up to 2 input images; the frames send 4.",
+    );
+    expect(fixLabel(outline.problems[0])).toBe("Turn off Inputs 2-3");
+    expect(codes(computeOutline(frames, { maxInputImages: 4 }))).toEqual([]);
+    expect(codes(computeOutline(frames, { maxInputImages: null }))).toEqual([]);
+    expect(codes(computeOutline(frames))).toEqual([]);
+  });
+
+  it("offers to hide set pictures past the limit when no composite is past it", () => {
+    const frames = [frame("refs", "reference", picture("a"), picture("b"), picture("c"))];
+    const outline = computeOutline(frames, { maxInputImages: 1 });
+    expect(outline.problems[0]).toMatchObject({ code: "tooManyImages", positions: [1] });
+    expect(fixLabel(outline.problems[0])).toBe("Hide Image 2-3");
+  });
+
+  it("goes out as a set with several images, or a lone Reference where the request sets the size", () => {
+    const refs = frame("refs", "reference", picture("a"));
+    expect(computeOutline([refs]).set).toBe(false);
+    expect(computeOutline([refs], { requestSetsSize: true }).set).toBe(true);
+    expect(
+      computeOutline([frame("man", "initial", layer("m"))], { requestSetsSize: true }).set,
+    ).toBe(false);
+    expect(computeOutline([refs, frame("man", "initial", layer("m"))]).set).toBe(true);
+  });
+
+  it("reports a mask and control frames beside a set", () => {
+    const masked: Frame = {
+      ...frame("man", "initial", layer("m")),
+      mask: { objects: [], strokes: [{ points: [0, 0, 1, 1], strokeWidth: 4, tool: "brush" }] },
+    };
+    const refs = frame("refs", "reference", picture("a"));
+    const outline = computeOutline([masked, refs, unit("edges", "controlnet", layer("e"))]);
+    expect(outline.problems).toEqual([
+      { code: "maskWithSet", positions: [1], images: 2 },
+      { code: "controlWithSet", positions: [3], images: 2 },
+    ]);
+    expect(problemText(outline.problems[0])).toBe(
+      "The mask on Input 1 cannot be sent with several input images.",
+    );
+    expect(problemText(outline.problems[1])).toBe(
+      "Input 3 cannot be sent with several input images.",
+    );
+    expect(fixLabel(outline.problems[0])).toBe("Clear the mask");
+    expect(fixLabel(outline.problems[1])).toBe("Turn off Input 3");
+    // a lone Reference sent at the set size is a set too
+    const lone = computeOutline([refs, unit("edges", "controlnet", layer("e"))], {
+      requestSetsSize: true,
+    });
+    expect(problemText(lone.problems[0])).toBe(
+      "Input 2 cannot be sent with a Reference image sent at the size you set.",
+    );
+    // without a set, neither is a problem
+    expect(codes(computeOutline([masked, unit("edges", "controlnet", layer("e"))]))).toEqual([]);
+  });
+
+  it("reports unreadable pictures wherever they are sent", () => {
+    const outline = computeOutline([
+      frame("man", "initial", layer("m", { file: null })),
+      unit("edges", "controlnet", layer("e", { file: null })),
+      frame("fine", "reference", picture("ok")),
+    ]);
+    expect(outline.problems).toEqual([
+      { code: "unreadable", positions: [1, 2] },
+      { code: "controlWithSet", positions: [2], images: 2 },
+    ]);
+    expect(problemText(outline.problems[0])).toBe(
+      "A stored picture in Inputs 1-2 could not be read. Replace or remove it.",
+    );
+    expect(unreadableText(outline.entries)).toBe(
+      "A stored picture in Input 1 could not be read. Replace or remove it.",
+    );
+  });
+
+  it("names the positions of every problem", () => {
+    const outline = computeOutline([
+      unit("edges", "controlnet", layer("e")),
+      unit("depth", "t2i", layer("d")),
+    ]);
+    expect(outline.problems.map(problemPositions)).toEqual([[1, 2]]);
+    expect(fixLabel(outline.problems[0])).toBe("Turn off Input 2");
   });
 });

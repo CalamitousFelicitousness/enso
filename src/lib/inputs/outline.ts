@@ -1,7 +1,7 @@
-// What the frame list means: where each frame stands, what it sends, and the
-// number each sent picture answers to. Both the canvas and the Input tab read
-// their labels from here, and the request builder sends exactly `sent`,
-// `controls` and `ipAdapters`.
+// What the frame list means: where each frame stands, what it sends, the
+// number each sent picture answers to, and what keeps the request from being
+// built. Both the canvas and the Input tab read their labels from here, and
+// the request builder sends exactly `sent`, `controls` and `ipAdapters`.
 
 import { unreadableText } from "./text";
 import {
@@ -54,6 +54,8 @@ export interface OutlineSlot {
   address: Address | null;
 }
 
+export type ProblemCode = OutlineProblem["code"];
+
 export interface OutlineEntry {
   frameId: string;
   /** The N of "Input N": the frame's place in the list, whatever it holds. */
@@ -71,6 +73,8 @@ export interface OutlineEntry {
   linkedTo: number | null;
   /** A Control frame holds a processed map. */
   processed: boolean;
+  /** The problems this frame is part of. */
+  blockedBy: ProblemCode[];
 }
 
 /** A Control frame's picture as it travels: the composite of `sourceFrameId`
@@ -92,11 +96,25 @@ export interface IpAdapterSend {
   unreadable: boolean;
 }
 
-/** Something the request cannot carry as the frames stand. */
-export type OutlineProblem = {
-  code: "mixedControlTypes";
-  frames: { position: number; type: ControlType }[];
-};
+/** Something the request cannot carry as the frames stand. Each one has a fix
+ * in problems.ts and words in text.ts. */
+export type OutlineProblem =
+  | { code: "mixedControlTypes"; frames: { position: number; type: ControlType }[] }
+  /** More images sent than the model takes: `over` lists the pictures past
+   * the limit, `positions` the frames they are in. */
+  | {
+      code: "tooManyImages";
+      limit: number;
+      sent: number;
+      positions: number[];
+      over: { position: number; frameId: string; pictureId: string | null; address: Address }[];
+    }
+  /** Frames sending a picture whose bytes could not be read. */
+  | { code: "unreadable"; positions: number[] }
+  /** Initial frames with a mask while the images go out as a set, which takes no mask. */
+  | { code: "maskWithSet"; positions: number[]; images: number }
+  /** Control and IP-Adapter frames sending while the images go out as a set. */
+  | { code: "controlWithSet"; positions: number[]; images: number };
 
 export interface Outline {
   entries: OutlineEntry[];
@@ -104,12 +122,19 @@ export interface Outline {
   sent: SentInput[];
   controls: ControlSend[];
   ipAdapters: IpAdapterSend[];
+  /** The images go out as one set: several of them, or a lone Reference on a
+   * model whose output size the request sets. */
+  set: boolean;
   problems: OutlineProblem[];
 }
 
 export interface OutlineEnv {
   /** The loaded checkpoint carries its control model, so a ControlNet frame needs none. */
   controlUnified?: boolean;
+  /** Most input images the model takes in one request; null or absent while unknown. */
+  maxInputImages?: number | null;
+  /** The request sets the output size, also from a single input image. */
+  requestSetsSize?: boolean | null;
 }
 
 type Unnumbered = Omit<SentInput, "address"> & { kind: MediaKind };
@@ -159,11 +184,75 @@ function controlSource(
   return { source: target, layers: composedPictures(target) };
 }
 
+type Settled = Omit<OutlineEntry, "blockedBy">;
+
+const ascending = (positions: Iterable<number>) => [...new Set(positions)].sort((a, b) => a - b);
+
+function findProblems(
+  entries: Settled[],
+  sent: SentInput[],
+  controls: ControlSend[],
+  ipAdapters: IpAdapterSend[],
+  set: boolean,
+  env: OutlineEnv,
+): OutlineProblem[] {
+  const problems: OutlineProblem[] = [];
+  const positionOf = new Map(entries.map((e) => [e.frameId, e.position]));
+  const limit = env.maxInputImages ?? null;
+  if (limit !== null && sent.length > limit) {
+    const over = sent.slice(limit).map((s) => ({
+      position: positionOf.get(s.frameId) ?? 0,
+      frameId: s.frameId,
+      pictureId: s.pictureId,
+      address: s.address,
+    }));
+    problems.push({
+      code: "tooManyImages",
+      limit,
+      sent: sent.length,
+      positions: ascending(over.map((o) => o.position)),
+      over,
+    });
+  }
+  const unreadable = ascending([
+    ...sent.filter((s) => s.unreadable).map((s) => positionOf.get(s.frameId) ?? 0),
+    ...[...controls, ...ipAdapters].filter((s) => s.unreadable).map((s) => s.position),
+  ]);
+  if (unreadable.length > 0) problems.push({ code: "unreadable", positions: unreadable });
+  if (set) {
+    const masked = ascending(
+      sent.filter((s) => s.masked).map((s) => positionOf.get(s.frameId) ?? 0),
+    );
+    if (masked.length > 0) {
+      problems.push({ code: "maskWithSet", positions: masked, images: sent.length });
+    }
+    const control = ascending([...controls, ...ipAdapters].map((s) => s.position));
+    if (control.length > 0) {
+      problems.push({ code: "controlWithSet", positions: control, images: sent.length });
+    }
+  }
+  const types = [...new Set(controls.map((c) => c.settings.type))];
+  if (types.length > 1) {
+    problems.push({
+      code: "mixedControlTypes",
+      frames: controls.map((c) => ({ position: c.position, type: c.settings.type })),
+    });
+  }
+  return problems;
+}
+
+/** The positions a problem names. */
+export function problemPositions(problem: OutlineProblem): number[] {
+  return problem.code === "mixedControlTypes"
+    ? problem.frames.map((f) => f.position)
+    : problem.positions;
+}
+
 export function computeOutline(frames: Frame[], env: OutlineEnv = {}): Outline {
   const next: Record<MediaKind, number> = { image: 1, video: 1, audio: 1 };
   const controls: ControlSend[] = [];
   const ipAdapters: IpAdapterSend[] = [];
-  const entries = frames.map((frame, index): OutlineEntry => {
+  const settled = frames.map((frame, index): Settled => {
     const position = index + 1;
     const shown = isComposed(frame.role) ? [] : frame.pictures.filter((p) => !p.hiddenBySwitch);
     const linkedIndex = frame.link ? frames.findIndex((f) => f.id === frame.link?.frameId) : -1;
@@ -226,17 +315,18 @@ export function computeOutline(frames: Frame[], env: OutlineEnv = {}): Outline {
       })),
     };
   });
-  const types = [...new Set(controls.map((c) => c.settings.type))];
-  const problems: OutlineProblem[] =
-    types.length > 1
-      ? [
-          {
-            code: "mixedControlTypes",
-            frames: controls.map((c) => ({ position: c.position, type: c.settings.type })),
-          },
-        ]
-      : [];
-  return { entries, sent: entries.flatMap((e) => e.sent), controls, ipAdapters, problems };
+  const sent = settled.flatMap((e) => e.sent);
+  const set =
+    sent.length > 1 ||
+    (sent.length === 1 && sent[0].role === "reference" && env.requestSetsSize === true);
+  const problems = findProblems(settled, sent, controls, ipAdapters, set, env);
+  const entries = settled.map((entry): OutlineEntry => ({
+    ...entry,
+    blockedBy: problems
+      .filter((p) => problemPositions(p).includes(entry.position))
+      .map((p) => p.code),
+  }));
+  return { entries, sent, controls, ipAdapters, set, problems };
 }
 
 export function outlineEntry(outline: Outline, frameId: string): OutlineEntry | undefined {
@@ -274,19 +364,34 @@ export function sizeSourcePick(input: SentInput): SizeSourcePick {
   return { frameId: input.frameId, pictureId: input.pictureId };
 }
 
-/** The sent picture that sets the frame size: the pick while it is still
- * sent, else the first one. A pick follows its frame across a role switch, to
- * the frame's first picture or to its composite. */
+/** Where the frame size comes from. "first": Image 1, nothing picked.
+ * "lost": the picked picture is no longer sent while others are, so the size
+ * stays as it is until the pick changes. */
+export type SizeSourceState =
+  | { kind: "none" }
+  | { kind: "first"; input: SentInput }
+  | { kind: "picked"; input: SentInput }
+  | { kind: "lost"; pick: SizeSourcePick };
+
+/** A pick follows its frame across a role switch, to the frame's first
+ * picture or to its composite. */
+export function sizeSourceState(sent: SentInput[], pick: SizeSourcePick | null): SizeSourceState {
+  if (sent.length === 0) return { kind: "none" };
+  if (!pick) return { kind: "first", input: sent[0] };
+  const picked = sent.find(
+    (s) =>
+      s.frameId === pick.frameId &&
+      (s.pictureId === null || pick.pictureId === null || s.pictureId === pick.pictureId),
+  );
+  return picked ? { kind: "picked", input: picked } : { kind: "lost", pick };
+}
+
+/** The sent picture that sets the frame size, or null: nothing is sent, or
+ * the pick is lost and the size is kept. */
 export function resolveSizeSource(
   sent: SentInput[],
   pick: SizeSourcePick | null,
 ): SentInput | null {
-  const picked = pick
-    ? sent.find(
-        (s) =>
-          s.frameId === pick.frameId &&
-          (s.pictureId === null || pick.pictureId === null || s.pictureId === pick.pictureId),
-      )
-    : undefined;
-  return picked ?? sent[0] ?? null;
+  const state = sizeSourceState(sent, pick);
+  return state.kind === "first" || state.kind === "picked" ? state.input : null;
 }

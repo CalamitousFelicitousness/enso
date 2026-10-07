@@ -54,13 +54,17 @@ export interface SplitFrames {
   blobs: Map<string, Blob>;
 }
 
-export function splitFrames(frames: Frame[]): SplitFrames {
-  const blobs = new Map<string, Blob>();
-  const picture = ({ file, ...rest }: Picture): StoredPicture => {
+/** A picture's stored form, its bytes put aside in `blobs`. */
+function storing(blobs: Map<string, Blob>) {
+  return ({ file, ...rest }: Picture): StoredPicture => {
     if (file) blobs.set(rest.cid, file);
     return { ...rest, missing: file === null };
   };
-  const stored = frames.map((frame): StoredFrame => {
+}
+
+function splitInto(frames: Frame[], blobs: Map<string, Blob>): StoredFrame[] {
+  const picture = storing(blobs);
+  return frames.map((frame): StoredFrame => {
     const objects = frame.mask.objects.map(({ blob, ...rest }): StoredMaskObject => {
       blobs.set(rest.cid, blob);
       return rest;
@@ -79,7 +83,11 @@ export function splitFrames(frames: Frame[]): SplitFrames {
       processed,
     };
   });
-  return { frames: stored, blobs };
+}
+
+export function splitFrames(frames: Frame[]): SplitFrames {
+  const blobs = new Map<string, Blob>();
+  return { frames: splitInto(frames, blobs), blobs };
 }
 
 /** Content whose bytes were stored and are no longer there. */
@@ -90,17 +98,22 @@ export interface JoinLoss {
 
 /** Frames with their bytes back. A picture without bytes stays, unreadable; a
  * mask object without bytes is dropped. */
-export function joinFrames(
+/** A stored picture with its bytes back; one whose bytes are gone is noted in `lost`. */
+function joining(blobs: ReadonlyMap<string, Blob>, lost: JoinLoss, frameId: string) {
+  return ({ missing, ...rest }: StoredPicture): Picture => {
+    const file = blobs.get(rest.cid) ?? null;
+    if (!file && !missing) lost.pictures.push({ frameId, name: rest.name });
+    return { ...rest, file };
+  };
+}
+
+function joinInto(
   stored: StoredFrame[],
   blobs: ReadonlyMap<string, Blob>,
-): { frames: Frame[]; lost: JoinLoss } {
-  const lost: JoinLoss = { pictures: [], maskObjects: 0 };
-  const frames = stored.map((frame): Frame => {
-    const picture = ({ missing, ...rest }: StoredPicture): Picture => {
-      const file = blobs.get(rest.cid) ?? null;
-      if (!file && !missing) lost.pictures.push({ frameId: frame.id, name: rest.name });
-      return { ...rest, file };
-    };
+  lost: JoinLoss,
+): Frame[] {
+  return stored.map((frame): Frame => {
+    const picture = joining(blobs, lost, frame.id);
     const objects = frame.mask.objects.flatMap((object): MaskObject[] => {
       const blob = blobs.get(object.cid);
       if (!blob) lost.maskObjects += 1;
@@ -121,7 +134,14 @@ export function joinFrames(
       processed,
     };
   });
-  return { frames, lost };
+}
+
+export function joinFrames(
+  stored: StoredFrame[],
+  blobs: ReadonlyMap<string, Blob>,
+): { frames: Frame[]; lost: JoinLoss } {
+  const lost: JoinLoss = { pictures: [], maskObjects: 0 };
+  return { frames: joinInto(stored, blobs, lost), lost };
 }
 
 /** Stored inputs hold something this build cannot account for. */
@@ -545,4 +565,153 @@ export function joinSnapshot(
 ): { frames: Frame[]; size: Size; lost: JoinLoss } {
   const { frames, lost } = joinFrames(record.frames, blobs);
   return { frames, size: record.size, lost };
+}
+
+/** What a user action took out of the inputs, kept so it can be brought back:
+ * a whole frame at its place in the list, what a clear emptied out of a frame
+ * that stays, one picture at its place in a frame, or the whole list a restore
+ * replaced. `linkedFrom` names the Control frames that used a removed frame's
+ * picture. */
+export type RemovalContent<F, P> =
+  | { kind: "frame"; index: number; frame: F; linkedFrom: string[] }
+  | { kind: "contents"; frame: F }
+  | { kind: "picture"; index: number; picture: P }
+  | { kind: "frames"; frames: F[] };
+
+export interface Removal {
+  removedAt: number;
+  /** The "Input N" it came from, and that frame's id. */
+  from: { position: number; frameId: string; role: FrameRole };
+  content: RemovalContent<Frame, Picture>;
+}
+
+export interface StoredRemoval extends Omit<Removal, "content"> {
+  schema: number;
+  content: RemovalContent<StoredFrame, StoredPicture>;
+}
+
+export function splitRemoval(removal: Removal): {
+  record: StoredRemoval;
+  blobs: Map<string, Blob>;
+} {
+  const blobs = new Map<string, Blob>();
+  const { content } = removal;
+  let stored: StoredRemoval["content"];
+  switch (content.kind) {
+    case "frame":
+      stored = { ...content, frame: splitInto([content.frame], blobs)[0] };
+      break;
+    case "contents":
+      stored = { kind: "contents", frame: splitInto([content.frame], blobs)[0] };
+      break;
+    case "picture":
+      stored = { ...content, picture: storing(blobs)(content.picture) };
+      break;
+    case "frames":
+      stored = { kind: "frames", frames: splitInto(content.frames, blobs) };
+      break;
+  }
+  return {
+    record: {
+      schema: DOCUMENT_SCHEMA,
+      removedAt: removal.removedAt,
+      from: { ...removal.from },
+      content: stored,
+    },
+    blobs,
+  };
+}
+
+export interface ReadRemoval {
+  record: StoredRemoval;
+  cids: string[];
+}
+
+const REMOVAL_KINDS: readonly RemovalContent<never, never>["kind"][] = [
+  "frame",
+  "contents",
+  "picture",
+  "frames",
+];
+
+/** A stored removal checked like the working document. */
+export function readRemoval(value: unknown): ReadRemoval {
+  const r = fields<StoredRemoval>(value, "removal");
+  const schema = num(r.schema, "removal.schema");
+  if (schema > DOCUMENT_SCHEMA) throw new NewerDocument(schema);
+  const reader = new FrameReader(schema);
+  const from = fields<StoredRemoval["from"]>(r.from, "removal.from");
+  const c = fields<StoredRemoval["content"]>(r.content, "removal.content");
+  const kind = oneOf(c.kind, REMOVAL_KINDS, "removal.content.kind");
+  let content: StoredRemoval["content"];
+  if (kind === "frame") {
+    const raw = c as Loose<Extract<StoredRemoval["content"], { kind: "frame" }>>;
+    content = exact(raw, "removal.content", {
+      kind,
+      index: num(raw.index, "removal.content.index"),
+      frame: reader.frame(raw.frame, "removal.content.frame"),
+      linkedFrom: list(raw.linkedFrom, "removal.content.linkedFrom").map((id, i) =>
+        text(id, `removal.content.linkedFrom[${i}]`),
+      ),
+    });
+  } else if (kind === "contents") {
+    const raw = c as Loose<Extract<StoredRemoval["content"], { kind: "contents" }>>;
+    content = exact(raw, "removal.content", {
+      kind,
+      frame: reader.frame(raw.frame, "removal.content.frame"),
+    });
+  } else if (kind === "picture") {
+    const raw = c as Loose<Extract<StoredRemoval["content"], { kind: "picture" }>>;
+    content = exact(raw, "removal.content", {
+      kind,
+      index: num(raw.index, "removal.content.index"),
+      picture: reader.picture(raw.picture, "removal.content.picture"),
+    });
+  } else {
+    const raw = c as Loose<Extract<StoredRemoval["content"], { kind: "frames" }>>;
+    content = exact(raw, "removal.content", {
+      kind,
+      frames: list(raw.frames, "removal.content.frames").map((f, i) =>
+        reader.frame(f, `removal.content.frames[${i}]`),
+      ),
+    });
+  }
+  const record = exact(r, "removal", {
+    schema: DOCUMENT_SCHEMA,
+    removedAt: num(r.removedAt, "removal.removedAt"),
+    from: exact(from, "removal.from", {
+      position: num(from.position, "removal.from.position"),
+      frameId: text(from.frameId, "removal.from.frameId"),
+      role: oneOf(from.role, ROLES, "removal.from.role"),
+    }),
+    content,
+  });
+  return { record, cids: [...reader.cids] };
+}
+
+export function joinRemoval(
+  record: StoredRemoval,
+  blobs: ReadonlyMap<string, Blob>,
+): { removal: Removal; lost: JoinLoss } {
+  const lost: JoinLoss = { pictures: [], maskObjects: 0 };
+  const { content } = record;
+  let joined: Removal["content"];
+  switch (content.kind) {
+    case "frame":
+      joined = { ...content, frame: joinInto([content.frame], blobs, lost)[0] };
+      break;
+    case "contents":
+      joined = { kind: "contents", frame: joinInto([content.frame], blobs, lost)[0] };
+      break;
+    case "picture":
+      joined = { ...content, picture: joining(blobs, lost, record.from.frameId)(content.picture) };
+      break;
+    case "frames":
+      joined = { kind: "frames", frames: joinInto(content.frames, blobs, lost) };
+      break;
+  }
+  return {
+    removal: { removedAt: record.removedAt, from: { ...record.from }, content: joined },
+    lost,
+  };
 }

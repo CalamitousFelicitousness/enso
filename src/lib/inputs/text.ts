@@ -9,6 +9,7 @@ import type {
   OutlineProblem,
   SentInput,
 } from "./outline";
+import type { AddressChange } from "./renumber";
 import type { ControlType, FrameRole, MediaKind } from "./types";
 
 const KIND: Record<MediaKind, string> = { image: "Image", video: "Video", audio: "Audio" };
@@ -44,17 +45,27 @@ export function positionLabel(position: number): string {
   return `Input ${position}`;
 }
 
+/** "Input 2", "Inputs 2-3" for a run, "Inputs 2, 4" otherwise. */
+export function positionsLabel(positions: number[]): string {
+  const sorted = [...new Set(positions)].sort((a, b) => a - b);
+  if (sorted.length === 1) return positionLabel(sorted[0]);
+  const first = sorted[0];
+  const last = sorted[sorted.length - 1];
+  const run = last - first === sorted.length - 1;
+  return `Inputs ${run ? `${first}-${last}` : sorted.join(", ")}`;
+}
+
 /** "Image 3": a sent picture by the number a prompt uses. */
 export function addressLabel(address: Address): string {
   return `${KIND[address.kind]} ${address.n}`;
 }
 
-/** What a frame sends: "Image 2", "Image 2-4", "Image 2, Video 1". Null when
- * it sends nothing. */
-export function sentLabel(sent: SentInput[]): string | null {
-  if (sent.length === 0) return null;
+/** "Image 2", "Image 2-4", "Image 2, Video 1": addresses as ranges per kind.
+ * Null for none. */
+export function addressesLabel(addresses: Address[]): string | null {
+  if (addresses.length === 0) return null;
   const numbers = new Map<MediaKind, number[]>();
-  for (const { address } of sent) {
+  for (const address of addresses) {
     numbers.set(address.kind, [...(numbers.get(address.kind) ?? []), address.n]);
   }
   return [...numbers]
@@ -64,6 +75,11 @@ export function sentLabel(sent: SentInput[]): string | null {
       return first === last ? `${KIND[kind]} ${first}` : `${KIND[kind]} ${first}-${last}`;
     })
     .join(", ");
+}
+
+/** What a frame sends, as `addressesLabel`. Null when it sends nothing. */
+export function sentLabel(sent: SentInput[]): string | null {
+  return addressesLabel(sent.map((s) => s.address));
 }
 
 /** "Not sent: no model". */
@@ -76,13 +92,24 @@ export function linkedLabel(position: number): string {
   return `uses ${positionLabel(position)}`;
 }
 
+/** One word for what a frame does in the next request. */
+export function statusWord(entry: OutlineEntry): string {
+  if (entry.blockedBy.length > 0) return "blocked";
+  switch (entry.status) {
+    case "off":
+      return "off";
+    case "empty":
+      return "empty";
+    case "notSent":
+      return "not sent";
+    case "sent":
+      return "sent";
+  }
+}
+
 function unreadableAt(positions: number[]): string | null {
   if (positions.length === 0) return null;
-  const where = [...positions]
-    .sort((a, b) => a - b)
-    .map(positionLabel)
-    .join(", ");
-  return `A stored picture in ${where} could not be read. Replace or remove it.`;
+  return `A stored picture in ${positionsLabel(positions)} could not be read. Replace or remove it.`;
 }
 
 /** Why a job cannot be built from these inputs, or null. */
@@ -101,13 +128,64 @@ export function unreadableControlText(
   );
 }
 
+const imagesSent = (images: number) =>
+  images > 1 ? "several input images" : "a Reference image sent at the size you set";
+
 /** Why the request cannot carry the frames as they stand. */
 export function problemText(problem: OutlineProblem): string {
-  const frames = problem.frames
-    .map((f) => `${positionLabel(f.position)} (${CONTROL_TYPE[f.type]})`)
-    .join(", ");
-  return `Control frames must share one type: ${frames}. Switch the type or turn some off.`;
+  switch (problem.code) {
+    case "mixedControlTypes": {
+      const frames = problem.frames
+        .map((f) => `${positionLabel(f.position)} (${CONTROL_TYPE[f.type]})`)
+        .join(", ");
+      return `Control frames must share one type: ${frames}.`;
+    }
+    case "tooManyImages": {
+      const takes = problem.limit === 1 ? "one input image" : `up to ${problem.limit} input images`;
+      return `This model takes ${takes}; the frames send ${problem.sent}.`;
+    }
+    case "unreadable":
+      return unreadableAt(problem.positions) ?? "";
+    case "maskWithSet":
+      return `The mask on ${positionsLabel(problem.positions)} cannot be sent with ${imagesSent(problem.images)}.`;
+    case "controlWithSet":
+      return `${positionsLabel(problem.positions)} cannot be sent with ${imagesSent(problem.images)}.`;
+  }
 }
+
+/** What the fix for a problem does, as a button label. */
+export function fixLabel(problem: OutlineProblem): string {
+  switch (problem.code) {
+    case "mixedControlTypes": {
+      const keep = problem.frames[0]?.type;
+      const others = problem.frames.filter((f) => f.type !== keep).map((f) => f.position);
+      return `Turn off ${positionsLabel(others)}`;
+    }
+    case "tooManyImages": {
+      // pictures of set frames can be hidden one by one; a composite only with its frame
+      const composed = problem.over.filter((o) => o.pictureId === null);
+      if (composed.length > 0) return `Turn off ${positionsLabel(problem.positions)}`;
+      return `Hide ${addressesLabel(problem.over.map((o) => o.address)) ?? ""}`;
+    }
+    case "controlWithSet":
+      return `Turn off ${positionsLabel(problem.positions)}`;
+    case "unreadable":
+      return "Remove the unreadable pictures";
+    case "maskWithSet":
+      return "Clear the mask";
+  }
+}
+
+/** "Image 4 is now Image 2, Image 5 is now Image 3". Null without a change. */
+export function renumberText(changes: AddressChange[]): string | null {
+  if (changes.length === 0) return null;
+  return changes.map((c) => `${addressLabel(c.from)} is now ${addressLabel(c.to)}`).join(", ");
+}
+
+/** The picked size source is no longer sent, so Width and Height stay. */
+export const SIZE_SOURCE_LOST_TEXT =
+  "The image the size came from is no longer sent. Width and Height stay as they are.";
+export const SIZE_SOURCE_FIRST_LABEL = "Use Image 1";
 
 /** The server predates the sdnext change that lets a control unit keep its own picture beside an Initial picture. */
 export const CONTROL_PICTURE_SERVER_TEXT =

@@ -47,3 +47,8 @@ export function planSweep(
   }
   return plan;
 }
+
+/** When a removal record may be dropped: the same period as its bytes. */
+export function removalExpiry(removedAt: number): number {
+  return removedAt + RETENTION_MS;
+}

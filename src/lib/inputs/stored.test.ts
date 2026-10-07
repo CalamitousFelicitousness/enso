@@ -4,16 +4,20 @@ import { defaultControl, defaultIpAdapter } from "./reducers";
 import {
   DOCUMENT_SCHEMA,
   joinFrames,
+  joinRemoval,
   joinSnapshot,
   joinWorking,
   NewerDocument,
+  readRemoval,
   readSnapshot,
   readStoredFrames,
   readWorking,
   splitFrames,
+  splitRemoval,
   splitSnapshot,
   splitWorking,
   UnreadableDocument,
+  type Removal,
   type WorkingDocument,
 } from "./stored";
 import type { Frame } from "./types";
@@ -265,5 +269,65 @@ describe("the inputs snapshot", () => {
   it("refuses a snapshot without a size", () => {
     const { record } = splitSnapshot(sample(), { width: 8, height: 8 });
     expect(() => readSnapshot({ ...record, size: undefined })).toThrow(UnreadableDocument);
+  });
+});
+
+describe("removal records", () => {
+  const removals = (): Removal[] => {
+    const [paint, refs] = sample();
+    return [
+      {
+        removedAt: 1000,
+        from: { position: 1, frameId: "paint", role: "initial" },
+        content: { kind: "frame", index: 0, frame: paint, linkedFrom: ["edges"] },
+      },
+      {
+        removedAt: 1001,
+        from: { position: 1, frameId: "paint", role: "initial" },
+        content: { kind: "contents", frame: paint },
+      },
+      {
+        removedAt: 1002,
+        from: { position: 2, frameId: "refs", role: "reference" },
+        content: { kind: "picture", index: 1, picture: refs.pictures[1] },
+      },
+      {
+        removedAt: 1003,
+        from: { position: 1, frameId: "paint", role: "initial" },
+        content: { kind: "frames", frames: [paint, refs] },
+      },
+    ];
+  };
+
+  it("round-trips every kind through its stored form", () => {
+    for (const removal of removals()) {
+      const { record, blobs } = splitRemoval(removal);
+      expect(structuredClone(record)).toEqual(record);
+      const read = readRemoval(record);
+      expect(read.record).toEqual(record);
+      expect(new Set(read.cids)).toEqual(new Set(blobs.keys()));
+      const { removal: back, lost } = joinRemoval(read.record, blobs);
+      expect(back).toEqual(removal);
+      expect(lost).toEqual({ pictures: [], maskObjects: 0 });
+    }
+  });
+
+  it("refuses a record with a kind or field it does not know", () => {
+    const { record } = splitRemoval(removals()[2]);
+    const content = record.content as Record<string, unknown>;
+    expect(() => readRemoval({ ...record, content: { ...content, kind: "other" } })).toThrow(
+      UnreadableDocument,
+    );
+    expect(() => readRemoval({ ...record, content: { ...content, extra: 1 } })).toThrow(
+      UnreadableDocument,
+    );
+    expect(() => readRemoval({ ...record, schema: DOCUMENT_SCHEMA + 1 })).toThrow(NewerDocument);
+  });
+
+  it("notes a picture whose bytes are gone under the frame it came from", () => {
+    const { record } = splitRemoval(removals()[2]);
+    const { removal, lost } = joinRemoval(record, new Map());
+    expect(removal.content.kind === "picture" && removal.content.picture.file).toBeNull();
+    expect(lost.pictures).toEqual([{ frameId: "refs", name: "b.png" }]);
   });
 });
