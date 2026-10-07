@@ -334,7 +334,7 @@ def execute_generate(params: dict, job_id: str) -> dict:
         size = min(params.get("width", 512), params.get("height", 512))
         masking.opts.mask_blur = round(4 * mask_blur_px / size, 3) if mask_blur_px > 0 and size > 0 else 0
         masking.opts.mask_only = params.get("inpaint_full_res", False)
-        masking.opts.invert = params.get("inpainting_mask_invert", 0) == 1
+        masking.opts.mask_invert = params.get("inpainting_mask_invert", 0) == 1
         masking.opts.auto_mask = "None"
         masking.opts.auto_segment = "None"
         masking.opts.mask_erode = 0
