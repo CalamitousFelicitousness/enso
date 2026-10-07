@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { frame, layer, maskObject, picture } from "./frames.fixture";
-import { centredTransform, containTransform, refitFrame } from "./geometry";
+import { centredTransform, containTransform, fitTransform, refitFrame } from "./geometry";
 import type { Frame, Transform } from "./types";
 
 const at = (patch: Partial<Transform>): Transform => ({
@@ -107,5 +107,32 @@ describe("placing a new picture", () => {
 
   it("gives a picture with no area no scale", () => {
     expect(containTransform({ width: 0, height: 0 }, { width: 100, height: 100 })).toEqual(at({}));
+  });
+});
+
+describe("fitTransform", () => {
+  const natural = { width: 200, height: 100 };
+  const square = { width: 100, height: 100 };
+
+  it("contain fits inside the frame, centred", () => {
+    expect(fitTransform(natural, square, "contain")).toEqual(
+      at({ x: 0, y: 25, scaleX: 0.5, scaleY: 0.5 }),
+    );
+  });
+
+  it("cover fills the frame and overflows, centred", () => {
+    expect(fitTransform(natural, square, "cover")).toEqual(at({ x: -50, y: 0 }));
+  });
+
+  it("fill stretches to the frame on both axes", () => {
+    expect(fitTransform(natural, square, "fill")).toEqual(at({ scaleX: 0.5, scaleY: 1 }));
+  });
+
+  it("refitFrame lays the base over the frame by the frame's fit", () => {
+    const f: Frame = { ...frame("f", "control", layer("a", natural)), fit: "cover" };
+    expect(baseOf(refitFrame(f, square))).toEqual(at({ x: -50, y: 0 }));
+    expect(baseOf(refitFrame({ ...f, fit: "fill" }, square))).toEqual(
+      at({ scaleX: 0.5, scaleY: 1 }),
+    );
   });
 });

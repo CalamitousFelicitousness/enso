@@ -1,23 +1,72 @@
 // Every change to the frame list, as functions from one value to the next.
 // The store wraps them; nothing here reads state from anywhere else.
 
-import { centredTransform, containTransform } from "./geometry";
+import { centredTransform, fitTransform, refitFrame } from "./geometry";
 import {
   isComposed,
   isPlaced,
   type ActiveItem,
+  type ControlSettings,
+  type FitPolicy,
   type Frame,
   type FrameRole,
+  type IpAdapterSettings,
   type MaskObject,
   type MaskStroke,
   type Picture,
   type PictureSource,
+  type ProcessedPreview,
   type Size,
   type Transform,
 } from "./types";
 
+export function defaultControl(): ControlSettings {
+  return {
+    type: "controlnet",
+    model: "None",
+    mode: "default",
+    strength: 1,
+    start: 0,
+    end: 1,
+    guess: false,
+    factor: 1,
+    attention: "Attention",
+    fidelity: 0.5,
+    queryWeight: 1,
+    adainWeight: 1,
+    process: "None",
+    processParams: {},
+  };
+}
+
+export function defaultIpAdapter(): IpAdapterSettings {
+  return { adapter: "None", scale: 0.5, crop: false, start: 0, end: 1, masks: [] };
+}
+
+/** A Control frame lays its picture over the frame by policy; the other roles place by hand. */
+function fitFor(role: FrameRole, current: FitPolicy | null): FitPolicy | null {
+  if (role === "control") return current ?? "contain";
+  return role === "initial" ? null : current;
+}
+
 export function newFrame(id: string, role: FrameRole): Frame {
-  return { id, role, enabled: true, pictures: [], mask: { objects: [], strokes: [] } };
+  return {
+    id,
+    role,
+    enabled: true,
+    pictures: [],
+    mask: { objects: [], strokes: [] },
+    fit: fitFor(role, null),
+    link: null,
+    control: defaultControl(),
+    ipAdapter: defaultIpAdapter(),
+    processed: null,
+  };
+}
+
+/** Where a composed frame puts a picture that has none: by its fit policy, else inside the frame. */
+function basePlacement(frame: Frame, natural: Size, size: Size): Transform {
+  return fitTransform(natural, size, frame.fit ?? "contain");
 }
 
 export function newPicture(source: PictureSource): Picture {
@@ -59,8 +108,12 @@ export function insertFrame(frames: Frame[], frame: Frame, at = frames.length): 
   return [...frames.slice(0, index), frame, ...frames.slice(index)];
 }
 
+/** Remove a frame; a Control frame that took its picture from it is left without a source. */
 export function removeFrame(frames: Frame[], frameId: string): Frame[] {
-  return frames.some((f) => f.id === frameId) ? frames.filter((f) => f.id !== frameId) : frames;
+  if (!frames.some((f) => f.id === frameId)) return frames;
+  return frames
+    .filter((f) => f.id !== frameId)
+    .map((f) => (f.link?.frameId === frameId ? { ...f, link: null } : f));
 }
 
 /** The list with one item moved; the same list for a move that changes nothing. */
@@ -84,44 +137,49 @@ function updatePictures(frame: Frame, change: (picture: Picture) => Picture): Fr
 }
 
 /** Switch what the frame does with its pictures. Pictures the last switch hid
- * come back first. Becoming Initial keeps the composition the frame has; with
- * none, its first picture is fitted inside the frame, and every other picture
- * that was never placed is hidden until the switch back. */
+ * come back first. A switch between two composed roles, or two set roles,
+ * keeps everything else. Becoming composed keeps the composition the frame
+ * has; with none, its first picture is laid over the frame, and every other
+ * picture that was never placed is hidden until the switch back. */
 export function switchRole(frame: Frame, role: FrameRole, size: Size): Frame {
   if (frame.role === role) return frame;
   const shown = frame.pictures.map((p) =>
     p.hiddenBySwitch ? { ...p, visible: true, hiddenBySwitch: false } : p,
   );
-  if (!isComposed(role)) return { ...frame, role, pictures: shown };
+  const next = { ...frame, role, fit: fitFor(role, frame.fit) };
+  if (!isComposed(role) || isComposed(frame.role)) return { ...next, pictures: shown };
   let hasBase = shown.some((p) => p.visible && isPlaced(p));
   const pictures = shown.map((p) => {
     if (!p.visible || isPlaced(p)) return p;
     if (!hasBase) {
       hasBase = true;
-      return { ...p, transform: containTransform(p, size) };
+      return { ...p, transform: basePlacement(next, p, size) };
     }
     return { ...p, visible: false, hiddenBySwitch: true };
   });
-  return { ...frame, role, pictures };
+  return { ...next, pictures };
 }
 
-/** Bring back every picture a role switch hid. In an Initial frame each one
- * is fitted inside the frame. */
+/** Bring back every picture a role switch hid. In a composed frame each one
+ * is laid over the frame. */
 export function showHiddenBySwitch(frame: Frame, size: Size): Frame {
   return updatePictures(frame, (p) => {
     if (!p.hiddenBySwitch) return p;
     const transform = isComposed(frame.role)
-      ? (p.transform ?? containTransform(p, size))
+      ? (p.transform ?? basePlacement(frame, p, size))
       : p.transform;
     return { ...p, visible: true, hiddenBySwitch: false, transform };
   });
 }
 
-/** Append a picture. An Initial frame fits its first placed picture inside the
+/** Append a picture. A composed frame lays its first placed picture over the
  * frame and centres later ones at natural size. */
 export function addPicture(frame: Frame, source: PictureSource, size: Size): Frame {
-  const place = frame.pictures.some(isPlaced) ? centredTransform : containTransform;
-  const transform = isComposed(frame.role) ? place(source, size) : null;
+  const transform = !isComposed(frame.role)
+    ? null
+    : frame.pictures.some(isPlaced)
+      ? centredTransform(source, size)
+      : basePlacement(frame, source, size);
   return { ...frame, pictures: [...frame.pictures, { ...newPicture(source), transform }] };
 }
 
@@ -155,15 +213,17 @@ export function patchPicture(frame: Frame, pictureId: string, patch: PicturePatc
   return updatePictures(frame, (p) => (p.id === pictureId ? { ...p, ...patch } : p));
 }
 
-/** Place a picture. Only a picture that already has a placement can be moved. */
+/** Place a picture by hand, which ends the frame's fit policy. Only a picture
+ * that already has a placement can be moved. */
 export function setPictureTransform(frame: Frame, pictureId: string, transform: Transform): Frame {
-  return updatePictures(frame, (p) =>
+  const placed = updatePictures(frame, (p) =>
     p.id === pictureId && isPlaced(p) ? { ...p, transform } : p,
   );
+  return placed === frame || placed.fit === null ? placed : { ...placed, fit: null };
 }
 
-/** Show or hide a picture by hand. Showing one an Initial frame has never
- * placed fits it inside the frame. */
+/** Show or hide a picture by hand. Showing one a composed frame has never
+ * placed lays it over the frame. */
 export function setPictureVisible(
   frame: Frame,
   pictureId: string,
@@ -173,13 +233,61 @@ export function setPictureVisible(
   return updatePictures(frame, (p) => {
     if (p.id !== pictureId || (p.visible === visible && !p.hiddenBySwitch)) return p;
     const transform =
-      visible && isComposed(frame.role) ? (p.transform ?? containTransform(p, size)) : p.transform;
+      visible && isComposed(frame.role)
+        ? (p.transform ?? basePlacement(frame, p, size))
+        : p.transform;
     return { ...p, visible, hiddenBySwitch: false, transform };
   });
 }
 
 export function setEnabled(frame: Frame, enabled: boolean): Frame {
   return frame.enabled === enabled ? frame : { ...frame, enabled };
+}
+
+/** Give the frame a fit policy and lay its composition over the frame by it;
+ * null leaves placements to the hand. */
+export function setFit(frame: Frame, fit: FitPolicy | null, size: Size): Frame {
+  if (frame.fit === fit) return frame;
+  const next = { ...frame, fit };
+  return fit === null ? next : refitFrame(next, size);
+}
+
+/** Point a Control frame at the composed frame whose picture it sends, or at none. */
+export function setLink(frame: Frame, frameId: string | null): Frame {
+  if ((frame.link?.frameId ?? null) === frameId) return frame;
+  return { ...frame, link: frameId === null ? null : { frameId } };
+}
+
+export function patchControl(frame: Frame, patch: Partial<ControlSettings>): Frame {
+  return { ...frame, control: { ...frame.control, ...patch } };
+}
+
+export function patchIpAdapter(
+  frame: Frame,
+  patch: Partial<Omit<IpAdapterSettings, "masks">>,
+): Frame {
+  return { ...frame, ipAdapter: { ...frame.ipAdapter, ...patch } };
+}
+
+export function addIpMask(frame: Frame, source: PictureSource): Frame {
+  const masks = [...frame.ipAdapter.masks, newPicture(source)];
+  return { ...frame, ipAdapter: { ...frame.ipAdapter, masks } };
+}
+
+export function clearIpMasks(frame: Frame): Frame {
+  return frame.ipAdapter.masks.length === 0
+    ? frame
+    : { ...frame, ipAdapter: { ...frame.ipAdapter, masks: [] } };
+}
+
+export function removeIpMask(frame: Frame, pictureId: string): Frame {
+  if (!frame.ipAdapter.masks.some((m) => m.id === pictureId)) return frame;
+  const masks = frame.ipAdapter.masks.filter((m) => m.id !== pictureId);
+  return { ...frame, ipAdapter: { ...frame.ipAdapter, masks } };
+}
+
+export function setProcessed(frame: Frame, processed: ProcessedPreview | null): Frame {
+  return frame.processed === processed ? frame : { ...frame, processed };
 }
 
 export function addStroke(frame: Frame, stroke: MaskStroke): Frame {

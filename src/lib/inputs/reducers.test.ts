@@ -1,21 +1,29 @@
 import { describe, expect, it } from "vitest";
 import { frame, layer, maskObject, picture } from "./frames.fixture";
 import {
+  addIpMask,
   addPicture,
   applyBake,
+  defaultControl,
   insertFrame,
   moveItem,
   movePicture,
   newFrame,
   patchTransform,
   removeFrame,
+  removeIpMask,
   removeItem,
+  setFit,
+  setLink,
   setOnlyPicture,
   setPictureTransform,
   setPictureVisible,
+  setProcessed,
   settleSelection,
   showHiddenBySwitch,
   switchRole,
+  patchControl,
+  patchIpAdapter,
   updateFrame,
 } from "./reducers";
 import type { Frame, PictureSource } from "./types";
@@ -284,5 +292,120 @@ describe("settleSelection", () => {
     expect(active({ frameId: "a", id: "gone" }, [a])).toBeNull();
     expect(active({ frameId: "a", id: "x" }, [{ ...a, role: "reference" }])).toBeNull();
     expect(active({ frameId: "c", id: "z" }, [a, c])).toEqual({ frameId: "c", id: "z" });
+  });
+});
+
+describe("control and IP-Adapter frames", () => {
+  it("gives a new Control frame a contain fit and every role the same defaults", () => {
+    expect(newFrame("c", "control").fit).toBe("contain");
+    expect(newFrame("i", "initial").fit).toBeNull();
+    expect(newFrame("r", "reference").control).toEqual(defaultControl());
+    expect(newFrame("r", "reference").ipAdapter.masks).toEqual([]);
+  });
+
+  it("lays a Control frame's first picture over the frame by its fit", () => {
+    const covered = addPicture(
+      { ...newFrame("c", "control"), fit: "cover" },
+      source("a", 64, 32),
+      SIZE,
+    );
+    expect(covered.pictures[0].transform).toEqual({
+      x: -512,
+      y: 0,
+      scaleX: 32,
+      scaleY: 32,
+      rotation: 0,
+    });
+    const filled = addPicture(
+      { ...newFrame("c", "control"), fit: "fill" },
+      source("a", 64, 32),
+      SIZE,
+    );
+    expect(filled.pictures[0].transform).toEqual({
+      x: 0,
+      y: 0,
+      scaleX: 16,
+      scaleY: 32,
+      rotation: 0,
+    });
+  });
+
+  it("ends the fit when a picture is placed by hand", () => {
+    const f = addPicture(newFrame("c", "control"), source("a"), SIZE);
+    expect(f.fit).toBe("contain");
+    const moved = setPictureTransform(f, "a", { ...f.pictures[0].transform!, x: 5 });
+    expect(moved.fit).toBeNull();
+    expect(patchTransform(f, "a", { rotation: 10 }).fit).toBeNull();
+    // moving nothing changes nothing
+    expect(setPictureTransform(f, "missing", f.pictures[0].transform!)).toBe(f);
+  });
+
+  it("lays the composition over the frame again when the fit changes", () => {
+    const f = addPicture(newFrame("c", "control"), source("a", 64, 32), SIZE);
+    const covered = setFit(f, "cover", SIZE);
+    expect(covered.fit).toBe("cover");
+    expect(covered.pictures[0].transform?.scaleX).toBe(32);
+    expect(setFit(covered, null, SIZE).pictures[0].transform).toEqual(
+      covered.pictures[0].transform,
+    );
+    expect(setFit(f, "contain", SIZE)).toBe(f);
+  });
+
+  it("keeps placements across a switch between composed roles", () => {
+    const f = frame(
+      "f",
+      "initial",
+      layer("a", { transform: { x: 10, y: 20, scaleX: 2, scaleY: 2, rotation: 0 } }),
+    );
+    const control = switchRole(f, "control", SIZE);
+    expect(control.pictures).toEqual(f.pictures);
+    expect(control.fit).toBe("contain");
+    const back = switchRole(control, "initial", SIZE);
+    expect(back.pictures).toEqual(f.pictures);
+    expect(back.fit).toBeNull();
+  });
+
+  it("places a set frame's first picture when it becomes Control", () => {
+    const control = switchRole(
+      frame("f", "reference", picture("a"), picture("b")),
+      "control",
+      SIZE,
+    );
+    expect(shape(control)).toEqual(["a*", "b(switch)"]);
+    expect(control.pictures[0].transform?.scaleX).toBe(16);
+    expect(switchRole(control, "ipAdapter", SIZE).pictures.map((p) => p.visible)).toEqual([
+      true,
+      true,
+    ]);
+  });
+
+  it("unlinks frames that took their picture from a removed frame", () => {
+    const frames = [
+      frame("a", "initial"),
+      setLink(frame("c", "control"), "a"),
+      setLink(frame("d", "control"), "other"),
+    ];
+    const left = removeFrame(frames, "a");
+    expect(left.map((f) => f.link?.frameId ?? null)).toEqual([null, "other"]);
+  });
+
+  it("sets links, settings, region masks and the processed map", () => {
+    const c = frame("c", "control");
+    expect(setLink(c, "a").link).toEqual({ frameId: "a" });
+    expect(setLink(c, null)).toBe(c);
+    expect(patchControl(c, { model: "Xinsir", strength: 0.7 }).control).toMatchObject({
+      model: "Xinsir",
+      strength: 0.7,
+      type: "controlnet",
+    });
+    const ip = frame("i", "ipAdapter");
+    const masked = addIpMask(patchIpAdapter(ip, { adapter: "Base SDXL" }), source("m"));
+    expect(masked.ipAdapter.adapter).toBe("Base SDXL");
+    expect(masked.ipAdapter.masks.map((m) => m.id)).toEqual(["m"]);
+    expect(removeIpMask(masked, "m").ipAdapter.masks).toEqual([]);
+    expect(removeIpMask(masked, "none")).toBe(masked);
+    const map = { cid: "map", blob: new Blob(["m"]), width: 8, height: 8 };
+    expect(setProcessed(c, map).processed).toBe(map);
+    expect(setProcessed(c, null)).toBe(c);
   });
 });

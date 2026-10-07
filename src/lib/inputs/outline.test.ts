@@ -11,8 +11,9 @@ import {
   type Outline,
   type SizeSourcePick,
 } from "./outline";
-import { addressLabel, sentLabel, unreadableText } from "./text";
-import type { Frame } from "./types";
+import { defaultControl, defaultIpAdapter } from "./reducers";
+import { addressLabel, problemText, sentLabel, unreadableText } from "./text";
+import type { ControlSettings, Frame, Picture } from "./types";
 
 /** Each sent picture as "Image 2 <- frame/picture", a composite as "frame/*". */
 const sends = (outline: Outline) =>
@@ -243,5 +244,124 @@ describe("resolveSizeSource", () => {
 
   it("finds nothing when nothing is sent", () => {
     expect(sized([frame("a", "initial"), frame("b", "reference")], null)).toBeNull();
+  });
+});
+
+describe("control and IP-Adapter frames", () => {
+  const unit = (
+    id: string,
+    patch: Partial<ControlSettings> = {},
+    ...pictures: Picture[]
+  ): Frame => ({
+    ...frame(id, "control", ...pictures),
+    control: { ...defaultControl(), model: "Xinsir", ...patch },
+  });
+  const adapter = (id: string, ...pictures: Picture[]): Frame => ({
+    ...frame(id, "ipAdapter", ...pictures),
+    ipAdapter: { ...defaultIpAdapter(), adapter: "Base SDXL" },
+  });
+
+  it("sends a Control frame's own picture to the control model, never numbered", () => {
+    const outline = computeOutline([
+      unit("edges", {}, layer("e")),
+      frame("man", "initial", layer("m")),
+    ]);
+    expect(sends(outline)).toEqual(["Image 1 <- man/*"]);
+    expect(outline.controls.map((c) => `${c.position}:${c.frameId}<-${c.sourceFrameId}`)).toEqual([
+      "1:edges<-edges",
+    ]);
+    expect(outline.entries[0]).toMatchObject({
+      status: "sent",
+      notSent: null,
+      slots: [],
+      linkedTo: null,
+    });
+  });
+
+  it("sends the linked frame's composite, whatever that frame's switch says", () => {
+    const man = { ...frame("man", "initial", layer("m")), enabled: false };
+    const outline = computeOutline([man, { ...unit("edges"), link: { frameId: "man" } }]);
+    expect(outline.sent).toEqual([]);
+    expect(outline.controls.map((c) => c.sourceFrameId)).toEqual(["man"]);
+    expect(outline.entries[1]).toMatchObject({ status: "sent", linkedTo: 1 });
+  });
+
+  it("says why a linked frame sends nothing", () => {
+    const statuses = (frames: Frame[]) =>
+      computeOutline(frames).entries.map((e) => `${e.status}${e.notSent ? `:${e.notSent}` : ""}`);
+    expect(statuses([{ ...unit("edges"), link: { frameId: "gone" } }])).toEqual([
+      "notSent:linkBroken",
+    ]);
+    expect(
+      statuses([
+        frame("refs", "reference", picture("a")),
+        { ...unit("edges"), link: { frameId: "refs" } },
+      ]),
+    ).toEqual(["sent", "notSent:linkBroken"]);
+    expect(
+      statuses([frame("man", "initial"), { ...unit("edges"), link: { frameId: "man" } }]),
+    ).toEqual(["empty", "notSent:noPicture"]);
+    expect(statuses([unit("edges")])).toEqual(["empty"]);
+  });
+
+  it("needs a model unless the type or the checkpoint brings one", () => {
+    const none = unit("edges", { model: "None" }, layer("e"));
+    expect(computeOutline([none]).entries[0]).toMatchObject({
+      status: "notSent",
+      notSent: "noModel",
+    });
+    expect(computeOutline([none], { controlUnified: true }).entries[0].status).toBe("sent");
+    const style = unit("style", { model: "None", type: "style_transfer" }, layer("s"));
+    expect(computeOutline([style]).entries[0].status).toBe("sent");
+  });
+
+  it("sends an IP-Adapter frame's pictures as a set, never numbered", () => {
+    const outline = computeOutline([
+      adapter("faces", picture("a"), picture("b", { visible: false })),
+      frame("man", "initial", layer("m")),
+    ]);
+    expect(sends(outline)).toEqual(["Image 1 <- man/*"]);
+    expect(outline.ipAdapters.map((a) => a.pictureIds)).toEqual([["a"]]);
+    expect(outline.entries[0].slots.map((s) => [s.pictureId, s.address])).toEqual([
+      ["a", null],
+      ["b", null],
+    ]);
+    expect(computeOutline([adapter("empty")]).entries[0].status).toBe("empty");
+    expect(computeOutline([frame("plain", "ipAdapter", picture("a"))]).entries[0]).toMatchObject({
+      status: "notSent",
+      notSent: "noModel",
+    });
+  });
+
+  it("reports control frames of more than one type", () => {
+    const outline = computeOutline([
+      unit("a", {}, layer("x")),
+      unit("b", { type: "t2i" }, layer("y")),
+      unit("c", { type: "t2i" }, layer("z")),
+    ]);
+    expect(outline.problems).toEqual([
+      {
+        code: "mixedControlTypes",
+        frames: [
+          { position: 1, type: "controlnet" },
+          { position: 2, type: "t2i" },
+          { position: 3, type: "t2i" },
+        ],
+      },
+    ]);
+    expect(problemText(outline.problems[0])).toBe(
+      "Control frames must share one type: Input 1 (ControlNet), Input 2 (T2I-Adapter), Input 3 (T2I-Adapter). Switch the type or turn some off.",
+    );
+    expect(computeOutline([unit("a", {}, layer("x")), unit("b", {}, layer("y"))]).problems).toEqual(
+      [],
+    );
+  });
+
+  it("flags a control picture whose bytes are gone", () => {
+    const outline = computeOutline([
+      unit("edges", {}, layer("e", { file: null })),
+      { ...unit("map", {}, layer("m")), processed: { cid: "p", blob: null, width: 1, height: 1 } },
+    ]);
+    expect(outline.controls.map((c) => c.unreadable)).toEqual([true, true]);
   });
 });

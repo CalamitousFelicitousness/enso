@@ -1,6 +1,7 @@
 // What the frame list means: where each frame stands, what it sends, and the
 // number each sent picture answers to. Both the canvas and the Input tab read
-// their labels from here, and the request builder sends exactly `sent`.
+// their labels from here, and the request builder sends exactly `sent`,
+// `controls` and `ipAdapters`.
 
 import { unreadableText } from "./text";
 import {
@@ -8,10 +9,14 @@ import {
   hasMask,
   isComposed,
   slotPictures,
+  type ControlSettings,
+  type ControlType,
   type Frame,
   type FrameRole,
+  type IpAdapterSettings,
   type MediaKind,
   type PlacedPicture,
+  type ProcessedPreview,
 } from "./types";
 
 /** How a prompt names a sent picture: "Image 3". Counted per kind across all frames. */
@@ -35,13 +40,17 @@ export interface SentInput {
   unreadable: boolean;
 }
 
-/** "off": switched off. "empty": on, with nothing to send. */
-export type FrameStatus = "sent" | "empty" | "off";
+/** "off": switched off. "empty": on, with nothing to send. "notSent": on and
+ * holding content, which no control model takes for the reason in `notSent`. */
+export type FrameStatus = "sent" | "empty" | "off" | "notSent";
 
-/** One cell of a Reference frame: a picture it shows, sent or hidden. */
+/** Why a Control or IP-Adapter frame that is on sends nothing. */
+export type NotSentReason = "noModel" | "noPicture" | "linkBroken";
+
+/** One cell of a set frame: a picture it shows, sent or hidden. */
 export interface OutlineSlot {
   pictureId: string;
-  /** Null while the picture is not sent. */
+  /** Null while the picture is not sent, always for a control picture. */
   address: Address | null;
 }
 
@@ -51,18 +60,56 @@ export interface OutlineEntry {
   position: number;
   role: FrameRole;
   status: FrameStatus;
+  notSent: NotSentReason | null;
   sent: SentInput[];
-  /** A Reference frame's pictures in order, leaving out those a role switch
-   * hid. Empty for an Initial frame. */
+  /** A set frame's pictures in order, leaving out those a role switch hid.
+   * Empty for a composed frame. */
   slots: OutlineSlot[];
   /** Pictures the last role switch hid. */
   hiddenBySwitch: number;
+  /** Position of the frame a Control frame takes its picture from, when linked. */
+  linkedTo: number | null;
+  /** A Control frame holds a processed map. */
+  processed: boolean;
 }
+
+/** A Control frame's picture as it travels: the composite of `sourceFrameId`
+ * under the frame's settings. */
+export interface ControlSend {
+  frameId: string;
+  position: number;
+  sourceFrameId: string;
+  settings: ControlSettings;
+  processed: ProcessedPreview | null;
+  unreadable: boolean;
+}
+
+export interface IpAdapterSend {
+  frameId: string;
+  position: number;
+  pictureIds: string[];
+  settings: IpAdapterSettings;
+  unreadable: boolean;
+}
+
+/** Something the request cannot carry as the frames stand. */
+export type OutlineProblem = {
+  code: "mixedControlTypes";
+  frames: { position: number; type: ControlType }[];
+};
 
 export interface Outline {
   entries: OutlineEntry[];
-  /** Everything sent, in the order the model receives it. */
+  /** Everything sent to the model's image list, in the order the model receives it. */
   sent: SentInput[];
+  controls: ControlSend[];
+  ipAdapters: IpAdapterSend[];
+  problems: OutlineProblem[];
+}
+
+export interface OutlineEnv {
+  /** The loaded checkpoint carries its control model, so a ControlNet frame needs none. */
+  controlUnified?: boolean;
 }
 
 type Unnumbered = Omit<SentInput, "address"> & { kind: MediaKind };
@@ -96,27 +143,100 @@ function frameSends(frame: Frame): Unnumbered[] {
   }));
 }
 
-export function computeOutline(frames: Frame[]): Outline {
+function needsModel(settings: ControlSettings, env: OutlineEnv): boolean {
+  if (settings.type === "style_transfer") return false;
+  return !(settings.type === "controlnet" && env.controlUnified);
+}
+
+/** The frame whose composite a Control frame sends: its link's target, else itself. */
+function controlSource(
+  frames: Frame[],
+  frame: Frame,
+): { source: Frame; layers: PlacedPicture[] } | "linkBroken" {
+  if (!frame.link) return { source: frame, layers: composedPictures(frame) };
+  const target = frames.find((f) => f.id === frame.link?.frameId);
+  if (!target || target.id === frame.id || !isComposed(target.role)) return "linkBroken";
+  return { source: target, layers: composedPictures(target) };
+}
+
+export function computeOutline(frames: Frame[], env: OutlineEnv = {}): Outline {
   const next: Record<MediaKind, number> = { image: 1, video: 1, audio: 1 };
+  const controls: ControlSend[] = [];
+  const ipAdapters: IpAdapterSend[] = [];
   const entries = frames.map((frame, index): OutlineEntry => {
+    const position = index + 1;
+    const shown = isComposed(frame.role) ? [] : frame.pictures.filter((p) => !p.hiddenBySwitch);
+    const linkedIndex = frame.link ? frames.findIndex((f) => f.id === frame.link?.frameId) : -1;
+    const entry = {
+      frameId: frame.id,
+      position,
+      role: frame.role,
+      hiddenBySwitch: frame.pictures.filter((p) => p.hiddenBySwitch).length,
+      linkedTo: frame.role === "control" && linkedIndex !== -1 ? linkedIndex + 1 : null,
+      processed: frame.role === "control" && frame.processed !== null,
+    };
+    const settle = (status: FrameStatus, notSent: NotSentReason | null = null) => ({
+      ...entry,
+      status,
+      notSent,
+      sent: [] as SentInput[],
+      slots: shown.map((p) => ({ pictureId: p.id, address: null })),
+    });
+    if (!frame.enabled) return settle("off");
+    if (frame.role === "control") {
+      const resolved = controlSource(frames, frame);
+      if (resolved === "linkBroken") return settle("notSent", "linkBroken");
+      if (resolved.layers.length === 0)
+        return settle(frame.link ? "notSent" : "empty", frame.link ? "noPicture" : null);
+      if (needsModel(frame.control, env) && frame.control.model === "None") {
+        return settle("notSent", "noModel");
+      }
+      controls.push({
+        frameId: frame.id,
+        position,
+        sourceFrameId: resolved.source.id,
+        settings: frame.control,
+        processed: frame.processed,
+        unreadable: resolved.layers.some((p) => p.file === null) || frame.processed?.blob === null,
+      });
+      return settle("sent");
+    }
+    if (frame.role === "ipAdapter") {
+      const pictures = slotPictures(frame);
+      if (pictures.length === 0) return settle("empty");
+      if (frame.ipAdapter.adapter === "None") return settle("notSent", "noModel");
+      ipAdapters.push({
+        frameId: frame.id,
+        position,
+        pictureIds: pictures.map((p) => p.id),
+        settings: frame.ipAdapter,
+        unreadable: [...pictures, ...frame.ipAdapter.masks].some((p) => p.file === null),
+      });
+      return settle("sent");
+    }
     const sent = frameSends(frame).map(({ kind, ...rest }): SentInput => {
       return { ...rest, address: { kind, n: next[kind]++ } };
     });
-    const shown = isComposed(frame.role) ? [] : frame.pictures.filter((p) => !p.hiddenBySwitch);
     return {
-      frameId: frame.id,
-      position: index + 1,
-      role: frame.role,
-      status: !frame.enabled ? "off" : sent.length > 0 ? "sent" : "empty",
+      ...settle(sent.length > 0 ? "sent" : "empty"),
       sent,
       slots: shown.map((p) => ({
         pictureId: p.id,
         address: sent.find((s) => s.pictureId === p.id)?.address ?? null,
       })),
-      hiddenBySwitch: frame.pictures.filter((p) => p.hiddenBySwitch).length,
     };
   });
-  return { entries, sent: entries.flatMap((e) => e.sent) };
+  const types = [...new Set(controls.map((c) => c.settings.type))];
+  const problems: OutlineProblem[] =
+    types.length > 1
+      ? [
+          {
+            code: "mixedControlTypes",
+            frames: controls.map((c) => ({ position: c.position, type: c.settings.type })),
+          },
+        ]
+      : [];
+  return { entries, sent: entries.flatMap((e) => e.sent), controls, ipAdapters, problems };
 }
 
 /** "Input N" of a control unit. Units are not frames yet, so they follow them. */

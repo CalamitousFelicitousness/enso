@@ -64,6 +64,16 @@ export function reportLines(
       lines.push(
         `${where}: ${count(note.count, "mask", "masks")} could not be read and ${note.count === 1 ? "was" : "were"} left out.`,
       );
+    } else if (note.kind === "controlOff") {
+      lines.push(
+        note.reason === "neverSent"
+          ? `${where}: this control unit took its picture from the canvas, which was never sent, so it arrives switched off.`
+          : `${where}: this control unit's kind no longer exists, so it arrives as ControlNet, switched off.`,
+      );
+    } else if (note.kind === "controlUnlinked") {
+      lines.push(
+        `${where}: this control unit borrowed its picture from a unit that has none, so it arrives without a picture.`,
+      );
     } else {
       lines.push(
         `${where}: ${count(note.count, "item", "items")} this version does not know ${note.count === 1 ? "was" : "were"} left out.`,

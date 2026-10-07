@@ -1,5 +1,6 @@
 import {
   isPlaced,
+  type FitPolicy,
   type Frame,
   type MaskStroke,
   type Picture,
@@ -15,9 +16,10 @@ interface Box {
   height: number;
 }
 
-/** Uniform scale s, then offset (tx, ty). */
+/** Scale (sx, sy) about the frame origin, then offset (tx, ty). */
 interface Refit {
-  s: number;
+  sx: number;
+  sy: number;
   tx: number;
   ty: number;
 }
@@ -41,39 +43,49 @@ export function placedBox(natural: Size, t: Transform): Box {
   };
 }
 
-/** The refit that puts a placed picture inside the frame, centred; null for a
- * picture with no area. */
-function containRefit(picture: PlacedPicture, frame: Size): Refit | null {
-  const box = placedBox(picture, picture.transform);
+/** The refit that lays a placed box over the frame by policy, centred: contain
+ * fits it inside, cover fills the frame and lets it overflow, fill stretches it
+ * to the frame on both axes. Null for a box with no area. */
+function policyRefit(box: Box, frame: Size, policy: FitPolicy): Refit | null {
   if (box.width <= 0 || box.height <= 0) return null;
-  const s = Math.min(frame.width / box.width, frame.height / box.height);
+  const wide = frame.width / box.width;
+  const tall = frame.height / box.height;
+  const [sx, sy] =
+    policy === "fill"
+      ? [wide, tall]
+      : policy === "cover"
+        ? [Math.max(wide, tall), Math.max(wide, tall)]
+        : [Math.min(wide, tall), Math.min(wide, tall)];
   return {
-    s,
-    tx: (frame.width - box.width * s) / 2 - box.x * s,
-    ty: (frame.height - box.height * s) / 2 - box.y * s,
+    sx,
+    sy,
+    tx: (frame.width - box.width * sx) / 2 - box.x * sx,
+    ty: (frame.height - box.height * sy) / 2 - box.y * sy,
   };
 }
 
 /** A refit that moves nothing: the content already fits. */
-function isIdentity({ s, tx, ty }: Refit): boolean {
-  return Math.abs(s - 1) < 1e-9 && Math.abs(tx) < 1e-6 && Math.abs(ty) < 1e-6;
+function isIdentity({ sx, sy, tx, ty }: Refit): boolean {
+  return (
+    Math.abs(sx - 1) < 1e-9 && Math.abs(sy - 1) < 1e-9 && Math.abs(tx) < 1e-6 && Math.abs(ty) < 1e-6
+  );
 }
 
-function moved(t: Transform, { s, tx, ty }: Refit): Transform {
+function moved(t: Transform, { sx, sy, tx, ty }: Refit): Transform {
   return {
     ...t,
-    x: t.x * s + tx,
-    y: t.y * s + ty,
-    scaleX: t.scaleX * s,
-    scaleY: t.scaleY * s,
+    x: t.x * sx + tx,
+    y: t.y * sy + ty,
+    scaleX: t.scaleX * sx,
+    scaleY: t.scaleY * sy,
   };
 }
 
-function movedStroke(stroke: MaskStroke, { s, tx, ty }: Refit): MaskStroke {
+function movedStroke(stroke: MaskStroke, { sx, sy, tx, ty }: Refit): MaskStroke {
   return {
     ...stroke,
-    strokeWidth: stroke.strokeWidth * s,
-    points: stroke.points.map((v, i) => v * s + (i % 2 === 0 ? tx : ty)),
+    strokeWidth: stroke.strokeWidth * Math.min(sx, sy),
+    points: stroke.points.map((v, i) => (i % 2 === 0 ? v * sx + tx : v * sy + ty)),
   };
 }
 
@@ -88,31 +100,30 @@ export function centredTransform(natural: Size, frame: Size): Transform {
   };
 }
 
-/** Scaled to fit inside the frame, centred. */
-export function containTransform(natural: Size, frame: Size): Transform {
-  if (natural.width <= 0 || natural.height <= 0) return UNPLACED;
-  const s = Math.min(frame.width / natural.width, frame.height / natural.height);
-  return {
-    ...UNPLACED,
-    x: (frame.width - natural.width * s) / 2,
-    y: (frame.height - natural.height * s) / 2,
-    scaleX: s,
-    scaleY: s,
-  };
+/** Natural-size content laid over the frame by policy, unrotated. */
+export function fitTransform(natural: Size, frame: Size, policy: FitPolicy): Transform {
+  const refit = policyRefit({ x: 0, y: 0, ...natural }, frame, policy);
+  return refit ? moved(UNPLACED, refit) : UNPLACED;
 }
 
-/** A picture is part of the frame's composition when an Initial frame draws
+/** Scaled to fit inside the frame, centred. */
+export function containTransform(natural: Size, frame: Size): Transform {
+  return fitTransform(natural, frame, "contain");
+}
+
+/** A picture is part of the frame's composition when a composed frame draws
  * it, or would once a role switch shows it again. */
 function inComposition(picture: Picture): picture is PlacedPicture {
   return isPlaced(picture) && (picture.visible || picture.hiddenBySwitch);
 }
 
-/** The frame with the first picture of its composition scaled to fit inside
- * width x height and centred. Every other placed picture, mask object and
- * stroke moves with it, so masks stay on the pixels they were painted over. */
+/** The frame with the first picture of its composition laid over width x
+ * height by the frame's fit policy (contain when it has none). Every other
+ * placed picture, mask object and stroke moves with it, so masks stay on the
+ * pixels they were painted over. */
 export function refitFrame(frame: Frame, size: Size): Frame {
   const base = frame.pictures.find(inComposition);
-  const refit = base && containRefit(base, size);
+  const refit = base && policyRefit(placedBox(base, base.transform), size, frame.fit ?? "contain");
   if (!refit || isIdentity(refit)) return frame;
   return {
     ...frame,

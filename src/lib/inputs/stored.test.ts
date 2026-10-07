@@ -1,14 +1,17 @@
 import { describe, expect, it } from "vitest";
 import { frame, layer, maskObject, picture } from "./frames.fixture";
+import { defaultControl, defaultIpAdapter } from "./reducers";
 import {
   DOCUMENT_SCHEMA,
   joinFrames,
+  joinSnapshot,
   joinWorking,
-  namedCids,
   NewerDocument,
+  readSnapshot,
   readStoredFrames,
   readWorking,
   splitFrames,
+  splitSnapshot,
   splitWorking,
   UnreadableDocument,
   type WorkingDocument,
@@ -76,7 +79,67 @@ describe("splitFrames and joinFrames", () => {
 
   it("lists every cid the frames name", () => {
     const { frames: stored } = splitFrames(sample());
-    expect(namedCids(stored).sort()).toEqual(["cid-a", "cid-b", "cid-base", "cid-m", "cid-top"]);
+    expect(readStoredFrames(stored).cids.sort()).toEqual([
+      "cid-a",
+      "cid-b",
+      "cid-base",
+      "cid-m",
+      "cid-top",
+    ]);
+  });
+});
+
+/** A Control frame with its own picture and a processed map, one that borrows
+ * its picture, and an IP-Adapter frame with a region mask. */
+function controlSample(): Frame[] {
+  const own: Frame = {
+    ...frame("edges", "control", layer("e")),
+    control: {
+      ...defaultControl(),
+      model: "Xinsir",
+      process: "Canny",
+      processParams: { low_threshold: 100, color_map: "None" },
+    },
+    processed: { cid: "cid-map", blob: new Blob(["map"]), width: 64, height: 64 },
+  };
+  const borrowed: Frame = { ...frame("borrow", "control"), fit: null, link: { frameId: "edges" } };
+  const faces: Frame = {
+    ...frame("faces", "ipAdapter", picture("face")),
+    ipAdapter: { ...defaultIpAdapter(), adapter: "Base SDXL", masks: [picture("region")] },
+  };
+  return [own, borrowed, faces];
+}
+
+describe("control and IP-Adapter frames", () => {
+  it("round-trip through their stored form", () => {
+    const frames = controlSample();
+    const { frames: stored, blobs } = splitFrames(frames);
+    expect(joinFrames(stored, blobs).frames).toEqual(frames);
+    expect(readStoredFrames(structuredClone(stored)).frames).toEqual(stored);
+  });
+
+  it("name the cids of region masks and processed maps", () => {
+    const { frames: stored } = splitFrames(controlSample());
+    expect(readStoredFrames(stored).cids.sort()).toEqual([
+      "cid-e",
+      "cid-face",
+      "cid-map",
+      "cid-region",
+    ]);
+  });
+
+  it("keep a processed map whose bytes are gone, unreadable, and report it", () => {
+    const { frames: stored, blobs } = splitFrames(controlSample());
+    blobs.delete("cid-map");
+    const { frames, lost } = joinFrames(stored, blobs);
+    expect(frames[0].processed?.blob).toBeNull();
+    expect(lost.pictures).toEqual([{ frameId: "edges", name: "Processed map" }]);
+  });
+
+  it("refuse a processor parameter that is not a JSON value", () => {
+    const { frames: stored } = splitFrames(controlSample());
+    (stored[0].control.processParams as Record<string, unknown>)["low_threshold"] = Number.NaN;
+    expect(() => readStoredFrames(stored)).toThrow("frames[0].control.processParams.low_threshold");
   });
 });
 
@@ -84,13 +147,25 @@ describe("readStoredFrames", () => {
   const stored = () => structuredClone(splitFrames(sample()).frames);
 
   it("accepts what splitFrames wrote", () => {
-    expect(readStoredFrames(stored())).toEqual(stored());
+    expect(readStoredFrames(stored()).frames).toEqual(stored());
+  });
+
+  it("reads schema 1 frames with the later fields at their defaults", () => {
+    const old = stored().map((f) => {
+      const { fit, link, control, ipAdapter, processed, ...rest } = f;
+      void [fit, link, control, ipAdapter, processed];
+      return rest;
+    });
+    const { frames } = readStoredFrames(old, 1);
+    expect(frames).toEqual(stored());
+    expect(frames[0].control).toEqual(defaultControl());
+    expect(() => readStoredFrames(old, 2)).toThrow(UnreadableDocument);
   });
 
   it.each([
     ["no list", () => ({ frames: [] })],
     ["a frame that is not an object", () => ["frame"]],
-    ["an unknown role", () => stored().map((f) => ({ ...f, role: "control" }))],
+    ["an unknown role", () => stored().map((f) => ({ ...f, role: "video" }))],
     ["a field it does not know", () => stored().map((f) => ({ ...f, futureField: 1 }))],
     ["a picture without a cid", () => [{ ...stored()[1], pictures: [{ id: "a" }] }]],
     [
@@ -133,14 +208,26 @@ describe("the working document", () => {
   it("round-trips through its stored form", () => {
     const { record: stored, blobs } = splitWorking(doc(), 7);
     expect(stored.revision).toBe(7);
-    const back = joinWorking(readWorking(structuredClone(stored)), blobs);
+    const back = joinWorking(readWorking(structuredClone(stored)).record, blobs);
     expect(back.doc).toEqual(doc());
     expect(back.lost).toEqual({ pictures: [], maskObjects: 0 });
   });
 
   it("accepts a document with nothing selected", () => {
     const empty = { ...record(), selectedFrameId: null, activeItem: null, sizeSource: null };
-    expect(readWorking(empty)).toEqual(empty);
+    expect(readWorking(empty).record).toEqual(empty);
+  });
+
+  it("reads a schema 1 document as schema 2", () => {
+    const old = record() as unknown as { schema: number; frames: Record<string, unknown>[] };
+    old.schema = 1;
+    for (const f of old.frames) {
+      for (const key of ["fit", "link", "control", "ipAdapter", "processed"]) delete f[key];
+    }
+    const { record: read, cids } = readWorking(old);
+    expect(read.schema).toBe(2);
+    expect(read.frames).toEqual(record().frames);
+    expect(cids.sort()).toEqual(["cid-a", "cid-b", "cid-base", "cid-m", "cid-top"]);
   });
 
   it("refuses a schema newer than this build's without reading further", () => {
@@ -158,5 +245,25 @@ describe("the working document", () => {
     ["an import mark that is not text", () => ({ ...record(), imports: { "canvas-v4": 4 } })],
   ])("refuses %s", (_name, build) => {
     expect(() => readWorking(build())).toThrow(UnreadableDocument);
+  });
+});
+
+describe("the inputs snapshot", () => {
+  it("round-trips frames with the frame size", () => {
+    const frames = sample();
+    const size = { width: 640, height: 448 };
+    const { record, blobs } = splitSnapshot(frames, size);
+    const read = readSnapshot(record);
+    expect(read.record).toEqual(record);
+    expect([...read.cids].sort()).toEqual([...blobs.keys()].sort());
+    const back = joinSnapshot(read.record, blobs);
+    expect(back.frames).toEqual(frames);
+    expect(back.size).toEqual(size);
+    expect(back.lost).toEqual({ pictures: [], maskObjects: 0 });
+  });
+
+  it("refuses a snapshot without a size", () => {
+    const { record } = splitSnapshot(sample(), { width: 8, height: 8 });
+    expect(() => readSnapshot({ ...record, size: undefined })).toThrow(UnreadableDocument);
   });
 });

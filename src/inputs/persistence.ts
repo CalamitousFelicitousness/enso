@@ -14,7 +14,6 @@ import {
 import { loose } from "@/lib/inputs/loose";
 import {
   joinWorking,
-  namedCids,
   readWorking,
   splitWorking,
   type JoinLoss,
@@ -62,7 +61,7 @@ export class UnstorableDocument extends Error {
 }
 
 const READERS: CidReaders = {
-  [DOCUMENTS]: (record) => namedCids(readWorking(record).frames),
+  [DOCUMENTS]: (record) => readWorking(record).cids,
 };
 
 /** The canvas record's formats, newest first. Version 3 is a JSON string. */
@@ -228,9 +227,9 @@ const NO_LOSS: JoinLoss = { pictures: [], maskObjects: 0 };
 const backend: KeyValueBackend = {
   async get() {
     await enterTab(READERS);
-    const stored = await readDocument(DOCUMENTS, KEY, readWorking, (r) => namedCids(r.frames));
-    const own = stored ? joinWorking(stored.document, stored.blobs) : null;
-    revision = stored ? stored.document.revision : await latestRevision(DOCUMENTS, KEY);
+    const stored = await readDocument(DOCUMENTS, KEY, readWorking, (read) => read.cids);
+    const own = stored ? joinWorking(stored.document.record, stored.blobs) : null;
+    revision = stored ? stored.document.record.revision : await latestRevision(DOCUMENTS, KEY);
     const before = own?.doc ?? EMPTY_WORKING;
     let imported = await importLegacy(before);
     const lost = own?.lost ?? NO_LOSS;

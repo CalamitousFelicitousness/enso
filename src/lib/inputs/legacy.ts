@@ -17,7 +17,12 @@ export type ImportNote =
   | { kind: "unreadablePicture"; position: number; name: string }
   | { kind: "unreadableMask"; position: number; count: number }
   /** Entries that were not a picture, a mask or a stroke this build knows. */
-  | { kind: "skipped"; position: number; count: number };
+  | { kind: "skipped"; position: number; count: number }
+  /** A control unit that was on arrives switched off: it was never sent (its
+   * picture was the canvas), or its kind no longer exists. */
+  | { kind: "controlOff"; position: number; reason: "neverSent" | "retiredType" }
+  /** A control unit borrowed its picture from a unit that has none; it arrives without one. */
+  | { kind: "controlUnlinked"; position: number };
 
 export interface LegacyImport {
   frames: Frame[];
@@ -93,7 +98,7 @@ function bytesOf(entry: Entry, field: "file" | "blob"): Bytes {
   if (!isText(entry.base64) || entry.base64 === "") return { blob: null, signature: null };
   try {
     const blob = base64ToBlob(entry.base64);
-    return { blob, signature: `base64:${entry.base64.length}:${hash(entry.base64)}` };
+    return { blob, signature: `base64:${entry.base64.length}:${textHash(entry.base64)}` };
   } catch {
     return { blob: null, signature: null };
   }
@@ -293,7 +298,8 @@ export function legacyToFrames(state: unknown, newCid: () => string): LegacyImpo
   };
 }
 
-function hash(text: string): string {
+/** FNV-1a over the text, as eight hex digits. */
+export function textHash(text: string): string {
   // FNV-1a, 32 bit
   let h = 0x811c9dc5;
   for (let i = 0; i < text.length; i++) {
@@ -322,5 +328,5 @@ export function legacyFingerprint(state: unknown): string {
       items(frame.maskLines).length,
     ].join(";");
   });
-  return hash(parts.join("\n"));
+  return textHash(parts.join("\n"));
 }
