@@ -230,3 +230,18 @@
   background-color: var(--primary);
   box-shadow: 0 0 12px 3px oklch(from var(--primary) l c h / 0.35);
 }
+
+/* A renumbered input flashes once where the change happened */
+@keyframes renumber {
+  0% {
+    background-color: oklch(from var(--primary) l c h / 0.4);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .renumbered {
+    animation: renumber 900ms ease-out;
+  }
+}

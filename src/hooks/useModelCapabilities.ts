@@ -19,6 +19,8 @@ import type { CheckpointGuidanceV2, CheckpointInfoV2, DetailerMode } from "@/api
 export interface ModelSupports {
   detailer: boolean;
   controlNet: boolean;
+  /** The model takes input images, so the Input tab applies. */
+  inputs: boolean;
   img2img: boolean;
   inpaint: boolean;
   negativePrompt: boolean;
@@ -63,6 +65,7 @@ export interface ModelCapabilities {
 const LOCAL_SUPPORTS: ModelSupports = {
   detailer: true,
   controlNet: true,
+  inputs: true,
   img2img: true,
   inpaint: true,
   negativePrompt: true,
@@ -81,6 +84,7 @@ const LOCAL_SUPPORTS: ModelSupports = {
 const LOCAL_VIDEO_SUPPORTS: ModelSupports = {
   detailer: false,
   controlNet: false,
+  inputs: false,
   img2img: false,
   inpaint: false,
   negativePrompt: false,
@@ -156,6 +160,10 @@ export function useModelCapabilities(): ModelCapabilities {
       scripts: false,
       // Provider-advertised capabilities.
       controlNet: caps.includes("controlnet"),
+      inputs:
+        mods.includes("image-to-image") ||
+        caps.includes("controlnet") ||
+        (model.max_input_images ?? 0) > 0,
       negativePrompt: caps.includes("negative-prompt"),
       seed: caps.includes("seed"),
       guidance: caps.includes("guidance"),

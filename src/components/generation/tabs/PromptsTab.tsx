@@ -11,8 +11,10 @@ import { useFrameSize } from "@/canvas/useFrameSize";
 import {
   parseSizeSourceValue,
   useSizeSourceOptions,
+  useSizeSourceState,
   useSizeSourceValue,
 } from "@/canvas/useSizeSource";
+import { SIZE_SOURCE_FIRST_LABEL, SIZE_SOURCE_LOST_TEXT } from "@/lib/inputs/text";
 import { useAspectLock, useAspectPresets } from "@/hooks/useAspectLock";
 import { useModelSelectionStore } from "@/stores/modelSelectionStore";
 import { useShallow } from "zustand/react/shallow";
@@ -99,6 +101,8 @@ export function PromptsTab() {
   const outline = useOutline();
   const slots = outline.sent;
   const multiInput = slots.length > 1;
+  const sizeSourceLost = useSizeSourceState() === "lost";
+  const setSizeSource = useInputStore((s) => s.setSizeSource);
   // Control frames with pictures: the browser resizes the Initial picture (buildGenerate)
   const controlPictures = outline.controls.length > 0;
   const autoSize = useImg2ImgStore((s) => s.autoSize);
@@ -315,6 +319,19 @@ export function PromptsTab() {
             >
               <SizeFromSelect />
             </ParamRow>
+          )}
+          {autoFitFrame && sizeSourceLost && (
+            <div className="flex items-center justify-between gap-2 text-3xs text-amber-500">
+              <span>{SIZE_SOURCE_LOST_TEXT}</span>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-5 shrink-0 rounded px-1.5 text-3xs"
+                onClick={() => setSizeSource(null)}
+              >
+                {SIZE_SOURCE_FIRST_LABEL}
+              </Button>
+            </div>
           )}
 
           {/* Size mode pill selector (while an input image sets the frame size) */}

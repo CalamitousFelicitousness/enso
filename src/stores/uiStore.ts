@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { ImagesSubTab, NavView, RightTab, VideoSubTab } from "@/lib/constants";
+import { mergeUiState } from "@/lib/uiStateMerge";
 
 type ColorMode = "dark" | "light" | "system";
 type CanvasBackground = "dots" | "noise" | "iso";
@@ -233,18 +234,7 @@ export const useUiStore = create<UiState>()(
         } = state;
         return rest;
       },
-      // Zustand merges persisted state with a shallow spread, so a blob
-      // written before a panelSelections key existed would reinstate the
-      // whole object and leave that key undefined. Exactly one level deep:
-      // array fields elsewhere must still be replaced, not merged.
-      merge: (persisted, current) => {
-        const saved = (persisted ?? {}) as Partial<UiState>;
-        return {
-          ...current,
-          ...saved,
-          panelSelections: { ...DEFAULT_PANEL_SELECTIONS, ...(saved.panelSelections ?? {}) },
-        };
-      },
+      merge: (persisted, current) => mergeUiState(persisted, current),
     },
   ),
 );

@@ -13,7 +13,7 @@ const TAB_TO_FLAG: Record<ImagesSubTab, keyof ModelSupports | "always"> = {
   detail: "detailer",
   advanced: "sampler", // Advanced surfaces sampler-side knobs; gate together.
   color: "sampler", // Color grading is post-process on the local pipeline.
-  control: "controlNet",
+  input: "inputs",
   scripts: "scripts",
 };
 

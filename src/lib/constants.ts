@@ -106,7 +106,7 @@ export const IMAGES_SUB_TABS = [
   { id: "detail", label: "Detail", icon: ScanSearch },
   { id: "advanced", label: "Advanced", icon: Settings2 },
   { id: "color", label: "Color", icon: Palette },
-  { id: "control", label: "Input", icon: Layers },
+  { id: "input", label: "Input", icon: Layers },
   { id: "scripts", label: "Scripts", icon: FileCode },
 ] as const satisfies readonly SubTabItem[];
 

@@ -7,7 +7,7 @@ import { RefineTab } from "./RefineTab";
 import { DetailTab } from "./DetailTab";
 import { AdvancedTab } from "./AdvancedTab";
 import { ColorTab } from "./ColorTab";
-import { ControlTab } from "./ControlTab";
+import { InputTab } from "./InputTab";
 import { ScriptsTab } from "./ScriptsTab";
 
 export const IMAGES_TAB_REGISTRY = createTabRegistry<ImagesSubTab>({
@@ -21,7 +21,7 @@ export const IMAGES_TAB_REGISTRY = createTabRegistry<ImagesSubTab>({
     detail: DetailTab,
     advanced: AdvancedTab,
     color: ColorTab,
-    control: ControlTab,
+    input: InputTab,
     scripts: ScriptsTab,
   },
 });
