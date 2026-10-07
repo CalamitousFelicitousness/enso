@@ -235,9 +235,10 @@ def execute_generate(params: dict, job_id: str) -> dict:
     from modules.control import run as control_run_module
     from modules.control.unit import Unit
 
-    from enso_api import condition_images
+    from enso_api import condition_images, control_units
 
     condition_images.validate(params, shared.sd_model)
+    control_units.validate(params)
 
     # Decode base64 images
     inputs = [helpers.decode_base64_to_image(x) for x in params.get("inputs", [])] if params.get("inputs") else None

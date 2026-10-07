@@ -7,13 +7,13 @@ pipeline without server preprocessing, which is how canvas inputs reach such a
 model as a set, and how a single one keeps the requested output size.
 """
 
+from enso_api.rejections import RequestRejected
+
 MODEL_AXIS = "[Model] Model"
 
 
-class InputImagesError(ValueError):
-    """Request rejected before any work; the job queue logs it without a traceback."""
-
-    code = 400
+class InputImagesError(RequestRejected):
+    """A condition set the loaded pipeline cannot run as sent."""
 
 
 def max_condition_images(model) -> int:
