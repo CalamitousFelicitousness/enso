@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import { useCanvasStore } from "@/stores/canvasStore";
 import { useInputStore } from "@/stores/inputStore";
 import { addFilesToInputs } from "@/inputs/route";
+import { clearAllFrames, clearFrame, removeFrame } from "@/inputs/edits";
 import { composedPictures, isComposed } from "@/lib/inputs/types";
 import { frameBox, inBox } from "@/lib/inputs/layout";
 import { mainViewport } from "@/canvas/viewportAdapter";
@@ -18,7 +19,7 @@ import { CanvasToolbar } from "@/canvas/CanvasToolbar";
 import { FramePanels } from "@/canvas/panels/FramePanels";
 import { CanvasProgressOverlay } from "@/canvas/CanvasProgressOverlay";
 import { useCanvasLayout } from "@/canvas/useCanvasLayout";
-import { INPUTS_FULL_HINT } from "@/canvas/useInputsAtCapacity";
+import { INPUTS_FULL_HINT } from "@/inputs/capacity";
 import { getOrderedFrames } from "@/canvas/frameList";
 import { ModeToggle } from "./ModeToggle";
 import { RotateCcw, X, Plus } from "lucide-react";
@@ -174,16 +175,16 @@ export const CanvasView = memo(function CanvasView() {
   }, [canvasMode, focusedFrameId, layout, setFocusedFrame]);
 
   const handleClearFrame = useCallback((frameId: string) => {
-    useInputStore.getState().clearFrame(frameId);
+    clearFrame(frameId);
   }, []);
 
   const handleRemoveFrame = useCallback((frameId: string) => {
-    useInputStore.getState().removeFrame(frameId);
+    removeFrame(frameId);
   }, []);
 
   const handleClearAll = useCallback(() => {
-    for (const frame of useInputStore.getState().frames) handleClearFrame(frame.id);
-  }, [handleClearFrame]);
+    clearAllFrames();
+  }, []);
 
   const viewport = useCanvasStore((s) => s.viewport);
   // Set frames take picked files as cells, composed frames as layers

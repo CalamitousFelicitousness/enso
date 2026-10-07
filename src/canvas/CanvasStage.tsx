@@ -15,7 +15,7 @@ import { OutputLayer } from "./layers/OutputLayer";
 import { ProcessedLayer } from "./layers/ProcessedLayer";
 import { getOrderedFrames, computeFocusViewport } from "./frameList";
 import type { CanvasLayout } from "./useCanvasLayout";
-import type { ComposedFramePosition } from "@/lib/inputs/layout";
+import { frameBox, type ComposedFramePosition } from "@/lib/inputs/layout";
 import { CanvasBackground } from "./CanvasBackground";
 import { mainViewport } from "./viewportAdapter";
 import { useKeepAliveVisible } from "@/components/ui/keep-alive";
@@ -152,6 +152,32 @@ export function CanvasStage({ layout, onPickFile, onAddCell }: CanvasStageProps)
     if (canvasMode === "canvas") prevFrameRef.current = "";
   }, [canvasMode]);
 
+  // A reveal request pans a frame the selection landed on into view, once
+  // per request, keeping the zoom. Focus mode reveals through focusedFrameId.
+  const reveal = useCanvasStore((s) => s.reveal);
+  const revealedRef = useRef(0);
+  useEffect(() => {
+    if (!reveal || reveal.n === revealedRef.current) return;
+    if (canvasMode !== "canvas" || containerSize.width <= 0) return;
+    const frame = layout.frames.find((f) => f.frameId === reveal.frameId);
+    if (!frame) return;
+    revealedRef.current = reveal.n;
+    const box = frameBox(frame);
+    const { x, y, scale } = useCanvasStore.getState().viewport;
+    const left = box.x * scale + x;
+    const top = box.y * scale + y;
+    const inView =
+      left >= 0 &&
+      top >= 0 &&
+      left + box.width * scale <= containerSize.width &&
+      top + box.height * scale <= containerSize.height;
+    if (inView) return;
+    setViewport({
+      x: containerSize.width / 2 - (box.x + box.width / 2) * scale,
+      y: containerSize.height / 2 - (box.y + box.height / 2) * scale,
+    });
+  }, [reveal, canvasMode, layout, containerSize, setViewport]);
+
   // Compose event handlers: maskPaint first, then panZoom
   const onMouseDown = useCallback(
     (e: Konva.KonvaEventObject<MouseEvent>) => {
@@ -183,7 +209,11 @@ export function CanvasStage({ layout, onPickFile, onAddCell }: CanvasStageProps)
   );
 
   return (
-    <div ref={containerRef} className="relative w-full h-full overflow-hidden">
+    <div
+      ref={containerRef}
+      className="relative w-full h-full overflow-hidden"
+      data-key-surface="canvas"
+    >
       {containerSize.width > 0 && containerSize.height > 0 && (
         <>
           <CanvasBackground

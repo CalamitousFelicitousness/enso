@@ -30,7 +30,8 @@ import { MaskParams } from "@/components/generation/MaskParams";
 import { StrengthSlider } from "@/components/generation/StrengthSlider";
 import { ControlFrameControls } from "@/components/generation/tabs/control/ControlFrameControls";
 import type { ViewportState } from "@/canvas/viewportBus";
-import { INPUTS_FULL_HINT } from "@/canvas/useInputsAtCapacity";
+import { INPUTS_FULL_HINT } from "@/inputs/capacity";
+import { removePicture } from "@/inputs/edits";
 
 // HTML hints for the role toggle, rendered through the styled Tooltip path
 // (matte glass + <b>/<i>/<br> formatting) rather than the native title attribute.
@@ -125,7 +126,6 @@ export function FrameDock({
   const storeFrame = useInputStore((s) => s.frames.find((f) => f.id === frame.frameId));
   const switchRole = useInputStore((s) => s.switchRole);
   const movePicture = useInputStore((s) => s.movePicture);
-  const removePicture = useInputStore((s) => s.removePicture);
   const setPictureVisible = useInputStore((s) => s.setPictureVisible);
   const showHiddenBySwitch = useInputStore((s) => s.showHiddenBySwitch);
 

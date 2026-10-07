@@ -1,7 +1,13 @@
 import { useMemo } from "react";
 import { useInputStore } from "@/stores/inputStore";
 import { useUiStore } from "@/stores/uiStore";
-import { resolveSizeSource, sizeSourcePick, type SizeSourcePick } from "@/lib/inputs/outline";
+import {
+  resolveSizeSource,
+  sizeSourcePick,
+  sizeSourceState,
+  type SizeSourcePick,
+  type SizeSourceState,
+} from "@/lib/inputs/outline";
 import { addressLabel, roleLabel } from "@/lib/inputs/text";
 import { outlineOf } from "@/inputs/useOutline";
 
@@ -64,4 +70,9 @@ export function useSizeSourceMark(sentCount: number): SizeSourcePick | null {
     () => (fit && sentCount > 1 && value ? parseSizeSourceValue(value) : null),
     [fit, sentCount, value],
   );
+}
+
+/** Where the frame size comes from, for the Size section's notice. */
+export function useSizeSourceState(): SizeSourceState["kind"] {
+  return useInputStore((s) => sizeSourceState(outlineOf(s.frames).sent, s.sizeSource).kind);
 }

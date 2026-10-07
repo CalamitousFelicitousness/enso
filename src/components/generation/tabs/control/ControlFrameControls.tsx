@@ -28,6 +28,7 @@ import { Combobox } from "@/components/ui/combobox";
 import { useInputStore, type NewPicture } from "@/stores/inputStore";
 import { imageSize, useBlobUrl } from "@/inputs/media";
 import { addFilesToInputs } from "@/inputs/route";
+import { removePicture } from "@/inputs/edits";
 import { useOutline } from "@/inputs/useOutline";
 import { controlTypeLabel, positionLabel } from "@/lib/inputs/text";
 import {
@@ -123,7 +124,6 @@ export function ControlFrameControls({ frameId, compact }: ControlFrameControlsP
   const setFit = useInputStore((s) => s.setFit);
   const setLink = useInputStore((s) => s.setLink);
   const setProcessed = useInputStore((s) => s.setProcessed);
-  const removePicture = useInputStore((s) => s.removePicture);
   const addIpMask = useInputStore((s) => s.addIpMask);
   const removeIpMask = useInputStore((s) => s.removeIpMask);
   const outline = useOutline();

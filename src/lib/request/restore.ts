@@ -4,6 +4,7 @@ import type { GenerationResult, GenerationState } from "@/stores/generationStore
 import { useImg2ImgStore } from "@/stores/img2imgStore";
 import { inputsReady, useInputStore } from "@/stores/inputStore";
 import { readInputsSnapshot } from "@/inputs/snapshots";
+import { restoreFrames } from "@/inputs/edits";
 import { decodeLegacyUnits } from "@/inputs/legacyControl";
 import { REFERENCE_HEIGHT } from "@/lib/inputs/layout";
 import { controlToFrames, readLegacyControl } from "@/lib/inputs/legacyControl";
@@ -287,11 +288,7 @@ async function restoreInputs(result: GenerationResult): Promise<void> {
       return;
     }
     await inputsReady();
-    useInputStore.getState().restoreFrames(stored.frames);
-    // Placements are in the frame size the job was made at
-    useGenerationStore
-      .getState()
-      .setParams({ width: stored.size.width, height: stored.size.height });
+    restoreFrames(stored.frames, stored.size);
     const lostCount = stored.lost.pictures.length;
     if (lostCount > 0) {
       toast.warning(

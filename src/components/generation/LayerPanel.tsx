@@ -2,6 +2,7 @@ import { useCallback, useRef } from "react";
 import { useInputStore } from "@/stores/inputStore";
 import { useGenerationStore } from "@/stores/generationStore";
 import { addFilesToInputs } from "@/inputs/route";
+import { removePicture } from "@/inputs/edits";
 import { useBlobUrl } from "@/inputs/media";
 import type { MaskObject, Picture } from "@/lib/inputs/types";
 import { Eye, EyeOff, X, Plus, Frame, Lock, Unlock } from "lucide-react";
@@ -184,7 +185,7 @@ export function LayerPanel({ frameId }: LayerPanelProps = {}) {
               size="icon-xs"
               onClick={(e) => {
                 e.stopPropagation();
-                if (frame) removeItem(frame.id, layer.id);
+                if (frame) removePicture(frame.id, layer.id);
               }}
               className="text-muted-foreground flex-shrink-0"
               title="Remove layer"

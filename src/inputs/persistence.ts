@@ -30,12 +30,14 @@ import {
   latestRevision,
   readDocument,
   SNAPSHOTS,
+  TRASH,
   unreadableBlobs,
   writeDocument,
-  type CidReaders,
+  type StoreReaders,
 } from "./db";
 import { decodeLegacyUnits } from "./legacyControl";
 import { snapshotCids } from "./snapshots";
+import { trashReader } from "./trash";
 
 /** What reading the stored inputs turned up besides the document. */
 export interface HydrationFindings {
@@ -66,9 +68,10 @@ export class UnstorableDocument extends Error {
   override name = "UnstorableDocument";
 }
 
-const READERS: CidReaders = {
-  [DOCUMENTS]: (record) => readWorking(record).cids,
-  [SNAPSHOTS]: snapshotCids,
+const READERS: StoreReaders = {
+  [DOCUMENTS]: (record) => ({ cids: readWorking(record).cids }),
+  [SNAPSHOTS]: (record) => ({ cids: snapshotCids(record) }),
+  [TRASH]: trashReader,
 };
 
 /** The canvas record's formats, newest first. Version 3 is a JSON string. */

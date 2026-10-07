@@ -14,6 +14,8 @@ export interface ShortcutDef {
   scope: ShortcutScope;
   category: ShortcutCategory;
   label: string;
+  /** Left to the focused text field, which has its own meaning for the keys. */
+  skipEditable?: boolean;
 }
 
 export const SHORTCUTS: Record<string, ShortcutDef> = {
@@ -49,6 +51,15 @@ export const SHORTCUTS: Record<string, ShortcutDef> = {
     scope: "global",
     category: "Global",
     label: "Skip current step",
+  },
+  undo: {
+    id: "undo",
+    key: "z",
+    ctrl: true,
+    scope: "global",
+    category: "Global",
+    label: "Undo the last input change",
+    skipEditable: true,
   },
   "toggle-left-rail": {
     id: "toggle-left-rail",

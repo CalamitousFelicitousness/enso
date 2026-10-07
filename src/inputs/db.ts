@@ -5,7 +5,7 @@
 import { planSweep, type Orphans } from "@/lib/inputs/sweep";
 
 const NAME = "enso-inputs";
-const VERSION = 2;
+const VERSION = 3;
 const BLOBS = "blobs";
 const META = "meta";
 const ORPHANS = "orphans";
@@ -16,6 +16,8 @@ const LOCK = "enso-inputs";
 export const DOCUMENTS = "documents";
 /** The frames each job was sent with, by the key its result carries. */
 export const SNAPSHOTS = "snapshots";
+/** What user actions removed, kept until its record expires. */
+export const TRASH = "trash";
 
 /** The database was created by a build with a newer layout. */
 export class NewerDatabase extends Error {
@@ -33,7 +35,7 @@ function open(): Promise<IDBDatabase> {
   opening ??= new Promise<IDBDatabase>((resolve, reject) => {
     const req = indexedDB.open(NAME, VERSION);
     req.onupgradeneeded = () => {
-      for (const store of [DOCUMENTS, SNAPSHOTS, BLOBS, META]) {
+      for (const store of [DOCUMENTS, SNAPSHOTS, TRASH, BLOBS, META]) {
         if (!req.result.objectStoreNames.contains(store)) req.result.createObjectStore(store);
       }
     };
@@ -195,15 +197,18 @@ export async function unreadableBlobs(blobs: ReadonlyMap<string, Blob>): Promise
   return checked.filter(Boolean);
 }
 
-/** What each document store's records name, by store. A reader throws on a
- * record it cannot account for. */
-export type CidReaders = Record<string, (record: unknown) => string[]>;
+/** Reads one record of a document store: the cids it names, and when it may
+ * be dropped (epoch ms), if ever. Throws on a record it cannot account for. */
+export type StoreReader = (record: unknown) => { cids: string[]; expiresAt?: number };
 
-/** Delete blobs no document names any more, per planSweep, and the revision
- * claims, which only matter between tabs open at the same time. Everything is
- * read and deleted in one transaction, and nothing is deleted unless every
- * record of every document store was read. */
-async function sweep(readers: CidReaders): Promise<void> {
+/** A reader per document store. */
+export type StoreReaders = Record<string, StoreReader>;
+
+/** Delete expired records, blobs no document names any more (per planSweep)
+ * and the revision claims, which only matter between tabs open at the same
+ * time. Everything is read and deleted in one transaction, and nothing is
+ * deleted unless every record of every document store was read. */
+async function sweep(readers: StoreReaders): Promise<void> {
   const db = await open();
   const names = [...db.objectStoreNames];
   const documentStores = names.filter((name) => name !== BLOBS && name !== META);
@@ -212,21 +217,29 @@ async function sweep(readers: CidReaders): Promise<void> {
     console.warn(`[inputs] no sweep: no reader for ${unread.join(", ")}`);
     return;
   }
+  const now = Date.now();
   const tx = db.transaction(names, "readwrite");
   const done = finished(tx);
   try {
     const named = new Set<string>();
     for (const name of documentStores) {
-      const records: unknown[] = await result(tx.objectStore(name).getAll());
-      for (const record of records) {
-        for (const cid of readers[name](record)) named.add(cid);
-      }
+      const store = tx.objectStore(name);
+      const records: unknown[] = await result(store.getAll());
+      const keys = await result(store.getAllKeys());
+      records.forEach((record, i) => {
+        const read = readers[name](record);
+        if (read.expiresAt !== undefined && read.expiresAt <= now) {
+          store.delete(keys[i]);
+          return;
+        }
+        for (const cid of read.cids) named.add(cid);
+      });
     }
     const keys = (await result(tx.objectStore(BLOBS).getAllKeys())).filter(
       (key) => typeof key === "string",
     );
     const orphans = ((await result(tx.objectStore(META).get(ORPHANS))) ?? {}) as Orphans;
-    const plan = planSweep(keys, named, orphans, Date.now());
+    const plan = planSweep(keys, named, orphans, now);
     for (const key of plan.remove) tx.objectStore(BLOBS).delete(key);
     tx.objectStore(META).put(plan.orphans, ORPHANS);
     tx.objectStore(META).delete(IDBKeyRange.bound(CLAIM, `${CLAIM}￿`));
@@ -248,7 +261,7 @@ let entered: Promise<void> | null = null;
  * of the app is open, then holds the shared lock for the life of the page, so
  * a sweep only ever runs while what the stores name on disk is every live
  * reference there is. Without Web Locks nothing is swept. */
-export function enterTab(readers: CidReaders): Promise<void> {
+export function enterTab(readers: StoreReaders): Promise<void> {
   entered ??= (async () => {
     if (!("locks" in navigator)) return;
     await navigator.locks.request(LOCK, { ifAvailable: true }, async (lock) => {

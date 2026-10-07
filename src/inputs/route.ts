@@ -56,12 +56,16 @@ export async function addFilesToInputs(
   }
 
   let added = 0;
+  let unreadable = 0;
   for (const result of decoded) {
-    if (result.status !== "fulfilled") continue;
-    store.addPicture(frame.id, result.value);
-    added += 1;
+    if (result.status !== "fulfilled") {
+      unreadable += 1;
+      continue;
+    }
+    // the model's image limit refuses and says so
+    if (store.addPicture(frame.id, result.value) !== null) added += 1;
   }
-  const failed = decoded.length - added;
+  const failed = unreadable;
   if (failed > 0) {
     toast.error(
       failed === 1

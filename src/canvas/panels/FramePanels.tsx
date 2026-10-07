@@ -10,9 +10,10 @@ import { useInputStore } from "@/stores/inputStore";
 import { useCanvasStore } from "@/stores/canvasStore";
 import { useGenerationStore } from "@/stores/generationStore";
 import { useOutline } from "@/inputs/useOutline";
+import { moveFrame } from "@/inputs/edits";
 import { positionLabel } from "@/lib/inputs/text";
 import type { CanvasLayout } from "@/canvas/useCanvasLayout";
-import { INPUTS_FULL_HINT } from "@/canvas/useInputsAtCapacity";
+import { INPUTS_FULL_HINT } from "@/inputs/capacity";
 import { useSizeSourceMark } from "@/canvas/useSizeSource";
 import { resolveOutputSize } from "@/lib/sizeCompute";
 import { FrameDock } from "./FrameDock";
@@ -50,7 +51,6 @@ export function FramePanels({
   onAddControlFrame,
 }: FramePanelsProps) {
   const outline = useOutline();
-  const moveFrame = useInputStore((s) => s.moveFrame);
   const hiresEnabled = useGenerationStore((s) => s.hiresEnabled);
   const hiresScale = useGenerationStore((s) => s.hiresScale);
   const hiresResizeX = useGenerationStore((s) => s.hiresResizeX);

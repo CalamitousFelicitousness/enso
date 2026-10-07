@@ -10,8 +10,10 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { useInputsAtCapacity, INPUTS_FULL_HINT } from "@/canvas/useInputsAtCapacity";
+import { useInputsAtCapacity } from "@/canvas/useInputsAtCapacity";
+import { INPUTS_FULL_HINT } from "@/inputs/capacity";
 import { useOutline } from "@/inputs/useOutline";
+import { removeFrame, setFrameOn } from "@/inputs/edits";
 import type { OutlineEntry } from "@/lib/inputs/outline";
 import {
   controlTypeLabel,
@@ -40,8 +42,6 @@ function statusText(entry: OutlineEntry): string {
 function FrameRow({ entry, canRemove }: { entry: OutlineEntry; canRemove: boolean }) {
   const frame = useInputStore((s) => s.frames.find((f) => f.id === entry.frameId));
   const selected = useInputStore((s) => s.selectedFrameId === entry.frameId);
-  const setEnabled = useInputStore((s) => s.setEnabled);
-  const removeFrame = useInputStore((s) => s.removeFrame);
   const selectFrame = useInputStore((s) => s.selectFrame);
   if (!frame) return null;
 
@@ -72,7 +72,7 @@ function FrameRow({ entry, canRemove }: { entry: OutlineEntry; canRemove: boolea
         <Label className="text-2xs text-muted-foreground">On</Label>
         <Switch
           checked={frame.enabled}
-          onCheckedChange={(checked) => setEnabled(entry.frameId, checked)}
+          onCheckedChange={(checked) => setFrameOn(entry.frameId, checked)}
         />
       </div>
       <Button

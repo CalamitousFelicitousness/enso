@@ -2,10 +2,12 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { useGenerationStore } from "@/stores/generationStore";
 import { reportStorageProblem } from "@/lib/storageHealth";
+import { exceedsLimit } from "@/lib/inputs/capacity";
 import { refitFrame } from "@/lib/inputs/geometry";
 import { acceptOffer, declineOffer, type LegacyRecord } from "@/lib/inputs/imports";
 import { addToReport, type InputReport } from "@/lib/inputs/report";
-import type { SizeSourcePick } from "@/lib/inputs/outline";
+import type { OutlineProblem, SizeSourcePick } from "@/lib/inputs/outline";
+import { fixProblem } from "@/lib/inputs/problems";
 import * as reduce from "@/lib/inputs/reducers";
 import { NewerDocument, type WorkingDocument } from "@/lib/inputs/stored";
 import type {
@@ -17,6 +19,7 @@ import type {
   IpAdapterSettings,
   MaskObject,
   MaskStroke,
+  Picture,
   PictureSource,
   ProcessedPreview,
   Size,
@@ -45,21 +48,27 @@ interface InputState extends WorkingDocument {
   report: InputReport | null;
   /** Records of an older build that changed after they were imported. */
   offers: LegacyRecord[];
+  /** Most input images the active model takes; null while unknown. A change
+   * that would send more is refused (see onCapacityRefused). Not persisted. */
+  imageLimit: number | null;
 
   /** Add an empty frame at `at`, by default after the last. Returns its id. */
   addFrame: (role: FrameRole, at?: number) => string;
   /** The last frame stays: there is always one to drop a picture on. */
   removeFrame: (frameId: string) => void;
   moveFrame: (from: number, to: number) => void;
-  switchRole: (frameId: string, role: FrameRole) => void;
-  setEnabled: (frameId: string, enabled: boolean) => void;
+  /** False when the model's image limit refused the switch. */
+  switchRole: (frameId: string, role: FrameRole) => boolean;
+  /** False when the model's image limit refused switching the frame on. */
+  setEnabled: (frameId: string, enabled: boolean) => boolean;
   /** Remove everything the frame holds. */
   clearFrame: (frameId: string) => void;
   selectFrame: (frameId: string | null) => void;
   setActiveItem: (item: ActiveItem | null) => void;
+  setImageLimit: (limit: number | null) => void;
 
-  /** Returns the new picture's id. */
-  addPicture: (frameId: string, picture: NewPicture) => string;
+  /** Returns the new picture's id, or null when the model's image limit refused it. */
+  addPicture: (frameId: string, picture: NewPicture) => string | null;
   /** Replace the frame's pictures with one already at frame size. */
   setOnlyPicture: (frameId: string, picture: NewPicture) => string;
   removePicture: (frameId: string, pictureId: string) => void;
@@ -70,8 +79,21 @@ interface InputState extends WorkingDocument {
   patchTransform: (frameId: string, itemId: string, patch: Partial<Transform>) => void;
   /** Remove a layer, picture or mask object. */
   removeItem: (frameId: string, itemId: string) => void;
-  setPictureVisible: (frameId: string, pictureId: string, visible: boolean) => void;
-  showHiddenBySwitch: (frameId: string) => void;
+  /** False when the model's image limit refused showing the picture. */
+  setPictureVisible: (frameId: string, pictureId: string, visible: boolean) => boolean;
+  /** False when the model's image limit refused showing them. */
+  showHiddenBySwitch: (frameId: string) => boolean;
+
+  /** A removed frame back at `at`, with the Control frames in `linkedFrom`
+   * pointed at it again where they point at nothing. Never counted against
+   * the image limit: a list over it is a problem the outline reports. */
+  putBackFrame: (frame: Frame, at: number, linkedFrom: string[]) => void;
+  /** A removed picture back at `at` in its frame. */
+  insertPicture: (frameId: string, picture: Picture, at: number) => void;
+  /** What a clear took out of a frame, back beside what it holds now. */
+  mergeContent: (frameId: string, from: Frame) => void;
+  /** Apply the fix for a problem the outline reports. */
+  fixProblem: (problem: OutlineProblem) => void;
 
   /** A composed frame's fit policy; null leaves placements to the hand. */
   setFit: (frameId: string, fit: FitPolicy | null) => void;
@@ -121,6 +143,16 @@ function working(s: WorkingDocument): WorkingDocument {
 function frameSize(): Size {
   const { width, height } = useGenerationStore.getState();
   return { width, height };
+}
+
+let refused: () => void = () => {};
+
+/** Be told when the model's image limit refuses a change. Returns the unsubscribe. */
+export function onCapacityRefused(handler: () => void): () => void {
+  refused = handler;
+  return () => {
+    if (refused === handler) refused = () => {};
+  };
 }
 
 const waiting: (() => void)[] = [];
@@ -217,6 +249,24 @@ export const useInputStore = create<InputState>()(
         );
       const editFrame = (frameId: string, change: (frame: Frame) => Frame) =>
         edit((frames) => reduce.updateFrame(frames, frameId, change));
+      /** Apply a change the model's image limit may refuse. Before the stored
+       * document is in there is nothing to count against, so it goes through. */
+      const guarded = (change: (frames: Frame[]) => Frame[]): boolean => {
+        const { ready, frames, imageLimit } = get();
+        if (!ready) {
+          edit(change);
+          return true;
+        }
+        const next = change(frames);
+        if (next !== frames && exceedsLimit(frames, next, imageLimit)) {
+          refused();
+          return false;
+        }
+        edit(() => next);
+        return true;
+      };
+      const guardedFrame = (frameId: string, change: (frame: Frame) => Frame): boolean =>
+        guarded((frames) => reduce.updateFrame(frames, frameId, change));
       /** Make a layer the active one, when its frame is the selected one. */
       const activate = (frameId: string, id: string) =>
         whenReady(() =>
@@ -243,6 +293,7 @@ export const useInputStore = create<InputState>()(
         ready: false,
         report: null,
         offers: [],
+        imageLimit: null,
 
         addFrame: (role, at) => {
           const frame = reduce.newFrame(crypto.randomUUID(), role);
@@ -254,14 +305,16 @@ export const useInputStore = create<InputState>()(
         moveFrame: (from, to) => edit((frames) => reduce.moveItem(frames, from, to)),
         switchRole: (frameId, role) => {
           const before = get().frames.find((f) => f.id === frameId);
-          editFrame(frameId, (f) => reduce.switchRole(f, role, frameSize()));
+          if (!guardedFrame(frameId, (f) => reduce.switchRole(f, role, frameSize()))) return false;
           // the picture a switch to Initial places is the layer to work on
           const placed = get()
             .frames.find((f) => f.id === frameId)
             ?.pictures.find((p, i) => p.transform && !before?.pictures[i]?.transform);
           if (placed) activate(frameId, placed.id);
+          return true;
         },
-        setEnabled: (frameId, enabled) => editFrame(frameId, (f) => reduce.setEnabled(f, enabled)),
+        setEnabled: (frameId, enabled) =>
+          guardedFrame(frameId, (f) => reduce.setEnabled(f, enabled)),
         clearFrame: (frameId) =>
           editFrame(frameId, (f) =>
             reduce.setProcessed(
@@ -287,10 +340,11 @@ export const useInputStore = create<InputState>()(
           whenReady(() =>
             set(item ? { activeItem: item, selectedFrameId: item.frameId } : { activeItem: null }),
           ),
+        setImageLimit: (limit) => set((s) => (s.imageLimit === limit ? s : { imageLimit: limit })),
 
         addPicture: (frameId, picture) => {
           const source = named(picture);
-          editFrame(frameId, (f) => reduce.addPicture(f, source, frameSize()));
+          if (!guardedFrame(frameId, (f) => reduce.addPicture(f, source, frameSize()))) return null;
           activate(frameId, source.id);
           return source.id;
         },
@@ -312,9 +366,25 @@ export const useInputStore = create<InputState>()(
           editFrame(frameId, (f) => reduce.patchTransform(f, itemId, patch)),
         removeItem: (frameId, itemId) => editFrame(frameId, (f) => reduce.removeItem(f, itemId)),
         setPictureVisible: (frameId, pictureId, visible) =>
-          editFrame(frameId, (f) => reduce.setPictureVisible(f, pictureId, visible, frameSize())),
+          guardedFrame(frameId, (f) =>
+            reduce.setPictureVisible(f, pictureId, visible, frameSize()),
+          ),
         showHiddenBySwitch: (frameId) =>
-          editFrame(frameId, (f) => reduce.showHiddenBySwitch(f, frameSize())),
+          guardedFrame(frameId, (f) => reduce.showHiddenBySwitch(f, frameSize())),
+
+        putBackFrame: (frame, at, linkedFrom) =>
+          edit((frames) => {
+            if (frames.some((f) => f.id === frame.id)) return frames;
+            return linkedFrom.reduce(
+              (list, id) =>
+                reduce.updateFrame(list, id, (f) => (f.link ? f : reduce.setLink(f, frame.id))),
+              reduce.insertFrame(frames, frame, at),
+            );
+          }),
+        insertPicture: (frameId, picture, at) =>
+          editFrame(frameId, (f) => reduce.insertPicture(f, picture, at)),
+        mergeContent: (frameId, from) => editFrame(frameId, (f) => reduce.mergeContent(f, from)),
+        fixProblem: (problem) => edit((frames) => fixProblem(frames, problem)),
 
         setFit: (frameId, fit) => editFrame(frameId, (f) => reduce.setFit(f, fit, frameSize())),
         setLink: (frameId, targetId) => editFrame(frameId, (f) => reduce.setLink(f, targetId)),

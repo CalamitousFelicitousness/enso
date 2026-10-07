@@ -38,8 +38,11 @@ interface CanvasState {
   modeLocked: boolean;
   /** Width and height step of the loaded model; not persisted. */
   sizeMultiple: number;
+  /** A frame to bring into view in canvas mode, counted per request; not persisted. */
+  reveal: { frameId: string; n: number } | null;
 
   setViewport: (viewport: Partial<ViewportState>) => void;
+  requestReveal: (frameId: string) => void;
   setCanvasMode: (mode: "focus" | "canvas") => void;
   setFocusedFrame: (id: FrameId) => void;
   switchToCanvasMode: () => void;
@@ -119,7 +122,9 @@ export const useCanvasStore = create<CanvasState>()(
       focusFitTrigger: 0,
       modeLocked: false,
       sizeMultiple: DEFAULT_SIZE_MULTIPLE,
+      reveal: null,
 
+      requestReveal: (frameId) => set((s) => ({ reveal: { frameId, n: (s.reveal?.n ?? 0) + 1 } })),
       setCanvasMode: (mode) =>
         set((s) => ({
           canvasMode: mode,

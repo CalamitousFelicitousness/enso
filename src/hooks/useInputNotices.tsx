@@ -4,16 +4,22 @@ import { reportLines } from "@/lib/inputs/report";
 import { outlineEntry } from "@/lib/inputs/outline";
 import { outlineOf } from "@/inputs/useOutline";
 import { startSizeSync } from "@/inputs/sizeSync";
+import { useCapacitySync } from "@/inputs/capacity";
+import { runUndo } from "@/inputs/undo";
+import { useShortcut } from "@/hooks/useShortcut";
 import { useInputStore } from "@/stores/inputStore";
 
 /** Tells the user what loading the stored inputs turned up, and offers to
  * bring in inputs an older build saved after the first import. Also starts
- * the size sync, which waits for the same load. */
+ * the size sync, which waits for the same load, keeps the model's image
+ * limit on the store, and runs the pending undo on Ctrl+Z. */
 export function useInputNotices() {
   const report = useInputStore((s) => s.report);
   const offers = useInputStore((s) => s.offers);
 
   useEffect(() => startSizeSync(), []);
+  useCapacitySync();
+  useShortcut("undo", () => void runUndo());
 
   useEffect(() => {
     if (!report) return;
