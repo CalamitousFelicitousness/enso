@@ -712,13 +712,20 @@ class DetectParams(JobBase):
     model: str | None = None
 
 
+class PreprocessItem(StrictBaseModel):
+    """One picture to process; the key names its map in the maps event and the result."""
+
+    image: str = Field(description="Upload ref or base64")
+    process: str = Field(description="Processor name from /sdapi/v2/preprocessors")
+    params: dict[str, Any] = Field(default_factory=dict, description="Processor parameters; the server's defaults fill the rest")
+    key: str = Field(description="Client key the map is reported under")
+
+
 class PreprocessParams(JobBase):
-    """Run a single ControlNet preprocessor over an image."""
+    """Run processors over pictures without generating; the maps come back as pinned uploads, like the generate pre-step's."""
 
     type: Literal["preprocess"] = "preprocess"
-    image: str = ""
-    model: str = ""
-    params: dict[str, Any] = Field(default_factory=dict)
+    items: list[PreprocessItem] = Field(default_factory=list)
 
 
 class DetailParams(DetailerMixin, OverrideSettingsMixin, JobBase):

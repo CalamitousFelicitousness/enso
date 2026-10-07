@@ -231,8 +231,8 @@ class PreStepFailed(Exception):
         super().__init__(reason)
 
 
-def process_before_generate(job_id: str, slots: list[dict]) -> dict[str, str]:
-    """Run each slot's processor; the maps go out as uploads pinned to the job and one maps event, then replace the pictures."""
+def run_processors(job_id: str, slots: list[dict]) -> tuple[dict[str, str], dict[str, str]]:
+    """Run each slot's processor; the maps go out as uploads pinned to the job and one maps event, then `apply` takes each map."""
     import io
 
     from enso_api import preprocess
@@ -254,16 +254,38 @@ def process_before_generate(job_id: str, slots: list[dict]) -> dict[str, str]:
                 continue
             buf = io.BytesIO()
             image.save(buf, format="PNG")
-            entry = store.store(buf.getvalue(), f"{slot['key']}.png", "image/png")
+            entry = store.store(buf.getvalue(), "map.png", "image/png")
             store.pin(job_id, {entry.ref_id})
             maps[slot["key"]] = f"/sdapi/v2/uploads/{entry.ref_id}"
             slot["apply"](image)
     finally:
         preprocess.release()
     job_queue.push_progress(job_id, WsEventMaps(maps=maps, failed=failed).model_dump())
+    return maps, failed
+
+
+def failure_text(failed: dict[str, str]) -> str:
+    """The reasons processors failed, once each; the keys are the client's and mean nothing to a reader."""
+    return "; ".join(dict.fromkeys(failed.values()))
+
+
+def process_before_generate(job_id: str, slots: list[dict]) -> dict[str, str]:
+    """The generate pre-step: every slot is tried, and one failure fails the job after the maps event."""
+    maps, failed = run_processors(job_id, slots)
     if failed:
-        raise PreStepFailed("; ".join(f"{key}: {reason}" for key, reason in failed.items()))
+        raise PreStepFailed(failure_text(failed))
     return maps
+
+
+def replacing(inputs: list, inits: list | None, i: int):
+    """Put a map in the place of input i, and of init i when that init is the same picture."""
+
+    def apply(image) -> None:
+        inputs[i] = image
+        if inits is not None:
+            inits[i] = image
+
+    return apply
 
 
 def masked_image_short_side(params: dict, inputs: list | None, inits: list | None, mask) -> int:
@@ -291,11 +313,15 @@ def execute_generate(params: dict, job_id: str) -> dict:
     inits = [helpers.decode_base64_to_image(x) for x in params.get("inits", [])] if params.get("inits") else None
     mask = helpers.decode_base64_to_image(params["mask"]) if params.get("mask") else None
 
-    # Pictures Enso processes before the job: input images by position, control units by key
+    # Pictures Enso processes before the job: input images by position, control units by key.
+    # An init sent as the same picture as its input (input_type 2) takes the input's map too.
+    sent_inputs = params.get("inputs") or []
+    sent_inits = params.get("inits") or []
     slots = []
     for i, spec in enumerate(params.get("input_process") or []):
         if spec and inputs and i < len(inputs):
-            slots.append({"key": spec["key"], "process": spec["process"], "params": spec.get("params") or {}, "source": inputs[i], "apply": lambda image, i=i: inputs.__setitem__(i, image)})
+            shared_init = inits is not None and i < len(inits) and sent_inits[i] == sent_inputs[i]
+            slots.append({"key": spec["key"], "process": spec["process"], "params": spec.get("params") or {}, "source": inputs[i], "apply": replacing(inputs, inits if shared_init else None, i)})
 
     # Build units from control dicts
     units = []
@@ -974,25 +1000,21 @@ def execute_detect(params: dict, job_id: str) -> dict:  # pylint: disable=unused
 
 
 def execute_preprocess(params: dict, job_id: str) -> dict:
+    """Maps without a generation: the same runner and maps event as the generate pre-step, no picture replaced."""
     from modules import shared
     from modules.api import helpers
 
     from enso_api import preprocess
-    from enso_api.temp_store import stage_image
 
-    image = helpers.decode_base64_to_image(params.get("image", ""))
-    model = params.get("model", "")
+    slots = [{"key": item["key"], "process": item["process"], "params": item.get("params") or {}, "source": helpers.decode_base64_to_image(item["image"]), "apply": lambda image: None} for item in params.get("items") or []]
     jobid = shared.state.begin("API-V2-PRE", api=True)
     try:
-        processed = preprocess.run(model, image, params.get("params") or {})
+        maps, failed = run_processors(job_id, slots)
     finally:
-        preprocess.release()
         shared.state.end(jobid)
-
-    # A map is staged, never written to the outputs folder
-    staged = stage_image(job_id, 0, processed)
-    image_refs = [{"index": 0, "path": staged["path"], "url": f"/sdapi/v2/jobs/{job_id}/images/0", "width": staged["width"], "height": staged["height"], "format": staged["format"], "size": staged["size"], "temp": True}] if staged else []
-    return {"images": image_refs, "info": {"model": model, "revision": preprocess.REVISION}, "params": {k: v for k, v in params.items() if k not in ("type", "image")}}
+    if failed:
+        raise PreStepFailed(failure_text(failed))
+    return {"images": [], "maps": maps, "info": {"revision": preprocess.REVISION}, "params": {"items": [{k: v for k, v in item.items() if k != "image"} for item in params.get("items") or []]}}
 
 
 video_script_defaults: list = []

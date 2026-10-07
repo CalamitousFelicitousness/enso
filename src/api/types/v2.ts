@@ -48,11 +48,18 @@ export interface DetectJobParams {
   priority?: number | undefined;
 }
 
+/** One picture to process; the key names its map in the maps event and the
+ * result. Mirrors PreprocessItem in enso_api/job_models.py. */
+export interface PreprocessItem {
+  image: string;
+  process: string;
+  params?: Record<string, unknown> | undefined;
+  key: string;
+}
+
 export interface PreprocessJobParams {
   type: "preprocess";
-  image: string;
-  model: string;
-  params?: Record<string, unknown> | undefined;
+  items: PreprocessItem[];
   priority?: number | undefined;
 }
 
@@ -532,6 +539,9 @@ export interface JobResult {
   params: Record<string, unknown>;
   /** Empty or absent when the job logged none. */
   warnings?: JobWarning[] | undefined;
+  /** The maps the job made before generating, by client key, as upload
+   * urls pinned while the job ran. Absent on results of older servers. */
+  maps?: Record<string, string> | undefined;
 }
 
 export type JobStatus = "pending" | "running" | "completed" | "failed" | "cancelled";
@@ -621,4 +631,7 @@ export type JobWsEvent =
   | { type: "error"; error: string }
   | { type: "cancelled" }
   | { type: "ping" }
-  | { type: "ack"; command: string };
+  | { type: "ack"; command: string }
+  /** The maps made before generation, by client key, and the keys whose
+   * processor failed with the reason. Mirrors WsEventMaps. */
+  | { type: "maps"; maps: Record<string, string>; failed: Record<string, string> };

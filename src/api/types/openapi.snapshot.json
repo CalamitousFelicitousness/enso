@@ -6141,30 +6141,56 @@
         "title": "OptionUpdateItemV2",
         "type": "object"
       },
-      "PreprocessParams": {
+      "PreprocessItem": {
         "additionalProperties": false,
-        "description": "Run a single ControlNet preprocessor over an image.",
+        "description": "One picture to process; the key names its map in the maps event and the result.",
         "properties": {
           "image": {
-            "default": "",
+            "description": "Upload ref or base64",
             "title": "Image",
             "type": "string"
+          },
+          "key": {
+            "description": "Client key the map is reported under",
+            "title": "Key",
+            "type": "string"
+          },
+          "params": {
+            "additionalProperties": true,
+            "description": "Processor parameters; the server's defaults fill the rest",
+            "title": "Params",
+            "type": "object"
+          },
+          "process": {
+            "description": "Processor name from /sdapi/v2/preprocessors",
+            "title": "Process",
+            "type": "string"
+          }
+        },
+        "required": [
+          "image",
+          "process",
+          "key"
+        ],
+        "title": "PreprocessItem",
+        "type": "object"
+      },
+      "PreprocessParams": {
+        "additionalProperties": false,
+        "description": "Run processors over pictures without generating; the maps come back as pinned uploads, like the generate pre-step's.",
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/PreprocessItem"
+            },
+            "title": "Items",
+            "type": "array"
           },
           "live_previews": {
             "default": true,
             "description": "Stream live latent previews over WebSocket; set false to skip the per-step preview decode",
             "title": "Live Previews",
             "type": "boolean"
-          },
-          "model": {
-            "default": "",
-            "title": "Model",
-            "type": "string"
-          },
-          "params": {
-            "additionalProperties": true,
-            "title": "Params",
-            "type": "object"
           },
           "priority": {
             "default": 0,
