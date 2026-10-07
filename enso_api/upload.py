@@ -1,5 +1,6 @@
 import contextlib
 import os
+import re
 import threading
 import time
 import uuid
@@ -10,26 +11,63 @@ from modules.logger import log
 from PIL import Image
 from pydantic import BaseModel
 
+REF_PREFIX = "upload:"
+FILE_PATTERN = re.compile(r"^([0-9a-f]{16})\.[A-Za-z0-9]+$")
+
 
 class UploadEntry:
     __slots__ = ("content_type", "created", "name", "path", "ref_id", "size")
 
-    def __init__(self, ref_id: str, path: str, name: str, size: int, content_type: str):
+    def __init__(self, ref_id: str, path: str, name: str, size: int, content_type: str, created: float | None = None):
         self.ref_id = ref_id
         self.path = path
         self.name = name
         self.size = size
         self.content_type = content_type
-        self.created = time.time()
+        self.created = time.time() if created is None else created
+
+
+class UploadInUse(Exception):
+    """A job that has not finished names the upload."""
+
+
+def refs_in(value) -> set[str]:
+    """Upload ref ids named anywhere in a request."""
+    if isinstance(value, str):
+        return {value[len(REF_PREFIX) :]} if value.startswith(REF_PREFIX) else set()
+    if isinstance(value, dict):
+        value = list(value.values())
+    if isinstance(value, list) and value:
+        return set().union(*(refs_in(item) for item in value))
+    return set()
 
 
 class UploadStore:
+    """Uploaded files by ref id; the refs a queued or running job names outlive the TTL."""
+
     def __init__(self, staging_dir: str, ttl: int = 1800):
         self.staging_dir = staging_dir
         self.ttl = ttl
-        self._entries: dict[str, UploadEntry] = {}
-        self._lock = threading.Lock()
+        self.entries: dict[str, UploadEntry] = {}
+        self.pins: dict[str, set[str]] = {}
+        self.lock = threading.Lock()
         os.makedirs(staging_dir, exist_ok=True)
+
+    def reindex(self) -> int:
+        """Take in the files an earlier process left, dated by modification time."""
+        found = 0
+        for name in sorted(os.listdir(self.staging_dir)):
+            match = FILE_PATTERN.match(name)
+            path = os.path.join(self.staging_dir, name)
+            if not match or not os.path.isfile(path):
+                continue
+            with open(path, "rb") as f:
+                head = f.read(12)
+            entry = UploadEntry(match.group(1), path, name, os.path.getsize(path), detect_image_type(head) or "application/octet-stream", created=os.path.getmtime(path))
+            with self.lock:
+                self.entries.setdefault(entry.ref_id, entry)
+            found += 1
+        return found
 
     def store(self, data: bytes, original_name: str, content_type: str) -> UploadEntry:
         ref_id = uuid.uuid4().hex[:16]
@@ -38,16 +76,38 @@ class UploadStore:
         with open(path, "wb") as f:
             f.write(data)
         entry = UploadEntry(ref_id=ref_id, path=path, name=original_name, size=len(data), content_type=content_type)
-        with self._lock:
-            self._entries[ref_id] = entry
+        with self.lock:
+            self.entries[ref_id] = entry
         return entry
 
     def get(self, ref_id: str) -> UploadEntry | None:
-        with self._lock:
-            entry = self._entries.get(ref_id)
+        with self.lock:
+            entry = self.entries.get(ref_id)
         if entry and os.path.isfile(entry.path):
             return entry
         return None
+
+    def pin(self, job_id: str, refs: set[str]) -> None:
+        """Hold these refs until the job is released."""
+        if refs:
+            with self.lock:
+                self.pins.setdefault(job_id, set()).update(refs)
+
+    def release(self, job_id: str) -> None:
+        with self.lock:
+            self.pins.pop(job_id, None)
+
+    def release_except(self, live: set[str]) -> int:
+        """Drop the pins of every job not in live, whichever way it ended; the count dropped."""
+        with self.lock:
+            gone = [job_id for job_id in self.pins if job_id not in live]
+            for job_id in gone:
+                del self.pins[job_id]
+        return len(gone)
+
+    def pinned_by(self, ref_id: str) -> list[str]:
+        with self.lock:
+            return sorted(job_id for job_id, refs in self.pins.items() if ref_id in refs)
 
     def resolve_to_image(self, ref_id: str) -> Image.Image | None:
         entry = self.get(ref_id)
@@ -59,33 +119,28 @@ class UploadStore:
         entry = self.get(ref_id)
         return entry.path if entry else None
 
-    def remove(self, ref_id: str):
-        with self._lock:
-            entry = self._entries.pop(ref_id, None)
+    def remove(self, ref_id: str) -> None:
+        """Delete an upload; refused while a job names it."""
+        jobs = self.pinned_by(ref_id)
+        if jobs:
+            raise UploadInUse(f"named by job {', '.join(jobs)}")
+        with self.lock:
+            entry = self.entries.pop(ref_id, None)
         if entry:
             with contextlib.suppress(OSError):
                 os.remove(entry.path)
 
     def cleanup_expired(self) -> int:
         now = time.time()
-        expired = []
-        with self._lock:
-            for ref_id, entry in self._entries.items():
-                if now - entry.created > self.ttl:
-                    expired.append(ref_id)
-            for ref_id in expired:
-                self._entries.pop(ref_id, None)
-        removed = 0
-        for ref_id in expired:
-            # entry was already popped, find path by convention
-            for fname in os.listdir(self.staging_dir):
-                if fname.startswith(ref_id):
-                    try:
-                        os.remove(os.path.join(self.staging_dir, fname))
-                        removed += 1
-                    except OSError:
-                        pass
-        return removed
+        with self.lock:
+            pinned = set().union(*self.pins.values()) if self.pins else set()
+            expired = [entry for ref_id, entry in self.entries.items() if now - entry.created > self.ttl and ref_id not in pinned]
+            for entry in expired:
+                self.entries.pop(entry.ref_id, None)
+        for entry in expired:
+            with contextlib.suppress(OSError):
+                os.remove(entry.path)
+        return len(expired)
 
 
 # Module-level singleton
@@ -95,10 +150,11 @@ upload_store: UploadStore | None = None
 def init_upload_store(staging_dir: str, ttl: int = 1800):
     global upload_store  # pylint: disable=global-statement
     upload_store = UploadStore(staging_dir, ttl)
+    kept = upload_store.reindex()
     from modules.api.helpers import register_upload_store
 
     register_upload_store(get_upload_store)
-    log.debug(f"Upload store: dir={staging_dir} ttl={ttl}s")
+    log.debug(f"Upload store: dir={staging_dir} ttl={ttl}s kept={kept}")
 
 
 def get_upload_store() -> UploadStore:
@@ -197,5 +253,8 @@ async def delete_upload(ref_id: str):
     entry = store.get(ref_id)
     if entry is None:
         raise HTTPException(status_code=404, detail="Upload not found or expired")
-    store.remove(ref_id)
+    try:
+        store.remove(ref_id)
+    except UploadInUse as e:
+        raise HTTPException(status_code=409, detail=f"Upload in use: {e}") from e
     return {"status": "ok"}

@@ -25,7 +25,10 @@ def register_api(app, dependencies=None):
     # or git clean of the extension root takes anything stored there with it,
     # so the db lives with sdnext's own state files under <data_path>/data.
     enso_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    job_queue.init(os.path.join(paths.data_path, "data", "enso"), legacy_path=enso_root)
+    enso_data = os.path.join(paths.data_path, "data", "enso")
+    # Uploads live beside the queue: a queued job names them past a restart, and sdnext empties its temp folder at boot
+    init_upload_store(os.path.join(enso_data, "uploads"), ttl=1800)
+    job_queue.init(enso_data, legacy_path=enso_root)
 
     # Cloud provider registry, transport, and adapters now live in
     # modules.cloud (sdnext core). Provider CRUD goes through
@@ -53,9 +56,6 @@ def register_api(app, dependencies=None):
     missing = missing_sdnext_names()
     if missing:
         log.warning(f"Enso: sdnext no longer provides these names, so the jobs using them will fail: {', '.join(missing)}")
-
-    staging_dir = os.path.join(shared.opts.temp_dir or tempfile.gettempdir(), "uploads")
-    init_upload_store(staging_dir, ttl=1800)
 
     from enso_api.temp_store import init as init_temp_store
 
