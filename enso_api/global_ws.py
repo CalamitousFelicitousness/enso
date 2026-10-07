@@ -7,6 +7,10 @@ from starlette.websockets import WebSocketState
 from enso_api.util import job_progress, preview_image
 
 
+class SocketGone(Exception):
+    """The client cannot be reached any more; the sender stops."""
+
+
 class ConnectionManager:
     def __init__(self):
         self.active: list[WebSocket] = []
@@ -22,18 +26,22 @@ class ConnectionManager:
         log.debug(f"WebSocket: disconnected clients={len(self.active)}")
 
     async def send_json(self, ws: WebSocket, data: dict):
-        if ws.client_state == WebSocketState.CONNECTED:
-            try:
-                await ws.send_json(data)
-            except Exception:
-                self.disconnect(ws)
+        if ws.client_state != WebSocketState.CONNECTED:
+            raise SocketGone
+        try:
+            await ws.send_json(data)
+        except Exception as e:
+            self.disconnect(ws)
+            raise SocketGone from e
 
     async def send_bytes(self, ws: WebSocket, data: bytes):
-        if ws.client_state == WebSocketState.CONNECTED:
-            try:
-                await ws.send_bytes(data)
-            except Exception:
-                self.disconnect(ws)
+        if ws.client_state != WebSocketState.CONNECTED:
+            raise SocketGone
+        try:
+            await ws.send_bytes(data)
+        except Exception as e:
+            self.disconnect(ws)
+            raise SocketGone from e
 
 
 manager = ConnectionManager()
@@ -58,6 +66,7 @@ async def push_progress(ws: WebSocket):
     last_preview = shared.state.current_image
     last_download_snapshot = None
     last_model = loaded_model_title()
+    last_error = None
     while ws.client_state == WebSocketState.CONNECTED:
         try:
             # A load or unload from any client, or a restart's startup load
@@ -106,9 +115,16 @@ async def push_progress(ws: WebSocket):
                         await manager.send_json(ws, {"type": "download", "data": active})
             except ImportError:
                 pass
-        except Exception as e:
-            log.debug(f"WebSocket push error: {e}")
+        except SocketGone:
             break
+        except Exception as e:
+            # One failed tick is logged once per cause and the next tick runs, so the page stays connected
+            text = f"{type(e).__name__}: {e}"
+            if text != last_error:
+                log.warning(f"WebSocket push: {text}")
+            last_error = text
+        else:
+            last_error = None
         await asyncio.sleep(0.1)
 
 
@@ -159,7 +175,7 @@ async def ws_endpoint(ws: WebSocket):
         while True:
             data = await ws.receive_json()
             await handle_command(ws, data)
-    except WebSocketDisconnect:
+    except (WebSocketDisconnect, SocketGone):
         pass
     except Exception as e:
         log.debug(f"WebSocket error: {e}")
