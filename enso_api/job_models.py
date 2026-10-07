@@ -57,6 +57,7 @@ class ControlUnitParams(StrictBaseModel):
     query_weight: float = Field(default=1.0, description="Style-transfer query weight")
     adain_weight: float = Field(default=1.0, description="Style-transfer adain weight")
     process_params: dict[str, Any] = Field(default_factory=dict, description="Preprocessor parameter overrides")
+    key: str = Field(default="", description="Client key the unit's processed picture is reported under; when set, Enso runs the processor before the job and sdnext receives the map")
 
 
 class IpAdapterUnitParams(StrictBaseModel):
@@ -547,6 +548,14 @@ class OutputSavingMixin(StrictBaseModel):
     jpeg_quality: int = 95
 
 
+class InputProcessParams(StrictBaseModel):
+    """A processor to run on one input image before generation; the key names its map in the maps event and the result."""
+
+    process: str = Field(description="Processor name from /sdapi/v2/preprocessors")
+    params: dict[str, Any] = Field(default_factory=dict, description="Processor parameters; the server's defaults fill the rest")
+    key: str = Field(description="Client key the map is reported under")
+
+
 class Img2ImgMixin(StrictBaseModel):
     """Inputs, masks, init-image resize/inpaint controls.
 
@@ -559,6 +568,7 @@ class Img2ImgMixin(StrictBaseModel):
 
     inputs: list[str] = Field(default_factory=list, description="Init images (upload refs or base64). Empty for txt2img.")
     inits: list[str] = Field(default_factory=list, description="Pre-flattened init images for control-mode workflows")
+    input_process: list[InputProcessParams | None] = Field(default_factory=list, description="One entry per input image, or empty: the processor Enso runs on it before the job, null for none")
     mask: str | None = Field(default=None, description="Inpaint mask (upload ref or base64); white = inpaint area")
     skip_processing: bool = Field(default=False, description="Send inputs without server preprocessing (resize-before, mask, control units); a multi-image model takes them as one set in list order")
     input_type: int = 0
@@ -635,6 +645,12 @@ class GenerateParams(
     steps: int = 20
     width: int = 512
     height: int = 512
+
+    @model_validator(mode="after")
+    def process_per_input(self):
+        if self.input_process and len(self.input_process) != len(self.inputs):
+            raise ValueError("input_process must have one entry per input image")
+        return self
 
 
 class UpscaleParams(JobBase):

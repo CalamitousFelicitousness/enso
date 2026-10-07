@@ -724,6 +724,12 @@
             "description": "Upload ref or base64; alias of override",
             "title": "Image"
           },
+          "key": {
+            "default": "",
+            "description": "Client key the unit's processed picture is reported under; when set, Enso runs the processor before the job and sdnext receives the map",
+            "title": "Key",
+            "type": "string"
+          },
           "mode": {
             "default": "default",
             "description": "Pipeline mode override; 'default' to use unit's first choice",
@@ -2659,6 +2665,21 @@
             "title": "Inpainting Mask Weight",
             "type": "number"
           },
+          "input_process": {
+            "description": "One entry per input image, or empty: the processor Enso runs on it before the job, null for none",
+            "items": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/InputProcessParams"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "title": "Input Process",
+            "type": "array"
+          },
           "input_type": {
             "default": 0,
             "title": "Input Type",
@@ -3240,6 +3261,34 @@
           "size"
         ],
         "title": "ImageRef",
+        "type": "object"
+      },
+      "InputProcessParams": {
+        "additionalProperties": false,
+        "description": "A processor to run on one input image before generation; the key names its map in the maps event and the result.",
+        "properties": {
+          "key": {
+            "description": "Client key the map is reported under",
+            "title": "Key",
+            "type": "string"
+          },
+          "params": {
+            "additionalProperties": true,
+            "description": "Processor parameters; the server's defaults fill the rest",
+            "title": "Params",
+            "type": "object"
+          },
+          "process": {
+            "description": "Processor name from /sdapi/v2/preprocessors",
+            "title": "Process",
+            "type": "string"
+          }
+        },
+        "required": [
+          "process",
+          "key"
+        ],
+        "title": "InputProcessParams",
         "type": "object"
       },
       "IpAdapterUnitParams": {
@@ -4416,9 +4465,15 @@
           },
           "params": {
             "additionalProperties": true,
-            "description": "Configurable parameters with default values",
+            "description": "Default parameters as they were when the server started",
             "title": "Params",
             "type": "object"
+          },
+          "revision": {
+            "default": "",
+            "description": "The processing runner's revision, the same for every item; part of a map's identity",
+            "title": "Revision",
+            "type": "string"
           }
         },
         "required": [
@@ -4981,6 +5036,13 @@
             "title": "Info",
             "type": "object"
           },
+          "maps": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Maps",
+            "type": "object"
+          },
           "params": {
             "additionalProperties": true,
             "title": "Params",
@@ -5014,7 +5076,8 @@
           "videos",
           "info",
           "params",
-          "warnings"
+          "warnings",
+          "maps"
         ],
         "title": "JobResult",
         "type": "object"
@@ -11078,6 +11141,34 @@
         "title": "WsEventError",
         "type": "object"
       },
+      "WsEventMaps": {
+        "additionalProperties": false,
+        "description": "Maps made before generation by client key, and the keys whose processor failed with the reason.",
+        "properties": {
+          "failed": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Failed",
+            "type": "object"
+          },
+          "maps": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Maps",
+            "type": "object"
+          },
+          "type": {
+            "const": "maps",
+            "default": "maps",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "title": "WsEventMaps",
+        "type": "object"
+      },
       "WsEventPing": {
         "additionalProperties": false,
         "description": "Keepalive sent every 30 seconds when no other event is queued.",
@@ -11881,6 +11972,21 @@
             "default": 1,
             "title": "Inpainting Mask Weight",
             "type": "number"
+          },
+          "input_process": {
+            "description": "One entry per input image, or empty: the processor Enso runs on it before the job, null for none",
+            "items": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/InputProcessParams"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "title": "Input Process",
+            "type": "array"
           },
           "input_type": {
             "default": 0,
@@ -15805,6 +15911,7 @@
                       "cloud_progress": "#/components/schemas/WsEventCloudProgress",
                       "completed": "#/components/schemas/WsEventCompleted",
                       "error": "#/components/schemas/WsEventError",
+                      "maps": "#/components/schemas/WsEventMaps",
                       "ping": "#/components/schemas/WsEventPing",
                       "progress": "#/components/schemas/WsEventProgress",
                       "stages": "#/components/schemas/WsEventStages",
@@ -15839,6 +15946,9 @@
                     },
                     {
                       "$ref": "#/components/schemas/WsEventAck"
+                    },
+                    {
+                      "$ref": "#/components/schemas/WsEventMaps"
                     }
                   ],
                   "title": "Response Get Ws Event Schema Sdapi V2 Jobs Ws Events Get"

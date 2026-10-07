@@ -95,8 +95,16 @@ class WsEventAck(StrictBaseModel):
     command: str
 
 
+class WsEventMaps(StrictBaseModel):
+    """Maps made before generation by client key, and the keys whose processor failed with the reason."""
+
+    type: Literal["maps"] = "maps"
+    maps: dict[str, str] = Field(default_factory=dict)
+    failed: dict[str, str] = Field(default_factory=dict)
+
+
 WsEvent = Annotated[
-    WsEventStatus | WsEventProgress | WsEventCloudProgress | WsEventStages | WsEventCompleted | WsEventError | WsEventCancelled | WsEventPing | WsEventAck,
+    WsEventStatus | WsEventProgress | WsEventCloudProgress | WsEventStages | WsEventCompleted | WsEventError | WsEventCancelled | WsEventPing | WsEventAck | WsEventMaps,
     Field(discriminator="type"),
 ]
 """Discriminated union of per-job WS events. The ``type`` field narrows
@@ -116,6 +124,7 @@ if __name__ == "__main__":
         WsEventCancelled(),
         WsEventPing(),
         WsEventAck(command="interrupt"),
+        WsEventMaps(maps={"k1": "/sdapi/v2/uploads/abc"}, failed={"k2": "Canny: returned no map"}),
     ]
     for sample in samples:
         print(sample.model_dump_json(exclude_none=True))

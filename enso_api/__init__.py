@@ -41,6 +41,11 @@ def register_api(app, dependencies=None):
     # as a 500 on the first client submit.
     validate_registries()
 
+    # Processor defaults as served to clients; the Gradio control UI edits sdnext's live table
+    from enso_api.preprocess import snapshot_defaults
+
+    snapshot_defaults()
+
     # control_run takes generate fields by name, so a keyword renamed in sdnext
     # would drop its field from every job without an error
     from modules.logger import log

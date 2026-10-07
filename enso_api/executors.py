@@ -167,7 +167,7 @@ def install_detailer_per_model_patch(model_entries):
 
 
 # GenerateParams fields execute_generate passes to control_run itself, or not at all
-SKIP_KEYS = {"type", "inputs", "inits", "mask", "control", "ip_adapter", "save_images", "sampler_name", "script_name", "script_args", "alwayson_scripts", "extra", "priority"}
+SKIP_KEYS = {"type", "inputs", "inits", "input_process", "mask", "control", "ip_adapter", "save_images", "sampler_name", "script_name", "script_args", "alwayson_scripts", "extra", "priority"}
 # GenerateParams fields read by Enso that control_run has no keyword for
 LOCAL_KEYS = {"width", "height", "mask_blur", "inpaint_full_res", "inpaint_full_res_padding", "inpainting_mask_invert", "detailer_defaults", "live_previews"}
 
@@ -220,6 +220,52 @@ class GenerationFailed(Exception):
         super().__init__(self.detail)
 
 
+class PreStepFailed(Exception):
+    """A processor failed before generation; the maps event has already named the keys."""
+
+    logged = True
+
+    def __init__(self, reason: str):
+        self.reason = reason
+        self.detail = reason
+        super().__init__(reason)
+
+
+def process_before_generate(job_id: str, slots: list[dict]) -> dict[str, str]:
+    """Run each slot's processor; the maps go out as uploads pinned to the job and one maps event, then replace the pictures."""
+    import io
+
+    from enso_api import preprocess
+    from enso_api.job_queue import job_queue
+    from enso_api.upload import get_upload_store
+    from enso_api.ws_models import WsEventMaps
+
+    store = get_upload_store()
+    maps: dict[str, str] = {}
+    failed: dict[str, str] = {}
+    try:
+        for slot in slots:
+            if job_queue.stopped_by_user(job_id):
+                break
+            try:
+                image = preprocess.run(slot["process"], slot["source"], slot["params"])
+            except preprocess.ProcessorFailed as e:
+                failed[slot["key"]] = e.reason
+                continue
+            buf = io.BytesIO()
+            image.save(buf, format="PNG")
+            entry = store.store(buf.getvalue(), f"{slot['key']}.png", "image/png")
+            store.pin(job_id, {entry.ref_id})
+            maps[slot["key"]] = f"/sdapi/v2/uploads/{entry.ref_id}"
+            slot["apply"](image)
+    finally:
+        preprocess.release()
+    job_queue.push_progress(job_id, WsEventMaps(maps=maps, failed=failed).model_dump())
+    if failed:
+        raise PreStepFailed("; ".join(f"{key}: {reason}" for key, reason in failed.items()))
+    return maps
+
+
 def masked_image_short_side(params: dict, inputs: list | None, inits: list | None, mask) -> int:
     """Short side of the image sdnext blurs the mask against: the first input after resize_mode_before, else the init as sent."""
     if inputs:
@@ -245,17 +291,24 @@ def execute_generate(params: dict, job_id: str) -> dict:
     inits = [helpers.decode_base64_to_image(x) for x in params.get("inits", [])] if params.get("inits") else None
     mask = helpers.decode_base64_to_image(params["mask"]) if params.get("mask") else None
 
+    # Pictures Enso processes before the job: input images by position, control units by key
+    slots = []
+    for i, spec in enumerate(params.get("input_process") or []):
+        if spec and inputs and i < len(inputs):
+            slots.append({"key": spec["key"], "process": spec["process"], "params": spec.get("params") or {}, "source": inputs[i], "apply": lambda image, i=i: inputs.__setitem__(i, image)})
+
     # Build units from control dicts
     units = []
     control_dicts = params.get("control") or []
     for u in control_dicts:
         if not isinstance(u, dict):
             continue
+        # A keyed unit is processed here, so sdnext gets the map as the picture and no processor
         unit = Unit(
             enabled=True,
             unit_type=u.get("unit_type", "controlnet"),
             model_id=u.get("model", ""),
-            process_id=u.get("process", ""),
+            process_id="None" if u.get("key") else u.get("process", ""),
             strength=u.get("strength", 1.0),
             start=u.get("start", 0.0),
             end=u.get("end", 1.0),
@@ -279,6 +332,9 @@ def execute_generate(params: dict, job_id: str) -> dict:
         if override_b64:
             unit.override = helpers.decode_base64_to_image(override_b64)
         units.append(unit)
+        if u.get("key") and u.get("process") not in (None, "", "None"):
+            source = unit.override if unit.override is not None else (inputs[0] if inputs else None)
+            slots.append({"key": u["key"], "process": u["process"], "params": u.get("process_params") or {}, "source": source, "apply": lambda image, unit=unit: setattr(unit, "override", image)})
 
     # Build IP adapter args
     ip_adapter_args = {}
@@ -367,10 +423,14 @@ def execute_generate(params: dict, job_id: str) -> dict:
 
     # Run generation
     detailer_restore = install_detailer_per_model_patch(detailer_entries) if run_args["detailer_enabled"] else None
+    from enso_api.job_queue import job_queue
+
     jobid = shared.state.begin("API-V2", api=True)
     try:
+        maps = process_before_generate(job_id, slots) if slots else {}
         control_run_module.control_set(extra_p_args)
-        res = control_run_module.control_run(**run_args)
+        # A stop during the pre-step ends the job as a stop during generation does: no image, no error
+        res = [] if job_queue.stopped_by_user(job_id) else control_run_module.control_run(**run_args)
 
         output_images = []
         output_processed = []
@@ -393,11 +453,8 @@ def execute_generate(params: dict, job_id: str) -> dict:
             detailer_restore()
 
     # control_run logs a pipeline exception and returns no image instead of raising
-    if not output_images:
-        from enso_api.job_queue import job_queue
-
-        if not job_queue.stopped_by_user(job_id):
-            raise GenerationFailed(stop_message)
+    if not output_images and not job_queue.stopped_by_user(job_id):
+        raise GenerationFailed(stop_message)
 
     # Collect saved file paths
     image_refs = []
@@ -495,7 +552,7 @@ def execute_generate(params: dict, job_id: str) -> dict:
             except Exception as e:
                 log.warning(f"Job {job_id}: failed to save processed image {pi}: {e}")
 
-    result = {"images": image_refs, "processed": processed_refs, "info": {}, "params": {k: v for k, v in params.items() if k != "type"}}
+    result = {"images": image_refs, "processed": processed_refs, "maps": maps, "info": {}, "params": {k: v for k, v in params.items() if k != "type"}}
     if not save_images and image_refs:
         from enso_api.temp_store import get_staging_dir
 
@@ -919,36 +976,23 @@ def execute_detect(params: dict, job_id: str) -> dict:  # pylint: disable=unused
 def execute_preprocess(params: dict, job_id: str) -> dict:
     from modules import shared
     from modules.api import helpers
-    from modules.control import processors
+
+    from enso_api import preprocess
+    from enso_api.temp_store import stage_image
 
     image = helpers.decode_base64_to_image(params.get("image", ""))
     model = params.get("model", "")
-    proc_params = params.get("params", {}) or {}
-
-    processors_list = list(processors.config)
-    if model not in processors_list:
-        raise ValueError(f"Processor model not found: {model}")
-
     jobid = shared.state.begin("API-V2-PRE", api=True)
     try:
-        proc = processors.Processor(model)
-        processed = proc(image, local_config=proc_params)
-        # Save processed image to disk
-        from modules import images as img_module
-
-        output_dir = shared.opts.outdir_extras_samples if hasattr(shared.opts, "outdir_extras_samples") else shared.opts.outdir_txt2img_samples
-        path_info = img_module.save_image(processed, output_dir, "", prompt=f"preprocess-{model}")
+        processed = preprocess.run(model, image, params.get("params") or {})
     finally:
+        preprocess.release()
         shared.state.end(jobid)
 
-    image_refs = []
-    if path_info:
-        fpath = path_info[0] if isinstance(path_info, (list, tuple)) else str(path_info)
-        if os.path.isfile(str(fpath)):
-            ext = os.path.splitext(str(fpath))[1].lstrip(".").lower()
-            image_refs.append({"index": 0, "path": str(fpath), "url": f"/sdapi/v2/jobs/{job_id}/images/0", "width": processed.width, "height": processed.height, "format": ext or "png", "size": os.path.getsize(str(fpath))})
-
-    return {"images": image_refs, "info": {"model": model}, "params": {k: v for k, v in params.items() if k not in ("type", "image")}}
+    # A map is staged, never written to the outputs folder
+    staged = stage_image(job_id, 0, processed)
+    image_refs = [{"index": 0, "path": staged["path"], "url": f"/sdapi/v2/jobs/{job_id}/images/0", "width": staged["width"], "height": staged["height"], "format": staged["format"], "size": staged["size"], "temp": True}] if staged else []
+    return {"images": image_refs, "info": {"model": model, "revision": preprocess.REVISION}, "params": {k: v for k, v in params.items() if k not in ("type", "image")}}
 
 
 video_script_defaults: list = []

@@ -238,10 +238,11 @@ async def preview_grid(req: ReqXyzPreview):
 
 
 def execute_xyz_grid(params: dict, job_id: str) -> dict:
-    from enso_api import condition_images
+    from enso_api import condition_images, control_units
     from enso_api.executors import execute_generate
 
     condition_images.validate_grid(params)
+    control_units.validate_grid(params)
 
     # Build the positional script_args array that the xyz_grid script's run() expects
     axis_options = get_axis_options()

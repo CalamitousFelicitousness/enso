@@ -43,3 +43,22 @@ def masks_per_adapter(masks: list[list[Image.Image] | None], images: list[list[I
         return []
     size = next(given[0].size for given in masks if given)
     return [given or [Image.new("L", size, 255)] * len(adapter_images) for given, adapter_images in zip(masks, images, strict=True)]
+
+
+GRID_AXES_SWAPPING_UNITS = ("[Control] Processor", "[Control] ControlNet", "[Control] T2IAdapter")
+
+
+def carries_maps(params: dict) -> bool:
+    """The request asks Enso to process pictures before the job."""
+    units = params.get("control") or []
+    return any(params.get("input_process") or []) or any(isinstance(unit, dict) and unit.get("key") for unit in units)
+
+
+def validate_grid(params: dict) -> None:
+    """Reject a grid that swaps a unit's processor or model under maps made before the job."""
+    if not carries_maps(params):
+        return
+    axes = [(params.get(key) or {}).get("type") for key in ("x_axis", "y_axis", "z_axis")]
+    swapping = [axis for axis in axes if axis in GRID_AXES_SWAPPING_UNITS]
+    if swapping:
+        raise ControlUnitsError(f"an XYZ grid cannot vary {', '.join(swapping)} when the request carries processed maps")

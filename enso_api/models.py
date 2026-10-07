@@ -101,6 +101,7 @@ class JobResult(BaseModel):
     info: dict
     params: dict
     warnings: list[JobWarning]
+    maps: dict[str, str]
 
     @classmethod
     def from_result_dict(cls, result: dict) -> "JobResult":
@@ -118,6 +119,7 @@ class JobResult(BaseModel):
             info=result.get("info", {}),
             params=result.get("params", {}),
             warnings=result.get("warnings", []),
+            maps=result.get("maps", {}),
         )
 
 
@@ -608,7 +610,8 @@ class ItemSecretStatusV2(BaseModel):
 class ItemPreprocessorV2(BaseModel):
     name: str = Field(title="Name", description="Preprocessor name")
     group: str = Field(default="Other", title="Group", description="Category group")
-    params: dict = Field(default_factory=dict, title="Params", description="Configurable parameters with default values")
+    params: dict = Field(default_factory=dict, title="Params", description="Default parameters as they were when the server started")
+    revision: str = Field(default="", title="Revision", description="The processing runner's revision, the same for every item; part of a map's identity")
 
 
 class ReqPreprocessV2(BaseModel):

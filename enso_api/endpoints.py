@@ -351,7 +351,9 @@ async def get_preprocessors_v2():
     """List available image preprocessors with their configurable parameters."""
     from modules.control import processors
 
-    return [ItemPreprocessorV2(name=k, group=v.get("group", "Other"), params=v.get("params", {})) for k, v in processors.config.items()]
+    from enso_api import preprocess
+
+    return [ItemPreprocessorV2(name=name, group=processors.config.get(name, {}).get("group", "Other"), params=params, revision=preprocess.REVISION) for name, params in preprocess.defaults.items()]
 
 
 @router.post("/preprocess", response_model=ResPreprocessV2, tags=["Control"])
