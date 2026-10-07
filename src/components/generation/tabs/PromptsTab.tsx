@@ -5,6 +5,7 @@ import { useUiStore } from "@/stores/uiStore";
 import { useImg2ImgStore } from "@/stores/img2imgStore";
 import { useCanvasStore } from "@/stores/canvasStore";
 import { useInputStore } from "@/stores/inputStore";
+import { useControlStore, resolveUnitImage } from "@/stores/controlStore";
 import { useOutline } from "@/inputs/useOutline";
 import { positionLabel } from "@/lib/inputs/text";
 import { useFrameSize } from "@/canvas/useFrameSize";
@@ -99,6 +100,12 @@ export function PromptsTab() {
   const outline = useOutline();
   const slots = outline.sent;
   const multiInput = slots.length > 1;
+  // Control units with their own pictures: the browser resizes the Initial picture (buildGenerate)
+  const controlPictures = useControlStore((s) =>
+    s.units.some(
+      (u, i) => u.enabled && u.unitType !== "ip" && resolveUnitImage(s.units, i) !== null,
+    ),
+  );
   const autoSize = useImg2ImgStore((s) => s.autoSize);
   const setAutoSize = useImg2ImgStore((s) => s.setAutoSize);
   const upscalerGroups = useUpscalerGroups({ excludeLatent: true });
@@ -419,7 +426,9 @@ export function PromptsTab() {
               title={
                 multiInput
                   ? "With several input images, Initial frames are resized before sending and this setting does not apply"
-                  : undefined
+                  : controlPictures
+                    ? "With control units on, the Initial picture is resized before sending and this setting does not apply"
+                    : undefined
               }
             >
               <ParamLabel className="text-2xs text-muted-foreground w-16 flex-shrink-0">
@@ -429,7 +438,7 @@ export function PromptsTab() {
                 value={resizeMethod}
                 onValueChange={setResizeMethod}
                 groups={upscalerGroups}
-                disabled={multiInput}
+                disabled={multiInput || controlPictures}
                 className="h-6 text-2xs flex-1"
               />
             </div>
