@@ -8,7 +8,6 @@ import { serializeDetailerEntry, stripUndefined } from "./wire";
 
 export interface BuildDetailResult {
   request: DetailJobParams;
-  inputBlob?: Blob;
 }
 
 /** Build a "Detail only" job: flatten canvas, upload, request detailer-only pass.
@@ -47,5 +46,5 @@ export async function buildDetailRequest(): Promise<BuildDetailResult> {
     request.override_settings = { ...gen.overrideSettings };
   }
 
-  return { request, inputBlob: flattenedBlob };
+  return { request };
 }

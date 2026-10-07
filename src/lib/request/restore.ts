@@ -1,8 +1,12 @@
+import { toast } from "sonner";
 import { useGenerationStore } from "@/stores/generationStore";
 import type { GenerationResult, GenerationState } from "@/stores/generationStore";
-import { useControlStore } from "@/stores/controlStore";
 import { useImg2ImgStore } from "@/stores/img2imgStore";
-import { useInputStore } from "@/stores/inputStore";
+import { inputsReady, useInputStore } from "@/stores/inputStore";
+import { readInputsSnapshot } from "@/inputs/snapshots";
+import { decodeLegacyUnits } from "@/inputs/legacyControl";
+import { REFERENCE_HEIGHT } from "@/lib/inputs/layout";
+import { controlToFrames, readLegacyControl } from "@/lib/inputs/legacyControl";
 import { base64ToBlob } from "@/lib/utils";
 import { DEFAULT_HIRES_UPSCALER } from "@/lib/hires";
 import type { GenerationInfo } from "@/api/types/generation";
@@ -258,15 +262,61 @@ export function restoreFromResult(result: GenerationResult): void {
   useGenerationStore.getState().setParams(params);
 
   const p = result.parameters;
-  const num = (v: unknown, fallback: number) => (typeof v === "number" ? v : fallback);
+  const bool = (v: unknown, fallback: boolean) => (typeof v === "boolean" ? v : fallback);
 
-  // Restore input image and mask if present (img2img history). Target the
-  // selected Input frame so the user can compare against their current
-  // working state, or the first Initial frame when the selected one is a
-  // Reference frame, which would send the image uncropped.
+  // Restore mask params
+  if (p.mask_apply_overlay !== undefined)
+    useImg2ImgStore.getState().setMaskApplyOverlay(bool(p.mask_apply_overlay, true));
+  if (p.inpainting_mask_weight !== undefined)
+    useImg2ImgStore.getState().setInpaintingMaskWeight(num(p.inpainting_mask_weight, 1.0));
+
+  void restoreInputs(result);
+}
+
+const num = (v: unknown, fallback: number) => (typeof v === "number" ? v : fallback);
+
+/** The frames stored with the result, else what older builds recorded. */
+async function restoreInputs(result: GenerationResult): Promise<void> {
+  if (result.inputsKey) {
+    const stored = await readInputsSnapshot(result.inputsKey).catch((err: unknown) => {
+      console.error("[inputs] could not read a result's stored inputs", err);
+      return null;
+    });
+    if (!stored) {
+      toast.info("The inputs of this result are no longer stored");
+      return;
+    }
+    await inputsReady();
+    useInputStore.getState().restoreFrames(stored.frames);
+    // Placements are in the frame size the job was made at
+    useGenerationStore
+      .getState()
+      .setParams({ width: stored.size.width, height: stored.size.height });
+    const lostCount = stored.lost.pictures.length;
+    if (lostCount > 0) {
+      toast.warning(
+        lostCount === 1
+          ? "One picture of this result could not be read"
+          : `${lostCount} pictures of this result could not be read`,
+      );
+    }
+    return;
+  }
+  await restoreLegacyInputs(result);
+}
+
+/** Results of older builds: one flattened picture with mask strokes, and
+ * control units with base64 pictures. */
+async function restoreLegacyInputs(result: GenerationResult): Promise<void> {
+  const p = result.parameters;
+  const width = num(p.width_before ?? p.width, 1024);
+  const height = num(p.height_before ?? p.height, 1024);
+  await inputsReady();
+
+  // Target the selected Input frame so the user can compare against their
+  // current working state, or the first Initial frame when the selected one
+  // is a Reference frame, which would send the image uncropped.
   if (result.inputImage) {
-    const width = num(p.width_before ?? p.width, 1024);
-    const height = num(p.height_before ?? p.height, 1024);
     const inputs = useInputStore.getState();
     const selected = inputs.frames.find((f) => f.id === inputs.selectedFrameId);
     const targetFrameId =
@@ -289,16 +339,16 @@ export function restoreFromResult(result: GenerationResult): void {
     }
   }
 
-  const bool = (v: unknown, fallback: boolean) => (typeof v === "boolean" ? v : fallback);
-
-  // Restore mask params
-  if (p.mask_apply_overlay !== undefined)
-    useImg2ImgStore.getState().setMaskApplyOverlay(bool(p.mask_apply_overlay, true));
-  if (p.inpainting_mask_weight !== undefined)
-    useImg2ImgStore.getState().setInpaintingMaskWeight(num(p.inpainting_mask_weight, 1.0));
-
-  // Restore control units if present
   if (result.controlUnits && result.controlUnits.length > 0) {
-    useControlStore.getState().restoreUnits(result.controlUnits);
+    const units = await decodeLegacyUnits(readLegacyControl(result.controlUnits));
+    const inputs = useInputStore.getState();
+    const initialFrameId = inputs.frames.find((f) => f.role === "initial")?.id ?? null;
+    const { frames } = controlToFrames(
+      units,
+      { size: { width, height }, displayHeight: REFERENCE_HEIGHT, initialFrameId },
+      () => crypto.randomUUID(),
+      () => crypto.randomUUID(),
+    );
+    inputs.appendFrames(frames);
   }
 }

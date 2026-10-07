@@ -4,33 +4,43 @@
 // resolution via flattenCanvas(), then uploaded as the init image. The backend
 // receives exactly what the user sees inside the generation frame. Several
 // input pictures go out as one condition set in the order the outline numbers
-// them.
+// them; Control and IP-Adapter frames go out as the outline lists them.
 // See flattenCanvas.ts and resize.ts for the compositing and resize pipeline.
 
 import { useGenerationStore } from "@/stores/generationStore";
 import type { GenerationState } from "@/stores/generationStore";
 import { useScriptStore } from "@/stores/scriptStore";
-import { useControlStore, resolveUnitImage } from "@/stores/controlStore";
 import { useImg2ImgStore } from "@/stores/img2imgStore";
 import { useInputStore } from "@/stores/inputStore";
 import { useUiStore } from "@/stores/uiStore";
 import { exportMask } from "@/lib/exportMask";
-import { flattenCanvas, compositeControlImage, compositeFitImage } from "@/lib/flattenCanvas";
-import { uploadFiles, uploadBlob } from "@/lib/upload";
+import { flattenCanvas } from "@/lib/flattenCanvas";
+import { uploadBlob } from "@/lib/upload";
 import { resizeBlob } from "@/lib/resize";
-import { REFERENCE_HEIGHT } from "@/lib/inputs/layout";
-import { computeOutline, type SentInput } from "@/lib/inputs/outline";
-import { CONTROL_PICTURE_SERVER_TEXT, unreadableText } from "@/lib/inputs/text";
-import { composedPictures, type Frame, type Picture } from "@/lib/inputs/types";
+import {
+  computeOutline,
+  type ControlSend,
+  type IpAdapterSend,
+  type SentInput,
+} from "@/lib/inputs/outline";
+import {
+  CONTROL_PICTURE_SERVER_TEXT,
+  problemText,
+  unreadableControlText,
+  unreadableText,
+} from "@/lib/inputs/text";
+import { composedPictures, type Frame, type Picture, type Size } from "@/lib/inputs/types";
 import type { ControlRequest } from "@/api/types/generation";
 import type { DetailerMode } from "@/api/types/models";
 import { BACKEND_UNIT_TYPE } from "@/api/types/control";
 import { generationParams } from "./generateParams";
 import { planInputs } from "./inputPlan";
 
+type ControlUnitWire = NonNullable<ControlRequest["control"]>[number];
+type IpAdapterWire = NonNullable<ControlRequest["ip_adapter"]>[number];
+
 export interface BuildResult {
   request: ControlRequest;
-  inputBlob?: Blob | undefined;
 }
 
 export interface ControlBuildOptions {
@@ -51,6 +61,9 @@ export interface ControlBuildOptions {
   /** The server's sdnext leaves a control unit its own picture beside a separate
    * init image (server-info `capabilities.control_separate_init`); null when unknown. */
   controlSeparateInit: boolean | null;
+  /** The loaded checkpoint carries its control model, so a ControlNet frame
+   * needs none (`control_unified` on /sdapi/v2/checkpoint); null when unknown. */
+  controlUnified: boolean | null;
 }
 
 /** The canvas holds inputs the loaded model cannot take as they are. */
@@ -73,15 +86,13 @@ function fileOf(frames: Frame[], input: SentInput): Picture & { file: Blob } {
 }
 
 /** Several pictures as one condition set, in the order sent: Initial frames
- * flattened and resized to the output size here, references raw. Returns the
- * first Initial frame at frame size for the job snapshot. */
+ * flattened and resized to the output size here, references raw. */
 async function uploadConditionSet(
   sent: SentInput[],
   frames: Frame[],
   gen: GenerationState,
-  target: { width: number; height: number },
-): Promise<{ refs: string[]; snapshotImage: Blob | undefined }> {
-  let snapshotImage: Blob | undefined;
+  target: Size,
+): Promise<string[]> {
   const refs: string[] = [];
   for (const input of sent) {
     if (input.role === "reference") {
@@ -92,10 +103,79 @@ async function uploadConditionSet(
     const layers = composedPictures(frameOf(frames, input));
     const flat = await flattenCanvas(layers, gen.width, gen.height);
     if (!flat) throw new Error("Failed to flatten an input frame");
-    snapshotImage ??= flat;
     refs.push(await uploadBlob(await resizeBlob(flat, target.width, target.height), "input.png"));
   }
-  return { refs, snapshotImage };
+  return refs;
+}
+
+/** A Control frame as a control unit: its source frame's composition at the
+ * generation size as the unit's own picture. A processed map stands in for
+ * the picture, unprocessed, unless the job processes afresh. */
+async function controlUnit(
+  send: ControlSend,
+  frames: Frame[],
+  frame: Size,
+  target: Size,
+  reprocess: boolean,
+): Promise<ControlUnitWire> {
+  const source = frames.find((f) => f.id === send.sourceFrameId);
+  if (!source) throw new Error("A control frame's source is gone");
+  const s = send.settings;
+  const map = reprocess ? null : send.processed?.blob;
+  let override: string;
+  if (map) {
+    override = await uploadBlob(map, "processed.png");
+  } else {
+    const flat = await flattenCanvas(composedPictures(source), frame.width, frame.height, target);
+    if (!flat) throw new Error("Failed to flatten a control frame");
+    override = await uploadBlob(flat, "control.png");
+  }
+  return {
+    process: map ? "None" : s.process,
+    model: s.model,
+    strength: s.strength,
+    start: s.start,
+    end: s.end,
+    override,
+    unit_type: BACKEND_UNIT_TYPE[s.type] ?? s.type,
+    mode: s.mode,
+    ...(s.type === "controlnet" ? { guess: s.guess } : {}),
+    ...(s.type === "t2i" ? { factor: s.factor } : {}),
+    ...(s.type === "style_transfer"
+      ? {
+          attention: s.attention,
+          fidelity: s.fidelity,
+          query_weight: s.queryWeight,
+          adain_weight: s.adainWeight,
+        }
+      : {}),
+    ...(Object.keys(s.processParams).length > 0 && !map ? { process_params: s.processParams } : {}),
+  };
+}
+
+/** An IP-Adapter frame as an adapter unit: its pictures raw, in order, with
+ * the region masks it holds. */
+async function ipAdapterUnit(send: IpAdapterSend, frames: Frame[]): Promise<IpAdapterWire> {
+  const frame = frames.find((f) => f.id === send.frameId);
+  if (!frame) throw new Error("An IP-Adapter frame is gone");
+  const pictures = send.pictureIds.flatMap((id) => {
+    const picture = frame.pictures.find((p) => p.id === id);
+    return picture?.file ? [{ file: picture.file, name: picture.name }] : [];
+  });
+  const masks = send.settings.masks.flatMap((m) =>
+    m.file ? [{ file: m.file, name: m.name }] : [],
+  );
+  const images = await Promise.all(pictures.map((p) => uploadBlob(p.file, p.name)));
+  const maskRefs = await Promise.all(masks.map((m) => uploadBlob(m.file, m.name)));
+  return {
+    adapter: send.settings.adapter,
+    scale: send.settings.scale,
+    crop: send.settings.crop,
+    start: send.settings.start,
+    end: send.settings.end,
+    images,
+    ...(maskRefs.length > 0 ? { masks: maskRefs } : {}),
+  };
 }
 
 export async function buildControlRequest({
@@ -106,10 +186,10 @@ export async function buildControlRequest({
   strengthSupported,
   detailerMode,
   controlSeparateInit,
+  controlUnified,
 }: ControlBuildOptions): Promise<BuildResult> {
   const gen = useGenerationStore.getState();
   const scripts = useScriptStore.getState();
-  const control = useControlStore.getState();
   const img2img = useImg2ImgStore.getState();
   const { frames } = useInputStore.getState();
   const ui = useUiStore.getState();
@@ -123,21 +203,13 @@ export async function buildControlRequest({
     scripts,
   });
 
-  // Control units: partition by type - IP-adapter vs control types
-  const enabledIPUnits = control.units.filter(
-    (u) => u.enabled && u.unitType === "ip" && u.images.length > 0,
-  );
-
-  // Resolve images for control units (may reference another unit's image via "unit:N")
-  const controlUnitEntries = control.units
-    .map((u, i) => ({ unit: u, image: resolveUnitImage(control.units, i) }))
-    .filter((e) => e.unit.enabled && e.unit.unitType !== "ip" && e.image);
-
   // What the frames send, in the order the canvas numbers it
-  const outline = computeOutline(frames);
-  const unreadable = unreadableText(outline.entries);
+  const outline = computeOutline(frames, { controlUnified: controlUnified === true });
+  const unreadable = unreadableText(outline.entries) ?? unreadableControlText(outline);
   if (unreadable) throw new InputRefusal(unreadable);
-  const { sent } = outline;
+  const problem = outline.problems[0];
+  if (problem) throw new InputRefusal(problemText(problem));
+  const { sent, controls, ipAdapters } = outline;
   const planned = planInputs({
     sent,
     frame: { width: gen.width, height: gen.height },
@@ -149,8 +221,8 @@ export async function buildControlRequest({
     maxInputImages,
     requestSetsSize,
     referenceSets,
-    sendsControlUnits: controlUnitEntries.length > 0 || enabledIPUnits.length > 0,
-    sendsControlPictures: controlUnitEntries.length > 0,
+    sendsControlUnits: controls.length > 0 || ipAdapters.length > 0,
+    sendsControlPictures: controls.length > 0,
     checkpointOverride: "sd_model_checkpoint" in gen.overrideSettings,
     batchCount: gen.batchCount,
     batchSize: gen.batchSize,
@@ -162,90 +234,35 @@ export async function buildControlRequest({
     throw new InputRefusal(CONTROL_PICTURE_SERVER_TEXT);
   }
 
-  if (enabledIPUnits.length > 0) {
-    request.ip_adapter = await Promise.all(
-      enabledIPUnits.map(async (u) => ({
-        adapter: u.adapter,
-        scale: u.scale,
-        crop: u.crop,
-        start: u.start,
-        end: u.end,
-        images: await uploadFiles(u.images),
-        ...(u.masks.length > 0 ? { masks: await uploadFiles(u.masks) } : {}),
-      })),
-    );
+  const frame: Size = { width: gen.width, height: gen.height };
+  // Control pictures go out at the size the model generates at
+  const controlTarget: Size =
+    plan.transport === "img2img" || plan.transport === "set"
+      ? plan.target
+      : plan.transport === "reference"
+        ? plan.size
+        : frame;
+
+  if (ipAdapters.length > 0) {
+    request.ip_adapter = await Promise.all(ipAdapters.map((send) => ipAdapterUnit(send, frames)));
   }
-
-  // Compute display scale for free-mode compositing
-  const displayScale = gen.height > 0 ? REFERENCE_HEIGHT / gen.height : 1;
-
-  if (controlUnitEntries.length > 0) {
-    const reprocess = ui.reprocessOnGenerate;
+  if (controls.length > 0) {
     request.control = await Promise.all(
-      controlUnitEntries.map(async (e) => {
-        // When reprocess is off and a manual preview exists, send the processed image
-        // as override with process=None so the backend uses it as-is.
-        const hasManualPreview = !reprocess && e.unit.processedImage;
-        let overrideRef: string | undefined;
-        if (hasManualPreview) {
-          const resp = await fetch(e.unit.processedImage!);
-          const blob = await resp.blob();
-          overrideRef = await uploadBlob(blob, "processed.png");
-        } else if (e.unit.fitMode === "free" && e.image) {
-          // Free mode: composite the image at generation resolution before uploading
-          const ft = e.unit.freeTransform ?? { x: 0, y: 0, scaleX: 1, scaleY: 1, rotation: 0 };
-          const composed = await compositeControlImage(
-            e.image,
-            ft,
-            gen.width,
-            gen.height,
-            displayScale,
-          );
-          overrideRef = await uploadBlob(composed, "control.png");
-        } else if (e.image) {
-          // WYSIWYG: composite the image using the fit mode so what's sent matches what's on canvas
-          const composed = await compositeFitImage(e.image, gen.width, gen.height, e.unit.fitMode);
-          overrideRef = await uploadBlob(composed, "control.png");
-        }
-        return {
-          process: hasManualPreview ? "None" : e.unit.processor,
-          model: e.unit.model,
-          strength: e.unit.strength,
-          start: e.unit.start,
-          end: e.unit.end,
-          override: overrideRef,
-          unit_type: BACKEND_UNIT_TYPE[e.unit.unitType] ?? e.unit.unitType,
-          mode: e.unit.mode,
-          ...(e.unit.unitType === "controlnet" ? { guess: e.unit.guess } : {}),
-          ...(e.unit.unitType === "t2i" ? { factor: e.unit.factor } : {}),
-          ...(e.unit.unitType === "style_transfer"
-            ? {
-                attention: e.unit.attention,
-                fidelity: e.unit.fidelity,
-                query_weight: e.unit.queryWeight,
-                adain_weight: e.unit.adainWeight,
-              }
-            : {}),
-          ...(Object.keys(e.unit.processorParams).length > 0 && !hasManualPreview
-            ? { process_params: e.unit.processorParams }
-            : {}),
-        };
-      }),
+      controls.map((send) =>
+        controlUnit(send, frames, frame, controlTarget, ui.reprocessOnGenerate),
+      ),
     );
   }
 
-  let inputBlob: Blob | undefined;
   const primary: SentInput | undefined = sent[0];
   if (plan.transport === "set") {
-    const { refs, snapshotImage } = await uploadConditionSet(sent, frames, gen, plan.target);
-    request.inputs = refs;
+    request.inputs = await uploadConditionSet(sent, frames, gen, plan.target);
     request.skip_processing = true;
     request.input_type = 1;
     request.width_before = plan.target.width;
     request.height_before = plan.target.height;
     request.batch_count = plan.batchCount;
     request.batch_size = 1;
-    inputBlob = snapshotImage;
   } else if (plan.transport === "reference" && primary?.role === "reference") {
     // The source file as it is
     const picture = fileOf(frames, primary);
@@ -253,19 +270,15 @@ export async function buildControlRequest({
     request.input_type = 1;
     request.width_before = plan.size.width;
     request.height_before = plan.size.height;
-    inputBlob = picture.file;
   } else if (plan.transport === "img2img" && primary?.role === "initial") {
     // img2img: add inputs, mask, inpainting params
-    const frameW = gen.width;
-    const frameH = gen.height;
     request.width_before = plan.target.width;
     request.height_before = plan.target.height;
 
     // Flatten the frame's pictures at full frame size.
-    const frame = frameOf(frames, primary);
-    const flattenedBlob = await flattenCanvas(composedPictures(frame), frameW, frameH);
+    const source = frameOf(frames, primary);
+    const flattenedBlob = await flattenCanvas(composedPictures(source), frame.width, frame.height);
     if (flattenedBlob) {
-      inputBlob = flattenedBlob;
       if (plan.separateInit) {
         // Control units bring their own pictures: the init travels separately (input_type 2),
         // resized here because sdnext resizes a separate init with its global upscaler.
@@ -291,7 +304,12 @@ export async function buildControlRequest({
     }
 
     // Composite the frame's mask objects + any strokes not baked yet.
-    const maskBlob = await exportMask(frame.mask.objects, frame.mask.strokes, frameW, frameH);
+    const maskBlob = await exportMask(
+      source.mask.objects,
+      source.mask.strokes,
+      frame.width,
+      frame.height,
+    );
     if (maskBlob) {
       request.mask = await uploadBlob(maskBlob, "mask.png");
       request.mask_blur = img2img.maskBlur;
@@ -311,5 +329,5 @@ export async function buildControlRequest({
     };
   }
 
-  return { request, inputBlob };
+  return { request };
 }

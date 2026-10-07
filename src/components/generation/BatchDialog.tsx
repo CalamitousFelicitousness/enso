@@ -2,8 +2,9 @@ import { useState, useCallback } from "react";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import { useSubmitJob } from "@/api/hooks/useJobs";
-import { useJobQueueStore, strippedSnapshot, type JobSnapshot } from "@/stores/jobStore";
+import { useJobQueueStore, type JobSnapshot } from "@/stores/jobStore";
 import { putJobPayload } from "@/lib/jobPayloadDb";
+import { cloneJobInputs } from "@/inputs/snapshots";
 import { UserAbortError } from "@/hooks/useSubmitToQueue";
 import type { JobRequest } from "@/api/types/v2";
 import {
@@ -40,19 +41,21 @@ export function BatchDialog({ open, onOpenChange, buildRequest }: BatchDialogPro
       const { payload, snapshot } = await buildRequest();
       const resolvedBase = autoSeed ? Math.floor(Math.random() * 999999999) : baseSeed;
       for (let i = 0; i < count; i++) {
+        // Every job of the batch owns its inputs snapshot, as every result does
+        const jobSnapshot = i === 0 ? snapshot : await cloneJobInputs(snapshot);
         const seedPayload = {
           ...payload,
           seed: resolvedBase + i,
         } as JobRequest;
         const job = await submitJob.mutateAsync(seedPayload);
         const priority = (seedPayload as { priority?: number }).priority ?? 0;
-        trackJob(job.id, "generate", snapshot, seedPayload, priority);
+        trackJob(job.id, "generate", jobSnapshot, seedPayload, priority);
         void putJobPayload({
           id: job.id,
           domain: "generate",
           request: seedPayload,
           priority,
-          snapshot: strippedSnapshot(snapshot),
+          snapshot: jobSnapshot,
           createdAt: Date.now(),
         });
       }

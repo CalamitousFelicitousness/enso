@@ -55,6 +55,9 @@ export interface ModelCapabilities {
   /** Width and height multiple the loaded local pipeline keeps a requested
    * size at; null while unknown. */
   sizeMultiple: number | null;
+  /** The loaded local checkpoint carries its control model, so a ControlNet
+   * frame needs none; null while unknown and for other models. */
+  controlUnified: boolean | null;
 }
 
 const LOCAL_SUPPORTS: ModelSupports = {
@@ -123,6 +126,7 @@ export function useModelCapabilities(): ModelCapabilities {
         strengthSupported: loaded?.strength_applicable ?? true,
         guidance: loaded?.guidance ?? null,
         sizeMultiple: loaded?.size_multiple ?? null,
+        controlUnified: loaded?.control_unified ?? null,
       };
     }
     if (model.source === "local-video") {
@@ -139,6 +143,7 @@ export function useModelCapabilities(): ModelCapabilities {
         strengthSupported: true,
         guidance: null,
         sizeMultiple: null,
+        controlUnified: null,
       };
     }
     const caps = model.capabilities;
@@ -171,6 +176,7 @@ export function useModelCapabilities(): ModelCapabilities {
       strengthSupported: true,
       guidance: null,
       sizeMultiple: null,
+      controlUnified: null,
     };
   }, [model, checkpoint, remembered]);
 }

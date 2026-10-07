@@ -12,7 +12,7 @@ import {
   type XyzPreviewResponse,
 } from "@/api/hooks/useXyzAxisOptions";
 import { useSubmitJob } from "@/api/hooks/useJobs";
-import { useJobQueueStore, strippedSnapshot, type JobSnapshot } from "@/stores/jobStore";
+import { useJobQueueStore, type JobSnapshot } from "@/stores/jobStore";
 import { putJobPayload } from "@/lib/jobPayloadDb";
 import { UserAbortError } from "@/hooks/useSubmitToQueue";
 import { countAxisValues, groupAxisOptions } from "@/lib/xyzGrid";
@@ -339,7 +339,7 @@ export function XyzGridDialog({ open, onOpenChange, buildRequest }: XyzGridDialo
         domain: "xyz-grid",
         request: xyzPayload,
         priority,
-        snapshot: strippedSnapshot(snapshot),
+        snapshot,
         createdAt: Date.now(),
       });
       toast.success("XYZ Grid queued", {

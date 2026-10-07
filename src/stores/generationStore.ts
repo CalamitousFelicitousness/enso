@@ -2,10 +2,10 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { createIdbListDb } from "@/lib/idbListDb";
 import type { MaskStroke } from "@/lib/inputs/types";
-import type { ControlUnitSnapshot } from "@/api/types/control";
 import type { DetailerOverrides, DetailerModelEntry, JobWarning } from "@/api/types/v2";
 import type { WireParams } from "@/api/types/wireParams";
 import { DEFAULT_HIRES_UPSCALER } from "@/lib/hires";
+import { forgetInputs } from "@/inputs/snapshots";
 
 export interface GenerationResult {
   id: string;
@@ -13,12 +13,14 @@ export interface GenerationResult {
   parameters: WireParams;
   info: string;
   timestamp: number;
-  /** Flattened canvas base64 captured at generation time. Persisted to IndexedDB with the result. */
+  /** Key of the frames the job was sent with, in the enso-inputs snapshots store. */
+  inputsKey?: string | undefined;
+  /** Written by older builds: the flattened canvas as base64. */
   inputImage?: string | undefined;
-  /** Mask strokes captured at generation time. Persisted to IndexedDB with the result. */
+  /** Written by older builds: the mask strokes. */
   inputMask?: MaskStroke[] | undefined;
-  /** Control unit settings + images captured at generation time. */
-  controlUnits?: ControlUnitSnapshot[] | undefined;
+  /** Written by older builds: control unit settings with base64 pictures. */
+  controlUnits?: unknown[] | undefined;
   /** Lines the server logged at warning level or above during the job. */
   warnings?: JobWarning[] | undefined;
 }
@@ -28,6 +30,11 @@ export const generationHistoryDb = createIdbListDb<GenerationResult>({
   storeName: "results",
   sortKey: "timestamp",
 });
+
+/** Results leaving the history take their stored inputs with them. */
+function forgetResultInputs(results: GenerationResult[]): void {
+  for (const result of results) if (result.inputsKey) forgetInputs(result.inputsKey);
+}
 
 export interface GenerationState {
   // Prompt
@@ -341,7 +348,7 @@ const defaultParamKeys = Object.keys(defaultParams) as (keyof typeof defaultPara
 
 export const useGenerationStore = create<GenerationState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       ...defaultParams,
 
       results: [],
@@ -358,8 +365,10 @@ export const useGenerationStore = create<GenerationState>()(
           void generationHistoryDb
             .put(result)
             .then(() => generationHistoryDb.trim(state.historyLimit));
+          const results = [result, ...state.results];
+          forgetResultInputs(results.slice(state.historyLimit));
           return {
-            results: [result, ...state.results].slice(0, state.historyLimit),
+            results: results.slice(0, state.historyLimit),
             selectedResultId: result.id,
             selectedImageIndex: 0,
           };
@@ -367,6 +376,7 @@ export const useGenerationStore = create<GenerationState>()(
 
       clearResults: () => {
         void generationHistoryDb.clear();
+        forgetResultInputs(get().results);
         set({ results: [], selectedResultId: null, selectedImageIndex: null });
       },
 

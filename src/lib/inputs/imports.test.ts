@@ -235,3 +235,17 @@ describe("a rollback that upgrades the version 3 record", () => {
     expect(legacyFingerprint(canvasV4Record().state)).not.toBe(legacyFingerprint(v3State));
   });
 });
+
+describe("imports that keep the document's frames", () => {
+  it("join an empty document's frames instead of standing in for them", () => {
+    const seed = newFrame("seed", "initial");
+    const own: WorkingDocument = { ...EMPTY_WORKING, frames: [seed], selectedFrameId: "seed" };
+    const loaded = converted(legacyState("f1", legacyLayer("l1")));
+    const plan = planImports({}, [v4("a1")]);
+    const kept = applyImports(own, plan, loaded, counter("id"), true).doc;
+    expect(ids(kept)).toEqual(["seed", "f1"]);
+    expect(kept.selectedFrameId).toBe("seed");
+    const replaced = applyImports(own, plan, loaded, counter("id")).doc;
+    expect(ids(replaced)).toEqual(["f1"]);
+  });
+});

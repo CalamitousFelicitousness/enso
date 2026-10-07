@@ -34,7 +34,7 @@ function jobToDomain(type: string): JobDomain {
 // is self-contained in the request payload and gets `none`.
 function defaultSnapshot(domain: JobDomain): JobSnapshot {
   if (domain === "generate" || domain === "xyz-grid") {
-    return { kind: "control", controlUnits: [] };
+    return { kind: "control" };
   }
   return { kind: "none" };
 }

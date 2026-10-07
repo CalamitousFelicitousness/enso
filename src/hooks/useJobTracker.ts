@@ -8,6 +8,7 @@ import { useInputStore } from "@/stores/inputStore";
 import { useVideoStore } from "@/stores/videoStore";
 import { useProcessStore } from "@/stores/processStore";
 import { deleteJobPayload } from "@/lib/jobPayloadDb";
+import { forgetInputs } from "@/inputs/snapshots";
 import { previewMimeType } from "@/lib/image";
 import type { JobResult, JobWsEvent } from "@/api/types/v2";
 import { toast } from "sonner";
@@ -18,15 +19,15 @@ function isTerminal(status: string) {
   return status === "completed" || status === "failed" || status === "cancelled";
 }
 
+/** A job that produced no result has no use for the frames stored for it. */
+function forgetJobInputs(snapshot: TrackedJob["snapshot"] | undefined) {
+  if (snapshot && snapshot.kind !== "none" && snapshot.inputsKey) forgetInputs(snapshot.inputsKey);
+}
+
 function routeResult(domain: JobDomain, result: JobResult, snapshot: TrackedJob["snapshot"]) {
   if (domain === "generate") {
     if (result.images.length > 0) {
-      // Only the "control" snapshot variant captures inputImage/inputMask/controlUnits.
-      // Detail jobs capture inputImage only; cloud/none jobs capture nothing.
-      const inputImage =
-        snapshot.kind === "control" || snapshot.kind === "detail" ? snapshot.inputImage : undefined;
-      const inputMask = snapshot.kind === "control" ? snapshot.inputMask : undefined;
-      const controlUnits = snapshot.kind === "control" ? snapshot.controlUnits : undefined;
+      const inputsKey = snapshot.kind === "none" ? undefined : snapshot.inputsKey;
       useGenerationStore.getState().addResult({
         id: crypto.randomUUID(),
         images: result.images.map((img) => img.url),
@@ -35,11 +36,11 @@ function routeResult(domain: JobDomain, result: JobResult, snapshot: TrackedJob[
         parameters: result.params,
         info: JSON.stringify(result.info),
         timestamp: Date.now(),
-        inputImage,
-        inputMask,
-        controlUnits,
+        inputsKey,
         warnings: result.warnings,
       });
+    } else if (snapshot.kind !== "none" && snapshot.inputsKey) {
+      forgetInputs(snapshot.inputsKey);
     }
     // The job's own processing supersedes the frames' preview maps
     if (result.processed?.length > 0) {
@@ -201,10 +202,12 @@ export function useJobTracker() {
             case "error":
               s.failJob(jobId, data.error);
               toast.error("Generation failed", { description: data.error, duration: 8000 });
+              forgetJobInputs(s.jobs.get(jobId)?.snapshot);
               void deleteJobPayload(jobId);
               break;
             case "cancelled":
               s.updateStatus(jobId, "cancelled");
+              forgetJobInputs(s.jobs.get(jobId)?.snapshot);
               void deleteJobPayload(jobId);
               break;
           }

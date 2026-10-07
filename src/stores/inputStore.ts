@@ -25,6 +25,7 @@ import type {
 import { DocumentConflict, NewerDatabase } from "@/inputs/db";
 import {
   createInputsStorage,
+  keepsFrames,
   legacyMarks,
   loadOffer,
   overruleOtherTab,
@@ -92,6 +93,10 @@ interface InputState extends WorkingDocument {
   removeMaskObject: (frameId: string, objectId: string) => void;
   patchMaskObject: (frameId: string, objectId: string, patch: reduce.MaskObjectPatch) => void;
 
+  /** The frames a result was made from take the list's place, as they were. */
+  restoreFrames: (frames: Frame[]) => void;
+  /** Prepared frames join the end of the list. */
+  appendFrames: (frames: Frame[]) => void;
   setSizeSource: (pick: SizeSourcePick | null) => void;
   /** Fit every frame's content to a new frame size. */
   refitAll: (size: Size) => void;
@@ -341,6 +346,19 @@ export const useInputStore = create<InputState>()(
         patchMaskObject: (frameId, objectId, patch) =>
           editFrame(frameId, (f) => reduce.patchMaskObject(f, objectId, patch)),
 
+        restoreFrames: (frames) =>
+          whenReady(() =>
+            set((s) => ({
+              frames,
+              ...reduce.settleSelection(frames, s.frames, {
+                selectedFrameId: frames[0]?.id ?? null,
+                activeItem: null,
+              }),
+              sizeSource: null,
+            })),
+          ),
+        appendFrames: (added) =>
+          edit((frames) => (added.length === 0 ? frames : [...frames, ...added])),
         setSizeSource: (pick) => whenReady(() => set({ sizeSource: pick })),
         refitAll: (size) =>
           edit((frames) => {
@@ -349,12 +367,16 @@ export const useInputStore = create<InputState>()(
           }),
 
         acceptImport: async (offer) => {
-          const loaded = await loadOffer(offer);
+          const loaded = await loadOffer(offer, working(get()));
           set((s) => {
             // the record changed again or is gone: the next load offers what is there
             if (!loaded) return { offers: answered(s, offer) };
-            const { doc, notes } = acceptOffer(working(s), offer, loaded, () =>
-              crypto.randomUUID(),
+            const { doc, notes } = acceptOffer(
+              working(s),
+              offer,
+              loaded,
+              () => crypto.randomUUID(),
+              keepsFrames(offer),
             );
             return { ...doc, offers: answered(s, offer), report: addToReport(s.report, { notes }) };
           });

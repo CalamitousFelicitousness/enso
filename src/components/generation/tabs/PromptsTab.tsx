@@ -5,7 +5,6 @@ import { useUiStore } from "@/stores/uiStore";
 import { useImg2ImgStore } from "@/stores/img2imgStore";
 import { useCanvasStore } from "@/stores/canvasStore";
 import { useInputStore } from "@/stores/inputStore";
-import { useControlStore, resolveUnitImage } from "@/stores/controlStore";
 import { useOutline } from "@/inputs/useOutline";
 import { positionLabel } from "@/lib/inputs/text";
 import { useFrameSize } from "@/canvas/useFrameSize";
@@ -100,12 +99,8 @@ export function PromptsTab() {
   const outline = useOutline();
   const slots = outline.sent;
   const multiInput = slots.length > 1;
-  // Control units with their own pictures: the browser resizes the Initial picture (buildGenerate)
-  const controlPictures = useControlStore((s) =>
-    s.units.some(
-      (u, i) => u.enabled && u.unitType !== "ip" && resolveUnitImage(s.units, i) !== null,
-    ),
-  );
+  // Control frames with pictures: the browser resizes the Initial picture (buildGenerate)
+  const controlPictures = outline.controls.length > 0;
   const autoSize = useImg2ImgStore((s) => s.autoSize);
   const setAutoSize = useImg2ImgStore((s) => s.setAutoSize);
   const upscalerGroups = useUpscalerGroups({ excludeLatent: true });

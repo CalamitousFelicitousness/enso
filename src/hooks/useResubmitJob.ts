@@ -1,13 +1,9 @@
 import { useCallback } from "react";
 import { toast } from "sonner";
 import { useSubmitJob } from "@/api/hooks/useJobs";
-import {
-  useJobQueueStore,
-  strippedSnapshot,
-  type JobDomain,
-  type JobSnapshot,
-} from "@/stores/jobStore";
+import { useJobQueueStore, type JobDomain, type JobSnapshot } from "@/stores/jobStore";
 import { putJobPayload } from "@/lib/jobPayloadDb";
+import { cloneJobInputs } from "@/inputs/snapshots";
 import { currentJobRequest } from "@/lib/retiredJobFields";
 import type { Job, JobRequest } from "@/api/types/v2";
 
@@ -40,13 +36,14 @@ export function useResubmitJob() {
       const priority = (request as { priority?: number }).priority ?? 0;
       try {
         const newJob = await submitJob.mutateAsync(request);
-        trackJob(newJob.id, domain, snapshot, request, priority);
+        const jobSnapshot = await cloneJobInputs(snapshot);
+        trackJob(newJob.id, domain, jobSnapshot, request, priority);
         void putJobPayload({
           id: newJob.id,
           domain,
           request,
           priority,
-          snapshot: strippedSnapshot(snapshot),
+          snapshot: jobSnapshot,
           createdAt: Date.now(),
         });
         if (opts.successMessage) toast.success(opts.successMessage);

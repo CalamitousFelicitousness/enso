@@ -13,6 +13,7 @@ export interface ModelCapabilityRecord {
   guidance: CheckpointGuidanceV2 | null;
   detailer_mode: DetailerMode | null;
   strength_applicable: boolean | null;
+  control_unified: boolean | null;
 }
 
 export function capabilityRecord(checkpoint: CheckpointInfoV2): ModelCapabilityRecord {
@@ -24,6 +25,7 @@ export function capabilityRecord(checkpoint: CheckpointInfoV2): ModelCapabilityR
     guidance: checkpoint.guidance ?? null,
     detailer_mode: checkpoint.detailer_mode ?? null,
     strength_applicable: checkpoint.strength_applicable ?? null,
+    control_unified: checkpoint.control_unified ?? null,
   };
 }
 

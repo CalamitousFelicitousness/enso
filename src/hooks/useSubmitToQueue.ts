@@ -1,13 +1,9 @@
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
 import { useSubmitJob } from "@/api/hooks/useJobs";
-import {
-  useJobQueueStore,
-  strippedSnapshot,
-  type JobDomain,
-  type JobSnapshot,
-} from "@/stores/jobStore";
+import { useJobQueueStore, type JobDomain, type JobSnapshot } from "@/stores/jobStore";
 import { putJobPayload } from "@/lib/jobPayloadDb";
+import { forgetInputs } from "@/inputs/snapshots";
 import type { JobRequest } from "@/api/types/v2";
 
 interface SubmitOptions {
@@ -31,8 +27,11 @@ export function useSubmitToQueue({ domain, buildRequest }: SubmitOptions) {
 
   const submit = useCallback(async () => {
     setIsSubmitting(true);
+    let snapshot: JobSnapshot | undefined;
     try {
-      const { payload, snapshot } = await buildRequest();
+      const built = await buildRequest();
+      snapshot = built.snapshot;
+      const { payload } = built;
       const job = await submitJob.mutateAsync(payload);
       const priority = (payload as { priority?: number }).priority ?? 0;
       trackJob(job.id, domain, snapshot, payload, priority);
@@ -41,10 +40,14 @@ export function useSubmitToQueue({ domain, buildRequest }: SubmitOptions) {
         domain,
         request: payload,
         priority,
-        snapshot: strippedSnapshot(snapshot),
+        snapshot,
         createdAt: Date.now(),
       });
     } catch (err) {
+      // Inputs stored for a job that never reached the queue
+      if (snapshot && snapshot.kind !== "none" && snapshot.inputsKey) {
+        forgetInputs(snapshot.inputsKey);
+      }
       if (err instanceof UserAbortError) return;
       toast.error("Failed to submit job", {
         description: err instanceof Error ? err.message : String(err),

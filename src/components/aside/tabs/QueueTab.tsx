@@ -1,12 +1,13 @@
 import { useCallback, useMemo } from "react";
 import { Trash2, ListOrdered, Ban } from "lucide-react";
 import { toast } from "sonner";
-import { useJobQueueStore, selectPendingJobsSorted, strippedSnapshot } from "@/stores/jobStore";
+import { useJobQueueStore, selectPendingJobsSorted } from "@/stores/jobStore";
 import type { TrackedJob } from "@/stores/jobStore";
 import { useUiStore } from "@/stores/uiStore";
 import { useSubmitJob, useDeleteJob, usePurgeJobs } from "@/api/hooks/useJobs";
 import { useResubmitJob } from "@/hooks/useResubmitJob";
 import { putJobPayload } from "@/lib/jobPayloadDb";
+import { cloneJobInputs } from "@/inputs/snapshots";
 import { QueueJobCard } from "./QueueJobCard";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -92,13 +93,14 @@ export function QueueTab() {
           priority: newPriority,
         } as typeof job.request;
         const newJob = await submitJob.mutateAsync(newRequest);
-        trackJob(newJob.id, job.domain, job.snapshot, newRequest, newPriority);
+        const snapshot = await cloneJobInputs(job.snapshot);
+        trackJob(newJob.id, job.domain, snapshot, newRequest, newPriority);
         void putJobPayload({
           id: newJob.id,
           domain: job.domain,
           request: newRequest,
           priority: newPriority,
-          snapshot: strippedSnapshot(job.snapshot),
+          snapshot,
           createdAt: Date.now(),
         });
       } catch (err) {
@@ -128,13 +130,14 @@ export function QueueTab() {
           priority: newPriority,
         } as typeof job.request;
         const newJob = await submitJob.mutateAsync(newRequest);
-        trackJob(newJob.id, job.domain, job.snapshot, newRequest, newPriority);
+        const snapshot = await cloneJobInputs(job.snapshot);
+        trackJob(newJob.id, job.domain, snapshot, newRequest, newPriority);
         void putJobPayload({
           id: newJob.id,
           domain: job.domain,
           request: newRequest,
           priority: newPriority,
-          snapshot: strippedSnapshot(job.snapshot),
+          snapshot,
           createdAt: Date.now(),
         });
       } catch (err) {

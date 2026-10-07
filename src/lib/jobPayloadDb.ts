@@ -1,4 +1,4 @@
-import type { JobDomain, StoredJobSnapshot } from "@/stores/jobStore";
+import type { JobDomain, JobSnapshot } from "@/stores/jobStore";
 import type { JobRequest } from "@/api/types/v2";
 import { createIdbListDb } from "./idbListDb";
 
@@ -12,7 +12,7 @@ export interface StoredJobPayload {
   domain: JobDomain;
   request: JobRequest;
   priority: number;
-  snapshot: StoredJobSnapshot;
+  snapshot: JobSnapshot;
   createdAt: number;
 }
 

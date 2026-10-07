@@ -94,19 +94,20 @@ function reidentified(imported: LegacyImport, newId: () => string): LegacyImport
 
 /** The document with the imported frames. They replace a document that holds
  * nothing (empty frames only), which also takes the import's selection and
- * size source; otherwise they follow the document's own frames. Ids the
- * document already uses are never repeated. */
+ * size source; otherwise, and always with `keepFrames`, they follow the
+ * document's own frames. Ids the document already uses are never repeated. */
 function append(
   doc: WorkingDocument,
   imported: LegacyImport,
   newId: () => string,
+  keepFrames: boolean,
 ): { doc: WorkingDocument; notes: ImportNote[] } {
   if (imported.frames.length === 0) return { doc, notes: imported.notes };
   const taken = new Set(idsOf(doc.frames));
   const incoming = idsOf(imported.frames).some((id) => taken.has(id))
     ? reidentified(imported, newId)
     : imported;
-  const untouched = doc.frames.every((f) => f.pictures.length === 0 && !hasMask(f));
+  const untouched = !keepFrames && doc.frames.every((f) => f.pictures.length === 0 && !hasMask(f));
   const kept = untouched ? [] : doc.frames;
   return {
     doc: {
@@ -122,15 +123,18 @@ function append(
 
 /** Carry out a plan. `loaded` is the converted content of `plan.load`, or
  * null when it could not be read; nothing is marked then, so the next load
- * tries again. The same document comes back when the plan changes nothing. */
+ * tries again. The same document comes back when the plan changes nothing.
+ * `keepFrames`: the import adds to the document's frames rather than
+ * standing in for an empty document, as control units beside a canvas do. */
 export function applyImports(
   doc: WorkingDocument,
   plan: ImportPlan,
   loaded: LegacyImport | null,
   newId: () => string,
+  keepFrames = false,
 ): { doc: WorkingDocument; notes: ImportNote[] } {
   if (plan.load && !loaded) return { doc, notes: [] };
-  const added = plan.load && loaded ? append(doc, loaded, newId) : { doc, notes: [] };
+  const added = plan.load && loaded ? append(doc, loaded, newId, keepFrames) : { doc, notes: [] };
   const done = plan.load ? [plan.load, ...plan.seen] : plan.seen;
   return { doc: marked(added.doc, done), notes: added.notes };
 }
@@ -141,8 +145,9 @@ export function acceptOffer(
   offer: LegacyRecord,
   loaded: LegacyImport,
   newId: () => string,
+  keepFrames = false,
 ): { doc: WorkingDocument; notes: ImportNote[] } {
-  const added = append(doc, loaded, newId);
+  const added = append(doc, loaded, newId, keepFrames);
   return { doc: marked(added.doc, [offer]), notes: added.notes };
 }
 

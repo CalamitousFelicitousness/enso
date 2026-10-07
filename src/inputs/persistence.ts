@@ -11,6 +11,8 @@ import {
   type ImportNote,
   type LegacyImport,
 } from "@/lib/inputs/legacy";
+import { REFERENCE_HEIGHT } from "@/lib/inputs/layout";
+import { controlFingerprint, controlToFrames, readLegacyControl } from "@/lib/inputs/legacyControl";
 import { loose } from "@/lib/inputs/loose";
 import {
   joinWorking,
@@ -19,6 +21,7 @@ import {
   type JoinLoss,
   type WorkingDocument,
 } from "@/lib/inputs/stored";
+import { useGenerationStore } from "@/stores/generationStore";
 import {
   DOCUMENTS,
   DocumentConflict,
@@ -26,10 +29,13 @@ import {
   enterTab,
   latestRevision,
   readDocument,
+  SNAPSHOTS,
   unreadableBlobs,
   writeDocument,
   type CidReaders,
 } from "./db";
+import { decodeLegacyUnits } from "./legacyControl";
+import { snapshotCids } from "./snapshots";
 
 /** What reading the stored inputs turned up besides the document. */
 export interface HydrationFindings {
@@ -62,6 +68,7 @@ export class UnstorableDocument extends Error {
 
 const READERS: CidReaders = {
   [DOCUMENTS]: (record) => readWorking(record).cids,
+  [SNAPSHOTS]: snapshotCids,
 };
 
 /** The canvas record's formats, newest first. Version 3 is a JSON string. */
@@ -154,9 +161,51 @@ async function convert(source: FoundSource): Promise<LegacyImport> {
   return legacyToFrames(await withoutDeadBlobs(source.state), () => crypto.randomUUID());
 }
 
+/** The control units record older builds kept beside the canvas: one format. */
+const CONTROL_SOURCE = "control-v1";
+const legacyControl = idbBackend("enso-control", "state");
+
+async function findControlSource(): Promise<FoundSource> {
+  const raw = await legacyControl.get("units");
+  if (raw === null || raw === undefined) return { id: CONTROL_SOURCE, fingerprint: null };
+  return { id: CONTROL_SOURCE, fingerprint: controlFingerprint(raw), state: raw };
+}
+
+/** Control and IP-Adapter frames from the units record, placed against the
+ * current frame size; units that took the canvas as their picture link to
+ * the document's first Initial frame. */
+async function convertControl(source: FoundSource, doc: WorkingDocument): Promise<LegacyImport> {
+  const units = await decodeLegacyUnits(readLegacyControl(source.state));
+  const { width, height } = useGenerationStore.getState();
+  const { frames, notes } = controlToFrames(
+    units,
+    {
+      size: { width, height },
+      displayHeight: REFERENCE_HEIGHT,
+      initialFrameId: doc.frames.find((f) => f.role === "initial")?.id ?? null,
+    },
+    () => crypto.randomUUID(),
+    () => crypto.randomUUID(),
+  );
+  return { frames, notes, selectedFrameId: null, activeItem: null, sizeSource: null };
+}
+
+/** Whether an offer's frames join the document's own frames rather than
+ * stand in for an empty document. */
+export function keepsFrames(offer: LegacyRecord): boolean {
+  return offer.id === CONTROL_SOURCE;
+}
+
 /** The frames a legacy record holds now, for an offer the user takes up. Null
  * when the record is gone or no longer the one offered. */
-export async function loadOffer(offer: LegacyRecord): Promise<LegacyImport | null> {
+export async function loadOffer(
+  offer: LegacyRecord,
+  doc: WorkingDocument,
+): Promise<LegacyImport | null> {
+  if (offer.id === CONTROL_SOURCE) {
+    const source = await findControlSource();
+    return source.fingerprint === offer.fingerprint ? convertControl(source, doc) : null;
+  }
   const source = (await findSources({})).find((s) => s.id === offer.id);
   return source?.fingerprint === offer.fingerprint ? convert(source) : null;
 }
@@ -165,7 +214,7 @@ export async function loadOffer(offer: LegacyRecord): Promise<LegacyImport | nul
  * a document started empty on purpose, which should stay empty. */
 export async function legacyMarks(): Promise<Record<string, string>> {
   try {
-    const found = await findSources({});
+    const found = [...(await findSources({})), await findControlSource()];
     return Object.fromEntries(
       found.flatMap((s) => (s.fingerprint === null ? [] : [[s.id, s.fingerprint]])),
     );
@@ -209,13 +258,22 @@ async function importLegacy(
   doc: WorkingDocument,
 ): Promise<{ doc: WorkingDocument; notes: ImportNote[]; offers: LegacyRecord[]; unread: boolean }> {
   try {
+    const newId = () => crypto.randomUUID();
     const sources = await findSources(doc.imports);
     const plan = planImports(doc.imports, sources);
     const found = plan.load && sources.find((s) => s.id === plan.load?.id);
-    const applied = applyImports(doc, plan, found ? await convert(found) : null, () =>
-      crypto.randomUUID(),
-    );
-    return { ...applied, offers: plan.offers, unread: false };
+    const canvas = applyImports(doc, plan, found ? await convert(found) : null, newId);
+    // Control units had a record of their own; their frames join the canvas frames
+    const control = await findControlSource();
+    const controlPlan = planImports(canvas.doc.imports, [control]);
+    const loaded = controlPlan.load ? await convertControl(control, canvas.doc) : null;
+    const applied = applyImports(canvas.doc, controlPlan, loaded, newId, true);
+    return {
+      doc: applied.doc,
+      notes: [...canvas.notes, ...applied.notes],
+      offers: [...plan.offers, ...controlPlan.offers],
+      unread: false,
+    };
   } catch (err) {
     console.error("[inputs] the canvas record of an older build could not be read", err);
     return { doc, notes: [], offers: [], unread: true };

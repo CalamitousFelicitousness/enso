@@ -7,13 +7,12 @@ import {
 } from "@/stores/jobStore";
 import { useInputStore } from "@/stores/inputStore";
 import { isPlaced } from "@/lib/inputs/types";
+import { rememberInputs } from "@/inputs/snapshots";
 import { buildControlRequest, InputRefusal } from "@/lib/request/buildGenerate";
 import { buildCloudImageRequest } from "@/lib/request/buildCloudImage";
 import { buildDetailRequest } from "@/lib/request/buildDetail";
 import { restoreFromResult } from "@/lib/request/restore";
 import { DEFAULT_SIZE_MULTIPLE, referenceSetsSize } from "@/lib/sizeCompute";
-import { blobToBase64 } from "@/lib/image";
-import { snapshotUnits } from "@/stores/controlStore";
 import { useModelSelectionStore } from "@/stores/modelSelectionStore";
 import { useModelCapabilityStore, type ModelCapabilityRecord } from "@/stores/modelCapabilityStore";
 import { usePromptHistoryStore } from "@/stores/promptHistoryStore";
@@ -43,6 +42,19 @@ import {
 import { BatchDialog } from "@/components/generation/BatchDialog";
 import { XyzGridDialog } from "@/components/generation/XyzGridDialog";
 import { GenerationDiffDialog } from "@/components/generation/GenerationDiffDialog";
+
+/** Store the frames for the job's result. A storage failure is told, not fatal. */
+async function rememberInputsOrWarn(width: number, height: number): Promise<string | undefined> {
+  try {
+    return await rememberInputs(useInputStore.getState().frames, { width, height });
+  } catch (err) {
+    console.error("[inputs] could not store the inputs with the job", err);
+    toast.warning("The inputs could not be stored with this job", {
+      description: "Its result will not bring them back.",
+    });
+    return undefined;
+  }
+}
 
 export const ActionBar = memo(function ActionBar() {
   const clearSelection = useGenerationStore((s) => s.clearSelection);
@@ -98,6 +110,7 @@ export const ActionBar = memo(function ActionBar() {
     let detailerMode: DetailerMode | null = null;
     let strengthSupported = true;
     let controlSeparateInit: boolean | null = null;
+    let controlUnified: boolean | null = null;
     // The canvas sized a lone Reference from the model it knew before this load
     let referenceSets = activeModel?.source !== "cloud";
     if (activeModel?.source === "local") {
@@ -127,6 +140,7 @@ export const ActionBar = memo(function ActionBar() {
       sizeMultiple = loaded.size_multiple ?? DEFAULT_SIZE_MULTIPLE;
       detailerMode = loaded.detailer_mode ?? null;
       strengthSupported = loaded.strength_applicable ?? true;
+      controlUnified = loaded.control_unified ?? null;
       // Whether this sdnext leaves a control unit its own picture beside an Initial picture
       const info = await queryClient.fetchQuery({
         queryKey: ["server-info"],
@@ -162,18 +176,16 @@ export const ActionBar = memo(function ActionBar() {
 
     const gen = useGenerationStore.getState();
     if (gen.detailerEnabled && gen.detailerOnly) {
-      const { request: detailRequest, inputBlob } = await buildDetailRequest();
-      const inputImage = inputBlob ? await blobToBase64(inputBlob) : undefined;
+      const { request: detailRequest } = await buildDetailRequest();
+      const inputsKey = await rememberInputsOrWarn(gen.width, gen.height);
       clearSelection();
       return {
         payload: detailRequest,
-        snapshot: { kind: "detail" as const, inputImage },
+        snapshot: { kind: "detail" as const, inputsKey },
       };
     }
 
-    const primaryFrame = useInputStore.getState().frames[0] ?? null;
-    const isImg2Img = primaryFrame?.role === "initial" && primaryFrame.pictures.some(isPlaced);
-    const { request, inputBlob } = await buildControlRequest({
+    const { request } = await buildControlRequest({
       maxInputImages,
       requestSetsSize,
       sizeMultiple,
@@ -181,6 +193,7 @@ export const ActionBar = memo(function ActionBar() {
       strengthSupported,
       detailerMode,
       controlSeparateInit,
+      controlUnified,
     }).catch((err: unknown) => {
       if (err instanceof InputRefusal) {
         toast.warning("Can't generate with these input images", { description: err.message });
@@ -188,14 +201,11 @@ export const ActionBar = memo(function ActionBar() {
       }
       throw err;
     });
-    const inputImage = isImg2Img && inputBlob ? await blobToBase64(inputBlob) : undefined;
-    const maskLines = primaryFrame?.role === "initial" ? primaryFrame.mask.strokes : [];
-    const inputMask = isImg2Img && maskLines.length > 0 ? maskLines.slice() : undefined;
-    const controlUnits = await snapshotUnits();
+    const inputsKey = await rememberInputsOrWarn(gen.width, gen.height);
     clearSelection();
     return {
       payload: { type: "generate" as const, ...request },
-      snapshot: { kind: "control" as const, inputImage, inputMask, controlUnits },
+      snapshot: { kind: "control" as const, inputsKey },
     };
   }, [clearSelection, loadModel, queryClient]);
 

@@ -5,7 +5,7 @@
 import { planSweep, type Orphans } from "@/lib/inputs/sweep";
 
 const NAME = "enso-inputs";
-const VERSION = 1;
+const VERSION = 2;
 const BLOBS = "blobs";
 const META = "meta";
 const ORPHANS = "orphans";
@@ -14,6 +14,8 @@ const LOCK = "enso-inputs";
 /** Stores whose records name blobs. A store added here needs a reader in
  * every sweep call, or sweeps stop. */
 export const DOCUMENTS = "documents";
+/** The frames each job was sent with, by the key its result carries. */
+export const SNAPSHOTS = "snapshots";
 
 /** The database was created by a build with a newer layout. */
 export class NewerDatabase extends Error {
@@ -31,7 +33,7 @@ function open(): Promise<IDBDatabase> {
   opening ??= new Promise<IDBDatabase>((resolve, reject) => {
     const req = indexedDB.open(NAME, VERSION);
     req.onupgradeneeded = () => {
-      for (const store of [DOCUMENTS, BLOBS, META]) {
+      for (const store of [DOCUMENTS, SNAPSHOTS, BLOBS, META]) {
         if (!req.result.objectStoreNames.contains(store)) req.result.createObjectStore(store);
       }
     };
