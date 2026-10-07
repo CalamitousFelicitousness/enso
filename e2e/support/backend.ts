@@ -21,7 +21,8 @@ export interface Job {
   id: string;
   status: "pending" | "running" | "completed" | "failed" | "cancelled";
   error?: string | null;
-  result?: { images: JobImage[] } | null;
+  /** `maps`: the maps the job made before generating, by client key. */
+  result?: { images: JobImage[]; maps?: Record<string, string> } | null;
 }
 
 export async function loadedCheckpoint(request: APIRequestContext): Promise<Checkpoint> {

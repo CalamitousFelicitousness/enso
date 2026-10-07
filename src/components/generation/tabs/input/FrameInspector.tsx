@@ -11,6 +11,7 @@ import { ControlModelSection } from "./sections/ControlModelSection";
 import { InitialSection } from "./sections/InitialSection";
 import { IpAdapterSection } from "./sections/IpAdapterSection";
 import { PicturesSection } from "./sections/PicturesSection";
+import { ProcessToSection } from "./sections/ProcessToSection";
 import { SourceSection } from "./sections/SourceSection";
 import { TimingSection } from "./sections/TimingSection";
 
@@ -34,6 +35,7 @@ export function FrameInspector({ frameId, withRole = true }: FrameInspectorProps
     </SectionLeader>
   );
   const pictures = <PicturesSection frame={frame} entry={entry} />;
+  const processTo = <ProcessToSection frame={frame} entry={entry} />;
 
   switch (frame.role) {
     case "initial":
@@ -41,6 +43,7 @@ export function FrameInspector({ frameId, withRole = true }: FrameInspectorProps
         <div className="flex flex-col gap-3">
           {withRole && role}
           {pictures}
+          {processTo}
           <InitialSection frame={frame} outline={outline} />
         </div>
       );
@@ -49,6 +52,7 @@ export function FrameInspector({ frameId, withRole = true }: FrameInspectorProps
         <div className="flex flex-col gap-3">
           {withRole && role}
           {pictures}
+          {processTo}
         </div>
       );
     case "control":
@@ -58,6 +62,7 @@ export function FrameInspector({ frameId, withRole = true }: FrameInspectorProps
           <SourceSection frame={frame} />
           {!frame.link && pictures}
           <ControlModelSection frame={frame} />
+          {frame.control.type !== "style_transfer" && processTo}
           {(frame.control.type === "controlnet" || frame.control.type === "xs") && (
             <TimingSection frame={frame} />
           )}

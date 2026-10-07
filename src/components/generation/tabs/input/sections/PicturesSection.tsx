@@ -13,7 +13,7 @@ import { removePicture } from "@/inputs/edits";
 import { INPUTS_FULL_HINT } from "@/inputs/capacity";
 import { useInputsAtCapacity } from "@/canvas/useInputsAtCapacity";
 import type { OutlineEntry } from "@/lib/inputs/outline";
-import { addressLabel } from "@/lib/inputs/text";
+import { addressLabel, mapStateWord } from "@/lib/inputs/text";
 import { isComposed, type Frame, type Picture } from "@/lib/inputs/types";
 import { cn } from "@/lib/utils";
 
@@ -51,10 +51,12 @@ function SetPictures({ frame, entry }: { frame: Frame; entry: OutlineEntry }) {
       )}
       {shown.map((picture) => {
         const slot = entry.slots.find((s) => s.pictureId === picture.id);
+        const map = entry.sent.find((s) => s.pictureId === picture.id)?.map ?? null;
+        const mapWord = map ? mapStateWord(map.state) : "";
         const where = !picture.visible
           ? "hidden, not sent"
           : slot?.address
-            ? addressLabel(slot.address)
+            ? `${addressLabel(slot.address)}${mapWord ? ` · ${mapWord}` : ""}`
             : "";
         return (
           <div

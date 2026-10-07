@@ -74,6 +74,12 @@ export class Enso {
   /** Pick a sampler by its name in the list. */
   async setSampler(from: string, to: string): Promise<void> {
     await this.openTab("Sampler");
+    await this.pick(from, to);
+  }
+
+  /** Pick an option of a searchable list of the open tab, opened by the
+   * option it shows now. */
+  async pick(from: string, to: string): Promise<void> {
     const picked = this.leftPanel.getByRole("button", { name: to, exact: true });
     const search = this.page.getByPlaceholder("Search...");
     await expect(async () => {

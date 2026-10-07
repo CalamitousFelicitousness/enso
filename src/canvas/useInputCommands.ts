@@ -1,13 +1,15 @@
 // Palette entries for the input frames: one per role, which goes to the
 // first frame of that role or adds one, and the pending undo.
 
-import { Crosshair, Image, Images, Sparkles } from "lucide-react";
+import { Crosshair, Image, Images, Sparkles, Wand2 } from "lucide-react";
 import { useRegisterCommand } from "@/lib/commandRegistry";
 import { useInputStore } from "@/stores/inputStore";
 import { useUiStore } from "@/stores/uiStore";
 import { addFrame } from "@/inputs/edits";
+import { processNow } from "@/inputs/processing";
 import { revealFrame } from "@/inputs/reveal";
 import { runUndo } from "@/inputs/undo";
+import { useOutlineEnv } from "@/inputs/useOutline";
 import type { FrameRole } from "@/lib/inputs/types";
 
 /** Show the first frame of a role in the Input tab, adding one when there is none. */
@@ -19,6 +21,18 @@ function goToRole(role: FrameRole): void {
 }
 
 export function useInputCommands(enabled: boolean): void {
+  const env = useOutlineEnv();
+  useRegisterCommand(
+    {
+      id: "inputs:process-now",
+      label: "Process the inputs now",
+      group: "Inputs",
+      keywords: ["process", "preprocess", "map", "depth", "canny", "pose", "processor"],
+      icon: Wand2,
+      run: () => void processNow(env, "all", "Processing the inputs"),
+    },
+    enabled,
+  );
   useRegisterCommand(
     {
       id: "inputs:initial",

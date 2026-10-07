@@ -1,14 +1,17 @@
 // Which control model runs on a Control frame's picture, and how strongly.
 
 import { useEffect, useMemo } from "react";
+import { useShallow } from "zustand/react/shallow";
 import { useControlModels, useControlModes } from "@/api/hooks/useControl";
 import { SectionLeader } from "@/components/ui/section-leader";
 import { Combobox } from "@/components/ui/combobox";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ParamSlider } from "@/components/generation/ParamSlider";
 import { ParamGrid } from "@/components/generation/ParamRow";
+import { Button } from "@/components/ui/button";
 import { useInputStore } from "@/stores/inputStore";
-import { controlTypeLabel } from "@/lib/inputs/text";
+import { sentAsImage } from "@/lib/inputs/outline";
+import { controlTypeLabel, notSentLabel, sendAsImageLabel } from "@/lib/inputs/text";
 import { CONTROL_TYPES, type ControlType, type Frame } from "@/lib/inputs/types";
 import { Row } from "../Row";
 
@@ -24,10 +27,19 @@ function modesFor(modes: Record<string, string[]> | undefined, model: string): s
 
 export function ControlModelSection({ frame }: { frame: Frame }) {
   const patchControl = useInputStore((s) => s.patchControl);
+  const switchRole = useInputStore((s) => s.switchRole);
   const control = frame.control;
   const { data: models } = useControlModels(control.type);
   const { data: controlModes } = useControlModes();
   const set = (patch: Partial<typeof control>) => patchControl(frame.id, patch);
+  // Without a model the frame sends nothing; it can be an image instead
+  const asImage = useInputStore(
+    useShallow((s) =>
+      control.model === "None" && control.type !== "style_transfer"
+        ? sentAsImage(s.frames, frame.id)
+        : null,
+    ),
+  );
 
   const modes = useMemo(() => modesFor(controlModes, control.model), [controlModes, control.model]);
 
@@ -58,6 +70,19 @@ export function ControlModelSection({ frame }: { frame: Frame }) {
             className="h-6 text-2xs flex-1"
           />
         </Row>
+      )}
+      {asImage && (
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-3xs text-amber-400">{notSentLabel("noModel")}</span>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-5 shrink-0 rounded px-1.5 text-3xs"
+            onClick={() => switchRole(frame.id, "reference")}
+          >
+            {sendAsImageLabel(asImage)}
+          </Button>
+        </div>
       )}
       {showModel && modes && modes.length > 0 && (
         <Row label="Mode">

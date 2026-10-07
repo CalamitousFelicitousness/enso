@@ -128,6 +128,27 @@ test("the detailer redraws a face from its own prompt", async ({ page }) => {
   }
 });
 
+test("a Reference processed to edges goes out as its map", async ({ page }) => {
+  const app = new Enso(page);
+  await prepare(app, 1);
+  await app.openTab("Input");
+  await app.outlineRow(1).click();
+  // Canny ships with sdnext and needs no download
+  await app.pick("Nothing", "Edges · Canny");
+  await expect(app.outlineRow(1)).toHaveAccessibleName(/needs processing$/);
+
+  const job = await app.generate();
+  expect(job.error ?? null).toBeNull();
+  expect(imageSizes(job)).toEqual(["704x1280"]);
+  // The server made one map before generating, and the page now shows it
+  expect(Object.keys(job.result?.maps ?? {})).toHaveLength(1);
+  await expect(app.outlineRow(1)).toHaveAccessibleName(/sent$/);
+  // a set frame's dock line speaks of its pictures' maps together
+  await expect(app.canvas.getByText("Maps", { exact: true })).toBeVisible();
+  const log = jobLog(job.id);
+  if (log) expect(pipelineCalls(log)).toEqual(["Base 704x1280"]);
+});
+
 test("inputs stop at the model's limit", async ({ page }) => {
   const app = new Enso(page);
   await app.open();
