@@ -45,6 +45,15 @@ export async function addFilesToInputs(
   const frame = store.frames.find((f) => f.id === wanted) ?? store.frames[0];
   if (!frame) return;
   if (frameId) store.selectFrame(frame.id);
+  // A linked Control frame shows another frame's picture; its own would be
+  // invisible until the link is cleared, so the drop is refused, not hidden.
+  if (frame.link) {
+    const entry = outlineEntry(outlineOf(store.frames), frame.id);
+    const name = entry ? positionLabel(entry.position) : "This frame";
+    const source = entry?.linkedTo != null ? positionLabel(entry.linkedTo) : "another frame";
+    toast.info(`${name} uses ${source}'s picture. Unlink it in Options to give it its own.`);
+    return;
+  }
 
   let added = 0;
   for (const result of decoded) {

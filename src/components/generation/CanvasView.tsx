@@ -3,10 +3,10 @@ import { toast } from "sonner";
 import { useCanvasStore } from "@/stores/canvasStore";
 import { useInputStore } from "@/stores/inputStore";
 import { addFilesToInputs } from "@/inputs/route";
-import { composedPictures } from "@/lib/inputs/types";
+import { composedPictures, isComposed } from "@/lib/inputs/types";
+import { frameBox, inBox } from "@/lib/inputs/layout";
 import { mainViewport } from "@/canvas/viewportAdapter";
 import { CanvasSurface, type SurfacePoint } from "@/canvas/CanvasSurface";
-import { useControlStore } from "@/stores/controlStore";
 import { useUiStore } from "@/stores/uiStore";
 import { useShortcutScope } from "@/hooks/useShortcutScope";
 import { useShortcut } from "@/hooks/useShortcut";
@@ -15,23 +15,14 @@ import { payloadToFile } from "@/lib/sendTo";
 import type { DragPayload } from "@/stores/dragStore";
 import { CanvasStage } from "@/canvas/CanvasStage";
 import { CanvasToolbar } from "@/canvas/CanvasToolbar";
-import { ControlFramePanels } from "@/canvas/ControlFramePanel";
-import { InputFramePanels } from "@/canvas/panels/InputFramePanels";
+import { FramePanels } from "@/canvas/panels/FramePanels";
 import { CanvasProgressOverlay } from "@/canvas/CanvasProgressOverlay";
-import { useControlFrameLayout } from "@/canvas/useControlFrameLayout";
+import { useCanvasLayout } from "@/canvas/useCanvasLayout";
 import { INPUTS_FULL_HINT } from "@/canvas/useInputsAtCapacity";
 import { getOrderedFrames } from "@/canvas/frameList";
 import { ModeToggle } from "./ModeToggle";
 import { RotateCcw, X, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
-
-/** Where the file picker's result goes: a control unit, or an input frame
- * (null for the active one). */
-type PickTarget = { unit: number } | { frameId: string | null };
-
-function contains(p: SurfacePoint, x: number, y: number, w: number, h: number): boolean {
-  return p.canvasX >= x && p.canvasX <= x + w && p.canvasY >= y && p.canvasY <= y + h;
-}
 
 /** The frame files go to: the given one, else the selected one, else the first. */
 function targetFrame(frameId: string | null) {
@@ -44,9 +35,9 @@ export const CanvasView = memo(function CanvasView() {
   const visible = useKeepAliveVisible();
   useShortcutScope("canvas", visible);
   const setViewport = useCanvasStore((s) => s.setViewport);
-  const selectedInitialHasImages = useInputStore((s) => {
+  const selectedComposedHasImages = useInputStore((s) => {
     const f = s.frames.find((fr) => fr.id === s.selectedFrameId) ?? s.frames[0];
-    return f?.role === "initial" && composedPictures(f).length > 0;
+    return f !== undefined && isComposed(f.role) && composedPictures(f).length > 0;
   });
   const hasAnyContent = useInputStore((s) =>
     s.frames.some((f) => f.pictures.length > 0 || f.mask.objects.length > 0),
@@ -59,70 +50,36 @@ export const CanvasView = memo(function CanvasView() {
   const bumpFocusFitTrigger = useCanvasStore((s) => s.bumpFocusFitTrigger);
   const modeLocked = useCanvasStore((s) => s.modeLocked);
   const setModeLocked = useCanvasStore((s) => s.setModeLocked);
-  const setUnitImage = useControlStore((s) => s.setUnitImage);
-  const setUnitParam = useControlStore((s) => s.setUnitParam);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [pickTarget, setPickTarget] = useState<PickTarget | null>(null);
+  // Where the picker's files go: a frame, or null for the selected one
+  const [pickTarget, setPickTarget] = useState<string | null>(null);
 
-  const layout = useControlFrameLayout();
+  const layout = useCanvasLayout();
 
-  // Dropped, pasted and picked images go into an input frame: the one under
-  // the drop or behind the clicked control, else the selected one.
-  const addFiles = addFilesToInputs;
-
-  // Which control frame a drop landed on, or -1 for the canvas itself
-  const hitTestControlFrame = useCallback(
-    (point: SurfacePoint): number =>
-      layout.controlFrames.find((f) => contains(point, f.x, f.y, f.width, f.height))?.unitIndex ??
-      -1,
-    [layout.controlFrames],
-  );
-
-  // Which input frame a drop landed on, or null for anywhere else
-  const hitTestInputFrame = useCallback(
+  // Which frame a drop landed on, or null for anywhere else
+  const hitTestFrame = useCallback(
     (point: SurfacePoint): string | null =>
-      layout.inputFrames.find((f) =>
-        f.kind === "initial"
-          ? contains(point, f.x, f.y, f.displayW, f.displayH)
-          : contains(point, f.x, f.y, f.motherW, f.motherH),
-      )?.frameId ?? null,
-    [layout.inputFrames],
+      layout.frames.find((f) => inBox(frameBox(f), point.canvasX, point.canvasY))?.frameId ?? null,
+    [layout.frames],
   );
 
   const handleDropFiles = useCallback(
     (files: File[], point: SurfacePoint) => {
-      const unit = hitTestControlFrame(point);
-      // A control frame holds one image, so a multi-file drop there takes the
-      // first and ignores the rest.
-      if (unit >= 0) {
-        const file = files[0];
-        if (file) {
-          setUnitImage(unit, file);
-          setUnitParam(unit, "processedImage", null);
-        }
-        return;
-      }
-      void addFiles(files, hitTestInputFrame(point));
+      void addFilesToInputs(files, hitTestFrame(point));
     },
-    [hitTestControlFrame, hitTestInputFrame, addFiles, setUnitImage, setUnitParam],
+    [hitTestFrame],
   );
 
   const handleDropPayload = useCallback(
     (payload: DragPayload, point: SurfacePoint) => {
-      const unit = hitTestControlFrame(point);
-      const frameId = hitTestInputFrame(point);
+      const frameId = hitTestFrame(point);
       payloadToFile(payload)
         .then((f: File) => {
-          if (unit >= 0) {
-            setUnitImage(unit, f);
-            setUnitParam(unit, "processedImage", null);
-          } else {
-            void addFiles([f], frameId);
-          }
+          void addFilesToInputs([f], frameId);
         })
         .catch(() => {});
     },
-    [hitTestControlFrame, hitTestInputFrame, addFiles, setUnitImage, setUnitParam],
+    [hitTestFrame],
   );
 
   const handleFileInput = useCallback(
@@ -131,36 +88,30 @@ export const CanvasView = memo(function CanvasView() {
       e.target.value = "";
       setPickTarget(null);
       if (picked.length === 0) return;
-      if (pickTarget && "unit" in pickTarget) {
-        // Control frame pick - single file
-        setUnitImage(pickTarget.unit, picked[0]);
-        setUnitParam(pickTarget.unit, "processedImage", null);
-        return;
-      }
-      void addFiles(picked, pickTarget?.frameId ?? null);
+      void addFilesToInputs(picked, pickTarget);
     },
-    [pickTarget, addFiles, setUnitImage, setUnitParam],
+    [pickTarget],
   );
 
   // A pick that would give an input frame another slot is refused once the
   // frames hold as many images as the model takes. Adding a layer to a frame
-  // that already sends an image adds no slot.
+  // that already sends an image adds no slot; Control and IP-Adapter frames
+  // never count.
   const openPicker = useCallback(
-    (target: PickTarget) => {
-      if (!("unit" in target) && layout.inputsAtCapacity) {
-        const frame = targetFrame(target.frameId);
+    (frameId: string | null) => {
+      if (layout.inputsAtCapacity) {
+        const frame = targetFrame(frameId);
+        const countsAsInput = !frame || frame.role === "initial" || frame.role === "reference";
         const addsSlot =
-          !frame || frame.role === "reference" || composedPictures(frame).length === 0;
+          countsAsInput &&
+          (!frame || frame.role === "reference" || composedPictures(frame).length === 0);
         if (addsSlot) {
           toast.info(INPUTS_FULL_HINT);
           return;
         }
       }
-      setPickTarget(target);
-      if (fileInputRef.current) {
-        fileInputRef.current.multiple = !("unit" in target);
-        fileInputRef.current.click();
-      }
+      setPickTarget(frameId);
+      fileInputRef.current?.click();
     },
     [layout.inputsAtCapacity],
   );
@@ -235,39 +186,22 @@ export const CanvasView = memo(function CanvasView() {
   }, [handleClearFrame]);
 
   const viewport = useCanvasStore((s) => s.viewport);
-  // Reference frames take picked files as children, Initial frames as layers
-  const handlePickInputFile = useCallback(
-    (frameId: string) => openPicker({ frameId }),
-    [openPicker],
-  );
+  // Set frames take picked files as cells, composed frames as layers
+  const handlePickForFrame = useCallback((frameId: string) => openPicker(frameId), [openPicker]);
 
-  // Add Input Frame from the column-bottom DOM button: a new Initial frame,
-  // selected so the next pick or paste lands in it.
+  // A new frame is selected so the next pick or paste lands in it
   const handleAddInputFrame = useCallback(() => {
     const inputs = useInputStore.getState();
     inputs.selectFrame(inputs.addFrame("initial"));
   }, []);
+  const handleAddControlFrame = useCallback(() => {
+    const inputs = useInputStore.getState();
+    inputs.selectFrame(inputs.addFrame("control"));
+  }, []);
 
-  const handlePasteFiles = useCallback(
-    (files: File[]) => {
-      void addFiles(files);
-    },
-    [addFiles],
-  );
-
-  // -1 picks into the selected input frame
-  const handlePickImage = useCallback(
-    (unitIndex: number) => openPicker(unitIndex >= 0 ? { unit: unitIndex } : { frameId: null }),
-    [openPicker],
-  );
-
-  const handleClearImage = useCallback(
-    (unitIndex: number) => {
-      setUnitImage(unitIndex, null);
-      setUnitParam(unitIndex, "processedImage", null);
-    },
-    [setUnitImage, setUnitParam],
-  );
+  const handlePasteFiles = useCallback((files: File[]) => {
+    void addFilesToInputs(files);
+  }, []);
 
   return (
     <CanvasSurface
@@ -276,33 +210,20 @@ export const CanvasView = memo(function CanvasView() {
       onDropPayload={handleDropPayload}
       onPasteFiles={handlePasteFiles}
       overlay={
-        <>
-          <ControlFramePanels
-            layout={layout}
-            onPickImage={handlePickImage}
-            onClearImage={handleClearImage}
-          />
-          {/* Per-Input-frame DOM chrome: mode toggle, action buttons, drawer,
-              +Add Input Frame placeholder, per-Reference-child X buttons. */}
-          <InputFramePanels
-            layout={layout}
-            viewport={viewport}
-            labelScale={labelScale}
-            onPickImage={handlePickInputFile}
-            onAddReferenceChild={handlePickInputFile}
-            onClearFrame={handleClearFrame}
-            onRemoveFrame={handleRemoveFrame}
-            onAddInputFrame={handleAddInputFrame}
-          />
-        </>
+        <FramePanels
+          layout={layout}
+          viewport={viewport}
+          labelScale={labelScale}
+          onPickImage={handlePickForFrame}
+          onAddCell={handlePickForFrame}
+          onClearFrame={handleClearFrame}
+          onRemoveFrame={handleRemoveFrame}
+          onAddInputFrame={handleAddInputFrame}
+          onAddControlFrame={handleAddControlFrame}
+        />
       }
     >
-      <CanvasStage
-        layout={layout}
-        onPickImage={handlePickImage}
-        onPickInputFile={handlePickInputFile}
-        onAddReferenceChild={handlePickInputFile}
-      />
+      <CanvasStage layout={layout} onPickFile={handlePickForFrame} onAddCell={handlePickForFrame} />
 
       {/* Top-right utility buttons */}
       <div className="absolute top-2 right-2 flex items-center gap-1.5">
@@ -315,8 +236,8 @@ export const CanvasView = memo(function CanvasView() {
         <Button
           variant="secondary"
           size="icon-xs"
-          onClick={() => handlePickImage(-1)}
-          title="Add an image layer to the canvas"
+          onClick={() => openPicker(null)}
+          title="Add an image to the selected frame"
           className="bg-background/80 backdrop-blur-sm"
         >
           <Plus size={12} />
@@ -335,7 +256,7 @@ export const CanvasView = memo(function CanvasView() {
             variant="secondary"
             size="icon-xs"
             onClick={handleClearAll}
-            title="Clear all input frames"
+            title="Clear all frames"
             className="bg-background/80 backdrop-blur-sm"
           >
             <X size={12} />
@@ -343,18 +264,18 @@ export const CanvasView = memo(function CanvasView() {
         )}
       </div>
 
-      {/* The mask toolbar shows while the selected frame is Initial and has
-        at least one visible picture to paint over. */}
-      {selectedInitialHasImages && <CanvasToolbar />}
+      {/* The mask toolbar shows while the selected frame composes a picture
+        and has at least one visible layer to paint over. */}
+      {selectedComposedHasImages && <CanvasToolbar />}
 
       {/* Generation progress overlay - not affected by pan/zoom */}
       <CanvasProgressOverlay />
 
-      {/* Single file input for both input frame and control frame picks */}
       <input
         ref={fileInputRef}
         type="file"
         accept="image/*"
+        multiple
         onChange={handleFileInput}
         className="hidden"
       />

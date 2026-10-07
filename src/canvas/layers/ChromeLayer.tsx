@@ -4,12 +4,12 @@
 
 import { Circle as KonvaCircle, Group, Layer, Line, Transformer } from "react-konva";
 import type { Snap } from "@/canvas/tools/useLayerInteraction";
-import type { InitialFramePosition } from "@/canvas/inputFrameTypes";
+import type { ComposedFramePosition } from "@/lib/inputs/layout";
 import type Konva from "konva";
 
 interface ChromeLayerProps {
-  /** Focused Initial frame; the cursor lives in its pixel space. */
-  focusedFrame: InitialFramePosition | undefined;
+  /** Selected composed frame; the cursor lives in its pixel space. */
+  focusedFrame: ComposedFramePosition | undefined;
   displayScale: number;
   trRef: React.RefObject<Konva.Transformer | null>;
   snap: Snap;

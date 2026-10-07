@@ -18,13 +18,13 @@ import {
   type LayerInteraction,
   type Snap,
 } from "@/canvas/tools/useLayerInteraction";
-import type { InitialFramePosition, InputFramePosition } from "@/canvas/inputFrameTypes";
+import type { ComposedFramePosition, FramePosition } from "@/lib/inputs/layout";
 import type Konva from "konva";
 
 type SetNodeRef = (frameId: string, layerId: string, node: Konva.Image | null) => void;
 
 interface MaskLayerProps {
-  frames: InputFramePosition[];
+  frames: FramePosition[];
   displayScale: number;
   setNodeRef: SetNodeRef;
   snap: Snap;
@@ -70,7 +70,7 @@ export function MaskLayer({
   return (
     <Layer ref={layerRef} visible={maskVisible}>
       {frames.map((frame) =>
-        frame.kind === "initial" ? (
+        frame.kind === "composed" && frame.role === "initial" ? (
           <MaskFrame
             key={frame.frameId}
             frame={frame}
@@ -91,7 +91,7 @@ export function MaskLayer({
 const NO_MASK: MaskContent = { objects: [], strokes: [] };
 
 interface MaskFrameProps {
-  frame: InitialFramePosition;
+  frame: ComposedFramePosition;
   displayScale: number;
   isSelected: boolean;
   draggable: boolean;

@@ -8,7 +8,7 @@ import { useMemo, type CSSProperties, type ReactNode } from "react";
 import { DndContext, PointerSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, horizontalListSortingStrategy, useSortable } from "@dnd-kit/sortable";
 import { X } from "lucide-react";
-import type { ReferenceChildPosition } from "@/canvas/inputFrameTypes";
+import type { ReferenceChildPosition } from "@/lib/inputs/layout";
 import type { ViewportState } from "@/canvas/viewportBus";
 
 interface ReferenceSortableOverlayProps {

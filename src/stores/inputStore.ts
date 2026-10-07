@@ -10,11 +10,15 @@ import * as reduce from "@/lib/inputs/reducers";
 import { NewerDocument, type WorkingDocument } from "@/lib/inputs/stored";
 import type {
   ActiveItem,
+  ControlSettings,
+  FitPolicy,
   Frame,
   FrameRole,
+  IpAdapterSettings,
   MaskObject,
   MaskStroke,
   PictureSource,
+  ProcessedPreview,
   Size,
   Transform,
 } from "@/lib/inputs/types";
@@ -67,6 +71,19 @@ interface InputState extends WorkingDocument {
   removeItem: (frameId: string, itemId: string) => void;
   setPictureVisible: (frameId: string, pictureId: string, visible: boolean) => void;
   showHiddenBySwitch: (frameId: string) => void;
+
+  /** A composed frame's fit policy; null leaves placements to the hand. */
+  setFit: (frameId: string, fit: FitPolicy | null) => void;
+  /** Point a Control frame at the composed frame whose picture it sends, or at none. */
+  setLink: (frameId: string, targetId: string | null) => void;
+  patchControl: (frameId: string, patch: Partial<ControlSettings>) => void;
+  patchIpAdapter: (frameId: string, patch: Partial<Omit<IpAdapterSettings, "masks">>) => void;
+  /** Returns the new mask's id. */
+  addIpMask: (frameId: string, picture: NewPicture) => string;
+  removeIpMask: (frameId: string, pictureId: string) => void;
+  setProcessed: (frameId: string, processed: ProcessedPreview | null) => void;
+  /** Drop every Control frame's processed map, as a job's own processing replaces them. */
+  clearProcessed: () => void;
 
   addStroke: (frameId: string, stroke: MaskStroke) => void;
   clearStrokes: (frameId: string) => void;
@@ -242,7 +259,12 @@ export const useInputStore = create<InputState>()(
         setEnabled: (frameId, enabled) => editFrame(frameId, (f) => reduce.setEnabled(f, enabled)),
         clearFrame: (frameId) =>
           editFrame(frameId, (f) =>
-            reduce.clearMaskObjects(reduce.clearStrokes(reduce.clearPictures(f))),
+            reduce.setProcessed(
+              reduce.clearIpMasks(
+                reduce.clearMaskObjects(reduce.clearStrokes(reduce.clearPictures(f))),
+              ),
+              null,
+            ),
           ),
         selectFrame: (frameId) =>
           whenReady(() =>
@@ -288,6 +310,26 @@ export const useInputStore = create<InputState>()(
           editFrame(frameId, (f) => reduce.setPictureVisible(f, pictureId, visible, frameSize())),
         showHiddenBySwitch: (frameId) =>
           editFrame(frameId, (f) => reduce.showHiddenBySwitch(f, frameSize())),
+
+        setFit: (frameId, fit) => editFrame(frameId, (f) => reduce.setFit(f, fit, frameSize())),
+        setLink: (frameId, targetId) => editFrame(frameId, (f) => reduce.setLink(f, targetId)),
+        patchControl: (frameId, patch) => editFrame(frameId, (f) => reduce.patchControl(f, patch)),
+        patchIpAdapter: (frameId, patch) =>
+          editFrame(frameId, (f) => reduce.patchIpAdapter(f, patch)),
+        addIpMask: (frameId, picture) => {
+          const source = named(picture);
+          editFrame(frameId, (f) => reduce.addIpMask(f, source));
+          return source.id;
+        },
+        removeIpMask: (frameId, pictureId) =>
+          editFrame(frameId, (f) => reduce.removeIpMask(f, pictureId)),
+        setProcessed: (frameId, processed) =>
+          editFrame(frameId, (f) => reduce.setProcessed(f, processed)),
+        clearProcessed: () =>
+          edit((frames) => {
+            const next = frames.map((f) => reduce.setProcessed(f, null));
+            return next.every((f, i) => f === frames[i]) ? frames : next;
+          }),
 
         addStroke: (frameId, stroke) => editFrame(frameId, (f) => reduce.addStroke(f, stroke)),
         clearStrokes: (frameId) => editFrame(frameId, reduce.clearStrokes),

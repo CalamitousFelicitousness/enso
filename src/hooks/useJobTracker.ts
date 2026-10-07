@@ -3,7 +3,8 @@ import { api } from "@/api/client";
 import { WebSocketManager } from "@/api/websocket";
 import { useJobQueueStore, type TrackedJob, type JobDomain } from "@/stores/jobStore";
 import { useGenerationStore } from "@/stores/generationStore";
-import { useControlStore } from "@/stores/controlStore";
+import { useCanvasStore } from "@/stores/canvasStore";
+import { useInputStore } from "@/stores/inputStore";
 import { useVideoStore } from "@/stores/videoStore";
 import { useProcessStore } from "@/stores/processStore";
 import { deleteJobPayload } from "@/lib/jobPayloadDb";
@@ -40,10 +41,10 @@ function routeResult(domain: JobDomain, result: JobResult, snapshot: TrackedJob[
         warnings: result.warnings,
       });
     }
+    // The job's own processing supersedes the frames' preview maps
     if (result.processed?.length > 0) {
-      useControlStore
-        .getState()
-        .replaceProcessedImages(`${api.getBaseUrl()}${result.processed[0].url}`);
+      useCanvasStore.getState().setProcessedUrl(`${api.getBaseUrl()}${result.processed[0].url}`);
+      useInputStore.getState().clearProcessed();
     }
   } else if (domain === "video" || domain === "framepack" || domain === "ltx") {
     // Every video executor populates result.videos with a single VideoRef

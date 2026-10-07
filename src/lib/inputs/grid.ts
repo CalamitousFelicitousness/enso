@@ -1,6 +1,5 @@
-// Pure layout helpers for the multi-Input-frame stack. Constants and math;
-// no React, no store dependencies, no Konva. The layout engine
-// (useControlFrameLayout) consumes these to compute per-frame positions.
+// Grid math for the set frames (Reference, IP-Adapter): how many columns N
+// cells take, how big each cell is, how tall the mother frame gets.
 
 /** Vertical gap between an Input frame and the floating panel of the next
  * frame in the stack, display units. */

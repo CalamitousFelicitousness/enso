@@ -18,7 +18,7 @@ import { exportMask } from "@/lib/exportMask";
 import { flattenCanvas, compositeControlImage, compositeFitImage } from "@/lib/flattenCanvas";
 import { uploadFiles, uploadBlob } from "@/lib/upload";
 import { resizeBlob } from "@/lib/resize";
-import { REFERENCE_HEIGHT } from "@/canvas/useControlFrameLayout";
+import { REFERENCE_HEIGHT } from "@/lib/inputs/layout";
 import { computeOutline, type SentInput } from "@/lib/inputs/outline";
 import { CONTROL_PICTURE_SERVER_TEXT, unreadableText } from "@/lib/inputs/text";
 import { composedPictures, type Frame, type Picture } from "@/lib/inputs/types";

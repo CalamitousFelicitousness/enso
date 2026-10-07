@@ -2,15 +2,14 @@ import { useMemo } from "react";
 import { useVideoStore } from "@/stores/videoStore";
 import { useVideoCanvasStore } from "@/stores/videoCanvasStore";
 import { useActiveVideoCaps } from "@/hooks/useActiveVideoCaps";
-import { REFERENCE_HEIGHT } from "./useControlFrameLayout";
+import { REFERENCE_HEIGHT, type ReferenceChildPosition } from "@/lib/inputs/layout";
 import {
   REFERENCE_CHILD_GAP,
   REFERENCE_MOTHER_PADDING,
   computeReferenceChildCellSize,
   computeReferenceGridColumns,
   computeReferenceGridRows,
-} from "./inputFrameLayout";
-import type { ReferenceChildPosition } from "./inputFrameTypes";
+} from "@/lib/inputs/grid";
 import { referenceAddresses } from "@/lib/video/referenceMedia";
 
 const FRAME_GAP = 48;

@@ -19,12 +19,8 @@ import { useUiStore } from "@/stores/uiStore";
 import { useVideoFrameLayout } from "@/canvas/useVideoFrameLayout";
 import { VideoCanvasStage } from "@/canvas/VideoCanvasStage";
 import { ReferenceSortableOverlay } from "@/canvas/ReferenceSortableOverlay";
-import {
-  FrameHeader,
-  INPUT_COLOR_ACTIVE,
-  INPUT_COLOR_INACTIVE,
-  OUTPUT_COLOR,
-} from "@/canvas/ControlFramePanel";
+import { INPUT_COLOR_ACTIVE, INPUT_COLOR_INACTIVE, OUTPUT_COLOR } from "@/canvas/frameColors";
+import { FrameHeader } from "@/canvas/panels/FrameHeader";
 import { VideoPlayer } from "@/components/video/VideoPlayer";
 import { VideoCompare } from "@/components/video/VideoCompare";
 import { VideoResultActions } from "@/components/video/VideoResultActions";

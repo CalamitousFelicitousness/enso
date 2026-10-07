@@ -102,11 +102,12 @@ export class Enso {
 
   /** Switch Input 1 to Reference and give it the files, one reference each. */
   async addReferences(...files: string[]): Promise<void> {
-    await this.canvas.getByRole("button", { name: "Expand settings" }).nth(1).click();
-    await this.canvas.getByRole("button", { name: "Reference", exact: true }).click();
+    const dock = this.canvas.getByRole("group", { name: /^Input 1 / });
+    await dock.getByRole("button", { name: "Expand settings" }).click();
+    await dock.getByRole("button", { name: "Reference", exact: true }).click();
     for (const file of files) {
       const chooser = this.page.waitForEvent("filechooser");
-      await this.canvas.getByRole("button", { name: "Add reference image" }).click();
+      await dock.getByRole("button", { name: "Add picture" }).click();
       await (await chooser).setFiles(file);
     }
     await expect(this.canvas.getByRole("button", { name: "Remove reference" })).toHaveCount(

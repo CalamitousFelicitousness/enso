@@ -1,9 +1,9 @@
-import type { CanvasLayout } from "./useControlFrameLayout";
+import { frameBox, type FrameLayout } from "@/lib/inputs/layout";
 
-/** A canvas frame identifier. Used by focus mode + panelCollapsedOverrides
- * keys + per-frame state lookups. Input frames carry their UUID; output and
- * processed are singular; ControlNet units are indexed. */
-export type FrameId = `input:${string}` | "output" | "processed" | `control:${number}`;
+/** A canvas frame identifier. Used by focus mode, dock collapse keys and
+ * per-frame state lookups. Input frames carry their UUID; output and
+ * processed are singular. */
+export type FrameId = `input:${string}` | "output" | "processed";
 
 export interface FrameBounds {
   id: FrameId;
@@ -13,25 +13,18 @@ export interface FrameBounds {
   height: number;
 }
 
-/** Build a per-Input-frame FrameId from an InputFrame.id. */
+/** Build a FrameId from a frame's id. */
 export function inputFrameId(uuid: string): FrameId {
   return `input:${uuid}`;
 }
 
 export type ParsedFrameId =
-  | { kind: "input"; id: string }
-  | { kind: "output" }
-  | { kind: "processed" }
-  | { kind: "control"; index: number };
+  { kind: "input"; id: string } | { kind: "output" } | { kind: "processed" };
 
 export function parseFrameId(fid: FrameId): ParsedFrameId {
   if (fid === "output") return { kind: "output" };
   if (fid === "processed") return { kind: "processed" };
   if (fid.startsWith("input:")) return { kind: "input", id: fid.slice(6) };
-  if (fid.startsWith("control:")) {
-    const n = Number(fid.slice(8));
-    if (Number.isFinite(n)) return { kind: "control", index: n };
-  }
   throw new Error(`unknown FrameId: ${fid as string}`);
 }
 
@@ -41,71 +34,30 @@ const LABEL_HEIGHT = 160;
 /** Bottom clearance for the floating canvas toolbar */
 const TOOLBAR_RESERVE = 56;
 
-/**
- * Returns all visible frames in canvas-mode focus-nav order.
- *
- * Order: control frames left-to-right (reversed since the layout accumulates
- * negative-X-first), then Input frames top-to-bottom from layout.inputFrames,
- * then output, then processed if visible. Bounds come from each layout entry's
- * display-space dimensions; Reference-mode Input frames use motherW/motherH,
- * Initial-mode use displayW/displayH.
- */
-export function getOrderedFrames(layout: CanvasLayout): FrameBounds[] {
-  const frames: FrameBounds[] = [];
-
-  // Control frames are laid out with negative X, last entry is leftmost.
-  const reversed = [...layout.controlFrames].reverse();
-  for (const cf of reversed) {
-    frames.push({
-      id: `control:${cf.unitIndex}`,
-      x: cf.x,
-      y: cf.y,
-      width: cf.width,
-      height: cf.height,
-    });
-  }
-
-  // Input frames in store order (top-to-bottom vertical stack).
-  for (const f of layout.inputFrames) {
-    if (f.kind === "initial") {
-      frames.push({
-        id: inputFrameId(f.frameId),
-        x: f.x,
-        y: f.y,
-        width: f.displayW,
-        height: f.displayH,
-      });
-    } else {
-      frames.push({
-        id: inputFrameId(f.frameId),
-        x: f.x,
-        y: f.y,
-        width: f.motherW,
-        height: f.motherH,
-      });
-    }
-  }
-
-  // Output frame
+/** Every visible frame in focus-nav order: the frames by their place in the
+ * list, whichever column they sit in, then the output, then the processed
+ * composite when it shows. */
+export function getOrderedFrames(layout: FrameLayout): FrameBounds[] {
+  const frames: FrameBounds[] = layout.frames.map((f) => ({
+    id: inputFrameId(f.frameId),
+    ...frameBox(f),
+  }));
   frames.push({
     id: "output",
     x: layout.outputX,
     y: 0,
-    width: layout.displayW,
-    height: layout.displayH,
+    width: layout.outputDisplayW,
+    height: layout.outputDisplayH,
   });
-
-  // Processed frame (if visible)
   if (layout.showProcessedFrame) {
     frames.push({
       id: "processed",
       x: layout.processedX,
       y: 0,
-      width: layout.displayW,
-      height: layout.displayH,
+      width: layout.outputDisplayW,
+      height: layout.outputDisplayH,
     });
   }
-
   return frames;
 }
 

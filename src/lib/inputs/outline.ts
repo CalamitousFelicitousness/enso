@@ -239,11 +239,6 @@ export function computeOutline(frames: Frame[], env: OutlineEnv = {}): Outline {
   return { entries, sent: entries.flatMap((e) => e.sent), controls, ipAdapters, problems };
 }
 
-/** "Input N" of a control unit. Units are not frames yet, so they follow them. */
-export function controlUnitPosition(frameCount: number, unitIndex: number): number {
-  return frameCount + 1 + unitIndex;
-}
-
 export function outlineEntry(outline: Outline, frameId: string): OutlineEntry | undefined {
   return outline.entries.find((e) => e.frameId === frameId);
 }

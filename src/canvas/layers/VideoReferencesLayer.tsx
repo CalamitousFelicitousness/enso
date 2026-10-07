@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Layer, Group, Rect, Text, Image as KonvaImage } from "react-konva";
 import { useVideoCanvasStore, type VideoFrameImage } from "@/stores/videoCanvasStore";
-import type { ReferenceChildPosition } from "@/canvas/inputFrameTypes";
+import type { ReferenceChildPosition } from "@/lib/inputs/layout";
 
 const ACTIVE_COLOR = "#a78bfa";
 const INACTIVE_COLOR = "#6b7280";

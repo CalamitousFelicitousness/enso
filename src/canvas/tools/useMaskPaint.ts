@@ -2,7 +2,7 @@ import { useCallback, useRef } from "react";
 import { useCanvasStore } from "@/stores/canvasStore";
 import { useInputStore } from "@/stores/inputStore";
 import type { MaskStroke } from "@/lib/inputs/types";
-import type { CanvasLayout } from "@/canvas/useControlFrameLayout";
+import type { CanvasLayout } from "@/canvas/useCanvasLayout";
 import type Konva from "konva";
 
 interface UseMaskPaintOptions {
@@ -15,7 +15,7 @@ interface UseMaskPaintOptions {
 
 /**
  * Imperative mask painting, per Input frame. On pointerdown the stroke
- * hit-tests `layout.inputFrames`, pins to the first Initial frame the
+ * hit-tests `layout.frames`, pins to the first Initial frame the
  * pointer lands inside, and projects subsequent points into that frame's
  * local pixel space. The active <Line> + <Circle> Konva nodes live
  * inside the pinned (= focused) frame's displayScale group, so the
@@ -32,7 +32,7 @@ export function useMaskPaint({ stageRef, spaceHeld, layout }: UseMaskPaintOption
   const strokeWidthRef = useRef(20);
   const pinnedFrameId = useRef<string | null>(null);
 
-  // Konva node refs - InputFrameLayer attaches the active line + cursor
+  // Konva node refs - FrameLayer attaches the active line and MaskLayer the cursor
   // for the focused frame via these callback setters.
   const activeLineRef = useRef<Konva.Line | null>(null);
   const cursorRef = useRef<Konva.Circle | null>(null);
@@ -51,8 +51,8 @@ export function useMaskPaint({ stageRef, spaceHeld, layout }: UseMaskPaintOption
       if (!pointer) return null;
       const stx = (pointer.x - stage.x()) / stage.scaleX();
       const sty = (pointer.y - stage.y()) / stage.scaleY();
-      for (const f of layout.inputFrames) {
-        if (f.kind !== "initial") continue;
+      for (const f of layout.frames) {
+        if (f.kind !== "composed" || f.role !== "initial") continue;
         if (stx >= f.x && stx < f.x + f.displayW && sty >= f.y && sty < f.y + f.displayH) {
           const ds = layout.displayScale;
           return {
@@ -71,8 +71,10 @@ export function useMaskPaint({ stageRef, spaceHeld, layout }: UseMaskPaintOption
     (stage: Konva.Stage): { x: number; y: number } | null => {
       const pinId = pinnedFrameId.current;
       if (!pinId) return null;
-      const pinned = layout.inputFrames.find((f) => f.kind === "initial" && f.frameId === pinId);
-      if (!pinned || pinned.kind !== "initial") return null;
+      const pinned = layout.frames.find(
+        (f) => f.kind === "composed" && f.role === "initial" && f.frameId === pinId,
+      );
+      if (!pinned || pinned.kind !== "composed") return null;
       const pointer = stage.getPointerPosition();
       if (!pointer) return null;
       const stx = (pointer.x - stage.x()) / stage.scaleX();
@@ -91,12 +93,16 @@ export function useMaskPaint({ stageRef, spaceHeld, layout }: UseMaskPaintOption
       const focusedId = useInputStore.getState().selectedFrameId;
       let targetId: string | null = focusedId;
       if (!targetId) {
-        const firstInitial = layout.inputFrames.find((f) => f.kind === "initial");
+        const firstInitial = layout.frames.find(
+          (f) => f.kind === "composed" && f.role === "initial",
+        );
         if (firstInitial) targetId = firstInitial.frameId;
       }
       if (!targetId) return null;
-      const target = layout.inputFrames.find((f) => f.kind === "initial" && f.frameId === targetId);
-      if (!target || target.kind !== "initial") return null;
+      const target = layout.frames.find(
+        (f) => f.kind === "composed" && f.role === "initial" && f.frameId === targetId,
+      );
+      if (!target || target.kind !== "composed") return null;
       const pointer = stage.getPointerPosition();
       if (!pointer) return null;
       const stx = (pointer.x - stage.x()) / stage.scaleX();

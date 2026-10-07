@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import { frame, layer, picture } from "./frames.fixture";
 import {
   computeOutline,
-  controlUnitPosition,
   firstComposite,
   loneReference,
   outlineEntry,
@@ -94,11 +93,6 @@ describe("computeOutline", () => {
     expect(cells(refs)).toEqual(["a:1", "b:-", "c:2"]);
     expect(cells({ ...refs, enabled: false })).toEqual(["a:-", "b:-", "c:-"]);
     expect(cells(frame("paint", "initial", layer("x")))).toEqual([]);
-  });
-
-  it("places control units after the frames", () => {
-    expect(controlUnitPosition(3, 0)).toBe(4);
-    expect(controlUnitPosition(3, 2)).toBe(6);
   });
 
   it("counts each kind of media on its own", () => {

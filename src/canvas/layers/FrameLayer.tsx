@@ -1,8 +1,7 @@
-// Canvas-native chrome for the Input frame stack. One Konva <Layer> in
-// display space (no displayScale Group at the layer root), as
-// ControlFrameLayer does it. Each frame is one memoised component reading its
-// own pictures: an Initial frame draws them in a transform Group in frame
-// pixels, a Reference frame as a mother frame with a grid of cells.
+// Canvas-native chrome for every frame. One Konva <Layer> in display space.
+// Each frame is one memoised component reading its own pictures: a composed
+// frame (Initial, Control) draws them in a transform Group in frame pixels,
+// a set frame (Reference, IP-Adapter) as a mother frame with a grid of cells.
 //
 // Picture interaction (drag, scale, rotate, select) lives here. Masks render
 // on MaskLayer and the Transformer on ChromeLayer; it finds its node through
@@ -10,73 +9,65 @@
 
 import { memo, useCallback } from "react";
 import { Group, Image as KonvaImage, Layer, Rect, Text } from "react-konva";
-import {
-  INPUT_COLOR_ACTIVE,
-  INPUT_COLOR_INACTIVE,
-  INPUT_COLOR_REFERENCE,
-} from "@/canvas/ControlFramePanel";
-import { CornerBrackets } from "@/canvas/layers/ControlFrameLayer";
+import { CornerBrackets } from "@/canvas/layers/CornerBrackets";
+import { frameColor, PROCESSED_COLOR, UNREADABLE_COLOR } from "@/canvas/frameColors";
 import { useCanvasStore } from "@/stores/canvasStore";
 import { useInputStore } from "@/stores/inputStore";
 import { useBlobImage } from "@/inputs/media";
-import { isPlaced, type Picture, type PlacedPicture } from "@/lib/inputs/types";
+import { isPlaced, type Frame, type Picture, type PlacedPicture } from "@/lib/inputs/types";
 import {
   useLayerInteraction,
   type LayerInteraction,
   type Snap,
 } from "@/canvas/tools/useLayerInteraction";
 import type {
-  InitialFramePosition,
-  InputFramePosition,
+  ComposedFramePosition,
+  FramePosition,
   ReferenceChildPosition,
-  ReferenceFramePosition,
-} from "@/canvas/inputFrameTypes";
+  SetFramePosition,
+} from "@/lib/inputs/layout";
 import type Konva from "konva";
 
 type SetNodeRef = (frameId: string, layerId: string, node: Konva.Image | null) => void;
 
-const UNREADABLE = "#f87171";
-
-interface InputFrameLayerProps {
-  frames: InputFramePosition[];
+interface FrameLayerProps {
+  frames: FramePosition[];
   displayScale: number;
   /** Registers each picture's node so the Transformer can attach to it. */
   setNodeRef: SetNodeRef;
   snap: Snap;
-  /** Called when an empty Initial frame is clicked - opens the file picker
-   * targeted at that frame. */
-  onPickInputFile?: ((frameId: string) => void) | undefined;
-  /** Called when a Reference mother's +Add cell is clicked, or when an
-   * empty Reference mother is clicked. */
-  onAddReferenceChild?: ((frameId: string) => void) | undefined;
+  /** An empty composed frame was clicked: open the file picker for it. */
+  onPickFile?: ((frameId: string) => void) | undefined;
+  /** A set frame's +Add cell, or an empty set frame, was clicked. */
+  onAddCell?: ((frameId: string) => void) | undefined;
 }
 
-export function InputFrameLayer({
+export function FrameLayer({
   frames,
   displayScale,
   setNodeRef,
   snap,
-  onPickInputFile,
-  onAddReferenceChild,
-}: InputFrameLayerProps) {
+  onPickFile,
+  onAddCell,
+}: FrameLayerProps) {
   const selectedFrameId = useInputStore((s) => s.selectedFrameId);
   const draggable = useCanvasStore((s) => s.activeTool === "move");
   const interaction = useLayerInteraction(snap);
 
-  const handleInitialClick = useCallback(
+  const handleComposedClick = useCallback(
     (frameId: string, filled: boolean) => {
       useInputStore.getState().selectFrame(frameId);
-      if (!filled) onPickInputFile?.(frameId);
+      if (!filled) onPickFile?.(frameId);
     },
-    [onPickInputFile],
+    [onPickFile],
   );
 
-  const handleReferenceClick = useCallback(
+  const handleSetClick = useCallback(
     (frameId: string, filled: boolean) => {
       useInputStore.getState().selectFrame(frameId);
-      if (!filled) onAddReferenceChild?.(frameId);
+      if (!filled) onAddCell?.(frameId);
     },
-    [onAddReferenceChild],
+    [onAddCell],
   );
 
   if (frames.length === 0) return null;
@@ -84,8 +75,8 @@ export function InputFrameLayer({
   return (
     <Layer>
       {frames.map((frame) =>
-        frame.kind === "initial" ? (
-          <InitialFrame
+        frame.kind === "composed" ? (
+          <ComposedFrame
             key={frame.frameId}
             frame={frame}
             displayScale={displayScale}
@@ -93,15 +84,15 @@ export function InputFrameLayer({
             draggable={draggable}
             setNodeRef={setNodeRef}
             interaction={interaction}
-            onClick={handleInitialClick}
+            onClick={handleComposedClick}
           />
         ) : (
-          <ReferenceFrame
+          <SetFrame
             key={frame.frameId}
             frame={frame}
             isSelected={selectedFrameId === frame.frameId}
-            onClick={handleReferenceClick}
-            onAddCellClick={onAddReferenceChild}
+            onClick={handleSetClick}
+            onAddCellClick={onAddCell}
           />
         ),
       )}
@@ -109,16 +100,30 @@ export function InputFrameLayer({
   );
 }
 
-function useFramePictures(frameId: string): Picture[] {
-  return useInputStore((s) => s.frames.find((f) => f.id === frameId)?.pictures) ?? NO_PICTURES;
-}
-
 const NO_PICTURES: Picture[] = [];
 
-// ── Initial frame ─────────────────────────────────────────────────────
+function useFrame(frameId: string): Frame | undefined {
+  return useInputStore((s) => s.frames.find((f) => f.id === frameId));
+}
 
-interface InitialFrameProps {
-  frame: InitialFramePosition;
+/** The pictures a composed frame draws: its own, or its link's target's. */
+function useComposedSource(frameId: string): { pictures: Picture[]; linked: boolean } {
+  const pictures = useInputStore((s) => {
+    const frame = s.frames.find((f) => f.id === frameId);
+    if (!frame) return NO_PICTURES;
+    if (frame.role === "control" && frame.link) {
+      return s.frames.find((f) => f.id === frame.link?.frameId)?.pictures ?? NO_PICTURES;
+    }
+    return frame.pictures;
+  });
+  const linked = useInputStore((s) => s.frames.find((f) => f.id === frameId)?.link !== null);
+  return { pictures, linked };
+}
+
+// ── Composed frame ────────────────────────────────────────────────────
+
+interface ComposedFrameProps {
+  frame: ComposedFramePosition;
   displayScale: number;
   isSelected: boolean;
   draggable: boolean;
@@ -127,7 +132,7 @@ interface InitialFrameProps {
   onClick: (frameId: string, filled: boolean) => void;
 }
 
-const InitialFrame = memo(function InitialFrame({
+const ComposedFrame = memo(function ComposedFrame({
   frame,
   displayScale,
   isSelected,
@@ -135,12 +140,15 @@ const InitialFrame = memo(function InitialFrame({
   setNodeRef,
   interaction,
   onClick,
-}: InitialFrameProps) {
-  const pictures = useFramePictures(frame.frameId);
+}: ComposedFrameProps) {
+  const { pictures, linked } = useComposedSource(frame.frameId);
+  const processed = useFrame(frame.frameId)?.processed ?? null;
   const layers = pictures.filter((p): p is PlacedPicture => p.visible && isPlaced(p));
   const filled = layers.length > 0;
-  const borderColor = filled ? INPUT_COLOR_ACTIVE : INPUT_COLOR_INACTIVE;
+  const borderColor = frameColor(frame.role, filled);
   const handleClick = () => onClick(frame.frameId, filled);
+  // A linked frame mirrors its source; the source is where its pictures move
+  const editable = frame.role === "control" ? !linked : true;
 
   return (
     <>
@@ -148,8 +156,6 @@ const InitialFrame = memo(function InitialFrame({
        * display space to frame pixels, so each picture's placement applies as
        * stored. The group origin is the frame's display-space top-left. */}
       <Group x={frame.x} y={frame.y} scaleX={displayScale} scaleY={displayScale}>
-        {/* Empty-state fill so the frame reads as a target when it holds
-         * nothing. Inside the Group so its corners align with the border. */}
         {!filled && (
           <Rect
             x={0}
@@ -165,22 +171,21 @@ const InitialFrame = memo(function InitialFrame({
             key={picture.id}
             frameId={frame.frameId}
             picture={picture}
-            draggable={draggable && !picture.locked}
+            draggable={draggable && editable && !picture.locked}
+            listening={editable}
             setNodeRef={setNodeRef}
             interaction={interaction}
           />
         ))}
       </Group>
 
-      {/* Empty-state text in display space, so its size stays legible
-       * whatever the frame size. */}
       {!filled && (
         <Text
           x={frame.x}
           y={frame.y + frame.displayH / 2 - 8}
           width={frame.displayW}
           align="center"
-          text="Drop image or click to upload."
+          text={linked ? "Its source frame holds no picture." : "Drop image or click to upload."}
           fontFamily="IBM Plex Sans"
           fontSize={14}
           fill="#666"
@@ -188,8 +193,7 @@ const InitialFrame = memo(function InitialFrame({
         />
       )}
 
-      {/* Display-space hit-test rect: captures clicks anywhere over the
-       * frame. Transparent so it doesn't draw over the layer pixels. */}
+      {/* Display-space hit-test rect: captures clicks anywhere over the frame. */}
       <Rect
         x={frame.x}
         y={frame.y}
@@ -200,7 +204,6 @@ const InitialFrame = memo(function InitialFrame({
         onTap={handleClick}
       />
 
-      {/* Frame border (display space, fixed stroke width regardless of zoom). */}
       <Rect
         x={frame.x}
         y={frame.y}
@@ -212,8 +215,6 @@ const InitialFrame = memo(function InitialFrame({
         listening={false}
       />
 
-      {/* Corner brackets only when the frame is populated; otherwise the
-       * dashed border alone signals "drop target." */}
       {filled && (
         <CornerBrackets
           x={frame.x}
@@ -221,6 +222,16 @@ const InitialFrame = memo(function InitialFrame({
           w={frame.displayW}
           h={frame.displayH}
           color={borderColor}
+        />
+      )}
+
+      {frame.processedY !== null && processed && (
+        <ProcessedSlot
+          x={frame.x}
+          y={frame.processedY}
+          width={frame.displayW}
+          height={frame.displayH}
+          blob={processed.blob}
         />
       )}
     </>
@@ -231,16 +242,18 @@ interface PictureNodeProps {
   frameId: string;
   picture: PlacedPicture;
   draggable: boolean;
+  listening: boolean;
   setNodeRef: SetNodeRef;
   interaction: LayerInteraction;
 }
 
-/** One layer of an Initial frame, in frame pixels. The placement here must
+/** One layer of a composed frame, in frame pixels. The placement here must
  * match what flattenCanvas draws. */
 const PictureNode = memo(function PictureNode({
   frameId,
   picture,
   draggable,
+  listening,
   setNodeRef,
   interaction,
 }: PictureNodeProps) {
@@ -268,7 +281,7 @@ const PictureNode = memo(function PictureNode({
           width={picture.width}
           height={picture.height}
           fill="rgba(248, 113, 113, 0.08)"
-          stroke={UNREADABLE}
+          stroke={UNREADABLE_COLOR}
           strokeWidth={2}
           strokeScaleEnabled={false}
           dash={[8, 4]}
@@ -281,12 +294,15 @@ const PictureNode = memo(function PictureNode({
           text={`${picture.name}\ncould not be read`}
           fontFamily="IBM Plex Sans"
           fontSize={Math.max(14, picture.height / 24)}
-          fill={UNREADABLE}
+          fill={UNREADABLE_COLOR}
         />
       </Group>
     );
   }
   if (!image) return null;
+  if (!listening) {
+    return <KonvaImage image={image} {...placement} opacity={picture.opacity} listening={false} />;
+  }
   return (
     <KonvaImage
       ref={nodeRef}
@@ -302,48 +318,88 @@ const PictureNode = memo(function PictureNode({
   );
 });
 
-// ── Reference frame (mother + grid of cells) ──────────────────────────
+/** The processed map under a Control frame, at the frame's size. */
+const ProcessedSlot = memo(function ProcessedSlot({
+  x,
+  y,
+  width,
+  height,
+  blob,
+}: {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  blob: Blob | null;
+}) {
+  const image = useBlobImage(blob);
+  return (
+    <Group>
+      {image && (
+        <KonvaImage image={image} x={x} y={y} width={width} height={height} listening={false} />
+      )}
+      {!blob && (
+        <Text
+          x={x}
+          y={y + height / 2 - 8}
+          width={width}
+          align="center"
+          text="Processed map could not be read"
+          fontFamily="IBM Plex Sans"
+          fontSize={14}
+          fill={UNREADABLE_COLOR}
+          listening={false}
+        />
+      )}
+      <Rect
+        x={x}
+        y={y}
+        width={width}
+        height={height}
+        stroke={blob ? PROCESSED_COLOR : UNREADABLE_COLOR}
+        strokeWidth={1}
+        listening={false}
+      />
+      <CornerBrackets x={x} y={y} w={width} h={height} color={PROCESSED_COLOR} />
+    </Group>
+  );
+});
 
-interface ReferenceFrameProps {
-  frame: ReferenceFramePosition;
+// ── Set frame (mother + grid of cells) ────────────────────────────────
+
+interface SetFrameProps {
+  frame: SetFramePosition;
   isSelected: boolean;
   onClick: (frameId: string, filled: boolean) => void;
   onAddCellClick: ((frameId: string) => void) | undefined;
 }
 
-const ReferenceFrame = memo(function ReferenceFrame({
+const SetFrame = memo(function SetFrame({
   frame,
   isSelected,
   onClick,
   onAddCellClick,
-}: ReferenceFrameProps) {
-  const pictures = useFramePictures(frame.frameId);
+}: SetFrameProps) {
+  const pictures = useFrame(frame.frameId)?.pictures ?? NO_PICTURES;
+  const color = frameColor(frame.role, true);
   const handleMotherClick = () => onClick(frame.frameId, frame.children.length > 0);
   const handleAdd = () => onAddCellClick?.(frame.frameId);
 
   return (
     <>
-      {/* Mother border + brackets (display space). */}
       <Rect
         x={frame.x}
         y={frame.y}
         width={frame.motherW}
         height={frame.motherH}
-        stroke={INPUT_COLOR_REFERENCE}
+        stroke={color}
         strokeWidth={isSelected ? 2 : 1}
         listening={false}
       />
-      <CornerBrackets
-        x={frame.x}
-        y={frame.y}
-        w={frame.motherW}
-        h={frame.motherH}
-        color={INPUT_COLOR_REFERENCE}
-      />
+      <CornerBrackets x={frame.x} y={frame.y} w={frame.motherW} h={frame.motherH} color={color} />
 
-      {/* Mother hit-test rect (transparent). Clicks that miss a cell or the
-       * +Add cell land here: select the frame, and pick a file when it is
-       * empty. */}
+      {/* Clicks that miss a cell or the +Add cell land here: select the frame,
+       * and pick a file when it is empty. */}
       <Rect
         x={frame.x}
         y={frame.y}
@@ -356,12 +412,11 @@ const ReferenceFrame = memo(function ReferenceFrame({
 
       {frame.children.map((cell) => {
         const picture = pictures.find((p) => p.id === cell.refId);
-        return picture ? <ReferenceCell key={cell.refId} cell={cell} picture={picture} /> : null;
+        return picture ? (
+          <SetCell key={cell.refId} cell={cell} picture={picture} color={color} />
+        ) : null;
       })}
 
-      {/* +Add cell when not at capacity. Dashed border + centered "+"
-       * Konva Text. Hit-test rect on top so the click lands here and not on
-       * the mother. */}
       {frame.addCellPosition && (
         <Group>
           <Rect
@@ -370,7 +425,7 @@ const ReferenceFrame = memo(function ReferenceFrame({
             width={frame.addCellPosition.w}
             height={frame.addCellPosition.h}
             fill="rgba(255, 255, 255, 0.04)"
-            stroke={INPUT_COLOR_REFERENCE}
+            stroke={color}
             strokeWidth={1}
             opacity={0.4}
             dash={[8, 4]}
@@ -384,7 +439,7 @@ const ReferenceFrame = memo(function ReferenceFrame({
             text="+"
             fontFamily="IBM Plex Sans"
             fontSize={24}
-            fill={INPUT_COLOR_REFERENCE}
+            fill={color}
             opacity={0.7}
             listening={false}
           />
@@ -403,14 +458,15 @@ const ReferenceFrame = memo(function ReferenceFrame({
   );
 });
 
-interface ReferenceCellProps {
+interface SetCellProps {
   cell: ReferenceChildPosition;
   picture: Picture;
+  color: string;
 }
 
-/** One picture of a Reference frame, fitted inside its cell. A hidden one is
+/** One picture of a set frame, fitted inside its cell. A hidden one is
  * dimmed and carries no number; the DOM overlay above it says why. */
-const ReferenceCell = memo(function ReferenceCell({ cell, picture }: ReferenceCellProps) {
+const SetCell = memo(function SetCell({ cell, picture, color }: SetCellProps) {
   const image = useBlobImage(picture.file);
   // Contain-fit inside the cell using the picture's natural aspect.
   let imgX = cell.x;
@@ -430,7 +486,7 @@ const ReferenceCell = memo(function ReferenceCell({ cell, picture }: ReferenceCe
       imgX = cell.x + (cell.displayW - imgW) / 2;
     }
   }
-  const color = picture.file ? INPUT_COLOR_REFERENCE : UNREADABLE;
+  const cellColor = picture.file ? color : UNREADABLE_COLOR;
   return (
     <Group>
       {image && (
@@ -455,25 +511,22 @@ const ReferenceCell = memo(function ReferenceCell({ cell, picture }: ReferenceCe
           text="could not be read"
           fontFamily="IBM Plex Sans"
           fontSize={11}
-          fill={UNREADABLE}
+          fill={UNREADABLE_COLOR}
           listening={false}
         />
       )}
-      {/* Cell border - thin, lower-alpha so cells read as contained inside
-       * the mother rather than sibling frames. */}
       <Rect
         x={cell.x}
         y={cell.y}
         width={cell.displayW}
         height={cell.displayH}
-        stroke={color}
+        stroke={cellColor}
         strokeWidth={1}
         opacity={0.6}
         {...(!picture.file && { dash: [6, 4] })}
         listening={false}
       />
-      {/* The number a prompt uses for this picture, in the cell's top-left.
-       * Konva Text so it pans and zooms with the canvas. */}
+      {/* The number a prompt uses for this picture, in the cell's top-left. */}
       {cell.wireIndex !== null && (
         <>
           <Rect
@@ -494,7 +547,7 @@ const ReferenceCell = memo(function ReferenceCell({ cell, picture }: ReferenceCe
             text={String(cell.wireIndex)}
             fontFamily="IBM Plex Mono"
             fontSize={10}
-            fill={INPUT_COLOR_REFERENCE}
+            fill={color}
             listening={false}
           />
         </>

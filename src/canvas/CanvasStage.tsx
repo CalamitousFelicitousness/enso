@@ -8,15 +8,14 @@ import { useMaskPaint } from "./tools/useMaskPaint";
 import { useImageTransform } from "./tools/useImageTransform";
 import { useSnap } from "./tools/useSnap";
 import { useTransformerTarget } from "./tools/useTransformerTarget";
-import { InputFrameLayer } from "./layers/InputFrameLayer";
+import { FrameLayer } from "./layers/FrameLayer";
 import { MaskLayer } from "./layers/MaskLayer";
 import { ChromeLayer } from "./layers/ChromeLayer";
 import { OutputLayer } from "./layers/OutputLayer";
-import { ProcessedCompositeLayer } from "./layers/ProcessedCompositeLayer";
-import { ControlFrameLayer } from "./layers/ControlFrameLayer";
+import { ProcessedLayer } from "./layers/ProcessedLayer";
 import { getOrderedFrames, computeFocusViewport } from "./frameList";
-import type { CanvasLayout } from "./useControlFrameLayout";
-import type { InitialFramePosition } from "./inputFrameTypes";
+import type { CanvasLayout } from "./useCanvasLayout";
+import type { ComposedFramePosition } from "@/lib/inputs/layout";
 import { CanvasBackground } from "./CanvasBackground";
 import { mainViewport } from "./viewportAdapter";
 import { useKeepAliveVisible } from "@/components/ui/keep-alive";
@@ -32,28 +31,19 @@ const LABEL_HEIGHT = 19;
 
 interface CanvasStageProps {
   layout: CanvasLayout;
-  onPickImage?: (unitIndex: number) => void;
-  /** open the file picker scoped to a specific Initial-mode
-   * Input frame (empty-frame click target). */
-  onPickInputFile?: (frameId: string) => void;
-  /** open the file picker scoped to a Reference frame's +Add
-   * cell - appends a new child reference. */
-  onAddReferenceChild?: (frameId: string) => void;
+  /** An empty composed frame was clicked: open the file picker for it. */
+  onPickFile?: (frameId: string) => void;
+  /** A set frame's +Add cell was clicked: open the picker to append a cell. */
+  onAddCell?: (frameId: string) => void;
 }
 
-export function CanvasStage({
-  layout,
-  onPickImage,
-  onPickInputFile,
-  onAddReferenceChild,
-}: CanvasStageProps) {
+export function CanvasStage({ layout, onPickFile, onAddCell }: CanvasStageProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<Konva.Stage>(null);
   const trRef = useRef<Konva.Transformer>(null);
   const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
   const viewport = useCanvasStore((s) => s.viewport);
   const setViewport = useCanvasStore((s) => s.setViewport);
-  // Note: setSelectedControlFrame removed - panels are now persistent
   const frameW = useGenerationStore((s) => s.width);
   const frameH = useGenerationStore((s) => s.height);
   const canvasMode = useCanvasStore((s) => s.canvasMode);
@@ -72,26 +62,24 @@ export function CanvasStage({
   const maskPaint = useMaskPaint({ stageRef, spaceHeld: panZoom.spaceHeld, layout });
   const imageTransform = useImageTransform(stageRef);
 
-  const { outputX, processedX, showProcessedFrame, controlFrames, totalBounds, displayScale } =
-    layout;
+  const { outputX, processedX, showProcessedFrame, totalBounds, displayScale } = layout;
 
-  // Picture nodes register from InputFrameLayer and mask nodes from
-  // MaskLayer; the Transformer finds its target among them.
+  // Picture nodes register from FrameLayer and mask nodes from MaskLayer;
+  // the Transformer finds its target among them.
   const { setNodeRef } = useTransformerTarget(trRef);
 
-  // Snap targets the focused Initial frame's bounds in pixel space. Using
-  // (frame.x / ds, frame.y / ds) re-expresses the display-space frame
-  // origin in pixel-space so it aligns with the per-image x/y which are
-  // already in pixel-space relative to that origin.
-  const focusedInitial = layout.inputFrames.find(
-    (f): f is InitialFramePosition => f.kind === "initial" && f.frameId === selectedFrameId,
+  // Snap targets the selected composed frame's bounds in pixel space:
+  // (frame.x / ds, frame.y / ds) puts the display-space origin where the
+  // per-picture x/y already are.
+  const focusedComposed = layout.frames.find(
+    (f): f is ComposedFramePosition => f.kind === "composed" && f.frameId === selectedFrameId,
   );
   const snap = useSnap(
-    focusedInitial?.frameW ?? 0,
-    focusedInitial?.frameH ?? 0,
+    focusedComposed?.frameW ?? 0,
+    focusedComposed?.frameH ?? 0,
     trRef,
-    focusedInitial ? focusedInitial.x / displayScale : 0,
-    focusedInitial ? focusedInitial.y / displayScale : 0,
+    focusedComposed ? focusedComposed.x / displayScale : 0,
+    focusedComposed ? focusedComposed.y / displayScale : 0,
     displayScale,
   );
 
@@ -112,10 +100,8 @@ export function CanvasStage({
     return () => ro.disconnect();
   }, []);
 
-  // Defensive remeasure on KeepAlive reveal. Modern browsers fire the
-  // ResizeObserver naturally on display:none -> visible transitions, but the
-  // explicit read closes any race where the observer is late and the auto-fit
-  // effect would otherwise skip with 0x0 dimensions.
+  // Remeasure on KeepAlive reveal: closes the race where the observer is
+  // late and the auto-fit effect would skip with 0x0 dimensions.
   useEffect(() => {
     if (!visible) return;
     const el = containerRef.current;
@@ -221,24 +207,20 @@ export function CanvasStage({
             onMouseLeave={maskPaint.onMouseLeave}
             onClick={onClick}
           >
-            <ControlFrameLayer frames={controlFrames} onPickImage={onPickImage} />
-
-            {/* InputFrameLayer renders all Input frames (Initial + Reference)
-              as canvas-native chrome and owns per-frame image-layer
-              interaction (drag, scale, rotate, select). Masks and paint
-              strokes render on MaskLayer above it; the cursor, Transformer
-              and snap guides on ChromeLayer. */}
-            <InputFrameLayer
-              frames={layout.inputFrames}
+            {/* FrameLayer draws every frame in both columns and owns picture
+              interaction. Masks and strokes render on MaskLayer above it; the
+              cursor, Transformer and snap guides on ChromeLayer. */}
+            <FrameLayer
+              frames={layout.frames}
               displayScale={displayScale}
               setNodeRef={setNodeRef}
               snap={snap}
-              onPickInputFile={onPickInputFile}
-              onAddReferenceChild={onAddReferenceChild}
+              onPickFile={onPickFile}
+              onAddCell={onAddCell}
             />
 
             <MaskLayer
-              frames={layout.inputFrames}
+              frames={layout.frames}
               displayScale={displayScale}
               setNodeRef={setNodeRef}
               snap={snap}
@@ -252,7 +234,7 @@ export function CanvasStage({
             />
 
             {showProcessedFrame && (
-              <ProcessedCompositeLayer
+              <ProcessedLayer
                 offsetX={processedX}
                 width={layout.outputDisplayW}
                 height={layout.outputDisplayH}
@@ -260,7 +242,7 @@ export function CanvasStage({
             )}
 
             <ChromeLayer
-              focusedFrame={focusedInitial}
+              focusedFrame={focusedComposed}
               displayScale={displayScale}
               trRef={trRef}
               snap={snap}
