@@ -22,6 +22,7 @@ export default defineConfig([
     "dev-dist",
     "mcp",
     "working-docs",
+    ".playwright-mcp",
     "src/lib/*.generated.ts",
     "src/lib/openapi-generated/",
   ]),
