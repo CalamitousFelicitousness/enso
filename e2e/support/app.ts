@@ -6,7 +6,7 @@ import { finishedJob, type Job } from "./backend";
  * neither side is a multiple of 32. */
 export const PORTRAIT = fileURLToPath(new URL("../fixtures/portrait.jpg", import.meta.url));
 
-export type SubTab = "Prompts" | "Sampler" | "Refine" | "Detail" | "Color";
+export type SubTab = "Prompts" | "Sampler" | "Refine" | "Detail" | "Color" | "Input";
 
 /** Drives the Images view the way a user does. Every test starts from an
  * empty browser profile, so the app is in its first-run state. */
@@ -100,24 +100,31 @@ export class Enso {
     await expect(toggle).toHaveAttribute("aria-checked", "true");
   }
 
-  /** Switch Input 1 to Reference and give it the files, one reference each. */
+  /** The row of a frame in the Input tab's outline. */
+  outlineRow(position: number): Locator {
+    return this.leftPanel.getByRole("option", { name: new RegExp(`^Input ${position},`) });
+  }
+
+  /** Switch Input 1 to Reference and give it the files, one reference each,
+   * through the Input tab. */
   async addReferences(...files: string[]): Promise<void> {
-    const dock = this.canvas.getByRole("group", { name: /^Input 1 / });
-    await dock.getByRole("button", { name: "Expand settings" }).click();
-    await dock.getByRole("button", { name: "Reference", exact: true }).click();
+    await this.openTab("Input");
+    await this.outlineRow(1).click();
+    await this.leftPanel.getByRole("button", { name: "Reference", exact: true }).click();
     for (const file of files) {
       const chooser = this.page.waitForEvent("filechooser");
-      await dock.getByRole("button", { name: "Add picture" }).click();
+      await this.leftPanel.getByRole("button", { name: "Add picture" }).click();
       await (await chooser).setFiles(file);
     }
-    await expect(this.canvas.getByRole("button", { name: "Remove reference" })).toHaveCount(
+    await expect(this.leftPanel.getByRole("button", { name: "Remove portrait.jpg" })).toHaveCount(
       files.length,
     );
   }
 
   /** The size the Output frame's header shows, as WxH. */
   async outputFrameSize(): Promise<string> {
-    const label = this.canvas.getByText(/^\d+×\d+$/).first();
+    const output = this.canvas.getByRole("group", { name: "Output" });
+    const label = output.getByText(/^\d+×\d+$/).first();
     return (await label.innerText()).replace("×", "x");
   }
 

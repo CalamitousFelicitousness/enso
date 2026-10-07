@@ -8,6 +8,8 @@ import {
 import { useInputStore } from "@/stores/inputStore";
 import { isPlaced } from "@/lib/inputs/types";
 import { rememberInputs } from "@/inputs/snapshots";
+import { useOutline } from "@/inputs/useOutline";
+import { fixLabel, problemText } from "@/lib/inputs/text";
 import { buildControlRequest, InputRefusal } from "@/lib/request/buildGenerate";
 import { buildCloudImageRequest } from "@/lib/request/buildCloudImage";
 import { buildDetailRequest } from "@/lib/request/buildDetail";
@@ -69,6 +71,9 @@ export const ActionBar = memo(function ActionBar() {
   const isActive = useJobQueueStore(selectGenerateActive);
   const runningJob = useJobQueueStore(selectRunningJob);
   const pendingCount = useJobQueueStore(selectPendingCount);
+  const problems = useOutline().problems;
+  const fixProblem = useInputStore((s) => s.fixProblem);
+  const setImagesSubTab = useUiStore((s) => s.setImagesSubTab);
 
   const detailerUnavailable = useModelCapabilities().detailerMode === "none";
   const detailOnlyBlockReason = useMemo(() => {
@@ -213,6 +218,22 @@ export const ActionBar = memo(function ActionBar() {
     useMemo(() => ({ domain: "generate" as const, buildRequest }), [buildRequest]),
   );
 
+  // Generate stays clickable while the inputs block it: it says what, offers
+  // the fix, and opens the Input tab
+  const generate = useCallback(() => {
+    if (isSubmitting || detailOnlyBlockReason) return;
+    const problem = problems[0];
+    if (problem) {
+      toast.warning("Can't generate with these inputs", {
+        description: problemText(problem),
+        action: { label: fixLabel(problem), onClick: () => fixProblem(problem) },
+      });
+      setImagesSubTab("input");
+      return;
+    }
+    void submit();
+  }, [isSubmitting, detailOnlyBlockReason, problems, fixProblem, setImagesSubTab, submit]);
+
   const isGenerating = isActive || isSubmitting;
   const runningGenJob = useJobQueueStore(selectGenerateActive);
   const progress = runningJob?.domain === "generate" ? runningJob.progress : 0;
@@ -250,9 +271,7 @@ export const ActionBar = memo(function ActionBar() {
   // Scoped to the Images view: this panel stays mounted under KeepAlive after
   // the user switches away, so an unscoped registration would answer for Video.
   const isImagesView = useUiStore((s) => s.activeNavView === "images");
-  useViewShortcut("images", "generate", () => {
-    if (!isSubmitting && !detailOnlyBlockReason) void submit();
-  });
+  useViewShortcut("images", "generate", generate);
   useViewShortcut("images", "skip", handleSkip);
 
   // Command Palette entries - captured at mount, dispatched via current closure refs
@@ -264,9 +283,7 @@ export const ActionBar = memo(function ActionBar() {
       keywords: ["run", "create", "start"],
       icon: Play,
       shortcutId: "generate",
-      run: () => {
-        if (!isSubmitting && !detailOnlyBlockReason) void submit();
-      },
+      run: generate,
     },
     isImagesView,
   );
@@ -344,7 +361,7 @@ export const ActionBar = memo(function ActionBar() {
         <Button
           type="button"
           data-param="generate"
-          onClick={() => void submit()}
+          onClick={generate}
           disabled={isSubmitting || !!detailOnlyBlockReason}
           variant="default"
           size="sm"
@@ -384,6 +401,18 @@ export const ActionBar = memo(function ActionBar() {
           </DropdownMenu>
         )}
       </div>
+      {/* Fixed width: the count appears without moving the buttons beside it */}
+      <span
+        className="grid w-4 shrink-0 place-items-center font-mono text-2xs tabular-nums text-amber-400"
+        title={problems[0] ? problemText(problems[0]) : undefined}
+        aria-label={
+          problems.length > 0
+            ? `${problems.length} input problem${problems.length === 1 ? "" : "s"}`
+            : undefined
+        }
+      >
+        {problems.length > 0 ? problems.length : ""}
+      </span>
       <BatchDialog open={batchOpen} onOpenChange={setBatchOpen} buildRequest={buildRequest} />
 
       {xyzOpen && (

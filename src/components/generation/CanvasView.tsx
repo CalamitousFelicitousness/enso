@@ -20,7 +20,8 @@ import { FramePanels } from "@/canvas/panels/FramePanels";
 import { CanvasProgressOverlay } from "@/canvas/CanvasProgressOverlay";
 import { useCanvasLayout } from "@/canvas/useCanvasLayout";
 import { INPUTS_FULL_HINT } from "@/inputs/capacity";
-import { getOrderedFrames } from "@/canvas/frameList";
+import { getOrderedFrames, parseFrameId } from "@/canvas/frameList";
+import { useInputCommands } from "@/canvas/useInputCommands";
 import { ModeToggle } from "./ModeToggle";
 import { RotateCcw, X, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -133,29 +134,30 @@ export const CanvasView = memo(function CanvasView() {
   // Shortcut: toggle focus/canvas mode
   useShortcut("canvas-toggle-mode", handleToggleMode);
 
-  // Shortcut: previous frame (focus mode only)
+  // Focus mode steps through the frames in list order; an input frame it
+  // reveals becomes the selected one, so the inspector follows
+  const focusStep = useCallback(
+    (delta: number) => {
+      if (canvasMode !== "focus") return;
+      const frames = getOrderedFrames(layout);
+      const idx = frames.findIndex((f) => f.id === (focusedFrameId ?? "output"));
+      const next = frames[idx + delta];
+      if (idx < 0 || !next) return;
+      setFocusedFrame(next.id);
+      const parsed = parseFrameId(next.id);
+      if (parsed.kind === "input") useInputStore.getState().selectFrame(parsed.id);
+    },
+    [canvasMode, layout, focusedFrameId, setFocusedFrame],
+  );
   useShortcut(
     "canvas-focus-prev",
-    useCallback(() => {
-      if (canvasMode !== "focus") return;
-      const frames = getOrderedFrames(layout);
-      const currentId = focusedFrameId ?? "output";
-      const idx = frames.findIndex((f) => f.id === currentId);
-      if (idx > 0) setFocusedFrame(frames[idx - 1].id);
-    }, [canvasMode, layout, focusedFrameId, setFocusedFrame]),
+    useCallback(() => focusStep(-1), [focusStep]),
   );
-
-  // Shortcut: next frame (focus mode only)
   useShortcut(
     "canvas-focus-next",
-    useCallback(() => {
-      if (canvasMode !== "focus") return;
-      const frames = getOrderedFrames(layout);
-      const currentId = focusedFrameId ?? "output";
-      const idx = frames.findIndex((f) => f.id === currentId);
-      if (idx >= 0 && idx < frames.length - 1) setFocusedFrame(frames[idx + 1].id);
-    }, [canvasMode, layout, focusedFrameId, setFocusedFrame]),
+    useCallback(() => focusStep(1), [focusStep]),
   );
+  useInputCommands(visible);
 
   // Re-center focused frame when panels resize the canvas area
   const rightPanelCollapsed = useUiStore((s) => s.rightPanelCollapsed);
