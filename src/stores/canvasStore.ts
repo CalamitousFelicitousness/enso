@@ -27,6 +27,14 @@ interface CanvasState {
   brushSize: number;
   maskVisible: boolean;
   maskColor: string;
+  /** The processed frame whose source pictures are being worked on instead
+   * of its map being shown; not persisted. */
+  editingFrameId: string | null;
+  /** The processed frame whose source is shown while its inset is pointed at. */
+  peekingFrameId: string | null;
+  /** The frame whose picture is being dragged or transformed; its map waits
+   * for the gesture to end, so the node under the pointer stays. Not persisted. */
+  gestureFrameId: string | null;
   /** Per-dock collapse override map, keyed by FrameId string: `input:${uuid}`
    * for frames, `"output"` for the Output dock. */
   panelCollapsedOverrides: Map<string, boolean>;
@@ -50,6 +58,9 @@ interface CanvasState {
   setBrushSize: (size: number) => void;
   setMaskVisible: (visible: boolean) => void;
   setMaskColor: (color: string) => void;
+  setEditingFrame: (frameId: string | null) => void;
+  setPeekingFrame: (frameId: string | null) => void;
+  setGestureFrame: (frameId: string | null) => void;
   togglePanelCollapsed: (key: string, currentCollapsed: boolean) => void;
   setSizeMultiple: (multiple: number) => void;
 }
@@ -112,6 +123,9 @@ export const useCanvasStore = create<CanvasState>()(
       brushSize: 20,
       maskVisible: true,
       maskColor: "#ff000080",
+      editingFrameId: null,
+      peekingFrameId: null,
+      gestureFrameId: null,
       panelCollapsedOverrides: new Map<string, boolean>(),
       canvasMode: "focus",
       focusedFrameId: null,
@@ -137,6 +151,12 @@ export const useCanvasStore = create<CanvasState>()(
       setBrushSize: (size) => set({ brushSize: size }),
       setMaskVisible: (visible) => set({ maskVisible: visible }),
       setMaskColor: (color) => set({ maskColor: color }),
+      setEditingFrame: (frameId) =>
+        set((s) => (s.editingFrameId === frameId ? s : { editingFrameId: frameId })),
+      setPeekingFrame: (frameId) =>
+        set((s) => (s.peekingFrameId === frameId ? s : { peekingFrameId: frameId })),
+      setGestureFrame: (frameId) =>
+        set((s) => (s.gestureFrameId === frameId ? s : { gestureFrameId: frameId })),
       setSizeMultiple: (multiple) => set({ sizeMultiple: multiple }),
 
       togglePanelCollapsed: (key, currentCollapsed: boolean) =>

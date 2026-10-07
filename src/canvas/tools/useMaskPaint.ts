@@ -132,6 +132,11 @@ export function useMaskPaint({ stageRef, spaceHeld, layout }: UseMaskPaintOption
       const { activeTool, brushSize } = useCanvasStore.getState();
       pinnedFrameId.current = hit.frameId;
       useInputStore.getState().selectFrame(hit.frameId);
+      // A stroke on a frame showing its map is a stroke on the source
+      const hitFrame = layout.frames.find((f) => f.frameId === hit.frameId);
+      if (hitFrame?.kind === "composed" && hitFrame.map?.state === "current") {
+        useCanvasStore.getState().setEditingFrame(hit.frameId);
+      }
       toolRef.current = activeTool === "maskEraser" ? "eraser" : "brush";
       strokeWidthRef.current = brushSize;
       pointsBuffer.current = [hit.x, hit.y];
@@ -148,7 +153,7 @@ export function useMaskPaint({ stageRef, spaceHeld, layout }: UseMaskPaintOption
         line.getLayer()?.batchDraw();
       }
     },
-    [stageRef, spaceHeld, hitTestInitialFrame, isMaskTool],
+    [stageRef, spaceHeld, hitTestInitialFrame, isMaskTool, layout.frames],
   );
 
   const handleMouseMove = useCallback(

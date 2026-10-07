@@ -52,7 +52,6 @@ export function CanvasToolbar() {
     const tool = useCanvasStore.getState().activeTool;
     setActiveTool(tool === "maskEraser" ? "move" : "maskEraser");
   });
-  useShortcut("canvas-deselect", () => setActiveTool("move"));
   useShortcut("canvas-brush-smaller", () => {
     setBrushSize(Math.max(1, useCanvasStore.getState().brushSize - 5));
   });

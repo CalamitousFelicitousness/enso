@@ -29,6 +29,7 @@ import { RoleToggle } from "@/components/generation/tabs/input/RoleToggle";
 import type { ViewportState } from "@/canvas/viewportBus";
 import { INPUTS_FULL_HINT } from "@/inputs/capacity";
 import { removePicture } from "@/inputs/edits";
+import { MapLine } from "./MapLine";
 
 interface FrameDockProps {
   frame: FramePosition;
@@ -322,6 +323,7 @@ export function FrameDock({
         onToggleCollapsed={() => setCollapsed((c) => !c)}
         tabBar={tabBar}
         subheader={!collapsed ? roleToggle : undefined}
+        statusLine={entry.processor ? <MapLine frame={frame} entry={entry} /> : undefined}
       />
       {frame.kind === "set" && (
         <ReferenceSortableOverlay

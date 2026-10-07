@@ -133,6 +133,12 @@ export const CanvasView = memo(function CanvasView() {
 
   // Shortcut: toggle focus/canvas mode
   useShortcut("canvas-toggle-mode", handleToggleMode);
+  // Escape leaves Edit mode on a processed frame and goes back to the move tool
+  useShortcut("canvas-deselect", () => {
+    const canvas = useCanvasStore.getState();
+    canvas.setEditingFrame(null);
+    canvas.setActiveTool("move");
+  });
 
   // Focus mode steps through the frames in list order; an input frame it
   // reveals becomes the selected one, so the inspector follows

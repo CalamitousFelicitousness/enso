@@ -61,14 +61,18 @@ describe("computeCanvasLayout", () => {
     ]);
   });
 
-  it("stacks control frames at one gap whatever they hold", () => {
+  it("leaves room above a frame with a processor for its dock's second line", () => {
     const processed: Frame = {
       ...control("c", layer("e")),
       processor: { id: "Canny", params: {} },
     };
-    const layout = computeCanvasLayout(input([processed, control("d", layer("f"))]));
-    expect(frameBox(layout.frames[1]).y).toBe(512 + 64);
-    expect(layout.totalBounds.maxX).toBe(1024 + 48 + 1024);
+    const plain = control("d", layer("f"));
+    const second = (frames: Frame[], labelScale = 1) =>
+      frameBox(computeCanvasLayout(input(frames, { labelScale })).frames[1]).y;
+    expect(second([processed, plain])).toBe(512 + 64);
+    expect(second([plain, processed])).toBe(512 + 64 + 22);
+    expect(second([plain, processed], 2)).toBe(512 + 16 + (32 + 22) * 2 + 16);
+    expect(computeCanvasLayout(input([processed])).totalBounds.maxX).toBe(1024 + 48 + 1024);
   });
 
   it("keeps the add cell of an IP-Adapter frame when the input images are at capacity", () => {

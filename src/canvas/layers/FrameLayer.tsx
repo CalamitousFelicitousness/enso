@@ -10,10 +10,12 @@
 import { memo, useCallback } from "react";
 import { Group, Image as KonvaImage, Layer, Rect, Text } from "react-konva";
 import { CornerBrackets } from "@/canvas/layers/CornerBrackets";
-import { frameColor, UNREADABLE_COLOR } from "@/canvas/frameColors";
+import { frameColor, PROCESSED_COLOR, UNREADABLE_COLOR } from "@/canvas/frameColors";
 import { useCanvasStore } from "@/stores/canvasStore";
 import { useInputStore } from "@/stores/inputStore";
 import { useBlobImage } from "@/inputs/media";
+import { useMapStore, type MapEntry } from "@/inputs/maps";
+import type { MapSlot } from "@/lib/inputs/outline";
 import { isPlaced, type Frame, type Picture, type PlacedPicture } from "@/lib/inputs/types";
 import {
   useLayerInteraction,
@@ -106,6 +108,12 @@ function useFrame(frameId: string): Frame | undefined {
   return useInputStore((s) => s.frames.find((f) => f.id === frameId));
 }
 
+/** The map a slot is sent as, when the cache holds it. */
+function useMap(slot: MapSlot | null): MapEntry | null {
+  const key = slot?.state === "current" ? slot.key : null;
+  return useMapStore((s) => (key ? (s.current.get(key) ?? null) : null));
+}
+
 /** The pictures a composed frame draws: its own, or its link's target's. */
 function useComposedSource(frameId: string): { pictures: Picture[]; linked: boolean } {
   const pictures = useInputStore((s) => {
@@ -142,17 +150,28 @@ const ComposedFrame = memo(function ComposedFrame({
   onClick,
 }: ComposedFrameProps) {
   const { pictures, linked } = useComposedSource(frame.frameId);
+  const map = useMap(frame.map);
+  const editing = useCanvasStore((s) => s.editingFrameId === frame.frameId);
+  const peeking = useCanvasStore((s) => s.peekingFrameId === frame.frameId);
+  const gesture = useCanvasStore((s) => s.gestureFrameId === frame.frameId);
   const layers = pictures.filter((p): p is PlacedPicture => p.visible && isPlaced(p));
   const filled = layers.length > 0;
-  const borderColor = frameColor(frame.role, filled);
+  // A processed frame shows its map in the pictures' place until the user
+  // edits the source or points at the inset; nothing under the map listens.
+  // A map that lands mid-drag waits, so the dragged node stays mounted.
+  const mapShown = map !== null && !editing && !peeking && !gesture;
+  const borderColor = mapShown ? PROCESSED_COLOR : frameColor(frame.role, filled);
   const handleClick = () => onClick(frame.frameId, filled);
+  const handleDblClick = () => {
+    if (map) useCanvasStore.getState().setEditingFrame(frame.frameId);
+  };
   // A linked frame mirrors its source; the source is where its pictures move
   const editable = frame.role === "control" ? !linked : true;
 
   return (
     <>
       {/* Display-space hit-test rect under the pictures: it takes the clicks
-       * no picture takes. */}
+       * no picture takes, which is every click while the map is shown. */}
       <Rect
         x={frame.x}
         y={frame.y}
@@ -161,6 +180,8 @@ const ComposedFrame = memo(function ComposedFrame({
         fill="transparent"
         onClick={handleClick}
         onTap={handleClick}
+        onDblClick={handleDblClick}
+        onDblTap={handleDblClick}
       />
 
       {/* Per-frame transform group: switches the inner coordinate system from
@@ -177,17 +198,21 @@ const ComposedFrame = memo(function ComposedFrame({
             listening={false}
           />
         )}
-        {layers.map((picture) => (
-          <PictureNode
-            key={picture.id}
-            frameId={frame.frameId}
-            picture={picture}
-            draggable={draggable && editable && !picture.locked}
-            listening={editable}
-            setNodeRef={setNodeRef}
-            interaction={interaction}
-          />
-        ))}
+        {mapShown ? (
+          <MapNode map={map} width={frame.frameW} height={frame.frameH} />
+        ) : (
+          layers.map((picture) => (
+            <PictureNode
+              key={picture.id}
+              frameId={frame.frameId}
+              picture={picture}
+              draggable={draggable && editable && !picture.locked}
+              listening={editable}
+              setNodeRef={setNodeRef}
+              interaction={interaction}
+            />
+          ))
+        )}
       </Group>
 
       {!filled && (
@@ -226,6 +251,21 @@ const ComposedFrame = memo(function ComposedFrame({
       )}
     </>
   );
+});
+
+/** A frame's map, stretched over the frame in frame pixels. */
+const MapNode = memo(function MapNode({
+  map,
+  width,
+  height,
+}: {
+  map: MapEntry;
+  width: number;
+  height: number;
+}) {
+  const image = useBlobImage(map.blob);
+  if (!image) return null;
+  return <KonvaImage image={image} x={0} y={0} width={width} height={height} listening={false} />;
 });
 
 interface PictureNodeProps {
@@ -300,6 +340,8 @@ const PictureNode = memo(function PictureNode({
       {...placement}
       opacity={picture.opacity}
       draggable={draggable}
+      onDragStart={() => interaction.onLayerGestureStart(frameId)}
+      onTransformStart={() => interaction.onLayerGestureStart(frameId)}
       onDragMove={interaction.onLayerDragMove}
       onDragEnd={(e) => interaction.onLayerDragEnd(frameId, picture.id, e)}
       onTransformEnd={(e) => interaction.onLayerTransformEnd(frameId, picture.id, e)}
@@ -407,10 +449,12 @@ interface SetCellProps {
   color: string;
 }
 
-/** One picture of a set frame, fitted inside its cell. A hidden one is
- * dimmed and carries no number; the DOM overlay above it says why. */
+/** One picture of a set frame, fitted inside its cell, or its map when the
+ * cache holds it. A hidden one is dimmed and carries no number; the DOM
+ * overlay above it says why. */
 const SetCell = memo(function SetCell({ cell, picture, color }: SetCellProps) {
-  const image = useBlobImage(picture.file);
+  const map = useMap(cell.map);
+  const image = useBlobImage(map?.blob ?? picture.file);
   // Contain-fit inside the cell using the picture's natural aspect.
   let imgX = cell.x;
   let imgY = cell.y;
@@ -429,7 +473,7 @@ const SetCell = memo(function SetCell({ cell, picture, color }: SetCellProps) {
       imgX = cell.x + (cell.displayW - imgW) / 2;
     }
   }
-  const cellColor = picture.file ? color : UNREADABLE_COLOR;
+  const cellColor = !picture.file ? UNREADABLE_COLOR : map ? PROCESSED_COLOR : color;
   return (
     <Group>
       {image && (

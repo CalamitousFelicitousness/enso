@@ -19,6 +19,8 @@ import type { FrameRole, Size } from "./types";
 export const REFERENCE_HEIGHT = 512;
 /** Between a frame and its dock. */
 export const ELEMENT_GAP = 16;
+/** The dock's second line, under its header, on a frame with a processor. */
+export const DOCK_LINE_HEIGHT = 22;
 /** Collapsed dock before the label scale: its header plus a 1px border. */
 const DOCK_HEIGHT = 32;
 const FRAME_GAP = 48;
@@ -182,8 +184,12 @@ export function computeCanvasLayout(input: LayoutInput): FrameLayout {
   const outputDisplayH = output.height * displayScale;
   const outputX = displayW + FRAME_GAP;
   const controlColumnX = -(displayW + FRAME_GAP);
-  // A dock floats ELEMENT_GAP above its frame at the label scale
-  const stackGap = INPUT_FRAME_GAP + DOCK_HEIGHT * labelScale + ELEMENT_GAP;
+  // A dock floats ELEMENT_GAP above its frame at the label scale, one line
+  // taller on a frame with a processor
+  const gapAbove = (entry: OutlineEntry) =>
+    INPUT_FRAME_GAP +
+    (DOCK_HEIGHT + (entry.processor ? DOCK_LINE_HEIGHT : 0)) * labelScale +
+    ELEMENT_GAP;
 
   const frames: FramePosition[] = [];
   const bottoms = { input: 0, control: 0 };
@@ -191,7 +197,7 @@ export function computeCanvasLayout(input: LayoutInput): FrameLayout {
   for (const entry of input.entries) {
     const column = entry.role === "control" || entry.role === "ipAdapter" ? "control" : "input";
     const x = column === "control" ? controlColumnX : 0;
-    const y = started[column] ? bottoms[column] + stackGap : 0;
+    const y = started[column] ? bottoms[column] + gapAbove(entry) : 0;
     started[column] = true;
     if (entry.role === "initial" || entry.role === "control") {
       frames.push({

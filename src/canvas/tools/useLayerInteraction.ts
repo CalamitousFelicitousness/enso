@@ -27,6 +27,10 @@ export function useLayerInteraction(snap: Snap) {
     [],
   );
 
+  const onLayerGestureStart = useCallback((frameId: string) => {
+    useCanvasStore.getState().setGestureFrame(frameId);
+  }, []);
+
   const onLayerDragEnd = useCallback(
     (frameId: string, layerId: string, e: Konva.KonvaEventObject<DragEvent>) => {
       snapRef.current.clearGuides();
@@ -34,6 +38,7 @@ export function useLayerInteraction(snap: Snap) {
         x: e.target.x(),
         y: e.target.y(),
       });
+      useCanvasStore.getState().setGestureFrame(null);
     },
     [],
   );
@@ -49,6 +54,7 @@ export function useLayerInteraction(snap: Snap) {
         scaleY: node.scaleY(),
         rotation: node.rotation(),
       });
+      useCanvasStore.getState().setGestureFrame(null);
     },
     [],
   );
@@ -59,8 +65,14 @@ export function useLayerInteraction(snap: Snap) {
   );
 
   return useMemo(
-    () => ({ onLayerClick, onLayerDragEnd, onLayerTransformEnd, onLayerDragMove }),
-    [onLayerClick, onLayerDragEnd, onLayerTransformEnd, onLayerDragMove],
+    () => ({
+      onLayerClick,
+      onLayerGestureStart,
+      onLayerDragEnd,
+      onLayerTransformEnd,
+      onLayerDragMove,
+    }),
+    [onLayerClick, onLayerGestureStart, onLayerDragEnd, onLayerTransformEnd, onLayerDragMove],
   );
 }
 

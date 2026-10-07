@@ -5,7 +5,7 @@
 import { useMemo, type ReactNode } from "react";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { ELEMENT_GAP } from "@/lib/inputs/layout";
+import { DOCK_LINE_HEIGHT, ELEMENT_GAP } from "@/lib/inputs/layout";
 
 export const HEADER_HEIGHT = 30;
 export const PANEL_WIDTH = 320;
@@ -111,6 +111,8 @@ export interface FrameHeaderProps {
   tabBar?: ReactNode;
   /** Content between the top separator and the tab bar, such as the role toggle. */
   subheader?: ReactNode;
+  /** Panel mode: a second line under the header, shown collapsed or not. */
+  statusLine?: ReactNode;
 }
 
 export function FrameHeader({
@@ -131,6 +133,7 @@ export function FrameHeader({
   onToggleCollapsed,
   tabBar,
   subheader,
+  statusLine,
 }: FrameHeaderProps) {
   const combinedScale = viewport.scale * labelScale;
 
@@ -207,6 +210,15 @@ export function FrameHeader({
             )}
           </div>
         </div>
+
+        {isPanel && statusLine && (
+          <div
+            className="flex items-center gap-2 px-3 shrink-0"
+            style={{ height: DOCK_LINE_HEIGHT, borderTop: `1px solid ${GLASS_BORDER_SUBTLE}` }}
+          >
+            {statusLine}
+          </div>
+        )}
 
         {showExpandedSection && (
           <div style={{ borderTop: `1px solid ${GLASS_BORDER_SUBTLE}` }}>

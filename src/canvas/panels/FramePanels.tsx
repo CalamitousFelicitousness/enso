@@ -2,7 +2,7 @@
 // context for frame reorder, the add buttons under each column, and the
 // Output dock.
 
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { DndContext, PointerSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { Plus } from "lucide-react";
@@ -59,6 +59,14 @@ export function FramePanels({
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
 
   const sizeSource = useSizeSourceMark(outline.sent.length);
+  const editingFrameId = useCanvasStore((s) => s.editingFrameId);
+
+  // Edit mode ends with the frame's processor, or the frame
+  useEffect(() => {
+    if (!editingFrameId) return;
+    const edited = outline.entries.find((e) => e.frameId === editingFrameId);
+    if (!edited || edited.maps.length === 0) useCanvasStore.getState().setEditingFrame(null);
+  }, [editingFrameId, outline]);
 
   const handleDragEnd = (e: DragEndEvent) => {
     if (!e.over || e.active.id === e.over.id) return;
