@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef } from "react";
 import { ZOOM_LIMITS } from "@/lib/constants";
 import type Konva from "konva";
 import type { ViewportAdapter } from "../viewportAdapter";
+import { setPanKey } from "../konvaSetup";
 
 interface PanZoomOptions {
   stageRef: React.RefObject<Konva.Stage | null>;
@@ -152,6 +153,7 @@ export function usePanZoom({
       // Nothing else clears these once the listeners are gone, and a latched
       // spaceHeld makes left-drag pan when the canvas comes back.
       spaceHeld.current = false;
+      setPanKey(false);
       isPanning.current = false;
       return;
     }
@@ -160,6 +162,7 @@ export function usePanZoom({
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.code === "Space" && !e.repeat) {
         spaceHeld.current = true;
+        setPanKey(true);
         const stage = stageRef.current;
         if (stage) stage.container().style.cursor = "grab";
       }
@@ -167,6 +170,7 @@ export function usePanZoom({
     const onKeyUp = (e: KeyboardEvent) => {
       if (e.code === "Space") {
         spaceHeld.current = false;
+        setPanKey(false);
         const stage = stageRef.current;
         if (stage && !isPanning.current) stage.container().style.cursor = "default";
       }

@@ -152,6 +152,18 @@ const ComposedFrame = memo(function ComposedFrame({
 
   return (
     <>
+      {/* Display-space hit-test rect under the pictures: it takes the clicks
+       * no picture takes. */}
+      <Rect
+        x={frame.x}
+        y={frame.y}
+        width={frame.displayW}
+        height={frame.displayH}
+        fill="transparent"
+        onClick={handleClick}
+        onTap={handleClick}
+      />
+
       {/* Per-frame transform group: switches the inner coordinate system from
        * display space to frame pixels, so each picture's placement applies as
        * stored. The group origin is the frame's display-space top-left. */}
@@ -192,17 +204,6 @@ const ComposedFrame = memo(function ComposedFrame({
           listening={false}
         />
       )}
-
-      {/* Display-space hit-test rect: captures clicks anywhere over the frame. */}
-      <Rect
-        x={frame.x}
-        y={frame.y}
-        width={frame.displayW}
-        height={frame.displayH}
-        fill="transparent"
-        onClick={handleClick}
-        onTap={handleClick}
-      />
 
       <Rect
         x={frame.x}
