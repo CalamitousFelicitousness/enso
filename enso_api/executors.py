@@ -220,6 +220,15 @@ class GenerationFailed(Exception):
         super().__init__(self.detail)
 
 
+def masked_image_short_side(params: dict, inputs: list | None, inits: list | None, mask) -> int:
+    """Short side of the image sdnext blurs the mask against: the first input after resize_mode_before, else the init as sent."""
+    if inputs:
+        if params.get("resize_mode_before", 0):
+            return min(params.get("width_before", 1024), params.get("height_before", 1024))
+        return min(inputs[0].size)
+    return min((inits or [mask])[0].size)
+
+
 def execute_generate(params: dict, job_id: str) -> dict:
     from modules import processing_helpers, shared
     from modules.api import helpers
@@ -328,10 +337,9 @@ def execute_generate(params: dict, job_id: str) -> dict:
     if mask is not None:
         from modules import masking
 
-        # mask_blur from API is in pixels; masking.opts expects a fraction of image size
-        # Convert using the same formula as the legacy path: fraction = round(4 * px / size, 3)
+        # masking.run_mask takes the blur as a fraction of the short side of the image it masks
         mask_blur_px = params.get("mask_blur", 0)
-        size = min(params.get("width", 512), params.get("height", 512))
+        size = masked_image_short_side(params, inputs, inits, mask)
         masking.opts.mask_blur = round(4 * mask_blur_px / size, 3) if mask_blur_px > 0 and size > 0 else 0
         masking.opts.mask_only = params.get("inpaint_full_res", False)
         masking.opts.mask_invert = params.get("inpainting_mask_invert", 0) == 1
