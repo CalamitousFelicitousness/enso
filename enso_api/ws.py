@@ -31,16 +31,20 @@ async def ws_job_endpoint(ws: WebSocket, job_id: str):
 
     from enso_api.job_queue import job_queue
 
-    job = job_queue.store.get(job_id)
-    if job is None:
+    if job_queue.store.get(job_id) is None:
         await ws.close(code=4004, reason="Job not found")
         return
 
     await ws.accept()
+    # Subscribed before the state is read: an end after the read arrives on the queue
     queue = job_queue.subscribe(job_id)
+    job = job_queue.store.get(job_id)
     log.debug(f"Job WebSocket: connected job={job_id}")
 
     try:
+        if job is None:
+            await ws.close(code=4004, reason="Job not found")
+            return
         # Send current state immediately
         await ws.send_json(WsEventStatus(status=job["status"], progress=job.get("progress", 0.0)).model_dump(exclude_none=True))
 
