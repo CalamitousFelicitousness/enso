@@ -7437,6 +7437,21 @@
         "title": "ReqHuggingFaceSettingsV2",
         "type": "object"
       },
+      "ReqJobUpdateV2": {
+        "additionalProperties": false,
+        "properties": {
+          "priority": {
+            "description": "Higher runs first among queued jobs.",
+            "title": "Priority",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "priority"
+        ],
+        "title": "ReqJobUpdateV2",
+        "type": "object"
+      },
       "ReqLoaderComponentsV2": {
         "additionalProperties": false,
         "description": "POST /sdapi/v2/model/loader/components body.",
@@ -16081,6 +16096,58 @@
           }
         },
         "summary": "Get Job",
+        "tags": [
+          "v2",
+          "Jobs"
+        ]
+      },
+      "patch": {
+        "description": "Move a queued job by giving it another priority. 409 once the job has started.",
+        "operationId": "update_job_sdapi_v2_jobs__job_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "title": "Job Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReqJobUpdateV2"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Job",
         "tags": [
           "v2",
           "Jobs"

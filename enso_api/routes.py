@@ -17,6 +17,7 @@ from enso_api.models import (
     MessageResponse,
     ReqBulkJobV2,
     ReqFramePackLoadV2,
+    ReqJobUpdateV2,
     ReqVideoLoadV2,
     ResBulkJobV2,
     ResJobStatsV2,
@@ -172,6 +173,18 @@ async def get_job(job_id: str):
     except Exception:
         pass
     return resp
+
+
+@router.patch("/jobs/{job_id}", response_model=JobResponse, tags=["Jobs"])
+async def update_job(job_id: str, request: ReqJobUpdateV2):
+    """Move a queued job by giving it another priority. 409 once the job has started."""
+    from enso_api.job_queue import job_queue
+
+    if job_queue.store.get(job_id) is None:
+        raise HTTPException(status_code=404, detail=f"Job not found: {job_id}")
+    if not job_queue.store.set_priority(job_id, request.priority):
+        raise HTTPException(status_code=409, detail="The job started before it could be moved")
+    return job_to_response(job_queue.store.get(job_id))
 
 
 @router.delete("/jobs/{job_id}", response_model=StatusResponse, tags=["Jobs"])

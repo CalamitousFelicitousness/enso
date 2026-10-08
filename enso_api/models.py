@@ -193,6 +193,10 @@ class ReqBulkJobV2(BaseModel):
     confirm: bool = False  # explicit opt-in for no-filter requests
 
 
+class ReqJobUpdateV2(StrictBaseModel):
+    priority: int = Field(description="Higher runs first among queued jobs.")
+
+
 class ResBulkJobV2(BaseModel):
     action: str
     affected: int

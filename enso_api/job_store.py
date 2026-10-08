@@ -126,6 +126,13 @@ class JobStore:
             self._conn.execute(f"UPDATE jobs SET {', '.join(sets)} WHERE id = ?", binds)
             self._conn.commit()
 
+    def set_priority(self, job_id: str, priority: int) -> bool:
+        """Change a queued job's priority; False once it has left the queue."""
+        with self._write_lock:
+            cur = self._conn.execute("UPDATE jobs SET priority = ? WHERE id = ? AND status = 'pending'", (priority, job_id))
+            self._conn.commit()
+            return cur.rowcount > 0
+
     def update_progress(self, job_id: str, progress: float, step: int, steps: int) -> None:
         with self._write_lock:
             self._conn.execute("UPDATE jobs SET progress = ?, step = ?, steps = ? WHERE id = ?", (progress, step, steps, job_id))
