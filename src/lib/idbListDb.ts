@@ -120,26 +120,24 @@ export function createIdbListDb<T extends { id: string }>(config: ListDbConfig<T
 
   async function trim(maxCount: number): Promise<void> {
     const db = await openDb();
-    const count = await new Promise<number>((resolve, reject) => {
-      const tx = db.transaction(storeName, "readonly");
-      const req = tx.objectStore(storeName).count();
-      req.onsuccess = () => resolve(req.result);
-      req.onerror = () => reject(req.error ?? new Error("IDB request failed"));
-    });
-    if (count <= maxCount) return;
-    const toDelete = count - maxCount;
     return new Promise((resolve, reject) => {
+      // Count and delete in one transaction: trims from two tabs then run in
+      // turn, and the second sees what the first deleted.
       const tx = db.transaction(storeName, "readwrite");
-      const index = tx.objectStore(storeName).index(sortKey);
-      let deleted = 0;
-      const req = index.openCursor(null, "next");
-      req.onsuccess = () => {
-        const cursor = req.result;
-        if (cursor && deleted < toDelete) {
-          cursor.delete();
-          deleted++;
-          cursor.continue();
-        }
+      const store = tx.objectStore(storeName);
+      const counted = store.count();
+      counted.onsuccess = () => {
+        let excess = counted.result - maxCount;
+        if (excess <= 0) return;
+        const req = store.index(sortKey).openCursor(null, "next");
+        req.onsuccess = () => {
+          const cursor = req.result;
+          if (cursor && excess > 0) {
+            cursor.delete();
+            excess--;
+            cursor.continue();
+          }
+        };
       };
       tx.oncomplete = () => resolve();
       tx.onerror = () => reject(tx.error ?? new Error("IDB transaction failed"));
