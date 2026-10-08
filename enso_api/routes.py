@@ -78,6 +78,12 @@ async def submit_job(request: JobRequest):
         log.warning(f"submit_job: type {job_type!r} accepted by JobRequest but absent from EXECUTORS")
         raise HTTPException(status_code=500, detail=f"Job type {job_type!r} has no registered executor")
     priority = payload.pop("priority", 0)
+    # A job that names an upload the server no longer holds would fail when it runs
+    from enso_api.upload import missing_upload_issues
+
+    issues = missing_upload_issues(job_type, payload)
+    if issues:
+        raise HTTPException(status_code=422, detail=issues)
     job = job_queue.submit(job_type=job_type, params=payload, priority=priority)
     return job_to_response(job)
 

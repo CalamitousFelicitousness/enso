@@ -42,6 +42,34 @@ def refs_in(value) -> set[str]:
     return set()
 
 
+def ref_locations(value, path: tuple = ()) -> list[tuple[tuple, str]]:
+    """Every upload ref named in a request, with the path to it."""
+    if isinstance(value, str):
+        return [(path, value[len(REF_PREFIX) :])] if value.startswith(REF_PREFIX) else []
+    if isinstance(value, dict):
+        return [loc for key, item in value.items() for loc in ref_locations(item, (*path, key))]
+    if isinstance(value, list):
+        return [loc for i, item in enumerate(value) for loc in ref_locations(item, (*path, i))]
+    return []
+
+
+def missing_upload_issues(job_type: str, params: dict) -> list[dict]:
+    """A validation issue for each upload a request names that the store no longer holds,
+    in FastAPI's 422 shape; type `upload_missing` is the stable code."""
+    if upload_store is None:
+        return []
+    return [
+        {
+            "loc": ["body", job_type, *path],
+            "msg": "This upload is no longer held; send the picture again",
+            "type": "upload_missing",
+            "input": f"{REF_PREFIX}{ref_id}",
+        }
+        for path, ref_id in ref_locations(params)
+        if upload_store.get(ref_id) is None
+    ]
+
+
 class UploadStore:
     """Uploaded files by ref id; the refs a queued or running job names outlive the TTL."""
 
