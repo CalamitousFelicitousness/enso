@@ -3,14 +3,9 @@
 // like any document, so the sweep keeps their bytes, and drops the record
 // once it has expired.
 
-import { deleteDocument, TRASH, writeDocument, type StoreReader } from "./db";
+import { deleteDocument, writeDocument } from "./db";
+import { TRASH } from "@/lib/inputs/storeLayout";
 import { joinRemoval, readRemoval, splitRemoval, type Removal } from "@/lib/inputs/stored";
-import { removalExpiry } from "@/lib/inputs/sweep";
-
-export const trashReader: StoreReader = (record) => {
-  const read = readRemoval(record);
-  return { cids: read.cids, expiresAt: removalExpiry(read.record.removedAt) };
-};
 
 /** Store a removal under a new key and return it. */
 export async function recordRemoval(removal: Removal): Promise<string> {

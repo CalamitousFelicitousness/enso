@@ -12,7 +12,8 @@ import {
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
 import { usePngInfo } from "@/api/hooks/usePngInfo";
-import { restoreFromPngInfo } from "@/lib/pngInfoRestore";
+import { pngInfoParams } from "@/lib/pngInfoRestore";
+import { applyParams } from "@/lib/request/restore";
 import { sendImageToCanvas, sendFrameToVideoInit, sendPromptToGeneration } from "@/lib/sendTo";
 import { uploadFile } from "@/lib/upload";
 import { toast } from "sonner";
@@ -265,8 +266,7 @@ export function PngInfoDialog({ open, onOpenChange }: PngInfoDialogProps) {
   );
 
   const handleApply = useCallback(() => {
-    restoreFromPngInfo(parameters);
-    toast.success("Generation settings applied from PNG info");
+    applyParams(pngInfoParams(parameters), "Settings applied from PNG info");
     onOpenChange(false);
   }, [parameters, onOpenChange]);
 

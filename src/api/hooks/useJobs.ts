@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useJobQueueStore } from "@/stores/jobStore";
 import { api } from "../client";
-import { deleteJobPayload } from "@/lib/jobPayloadDb";
 import type {
   Job,
   JobListResponse,
@@ -59,15 +59,26 @@ export function useDeleteJob() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (jobId: string) => api.delete(`/sdapi/v2/jobs/${jobId}`),
-    onSuccess: (_data, jobId) => {
-      void deleteJobPayload(jobId);
-      return queryClient.invalidateQueries({ queryKey: ["v2-jobs"] });
-    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["v2-jobs"] }),
   });
 }
 
 /** @deprecated Use useDeleteJob - handles both cancel and delete */
 export const useCancelJob = useDeleteJob;
+
+/** Move a queued job by giving it another priority. The server refuses with
+ * 409 once the job has started. */
+export function useMoveJob() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, priority }: { id: string; priority: number }) =>
+      api.patch<Job>(`/sdapi/v2/jobs/${id}`, { priority }),
+    onSuccess: (_job, { id, priority }) => {
+      useJobQueueStore.getState().setPriority(id, priority);
+      return queryClient.invalidateQueries({ queryKey: ["v2-jobs"] });
+    },
+  });
+}
 
 export function usePurgeJobs() {
   const queryClient = useQueryClient();

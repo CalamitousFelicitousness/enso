@@ -1,108 +1,134 @@
 import { useEffect, useRef } from "react";
 import { api } from "@/api/client";
 import { WebSocketManager } from "@/api/websocket";
-import { useJobQueueStore, type TrackedJob, type JobDomain } from "@/stores/jobStore";
+import { useJobQueueStore, type TrackedJob } from "@/stores/jobStore";
 import { useGenerationStore } from "@/stores/generationStore";
 import { useVideoStore } from "@/stores/videoStore";
 import { useProcessStore } from "@/stores/processStore";
-import { deleteJobPayload } from "@/lib/jobPayloadDb";
-import { forgetInputs } from "@/inputs/snapshots";
+import { markRouted } from "@/inputs/jobs";
 import { installMaps } from "@/inputs/processing";
+import { isTerminal, isVideoDomain } from "@/lib/jobs/domains";
 import { previewMimeType } from "@/lib/image";
 import type { JobResult, JobWsEvent } from "@/api/types/v2";
 import { toast } from "sonner";
 
 const MAX_CONCURRENT_WS = 5;
 
-function isTerminal(status: string) {
-  return status === "completed" || status === "failed" || status === "cancelled";
+/** This browser has dealt with the job's end, so a later page start leaves it be. */
+function settle(jobId: string): void {
+  markRouted(jobId).catch((err: unknown) => {
+    console.error("[jobs] could not mark a job's record", err);
+  });
 }
 
-/** A job that produced no result has no use for the frames stored for it. */
-function forgetJobInputs(snapshot: TrackedJob["snapshot"] | undefined) {
-  if (!snapshot || snapshot.kind === "none" || snapshot.kind === "maps") return;
-  if (snapshot.inputsKey) forgetInputs(snapshot.inputsKey);
-}
-
-/** A job the user cancelled: the page's copy says so, and what was stored
- * for its result goes. Safe to call twice. */
+/** A job the user cancelled: the page's copy says so. Safe to call twice. */
 export function markJobCancelled(jobId: string): void {
-  const s = useJobQueueStore.getState();
-  s.updateStatus(jobId, "cancelled");
-  forgetJobInputs(s.jobs.get(jobId)?.snapshot);
-  void deleteJobPayload(jobId);
+  useJobQueueStore.getState().updateStatus(jobId, "cancelled");
+  settle(jobId);
 }
 
-function routeResult(domain: JobDomain, result: JobResult, snapshot: TrackedJob["snapshot"]) {
-  if (domain === "generate") {
-    if (result.images.length > 0) {
-      const inputsKey =
-        snapshot.kind === "control" || snapshot.kind === "detail" ? snapshot.inputsKey : undefined;
-      useGenerationStore.getState().addResult({
-        id: crypto.randomUUID(),
-        images: result.images.map((img) => img.url),
-        // Server returns snake_case JSON; the structural assignment to
-        // WireParams here crosses the wire-contract boundary.
-        parameters: result.params,
-        info: JSON.stringify(result.info),
-        timestamp: Date.now(),
-        inputsKey,
-        warnings: result.warnings,
-      });
-    } else {
-      forgetJobInputs(snapshot);
+export interface RouteOptions {
+  /** When the job ended, for a result routed after the fact. */
+  completedAt?: number;
+  /** Move the strip's selection to the result. */
+  select?: boolean;
+}
+
+/** Hand a completed job's result to the view that shows it, under the job's
+ * id, and mark the job's record once the result is stored: a result routed
+ * twice, by two tabs or a page start, takes one place. */
+export async function routeResult(
+  job: Pick<TrackedJob, "id" | "domain" | "request">,
+  result: JobResult,
+  options: RouteOptions = {},
+): Promise<void> {
+  const { id, domain } = job;
+  const timestamp = options.completedAt ?? Date.now();
+  const select = options.select !== false;
+  try {
+    if (domain === "generate") {
+      // The maps event carried these already, unless the page joined the job late
+      if (result.maps) void installMaps(result.maps, {});
+      if (result.images.length > 0) {
+        await useGenerationStore.getState().addResult(
+          {
+            id,
+            jobId: id,
+            type: job.request?.type ?? "generate",
+            images: result.images.map((img) => img.url),
+            // Server returns snake_case JSON; the structural assignment to
+            // WireParams here crosses the wire-contract boundary.
+            parameters: result.params,
+            info: JSON.stringify(result.info),
+            timestamp,
+            warnings: result.warnings,
+          },
+          { select },
+        );
+      }
+    } else if (domain === "preprocess") {
+      if (result.maps) void installMaps(result.maps, {});
+    } else if (isVideoDomain(domain)) {
+      // Every video executor populates result.videos with a single VideoRef
+      // carrying its own thumbnail_url.
+      const vid = result.videos?.[0];
+      const info: Record<string, unknown> = result.info ?? {};
+      const infoFps = typeof info["fps"] === "number" && info["fps"] > 0 ? info["fps"] : null;
+      const infoFrames =
+        typeof info["frames"] === "number" && info["frames"] > 0 ? info["frames"] : null;
+      const infoAudio = typeof info["has_audio"] === "boolean" ? info["has_audio"] : false;
+      if (vid) {
+        // Stored relative and resolved at render, like image results, so
+        // persisted history survives a backend URL change.
+        await useVideoStore.getState().addResult(
+          {
+            id,
+            videoUrl: vid.url,
+            thumbnailUrl: vid.thumbnail_url ?? undefined,
+            width: vid.width,
+            height: vid.height,
+            format: vid.format,
+            size: vid.size,
+            duration: vid.duration,
+            fps: infoFps,
+            frames: infoFrames,
+            hasAudio: infoAudio,
+            // Server returns snake_case JSON; the structural assignment to
+            // VideoWireParams here crosses the wire-contract boundary.
+            params: result.params,
+            domain: domain,
+            timestamp,
+          },
+          { select },
+        );
+      }
+    } else if (domain === "process" || domain === "upscale" || domain === "rembg") {
+      const base = api.getBaseUrl();
+      const vid = result.videos?.[0];
+      const info = result.info?.["postprocessing"];
+      useProcessStore.getState().setResults(
+        result.images.map((img) => ({
+          url: `${base}${img.url}`,
+          width: img.width,
+          height: img.height,
+        })),
+        vid
+          ? {
+              url: `${base}${vid.url}`,
+              width: vid.width,
+              height: vid.height,
+              duration: vid.duration,
+            }
+          : null,
+        typeof info === "string" && info ? info : null,
+      );
     }
-    // The maps event carried these already, unless the page joined the job late
-    if (result.maps) void installMaps(result.maps, {});
-  } else if (domain === "preprocess") {
-    if (result.maps) void installMaps(result.maps, {});
-  } else if (domain === "video" || domain === "framepack" || domain === "ltx") {
-    // Every video executor populates result.videos with a single VideoRef
-    // carrying its own thumbnail_url.
-    const vid = result.videos?.[0];
-    const info: Record<string, unknown> = result.info ?? {};
-    const infoFps = typeof info["fps"] === "number" && info["fps"] > 0 ? info["fps"] : null;
-    const infoFrames =
-      typeof info["frames"] === "number" && info["frames"] > 0 ? info["frames"] : null;
-    const infoAudio = typeof info["has_audio"] === "boolean" ? info["has_audio"] : false;
-    if (vid) {
-      // Stored relative and resolved at render, like image results, so
-      // persisted history survives a backend URL change.
-      useVideoStore.getState().addResult({
-        id: crypto.randomUUID(),
-        videoUrl: vid.url,
-        thumbnailUrl: vid.thumbnail_url ?? undefined,
-        width: vid.width,
-        height: vid.height,
-        format: vid.format,
-        size: vid.size,
-        duration: vid.duration,
-        fps: infoFps,
-        frames: infoFrames,
-        hasAudio: infoAudio,
-        // Server returns snake_case JSON; the structural assignment to
-        // VideoWireParams here crosses the wire-contract boundary.
-        params: result.params,
-        domain: domain,
-        timestamp: Date.now(),
-      });
-    }
-  } else if (domain === "process" || domain === "upscale" || domain === "rembg") {
-    const base = api.getBaseUrl();
-    const vid = result.videos?.[0];
-    const info = result.info?.["postprocessing"];
-    useProcessStore.getState().setResults(
-      result.images.map((img) => ({
-        url: `${base}${img.url}`,
-        width: img.width,
-        height: img.height,
-      })),
-      vid
-        ? { url: `${base}${vid.url}`, width: vid.width, height: vid.height, duration: vid.duration }
-        : null,
-      typeof info === "string" && info ? info : null,
-    );
+  } catch (err) {
+    // left unmarked, so the next page start routes it again
+    console.error("[jobs] could not store a job's result", err);
+    return;
   }
+  settle(id);
 }
 
 interface WsEntry {
@@ -207,15 +233,12 @@ export function useJobTracker() {
             case "maps":
               void installMaps(data.maps, data.failed);
               break;
-            case "completed":
+            case "completed": {
               s.completeJob(jobId, data.result);
-              routeResult(
-                s.jobs.get(jobId)?.domain ?? "generate",
-                data.result,
-                s.jobs.get(jobId)?.snapshot ?? { kind: "none" },
-              );
-              void deleteJobPayload(jobId);
+              const tracked = s.jobs.get(jobId);
+              if (tracked) void routeResult(tracked, data.result);
               break;
+            }
             case "error":
               s.failJob(jobId, data.error);
               toast.error(
@@ -224,8 +247,7 @@ export function useJobTracker() {
                   : "Generation failed",
                 { description: data.error, duration: 8000 },
               );
-              forgetJobInputs(s.jobs.get(jobId)?.snapshot);
-              void deleteJobPayload(jobId);
+              settle(jobId);
               break;
             case "cancelled":
               markJobCancelled(jobId);

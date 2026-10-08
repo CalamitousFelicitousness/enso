@@ -5,10 +5,7 @@
 
 import { toast } from "sonner";
 import { api } from "@/api/client";
-import type { Job, PreprocessItem, PreprocessJobParams } from "@/api/types/v2";
-import { flattenCanvas } from "@/lib/flattenCanvas";
-import { putJobPayload } from "@/lib/jobPayloadDb";
-import { uploadBlob } from "@/lib/upload";
+import type { PreprocessItem, PreprocessJobParams } from "@/api/types/v2";
 import { fixRunsJob } from "@/lib/inputs/problems";
 import {
   computeOutline,
@@ -18,10 +15,10 @@ import {
   type OutlineProblem,
 } from "@/lib/inputs/outline";
 import { positionsLabel, processOutcomeText, type ProcessOutcome } from "@/lib/inputs/text";
-import { composedPictures, type Frame } from "@/lib/inputs/types";
 import { useInputStore } from "@/stores/inputStore";
-import { useJobQueueStore } from "@/stores/jobStore";
+import { submitJob } from "./jobs";
 import { installMap, lookupMaps, markFailed, useMapStore } from "./maps";
+import { createUploader, type Uploader } from "./materialise";
 
 /** A map slot with the frame it belongs to and, for a Reference picture, which one. */
 export interface SlotOwner {
@@ -59,28 +56,12 @@ export function slotOwners(outline: Outline): SlotOwner[] {
 }
 
 /** The picture a slot's processor runs on, as the request sends it: a file
- * as it is, a composite drawn from its layers at the size it goes out at,
- * by the same call the request builder makes. */
-export async function sourceBlob(frames: Frame[], owner: SlotOwner): Promise<Blob> {
+ * as it is, a composite drawn from its layers at the size it goes out at. */
+function sourceRef(up: Uploader, owner: SlotOwner): Promise<string> {
   const { spec } = owner.slot;
-  if (spec.kind === "file") {
-    const picture = frames
-      .find((f) => f.id === owner.frameId)
-      ?.pictures.find((p) => p.id === owner.pictureId);
-    if (!picture?.file) throw new Error("The picture could not be read");
-    return picture.file;
-  }
-  const source = frames.find((f) => f.id === owner.sourceFrameId);
-  if (!source) throw new Error("The frame is gone");
-  const size = { width: spec.width, height: spec.height };
-  const flat = await flattenCanvas(
-    composedPictures(source),
-    size.width,
-    size.height,
-    spec.out ?? size,
-  );
-  if (!flat) throw new Error("The frame holds no picture to process");
-  return flat;
+  if (spec.kind === "file") return up.file(owner.frameId, owner.pictureId ?? "");
+  const drawnAt = spec.out ?? { width: spec.width, height: spec.height };
+  return up.composite(owner.sourceFrameId, drawnAt).then((done) => done.ref);
 }
 
 /** Make the maps the given frames need, in one queued job: those the cache
@@ -108,27 +89,25 @@ export async function processFrames(
   ];
   if (needed.length === 0) return missing.length === 0 ? "current" : "busy";
   try {
+    const up = createUploader({ frames, size: env.processing.frame });
     const items: PreprocessItem[] = [];
     for (const owner of needed) {
-      const ref = await uploadBlob(await sourceBlob(frames, owner), "source.png");
       items.push({
-        image: ref,
+        image: await sourceRef(up, owner),
         process: owner.slot.processor.id,
         params: owner.slot.params,
         key: owner.slot.key,
       });
     }
-    const payload: PreprocessJobParams = { type: "preprocess", items };
-    const job = await api.post<Job>("/sdapi/v2/jobs", payload);
-    const snapshot = { kind: "maps" as const, mapKeys: items.map((i) => i.key) };
-    useJobQueueStore.getState().trackJob(job.id, "preprocess", snapshot, payload);
-    void putJobPayload({
-      id: job.id,
+    const request: PreprocessJobParams = { type: "preprocess", items };
+    // Process now again is how these maps are made again, so the frames are not kept
+    await submitJob({
       domain: "preprocess",
-      request: payload,
-      priority: 0,
-      snapshot,
-      createdAt: Date.now(),
+      request,
+      ledger: up.ledger,
+      inputs: null,
+      mapKeys: items.map((i) => i.key),
+      checkpoint: null,
     });
     return "started";
   } catch (err) {

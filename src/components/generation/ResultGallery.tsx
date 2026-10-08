@@ -2,7 +2,7 @@ import { useGenerationStore } from "@/stores/generationStore";
 import type { GenerationResult } from "@/stores/generationStore";
 import { useComparisonStore } from "@/stores/comparisonStore";
 import { useUiStore } from "@/stores/uiStore";
-import { restoreFromResult } from "@/lib/request/restore";
+import { restoreSettings, resultTarget } from "@/lib/request/restore";
 import {
   cn,
   downloadImage,
@@ -12,7 +12,7 @@ import {
 } from "@/lib/utils";
 import { useDragSource } from "@/hooks/useDragSource";
 import { useHorizontalWheel } from "@/hooks/useHorizontalWheel";
-import { memo, useCallback, useLayoutEffect, useRef, useState } from "react";
+import { memo, useCallback, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Download, FolderDown, Trash2, Minus, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -30,6 +30,7 @@ import { GenerationDiffDialog } from "@/components/generation/GenerationDiffDial
 import { ResultThumbPreview } from "@/components/generation/ResultThumbPreview";
 import { ResultImage } from "@/components/generation/ResultImage";
 import { ResultThumbActions } from "@/components/generation/ResultThumbActions";
+import { ResultMenu } from "@/components/generation/ResultMenu";
 
 interface CompareCandidate {
   resultId: string;
@@ -48,15 +49,8 @@ export const ResultGallery = memo(function ResultGallery() {
   const [confirmAction, setConfirmAction] = useState<"downloadAll" | "clear" | null>(null);
   const [downloading, setDownloading] = useState(false);
   const [diffResult, setDiffResult] = useState<GenerationResult | null>(null);
-  const [contextMenu, setContextMenu] = useState<{
-    x: number;
-    y: number;
-    resultId: string;
-    imageIndex: number;
-  } | null>(null);
   const [compareCandidate, setCompareCandidate] = useState<CompareCandidate | null>(null);
   const [comparePickMode, setComparePickMode] = useState(false);
-  const contextRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const hasResults = results.length > 0;
 
@@ -120,60 +114,11 @@ export const ResultGallery = memo(function ResultGallery() {
     [selectImage, compareCandidate, comparePickMode],
   );
 
-  const handleDoubleClick = useCallback((resultId: string) => {
+  // The settings of the image picked, a batch's included
+  const handleDoubleClick = useCallback((resultId: string, imageIndex: number) => {
     const result = useGenerationStore.getState().results.find((r) => r.id === resultId);
-    if (result) {
-      restoreFromResult(result);
-      toast.success("Settings restored from selected generation");
-    }
+    if (result) restoreSettings(resultTarget(result, imageIndex));
   }, []);
-
-  const handleContextMenu = useCallback(
-    (e: React.MouseEvent, resultId: string, imageIndex: number) => {
-      e.preventDefault();
-      setContextMenu({ x: e.clientX, y: e.clientY, resultId, imageIndex });
-    },
-    [],
-  );
-
-  // The filmstrip sits at the bottom edge, so a menu anchored at the raw click
-  // point overflows the viewport (under the taskbar). Measure once it mounts
-  // and shift it back inside before paint - useLayoutEffect avoids a flash.
-  useLayoutEffect(() => {
-    if (!contextMenu) return;
-    const el = contextRef.current;
-    if (!el) return;
-    const { width, height } = el.getBoundingClientRect();
-    const margin = 8;
-    const left = Math.max(margin, Math.min(contextMenu.x, window.innerWidth - width - margin));
-    const top = Math.max(margin, Math.min(contextMenu.y, window.innerHeight - height - margin));
-    el.style.left = `${left}px`;
-    el.style.top = `${top}px`;
-  }, [contextMenu]);
-
-  const handleContextAction = useCallback(
-    (action: "restore" | "compare" | "compareWith") => {
-      if (!contextMenu) return;
-      const result = useGenerationStore
-        .getState()
-        .results.find((r) => r.id === contextMenu.resultId);
-      const { resultId, imageIndex } = contextMenu;
-      setContextMenu(null);
-      if (!result) return;
-
-      if (action === "restore") {
-        restoreFromResult(result);
-        toast.success("Settings restored from selected generation");
-      } else if (action === "compare") {
-        setDiffResult(result);
-      } else if (action === "compareWith") {
-        setCompareCandidate({ resultId, imageIndex });
-        setComparePickMode(true);
-        toast.info("Click another thumbnail to compare");
-      }
-    },
-    [contextMenu],
-  );
 
   const handleCompareFromThumb = useCallback((resultId: string, imageIndex: number) => {
     setCompareCandidate({ resultId, imageIndex });
@@ -204,7 +149,7 @@ export const ResultGallery = memo(function ResultGallery() {
         });
     } else if (confirmAction === "clear") {
       clearResults();
-      toast.success("History cleared");
+      toast.success("Strip cleared");
       setConfirmAction(null);
     }
   }
@@ -266,7 +211,7 @@ export const ResultGallery = memo(function ResultGallery() {
           </button>
           <button
             onClick={() => setConfirmAction("clear")}
-            title="Clear history"
+            title="Clear the strip"
             className="p-1 rounded hover:bg-accent transition-colors text-destructive/70 hover:text-destructive"
           >
             <Trash2 size={14} />
@@ -286,7 +231,7 @@ export const ResultGallery = memo(function ResultGallery() {
               comparePickMode={comparePickMode}
               onClick={handleClick}
               onDoubleClick={handleDoubleClick}
-              onContextMenu={handleContextMenu}
+              onCompareSettings={setDiffResult}
               onCompare={handleCompareFromThumb}
             />
           ) : (
@@ -307,7 +252,7 @@ export const ResultGallery = memo(function ResultGallery() {
               comparePickMode={comparePickMode}
               onClick={handleClick}
               onDoubleClick={handleDoubleClick}
-              onContextMenu={handleContextMenu}
+              onCompareSettings={setDiffResult}
               onCompare={handleCompareFromThumb}
             />
           ),
@@ -324,14 +269,14 @@ export const ResultGallery = memo(function ResultGallery() {
               {confirmAction === "downloadAll"
                 ? "Download All Images"
                 : confirmAction === "clear"
-                  ? "Clear History"
+                  ? "Clear the Strip"
                   : ""}
             </DialogTitle>
             <DialogDescription>
               {confirmAction === "downloadAll"
                 ? `Download ${totalImages} image${totalImages === 1 ? "" : "s"} as a zip file?`
                 : confirmAction === "clear"
-                  ? `Remove all ${totalImages} image${totalImages === 1 ? "" : "s"} from history? This cannot be undone.`
+                  ? `Remove all ${totalImages} image${totalImages === 1 ? "" : "s"} from the strip? They stay in History.`
                   : ""}
             </DialogDescription>
           </DialogHeader>
@@ -362,38 +307,6 @@ export const ResultGallery = memo(function ResultGallery() {
         </DialogContent>
       </Dialog>
 
-      {/* Right-click context menu */}
-      {contextMenu && (
-        <div
-          ref={contextRef}
-          className="fixed z-50 min-w-36 rounded-md border bg-popover p-1 text-popover-foreground shadow-md text-2xs"
-          style={{ top: contextMenu.y, left: contextMenu.x }}
-          onMouseLeave={() => setContextMenu(null)}
-        >
-          <button
-            type="button"
-            className="w-full text-left px-2 py-1 rounded-sm hover:bg-accent"
-            onClick={() => handleContextAction("restore")}
-          >
-            Restore All
-          </button>
-          <button
-            type="button"
-            className="w-full text-left px-2 py-1 rounded-sm hover:bg-accent"
-            onClick={() => handleContextAction("compare")}
-          >
-            Compare & Restore...
-          </button>
-          <button
-            type="button"
-            className="w-full text-left px-2 py-1 rounded-sm hover:bg-accent"
-            onClick={() => handleContextAction("compareWith")}
-          >
-            Compare with...
-          </button>
-        </div>
-      )}
-
       <GenerationDiffDialog
         open={diffResult !== null}
         onOpenChange={(open) => {
@@ -417,8 +330,8 @@ interface BatchTileProps {
   compareCandidate: CompareCandidate | null;
   comparePickMode: boolean;
   onClick: (e: React.MouseEvent, resultId: string, imageIndex: number) => void;
-  onDoubleClick: (resultId: string) => void;
-  onContextMenu: (e: React.MouseEvent, resultId: string, imageIndex: number) => void;
+  onDoubleClick: (resultId: string, imageIndex: number) => void;
+  onCompareSettings: (result: GenerationResult) => void;
   onCompare: (resultId: string, imageIndex: number) => void;
 }
 
@@ -431,7 +344,7 @@ const BatchTile = memo(function BatchTile({
   comparePickMode,
   onClick,
   onDoubleClick,
-  onContextMenu,
+  onCompareSettings,
   onCompare,
 }: BatchTileProps) {
   const [open, setOpen] = useState(false);
@@ -453,50 +366,58 @@ const BatchTile = memo(function BatchTile({
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <div
-          role="button"
-          tabIndex={0}
-          title={`Batch of ${count} - click to expand`}
-          onContextMenu={(e) => onContextMenu(e, result.id, coverIndex)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" || e.key === " ") {
-              e.preventDefault();
-              setOpen((o) => !o);
-            }
-          }}
-          className="relative flex-shrink-0 cursor-pointer outline-none"
-          style={{ width: size + 6, height: size }}
-        >
-          {/* Layered card backs peeking on the right hint at more frames. */}
+      <ResultMenu
+        result={result}
+        imageIndex={coverIndex}
+        onCompareSettings={onCompareSettings}
+        onCompareWith={onCompare}
+      >
+        <PopoverTrigger asChild>
           <div
-            className="absolute top-1.5 bottom-1.5 right-0 rounded-sm border border-border/60 bg-muted"
-            style={{ width: size }}
-          />
-          <div
-            className="absolute top-1 bottom-1 rounded border border-border/60 bg-muted"
-            style={{ width: size, right: 3 }}
-          />
-          {/* Cover */}
-          <div
-            className={cn(
-              "absolute left-0 top-0 overflow-hidden rounded border-2 transition-colors",
-              isSelected ? "border-primary" : "border-transparent hover:border-muted-foreground/30",
-            )}
-            style={{ width: size, height: size }}
+            role="button"
+            tabIndex={0}
+            title={`Batch of ${count} - click to expand`}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                setOpen((o) => !o);
+              }
+            }}
+            className="relative flex-shrink-0 cursor-pointer outline-none"
+            style={{ width: size + 6, height: size }}
           >
-            <ResultImage
-              image={result.images[coverIndex]}
-              alt="Batch cover"
-              className="h-full w-full object-cover"
-              compact={size < 48}
+            {/* Layered card backs peeking on the right hint at more frames. */}
+            <div
+              className="absolute top-1.5 bottom-1.5 right-0 rounded-sm border border-border/60 bg-muted"
+              style={{ width: size }}
             />
-            <span className="absolute bottom-0.5 right-0.5 rounded bg-black/70 px-1 text-3xs leading-tight text-white tabular-nums">
-              ×{count}
-            </span>
+            <div
+              className="absolute top-1 bottom-1 rounded border border-border/60 bg-muted"
+              style={{ width: size, right: 3 }}
+            />
+            {/* Cover */}
+            <div
+              className={cn(
+                "absolute left-0 top-0 overflow-hidden rounded border-2 transition-colors",
+                isSelected
+                  ? "border-primary"
+                  : "border-transparent hover:border-muted-foreground/30",
+              )}
+              style={{ width: size, height: size }}
+            >
+              <ResultImage
+                image={result.images[coverIndex]}
+                alt="Batch cover"
+                className="h-full w-full object-cover"
+                compact={size < 48}
+              />
+              <span className="absolute bottom-0.5 right-0.5 rounded bg-black/70 px-1 text-3xs leading-tight text-white tabular-nums">
+                ×{count}
+              </span>
+            </div>
           </div>
-        </div>
-      </PopoverTrigger>
+        </PopoverTrigger>
+      </ResultMenu>
       <PopoverContent
         side="top"
         align="start"
@@ -523,7 +444,7 @@ const BatchTile = memo(function BatchTile({
               comparePickMode={comparePickMode}
               onClick={onPick}
               onDoubleClick={onDoubleClick}
-              onContextMenu={onContextMenu}
+              onCompareSettings={onCompareSettings}
               onCompare={onCompare}
             />
           ))}
@@ -546,8 +467,8 @@ interface ResultThumbProps {
   isCompareCandidate: boolean;
   comparePickMode: boolean;
   onClick: (e: React.MouseEvent, resultId: string, imageIndex: number) => void;
-  onDoubleClick: (resultId: string) => void;
-  onContextMenu: (e: React.MouseEvent, resultId: string, imageIndex: number) => void;
+  onDoubleClick: (resultId: string, imageIndex: number) => void;
+  onCompareSettings: (result: GenerationResult) => void;
   onCompare: (resultId: string, imageIndex: number) => void;
 }
 
@@ -560,7 +481,7 @@ const ResultThumb = memo(function ResultThumb({
   comparePickMode,
   onClick,
   onDoubleClick,
-  onContextMenu,
+  onCompareSettings,
   onCompare,
 }: ResultThumbProps) {
   const src = resolveImageSrc(item.image);
@@ -592,57 +513,65 @@ const ResultThumb = memo(function ResultThumb({
 
   return (
     <>
-      <div
-        ref={thumbRef}
-        role="button"
-        tabIndex={0}
-        onClick={(e) => onClick(e, item.resultId, item.imageIndex)}
-        onDoubleClick={() => onDoubleClick(item.resultId)}
-        onContextMenu={(e) => onContextMenu(e, item.resultId, item.imageIndex)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" || e.key === " ") {
-            e.preventDefault();
-            onClick(e as unknown as React.MouseEvent, item.resultId, item.imageIndex);
-          }
-        }}
-        onMouseEnter={handleMouseEnter}
-        onMouseLeave={handleMouseLeave}
-        className={cn(
-          "flex-shrink-0 rounded overflow-hidden border-2 transition-colors relative group",
-          isCompareCandidate
-            ? "border-amber-400 ring-1 ring-amber-400/50"
-            : selected
-              ? "border-primary"
-              : comparePickMode
-                ? "border-transparent hover:border-amber-400/50"
-                : "border-transparent hover:border-muted-foreground/30",
-        )}
-        style={{ width: size, height: size }}
-        {...dragProps}
+      <ResultMenu
+        result={result}
+        imageIndex={item.imageIndex}
+        onCompareSettings={onCompareSettings}
+        onCompareWith={onCompare}
       >
-        <ResultImage
-          image={item.image}
-          alt="Result"
-          className="w-full h-full object-cover"
-          compact={size < 48}
-        />
+        <div
+          ref={thumbRef}
+          role="button"
+          tabIndex={0}
+          aria-label="Result"
+          onClick={(e) => onClick(e, item.resultId, item.imageIndex)}
+          onDoubleClick={() => onDoubleClick(item.resultId, item.imageIndex)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              onClick(e as unknown as React.MouseEvent, item.resultId, item.imageIndex);
+            }
+          }}
+          onMouseEnter={handleMouseEnter}
+          onMouseLeave={handleMouseLeave}
+          className={cn(
+            "@container flex-shrink-0 rounded overflow-hidden border-2 transition-colors relative group",
+            isCompareCandidate
+              ? "border-amber-400 ring-1 ring-amber-400/50"
+              : selected
+                ? "border-primary"
+                : comparePickMode
+                  ? "border-transparent hover:border-amber-400/50"
+                  : "border-transparent hover:border-muted-foreground/30",
+          )}
+          style={{ width: size, height: size }}
+          {...dragProps}
+        >
+          <ResultImage
+            image={item.image}
+            alt="Result"
+            className="w-full h-full object-cover"
+            compact={size < 48}
+          />
 
-        {isCompareCandidate && (
-          <span className="absolute bottom-0 left-0 right-0 bg-amber-400/80 text-black text-center text-3xs leading-tight">
-            A
-          </span>
-        )}
-        {/* Quick actions overlay on hover */}
-        {!isCompareCandidate && size >= 48 && (
-          <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-            <ResultThumbActions
-              result={result}
-              imageIndex={item.imageIndex}
-              onCompare={() => onCompare(item.resultId, item.imageIndex)}
-            />
-          </div>
-        )}
-      </div>
+          {isCompareCandidate && (
+            <span className="absolute bottom-0 left-0 right-0 bg-amber-400/80 text-black text-center text-3xs leading-tight">
+              A
+            </span>
+          )}
+          {/* The picture's actions on hover, only where the thumbnail holds
+            them whole: the row is sized in rem, which the UI scale sets */}
+          {!isCompareCandidate && (
+            <div className="hidden opacity-0 transition-opacity group-hover:opacity-100 @min-[5.75rem]:block">
+              <ResultThumbActions
+                result={result}
+                imageIndex={item.imageIndex}
+                onCompare={() => onCompare(item.resultId, item.imageIndex)}
+              />
+            </div>
+          )}
+        </div>
+      </ResultMenu>
       {hovered && previewRect && (
         <ResultThumbPreview result={result} imageIndex={item.imageIndex} anchorRect={previewRect} />
       )}

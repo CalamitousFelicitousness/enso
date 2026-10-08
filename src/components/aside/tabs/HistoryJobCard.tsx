@@ -1,49 +1,27 @@
 import { useState } from "react";
-import {
-  Image,
-  Video,
-  Sparkles,
-  MessageSquare,
-  ScanSearch,
-  SlidersHorizontal,
-  LayoutGrid,
-  RotateCcw,
-  Trash2,
-} from "lucide-react";
-import { toast } from "sonner";
+import { ArchiveRestore, History, Repeat2, Trash2, type LucideIcon } from "lucide-react";
 import type { Job } from "@/api/types/v2";
 import { useDeleteJob } from "@/api/hooks/useJobs";
-import { useResubmitJob } from "@/hooks/useResubmitJob";
-import { getJobPayload } from "@/lib/jobPayloadDb";
+import { useRunAgain } from "@/hooks/useRunAgain";
+import { useJobFact } from "@/inputs/jobs";
+import { historySlots, type HistoryAction } from "@/lib/jobs/cardActions";
+import { jobKind } from "@/lib/jobs/domains";
+import { RESTORE_BOTH, RESTORE_SETTINGS, RUN_AGAIN } from "@/lib/jobs/text";
+import { jobTarget, restoreSettings, restoreSettingsAndInputs } from "@/lib/request/restore";
 import { resolveImageSrc } from "@/lib/utils";
+import { useGenerationStore } from "@/stores/generationStore";
+import { useJobQueueStore } from "@/stores/jobStore";
+import { useVideoStore } from "@/stores/videoStore";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { JobWarnings } from "@/components/generation/JobWarnings";
+import { JOB_ICONS } from "./jobIcons";
+import { JobSlot } from "./JobSlot";
 
-const TYPE_ICONS: Record<string, typeof Image> = {
-  generate: Image,
-  upscale: Sparkles,
-  caption: MessageSquare,
-  enhance: Sparkles,
-  detect: ScanSearch,
-  preprocess: SlidersHorizontal,
-  video: Video,
-  framepack: Video,
-  ltx: Video,
-  "xyz-grid": LayoutGrid,
-};
-
-const TYPE_LABELS: Record<string, string> = {
-  generate: "Generate",
-  upscale: "Upscale",
-  caption: "Caption",
-  enhance: "Enhance",
-  detect: "Detect",
-  preprocess: "Preprocess",
-  video: "Video",
-  framepack: "FramePack",
-  ltx: "LTX",
-  "xyz-grid": "XYZ Grid",
+const SLOTS: Record<HistoryAction, { label: string; icon: LucideIcon }> = {
+  restoreSettings: { label: RESTORE_SETTINGS, icon: History },
+  restoreBoth: { label: RESTORE_BOTH, icon: ArchiveRestore },
+  runAgain: { label: RUN_AGAIN, icon: Repeat2 },
+  delete: { label: "Delete", icon: Trash2 },
 };
 
 function statusBadgeVariant(status: string): "default" | "secondary" | "destructive" | "outline" {
@@ -75,40 +53,46 @@ interface HistoryJobCardProps {
 
 export function HistoryJobCard({ job }: HistoryJobCardProps) {
   const deleteJob = useDeleteJob();
-  const resubmit = useResubmitJob();
-  const [retrying, setRetrying] = useState(false);
-  const TypeIcon = TYPE_ICONS[job.type] ?? Image;
+  const { runAgain, isRunning } = useRunAgain();
+  const facts = useJobFact(job.id);
+  const onStrip = useGenerationStore((s) => s.results.some((r) => r.id === job.id));
+  const onVideoStrip = useVideoStore((s) => s.results.some((r) => r.id === job.id));
+  const tracked = useJobQueueStore((s) => s.jobs.has(job.id));
+  const [restoring, setRestoring] = useState(false);
+  const kind = jobKind(job.type);
+  const TypeIcon = JOB_ICONS[kind.icon];
   // Video jobs leave `images` empty and carry their poster on the video ref.
   const thumbUrl = job.result?.images[0]?.url ?? job.result?.videos?.[0]?.thumbnail_url ?? null;
   const timestamp = job.completed_at ?? job.created_at;
-  const isTerminal =
-    job.status === "completed" || job.status === "failed" || job.status === "cancelled";
 
-  const handleRetry = async () => {
-    setRetrying(true);
-    try {
-      const payload = await getJobPayload(job.id);
-      if (!payload) {
-        toast.error("Job parameters no longer available", {
-          description: "This job's request was evicted from local cache.",
-        });
-        return;
-      }
-      await resubmit(
-        {
-          domain: payload.domain,
-          request: payload.request,
-          snapshot: payload.snapshot,
-        },
-        { successMessage: "Job retried", errorMessage: "Failed to retry job" },
-      );
-    } finally {
-      setRetrying(false);
-    }
+  const restore = (both: boolean) => {
+    setRestoring(true);
+    void jobTarget(job)
+      .then((target) => (both ? restoreSettingsAndInputs(target) : restoreSettings(target)))
+      .finally(() => setRestoring(false));
   };
+  const act: Record<HistoryAction, () => void> = {
+    restoreSettings: () => restore(false),
+    restoreBoth: () => restore(true),
+    runAgain: () => void runAgain(job.id),
+    delete: () => deleteJob.mutate(job.id),
+  };
+  const slots = historySlots(
+    {
+      type: job.type,
+      status: job.status,
+      hasParams: job.result !== null,
+      sentHere: onStrip || onVideoStrip || tracked,
+    },
+    facts,
+  );
+  const busy = restoring || isRunning(job.id);
 
   return (
-    <div className="group flex items-start gap-2 px-3 py-1.5 hover:bg-muted/50 rounded">
+    <div
+      className="group flex items-start gap-2 px-3 py-1.5 hover:bg-muted/50 rounded"
+      aria-busy={busy || undefined}
+    >
       {/* Thumbnail or type icon */}
       {thumbUrl ? (
         <img
@@ -128,7 +112,7 @@ export function HistoryJobCard({ job }: HistoryJobCardProps) {
       <div className="flex-1 min-w-0 space-y-0.5">
         <div className="flex items-center gap-1.5 text-2xs">
           <TypeIcon className="h-3 w-3 shrink-0 text-muted-foreground" />
-          <span className="truncate">{TYPE_LABELS[job.type] ?? job.type}</span>
+          <span className="truncate">{kind.label}</span>
           <Badge variant={statusBadgeVariant(job.status)} className="text-4xs px-1 py-0 shrink-0">
             {job.status}
           </Badge>
@@ -146,29 +130,18 @@ export function HistoryJobCard({ job }: HistoryJobCardProps) {
         </p>
       </div>
 
-      {/* Actions - visible on hover */}
-      <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-        {isTerminal && (
-          <Button
-            size="icon"
-            variant="ghost"
-            className="h-5 w-5"
-            onClick={() => void handleRetry()}
-            disabled={retrying}
-            title="Retry"
-          >
-            <RotateCcw className="h-2.5 w-2.5" />
-          </Button>
-        )}
-        <Button
-          size="icon"
-          variant="ghost"
-          className="h-5 w-5"
-          onClick={() => deleteJob.mutate(job.id)}
-          title="Delete"
-        >
-          <Trash2 className="h-2.5 w-2.5" />
-        </Button>
+      {/* Slots fixed by the job's type, shown on hover or keyboard focus */}
+      <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity shrink-0">
+        {slots.map((slot) => (
+          <JobSlot
+            key={slot.action}
+            label={SLOTS[slot.action].label}
+            icon={SLOTS[slot.action].icon}
+            reason={slot.reason}
+            busy={busy && slot.action !== "delete"}
+            onAct={act[slot.action]}
+          />
+        ))}
       </div>
     </div>
   );

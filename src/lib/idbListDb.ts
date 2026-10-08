@@ -36,12 +36,10 @@ export interface IdbListDb<T extends { id: string }> {
   put(item: T): Promise<void>;
   /** Delete a single record by primary key. */
   delete(id: string): Promise<void>;
+  /** Delete records by primary key, in one transaction. */
+  deleteMany(ids: readonly string[]): Promise<void>;
   /** If count > maxCount, delete the (count - maxCount) oldest by sortKey. */
   trim(maxCount: number): Promise<void>;
-  /** Delete every record whose id is not in `keepIds`, in one transaction.
-   * The caller's list has to be a superset of the store, or this deletes
-   * records it has simply never seen. */
-  retain(keepIds: ReadonlySet<string>): Promise<void>;
   /** Delete every record in the store. DB structure preserved. */
   clear(): Promise<void>;
 }
@@ -118,6 +116,18 @@ export function createIdbListDb<T extends { id: string }>(config: ListDbConfig<T
     });
   }
 
+  async function deleteMany(ids: readonly string[]): Promise<void> {
+    if (ids.length === 0) return;
+    const db = await openDb();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(storeName, "readwrite");
+      const store = tx.objectStore(storeName);
+      for (const id of ids) store.delete(id);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error ?? new Error("IDB transaction failed"));
+    });
+  }
+
   async function trim(maxCount: number): Promise<void> {
     const db = await openDb();
     return new Promise((resolve, reject) => {
@@ -144,26 +154,6 @@ export function createIdbListDb<T extends { id: string }>(config: ListDbConfig<T
     });
   }
 
-  async function retain(keepIds: ReadonlySet<string>): Promise<void> {
-    const db = await openDb();
-    return new Promise((resolve, reject) => {
-      const tx = db.transaction(storeName, "readwrite");
-      const store = tx.objectStore(storeName);
-      // Keys only: the ids are all this needs, and a key cursor cannot delete
-      // through itself.
-      const req = store.openKeyCursor();
-      req.onsuccess = () => {
-        const cursor = req.result;
-        if (!cursor) return;
-        const id = cursor.primaryKey;
-        if (typeof id === "string" && !keepIds.has(id)) store.delete(id);
-        cursor.continue();
-      };
-      tx.oncomplete = () => resolve();
-      tx.onerror = () => reject(tx.error ?? new Error("IDB transaction failed"));
-    });
-  }
-
   async function clear(): Promise<void> {
     const db = await openDb();
     return new Promise((resolve, reject) => {
@@ -174,5 +164,5 @@ export function createIdbListDb<T extends { id: string }>(config: ListDbConfig<T
     });
   }
 
-  return { getAll, get, put, delete: deleteOne, trim, retain, clear };
+  return { getAll, get, put, delete: deleteOne, deleteMany, trim, clear };
 }

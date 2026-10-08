@@ -155,7 +155,12 @@ export function generateImageFilename(info: string, imageIndex: number): string 
   let model = "image";
   try {
     const parsed = JSON.parse(info) as Record<string, unknown>;
-    const parsedSeed = parsed["seed"];
+    // the seed of this image of a batch, as the server recorded it, else the job's
+    const seeds = parsed["all_seeds"];
+    const parsedSeed =
+      Array.isArray(seeds) && typeof seeds[imageIndex] === "number"
+        ? seeds[imageIndex]
+        : parsed["seed"];
     const parsedModel = parsed["model"];
     if (typeof parsedSeed === "string" || typeof parsedSeed === "number") seed = String(parsedSeed);
     if (typeof parsedModel === "string")

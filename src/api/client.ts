@@ -100,6 +100,14 @@ export class ApiClient {
     });
   }
 
+  async patch<T>(path: string, body?: unknown, signal?: AbortSignal): Promise<T> {
+    return this.request<T>(path, {
+      method: "PATCH",
+      ...(body != null && { body: JSON.stringify(body) }),
+      ...(signal !== undefined && { signal }),
+    });
+  }
+
   async delete<T>(path: string, params?: Record<string, string>, signal?: AbortSignal): Promise<T> {
     const query = params ? `?${new URLSearchParams(params)}` : "";
     return this.request<T>(`${path}${query}`, {

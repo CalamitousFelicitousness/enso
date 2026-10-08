@@ -5,14 +5,14 @@
 // which keys a job is making and which failed, for the outline.
 
 import { create } from "zustand";
-import type { ProcessingEnv } from "@/lib/inputs/outline";
+import { computeOutline, type Outline, type ProcessingEnv } from "@/lib/inputs/outline";
 import { MAP_SCHEMA, readMap, type ReadMap, type StoredMap } from "@/lib/inputs/stored";
-import { mapExpiry } from "@/lib/inputs/sweep";
-import type { Size } from "@/lib/inputs/types";
+import { MAPS } from "@/lib/inputs/storeLayout";
+import type { Frame, Size } from "@/lib/inputs/types";
 import type { ProcessorFacts } from "@/lib/processorUtils";
 import { useJobQueueStore, type TrackedJob } from "@/stores/jobStore";
 import { imageSize } from "./media";
-import { MAPS, readDocument, writeRecord, type StoreReader } from "./db";
+import { readDocument, writeRecord } from "./db";
 
 export interface MapEntry {
   key: string;
@@ -74,11 +74,23 @@ export function mapFacts(
   };
 }
 
-/** What the maps store's records name and when they expire, for the sweep. */
-export const mapsReader: StoreReader = (record) => {
-  const read = readMap(record);
-  return { cids: read.cids, expiresAt: mapExpiry(read.record.usedAt) };
-};
+/** The outline as a request sends it, once the cache has answered for every
+ * map it names, so a stored map is sent rather than made again. Its keys name
+ * the pictures placed in `frame` and drawn at `target`. */
+export async function outlineWithMaps(
+  frames: Frame[],
+  processors: ProcessorFacts,
+  options: { cloud: boolean; controlUnified: boolean; frame: Size; target: Size },
+): Promise<Outline> {
+  const { cloud, controlUnified, frame, target } = options;
+  const env = () => ({
+    controlUnified,
+    processing: mapFacts(processors, useMapStore.getState(), cloud, frame, target),
+  });
+  const named = computeOutline(frames, env());
+  await lookupMaps(named.entries.flatMap((e) => e.maps.map((m) => m.key)));
+  return computeOutline(frames, env());
+}
 
 /** A record is written as used again at most this often. */
 const TOUCH_MS = 24 * 60 * 60 * 1000;
@@ -204,9 +216,8 @@ function pendingOf(jobs: ReadonlyMap<string, TrackedJob>): Map<string, PendingSt
   for (const job of jobs.values()) {
     const state =
       job.status === "pending" ? "queued" : job.status === "running" ? "processing" : null;
-    const { snapshot } = job;
-    if (!state || (snapshot.kind !== "control" && snapshot.kind !== "maps")) continue;
-    for (const key of snapshot.mapKeys ?? []) {
+    if (!state) continue;
+    for (const key of job.mapKeys) {
       if (pending.get(key) !== "processing") pending.set(key, state);
     }
   }
@@ -216,10 +227,7 @@ function pendingOf(jobs: ReadonlyMap<string, TrackedJob>): Map<string, PendingSt
 /** Which jobs make maps, and how far each is: pending changes only with it. */
 function jobsSignature(jobs: ReadonlyMap<string, TrackedJob>): string {
   return [...jobs.values()]
-    .filter(
-      (j) =>
-        (j.snapshot.kind === "control" || j.snapshot.kind === "maps") && j.snapshot.mapKeys?.length,
-    )
+    .filter((j) => j.mapKeys.length > 0)
     .map((j) => `${j.id}:${j.status}`)
     .join(",");
 }

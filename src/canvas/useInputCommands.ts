@@ -8,7 +8,7 @@ import { useUiStore } from "@/stores/uiStore";
 import { addFrame } from "@/inputs/edits";
 import { processNow } from "@/inputs/processing";
 import { revealFrame } from "@/inputs/reveal";
-import { runUndo } from "@/inputs/undo";
+
 import { useOutlineEnv } from "@/inputs/useOutline";
 import type { FrameRole } from "@/lib/inputs/types";
 
@@ -74,18 +74,6 @@ export function useInputCommands(enabled: boolean): void {
       keywords: ["add", "select", "go to", "ip adapter", "style reference"],
       icon: Sparkles,
       run: () => goToRole("ipAdapter"),
-    },
-    enabled,
-  );
-  useRegisterCommand(
-    {
-      id: "inputs:undo",
-      label: "Undo the last input change",
-      group: "Inputs",
-      keywords: ["undo", "restore", "removed", "bring back"],
-      icon: Images,
-      shortcutId: "undo",
-      run: () => void runUndo(),
     },
     enabled,
   );

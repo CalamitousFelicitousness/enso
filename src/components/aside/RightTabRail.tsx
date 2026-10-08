@@ -30,6 +30,7 @@ export function RightTabRail() {
           <button
             type="button"
             onClick={toggleRightPanel}
+            aria-label={collapsed ? "Expand Right Panel" : "Collapse Right Panel"}
             className="flex items-center justify-center w-9 h-9 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
           >
             {collapsed ? (
@@ -53,6 +54,8 @@ export function RightTabRail() {
               <button
                 type="button"
                 onClick={() => handleTabClick(tab.id)}
+                aria-label={tab.label}
+                aria-pressed={!collapsed && activeTab === tab.id}
                 className={cn(
                   "relative flex items-center justify-center w-9 h-9 rounded-md transition-colors",
                   activeTab === tab.id

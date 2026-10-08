@@ -5,10 +5,21 @@ import type { MaskStroke } from "@/lib/inputs/types";
 import type { DetailerOverrides, DetailerModelEntry, JobWarning } from "@/api/types/v2";
 import type { WireParams } from "@/api/types/wireParams";
 import { DEFAULT_HIRES_UPSCALER } from "@/lib/hires";
-import { forgetInputs } from "@/inputs/snapshots";
+import {
+  clampStripLimit,
+  migrateGeneration,
+  splitAtLimit,
+  STRIP_LIMIT_DEFAULT,
+  withResult,
+} from "@/lib/resultStrip";
 
 export interface GenerationResult {
+  /** The job's id; results of older builds keep an id of their own. */
   id: string;
+  /** The job that made it; absent on results of older builds. */
+  jobId?: string | undefined;
+  /** The server's job type; absent on results of older builds, which were generations. */
+  type?: string | undefined;
   images: string[];
   parameters: WireParams;
   info: string;
@@ -31,9 +42,24 @@ export const generationHistoryDb = createIdbListDb<GenerationResult>({
   sortKey: "timestamp",
 });
 
-/** Results leaving the history take their stored inputs with them. */
-function forgetResultInputs(results: GenerationResult[]): void {
-  for (const result of results) if (result.inputsKey) forgetInputs(result.inputsKey);
+let settleHistory: (read: boolean) => void = () => {};
+const historyRead = new Promise<boolean>((resolve) => {
+  settleHistory = resolve;
+});
+
+/** Resolves once the stored history has been merged into the strip: true
+ * when it was read, false when the read failed. */
+export function historyHydrated(): Promise<boolean> {
+  return historyRead;
+}
+
+export function markHistoryHydrated(read: boolean): void {
+  settleHistory(read);
+}
+
+/** Keep the stored history to the strip's limit, once it has been read. */
+async function trimStoredHistory(limit: number): Promise<void> {
+  if (await historyHydrated()) await generationHistoryDb.trim(limit);
 }
 
 export interface GenerationState {
@@ -193,11 +219,17 @@ export interface GenerationState {
   // Actions
   setParam: <K extends keyof GenerationState>(key: K, value: GenerationState[K]) => void;
   setParams: (params: Partial<GenerationState>) => void;
-  addResult: (result: GenerationResult) => void;
+  /** Put a result in front of the strip, in place of one with its id.
+   * Resolves once it is stored. */
+  addResult: (result: GenerationResult, options?: { select?: boolean }) => Promise<void>;
   clearResults: () => void;
   selectImage: (resultId: string, imageIndex: number) => void;
   clearSelection: () => void;
-  setHistoryLimit: (limit: number) => void;
+  /** Keep this many results; the ones past it leave the strip and are
+   * returned, still stored, so they can be put back. */
+  setHistoryLimit: (limit: number) => GenerationResult[];
+  /** Results a lowered limit took off the strip, back on it under `limit`. */
+  putBackResults: (results: GenerationResult[], limit: number) => void;
   reset: () => void;
 }
 
@@ -354,29 +386,32 @@ export const useGenerationStore = create<GenerationState>()(
       results: [],
       selectedResultId: null,
       selectedImageIndex: null,
-      historyLimit: 16,
+      historyLimit: STRIP_LIMIT_DEFAULT,
 
       setParam: (key, value) => set({ [key]: value }),
 
       setParams: (params) => set(params),
 
-      addResult: (result) =>
-        set((state) => {
-          void generationHistoryDb
-            .put(result)
-            .then(() => generationHistoryDb.trim(state.historyLimit));
-          const results = [result, ...state.results];
-          forgetResultInputs(results.slice(state.historyLimit));
-          return {
-            results: results.slice(0, state.historyLimit),
-            selectedResultId: result.id,
-            selectedImageIndex: 0,
-          };
-        }),
+      addResult: (result, options) => {
+        const state = get();
+        const { kept } = splitAtLimit(withResult(state.results, result), state.historyLimit);
+        set({
+          results: kept,
+          ...(options?.select === false
+            ? {}
+            : { selectedResultId: result.id, selectedImageIndex: 0 }),
+        });
+        const stored = generationHistoryDb.put(result);
+        void stored
+          .then(() => trimStoredHistory(get().historyLimit))
+          .catch((err: unknown) =>
+            console.error("[history] could not trim the stored results", err),
+          );
+        return stored;
+      },
 
       clearResults: () => {
         void generationHistoryDb.clear();
-        forgetResultInputs(get().results);
         set({ results: [], selectedResultId: null, selectedImageIndex: null });
       },
 
@@ -385,13 +420,37 @@ export const useGenerationStore = create<GenerationState>()(
 
       clearSelection: () => set({ selectedResultId: null, selectedImageIndex: null }),
 
-      setHistoryLimit: (limit) => set({ historyLimit: limit }),
+      setHistoryLimit: (limit) => {
+        const historyLimit = clampStripLimit(limit);
+        const { kept, removed } = splitAtLimit(get().results, historyLimit);
+        set((s) => ({
+          historyLimit,
+          results: kept,
+          ...(kept.some((r) => r.id === s.selectedResultId)
+            ? {}
+            : { selectedResultId: kept[0]?.id ?? null, selectedImageIndex: kept[0] ? 0 : null }),
+        }));
+        return removed;
+      },
+
+      putBackResults: (results, limit) => {
+        for (const result of results) void generationHistoryDb.put(result);
+        set((s) => ({
+          historyLimit: clampStripLimit(limit),
+          results: [
+            ...s.results,
+            ...results.filter((r) => !s.results.some((x) => x.id === r.id)),
+          ].sort((a, b) => b.timestamp - a.timestamp),
+        }));
+      },
 
       reset: () => set({ ...defaultParams }),
     }),
     {
       name: "enso-generation",
-      version: 3,
+      version: 4,
+      // Every version before 4 took the strip's limit from sdnext's latent cache size
+      migrate: (persisted) => migrateGeneration(persisted),
       partialize: (state) => {
         const p: Record<string, unknown> = {};
         for (const key of defaultParamKeys) p[key] = state[key];

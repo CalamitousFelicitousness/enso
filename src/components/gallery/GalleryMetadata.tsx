@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { useGalleryStore } from "@/stores/galleryStore";
 import { useGenerationStore } from "@/stores/generationStore";
+import { applyParams } from "@/lib/request/restore";
 import { parseGenerationInfo } from "@/lib/parseGenerationInfo";
 import { sendImageToCanvas, sendPromptToGeneration, fetchRemoteImage } from "@/lib/sendTo";
 import { browserFileUrl } from "@/api/browserFile";
@@ -109,10 +110,9 @@ export function GalleryMetadata() {
   };
 
   const useAllSettings = () => {
-    const gen = useGenerationStore.getState();
-    if (genInfo.prompt) gen.setParam("prompt", genInfo.prompt);
-    if (genInfo.negativePrompt) gen.setParam("negativePrompt", genInfo.negativePrompt);
     const updates: Record<string, unknown> = {};
+    if (genInfo.prompt) updates["prompt"] = genInfo.prompt;
+    if (genInfo.negativePrompt) updates["negativePrompt"] = genInfo.negativePrompt;
     for (const [paramKey, storeKey] of Object.entries(PARAM_TO_STORE_KEY)) {
       const val = genInfo.params[paramKey];
       if (val !== undefined) {
@@ -120,7 +120,7 @@ export function GalleryMetadata() {
         updates[storeKey] = Number.isNaN(num) ? val : num;
       }
     }
-    if (Object.keys(updates).length > 0) gen.setParams(updates);
+    applyParams(updates, "Settings applied from the image");
   };
 
   const handleSendToCanvas = async () => {

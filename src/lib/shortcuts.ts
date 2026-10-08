@@ -58,7 +58,7 @@ export const SHORTCUTS: Record<string, ShortcutDef> = {
     ctrl: true,
     scope: "global",
     category: "Global",
-    label: "Undo the last input change",
+    label: "Undo the last change",
     skipEditable: true,
   },
   "toggle-left-rail": {

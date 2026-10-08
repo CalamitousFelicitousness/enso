@@ -1,6 +1,5 @@
 import { useMemo, useCallback } from "react";
 import { ArrowRight } from "lucide-react";
-import { toast } from "sonner";
 import { toDisplayString } from "@/lib/utils";
 import {
   Dialog,
@@ -13,14 +12,130 @@ import {
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useGenerationStore, type GenerationResult } from "@/stores/generationStore";
-import { extractParamsFromResult } from "@/lib/request/restore";
+import { applyParams } from "@/lib/request/restore";
+import { extractParams, resultSettings } from "@/lib/request/restoreParams";
 import type { GenerationState } from "@/stores/generationStore";
 
 interface GenerationDiffDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   result: GenerationResult | null;
+  /** The image of the result whose seed is compared. */
+  imageIndex?: number;
 }
+
+/** What each compared setting is called where it is set. */
+const LABELS: Partial<Record<keyof GenerationState, string>> = {
+  prompt: "Prompt",
+  negativePrompt: "Negative prompt",
+  sampler: "Sampler",
+  steps: "Steps",
+  width: "Width",
+  height: "Height",
+  batchSize: "Batch size",
+  batchCount: "Batch count",
+  cfgScale: "Guidance scale",
+  cfgEnd: "Guidance end",
+  guidanceRescale: "Rescale",
+  imageCfgScale: "Refine guidance scale",
+  pagScale: "Attention guidance",
+  pagAdaptive: "Adaptive",
+  seed: "Seed",
+  subseed: "Variation seed",
+  subseedStrength: "Variation strength",
+  denoisingStrength: "Denoise",
+  hiresEnabled: "Hires",
+  hiresUpscaler: "Hires upscaler",
+  hiresScale: "Hires scale",
+  hiresSteps: "Hires steps",
+  hiresDenoising: "Hires denoise",
+  hiresResizeMode: "Hires size mode",
+  hiresSampler: "Hires sampler",
+  hiresForce: "Force hires",
+  hiresResizeX: "Hires width",
+  hiresResizeY: "Hires height",
+  hiresResizeContext: "Hires context",
+  refinerStart: "Refiner start",
+  refinerSteps: "Refiner steps",
+  refinerPrompt: "Refine prompt",
+  refinerNegative: "Refine negative",
+  sigmaMethod: "Sigma",
+  timestepSpacing: "Spacing",
+  betaSchedule: "Beta",
+  predictionMethod: "Prediction",
+  flowShift: "Flow shift",
+  baseShift: "Base shift",
+  maxShift: "Max shift",
+  sigmaAdjust: "Sigma adjust",
+  sigmaAdjustStart: "Sigma adjust start",
+  sigmaAdjustEnd: "Sigma adjust end",
+  thresholding: "Thresholding",
+  dynamic: "Dynamic shift",
+  rescale: "Rescale betas",
+  lowOrder: "Low order",
+  timestepsOverride: "Timesteps override",
+  timestepsPreset: "Timesteps preset",
+  clipSkip: "CLIP skip",
+  vaeType: "VAE type",
+  tiling: "Texture tiling",
+  hidiffusion: "HiDiffusion",
+  freeuEnabled: "FreeU",
+  freeuB1: "FreeU B1",
+  freeuB2: "FreeU B2",
+  freeuS1: "FreeU S1",
+  freeuS2: "FreeU S2",
+  hypertileUnetEnabled: "HyperTile UNet",
+  hypertileHiresOnly: "HyperTile hires only",
+  hypertileUnetTile: "HyperTile UNet tile",
+  hypertileUnetMinTile: "HyperTile UNet min tile",
+  hypertileUnetSwapSize: "HyperTile UNet swap size",
+  hypertileUnetDepth: "HyperTile UNet depth",
+  hypertileVaeEnabled: "HyperTile VAE",
+  hypertileVaeTile: "HyperTile VAE tile",
+  hypertileVaeSwapSize: "HyperTile VAE swap size",
+  teacacheEnabled: "TeaCache",
+  teacacheThresh: "TeaCache threshold",
+  tokenMergingMethod: "Token merging",
+  tomeRatio: "ToMe ratio",
+  todoRatio: "ToDo ratio",
+  detailerEnabled: "Detailer",
+  detailerOnly: "Detail only",
+  detailerDefaults: "Detailer settings",
+  detailerModels: "Detailer models",
+  hdrMode: "Latent correction mode",
+  hdrBrightness: "Latent brightness",
+  hdrSharpen: "Latent sharpen",
+  hdrColor: "Latent color",
+  hdrClamp: "Latent clamp",
+  hdrBoundary: "Latent range",
+  hdrThreshold: "Latent threshold",
+  hdrMaximize: "Latent maximize",
+  hdrMaxCenter: "Latent center",
+  hdrMaxBoundary: "Latent max range",
+  hdrColorPicker: "Latent tint color",
+  hdrTintRatio: "Latent tint strength",
+  gradingBrightness: "Brightness",
+  gradingContrast: "Contrast",
+  gradingSaturation: "Saturation",
+  gradingHue: "Hue",
+  gradingGamma: "Gamma",
+  gradingSharpness: "Sharpness",
+  gradingColorTemp: "Color temp (K)",
+  gradingShadows: "Shadows",
+  gradingMidtones: "Midtones",
+  gradingHighlights: "Highlights",
+  gradingClaheClip: "CLAHE clip",
+  gradingClaheGrid: "CLAHE grid",
+  gradingShadowsTint: "Shadows tint",
+  gradingHighlightsTint: "Highlights tint",
+  gradingSplitToneBalance: "Split tone balance",
+  gradingVignette: "Vignette",
+  gradingGrain: "Grain",
+  gradingLutFile: "Color LUT",
+  gradingLutStrength: "Color LUT strength",
+};
+
+const labelOf = (key: string) => LABELS[key as keyof GenerationState] ?? key;
 
 interface DiffGroup {
   label: string;
@@ -185,11 +300,18 @@ function formatValue(v: unknown): string {
   return toDisplayString(v);
 }
 
-export function GenerationDiffDialog({ open, onOpenChange, result }: GenerationDiffDialogProps) {
+export function GenerationDiffDialog({
+  open,
+  onOpenChange,
+  result,
+  imageIndex = 0,
+}: GenerationDiffDialogProps) {
   const storeState = useGenerationStore();
-  const setParams = useGenerationStore((s) => s.setParams);
 
-  const resultParams = useMemo(() => (result ? extractParamsFromResult(result) : {}), [result]);
+  const resultParams = useMemo(() => {
+    const settings = result ? resultSettings(result, imageIndex) : null;
+    return settings?.ok ? extractParams(settings.source).params : {};
+  }, [result, imageIndex]);
 
   const groupedRows = useMemo(() => {
     const current = storeState as unknown as Record<string, unknown>;
@@ -222,18 +344,13 @@ export function GenerationDiffDialog({ open, onOpenChange, result }: GenerationD
         if (row.changed) updates[row.key] = row.result;
       }
     }
-    setParams(updates);
-    toast.success(`Applied ${totalChanged} changed parameter${totalChanged !== 1 ? "s" : ""}`);
+    applyParams(updates, `${totalChanged} setting${totalChanged !== 1 ? "s" : ""} applied`);
     onOpenChange(false);
-  }, [groupedRows, totalChanged, setParams, onOpenChange]);
+  }, [groupedRows, totalChanged, onOpenChange]);
 
-  const handleApplyOne = useCallback(
-    (key: string, value: unknown) => {
-      setParams({ [key]: value });
-      toast.success(`Applied ${key}`);
-    },
-    [setParams],
-  );
+  const handleApplyOne = useCallback((key: string, value: unknown) => {
+    applyParams({ [key]: value }, `${labelOf(key)} applied`);
+  }, []);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -303,7 +420,9 @@ function GroupSection({
       </tr>
       {rows.map((row) => (
         <tr key={row.key} className={row.changed ? "bg-amber-500/10" : "text-muted-foreground/60"}>
-          <td className="py-0.5 px-2 font-mono">{row.key}</td>
+          <td className="py-0.5 px-2" title={row.key}>
+            {labelOf(row.key)}
+          </td>
           <td className="py-0.5 px-2 max-w-32 truncate">{formatValue(row.current)}</td>
           <td className="py-0.5 px-2 max-w-32 truncate font-medium">{formatValue(row.result)}</td>
           <td className="py-0.5 px-1">

@@ -7,8 +7,10 @@ import { useMapLookups } from "@/inputs/useOutline";
 import { startSizeSync } from "@/inputs/sizeSync";
 import { startPendingSync } from "@/inputs/maps";
 import { useCapacitySync } from "@/inputs/capacity";
+import { Undo2 } from "lucide-react";
 import { runUndo } from "@/inputs/undo";
 import { useShortcut } from "@/hooks/useShortcut";
+import { useRegisterCommand } from "@/lib/commandRegistry";
 import { useInputStore } from "@/stores/inputStore";
 
 /** Tells the user what loading the stored inputs turned up, and offers to
@@ -26,6 +28,15 @@ export function useInputNotices() {
   useCapacitySync();
   useMapLookups();
   useShortcut("undo", () => void runUndo());
+  useRegisterCommand({
+    id: "actions:undo",
+    label: "Undo the last change",
+    group: "Actions",
+    keywords: ["undo", "restore", "removed", "bring back", "revert"],
+    icon: Undo2,
+    shortcutId: "undo",
+    run: () => void runUndo(),
+  });
 
   useEffect(() => {
     if (!report) return;

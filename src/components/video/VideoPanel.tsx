@@ -15,6 +15,7 @@ import {
   selectDomainRunning,
 } from "@/stores/jobStore";
 import { useSubmitToQueue } from "@/hooks/useSubmitToQueue";
+import { unrecordedSubmission } from "@/inputs/jobs";
 import { useActiveVideoCaps } from "@/hooks/useActiveVideoCaps";
 import { useVideoCanvasStore } from "@/stores/videoCanvasStore";
 import { useVideoCapsDefaults } from "@/hooks/useVideoCapsDefaults";
@@ -69,10 +70,9 @@ export function VideoPanel() {
 
   // Prompt enhance
 
-  const buildRequest = useCallback(async () => {
+  const build = useCallback(async () => {
     if (kind === "cloud") {
-      const payload = await buildCloudVideoRequest();
-      return { payload, snapshot: { kind: "none" as const } };
+      return unrecordedSubmission(domain, await buildCloudVideoRequest());
     }
     if (kind === "empty" || !activeModel || activeModel.source !== "local-video") {
       // Generate button is gated by canGenerate so this branch shouldn't
@@ -80,13 +80,10 @@ export function VideoPanel() {
       // surface a real "Failed to submit" toast as a safety net.
       throw new Error("No video model selected");
     }
-    const payload = await buildVideoPayload(kind, activeModel, activeCaps);
-    return { payload, snapshot: { kind: "none" as const } };
-  }, [kind, activeModel, activeCaps]);
+    return unrecordedSubmission(domain, await buildVideoPayload(kind, activeModel, activeCaps));
+  }, [kind, domain, activeModel, activeCaps]);
 
-  const { submit, isSubmitting } = useSubmitToQueue(
-    useMemo(() => ({ domain, buildRequest }), [domain, buildRequest]),
-  );
+  const { submit, isSubmitting } = useSubmitToQueue(useMemo(() => ({ build }), [build]));
 
   // "Load on generate": when the active model is local video, ensure it's
   // loaded before submission. Server is idempotent (re-firing load when the

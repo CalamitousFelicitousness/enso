@@ -1,53 +1,27 @@
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
-import { useSubmitJob } from "@/api/hooks/useJobs";
-import { useJobQueueStore, type JobDomain, type JobSnapshot } from "@/stores/jobStore";
-import { putJobPayload } from "@/lib/jobPayloadDb";
-import { forgetInputs } from "@/inputs/snapshots";
-import type { JobRequest } from "@/api/types/v2";
+import { submitJob, type Submission } from "@/inputs/jobs";
 
 interface SubmitOptions {
-  domain: JobDomain;
-  buildRequest: () => Promise<{ payload: JobRequest; snapshot: JobSnapshot }>;
+  build: () => Promise<Submission>;
 }
 
-/** Throw from a buildRequest implementation to cancel cleanly without a
- * generic "Failed to submit job" toast. The caller is expected to have
- * already surfaced a guidance message (e.g. via toast.warning) before
- * throwing this. Used by ActionBar to refuse local-video models on the
- * Images view path. */
+/** Throw from a build implementation to cancel cleanly without a generic
+ * "Failed to submit job" toast. The caller is expected to have already
+ * surfaced a guidance message (e.g. via toast.warning) before throwing this.
+ * Used by ActionBar to refuse local-video models on the Images view path. */
 export class UserAbortError extends Error {
   override name = "UserAbortError";
 }
 
-export function useSubmitToQueue({ domain, buildRequest }: SubmitOptions) {
+export function useSubmitToQueue({ build }: SubmitOptions) {
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const submitJob = useSubmitJob();
-  const trackJob = useJobQueueStore((s) => s.trackJob);
 
   const submit = useCallback(async () => {
     setIsSubmitting(true);
-    let snapshot: JobSnapshot | undefined;
     try {
-      const built = await buildRequest();
-      snapshot = built.snapshot;
-      const { payload } = built;
-      const job = await submitJob.mutateAsync(payload);
-      const priority = (payload as { priority?: number }).priority ?? 0;
-      trackJob(job.id, domain, snapshot, payload, priority);
-      void putJobPayload({
-        id: job.id,
-        domain,
-        request: payload,
-        priority,
-        snapshot,
-        createdAt: Date.now(),
-      });
+      await submitJob(await build());
     } catch (err) {
-      // Inputs stored for a job that never reached the queue
-      if (snapshot && (snapshot.kind === "control" || snapshot.kind === "detail")) {
-        if (snapshot.inputsKey) forgetInputs(snapshot.inputsKey);
-      }
       if (err instanceof UserAbortError) return;
       toast.error("Failed to submit job", {
         description: err instanceof Error ? err.message : String(err),
@@ -55,7 +29,7 @@ export function useSubmitToQueue({ domain, buildRequest }: SubmitOptions) {
     } finally {
       setIsSubmitting(false);
     }
-  }, [buildRequest, submitJob, trackJob, domain]);
+  }, [build]);
 
   return { submit, isSubmitting };
 }

@@ -6,7 +6,7 @@ import { base64ToBlob } from "@/lib/utils";
 import type { LegacyBytes, LegacyControlUnit, RawControlUnit } from "@/lib/inputs/legacyControl";
 
 /** The picture's bytes with its size, or null for base64 that is not an image. */
-async function legacyBytes(base64: string | null): Promise<LegacyBytes | null> {
+export async function legacyBytes(base64: string | null): Promise<LegacyBytes | null> {
   if (!base64) return null;
   try {
     const blob = base64ToBlob(base64);

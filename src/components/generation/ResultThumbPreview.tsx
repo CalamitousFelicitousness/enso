@@ -2,6 +2,8 @@ import { useMemo } from "react";
 import { createPortal } from "react-dom";
 import type { GenerationResult } from "@/stores/generationStore";
 import { ResultImage } from "@/components/generation/ResultImage";
+import { DOUBLE_CLICK_HINT } from "@/lib/jobs/text";
+import { parseInfo, pickedSeeds } from "@/lib/request/restoreParams";
 
 interface ResultThumbPreviewProps {
   result: GenerationResult;
@@ -9,27 +11,22 @@ interface ResultThumbPreviewProps {
   anchorRect: DOMRect | null;
 }
 
-function parseInfoMeta(info: string): Record<string, string> {
-  try {
-    const parsed = JSON.parse(info) as Record<string, unknown>;
-    const meta: Record<string, string> = {};
-    const seed = parsed["seed"];
-    const steps = parsed["steps"];
-    const sampler = parsed["sampler_name"];
-    const w = parsed["width"];
-    const h = parsed["height"];
-    if (typeof seed === "number" || typeof seed === "string") meta["Seed"] = String(seed);
-    if (typeof steps === "number" || typeof steps === "string") meta["Steps"] = String(steps);
-    if (typeof sampler === "string") meta["Sampler"] = sampler;
-    if (typeof w === "number" && typeof h === "number") meta["Size"] = `${w}x${h}`;
-    return meta;
-  } catch {
-    return {};
-  }
+/** What the preview says about the image: the seed is the picked image's. */
+function infoMeta(result: GenerationResult, imageIndex: number): Record<string, string> {
+  const info = parseInfo(result.info);
+  if (!info) return {};
+  const meta: Record<string, string> = {};
+  const { seed } = pickedSeeds(result.parameters, info, imageIndex);
+  const { steps, sampler_name: sampler, width: w, height: h } = info;
+  if (seed >= 0) meta["Seed"] = String(seed);
+  if (typeof steps === "number" || typeof steps === "string") meta["Steps"] = String(steps);
+  if (typeof sampler === "string") meta["Sampler"] = sampler;
+  if (typeof w === "number" && typeof h === "number") meta["Size"] = `${w}x${h}`;
+  return meta;
 }
 
 export function ResultThumbPreview({ result, imageIndex, anchorRect }: ResultThumbPreviewProps) {
-  const meta = useMemo(() => parseInfoMeta(result.info), [result.info]);
+  const meta = useMemo(() => infoMeta(result, imageIndex), [result, imageIndex]);
   const entries = Object.entries(meta);
 
   if (!anchorRect) return null;
@@ -61,6 +58,9 @@ export function ResultThumbPreview({ result, imageIndex, anchorRect }: ResultThu
             ))}
           </div>
         )}
+        <div className="border-t border-border/50 px-2 py-1 text-3xs text-muted-foreground">
+          {DOUBLE_CLICK_HINT}
+        </div>
       </div>
     </div>,
     document.body,

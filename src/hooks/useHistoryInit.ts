@@ -1,7 +1,13 @@
 import { useEffect, useRef } from "react";
-import { useGenerationStore, generationHistoryDb } from "@/stores/generationStore";
+import { toast } from "sonner";
+import {
+  useGenerationStore,
+  generationHistoryDb,
+  markHistoryHydrated,
+} from "@/stores/generationStore";
 import { useVideoStore, videoHistoryDb } from "@/stores/videoStore";
-import { useOptionsSubset } from "@/api/hooks/useSettings";
+import { HISTORY_UNREAD, HISTORY_UNREAD_DETAIL } from "@/lib/jobs/text";
+import { splitAtLimit } from "@/lib/resultStrip";
 
 /**
  * Fold the stored history into whatever the store already holds.
@@ -19,16 +25,14 @@ function mergeById<T extends { id: string; timestamp: number }>(stored: T[], liv
 
 export function useHistoryInit() {
   const hydrated = useRef(false);
-  const setHistoryLimit = useGenerationStore((s) => s.setHistoryLimit);
-  const { data: options } = useOptionsSubset(["latent_history"]);
 
   useEffect(() => {
     if (hydrated.current) return;
     hydrated.current = true;
 
-    void generationHistoryDb.getAll().then((stored) => {
+    const images = generationHistoryDb.getAll().then((stored) => {
       useGenerationStore.setState((s) => {
-        const results = mergeById(stored, s.results);
+        const { kept: results } = splitAtLimit(mergeById(stored, s.results), s.historyLimit);
         if (s.selectedResultId) return { results };
         return {
           results,
@@ -38,18 +42,22 @@ export function useHistoryInit() {
       });
     });
 
-    void videoHistoryDb.getAll().then((stored) => {
+    const videos = videoHistoryDb.getAll().then((stored) => {
       useVideoStore.setState((s) => ({
         results: mergeById(stored, s.results),
         selectedResultId: s.selectedResultId ?? stored[0]?.id ?? null,
         hydrated: true,
       }));
     });
-  }, []);
 
-  useEffect(() => {
-    if (options?.["latent_history"] != null) {
-      setHistoryLimit(Number(options["latent_history"]));
-    }
-  }, [options, setHistoryLimit]);
+    // A history that could not be read is neither trimmed nor routed into this session
+    Promise.all([images, videos]).then(
+      () => markHistoryHydrated(true),
+      (err: unknown) => {
+        console.error("[history] the stored results could not be read", err);
+        toast.warning(HISTORY_UNREAD, { description: HISTORY_UNREAD_DETAIL });
+        markHistoryHydrated(false);
+      },
+    );
+  }, []);
 }

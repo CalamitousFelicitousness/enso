@@ -3,7 +3,7 @@ import { ws, ensureWs } from "@/api/wsManager";
 import { useBackendStatusStore } from "@/stores/backendStatusStore";
 import { useDownloadStore, type DownloadProgress } from "@/stores/downloadStore";
 import { previewMimeType } from "@/lib/image";
-import { queryClient } from "@/main";
+import { queryClient } from "@/api/queryClient";
 
 /** Query keys to invalidate when the backend reconnects (e.g. after restart). */
 const RECONNECT_INVALIDATE_KEYS = [

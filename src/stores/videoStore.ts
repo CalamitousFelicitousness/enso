@@ -3,6 +3,7 @@ import { persist } from "zustand/middleware";
 import type { VideoResult } from "@/api/types/video";
 import { createIdbListDb } from "@/lib/idbListDb";
 import { evict, MAX_PINNED } from "@/lib/video/history";
+import { withResult } from "@/lib/resultStrip";
 import { normalizeCodecOptions } from "@/lib/videoOutputPresets";
 import {
   VIDEO_PARAMS,
@@ -47,7 +48,8 @@ interface VideoState extends VideoParamValues {
   setParam: <K extends keyof VideoState>(key: K, value: VideoState[K]) => void;
   setParams: (params: Partial<VideoState>) => void;
   applyCapsDefaults: (params: Partial<VideoParamValues>) => void;
-  addResult: (result: VideoResult) => void;
+  /** Put a result in front, in place of one with its id. Resolves once it is stored. */
+  addResult: (result: VideoResult, options?: { select?: boolean }) => Promise<void>;
   selectResult: (id: string | null) => void;
   removeResult: (id: string) => void;
   clearResults: () => void;
@@ -107,22 +109,22 @@ export const useVideoStore = create<VideoState>()(
           return { ...params, touched };
         }),
 
-      addResult: (result) =>
-        set((state) => {
-          const rows = [result, ...state.results];
-          if (!state.hydrated) {
-            void videoHistoryDb.put(result);
-            return { results: rows, selectedResultId: result.id };
-          }
-          const retained = new Set([result.id, state.compareA, state.compareB].filter(Boolean));
-          const { keep, drop } = evict(rows, state.historyLimit, retained);
-          void videoHistoryDb
-            .put(result)
-            .then(() =>
-              drop.length > 0 ? videoHistoryDb.retain(new Set(keep.map((r) => r.id))) : undefined,
-            );
-          return { results: keep, selectedResultId: result.id };
-        }),
+      addResult: (result, options) => {
+        const state = get();
+        const rows = withResult(state.results, result);
+        const select = options?.select === false ? {} : { selectedResultId: result.id };
+        const stored = videoHistoryDb.put(result);
+        if (!state.hydrated) {
+          set({ results: rows, ...select });
+          return stored;
+        }
+        const retained = new Set([result.id, state.compareA, state.compareB].filter(Boolean));
+        const { keep, drop } = evict(rows, state.historyLimit, retained);
+        set({ results: keep, ...select });
+        // only the rows this list dropped: another tab's newer rows are not in it
+        if (drop.length > 0) void stored.then(() => videoHistoryDb.deleteMany(drop));
+        return stored;
+      },
 
       selectResult: (id) => set({ selectedResultId: id }),
 
@@ -148,7 +150,7 @@ export const useVideoStore = create<VideoState>()(
         set((state) => {
           const keep = state.results.filter((r) => r.pinned);
           const alive = new Set(keep.map((r) => r.id));
-          if (state.hydrated) void videoHistoryDb.retain(alive);
+          void videoHistoryDb.deleteMany(state.results.filter((r) => !r.pinned).map((r) => r.id));
           return {
             results: keep,
             selectedResultId:

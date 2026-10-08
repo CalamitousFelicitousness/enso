@@ -1,13 +1,13 @@
 import { useCallback, useMemo } from "react";
 import { Trash2, ListOrdered, Ban } from "lucide-react";
 import { toast } from "sonner";
-import { useJobQueueStore, selectPendingJobsSorted } from "@/stores/jobStore";
+import { useJobQueueStore } from "@/stores/jobStore";
 import type { TrackedJob } from "@/stores/jobStore";
 import { useUiStore } from "@/stores/uiStore";
-import { useSubmitJob, useDeleteJob, usePurgeJobs } from "@/api/hooks/useJobs";
-import { useResubmitJob } from "@/hooks/useResubmitJob";
-import { putJobPayload } from "@/lib/jobPayloadDb";
-import { cloneJobInputs } from "@/inputs/snapshots";
+import { ApiError } from "@/api/client";
+import { useDeleteJob, useMoveJob, usePurgeJobs } from "@/api/hooks/useJobs";
+import { viewOf } from "@/lib/jobs/cardActions";
+import { MOVE_STARTED } from "@/lib/jobs/text";
 import { QueueJobCard } from "./QueueJobCard";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -16,7 +16,6 @@ import { ProgressRing } from "@/components/ui/progress-ring";
 export function QueueTab() {
   const jobsMap = useJobQueueStore((s) => s.jobs);
   const clearTerminal = useJobQueueStore((s) => s.clearTerminal);
-  const trackJob = useJobQueueStore((s) => s.trackJob);
   const removeJob = useJobQueueStore((s) => s.removeJob);
   const pendingJobsSorted = useMemo(
     () =>
@@ -25,10 +24,9 @@ export function QueueTab() {
         .sort((a, b) => b.priority - a.priority || a.createdAt - b.createdAt),
     [jobsMap],
   );
-  const submitJob = useSubmitJob();
   const deleteJob = useDeleteJob();
   const purgeJobs = usePurgeJobs();
-  const resubmit = useResubmitJob();
+  const moveJob = useMoveJob();
 
   const { runningJobs, terminalJobs, totalCount, avgProgress } = useMemo(() => {
     const all = Array.from(jobsMap.values()).sort((a, b) => b.createdAt - a.createdAt);
@@ -46,107 +44,33 @@ export function QueueTab() {
   }, [jobsMap]);
 
   const handleView = useCallback((job: TrackedJob) => {
-    if (job.domain === "generate") {
-      useUiStore.getState().setNavView("images");
-    } else if (job.domain === "video" || job.domain === "framepack" || job.domain === "ltx") {
-      useUiStore.getState().setNavView("video");
-    }
+    const view = viewOf(job.domain);
+    if (view) useUiStore.getState().setNavView(view);
   }, []);
 
-  const handleDuplicate = useCallback(
-    async (job: TrackedJob) => {
-      if (!job.request) return;
-      await resubmit(
-        { domain: job.domain, request: job.request, snapshot: job.snapshot },
-        { successMessage: "Job duplicated", errorMessage: "Failed to duplicate job" },
+  /** Give a queued job a priority past every other queued job's: first or last. */
+  const move = useCallback(
+    (job: TrackedJob, to: "first" | "last") => {
+      const others = pendingJobsSorted.filter((j) => j.id !== job.id).map((j) => j.priority);
+      const priority =
+        to === "first"
+          ? Math.max(job.priority, ...others) + 1
+          : Math.min(job.priority, ...others) - 1;
+      moveJob.mutate(
+        { id: job.id, priority },
+        {
+          onError: (err) => {
+            if (err instanceof ApiError && err.status === 409) toast.info(MOVE_STARTED);
+            else {
+              toast.error("Could not move the job", {
+                description: err instanceof Error ? err.message : String(err),
+              });
+            }
+          },
+        },
       );
     },
-    [resubmit],
-  );
-
-  const handleRetry = useCallback(
-    async (job: TrackedJob) => {
-      if (!job.request) return;
-      await resubmit(
-        { domain: job.domain, request: job.request, snapshot: job.snapshot },
-        { successMessage: "Job retried", errorMessage: "Failed to retry job" },
-      );
-    },
-    [resubmit],
-  );
-
-  const handleMoveUp = useCallback(
-    async (job: TrackedJob) => {
-      if (job.status !== "pending" || !job.request) {
-        toast.error("Cannot reorder: job is no longer pending");
-        return;
-      }
-      const pending = useJobQueueStore.getState();
-      const sorted = selectPendingJobsSorted(pending);
-      const maxPriority = sorted.length > 0 ? Math.max(...sorted.map((j) => j.priority)) : 0;
-      if (job.priority >= maxPriority && sorted[0]?.id === job.id) return;
-      try {
-        deleteJob.mutate(job.id);
-        const newPriority = maxPriority + 1;
-        const newRequest = {
-          ...job.request,
-          priority: newPriority,
-        } as typeof job.request;
-        const newJob = await submitJob.mutateAsync(newRequest);
-        const snapshot = await cloneJobInputs(job.snapshot);
-        trackJob(newJob.id, job.domain, snapshot, newRequest, newPriority);
-        void putJobPayload({
-          id: newJob.id,
-          domain: job.domain,
-          request: newRequest,
-          priority: newPriority,
-          snapshot,
-          createdAt: Date.now(),
-        });
-      } catch (err) {
-        toast.error("Failed to reorder job", {
-          description: err instanceof Error ? err.message : String(err),
-        });
-      }
-    },
-    [deleteJob, submitJob, trackJob],
-  );
-
-  const handleMoveDown = useCallback(
-    async (job: TrackedJob) => {
-      if (job.status !== "pending" || !job.request) {
-        toast.error("Cannot reorder: job is no longer pending");
-        return;
-      }
-      const pending = useJobQueueStore.getState();
-      const sorted = selectPendingJobsSorted(pending);
-      const minPriority = sorted.length > 0 ? Math.min(...sorted.map((j) => j.priority)) : 0;
-      if (job.priority <= minPriority && sorted[sorted.length - 1]?.id === job.id) return;
-      try {
-        deleteJob.mutate(job.id);
-        const newPriority = minPriority - 1;
-        const newRequest = {
-          ...job.request,
-          priority: newPriority,
-        } as typeof job.request;
-        const newJob = await submitJob.mutateAsync(newRequest);
-        const snapshot = await cloneJobInputs(job.snapshot);
-        trackJob(newJob.id, job.domain, snapshot, newRequest, newPriority);
-        void putJobPayload({
-          id: newJob.id,
-          domain: job.domain,
-          request: newRequest,
-          priority: newPriority,
-          snapshot,
-          createdAt: Date.now(),
-        });
-      } catch (err) {
-        toast.error("Failed to reorder job", {
-          description: err instanceof Error ? err.message : String(err),
-        });
-      }
-    },
-    [deleteJob, submitJob, trackJob],
+    [moveJob, pendingJobsSorted],
   );
 
   const handleRemove = useCallback(
@@ -204,7 +128,14 @@ export function QueueTab() {
             )}
           </div>
           {runningJobs.map((job) => (
-            <QueueJobCard key={job.id} job={job} onView={handleView} />
+            <QueueJobCard
+              key={job.id}
+              job={job}
+              onView={handleView}
+              onRemove={handleRemove}
+              onMoveUp={(j) => move(j, "first")}
+              onMoveDown={(j) => move(j, "last")}
+            />
           ))}
         </div>
       )}
@@ -231,10 +162,12 @@ export function QueueTab() {
             <QueueJobCard
               key={job.id}
               job={job}
-              onMoveUp={(j) => void handleMoveUp(j)}
-              onMoveDown={(j) => void handleMoveDown(j)}
-              canMoveUp={i > 0}
-              canMoveDown={i < pendingJobsSorted.length - 1}
+              place={{ first: i === 0, last: i === pendingJobsSorted.length - 1 }}
+              moving={moveJob.isPending && moveJob.variables.id === job.id}
+              onView={handleView}
+              onRemove={handleRemove}
+              onMoveUp={(j) => move(j, "first")}
+              onMoveDown={(j) => move(j, "last")}
             />
           ))}
         </div>
@@ -265,9 +198,9 @@ export function QueueTab() {
               key={job.id}
               job={job}
               onView={handleView}
-              onRetry={(j) => void handleRetry(j)}
-              onDuplicate={(j) => void handleDuplicate(j)}
               onRemove={handleRemove}
+              onMoveUp={(j) => move(j, "first")}
+              onMoveDown={(j) => move(j, "last")}
             />
           ))}
         </div>

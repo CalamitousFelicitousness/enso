@@ -8,6 +8,7 @@ import { useCanvasStore } from "@/stores/canvasStore";
 import { addFilesToInputs } from "@/inputs/route";
 import { downloadImage, generateImageFilename, resolveImageSrc } from "@/lib/utils";
 import type { GenerationInfo } from "@/api/types/generation";
+import { pickedSeeds } from "@/lib/request/restoreParams";
 import { JobWarnings } from "@/components/generation/JobWarnings";
 import { OUTPUT_COLOR } from "@/canvas/frameColors";
 import { DockTab, FrameHeader } from "./FrameHeader";
@@ -61,6 +62,13 @@ export function OutputFramePanel({
       return null;
     }
   }, [selectedResult]);
+
+  // the seed of the image shown, as the server recorded it for that image
+  const seed = useMemo(() => {
+    if (!selectedResult || !genInfo) return null;
+    const picked = pickedSeeds(selectedResult.parameters, genInfo, selectedImageIndex ?? 0).seed;
+    return picked >= 0 ? picked : null;
+  }, [selectedResult, genInfo, selectedImageIndex]);
 
   const override = panelCollapsedOverrides.get("output");
   const collapsed = override !== undefined ? override : !hasSelectedImage;
@@ -143,7 +151,7 @@ export function OutputFramePanel({
         {genInfo?.cfg_scale !== undefined && (
           <InfoRow label="CFG" value={String(genInfo.cfg_scale)} mono />
         )}
-        {genInfo?.seed !== undefined && <InfoRow label="Seed" value={String(genInfo.seed)} mono />}
+        {seed !== null && <InfoRow label="Seed" value={String(seed)} mono />}
         {!genInfo && <span className="text-[10px] text-muted-foreground">No generation data</span>}
       </div>
     );

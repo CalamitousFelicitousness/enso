@@ -1,5 +1,5 @@
 import type { LocalVideoEngineKind, LocalVideoModel, UnifiedModel } from "@/api/types/cloud";
-import type { JobDomain } from "@/stores/jobStore";
+import type { JobDomain } from "@/lib/jobs/domains";
 import { isCloudVideoModel } from "@/lib/cloudVideo";
 
 // Source of truth for "what should the Video panel render?" and "what

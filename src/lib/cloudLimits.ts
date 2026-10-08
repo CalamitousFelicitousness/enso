@@ -1,6 +1,6 @@
 import type { InputLimits, ProviderPreset } from "@/api/types/cloud";
 import type { Provider } from "@/api/types/cloud";
-import { queryClient } from "@/main";
+import { queryClient } from "@/api/queryClient";
 
 const PRESET_INPUT_LIMITS: Record<ProviderPreset, InputLimits> = {
   openrouter: {

@@ -1,10 +1,7 @@
 import { useState, useCallback } from "react";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
-import { useSubmitJob } from "@/api/hooks/useJobs";
-import { useJobQueueStore, type JobSnapshot } from "@/stores/jobStore";
-import { putJobPayload } from "@/lib/jobPayloadDb";
-import { cloneJobInputs } from "@/inputs/snapshots";
+import { submitJob, type Submission } from "@/inputs/jobs";
 import { UserAbortError } from "@/hooks/useSubmitToQueue";
 import type { JobRequest } from "@/api/types/v2";
 import {
@@ -23,41 +20,24 @@ import { Switch } from "@/components/ui/switch";
 interface BatchDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  buildRequest: () => Promise<{ payload: JobRequest; snapshot: JobSnapshot }>;
+  build: () => Promise<Submission>;
 }
 
-export function BatchDialog({ open, onOpenChange, buildRequest }: BatchDialogProps) {
+export function BatchDialog({ open, onOpenChange, build }: BatchDialogProps) {
   const [count, setCount] = useState(4);
   const [baseSeed, setBaseSeed] = useState(-1);
   const [autoSeed, setAutoSeed] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const submitJob = useSubmitJob();
-  const trackJob = useJobQueueStore((s) => s.trackJob);
-
   const handleSubmit = useCallback(async () => {
     setIsSubmitting(true);
     try {
-      const { payload, snapshot } = await buildRequest();
+      // One build: every job of the batch sends the same uploads with its own seed
+      const submission = await build();
       const resolvedBase = autoSeed ? Math.floor(Math.random() * 999999999) : baseSeed;
       for (let i = 0; i < count; i++) {
-        // Every job of the batch owns its inputs snapshot, as every result does
-        const jobSnapshot = i === 0 ? snapshot : await cloneJobInputs(snapshot);
-        const seedPayload = {
-          ...payload,
-          seed: resolvedBase + i,
-        } as JobRequest;
-        const job = await submitJob.mutateAsync(seedPayload);
-        const priority = (seedPayload as { priority?: number }).priority ?? 0;
-        trackJob(job.id, "generate", jobSnapshot, seedPayload, priority);
-        void putJobPayload({
-          id: job.id,
-          domain: "generate",
-          request: seedPayload,
-          priority,
-          snapshot: jobSnapshot,
-          createdAt: Date.now(),
-        });
+        const request = { ...submission.request, seed: resolvedBase + i } as JobRequest;
+        await submitJob({ ...submission, request });
       }
       toast.success(`Queued ${count} jobs`, {
         description: `Seeds ${resolvedBase}-${resolvedBase + count - 1}`,
@@ -71,7 +51,7 @@ export function BatchDialog({ open, onOpenChange, buildRequest }: BatchDialogPro
     } finally {
       setIsSubmitting(false);
     }
-  }, [buildRequest, count, baseSeed, autoSeed, submitJob, trackJob, onOpenChange]);
+  }, [build, count, baseSeed, autoSeed, onOpenChange]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

@@ -12,6 +12,7 @@ import {
 } from "@/stores/jobStore";
 import { useUiStore } from "@/stores/uiStore";
 import { useSubmitToQueue, UserAbortError } from "@/hooks/useSubmitToQueue";
+import { unrecordedSubmission } from "@/inputs/jobs";
 import { sendToJob } from "@/hooks/useJobTracker";
 import { useRegisterCommand } from "@/lib/commandRegistry";
 import { uploadFile, uploadFiles } from "@/lib/upload";
@@ -127,7 +128,7 @@ export function ProcessPanel() {
     return [...known, ...FALLBACK_ORDER.filter((k) => !known.includes(k))];
   }, [scriptList]);
 
-  const buildRequest = useCallback(async () => {
+  const build = useCallback(async () => {
     const s = useProcessStore.getState();
     const settings: ProcessSettings = {
       mode: s.mode,
@@ -162,12 +163,10 @@ export function ProcessPanel() {
       inputs = { video: await uploadFile(video) };
     }
     s.clearResults();
-    return { payload: buildProcessPayload(settings, inputs), snapshot: { kind: "none" as const } };
+    return unrecordedSubmission("process", buildProcessPayload(settings, inputs));
   }, []);
 
-  const { submit, isSubmitting } = useSubmitToQueue(
-    useMemo(() => ({ domain: "process" as const, buildRequest }), [buildRequest]),
-  );
+  const { submit, isSubmitting } = useSubmitToQueue(useMemo(() => ({ build }), [build]));
 
   const handleStop = useCallback(() => {
     if (!running) return;

@@ -1,33 +1,6 @@
 import { create } from "zustand";
 import type { JobRequest, JobResult, JobStatus } from "@/api/types/v2";
-
-export type JobDomain =
-  | "generate"
-  | "upscale"
-  | "rembg"
-  | "process"
-  | "preprocess"
-  | "video"
-  | "framepack"
-  | "ltx"
-  | "xyz-grid";
-
-/**
- * What of the workspace a submitted job was made from, by request kind.
- *
- * - "control": a canvas generation. `inputsKey` names the frames it was sent
- * with in the enso-inputs snapshots store, when they held anything;
- * `mapKeys` the maps the job makes before generating.
- * - "detail": a detailer-only run over the canvas, with the same key.
- * - "maps": a processing job; `mapKeys` the maps it makes.
- * - "none": the payload is self-contained (cloud generations, upscale and
- * rembg, video jobs).
- */
-export type JobSnapshot =
-  | { kind: "control"; inputsKey?: string | undefined; mapKeys?: string[] | undefined }
-  | { kind: "detail"; inputsKey?: string | undefined }
-  | { kind: "maps"; mapKeys: string[] }
-  | { kind: "none" };
+import { isTerminal, isVideoDomain, type JobDomain } from "@/lib/jobs/domains";
 
 export interface TrackedJob {
   id: string;
@@ -43,9 +16,14 @@ export interface TrackedJob {
   result: JobResult | null;
   error: string | null;
   createdAt: number;
-  snapshot: JobSnapshot;
   request: JobRequest | null;
+  /** The maps the job makes before generating. */
+  mapKeys: string[];
   priority: number;
+  /** Found on the server at a page start rather than sent from this page. */
+  rehydrated: boolean;
+  /** It ended while no page was open. */
+  endedWhileClosed: boolean;
   stage: number;
   stageName: string;
   stageCount: number;
@@ -55,10 +33,6 @@ export interface TrackedJob {
 
 const MAX_TRACKED_JOBS = 50;
 
-function isTerminal(status: JobStatus) {
-  return status === "completed" || status === "failed" || status === "cancelled";
-}
-
 export interface JobQueueState {
   jobs: Map<string, TrackedJob>;
   activeJobId: string | null;
@@ -66,10 +40,9 @@ export interface JobQueueState {
   trackJob: (
     id: string,
     domain: JobDomain,
-    snapshot: JobSnapshot,
-    request?: JobRequest,
-    priority?: number,
+    sent: { request: JobRequest; mapKeys: string[]; priority: number },
   ) => void;
+  setPriority: (id: string, priority: number) => void;
   rehydrateJob: (job: TrackedJob) => void;
   updateStatus: (id: string, status: JobStatus) => void;
   updateProgress: (
@@ -114,7 +87,7 @@ export const useJobQueueStore = create<JobQueueState>()((set) => ({
   jobs: new Map(),
   activeJobId: null,
 
-  trackJob: (id, domain, snapshot, request?, priority?) =>
+  trackJob: (id, domain, { request, mapKeys, priority }) =>
     set((state) => {
       const next = new Map(state.jobs);
       next.set(id, {
@@ -131,9 +104,11 @@ export const useJobQueueStore = create<JobQueueState>()((set) => ({
         result: null,
         error: null,
         createdAt: Date.now(),
-        snapshot,
-        request: request ?? null,
-        priority: priority ?? 0,
+        request,
+        mapKeys,
+        priority,
+        rehydrated: false,
+        endedWhileClosed: false,
         stage: 0,
         stageName: "",
         stageCount: 0,
@@ -141,6 +116,13 @@ export const useJobQueueStore = create<JobQueueState>()((set) => ({
         stages: [],
       });
       return { jobs: pruneOldTerminal(next), activeJobId: state.activeJobId ?? id };
+    }),
+
+  setPriority: (id, priority) =>
+    set((state) => {
+      const job = state.jobs.get(id);
+      if (!job) return state;
+      return { jobs: new Map(state.jobs).set(id, { ...job, priority }) };
     }),
 
   rehydrateJob: (job) =>
@@ -365,9 +347,8 @@ export function selectDomainProgress(domain: JobDomain) {
 }
 
 export function selectVideoDomainActiveJob(state: JobQueueState): TrackedJob | undefined {
-  const videoDomains: JobDomain[] = ["video", "framepack", "ltx"];
   return Array.from(state.jobs.values()).find(
-    (j) => videoDomains.includes(j.domain) && (j.status === "running" || j.status === "pending"),
+    (j) => isVideoDomain(j.domain) && (j.status === "running" || j.status === "pending"),
   );
 }
 

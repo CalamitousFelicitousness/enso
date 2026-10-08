@@ -14,11 +14,11 @@ import {
 } from "@/lib/inputs/outline";
 import { newFrame } from "@/lib/inputs/reducers";
 import { addressChanges } from "@/lib/inputs/renumber";
-import type { Removal } from "@/lib/inputs/stored";
+import type { JobInputs, Removal } from "@/lib/inputs/stored";
 import { positionLabel, renumberText } from "@/lib/inputs/text";
 import {
   composedPictures,
-  hasMask,
+  holdsContent,
   isComposed,
   type ControlType,
   type Frame,
@@ -32,9 +32,6 @@ import { addFilesToInputs } from "./route";
 import { forgetRemoval, recordRemoval } from "./trash";
 import { offerUndo } from "./undo";
 import { outlineOf } from "./outlineOf";
-
-const holdsContent = (frame: Frame) =>
-  frame.pictures.length > 0 || hasMask(frame) || frame.ipAdapter.masks.length > 0;
 
 const sentNow = (): SentInput[] => outlineOf(useInputStore.getState().frames).sent;
 
@@ -182,30 +179,43 @@ export function moveFrame(from: number, to: number): void {
   }
 }
 
-/** The frames a result was made from take the list's place, at the frame
- * size they were made at. What was there goes to the trash. */
-export function restoreFrames(frames: Frame[], size: Size): void {
+/** The frames a job was built from take the list's place, with their Size
+ * from pick, at the frame size they were made at; what was there goes to the
+ * trash. Returns what puts it back, at `previousSize`: the size from before
+ * the restore began, which a restore of settings may already have changed.
+ * Neither direction refits anything. */
+export function restoreFrames(inputs: JobInputs, previousSize: Size): () => void {
   const store = useInputStore.getState();
-  const gen = useGenerationStore.getState();
   const previous = { frames: store.frames, sizeSource: store.sizeSource };
-  const previousSize = { width: gen.width, height: gen.height };
-  store.restoreFrames(frames);
-  gen.setParams({ width: size.width, height: size.height });
-  const putBack = () => {
-    useInputStore.getState().restoreFrames(previous.frames);
-    useInputStore.getState().setSizeSource(previous.sizeSource);
-    useGenerationStore.getState().setParams(previousSize);
-  };
-  if (!previous.frames.some(holdsContent)) {
-    offerUndo("Inputs restored from the result", null, putBack);
-    return;
+  keepingSize(() => {
+    const inputStore = useInputStore.getState();
+    inputStore.restoreFrames(inputs.frames);
+    inputStore.setSizeSource(inputs.sizeSource);
+    useGenerationStore.getState().setParams({ ...inputs.size });
+  });
+  let record: Promise<string | null> = Promise.resolve(null);
+  if (previous.frames.some(holdsContent)) {
+    const removal: Removal = {
+      removedAt: Date.now(),
+      from: { position: 1, frameId: previous.frames[0].id, role: previous.frames[0].role },
+      content: { kind: "frames", frames: previous.frames },
+    };
+    record = recordRemoval(removal).catch((err: unknown) => {
+      console.error("[inputs] could not keep what was removed", err);
+      return null;
+    });
   }
-  const removal: Removal = {
-    removedAt: Date.now(),
-    from: { position: 1, frameId: previous.frames[0].id, role: previous.frames[0].role },
-    content: { kind: "frames", frames: previous.frames },
+  return () => {
+    keepingSize(() => {
+      const inputStore = useInputStore.getState();
+      inputStore.restoreFrames(previous.frames);
+      inputStore.setSizeSource(previous.sizeSource);
+      useGenerationStore.getState().setParams({ ...previousSize });
+    });
+    void record.then((key) => {
+      if (key) forgetRemoval(key);
+    });
   };
-  void removed(removal, "Inputs restored from the result", null, putBack);
 }
 
 /** The map in the pictures' place: a composed frame's composition becomes

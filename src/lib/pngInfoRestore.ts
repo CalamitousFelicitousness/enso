@@ -1,4 +1,4 @@
-import { useGenerationStore } from "@/stores/generationStore";
+import type { GenerationState } from "@/stores/generationStore";
 import { toDisplayString } from "@/lib/utils";
 
 const KEY_MAP: Record<string, string> = {
@@ -97,7 +97,8 @@ const NUM_KEYS = new Set([
 
 const BOOL_KEYS = new Set(["tiling", "hiresForce", "lowOrder", "thresholding", "rescale"]);
 
-export function restoreFromPngInfo(parameters: Record<string, unknown>) {
+/** Generation settings from the parameters PNG info read out of an image. */
+export function pngInfoParams(parameters: Record<string, unknown>): Partial<GenerationState> {
   const update: Record<string, unknown> = {};
   for (const [pngKey, storeKey] of Object.entries(KEY_MAP)) {
     const val = parameters[pngKey];
@@ -127,7 +128,5 @@ export function restoreFromPngInfo(parameters: Record<string, unknown>) {
     update["hiresEnabled"] = true;
   }
 
-  if (Object.keys(update).length > 0) {
-    useGenerationStore.getState().setParams(update);
-  }
+  return update;
 }

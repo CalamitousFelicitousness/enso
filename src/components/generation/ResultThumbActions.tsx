@@ -1,10 +1,6 @@
-import { useCallback } from "react";
-import { History, ImagePlus, ArrowUpCircle, GitCompareArrows, Download } from "lucide-react";
-import { restoreFromResult } from "@/lib/request/restore";
-import { sendResultToCanvas, sendResultToUpscale } from "@/lib/sendTo";
-import { downloadImage, generateImageFilename } from "@/lib/utils";
+import { ImagePlus, ArrowUpCircle, GitCompareArrows, Download } from "lucide-react";
 import type { GenerationResult } from "@/stores/generationStore";
-import { toast } from "sonner";
+import { download, sendToCanvas, sendToUpscale } from "./resultActions";
 
 interface ResultThumbActionsProps {
   result: GenerationResult;
@@ -12,66 +8,26 @@ interface ResultThumbActionsProps {
   onCompare: () => void;
 }
 
+/** The picture's actions over the bottom of a thumbnail. Restores live in the
+ * thumbnail's menu, where each says why it cannot act. */
 export function ResultThumbActions({ result, imageIndex, onCompare }: ResultThumbActionsProps) {
-  const handleRestore = useCallback(
-    (e: React.MouseEvent) => {
-      e.stopPropagation();
-      restoreFromResult(result);
-      toast.success("Settings restored");
-    },
-    [result],
-  );
-
-  const handleSendToCanvas = useCallback(
-    (e: React.MouseEvent) => {
-      e.stopPropagation();
-      sendResultToCanvas(result, imageIndex).catch(() => toast.error("Failed to send to canvas"));
-    },
-    [result, imageIndex],
-  );
-
-  const handleSendToUpscale = useCallback(
-    (e: React.MouseEvent) => {
-      e.stopPropagation();
-      sendResultToUpscale(result, imageIndex).catch(() => toast.error("Failed to send to upscale"));
-    },
-    [result, imageIndex],
-  );
-
-  const handleDownload = useCallback(
-    (e: React.MouseEvent) => {
-      e.stopPropagation();
-      const filename = generateImageFilename(result.info, imageIndex);
-      void downloadImage(result.images[imageIndex], filename);
-    },
-    [result, imageIndex],
-  );
-
   return (
     // eslint-disable-next-line jsx-a11y/click-events-have-key-events,jsx-a11y/no-static-element-interactions -- bubble-firewall inside result thumbnail; the action <button>s inside own their own keyboard handling
     <div
       className="absolute bottom-0 left-0 right-0 flex justify-center gap-0.5 bg-gradient-to-t from-black/80 to-transparent pt-3 pb-0.5 px-0.5"
       onClick={(e) => e.stopPropagation()}
+      onDoubleClick={(e) => e.stopPropagation()}
     >
-      <ActionBtn onClick={handleRestore} title="Restore params">
-        <History size={10} />
-      </ActionBtn>
-      <ActionBtn onClick={handleSendToCanvas} title="Send to canvas">
+      <ActionBtn onClick={() => sendToCanvas(result, imageIndex)} title="Send to canvas">
         <ImagePlus size={10} />
       </ActionBtn>
-      <ActionBtn onClick={handleSendToUpscale} title="Send to upscale">
+      <ActionBtn onClick={() => sendToUpscale(result, imageIndex)} title="Send to upscale">
         <ArrowUpCircle size={10} />
       </ActionBtn>
-      <ActionBtn
-        onClick={(e) => {
-          e.stopPropagation();
-          onCompare();
-        }}
-        title="Compare"
-      >
+      <ActionBtn onClick={onCompare} title="Compare">
         <GitCompareArrows size={10} />
       </ActionBtn>
-      <ActionBtn onClick={handleDownload} title="Download">
+      <ActionBtn onClick={() => download(result, imageIndex)} title="Download">
         <Download size={10} />
       </ActionBtn>
     </div>
@@ -84,14 +40,18 @@ function ActionBtn({
   title,
 }: {
   children: React.ReactNode;
-  onClick: (e: React.MouseEvent) => void;
+  onClick: () => void;
   title: string;
 }) {
   return (
     <button
       type="button"
-      onClick={onClick}
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick();
+      }}
       title={title}
+      aria-label={title}
       className="w-5 h-5 flex items-center justify-center rounded text-white/80 hover:text-white hover:bg-white/20 transition-colors"
     >
       {children}

@@ -8,7 +8,7 @@ import {
 import { useInputStore } from "@/stores/inputStore";
 import { activeProcessor, isPlaced } from "@/lib/inputs/types";
 import { firstInitialEntry } from "@/lib/inputs/outline";
-import { rememberInputs } from "@/inputs/snapshots";
+import { keptInputs, type Submission } from "@/inputs/jobs";
 import { applyFix } from "@/inputs/processing";
 import { outlineOf } from "@/inputs/outlineOf";
 import { useOutlineWithEnv } from "@/inputs/useOutline";
@@ -18,7 +18,20 @@ import { detailProcessedText, fixLabel, problemText } from "@/lib/inputs/text";
 import { buildControlRequest, InputRefusal } from "@/lib/request/buildGenerate";
 import { buildCloudImageRequest } from "@/lib/request/buildCloudImage";
 import { buildDetailRequest } from "@/lib/request/buildDetail";
-import { restoreFromResult } from "@/lib/request/restore";
+import { restoreSettings, restoreSettingsAndInputs, resultTarget } from "@/lib/request/restore";
+import { useRunAgain } from "@/hooks/useRunAgain";
+import { useJobFact } from "@/inputs/jobs";
+import { hasLegacyInputs } from "@/inputs/legacyResult";
+import { resultActions } from "@/lib/jobs/cardActions";
+import {
+  LAST_NOT_REPLAYABLE,
+  NO_RESULT_YET,
+  reasonText,
+  RESTORE_LAST,
+  RESTORE_LAST_BOTH,
+  RESTORE_LAST_TITLE,
+  RUN_LAST_AGAIN,
+} from "@/lib/jobs/text";
 import { DEFAULT_SIZE_MULTIPLE, referenceSetsSize } from "@/lib/sizeCompute";
 import { useModelSelectionStore } from "@/stores/modelSelectionStore";
 import { useModelCapabilityStore, type ModelCapabilityRecord } from "@/stores/modelCapabilityStore";
@@ -32,7 +45,17 @@ import { api } from "@/api/client";
 import type { CheckpointInfoV2, DetailerMode } from "@/api/types/models";
 import type { ServerInfo } from "@/api/types/server";
 import { useQueryClient } from "@tanstack/react-query";
-import { Play, Square, SkipForward, History, ChevronDown, Layers, Grid3X3 } from "lucide-react";
+import {
+  ArchiveRestore,
+  ChevronDown,
+  Grid3X3,
+  History,
+  Layers,
+  Play,
+  Repeat2,
+  SkipForward,
+  Square,
+} from "lucide-react";
 import { ProgressRing } from "@/components/ui/progress-ring";
 import { useState, useCallback, useMemo, memo } from "react";
 import { toast } from "sonner";
@@ -49,19 +72,6 @@ import {
 import { BatchDialog } from "@/components/generation/BatchDialog";
 import { XyzGridDialog } from "@/components/generation/XyzGridDialog";
 import { GenerationDiffDialog } from "@/components/generation/GenerationDiffDialog";
-
-/** Store the frames for the job's result. A storage failure is told, not fatal. */
-async function rememberInputsOrWarn(width: number, height: number): Promise<string | undefined> {
-  try {
-    return await rememberInputs(useInputStore.getState().frames, { width, height });
-  } catch (err) {
-    console.error("[inputs] could not store the inputs with the job", err);
-    toast.warning("The inputs could not be stored with this job", {
-      description: "Its result will not bring them back.",
-    });
-    return undefined;
-  }
-}
 
 export const ActionBar = memo(function ActionBar() {
   const clearSelection = useGenerationStore((s) => s.clearSelection);
@@ -111,7 +121,7 @@ export const ActionBar = memo(function ActionBar() {
   const loadModel = useLoadModel();
   const queryClient = useQueryClient();
 
-  const buildRequest = useCallback(async () => {
+  const buildSubmission = useCallback(async (): Promise<Submission> => {
     const { activeModel } = useModelSelectionStore.getState();
 
     // Active model belongs to the Video panel - refuse to build an image
@@ -135,6 +145,10 @@ export const ActionBar = memo(function ActionBar() {
     let strengthSupported = true;
     let controlSeparateInit: boolean | null = null;
     let controlUnified: boolean | null = null;
+    let checkpoint: Submission["checkpoint"] =
+      activeModel?.source === "cloud"
+        ? { title: `${activeModel.provider}/${activeModel.id}`, name: activeModel.name }
+        : null;
     // The canvas sized a lone Reference from the model it knew before this load
     let referenceSets = activeModel?.source !== "cloud";
     if (activeModel?.source === "local") {
@@ -159,6 +173,7 @@ export const ActionBar = memo(function ActionBar() {
         // The input limit and size multiple belong to the model just loaded
         loaded = await fetchCheckpoint(0);
       }
+      checkpoint = { title: loaded.title ?? activeModel.title, name: activeModel.model_name };
       maxInputImages = loaded.max_input_images ?? null;
       requestSetsSize = loaded.request_sets_size ?? null;
       sizeMultiple = loaded.size_multiple ?? DEFAULT_SIZE_MULTIPLE;
@@ -194,26 +209,33 @@ export const ActionBar = memo(function ActionBar() {
     const processors = processorFacts(await queryClient.fetchQuery(preprocessorsQuery));
 
     if (activeModel?.source === "cloud") {
-      const cloudRequest = await buildCloudImageRequest(processors);
+      const { request, inputs, ledger } = await buildCloudImageRequest(processors);
       clearSelection();
       return {
-        payload: cloudRequest,
-        snapshot: { kind: "none" as const },
+        domain: "generate",
+        request,
+        ledger,
+        inputs: keptInputs(inputs),
+        mapKeys: [],
+        checkpoint,
       };
     }
 
     const gen = useGenerationStore.getState();
     if (gen.detailerEnabled && gen.detailerOnly) {
-      const { request: detailRequest } = await buildDetailRequest();
-      const inputsKey = await rememberInputsOrWarn(gen.width, gen.height);
+      const { request, inputs, ledger } = await buildDetailRequest();
       clearSelection();
       return {
-        payload: detailRequest,
-        snapshot: { kind: "detail" as const, inputsKey },
+        domain: "generate",
+        request,
+        ledger,
+        inputs: keptInputs(inputs),
+        mapKeys: [],
+        checkpoint,
       };
     }
 
-    const { request, mapKeys } = await buildControlRequest({
+    const { request, mapKeys, inputs, ledger } = await buildControlRequest({
       maxInputImages,
       requestSetsSize,
       sizeMultiple,
@@ -230,16 +252,19 @@ export const ActionBar = memo(function ActionBar() {
       }
       throw err;
     });
-    const inputsKey = await rememberInputsOrWarn(gen.width, gen.height);
     clearSelection();
     return {
-      payload: { type: "generate" as const, ...request },
-      snapshot: { kind: "control" as const, inputsKey, mapKeys },
+      domain: "generate",
+      request: { type: "generate", ...request },
+      ledger,
+      inputs: keptInputs(inputs),
+      mapKeys,
+      checkpoint,
     };
   }, [clearSelection, loadModel, queryClient]);
 
   const { submit, isSubmitting } = useSubmitToQueue(
-    useMemo(() => ({ domain: "generate" as const, buildRequest }), [buildRequest]),
+    useMemo(() => ({ build: buildSubmission }), [buildSubmission]),
   );
 
   // Generate stays clickable while the inputs block it: it says what, offers
@@ -275,17 +300,52 @@ export const ActionBar = memo(function ActionBar() {
     }
   }, [runningJob]);
 
-  const handleHistoryClick = useCallback(
-    (e: React.MouseEvent) => {
-      if (!lastResult) return;
-      if (e.shiftKey) {
-        setDiffOpen(true);
-      } else {
-        restoreFromResult(lastResult);
-        toast.success("Settings restored from last generation");
+  const lastFacts = useJobFact(lastResult?.jobId);
+  const { runAgain } = useRunAgain();
+  const restoreLast = useCallback(
+    (inputs: boolean) => {
+      if (!lastResult) {
+        toast.info(NO_RESULT_YET);
+        return;
       }
+      const target = resultTarget(lastResult, 0);
+      if (inputs) void restoreSettingsAndInputs(target);
+      else restoreSettings(target);
     },
     [lastResult],
+  );
+  const runLastAgain = useCallback(() => {
+    if (!lastResult) {
+      toast.info(NO_RESULT_YET);
+      return;
+    }
+    const reason = resultActions(
+      {
+        jobId: lastResult.jobId ?? null,
+        type: lastResult.type ?? null,
+        legacyInputs: hasLegacyInputs(lastResult),
+      },
+      lastFacts,
+    ).runAgain;
+    if (reason || !lastResult.jobId) {
+      toast.info(LAST_NOT_REPLAYABLE, {
+        description: reasonText(reason ?? "olderResult"),
+      });
+      return;
+    }
+    void runAgain(lastResult.jobId);
+  }, [lastResult, lastFacts, runAgain]);
+
+  const handleHistoryClick = useCallback(
+    (e: React.MouseEvent) => {
+      if (!lastResult) {
+        toast.info(NO_RESULT_YET);
+        return;
+      }
+      if (e.shiftKey) setDiffOpen(true);
+      else restoreLast(false);
+    },
+    [lastResult, restoreLast],
   );
 
   const progressPct = Math.round(progress * 100);
@@ -336,15 +396,27 @@ export const ActionBar = memo(function ActionBar() {
   );
   useRegisterCommand({
     id: "actions:restore-last",
-    label: "Restore last settings",
+    label: RESTORE_LAST,
     group: "Actions",
-    keywords: ["undo", "previous", "history"],
+    keywords: ["previous", "history", "seed"],
     icon: History,
-    run: () => {
-      if (!lastResult) return;
-      restoreFromResult(lastResult);
-      toast.success("Settings restored from last generation");
-    },
+    run: () => restoreLast(false),
+  });
+  useRegisterCommand({
+    id: "actions:restore-last-inputs",
+    label: RESTORE_LAST_BOTH,
+    group: "Actions",
+    keywords: ["previous", "history", "inputs", "frames", "pictures"],
+    icon: ArchiveRestore,
+    run: () => restoreLast(true),
+  });
+  useRegisterCommand({
+    id: "actions:run-last-again",
+    label: RUN_LAST_AGAIN,
+    group: "Actions",
+    keywords: ["repeat", "retry", "resubmit", "again", "duplicate"],
+    icon: Repeat2,
+    run: runLastAgain,
   });
   useRegisterCommand({
     id: "actions:compare-last",
@@ -437,10 +509,10 @@ export const ActionBar = memo(function ActionBar() {
       >
         {problems.length > 0 ? problems.length : ""}
       </span>
-      <BatchDialog open={batchOpen} onOpenChange={setBatchOpen} buildRequest={buildRequest} />
+      <BatchDialog open={batchOpen} onOpenChange={setBatchOpen} build={buildSubmission} />
 
       {xyzOpen && (
-        <XyzGridDialog open={xyzOpen} onOpenChange={setXyzOpen} buildRequest={buildRequest} />
+        <XyzGridDialog open={xyzOpen} onOpenChange={setXyzOpen} build={buildSubmission} />
       )}
 
       {/* Stop button */}
@@ -464,10 +536,12 @@ export const ActionBar = memo(function ActionBar() {
             type="button"
             data-param="restore"
             onClick={handleHistoryClick}
-            disabled={!lastResult}
+            aria-label={RESTORE_LAST}
+            aria-disabled={lastResult ? undefined : true}
+            className={lastResult ? undefined : "opacity-50"}
             variant="secondary"
             size="icon-sm"
-            title="Restore settings (Shift+click to compare)"
+            title={lastResult ? RESTORE_LAST_TITLE : NO_RESULT_YET}
           >
             <History size={14} />
           </Button>

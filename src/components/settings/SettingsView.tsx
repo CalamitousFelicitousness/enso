@@ -19,11 +19,15 @@ import { SegmentedControl } from "@/components/ui/segmented-control";
 import { cn, toDisplayString } from "@/lib/utils";
 import { Save, RotateCcw, Search, ListRestart, Plug, Unplug, Check } from "lucide-react";
 import { useUiStore } from "@/stores/uiStore";
+import { generationHistoryDb, useGenerationStore } from "@/stores/generationStore";
+import { offerUndo } from "@/inputs/undo";
+import { STRIP_LIMIT_MAX, STRIP_LIMIT_MIN } from "@/lib/resultStrip";
+import { STRIP_LIMIT_LABEL, stripLimitText, stripTrimmedText } from "@/lib/jobs/text";
 import type { ColorMode, CanvasBackground as CanvasBg } from "@/stores/uiStore";
 import { useConnectionStore } from "@/stores/connectionStore";
 import { api } from "@/api/client";
 import { ws } from "@/api/wsManager";
-import { queryClient } from "@/main";
+import { queryClient } from "@/api/queryClient";
 
 const CONNECTION_SECTION_ID = "__connection";
 const APPEARANCE_SECTION_ID = "__appearance";
@@ -338,6 +342,61 @@ function AppearancePanel() {
   );
 }
 
+/** How many results the Images strip keeps. Lowering it takes the oldest off
+ * at once behind an Undo; their stored rows go when the notice closes. */
+function StripLimitRow() {
+  const limit = useGenerationStore((s) => s.historyLimit);
+  const onStrip = useGenerationStore((s) => s.results.length);
+  // Only a pointer drag shows a value before it commits. A key commits each
+  // step, and Radix reports the change after the commit.
+  const dragging = useRef(false);
+  const [draft, setDraft] = useState<number | null>(null);
+  const shown = draft ?? limit;
+
+  const commit = (value: number) => {
+    setDraft(null);
+    const previous = useGenerationStore.getState().historyLimit;
+    const removed = useGenerationStore.getState().setHistoryLimit(value);
+    if (removed.length === 0) return;
+    const { title, description } = stripTrimmedText(removed.length);
+    offerUndo(
+      title,
+      description,
+      () => useGenerationStore.getState().putBackResults(removed, previous),
+      () => void generationHistoryDb.deleteMany(removed.map((r) => r.id)),
+    );
+  };
+
+  return (
+    <SettingRow label={STRIP_LIMIT_LABEL} description={stripLimitText(onStrip, shown)}>
+      <div className="flex items-center gap-2 flex-1">
+        <Slider
+          min={STRIP_LIMIT_MIN}
+          max={STRIP_LIMIT_MAX}
+          step={1}
+          value={[shown]}
+          onPointerDown={() => {
+            dragging.current = true;
+          }}
+          onLostPointerCapture={() => {
+            dragging.current = false;
+            setDraft(null);
+          }}
+          onValueChange={([v]) => {
+            if (dragging.current) setDraft(v);
+          }}
+          onValueCommit={([v]) => commit(v)}
+          aria-label={STRIP_LIMIT_LABEL}
+          className="flex-1"
+        />
+        <span className="text-xs text-muted-foreground font-mono tabular-nums w-14 text-right">
+          {shown}
+        </span>
+      </div>
+    </SettingRow>
+  );
+}
+
 function BehaviorPanel() {
   const livePreviews = useUiStore((s) => s.livePreviews);
   const setLivePreviews = useUiStore((s) => s.setLivePreviews);
@@ -353,6 +412,7 @@ function BehaviorPanel() {
         >
           <Switch checked={livePreviews} onCheckedChange={setLivePreviews} />
         </SettingRow>
+        <StripLimitRow />
       </div>
     </div>
   );

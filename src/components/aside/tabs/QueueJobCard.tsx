@@ -1,46 +1,25 @@
 import { useCallback, useEffect, useState } from "react";
-import {
-  X,
-  RotateCcw,
-  Eye,
-  Image,
-  Video,
-  Sparkles,
-  SlidersHorizontal,
-  ChevronUp,
-  ChevronDown,
-  Copy,
-  Trash2,
-} from "lucide-react";
-import type { TrackedJob, JobDomain } from "@/stores/jobStore";
+import { ChevronDown, ChevronUp, Eye, Repeat2, Trash2, X, type LucideIcon } from "lucide-react";
+import type { TrackedJob } from "@/stores/jobStore";
 import { useCancelJob } from "@/api/hooks/useJobs";
 import { markJobCancelled } from "@/hooks/useJobTracker";
+import { useRunAgain } from "@/hooks/useRunAgain";
+import { useJobFact } from "@/inputs/jobs";
+import { queueSlots, type QueueAction } from "@/lib/jobs/cardActions";
+import { jobKind } from "@/lib/jobs/domains";
+import { FAILED_WHILE_CLOSED, MOVE_DOWN, MOVE_UP, RUN_AGAIN } from "@/lib/jobs/text";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { JobWarnings } from "@/components/generation/JobWarnings";
+import { JOB_ICONS } from "./jobIcons";
+import { JobSlot } from "./JobSlot";
 
-const DOMAIN_ICONS: Record<JobDomain, typeof Image> = {
-  generate: Image,
-  upscale: Sparkles,
-  rembg: Sparkles,
-  process: Sparkles,
-  preprocess: SlidersHorizontal,
-  video: Video,
-  framepack: Video,
-  ltx: Video,
-  "xyz-grid": Image,
-};
-
-const DOMAIN_LABELS: Record<JobDomain, string> = {
-  generate: "Image",
-  upscale: "Upscale",
-  rembg: "Bg Removal",
-  process: "Process",
-  preprocess: "Preprocess",
-  video: "Video",
-  framepack: "FramePack",
-  ltx: "LTX",
-  "xyz-grid": "XYZ Grid",
+const SLOTS: Record<QueueAction, { label: string; icon: LucideIcon }> = {
+  moveUp: { label: MOVE_UP, icon: ChevronUp },
+  moveDown: { label: MOVE_DOWN, icon: ChevronDown },
+  cancel: { label: "Cancel", icon: X },
+  view: { label: "View result", icon: Eye },
+  runAgain: { label: RUN_AGAIN, icon: Repeat2 },
+  remove: { label: "Remove", icon: Trash2 },
 };
 
 function statusBadgeVariant(status: string): "default" | "secondary" | "destructive" | "outline" {
@@ -82,34 +61,35 @@ function useElapsed(startTime: number, active: boolean): number {
 
 interface QueueJobCardProps {
   job: TrackedJob;
-  onView?: (job: TrackedJob) => void;
-  onRetry?: (job: TrackedJob) => void;
-  onDuplicate?: (job: TrackedJob) => void;
-  onRemove?: (job: TrackedJob) => void;
-  onMoveUp?: (job: TrackedJob) => void;
-  onMoveDown?: (job: TrackedJob) => void;
-  canMoveUp?: boolean;
-  canMoveDown?: boolean;
+  /** Its place among the queued jobs. */
+  place?: { first: boolean; last: boolean };
+  /** A move of this job is on its way to the server. */
+  moving?: boolean;
+  onView: (job: TrackedJob) => void;
+  onRemove: (job: TrackedJob) => void;
+  onMoveUp: (job: TrackedJob) => void;
+  onMoveDown: (job: TrackedJob) => void;
 }
 
 export function QueueJobCard({
   job,
+  place = { first: false, last: false },
+  moving = false,
   onView,
-  onRetry,
-  onDuplicate,
   onRemove,
   onMoveUp,
   onMoveDown,
-  canMoveUp,
-  canMoveDown,
 }: QueueJobCardProps) {
   const cancelJob = useCancelJob();
-  const DomainIcon = DOMAIN_ICONS[job.domain] ?? Image;
-  const isRunning = job.status === "running";
-  const isPending = job.status === "pending";
+  const { runAgain, isRunning } = useRunAgain();
+  const facts = useJobFact(job.id);
+  const kind = jobKind(job.request?.type ?? job.domain);
+  const DomainIcon = JOB_ICONS[kind.icon];
+  const isRunningJob = job.status === "running";
   const isTerminal =
     job.status === "completed" || job.status === "failed" || job.status === "cancelled";
-  const elapsed = useElapsed(job.createdAt, isRunning);
+  const elapsed = useElapsed(job.createdAt, isRunningJob);
+  const busy = moving || isRunning(job.id);
 
   const handleCancel = useCallback(() => {
     // A queued job is cancelled once the server says so; a running one ends
@@ -122,108 +102,48 @@ export function QueueJobCard({
     });
   }, [cancelJob, job.id, job.status]);
 
+  const act: Record<QueueAction, () => void> = {
+    moveUp: () => onMoveUp(job),
+    moveDown: () => onMoveDown(job),
+    cancel: handleCancel,
+    view: () => onView(job),
+    runAgain: () => void runAgain(job.id),
+    remove: () => onRemove(job),
+  };
+  const slots = queueSlots(
+    { status: job.status, domain: job.domain, hasResult: job.result !== null },
+    facts,
+    place,
+  );
+
   return (
-    <div className="space-y-1 px-3 py-1.5">
+    <div className="space-y-1 px-3 py-1.5" aria-busy={busy || undefined}>
       <div className="flex items-center gap-1.5 text-2xs min-w-0">
         <DomainIcon className="h-3 w-3 shrink-0 text-muted-foreground" />
 
         <span className="truncate flex-1 min-w-0">
-          {DOMAIN_LABELS[job.domain]}
+          {kind.label}
           {job.task ? ` - ${job.task}` : ""}
         </span>
         <Badge variant={statusBadgeVariant(job.status)} className="text-4xs px-1 py-0 shrink-0">
           {job.status}
         </Badge>
         <JobWarnings warnings={job.result?.warnings} />
-        {/* Reorder buttons for pending */}
-        {isPending && onMoveUp && (
-          <Button
-            size="icon"
-            variant="ghost"
-            className="h-5 w-5 shrink-0"
-            onClick={() => onMoveUp(job)}
-            disabled={!canMoveUp}
-            title="Move up"
-          >
-            <ChevronUp className="h-2.5 w-2.5" />
-          </Button>
-        )}
-        {isPending && onMoveDown && (
-          <Button
-            size="icon"
-            variant="ghost"
-            className="h-5 w-5 shrink-0"
-            onClick={() => onMoveDown(job)}
-            disabled={!canMoveDown}
-            title="Move down"
-          >
-            <ChevronDown className="h-2.5 w-2.5" />
-          </Button>
-        )}
-        {/* View result */}
-        {isTerminal && onView && job.result && (
-          <Button
-            size="icon"
-            variant="ghost"
-            className="h-5 w-5 shrink-0"
-            onClick={() => onView(job)}
-            title="View result"
-          >
-            <Eye className="h-2.5 w-2.5" />
-          </Button>
-        )}
-        {/* Duplicate */}
-        {isTerminal && onDuplicate && job.request && (
-          <Button
-            size="icon"
-            variant="ghost"
-            className="h-5 w-5 shrink-0"
-            onClick={() => onDuplicate(job)}
-            title="Duplicate"
-          >
-            <Copy className="h-2.5 w-2.5" />
-          </Button>
-        )}
-        {/* Retry failed */}
-        {job.status === "failed" && onRetry && job.request && (
-          <Button
-            size="icon"
-            variant="ghost"
-            className="h-5 w-5 shrink-0"
-            onClick={() => onRetry(job)}
-            title="Retry"
-          >
-            <RotateCcw className="h-2.5 w-2.5" />
-          </Button>
-        )}
-        {/* Remove terminal */}
-        {isTerminal && onRemove && (
-          <Button
-            size="icon"
-            variant="ghost"
-            className="h-5 w-5 shrink-0"
-            onClick={() => onRemove(job)}
-            title="Remove"
-          >
-            <Trash2 className="h-2.5 w-2.5" />
-          </Button>
-        )}
-        {/* Cancel running/pending */}
-        {(isRunning || isPending) && (
-          <Button
-            size="icon"
-            variant="ghost"
-            className="h-5 w-5 shrink-0"
-            onClick={handleCancel}
-            title="Cancel"
-          >
-            <X className="h-2.5 w-2.5" />
-          </Button>
-        )}
+        {/* Three slots in every state, so the row keeps its width */}
+        {slots.map((slot) => (
+          <JobSlot
+            key={slot.action}
+            label={SLOTS[slot.action].label}
+            icon={SLOTS[slot.action].icon}
+            reason={slot.reason}
+            busy={busy && slot.action !== "cancel"}
+            onAct={act[slot.action]}
+          />
+        ))}
       </div>
 
       {/* Progress bar for running jobs */}
-      {isRunning && (
+      {isRunningJob && (
         <div className="flex items-center gap-1.5">
           <div className="h-1.5 rounded bg-primary/20 overflow-hidden flex-1">
             {job.step > 0 || job.progress > 0 ? (
@@ -246,7 +166,7 @@ export function QueueJobCard({
       )}
 
       {/* Stage name + optional counter + phase hint */}
-      {isRunning && (job.stageName || (job.phase && !(job.step > 0))) && (
+      {isRunningJob && (job.stageName || (job.phase && !(job.step > 0))) && (
         <div className="flex items-center gap-1.5 text-4xs text-muted-foreground">
           {job.stageName && (
             <span className="font-medium">
@@ -260,7 +180,7 @@ export function QueueJobCard({
       )}
 
       {/* ETA and elapsed for running */}
-      {isRunning && (
+      {isRunningJob && (
         <div className="flex items-center gap-2 text-4xs text-muted-foreground">
           <span>{formatDuration(elapsed)} elapsed</span>
           {job.eta > 0 && <span>ETA: ~{formatDuration(job.eta)}</span>}
@@ -268,7 +188,7 @@ export function QueueJobCard({
       )}
 
       {/* Preview thumbnail for running */}
-      {isRunning && job.previewUrl && (
+      {isRunningJob && job.previewUrl && (
         <img
           src={job.previewUrl}
           alt="Preview"
@@ -281,6 +201,9 @@ export function QueueJobCard({
         <p className="text-4xs text-destructive truncate" title={job.error}>
           {job.error}
         </p>
+      )}
+      {job.status === "failed" && job.endedWhileClosed && (
+        <p className="text-4xs text-muted-foreground">{FAILED_WHILE_CLOSED}</p>
       )}
 
       {/* Timestamp for terminal */}

@@ -9,6 +9,7 @@ import { RightTabPanel } from "@/components/aside/RightTabPanel";
 import { useUiStore } from "@/stores/uiStore";
 import { useHistoryInit } from "@/hooks/useHistoryInit";
 import { useJobTracker } from "@/hooks/useJobTracker";
+import { useJobRehydration } from "@/hooks/useJobRehydration";
 import { useGlobalWs } from "@/hooks/useGlobalWs";
 import { useShortcutDispatcher } from "@/hooks/useShortcutDispatcher";
 import { useShortcut } from "@/hooks/useShortcut";
@@ -24,6 +25,7 @@ import { cn } from "@/lib/utils";
 export function AppShell() {
   useHistoryInit();
   useJobTracker();
+  useJobRehydration();
   useGlobalWs();
   useShortcutDispatcher();
   useLoadedModelNotice();

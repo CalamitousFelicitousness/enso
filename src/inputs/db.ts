@@ -2,24 +2,21 @@
 // live in the blobs store, written once each, because the browser copies every
 // Blob held in a record each time that record is put.
 
+import {
+  BLOBS,
+  JOBS,
+  JOBS_BY_CREATION,
+  META,
+  READERS,
+  STORES,
+  type StoreReader,
+} from "@/lib/inputs/storeLayout";
 import { planSweep, type Orphans } from "@/lib/inputs/sweep";
 
 const NAME = "enso-inputs";
-const VERSION = 4;
-const BLOBS = "blobs";
-const META = "meta";
+const VERSION = 5;
 const ORPHANS = "orphans";
 const LOCK = "enso-inputs";
-
-/** Stores whose records name blobs. A store added here needs a reader in
- * every sweep call, or sweeps stop. */
-export const DOCUMENTS = "documents";
-/** The frames each job was sent with, by the key its result carries. */
-export const SNAPSHOTS = "snapshots";
-/** What user actions removed, kept until its record expires. */
-export const TRASH = "trash";
-/** The maps processors made, by map key, kept until a record expires. */
-export const MAPS = "maps";
 
 /** The database was created by a build with a newer layout. */
 export class NewerDatabase extends Error {
@@ -36,10 +33,16 @@ let opening: Promise<IDBDatabase> | null = null;
 function open(): Promise<IDBDatabase> {
   opening ??= new Promise<IDBDatabase>((resolve, reject) => {
     const req = indexedDB.open(NAME, VERSION);
+    // Creates what a version lacks and moves no data, so an upgrade cannot fail on a record
     req.onupgradeneeded = () => {
-      for (const store of [DOCUMENTS, SNAPSHOTS, TRASH, MAPS, BLOBS, META]) {
-        if (!req.result.objectStoreNames.contains(store)) req.result.createObjectStore(store);
+      for (const store of STORES) {
+        if (req.result.objectStoreNames.contains(store)) continue;
+        const created = req.result.createObjectStore(store);
+        if (store === JOBS) created.createIndex(JOBS_BY_CREATION, "createdAt");
       }
+    };
+    req.onblocked = () => {
+      console.warn(`[inputs] ${NAME} waits for another tab to close it before it can upgrade`);
     };
     req.onsuccess = () => {
       const db = req.result;
@@ -199,11 +202,103 @@ async function restoreMissing(blobs: ReadonlyMap<string, Blob>): Promise<void> {
 }
 
 export async function deleteDocument(store: string, key: string): Promise<void> {
+  return deleteRecords(store, [key]);
+}
+
+/** Delete records by key, in one transaction. */
+export async function deleteRecords(store: string, keys: readonly string[]): Promise<void> {
+  if (keys.length === 0) return;
   const db = await open();
   const tx = db.transaction(store, "readwrite");
   const done = finished(tx);
-  tx.objectStore(store).delete(key);
+  for (const key of keys) tx.objectStore(store).delete(key);
+  tx.commit();
   await done;
+}
+
+/** Change a record where it is: read and put back in one transaction, so a
+ * change from another tab in between is not overwritten. Nothing is written
+ * when there is no record or `change` returns null; a `change` that throws
+ * writes nothing and rejects. True when a record was written. */
+export async function updateRecord(
+  store: string,
+  key: string,
+  change: (record: unknown) => unknown,
+): Promise<boolean> {
+  const db = await open();
+  const tx = db.transaction(store, "readwrite");
+  const done = finished(tx);
+  let changed: unknown;
+  try {
+    const record: unknown = await result(tx.objectStore(store).get(key));
+    changed = record === undefined ? null : change(record);
+    if (changed !== null) tx.objectStore(store).put(changed, key);
+    tx.commit();
+  } catch (err) {
+    done.catch(() => {});
+    try {
+      tx.abort();
+    } catch {
+      // already finished
+    }
+    throw err;
+  }
+  await done;
+  return changed !== null;
+}
+
+/** The keys of a store's records. */
+export async function allKeys(store: string): Promise<IDBValidKey[]> {
+  const db = await open();
+  return result(db.transaction(store, "readonly").objectStore(store).getAllKeys());
+}
+
+/** The records of a store with their keys. */
+export async function readAllRecords(store: string): Promise<[IDBValidKey, unknown][]> {
+  const db = await open();
+  const os = db.transaction(store, "readonly").objectStore(store);
+  const [keys, records] = await Promise.all([result(os.getAllKeys()), result(os.getAll())]);
+  return keys.map((key, i) => [key, records[i]]);
+}
+
+/** Records by key, read in one transaction; a key without a record is left out. */
+export async function readRecords(
+  store: string,
+  keys: readonly string[],
+): Promise<Map<string, unknown>> {
+  const db = await open();
+  const os = db.transaction(store, "readonly").objectStore(store);
+  const found = new Map<string, unknown>();
+  await Promise.all(
+    keys.map(async (key) => {
+      const record: unknown = await result(os.get(key));
+      if (record !== undefined) found.set(key, record);
+    }),
+  );
+  return found;
+}
+
+/** An index's entries without their records: the index key and the record's
+ * key, in index order. */
+export async function indexEntries(
+  store: string,
+  index: string,
+): Promise<{ key: IDBValidKey; primaryKey: IDBValidKey }[]> {
+  const db = await open();
+  const req = db.transaction(store, "readonly").objectStore(store).index(index).openKeyCursor();
+  return new Promise((resolve, reject) => {
+    const entries: { key: IDBValidKey; primaryKey: IDBValidKey }[] = [];
+    req.onsuccess = () => {
+      const cursor = req.result;
+      if (!cursor) {
+        resolve(entries);
+        return;
+      }
+      entries.push({ key: cursor.key, primaryKey: cursor.primaryKey });
+      cursor.continue();
+    };
+    req.onerror = () => reject(req.error ?? new Error("IDB request failed"));
+  });
 }
 
 /** The keys whose Blob can no longer be read, such as a dropped file that was
@@ -222,18 +317,11 @@ export async function unreadableBlobs(blobs: ReadonlyMap<string, Blob>): Promise
   return checked.filter(Boolean);
 }
 
-/** Reads one record of a document store: the cids it names, and when it may
- * be dropped (epoch ms), if ever. Throws on a record it cannot account for. */
-export type StoreReader = (record: unknown) => { cids: string[]; expiresAt?: number };
-
-/** A reader per document store. */
-export type StoreReaders = Record<string, StoreReader>;
-
 /** Delete expired records, blobs no document names any more (per planSweep)
  * and the revision claims, which only matter between tabs open at the same
  * time. Everything is read and deleted in one transaction, and nothing is
  * deleted unless every record of every document store was read. */
-async function sweep(readers: StoreReaders): Promise<void> {
+async function sweep(readers: Readonly<Record<string, StoreReader>>): Promise<void> {
   const db = await open();
   const names = [...db.objectStoreNames];
   const documentStores = names.filter((name) => name !== BLOBS && name !== META);
@@ -286,12 +374,12 @@ let entered: Promise<void> | null = null;
  * of the app is open, then holds the shared lock for the life of the page, so
  * a sweep only ever runs while what the stores name on disk is every live
  * reference there is. Without Web Locks nothing is swept. */
-export function enterTab(readers: StoreReaders): Promise<void> {
+export function enterTab(): Promise<void> {
   entered ??= (async () => {
     if (!("locks" in navigator)) return;
     await navigator.locks.request(LOCK, { ifAvailable: true }, async (lock) => {
       if (lock) {
-        await sweep(readers).catch((err: unknown) => {
+        await sweep(READERS).catch((err: unknown) => {
           console.error("[inputs] sweep failed; nothing was deleted", err);
         });
       }

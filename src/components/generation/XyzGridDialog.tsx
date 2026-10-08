@@ -11,12 +11,10 @@ import {
   type XyzValidateResponse,
   type XyzPreviewResponse,
 } from "@/api/hooks/useXyzAxisOptions";
-import { useSubmitJob } from "@/api/hooks/useJobs";
-import { useJobQueueStore, type JobSnapshot } from "@/stores/jobStore";
-import { putJobPayload } from "@/lib/jobPayloadDb";
+import { submitJob, type Submission } from "@/inputs/jobs";
 import { UserAbortError } from "@/hooks/useSubmitToQueue";
 import { countAxisValues, groupAxisOptions } from "@/lib/xyzGrid";
-import type { JobRequest, XyzGridJobParams } from "@/api/types/v2";
+import type { XyzGridJobParams } from "@/api/types/v2";
 import {
   Dialog,
   DialogContent,
@@ -35,7 +33,7 @@ import { Combobox, type ComboboxGroup } from "@/components/ui/combobox";
 interface XyzGridDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  buildRequest: () => Promise<{ payload: JobRequest; snapshot: JobSnapshot }>;
+  build: () => Promise<Submission>;
 }
 
 interface AxisValidation {
@@ -213,7 +211,7 @@ function AxisSection({
   );
 }
 
-export function XyzGridDialog({ open, onOpenChange, buildRequest }: XyzGridDialogProps) {
+export function XyzGridDialog({ open, onOpenChange, build }: XyzGridDialogProps) {
   const [xType, setXType] = useState("");
   const [yType, setYType] = useState("");
   const [zType, setZType] = useState("");
@@ -239,8 +237,6 @@ export function XyzGridDialog({ open, onOpenChange, buildRequest }: XyzGridDialo
   const [preview, setPreview] = useState<XyzPreviewResponse | null>(null);
 
   const { data: axisOptions } = useXyzAxisOptions();
-  const submitJob = useSubmitJob();
-  const trackJob = useJobQueueStore((s) => s.trackJob);
   const validateMutation = useXyzValidate();
   const previewMutation = useXyzPreview();
 
@@ -301,7 +297,7 @@ export function XyzGridDialog({ open, onOpenChange, buildRequest }: XyzGridDialo
     if (!axisOptions) return;
     setIsSubmitting(true);
     try {
-      const { payload, snapshot } = await buildRequest();
+      const submission = await build();
       // Extract generation params from the base payload, then overlay xyz-grid fields
       const {
         type: _type,
@@ -309,7 +305,7 @@ export function XyzGridDialog({ open, onOpenChange, buildRequest }: XyzGridDialo
         script_args: _sa,
         priority: basePriority,
         ...baseParams
-      } = payload as Record<string, unknown> & {
+      } = submission.request as Record<string, unknown> & {
         type: string;
         script_name?: string;
         script_args?: unknown[];
@@ -330,18 +326,9 @@ export function XyzGridDialog({ open, onOpenChange, buildRequest }: XyzGridDialo
         margin_size: 0,
         random_seeds: false,
       };
-      const priority = basePriority ?? 0;
-
-      const job = await submitJob.mutateAsync(xyzPayload);
-      trackJob(job.id, "xyz-grid", snapshot, xyzPayload, priority);
-      void putJobPayload({
-        id: job.id,
-        domain: "xyz-grid",
-        request: xyzPayload,
-        priority,
-        snapshot,
-        createdAt: Date.now(),
-      });
+      if (basePriority !== undefined) xyzPayload.priority = basePriority;
+      // The grid keeps the base request's uploads, so its record sends them again
+      await submitJob({ ...submission, domain: "xyz-grid", request: xyzPayload });
       toast.success("XYZ Grid queued", {
         description: dimensionText ? `${dimensionText} = ${totalCells} images` : "Grid submitted",
       });
@@ -356,7 +343,7 @@ export function XyzGridDialog({ open, onOpenChange, buildRequest }: XyzGridDialo
     }
   }, [
     axisOptions,
-    buildRequest,
+    build,
     xType,
     xValues,
     yType,
@@ -368,8 +355,6 @@ export function XyzGridDialog({ open, onOpenChange, buildRequest }: XyzGridDialo
     includeSubgrids,
     includeImages,
     includeTime,
-    submitJob,
-    trackJob,
     onOpenChange,
     dimensionText,
     totalCells,

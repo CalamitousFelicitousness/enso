@@ -21,25 +21,18 @@ import {
   type JoinLoss,
   type WorkingDocument,
 } from "@/lib/inputs/stored";
+import { DOCUMENTS } from "@/lib/inputs/storeLayout";
 import { useGenerationStore } from "@/stores/generationStore";
 import {
-  DOCUMENTS,
   DocumentConflict,
   deleteDocument,
   enterTab,
   latestRevision,
-  MAPS,
   readDocument,
-  SNAPSHOTS,
-  TRASH,
   unreadableBlobs,
   writeDocument,
-  type StoreReaders,
 } from "./db";
 import { decodeLegacyUnits } from "./legacyControl";
-import { mapsReader } from "./maps";
-import { snapshotCids } from "./snapshots";
-import { trashReader } from "./trash";
 
 /** What reading the stored inputs turned up besides the document. */
 export interface HydrationFindings {
@@ -69,13 +62,6 @@ export class UnreadableBlobs extends Error {
 export class UnstorableDocument extends Error {
   override name = "UnstorableDocument";
 }
-
-const READERS: StoreReaders = {
-  [DOCUMENTS]: (record) => ({ cids: readWorking(record).cids }),
-  [SNAPSHOTS]: (record) => ({ cids: snapshotCids(record) }),
-  [TRASH]: trashReader,
-  [MAPS]: mapsReader,
-};
 
 /** The canvas record's formats, newest first. Version 3 is a JSON string. */
 const LEGACY = [
@@ -290,7 +276,7 @@ const NO_LOSS: JoinLoss = { pictures: [], maskObjects: 0 };
 
 const backend: KeyValueBackend = {
   async get() {
-    await enterTab(READERS);
+    await enterTab();
     const stored = await readDocument(DOCUMENTS, KEY, readWorking, (read) => read.cids);
     const own = stored ? joinWorking(stored.document.record, stored.blobs) : null;
     revision = stored ? stored.document.record.revision : await latestRevision(DOCUMENTS, KEY);
