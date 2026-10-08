@@ -154,4 +154,39 @@ export class Enso {
   async toasts(): Promise<string[]> {
     return this.page.locator("[data-sonner-toast]").allInnerTexts();
   }
+
+  /** A result's thumbnail on the strip, newest first. */
+  resultThumb(index = 0): Locator {
+    return this.leftPanel.getByRole("button", { name: "Result", exact: true }).nth(index);
+  }
+
+  /** Choose an item of a result's menu. The menu is opened by its event: a
+   * right button released over a menu that opened above the pointer would
+   * choose the item under it. */
+  async resultMenu(item: string, index = 0): Promise<void> {
+    await this.resultThumb(index).dispatchEvent("contextmenu");
+    await this.page.getByRole("menuitem", { name: item, exact: true }).click();
+  }
+
+  /** Run a result's job again and wait for the new job to leave the queue. */
+  async runAgain(index = 0): Promise<Job> {
+    const submitted = this.page.waitForResponse(
+      (response) =>
+        response.request().method() === "POST" &&
+        new URL(response.url()).pathname === "/sdapi/v2/jobs",
+      { timeout: 120_000 },
+    );
+    await this.resultMenu("Run again", index);
+    const response = await submitted;
+    expect(response.status(), "POST /sdapi/v2/jobs").toBe(202);
+    const { id } = (await response.json()) as { id: string };
+    return finishedJob(this.page.request, id);
+  }
+
+  /** Open a Right Panel tab by its rail button; a click on the open tab would close it. */
+  async openRightTab(name: string): Promise<void> {
+    const tab = this.page.getByRole("button", { name, exact: true });
+    if ((await tab.getAttribute("aria-pressed")) !== "true") await tab.click();
+    await expect(tab).toHaveAttribute("aria-pressed", "true");
+  }
 }
