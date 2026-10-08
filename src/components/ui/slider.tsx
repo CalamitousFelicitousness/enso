@@ -9,6 +9,8 @@ function Slider({
   value,
   min = 0,
   max = 100,
+  "aria-label": label,
+  "aria-labelledby": labelledBy,
   ...props
 }: React.ComponentProps<typeof SliderPrimitive.Root>) {
   const _values = React.useMemo(
@@ -39,9 +41,12 @@ function Slider({
         />
       </SliderPrimitive.Track>
       {Array.from({ length: _values.length }, (_, index) => (
+        // The thumb is the focusable slider, so it carries the name
         <SliderPrimitive.Thumb
           data-slot="slider-thumb"
           key={index}
+          aria-label={label}
+          aria-labelledby={labelledBy}
           className="relative block w-[8px] h-[8px] rounded-sm shrink-0 bg-primary ring-1 ring-primary/40 outline-none transition-[width,height] focus:w-[10px] focus:h-[10px] disabled:pointer-events-none"
         />
       ))}
