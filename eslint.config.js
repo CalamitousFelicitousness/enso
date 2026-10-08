@@ -80,9 +80,12 @@ export default defineConfig([
     // environment, so nothing here may reach a store, React or the DOM.
     files: [
       "src/lib/inputs/**/*.ts",
+      "src/lib/jobs/**/*.ts",
       "src/lib/request/generateParams.ts",
       "src/lib/request/inputPlan.ts",
+      "src/lib/request/restoreParams.ts",
       "src/lib/request/wire.ts",
+      "src/lib/resultStrip.ts",
     ],
     rules: {
       "@typescript-eslint/no-restricted-imports": [

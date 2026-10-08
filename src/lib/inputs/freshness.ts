@@ -70,7 +70,7 @@ export function completeParams(
 }
 
 /** JSON with object keys in order, so equal values give equal text. */
-function canonical(value: JsonValue | PictureSpec | Record<string, JsonValue>): string {
+export function canonicalJson(value: unknown): string {
   return JSON.stringify(value, (_key, v: unknown) =>
     v !== null && typeof v === "object" && !Array.isArray(v)
       ? Object.fromEntries(
@@ -87,5 +87,5 @@ export function mapKey(
   params: Record<string, JsonValue>,
   revision: string,
 ): string {
-  return `${processor.id}|${revision}|${canonical(params)}|${canonical(spec)}`;
+  return `${processor.id}|${revision}|${canonicalJson(params)}|${canonicalJson(spec)}`;
 }

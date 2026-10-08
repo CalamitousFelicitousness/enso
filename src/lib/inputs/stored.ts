@@ -2,6 +2,8 @@
 // bytes are separate records written once, because the browser copies every
 // Blob in a record each time the record is put.
 
+import type { JobDomain } from "@/lib/jobs/domains";
+import { refsIn } from "@/lib/jobs/replay";
 import type { ImportNote } from "./legacy";
 import { loose, type Loose } from "./loose";
 import type { SizeSourcePick } from "./outline";
@@ -781,4 +783,252 @@ export function readMap(value: unknown): ReadMap {
     usedAt: num(m.usedAt, "map.usedAt"),
   });
   return { record, cids: [record.cid] };
+}
+
+/** The limits a cloud provider takes pictures in, which the picture is
+ * encoded to before it goes out. */
+export interface ProviderEncoding {
+  provider: string;
+  model: string;
+}
+
+/** Where an upload a job sent came from, so the same picture can be made
+ * again: a composed frame's pictures drawn at a size, a picture's file, a
+ * frame's mask drawn at a size, an IP-Adapter region mask, or a map. A
+ * composite or a map sent to a cloud model is also encoded for it. */
+export type Source =
+  | { kind: "composite"; frameId: string; drawnAt: Size; encode: ProviderEncoding | null }
+  | { kind: "file"; frameId: string; pictureId: string }
+  | { kind: "mask"; frameId: string; drawnAt: Size }
+  | { kind: "ipMask"; frameId: string; maskId: string }
+  | { kind: "map"; key: string; drawnAt: Size | null; encode: ProviderEncoding | null };
+
+/** The frames a job was built from, the frame size their placements are in
+ * and the Size from pick. `schema` is the frames' document schema. */
+export interface StoredInputs {
+  schema: number;
+  size: Size;
+  sizeSource: SizeSourcePick | null;
+  frames: StoredFrame[];
+}
+
+export const JOB_SCHEMA = 1;
+
+/** What this browser keeps of a job it sent, under the server's job id. */
+export interface StoredJob {
+  schema: number;
+  id: string;
+  domain: JobDomain;
+  createdAt: number;
+  /** The model it went to: sdnext's title, and the name shown for it. */
+  checkpoint: { title: string; name: string } | null;
+  /** The request as posted, its upload refs inside. */
+  request: Record<string, JsonValue>;
+  /** Where each upload ref the request names came from. */
+  refs: Record<string, Source>;
+  inputs: StoredInputs | null;
+  /** The maps the job makes before generating. */
+  mapKeys: string[];
+  /** The cid of each map the job sent as a picture, by key. */
+  maps: Record<string, string>;
+  /** Its result has reached the strip, or never will. */
+  routed: boolean;
+}
+
+/** A job's inputs with their bytes. */
+export interface JobInputs {
+  size: Size;
+  sizeSource: SizeSourcePick | null;
+  frames: Frame[];
+}
+
+export interface JobRecord extends Omit<StoredJob, "schema" | "request" | "refs" | "inputs"> {
+  request: object;
+  refs: Readonly<Record<string, Source>>;
+  /** The frames with their bytes, or as another record stored them. */
+  inputs: JobInputs | StoredInputs | null;
+}
+
+/** A job record's stored form. The request goes through JSON, as the server
+ * reads it, so no undefined field reaches the record; only the sources of
+ * refs it still names are kept. Inputs already in their stored form are kept
+ * as they are, their bytes already stored. */
+export function splitJob(job: JobRecord): { record: StoredJob; blobs: Map<string, Blob> } {
+  const blobs = new Map<string, Blob>();
+  const request = JSON.parse(JSON.stringify(job.request)) as Record<string, JsonValue>;
+  const refs: Record<string, Source> = {};
+  for (const ref of refsIn(request)) {
+    const from = job.refs[ref];
+    if (from) refs[ref] = from;
+  }
+  let inputs: StoredInputs | null = null;
+  if (job.inputs && "schema" in job.inputs) {
+    inputs = structuredClone(job.inputs);
+  } else if (job.inputs) {
+    inputs = {
+      schema: DOCUMENT_SCHEMA,
+      size: { ...job.inputs.size },
+      sizeSource: job.inputs.sizeSource && { ...job.inputs.sizeSource },
+      frames: splitInto(job.inputs.frames, blobs),
+    };
+  }
+  return {
+    record: {
+      schema: JOB_SCHEMA,
+      id: job.id,
+      domain: job.domain,
+      createdAt: job.createdAt,
+      checkpoint: job.checkpoint && { ...job.checkpoint },
+      request,
+      refs,
+      inputs,
+      mapKeys: [...job.mapKeys],
+      maps: { ...job.maps },
+      routed: job.routed,
+    },
+    blobs,
+  };
+}
+
+const DOMAINS: readonly JobDomain[] = [
+  "generate",
+  "upscale",
+  "rembg",
+  "process",
+  "preprocess",
+  "video",
+  "framepack",
+  "ltx",
+  "xyz-grid",
+];
+const SOURCE_KINDS: readonly Source["kind"][] = ["composite", "file", "mask", "ipMask", "map"];
+
+function size(value: unknown, path: string): Size {
+  const s = fields<Size>(value, path);
+  return exact(s, path, {
+    width: num(s.width, `${path}.width`),
+    height: num(s.height, `${path}.height`),
+  });
+}
+
+function encoding(value: unknown, path: string): ProviderEncoding | null {
+  return orNull(value, (raw) => {
+    const e = fields<ProviderEncoding>(raw, path);
+    return exact(e, path, {
+      provider: text(e.provider, `${path}.provider`),
+      model: text(e.model, `${path}.model`),
+    });
+  });
+}
+
+type SourceField = "kind" | "frameId" | "pictureId" | "maskId" | "drawnAt" | "encode" | "key";
+
+function source(value: unknown, path: string): Source {
+  const s = fields<Record<SourceField, unknown>>(value, path);
+  const kind = oneOf(s.kind, SOURCE_KINDS, `${path}.kind`);
+  const frameId = () => text(s.frameId, `${path}.frameId`);
+  let read: Source;
+  switch (kind) {
+    case "composite":
+      read = {
+        kind,
+        frameId: frameId(),
+        drawnAt: size(s.drawnAt, `${path}.drawnAt`),
+        encode: encoding(s.encode, `${path}.encode`),
+      };
+      break;
+    case "file":
+      read = { kind, frameId: frameId(), pictureId: text(s.pictureId, `${path}.pictureId`) };
+      break;
+    case "mask":
+      read = { kind, frameId: frameId(), drawnAt: size(s.drawnAt, `${path}.drawnAt`) };
+      break;
+    case "ipMask":
+      read = { kind, frameId: frameId(), maskId: text(s.maskId, `${path}.maskId`) };
+      break;
+    case "map":
+      read = {
+        kind,
+        key: text(s.key, `${path}.key`),
+        drawnAt: orNull(s.drawnAt, (raw) => size(raw, `${path}.drawnAt`)),
+        encode: encoding(s.encode, `${path}.encode`),
+      };
+      break;
+  }
+  return exact<Source>(s, path, read);
+}
+
+function texts(value: unknown, path: string): Record<string, string> {
+  const t = fields<Record<string, string>>(value, path);
+  return Object.fromEntries(Object.entries(t).map(([key, v]) => [key, text(v, `${path}.${key}`)]));
+}
+
+export interface ReadJob {
+  record: StoredJob;
+  /** Every cid the record names, its frames' and its sent maps', once each. */
+  cids: string[];
+}
+
+/** A stored job record checked field by field, like the working document. */
+export function readJob(value: unknown): ReadJob {
+  const r = fields<StoredJob>(value, "job");
+  const schema = num(r.schema, "job.schema");
+  if (schema > JOB_SCHEMA) throw new NewerDocument(schema);
+  const cids = new Set<string>();
+  const inputs = orNull(r.inputs, (raw): StoredInputs => {
+    const i = fields<StoredInputs>(raw, "job.inputs");
+    const framesSchema = num(i.schema, "job.inputs.schema");
+    if (framesSchema > DOCUMENT_SCHEMA) throw new NewerDocument(framesSchema);
+    const read = readStoredFrames(i.frames, framesSchema);
+    for (const cid of read.cids) cids.add(cid);
+    return exact(i, "job.inputs", {
+      schema: DOCUMENT_SCHEMA,
+      size: size(i.size, "job.inputs.size"),
+      sizeSource: orNull(i.sizeSource, (pickRaw) => {
+        const pick = fields<SizeSourcePick>(pickRaw, "job.inputs.sizeSource");
+        return exact(pick, "job.inputs.sizeSource", {
+          frameId: text(pick.frameId, "job.inputs.sizeSource.frameId"),
+          pictureId: orNull(pick.pictureId, (id) => text(id, "job.inputs.sizeSource.pictureId")),
+        });
+      }),
+      frames: read.frames,
+    });
+  });
+  const refs = fields<Record<string, Source>>(r.refs, "job.refs");
+  const maps = texts(r.maps, "job.maps");
+  for (const cid of Object.values(maps)) cids.add(cid);
+  const request = fields<Record<string, JsonValue>>(r.request, "job.request");
+  const record = exact(r, "job", {
+    schema: JOB_SCHEMA,
+    id: text(r.id, "job.id"),
+    domain: oneOf(r.domain, DOMAINS, "job.domain"),
+    createdAt: num(r.createdAt, "job.createdAt"),
+    checkpoint: orNull(r.checkpoint, (raw) => {
+      const c = fields<{ title: string; name: string }>(raw, "job.checkpoint");
+      return exact(c, "job.checkpoint", {
+        title: text(c.title, "job.checkpoint.title"),
+        name: text(c.name, "job.checkpoint.name"),
+      });
+    }),
+    request: Object.fromEntries(
+      Object.entries(request).map(([key, v]) => [key, json(v, `job.request.${key}`)]),
+    ),
+    refs: Object.fromEntries(
+      Object.entries(refs).map(([ref, v]) => [ref, source(v, `job.refs.${ref}`)]),
+    ),
+    inputs,
+    mapKeys: list(r.mapKeys, "job.mapKeys").map((k, i) => text(k, `job.mapKeys[${i}]`)),
+    maps,
+    routed: flag(r.routed, "job.routed"),
+  });
+  return { record, cids: [...cids] };
+}
+
+/** A job record's inputs with their bytes back. */
+export function joinJobInputs(
+  inputs: StoredInputs,
+  blobs: ReadonlyMap<string, Blob>,
+): { inputs: JobInputs; lost: JoinLoss } {
+  const { frames, lost } = joinFrames(inputs.frames, blobs);
+  return { inputs: { size: { ...inputs.size }, sizeSource: inputs.sizeSource, frames }, lost };
 }

@@ -207,3 +207,8 @@ export function slotPictures(frame: Frame): Picture[] {
 export function hasMask(frame: Frame): boolean {
   return frame.mask.objects.length > 0 || frame.mask.strokes.length > 0;
 }
+
+/** The frame holds something worth keeping: a picture, mask paint or a region mask. */
+export function holdsContent(frame: Frame): boolean {
+  return frame.pictures.length > 0 || hasMask(frame) || frame.ipAdapter.masks.length > 0;
+}

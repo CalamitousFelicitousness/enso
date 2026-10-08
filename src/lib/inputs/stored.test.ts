@@ -4,23 +4,29 @@ import { reportLines } from "./report";
 import { defaultControl, defaultIpAdapter } from "./reducers";
 import {
   DOCUMENT_SCHEMA,
+  JOB_SCHEMA,
   joinFrames,
+  joinJobInputs,
   joinRemoval,
   joinSnapshot,
   joinWorking,
   MAP_SCHEMA,
   NewerDocument,
+  readJob,
   readMap,
   readRemoval,
   readSnapshot,
   readStoredFrames,
   readWorking,
   splitFrames,
+  splitJob,
   splitRemoval,
   splitSnapshot,
   splitWorking,
   UnreadableDocument,
+  type JobRecord,
   type Removal,
+  type Source,
   type WorkingDocument,
 } from "./stored";
 import type { Frame } from "./types";
@@ -379,5 +385,117 @@ describe("map records", () => {
     expect(() => readMap({ ...map(), schema: MAP_SCHEMA + 1 })).toThrow(NewerDocument);
     expect(() => readMap({ ...map(), extra: 1 })).toThrow(UnreadableDocument);
     expect(() => readMap({ ...map(), usedAt: "yesterday" })).toThrow(UnreadableDocument);
+  });
+});
+
+describe("job records", () => {
+  const composite: Source = {
+    kind: "composite",
+    frameId: "paint",
+    drawnAt: { width: 704, height: 1280 },
+    encode: null,
+  };
+  const file: Source = { kind: "file", frameId: "refs", pictureId: "a" };
+  const map: Source = { kind: "map", key: "Canny|k", drawnAt: null, encode: null };
+  const job = (patch: Partial<JobRecord> = {}): JobRecord => ({
+    id: "0123456789abcdef",
+    domain: "generate",
+    createdAt: 1000,
+    checkpoint: { title: "Qwen-Image 2.1 [abc]", name: "Qwen-Image 2.1" },
+    request: {
+      type: "generate",
+      prompt: "a cat",
+      inputs: ["upload:1", "upload:2", "upload:3"],
+      inits: ["upload:1"],
+      seed: -1,
+      mask: undefined,
+    },
+    refs: { "upload:1": composite, "upload:2": file, "upload:3": map, "upload:gone": file },
+    inputs: {
+      size: { width: 704, height: 1280 },
+      sizeSource: { frameId: "refs", pictureId: "a" },
+      frames: sample(),
+    },
+    mapKeys: ["Depth|k"],
+    maps: { "Canny|k": "cid-map" },
+    routed: false,
+    ...patch,
+  });
+
+  it("round-trips a job record with its frames and sent maps", () => {
+    const { record, blobs } = splitJob(job());
+    const { record: read } = readJob(structuredClone(record));
+    expect(read).toEqual(record);
+    expect(read.schema).toBe(JOB_SCHEMA);
+    expect(read.inputs?.schema).toBe(DOCUMENT_SCHEMA);
+    const { inputs, lost } = joinJobInputs(read.inputs!, blobs);
+    expect(inputs.frames).toEqual(sample());
+    expect(inputs.size).toEqual({ width: 704, height: 1280 });
+    expect(inputs.sizeSource).toEqual({ frameId: "refs", pictureId: "a" });
+    expect(lost).toEqual({ pictures: [], maskObjects: 0 });
+  });
+
+  it("keeps only the sources of refs the request names, and no undefined field", () => {
+    const { record } = splitJob(job());
+    expect(Object.keys(record.refs)).toEqual(["upload:1", "upload:2", "upload:3"]);
+    expect("mask" in record.request).toBe(false);
+  });
+
+  it("lists every cid a job record names, once each", () => {
+    const { record } = splitJob(job());
+    const { cids } = readJob(record);
+    expect([...cids].sort()).toEqual(["cid-a", "cid-b", "cid-base", "cid-m", "cid-map", "cid-top"]);
+  });
+
+  it("keeps inputs another record stored as they are", () => {
+    const first = splitJob(job());
+    const again = splitJob(job({ id: "fedcba9876543210", inputs: first.record.inputs }));
+    expect(again.record.inputs).toEqual(first.record.inputs);
+    expect(again.record.inputs).not.toBe(first.record.inputs);
+    expect(again.blobs.size).toBe(0);
+  });
+
+  it("reads a job record without inputs", () => {
+    const { record } = splitJob(
+      job({ inputs: null, refs: {}, maps: {}, request: { prompt: "x" } }),
+    );
+    const read = readJob(record);
+    expect(read.record.inputs).toBeNull();
+    expect(read.cids).toEqual([]);
+  });
+
+  it("refuses a job record with a field it does not know", () => {
+    const { record } = splitJob(job());
+    expect(() => readJob({ ...record, extra: 1 })).toThrow(UnreadableDocument);
+    expect(() => readJob({ ...record, routed: "yes" })).toThrow(UnreadableDocument);
+    expect(() => readJob({ ...record, domain: "music" })).toThrow(UnreadableDocument);
+    expect(() =>
+      readJob({ ...record, refs: { "upload:1": { ...composite, pictureId: "a" } } }),
+    ).toThrow(UnreadableDocument);
+    expect(() => readJob({ ...record, schema: JOB_SCHEMA + 1 })).toThrow(NewerDocument);
+    expect(() =>
+      readJob({ ...record, inputs: { ...record.inputs, schema: DOCUMENT_SCHEMA + 1 } }),
+    ).toThrow(NewerDocument);
+  });
+
+  it("refuses a source of a kind it does not know", () => {
+    const { record } = splitJob(job());
+    expect(() =>
+      readJob({ ...record, refs: { "upload:1": { kind: "video", frameId: "paint" } } }),
+    ).toThrow(UnreadableDocument);
+  });
+
+  it("survives the clone IndexedDB makes", () => {
+    const { record } = splitJob(
+      job({
+        refs: {
+          "upload:1": { ...composite, encode: { provider: "openai", model: "gpt-image-1" } },
+          "upload:2": { kind: "mask", frameId: "paint", drawnAt: { width: 704, height: 1280 } },
+          "upload:3": { kind: "ipMask", frameId: "ip", maskId: "m1" },
+        },
+      }),
+    );
+    expect(structuredClone(record)).toEqual(record);
+    expect(readJob(structuredClone(record)).record).toEqual(record);
   });
 });
