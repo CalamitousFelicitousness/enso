@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { useCanvasStore } from "@/stores/canvasStore";
 import { useInputStore } from "@/stores/inputStore";
 import { useUiStore } from "@/stores/uiStore";
-import { useBlobUrl } from "@/inputs/media";
+import { useThumb } from "@/inputs/thumbs";
 import { replacePicture } from "@/inputs/edits";
 import { revealFrame } from "@/inputs/reveal";
 import type { MapSlot, OutlineEntry } from "@/lib/inputs/outline";
@@ -145,7 +145,8 @@ function SourceThumb({ frameId, entry, canPeek }: SourceThumbProps) {
     return own ? composedPictures(own).length : 0;
   });
   const setPeekingFrame = useCanvasStore((s) => s.setPeekingFrame);
-  const url = useBlobUrl(base?.file ?? null);
+  // the frame shows its map, so the source is decoded only for this
+  const url = useThumb(base);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // A peek that can no longer show anything (the map went stale, Edit mode)

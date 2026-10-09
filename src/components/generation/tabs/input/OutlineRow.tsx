@@ -9,7 +9,7 @@ import { Trash2 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { useInputStore } from "@/stores/inputStore";
-import { useBlobUrl } from "@/inputs/media";
+import { useThumb } from "@/inputs/thumbs";
 import { removeFrame, setFrameOn } from "@/inputs/edits";
 import { frameColor } from "@/canvas/frameColors";
 import type { OutlineEntry } from "@/lib/inputs/outline";
@@ -32,7 +32,7 @@ import {
 import { cn } from "@/lib/utils";
 
 function Thumb({ picture }: { picture: Picture }) {
-  const url = useBlobUrl(picture.file);
+  const url = useThumb(picture.file && { ...picture, file: picture.file });
   const box = "h-6 w-6 shrink-0 rounded";
   return url ? (
     <img src={url} alt="" className={cn(box, "object-cover")} />

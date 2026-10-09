@@ -7,7 +7,7 @@ import { SectionLeader } from "@/components/ui/section-leader";
 import { Button } from "@/components/ui/button";
 import { LayerPanel } from "@/components/generation/LayerPanel";
 import { useInputStore } from "@/stores/inputStore";
-import { useBlobUrl } from "@/inputs/media";
+import { useThumb } from "@/inputs/thumbs";
 import { addFilesToInputs } from "@/inputs/route";
 import { removePicture } from "@/inputs/edits";
 import { INPUTS_FULL_HINT } from "@/inputs/capacity";
@@ -18,7 +18,7 @@ import { isComposed, type Frame, type Picture } from "@/lib/inputs/types";
 import { cn } from "@/lib/utils";
 
 function Thumbnail({ picture }: { picture: Picture }) {
-  const url = useBlobUrl(picture.file);
+  const url = useThumb(picture.file && { ...picture, file: picture.file });
   const box = "w-8 h-8 rounded flex-shrink-0";
   return url ? (
     <img src={url} alt={picture.name} className={cn(box, "object-cover")} />

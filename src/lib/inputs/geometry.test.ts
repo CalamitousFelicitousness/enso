@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { frame, layer, maskObject, picture } from "./frames.fixture";
-import { centredTransform, containTransform, fitTransform, refitFrame } from "./geometry";
+import {
+  centredTransform,
+  containTransform,
+  fitTransform,
+  refitFrame,
+  thumbSize,
+} from "./geometry";
 import type { Frame, Transform } from "./types";
 
 const at = (patch: Partial<Transform>): Transform => ({
@@ -134,5 +140,20 @@ describe("fitTransform", () => {
     expect(baseOf(refitFrame({ ...f, fit: "fill" }, square))).toEqual(
       at({ scaleX: 0.5, scaleY: 1 }),
     );
+  });
+});
+
+describe("thumbSize", () => {
+  it("brings the shorter side down to the size asked for", () => {
+    expect(thumbSize({ width: 3840, height: 3840 }, 320)).toEqual({ width: 320, height: 320 });
+    expect(thumbSize({ width: 528, height: 960 }, 320)).toEqual({ width: 320, height: 582 });
+  });
+
+  it("never draws a picture larger than it is", () => {
+    expect(thumbSize({ width: 200, height: 100 }, 320)).toEqual({ width: 200, height: 100 });
+  });
+
+  it("keeps a long thin picture's longer side within four times the size", () => {
+    expect(thumbSize({ width: 8000, height: 400 }, 320)).toEqual({ width: 1280, height: 64 });
   });
 });

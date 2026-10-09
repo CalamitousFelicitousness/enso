@@ -11,7 +11,8 @@ import { Label } from "@/components/ui/label";
 import { ParamSlider } from "@/components/generation/ParamSlider";
 import { ImageUpload } from "@/components/generation/ImageUpload";
 import { useInputStore, type NewPicture } from "@/stores/inputStore";
-import { imageSize, useBlobUrl } from "@/inputs/media";
+import { imageSize } from "@/inputs/media";
+import { useThumb } from "@/inputs/thumbs";
 import type { Frame, Picture } from "@/lib/inputs/types";
 import { Row } from "../Row";
 
@@ -22,7 +23,7 @@ async function toNewPicture(file: File): Promise<NewPicture> {
 }
 
 function Thumb({ picture, onRemove }: { picture: Picture; onRemove: () => void }) {
-  const url = useBlobUrl(picture.file);
+  const url = useThumb(picture.file && { ...picture, file: picture.file });
   return (
     <div className="relative h-16 w-16 rounded border border-border overflow-hidden group">
       {url && <img src={url} alt={picture.name} className="w-full h-full object-cover" />}

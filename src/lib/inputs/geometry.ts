@@ -136,3 +136,17 @@ export function refitFrame(frame: Frame, size: Size): Frame {
     },
   };
 }
+
+/** The size a thumbnail is drawn at: the shorter side at `side` and the
+ * longer at most four times that, never larger than the picture. */
+export function thumbSize(natural: Size, side: number): Size {
+  const scale = Math.min(
+    1,
+    side / Math.min(natural.width, natural.height),
+    (4 * side) / Math.max(natural.width, natural.height),
+  );
+  return {
+    width: Math.max(1, Math.round(natural.width * scale)),
+    height: Math.max(1, Math.round(natural.height * scale)),
+  };
+}

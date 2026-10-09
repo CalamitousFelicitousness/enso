@@ -8,6 +8,8 @@ interface Entry {
   url: string;
   users: number;
   image: Promise<HTMLImageElement> | null;
+  /** The image once it has decoded. */
+  decoded: HTMLImageElement | null;
   release: ReturnType<typeof setTimeout> | null;
 }
 
@@ -20,7 +22,7 @@ const RELEASE_MS = 1000;
 function acquire(blob: Blob): Entry {
   let entry = entries.get(blob);
   if (!entry) {
-    entry = { url: URL.createObjectURL(blob), users: 0, image: null, release: null };
+    entry = { url: URL.createObjectURL(blob), users: 0, image: null, decoded: null, release: null };
     entries.set(blob, entry);
   }
   if (entry.release) {
@@ -45,7 +47,10 @@ function release(blob: Blob): void {
 function decode(entry: Entry): Promise<HTMLImageElement> {
   entry.image ??= new Promise((resolve, reject) => {
     const image = new Image();
-    image.onload = () => resolve(image);
+    image.onload = () => {
+      entry.decoded = image;
+      resolve(image);
+    };
     image.onerror = () => reject(new Error("picture could not be decoded"));
     image.src = entry.url;
   });
@@ -76,6 +81,11 @@ export function useBlobImage(blob: Blob | null): HTMLImageElement | null {
 /** A URL for the blob once it has decoded, for an <img>. */
 export function useBlobUrl(blob: Blob | null): string | null {
   return useBlobImage(blob)?.src ?? null;
+}
+
+/** The blob as an image something here has already decoded, else null. */
+export function decodedImage(blob: Blob): HTMLImageElement | null {
+  return entries.get(blob)?.decoded ?? null;
 }
 
 /** Natural size of an image file. Rejects when it does not decode. */

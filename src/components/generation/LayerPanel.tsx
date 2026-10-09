@@ -3,7 +3,7 @@ import { useInputStore } from "@/stores/inputStore";
 import { useGenerationStore } from "@/stores/generationStore";
 import { addFilesToInputs } from "@/inputs/route";
 import { removePicture } from "@/inputs/edits";
-import { useBlobUrl } from "@/inputs/media";
+import { useThumb } from "@/inputs/thumbs";
 import type { MaskObject, Picture } from "@/lib/inputs/types";
 import { Eye, EyeOff, X, Plus, Frame, Lock, Unlock } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -34,15 +34,17 @@ function LayerDims({ layer }: { layer: Picture }) {
 }
 
 function Thumbnail({
-  blob,
+  item,
+  bytes,
   name,
   className,
 }: {
-  blob: Blob | null;
+  item: { cid: string; width: number; height: number };
+  bytes: Blob | null;
   name: string;
   className?: string;
 }) {
-  const url = useBlobUrl(blob);
+  const url = useThumb(bytes && { ...item, file: bytes });
   const box = cn("w-8 h-8 rounded flex-shrink-0", className);
   return url ? (
     <img src={url} alt={name} className={cn(box, "object-cover")} />
@@ -135,7 +137,7 @@ export function LayerPanel({ frameId }: LayerPanelProps = {}) {
               }
             }}
           >
-            <Thumbnail blob={layer.file} name={layer.name} />
+            <Thumbnail item={layer} bytes={layer.file} name={layer.name} />
 
             {/* Name + dims */}
             <div className="flex-1 min-w-0">
@@ -218,7 +220,7 @@ export function LayerPanel({ frameId }: LayerPanelProps = {}) {
                   }
                 }}
               >
-                <Thumbnail blob={mask.blob} name={mask.name} className="bg-black/20" />
+                <Thumbnail item={mask} bytes={mask.blob} name={mask.name} className="bg-black/20" />
 
                 <div className="flex-1 min-w-0">
                   <p className="text-3xs truncate" title={mask.name}>

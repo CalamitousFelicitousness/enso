@@ -4,6 +4,7 @@
 
 import { BLOBS, JOBS, JOBS_BY_CREATION, META, READERS, STORES } from "@/lib/inputs/storeLayout";
 import {
+  blobCid,
   planSweep,
   readForSweep,
   type Orphans,
@@ -296,6 +297,26 @@ export async function rewriteStore<T>(
   for (const [cid] of fresh) held.add(cid);
   void restoreMissing(outcome.blobs);
   return outcome.result;
+}
+
+/** A stored blob by its key; null when the store has none. */
+export async function readBlob(key: string): Promise<Blob | null> {
+  const db = await open();
+  const blob: unknown = await result(db.transaction(BLOBS, "readonly").objectStore(BLOBS).get(key));
+  if (!(blob instanceof Blob)) return null;
+  if (key === blobCid(key)) held.add(key);
+  return blob;
+}
+
+/** Store a blob that belongs to a cid, such as a picture's thumbnail under
+ * `<cid>/...`: no document names it, and the sweep deletes it with its cid. */
+export async function putBlob(key: string, blob: Blob): Promise<void> {
+  const db = await open();
+  const tx = db.transaction(BLOBS, "readwrite");
+  const done = finished(tx);
+  tx.objectStore(BLOBS).put(blob, key);
+  tx.commit();
+  await done;
 }
 
 /** The keys of a store's records. */
