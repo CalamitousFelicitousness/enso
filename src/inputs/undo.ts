@@ -3,6 +3,8 @@
 // Ctrl+Z while the notice shows.
 
 import { toast } from "sonner";
+import { UNDO_FAILED } from "@/lib/inputs/text";
+import { failureText } from "./quota";
 
 interface Pending {
   id: number;
@@ -77,12 +79,18 @@ export function undoHolds(): string[] {
   return pending?.holds ? [...pending.holds()] : [];
 }
 
-/** Run the pending undo; false when there is none. */
+/** Run the pending undo; false when there is none. An undo that fails says
+ * so, and what it would have undone stands. */
 export async function runUndo(): Promise<boolean> {
   const current = pending;
   if (!current) return false;
   pending = null;
   toast.dismiss(TOAST_ID);
-  await current.run();
+  try {
+    await current.run();
+  } catch (err) {
+    console.error("[inputs] could not undo", err);
+    toast.error(UNDO_FAILED, { description: failureText(err) });
+  }
   return true;
 }

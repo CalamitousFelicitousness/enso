@@ -607,3 +607,4 @@ export const NOT_KEPT_IN_TRASH = "Not kept in the trash: storage is full";
 export const STORAGE_FULL = "Storage is full.";
 export const FULL_WITH_OTHER_TABS =
   "Storage is full. Close the other Enso tabs, then delete again.";
+export const UNDO_FAILED = "Could not undo";
