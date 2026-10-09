@@ -8,13 +8,13 @@ import { settingsSchema, getSettingsMap, metaToSettingDef } from "@/lib/settings
 import { useHfSaveSettings } from "@/api/hooks/useHuggingface";
 import { getParamHelpPlain } from "@/data/parameterHelp";
 import { SettingsSection } from "./SettingsSection";
+import { CommittedSliderRow, SettingRow } from "./SettingRow";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { KeepAlivePanel, KeepAliveSwitch } from "@/components/ui/keep-alive";
 import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
-import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { cn, toDisplayString } from "@/lib/utils";
 import { Save, RotateCcw, Search, ListRestart, Plug, Unplug, Check } from "lucide-react";
@@ -182,55 +182,6 @@ function buildSettingDef(
   };
 }
 
-function SettingRow({
-  label,
-  description,
-  tooltip,
-  inline,
-  children,
-}: {
-  label: string;
-  description?: string;
-  tooltip?: string;
-  inline?: boolean;
-  children: React.ReactNode;
-}) {
-  const labelText = tooltip ? (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <span className="text-xs font-medium cursor-help">{label}</span>
-      </TooltipTrigger>
-      <TooltipContent>{tooltip}</TooltipContent>
-    </Tooltip>
-  ) : (
-    <span className="text-xs font-medium">{label}</span>
-  );
-
-  const labelBlock = (
-    <div className="flex flex-col gap-0.5">
-      {labelText}
-      {description && (
-        <span className="text-3xs text-muted-foreground leading-tight">{description}</span>
-      )}
-    </div>
-  );
-
-  if (inline) {
-    return (
-      <div className="flex items-center justify-between gap-3 group">
-        {labelBlock}
-        {children}
-      </div>
-    );
-  }
-  return (
-    <div className="flex flex-col gap-1">
-      {labelBlock}
-      {children}
-    </div>
-  );
-}
-
 function AppearancePanel() {
   const colorMode = useUiStore((s) => s.colorMode);
   const setColorMode = useUiStore((s) => s.setColorMode);
@@ -347,14 +298,8 @@ function AppearancePanel() {
 function StripLimitRow() {
   const limit = useGenerationStore((s) => s.historyLimit);
   const onStrip = useGenerationStore((s) => s.results.length);
-  // Only a pointer drag shows a value before it commits. A key commits each
-  // step, and Radix reports the change after the commit.
-  const dragging = useRef(false);
-  const [draft, setDraft] = useState<number | null>(null);
-  const shown = draft ?? limit;
 
   const commit = (value: number) => {
-    setDraft(null);
     const previous = useGenerationStore.getState().historyLimit;
     const removed = useGenerationStore.getState().setHistoryLimit(value);
     if (removed.length === 0) return;
@@ -368,32 +313,14 @@ function StripLimitRow() {
   };
 
   return (
-    <SettingRow label={STRIP_LIMIT_LABEL} description={stripLimitText(onStrip, shown)}>
-      <div className="flex items-center gap-2 flex-1">
-        <Slider
-          min={STRIP_LIMIT_MIN}
-          max={STRIP_LIMIT_MAX}
-          step={1}
-          value={[shown]}
-          onPointerDown={() => {
-            dragging.current = true;
-          }}
-          onLostPointerCapture={() => {
-            dragging.current = false;
-            setDraft(null);
-          }}
-          onValueChange={([v]) => {
-            if (dragging.current) setDraft(v);
-          }}
-          onValueCommit={([v]) => commit(v)}
-          aria-label={STRIP_LIMIT_LABEL}
-          className="flex-1"
-        />
-        <span className="text-xs text-muted-foreground font-mono tabular-nums w-14 text-right">
-          {shown}
-        </span>
-      </div>
-    </SettingRow>
+    <CommittedSliderRow
+      label={STRIP_LIMIT_LABEL}
+      value={limit}
+      min={STRIP_LIMIT_MIN}
+      max={STRIP_LIMIT_MAX}
+      describe={(shown) => stripLimitText(onStrip, shown)}
+      onCommit={commit}
+    />
   );
 }
 

@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef } from "react";
-import { useDragStore, INTERNAL_MIME } from "@/stores/dragStore";
-import type { DragPayload } from "@/stores/dragStore";
+import { mimeOf, type DragPayload } from "@/lib/drag";
 
-export function useDragSource(payload: DragPayload) {
+/** Make an element carry a payload when dragged; null leaves it undraggable. */
+export function useDragSource(payload: DragPayload | null) {
   const payloadRef = useRef(payload);
   useEffect(() => {
     payloadRef.current = payload;
@@ -10,20 +10,20 @@ export function useDragSource(payload: DragPayload) {
 
   const onDragStart = useCallback((e: React.DragEvent) => {
     const p = payloadRef.current;
-    e.dataTransfer.setData(INTERNAL_MIME, JSON.stringify(p));
+    if (!p) {
+      e.preventDefault();
+      return;
+    }
+    // An entry carries nothing but itself: no picture another target could take
+    if (p.type === "library-entry") e.dataTransfer.clearData();
+    e.dataTransfer.setData(mimeOf(p), JSON.stringify(p));
     e.dataTransfer.effectAllowed = "copy";
-    // Set a small drag image from the thumbnail if available
     if (p.src) {
       const img = new Image();
       img.src = p.src;
       e.dataTransfer.setDragImage(img, 24, 24);
     }
-    useDragStore.getState().startDrag(p);
   }, []);
 
-  const onDragEnd = useCallback(() => {
-    useDragStore.getState().endDrag();
-  }, []);
-
-  return { draggable: true as const, onDragStart, onDragEnd };
+  return { draggable: payload !== null, onDragStart };
 }

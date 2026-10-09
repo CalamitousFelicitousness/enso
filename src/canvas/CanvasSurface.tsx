@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils";
 import { useDropTarget } from "@/hooks/useDropTarget";
 import { useWindowPaste } from "@/hooks/useWindowPaste";
 import { useKeepAliveVisible } from "@/components/ui/keep-alive";
-import type { DragPayload } from "@/stores/dragStore";
+import type { EntryPayload, ImagePayload } from "@/lib/drag";
 import type { ViewportAdapter } from "./viewportAdapter";
 
 /** A pointer position on the canvas, in container and canvas coordinates. */
@@ -25,7 +25,9 @@ interface CanvasSurfaceProps {
   onDropFiles?: (files: File[], point: SurfacePoint) => void;
   /** What a drop takes. Defaults to images by MIME. */
   acceptFile?: (file: File) => boolean;
-  onDropPayload?: (payload: DragPayload, point: SurfacePoint) => void;
+  onDropImage?: (payload: ImagePayload, point: SurfacePoint) => void;
+  /** A library entry; without this the surface refuses entries. */
+  onDropEntry?: (payload: EntryPayload, point: SurfacePoint) => void;
   onPasteFiles?: (files: File[]) => void;
   className?: string;
 }
@@ -41,7 +43,8 @@ export function CanvasSurface({
   overlay,
   below,
   onDropFiles,
-  onDropPayload,
+  onDropImage,
+  onDropEntry,
   onPasteFiles,
   acceptFile,
   className,
@@ -65,11 +68,17 @@ export function CanvasSurface({
     [viewport],
   );
 
+  const dropImage = useCallback(
+    (payload: ImagePayload, e: React.DragEvent) => onDropImage?.(payload, pointFrom(e)),
+    [onDropImage, pointFrom],
+  );
+  const dropEntry = useCallback(
+    (payload: EntryPayload, e: React.DragEvent) => onDropEntry?.(payload, pointFrom(e)),
+    [onDropEntry, pointFrom],
+  );
   const { isOver, ...dropHandlers } = useDropTarget({
-    onDropPayload: useCallback(
-      (payload: DragPayload, e: React.DragEvent) => onDropPayload?.(payload, pointFrom(e)),
-      [onDropPayload, pointFrom],
-    ),
+    ...(onDropImage ? { onDropImage: dropImage } : {}),
+    ...(onDropEntry ? { onDropEntry: dropEntry } : {}),
     onFilesDrop: useCallback(
       (files: File[], e: React.DragEvent) => onDropFiles?.(files, pointFrom(e)),
       [onDropFiles, pointFrom],

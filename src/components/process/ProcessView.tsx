@@ -14,8 +14,8 @@ import { useComparisonStore } from "@/stores/comparisonStore";
 import { useJobQueueStore, selectProcessActive } from "@/stores/jobStore";
 import { useDropTarget } from "@/hooks/useDropTarget";
 import { useWindowPaste } from "@/hooks/useWindowPaste";
-import { payloadToFile } from "@/lib/sendTo";
-import type { DragPayload } from "@/stores/dragStore";
+import { dropFailed, payloadToFile } from "@/lib/sendTo";
+import type { ImagePayload } from "@/lib/drag";
 import { Button } from "@/components/ui/button";
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
 import { SwipeMode } from "@/components/comparison/SwipeMode";
@@ -60,11 +60,11 @@ export function ProcessView() {
   );
 
   const { isOver, ...dropHandlers } = useDropTarget({
-    onDropPayload: useCallback(
-      (payload: DragPayload) => {
+    onDropImage: useCallback(
+      (payload: ImagePayload) => {
         payloadToFile(payload)
           .then((f: File) => takeFiles([f]))
-          .catch(() => {});
+          .catch(dropFailed);
       },
       [takeFiles],
     ),

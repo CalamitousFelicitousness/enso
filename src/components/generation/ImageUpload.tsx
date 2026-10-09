@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Upload, X } from "lucide-react";
-import { INTERNAL_MIME } from "@/stores/dragStore";
-import { payloadToFile } from "@/lib/sendTo";
-import type { DragPayload } from "@/stores/dragStore";
+import { useDropTarget } from "@/hooks/useDropTarget";
+import { dropFailed, payloadToFile } from "@/lib/sendTo";
+import type { ImagePayload } from "@/lib/drag";
 import { Button } from "@/components/ui/button";
 
 interface ImageUploadProps {
@@ -19,7 +19,6 @@ export function ImageUpload({
   compact = false,
 }: ImageUploadProps) {
   const inputRef = useRef<HTMLInputElement>(null);
-  const [dragOver, setDragOver] = useState(false);
   const [preview, setPreview] = useState<string | null>(() =>
     image ? URL.createObjectURL(image) : null,
   );
@@ -44,35 +43,15 @@ export function ImageUpload({
     [onImageChange, preview],
   );
 
-  const onDrop = useCallback(
-    (e: React.DragEvent) => {
-      e.preventDefault();
-      setDragOver(false);
-      // Check for internal drag payload first
-      const raw = e.dataTransfer.getData(INTERNAL_MIME);
-      if (raw) {
-        try {
-          const payload = JSON.parse(raw) as DragPayload;
-          payloadToFile(payload)
-            .then((f) => handleFile(f))
-            .catch(() => {});
-          return;
-        } catch {
-          /* fall through */
-        }
-      }
-      const file = e.dataTransfer.files?.[0];
-      if (file?.type.startsWith("image/")) handleFile(file);
-    },
-    [handleFile],
-  );
-
-  const onDragOver = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setDragOver(true);
-  }, []);
-
-  const onDragLeave = useCallback(() => setDragOver(false), []);
+  const { isOver: dragOver, ...dropHandlers } = useDropTarget({
+    onDropImage: useCallback(
+      (payload: ImagePayload) => {
+        payloadToFile(payload).then(handleFile).catch(dropFailed);
+      },
+      [handleFile],
+    ),
+    onFileDrop: handleFile,
+  });
 
   const onInputChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -107,9 +86,7 @@ export function ImageUpload({
       <button
         type="button"
         className={`${size} w-full rounded-md border-2 border-dashed flex flex-col items-center justify-center cursor-pointer text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors outline-none focus-visible:ring-ring/50 focus-visible:ring-[3px] ${dragOver ? "border-primary bg-primary/5" : "border-border"}`}
-        onDrop={onDrop}
-        onDragOver={onDragOver}
-        onDragLeave={onDragLeave}
+        {...dropHandlers}
         onClick={() => inputRef.current?.click()}
       >
         <Upload size={compact ? 14 : 16} className="mb-1" />

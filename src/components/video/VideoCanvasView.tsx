@@ -24,8 +24,8 @@ import { FrameHeader } from "@/canvas/panels/FrameHeader";
 import { VideoPlayer } from "@/components/video/VideoPlayer";
 import { VideoCompare } from "@/components/video/VideoCompare";
 import { VideoResultActions } from "@/components/video/VideoResultActions";
-import { payloadToFile } from "@/lib/sendTo";
-import type { DragPayload } from "@/stores/dragStore";
+import { dropFailed, payloadToFile } from "@/lib/sendTo";
+import type { ImagePayload } from "@/lib/drag";
 import { Button } from "@/components/ui/button";
 import { ParamSlider } from "@/components/generation/ParamSlider";
 import { loadImageFile } from "@/lib/image";
@@ -216,12 +216,12 @@ export function VideoCanvasView() {
     [handleFileSelected, hitTestTarget],
   );
 
-  const handleDropPayload = useCallback(
-    (payload: DragPayload, point: SurfacePoint) => {
+  const handleDropImage = useCallback(
+    (payload: ImagePayload, point: SurfacePoint) => {
       const target = hitTestTarget(point);
       payloadToFile(payload)
         .then((f: File) => handleFileSelected(target, f))
-        .catch(() => {});
+        .catch(dropFailed);
     },
     [hitTestTarget, handleFileSelected],
   );
@@ -281,7 +281,7 @@ export function VideoCanvasView() {
     <CanvasSurface
       viewport={videoViewport}
       onDropFiles={handleDropFiles}
-      onDropPayload={handleDropPayload}
+      onDropImage={handleDropImage}
       onPasteFiles={handlePasteFiles}
       acceptFile={acceptDroppedFile}
       below={results.length > 0 ? <VideoCompareStrip /> : null}

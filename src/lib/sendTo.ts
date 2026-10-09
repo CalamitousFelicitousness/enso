@@ -1,3 +1,4 @@
+import { toast } from "sonner";
 import { useVideoStore } from "@/stores/videoStore";
 import { useVideoCanvasStore } from "@/stores/videoCanvasStore";
 import { useProcessStore } from "@/stores/processStore";
@@ -9,7 +10,7 @@ import { loadImageFile, base64ToFile } from "@/lib/image";
 import { addFilesToInputs } from "@/inputs/route";
 import { resolveImageSrc } from "@/lib/utils";
 import { engineToKind } from "@/lib/videoModel";
-import type { DragPayload } from "@/stores/dragStore";
+import type { ImagePayload } from "@/lib/drag";
 import type { LocalVideoModel } from "@/api/types/cloud";
 import type { VideoWireParams } from "@/api/types/wireParams";
 import { browserFileUrl } from "@/api/browserFile";
@@ -203,33 +204,38 @@ export async function sendResultToUpscale(
   sendFrameToUpscale(blob);
 }
 
-export async function payloadToFile(payload: DragPayload): Promise<File> {
-  if (payload.type === "result-image" && payload.resultId != null && payload.imageIndex != null) {
-    const result = useGenerationStore.getState().results.find((r) => r.id === payload.resultId);
-    if (result) {
-      const raw = result.images[payload.imageIndex];
-      if (raw) {
-        const src = resolveImageSrc(raw);
-        if (
-          src.startsWith("data:") ||
-          src.startsWith("blob:") ||
-          src.startsWith("/") ||
-          src.startsWith("http")
-        ) {
-          return fetchRemoteImage(src, "result.png");
-        }
-        // Raw base64 (no data: prefix)
-        return base64ToFile(raw, "result.png");
+/** The picture a drag from a result or the gallery carries, as a file.
+ * Rejects with the reason when it can no longer be had. */
+export async function payloadToFile(payload: ImagePayload): Promise<File> {
+  switch (payload.type) {
+    case "result-image": {
+      const result = useGenerationStore.getState().results.find((r) => r.id === payload.resultId);
+      const raw = result?.images[payload.imageIndex];
+      if (!raw) throw new Error("That result is no longer on the strip");
+      const src = resolveImageSrc(raw);
+      if (
+        src.startsWith("data:") ||
+        src.startsWith("blob:") ||
+        src.startsWith("/") ||
+        src.startsWith("http")
+      ) {
+        return fetchRemoteImage(src, "result.png");
       }
+      // Raw base64 (no data: prefix)
+      return base64ToFile(raw, "result.png");
     }
+    case "gallery-image":
+      return fetchRemoteImage(
+        browserFileUrl(payload.filePath),
+        payload.filePath.split("/").pop() ?? "gallery.png",
+      );
   }
+}
 
-  if (payload.type === "gallery-image" && payload.filePath) {
-    return fetchRemoteImage(
-      browserFileUrl(payload.filePath),
-      payload.filePath.split("/").pop() ?? "gallery.png",
-    );
-  }
-
-  throw new Error("Cannot resolve drag payload to file");
+/** Say why a dropped picture could not be taken. */
+export function dropFailed(err: unknown): void {
+  console.error("[drop] the dropped picture could not be read", err);
+  toast.error("The dropped picture could not be read", {
+    description: err instanceof Error ? err.message : String(err),
+  });
 }

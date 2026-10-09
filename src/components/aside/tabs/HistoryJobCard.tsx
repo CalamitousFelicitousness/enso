@@ -6,7 +6,7 @@ import { useRunAgain } from "@/hooks/useRunAgain";
 import { useJobFact } from "@/inputs/jobs";
 import { historySlots, type HistoryAction } from "@/lib/jobs/cardActions";
 import { jobKind } from "@/lib/jobs/domains";
-import { RESTORE_BOTH, RESTORE_SETTINGS, RUN_AGAIN } from "@/lib/jobs/text";
+import { reasonText, RESTORE_BOTH, RESTORE_SETTINGS, RUN_AGAIN } from "@/lib/jobs/text";
 import { jobTarget, restoreSettings, restoreSettingsAndInputs } from "@/lib/request/restore";
 import { resolveImageSrc } from "@/lib/utils";
 import { useGenerationStore } from "@/stores/generationStore";
@@ -15,7 +15,7 @@ import { useVideoStore } from "@/stores/videoStore";
 import { Badge } from "@/components/ui/badge";
 import { JobWarnings } from "@/components/generation/JobWarnings";
 import { JOB_ICONS } from "./jobIcons";
-import { JobSlot } from "./JobSlot";
+import { ActionSlot } from "@/components/ui/action-slot";
 
 const SLOTS: Record<HistoryAction, { label: string; icon: LucideIcon }> = {
   restoreSettings: { label: RESTORE_SETTINGS, icon: History },
@@ -133,11 +133,11 @@ export function HistoryJobCard({ job }: HistoryJobCardProps) {
       {/* Slots fixed by the job's type, shown on hover or keyboard focus */}
       <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity shrink-0">
         {slots.map((slot) => (
-          <JobSlot
+          <ActionSlot
             key={slot.action}
             label={SLOTS[slot.action].label}
             icon={SLOTS[slot.action].icon}
-            reason={slot.reason}
+            reason={slot.reason && reasonText(slot.reason)}
             busy={busy && slot.action !== "delete"}
             onAct={act[slot.action]}
           />

@@ -11,8 +11,8 @@ import { useCaptionStore } from "@/stores/captionStore";
 import { useGenerationStore } from "@/stores/generationStore";
 import { useDropTarget } from "@/hooks/useDropTarget";
 import { useWindowPaste } from "@/hooks/useWindowPaste";
-import { payloadToFile } from "@/lib/sendTo";
-import type { DragPayload } from "@/stores/dragStore";
+import { dropFailed, payloadToFile } from "@/lib/sendTo";
+import type { ImagePayload } from "@/lib/drag";
 import { useKeepAliveVisible } from "@/components/ui/keep-alive";
 
 export function CaptionView() {
@@ -24,11 +24,11 @@ export function CaptionView() {
   const setImage = useCaptionStore((s) => s.setImage);
 
   const { isOver, ...dropHandlers } = useDropTarget({
-    onDropPayload: useCallback(
-      (payload: DragPayload) => {
+    onDropImage: useCallback(
+      (payload: ImagePayload) => {
         payloadToFile(payload)
           .then((f: File) => setImage(f))
-          .catch(() => {});
+          .catch(dropFailed);
       },
       [setImage],
     ),

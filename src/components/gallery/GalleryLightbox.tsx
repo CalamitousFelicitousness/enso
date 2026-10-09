@@ -46,12 +46,11 @@ export function GalleryLightbox() {
     return browserFileUrl(file.fullPath);
   }, [file]);
 
-  const lightboxDrag = useDragSource({
-    type: "gallery-image",
-    fileId: file?.id,
-    filePath: file?.fullPath,
-    src: thumb?.data,
-  });
+  const lightboxDrag = useDragSource(
+    file
+      ? { type: "gallery-image", fileId: file.id, filePath: file.fullPath, src: thumb?.data }
+      : null,
+  );
 
   // Reset transform on navigation (adjust state during render pattern)
   if (prevIndex !== lightboxIndex) {

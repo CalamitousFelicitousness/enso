@@ -12,8 +12,8 @@ import { useUiStore } from "@/stores/uiStore";
 import { useShortcutScope } from "@/hooks/useShortcutScope";
 import { useShortcut } from "@/hooks/useShortcut";
 import { useKeepAliveVisible } from "@/components/ui/keep-alive";
-import { payloadToFile } from "@/lib/sendTo";
-import type { DragPayload } from "@/stores/dragStore";
+import { dropFailed, payloadToFile } from "@/lib/sendTo";
+import type { ImagePayload } from "@/lib/drag";
 import { CanvasStage } from "@/canvas/CanvasStage";
 import { CanvasToolbar } from "@/canvas/CanvasToolbar";
 import { FramePanels } from "@/canvas/panels/FramePanels";
@@ -72,14 +72,14 @@ export const CanvasView = memo(function CanvasView() {
     [hitTestFrame],
   );
 
-  const handleDropPayload = useCallback(
-    (payload: DragPayload, point: SurfacePoint) => {
+  const handleDropImage = useCallback(
+    (payload: ImagePayload, point: SurfacePoint) => {
       const frameId = hitTestFrame(point);
       payloadToFile(payload)
         .then((f: File) => {
           void addFilesToInputs([f], frameId);
         })
-        .catch(() => {});
+        .catch(dropFailed);
     },
     [hitTestFrame],
   );
@@ -216,7 +216,7 @@ export const CanvasView = memo(function CanvasView() {
     <CanvasSurface
       viewport={mainViewport}
       onDropFiles={handleDropFiles}
-      onDropPayload={handleDropPayload}
+      onDropImage={handleDropImage}
       onPasteFiles={handlePasteFiles}
       overlay={
         <FramePanels

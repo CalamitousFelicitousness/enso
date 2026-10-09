@@ -1,14 +1,22 @@
-import { useState, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 const DEFAULT_BATCH = 40;
 
-export function useProgressiveRender<T>(items: T[], batchSize: number = DEFAULT_BATCH) {
+/** Render a long list in batches: one at once, the next whenever the
+ * sentinel after the last rendered item comes into view. The count goes back
+ * to one batch when `resetKey` changes (by default, whenever the items do);
+ * `reveal(index)` renders up to that item. */
+export function useProgressiveRender<T>(
+  items: readonly T[],
+  batchSize: number = DEFAULT_BATCH,
+  resetKey: unknown = items,
+) {
   const [extraBatches, setExtraBatches] = useState(0);
-  const [prevItems, setPrevItems] = useState(items);
+  const [prevKey, setPrevKey] = useState(resetKey);
   const sentinelRef = useRef<HTMLDivElement>(null);
 
-  if (prevItems !== items) {
-    setPrevItems(items);
+  if (prevKey !== resetKey) {
+    setPrevKey(resetKey);
     if (extraBatches !== 0) setExtraBatches(0);
   }
 
@@ -28,9 +36,17 @@ export function useProgressiveRender<T>(items: T[], batchSize: number = DEFAULT_
     return () => observer.disconnect();
   }, [renderCount, items.length, hasMore]);
 
+  const reveal = useCallback(
+    (index: number) => {
+      setExtraBatches((c) => Math.max(c, Math.ceil((index + 1 - batchSize) / batchSize)));
+    },
+    [batchSize],
+  );
+
   return {
     visibleItems: items.slice(0, renderCount),
     sentinelRef,
     hasMore,
+    reveal,
   };
 }

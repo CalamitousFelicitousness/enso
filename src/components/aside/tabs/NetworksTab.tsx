@@ -14,7 +14,7 @@ import { TYPE_FILTERS, type TypeFilter, type SortMode, type NetworkItem } from "
 import { PAGE_MAP, REFRESH_PAGE_MAP, TYPE_FILTER_LABELS } from "./networks/constants";
 import { isExtraNetwork, isReferenceName } from "./networks/utils";
 import { useNetworkFiltering } from "./networks/useNetworkFiltering";
-import { useProgressiveRender } from "./networks/useProgressiveRender";
+import { useProgressiveRender } from "@/hooks/useProgressiveRender";
 import { useActiveLoraManager } from "./networks/useActiveLoraManager";
 import { MatteCard } from "./networks/MatteCard";
 import { ActiveLoraStack } from "./networks/ActiveLoraStack";
