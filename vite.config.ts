@@ -143,6 +143,8 @@ export default defineConfig(async ({ mode }): Promise<UserConfig> => {
     server: {
       port: devPort,
       allowedHosts: true,
+      // The live suite's outputDir; Vite only ignores Playwright's default test-results/.
+      watch: { ignored: ["**/e2e/.results/**"] },
       proxy: standalone
         ? undefined
         : {
