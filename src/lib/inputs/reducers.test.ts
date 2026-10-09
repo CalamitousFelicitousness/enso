@@ -4,9 +4,11 @@ import {
   addIpMask,
   addPicture,
   applyBake,
+  cloneFrames,
   defaultControl,
   insertFrame,
   insertPicture,
+  isBlank,
   mergeContent,
   moveItem,
   movePicture,
@@ -486,5 +488,87 @@ describe("insertPicture and mergeContent", () => {
     expect(merged.mask.objects.map((m) => m.id)).toEqual(["m"]);
     expect(merged.mask.strokes.map((s) => s.points[0])).toEqual([2, 0]);
     expect(mergeContent(merged, was).pictures.map((p) => p.id)).toEqual(["new", "old"]);
+  });
+});
+
+describe("cloneFrames", () => {
+  const counter = () => {
+    let n = 0;
+    return () => `new-${++n}`;
+  };
+  const sample = (): Frame[] => {
+    const paint: Frame = {
+      ...frame("paint", "initial", layer("a"), layer("b")),
+      mask: { objects: [maskObject("m")], strokes: [] },
+    };
+    const edges: Frame = { ...frame("edges", "control"), link: { frameId: "paint" } };
+    const outside: Frame = { ...frame("other", "control"), link: { frameId: "elsewhere" } };
+    const style: Frame = {
+      ...frame("style", "ipAdapter", picture("s")),
+      ipAdapter: { ...newFrame("style", "ipAdapter").ipAdapter, masks: [picture("r")] },
+    };
+    return [paint, edges, outside, style];
+  };
+
+  it("gives frames, pictures, mask objects and region masks fresh ids and keeps the cids", () => {
+    const { frames } = cloneFrames(sample(), null, counter(), "drop");
+    const ids = frames.flatMap((f) => [
+      f.id,
+      ...f.pictures.map((p) => p.id),
+      ...f.mask.objects.map((m) => m.id),
+      ...f.ipAdapter.masks.map((m) => m.id),
+    ]);
+    expect(ids.every((id) => id.startsWith("new-"))).toBe(true);
+    expect(new Set(ids).size).toBe(ids.length);
+    expect(frames[0].pictures.map((p) => p.cid)).toEqual(["cid-a", "cid-b"]);
+    expect(frames[0].mask.objects[0].cid).toBe("cid-m");
+    expect(frames[3].ipAdapter.masks[0].cid).toBe("cid-r");
+  });
+
+  it("remaps a link inside the clone and drops or keeps one outside it", () => {
+    const dropped = cloneFrames(sample(), null, counter(), "drop");
+    expect(dropped.frames[1].link).toEqual({ frameId: dropped.frames[0].id });
+    expect(dropped.frames[2].link).toBeNull();
+    const kept = cloneFrames(sample(), null, counter(), "keep");
+    expect(kept.frames[1].link).toEqual({ frameId: kept.frames[0].id });
+    expect(kept.frames[2].link).toEqual({ frameId: "elsewhere" });
+  });
+
+  it("moves the Size from pick with its frame and picture, and drops one it cannot follow", () => {
+    const frames = sample();
+    const onPicture = cloneFrames(frames, { frameId: "style", pictureId: "s" }, counter(), "drop");
+    expect(onPicture.sizeSource).toEqual({
+      frameId: onPicture.frameIds.get("style"),
+      pictureId: onPicture.frames[3].pictures[0].id,
+    });
+    const onFrame = cloneFrames(frames, { frameId: "paint", pictureId: null }, counter(), "drop");
+    expect(onFrame.sizeSource).toEqual({ frameId: onFrame.frames[0].id, pictureId: null });
+    expect(
+      cloneFrames(frames, { frameId: "gone", pictureId: null }, counter(), "drop").sizeSource,
+    ).toBeNull();
+    expect(
+      cloneFrames(frames, { frameId: "style", pictureId: "gone" }, counter(), "drop").sizeSource,
+    ).toBeNull();
+  });
+
+  it("leaves the frames it was given as they were", () => {
+    const frames = sample();
+    const before = JSON.stringify(frames);
+    cloneFrames(frames, null, counter(), "drop");
+    expect(JSON.stringify(frames)).toBe(before);
+  });
+});
+
+describe("isBlank", () => {
+  it("is a new Initial frame with nothing in it and nothing set", () => {
+    expect(isBlank(newFrame("x", "initial"))).toBe(true);
+    expect(isBlank(frame("x", "initial", layer("a")))).toBe(false);
+    expect(isBlank(newFrame("x", "reference"))).toBe(false);
+    expect(isBlank({ ...newFrame("x", "initial"), enabled: false })).toBe(false);
+    expect(isBlank({ ...newFrame("x", "initial"), processor: { id: "canny", params: {} } })).toBe(
+      false,
+    );
+    const strokes = [{ points: [0, 0, 1, 1], strokeWidth: 4, tool: "brush" as const }];
+    expect(isBlank({ ...newFrame("x", "initial"), mask: { objects: [], strokes } })).toBe(false);
   });
 });

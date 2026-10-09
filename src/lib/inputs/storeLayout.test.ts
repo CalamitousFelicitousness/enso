@@ -47,6 +47,8 @@ describe("sweep policy", () => {
     const now = 10 * RETENTION_MS;
     const { record: removal } = splitRemoval({
       removedAt: now - RETENTION_MS,
+      cause: "removed",
+      size: { width: 8, height: 8 },
       from: { position: 1, frameId: "f", role: "reference" },
       content: { kind: "picture", index: 0, picture: picture("p") },
     });

@@ -516,13 +516,7 @@ export function readWorking(value: unknown): ReadWorking {
         id: text(item.id, "record.activeItem.id"),
       });
     }),
-    sizeSource: orNull(r.sizeSource, (raw) => {
-      const pick = fields<SizeSourcePick>(raw, "record.sizeSource");
-      return exact(pick, "record.sizeSource", {
-        frameId: text(pick.frameId, "record.sizeSource.frameId"),
-        pictureId: orNull(pick.pictureId, (id) => text(id, "record.sizeSource.pictureId")),
-      });
-    }),
+    sizeSource: orNull(r.sizeSource, (raw) => sizePick(raw, "record.sizeSource")),
     imports: Object.fromEntries(
       Object.entries(imports).map(([source, mark]) => [
         source,
@@ -600,18 +594,27 @@ export function joinSnapshot(
 }
 
 /** What a user action took out of the inputs, kept so it can be brought back:
- * a whole frame at its place in the list, what a clear emptied out of a frame
- * that stays, one picture at its place in a frame, or the whole list a restore
- * replaced. `linkedFrom` names the Control frames that used a removed frame's
- * picture. */
+ * a whole frame at its place in the list, a frame as it was before it was
+ * emptied or replaced, one picture at its place in a frame, or the whole
+ * list. `linkedFrom` names the Control frames that used a removed frame's
+ * picture; `sizeSource` is the list's Size from pick. */
 export type RemovalContent<F, P> =
   | { kind: "frame"; index: number; frame: F; linkedFrom: string[] }
   | { kind: "contents"; frame: F }
   | { kind: "picture"; index: number; picture: P }
-  | { kind: "frames"; frames: F[] };
+  | { kind: "frames"; frames: F[]; sizeSource: SizeSourcePick | null };
+
+/** Why it left: removed, emptied out of a frame or list that stays, or
+ * replaced by a map, a picture, a restore or a recall. */
+export type RemovalCause = "removed" | "cleared" | "replaced";
+
+const CAUSES: readonly RemovalCause[] = ["removed", "cleared", "replaced"];
 
 export interface Removal {
   removedAt: number;
+  cause: RemovalCause;
+  /** The frame size its placements are in; null when it was not recorded. */
+  size: Size | null;
   /** The "Input N" it came from, and that frame's id. */
   from: { position: number; frameId: string; role: FrameRole };
   content: RemovalContent<Frame, Picture>;
@@ -640,13 +643,19 @@ export function splitRemoval(removal: Removal): {
       stored = { ...content, picture: storing(blobs)(content.picture) };
       break;
     case "frames":
-      stored = { kind: "frames", frames: splitInto(content.frames, blobs) };
+      stored = {
+        kind: "frames",
+        frames: splitInto(content.frames, blobs),
+        sizeSource: content.sizeSource && { ...content.sizeSource },
+      };
       break;
   }
   return {
     record: {
       schema: DOCUMENT_SCHEMA,
       removedAt: removal.removedAt,
+      cause: removal.cause,
+      size: removal.size && { ...removal.size },
       from: { ...removal.from },
       content: stored,
     },
@@ -659,12 +668,14 @@ export interface ReadRemoval {
   cids: string[];
 }
 
-const REMOVAL_KINDS: readonly RemovalContent<never, never>["kind"][] = [
-  "frame",
-  "contents",
-  "picture",
-  "frames",
-];
+/** The cause of a record kept before causes were: what each kind was written for then. */
+const KIND_CAUSE: Record<RemovalContent<never, never>["kind"], RemovalCause> = {
+  frame: "removed",
+  contents: "cleared",
+  picture: "removed",
+  frames: "cleared",
+};
+const REMOVAL_KINDS = Object.keys(KIND_CAUSE) as RemovalContent<never, never>["kind"][];
 
 /** A stored removal checked like the working document. */
 export function readRemoval(value: unknown): ReadRemoval {
@@ -706,11 +717,17 @@ export function readRemoval(value: unknown): ReadRemoval {
       frames: list(raw.frames, "removal.content.frames").map((f, i) =>
         reader.frame(f, `removal.content.frames[${i}]`),
       ),
+      sizeSource:
+        raw.sizeSource === undefined
+          ? null
+          : orNull(raw.sizeSource, (pick) => sizePick(pick, "removal.content.sizeSource")),
     });
   }
   const record = exact(r, "removal", {
     schema: DOCUMENT_SCHEMA,
     removedAt: num(r.removedAt, "removal.removedAt"),
+    cause: r.cause === undefined ? KIND_CAUSE[kind] : oneOf(r.cause, CAUSES, "removal.cause"),
+    size: r.size === undefined ? null : orNull(r.size, (raw) => size(raw, "removal.size")),
     from: exact(from, "removal.from", {
       position: num(from.position, "removal.from.position"),
       frameId: text(from.frameId, "removal.from.frameId"),
@@ -739,11 +756,21 @@ export function joinRemoval(
       joined = { ...content, picture: joining(blobs, lost, record.from.frameId)(content.picture) };
       break;
     case "frames":
-      joined = { kind: "frames", frames: joinInto(content.frames, blobs, lost) };
+      joined = {
+        kind: "frames",
+        frames: joinInto(content.frames, blobs, lost),
+        sizeSource: content.sizeSource,
+      };
       break;
   }
   return {
-    removal: { removedAt: record.removedAt, from: { ...record.from }, content: joined },
+    removal: {
+      removedAt: record.removedAt,
+      cause: record.cause,
+      size: record.size,
+      from: { ...record.from },
+      content: joined,
+    },
     lost,
   };
 }
@@ -903,6 +930,14 @@ const DOMAINS: readonly JobDomain[] = [
 ];
 const SOURCE_KINDS: readonly Source["kind"][] = ["composite", "file", "mask", "ipMask", "map"];
 
+function sizePick(value: unknown, path: string): SizeSourcePick {
+  const pick = fields<SizeSourcePick>(value, path);
+  return exact(pick, path, {
+    frameId: text(pick.frameId, `${path}.frameId`),
+    pictureId: orNull(pick.pictureId, (id) => text(id, `${path}.pictureId`)),
+  });
+}
+
 function size(value: unknown, path: string): Size {
   const s = fields<Size>(value, path);
   return exact(s, path, {
@@ -984,13 +1019,7 @@ export function readJob(value: unknown): ReadJob {
     return exact(i, "job.inputs", {
       schema: DOCUMENT_SCHEMA,
       size: size(i.size, "job.inputs.size"),
-      sizeSource: orNull(i.sizeSource, (pickRaw) => {
-        const pick = fields<SizeSourcePick>(pickRaw, "job.inputs.sizeSource");
-        return exact(pick, "job.inputs.sizeSource", {
-          frameId: text(pick.frameId, "job.inputs.sizeSource.frameId"),
-          pictureId: orNull(pick.pictureId, (id) => text(id, "job.inputs.sizeSource.pictureId")),
-        });
-      }),
+      sizeSource: orNull(i.sizeSource, (pick) => sizePick(pick, "job.inputs.sizeSource")),
       frames: read.frames,
     });
   });

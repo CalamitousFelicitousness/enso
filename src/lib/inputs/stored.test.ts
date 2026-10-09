@@ -310,23 +310,35 @@ describe("removal records", () => {
     return [
       {
         removedAt: 1000,
+        cause: "removed",
+        size: { width: 640, height: 448 },
         from: { position: 1, frameId: "paint", role: "initial" },
         content: { kind: "frame", index: 0, frame: paint, linkedFrom: ["edges"] },
       },
       {
         removedAt: 1001,
+        cause: "replaced",
+        size: { width: 640, height: 448 },
         from: { position: 1, frameId: "paint", role: "initial" },
         content: { kind: "contents", frame: paint },
       },
       {
         removedAt: 1002,
+        cause: "removed",
+        size: null,
         from: { position: 2, frameId: "refs", role: "reference" },
         content: { kind: "picture", index: 1, picture: refs.pictures[1] },
       },
       {
         removedAt: 1003,
+        cause: "replaced",
+        size: { width: 512, height: 768 },
         from: { position: 1, frameId: "paint", role: "initial" },
-        content: { kind: "frames", frames: [paint, refs] },
+        content: {
+          kind: "frames",
+          frames: [paint, refs],
+          sizeSource: { frameId: "refs", pictureId: refs.pictures[0].id },
+        },
       },
     ];
   };
@@ -353,7 +365,24 @@ describe("removal records", () => {
     expect(() => readRemoval({ ...record, content: { ...content, extra: 1 } })).toThrow(
       UnreadableDocument,
     );
+    expect(() => readRemoval({ ...record, cause: "lost" })).toThrow(UnreadableDocument);
     expect(() => readRemoval({ ...record, schema: DOCUMENT_SCHEMA + 1 })).toThrow(NewerDocument);
+  });
+
+  it("reads a record kept before causes and sizes were, by what its kind was written for", () => {
+    const causes = removals().map((removal) => {
+      const { record } = splitRemoval(removal);
+      const { cause: _cause, size: _size, ...older } = record;
+      const content =
+        older.content.kind === "frames"
+          ? { kind: "frames", frames: older.content.frames }
+          : older.content;
+      const read = readRemoval({ ...older, content }).record;
+      expect(read.size).toBeNull();
+      if (read.content.kind === "frames") expect(read.content.sizeSource).toBeNull();
+      return read.cause;
+    });
+    expect(causes).toEqual(["removed", "cleared", "removed", "cleared"]);
   });
 
   it("notes a picture whose bytes are gone under the frame it came from", () => {

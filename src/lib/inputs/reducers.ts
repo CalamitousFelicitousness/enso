@@ -1,9 +1,12 @@
 // Every change to the frame list, as functions from one value to the next.
 // The store wraps them; nothing here reads state from anywhere else.
 
+import { canonicalJson } from "./freshness";
 import { centredTransform, fitTransform, refitFrame } from "./geometry";
+import type { SizeSourcePick } from "./outline";
 import {
   composedPictures,
+  holdsContent,
   isComposed,
   isPlaced,
   type ActiveItem,
@@ -61,6 +64,70 @@ export function newFrame(id: string, role: FrameRole): Frame {
     ipAdapter: defaultIpAdapter(),
     processor: null,
   };
+}
+
+/** A frame as a new document starts with: an empty Initial frame with nothing set. */
+export function isBlank(frame: Frame): boolean {
+  return (
+    !holdsContent(frame) &&
+    canonicalJson({ ...frame, id: "" }) === canonicalJson(newFrame("", "initial"))
+  );
+}
+
+/** How a clone treats a link to a frame it does not hold. */
+export type OutsideLinks = "drop" | "keep";
+
+export interface Clone {
+  frames: Frame[];
+  sizeSource: SizeSourcePick | null;
+  /** Each cloned frame's new id, by the id it had. */
+  frameIds: ReadonlyMap<string, string>;
+}
+
+/** The frames under fresh ids: frames, pictures, mask objects and region
+ * masks. Cids stay, so the clone shares bytes and maps. A link or the Size
+ * from pick that names a cloned frame follows it; a link to a frame outside
+ * the clone is dropped or kept as it was, and a pick outside it is dropped. */
+export function cloneFrames(
+  frames: Frame[],
+  sizeSource: SizeSourcePick | null,
+  newId: () => string,
+  outsideLinks: OutsideLinks,
+): Clone {
+  const pairs = frames.map((frame) => [frame, newId()] as const);
+  const frameIds = new Map(pairs.map(([frame, id]) => [frame.id, id]));
+  const pictureIds = new Map<string, ReadonlyMap<string, string>>();
+  const cloned = pairs.map(([frame, id]): Frame => {
+    const ids = new Map<string, string>();
+    pictureIds.set(frame.id, ids);
+    const fresh = <T extends { id: string }>(item: T): T => {
+      const next = newId();
+      ids.set(item.id, next);
+      return { ...item, id: next };
+    };
+    const target = frame.link?.frameId;
+    const moved = target === undefined ? undefined : frameIds.get(target);
+    const link = moved ? { frameId: moved } : outsideLinks === "keep" ? frame.link : null;
+    return {
+      ...frame,
+      id,
+      pictures: frame.pictures.map(fresh),
+      mask: { ...frame.mask, objects: frame.mask.objects.map(fresh) },
+      ipAdapter: { ...frame.ipAdapter, masks: frame.ipAdapter.masks.map(fresh) },
+      link,
+    };
+  });
+  const pickFrame = sizeSource && frameIds.get(sizeSource.frameId);
+  let pick: SizeSourcePick | null = null;
+  if (sizeSource && pickFrame) {
+    const pictureId =
+      sizeSource.pictureId === null
+        ? null
+        : pictureIds.get(sizeSource.frameId)?.get(sizeSource.pictureId);
+    // a pick of a picture the frame no longer holds was already lost
+    if (pictureId !== undefined) pick = { frameId: pickFrame, pictureId };
+  }
+  return { frames: cloned, sizeSource: pick, frameIds };
 }
 
 /** Where a composed frame puts a picture that has none: by its fit policy, else inside the frame. */

@@ -3,6 +3,7 @@
 // an older build has changed since is offered again instead of merged unasked.
 
 import type { ImportNote, LegacyImport } from "./legacy";
+import { cloneFrames } from "./reducers";
 import type { WorkingDocument } from "./stored";
 import { hasMask, type Frame } from "./types";
 
@@ -76,19 +77,18 @@ function idsOf(frames: Frame[]): string[] {
   ]);
 }
 
-/** An import under new ids, for content the document already holds. */
+/** An import under new ids, for content the document already holds. Its
+ * links to the document's own frames stay, as control units link to canvas
+ * frames of another record. */
 function reidentified(imported: LegacyImport, newId: () => string): LegacyImport {
+  const clone = cloneFrames(imported.frames, imported.sizeSource, newId, "keep");
+  const selected = imported.selectedFrameId && clone.frameIds.get(imported.selectedFrameId);
   return {
     ...imported,
-    selectedFrameId: null,
+    frames: clone.frames,
+    sizeSource: clone.sizeSource,
+    selectedFrameId: selected ?? null,
     activeItem: null,
-    sizeSource: null,
-    frames: imported.frames.map((frame) => ({
-      ...frame,
-      id: newId(),
-      pictures: frame.pictures.map((p) => ({ ...p, id: newId() })),
-      mask: { ...frame.mask, objects: frame.mask.objects.map((m) => ({ ...m, id: newId() })) },
-    })),
   };
 }
 

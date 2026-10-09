@@ -122,8 +122,9 @@ interface InputState extends WorkingDocument {
 
   /** The frames a result was made from take the list's place, as they were. */
   restoreFrames: (frames: Frame[]) => void;
-  /** Prepared frames join the end of the list. */
-  appendFrames: (frames: Frame[]) => void;
+  /** Prepared frames join the end of the list, or take the place of a list
+   * of blank frames. False when the model's image limit refused them. */
+  appendFrames: (frames: Frame[]) => boolean;
   setSizeSource: (pick: SizeSourcePick | null) => void;
   /** Fit every frame's content to a new frame size. */
   refitAll: (size: Size) => void;
@@ -432,7 +433,8 @@ export const useInputStore = create<InputState>()(
             })),
           ),
         appendFrames: (added) =>
-          edit((frames) => (added.length === 0 ? frames : [...frames, ...added])),
+          added.length === 0 ||
+          guarded((frames) => (frames.every(reduce.isBlank) ? added : [...frames, ...added])),
         setSizeSource: (pick) => whenReady(() => set({ sizeSource: pick })),
         refitAll: (size) =>
           edit((frames) => {
