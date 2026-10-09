@@ -31,6 +31,13 @@ from enso_api.cloud.models import (
 )
 from enso_api.models import StrictBaseModel
 
+# control_run takes None for these and sdnext then uses its own setting
+SERVER_SETTING = "Unset uses the server's setting."
+ServerBool = Annotated[bool | None, Field(description=SERVER_SETTING)]
+ServerInt = Annotated[int | None, Field(description=SERVER_SETTING)]
+ServerFloat = Annotated[float | None, Field(description=SERVER_SETTING)]
+ServerStr = Annotated[str | None, Field(description=SERVER_SETTING)]
+
 # --- Nested helper models ---------------------------------------------------
 
 
@@ -97,7 +104,7 @@ class JobBase(StrictBaseModel):
 class GuidanceMixin(StrictBaseModel):
     """Guidance under control_run's keyword names, and CLIP skip."""
 
-    cfg_scale: float = 7.0
+    cfg_scale: float = 6.0
     cfg_stop: float = 1.0
     cfg_rescale: float = 0.0
     cfg_image: float = 6.0
@@ -112,7 +119,7 @@ class SeedMixin(StrictBaseModel):
     seed: int = -1
     subseed: int = -1
     subseed_strength: float = 0.0
-    sequential_seed: bool = False
+    sequential_seed: ServerBool = None
 
 
 class BatchMixin(StrictBaseModel):
@@ -126,15 +133,15 @@ class HiresMixin(StrictBaseModel):
     """Hires-fix (latent upscale + second pass)."""
 
     enable_hr: bool = False
-    hr_upscaler: str = "None"
-    hr_scale: float = 2.0
-    hr_second_pass_steps: int = 0
-    hr_denoising_strength: float = 0.5
+    hr_upscaler: ServerStr = None
+    hr_scale: float = 1.0
+    hr_second_pass_steps: int = 20
+    hr_denoising_strength: float = 0.0
     hr_force: bool = False
     hr_resize_mode: int = 0
     hr_resize_x: int = 0
     hr_resize_y: int = 0
-    hr_resize_context: str = ""
+    hr_resize_context: str = "None"
 
 
 class UpscaleAfterMixin(StrictBaseModel):
@@ -150,7 +157,7 @@ class UpscaleAfterMixin(StrictBaseModel):
 class RefinerMixin(StrictBaseModel):
     """Two-stage refiner pass."""
 
-    refiner_steps: int = 0
+    refiner_steps: int = 5
     refiner_start: float = 0.0
     refiner_prompt: str = ""
     refiner_negative: str = ""
@@ -415,7 +422,7 @@ class HdrMixin(StrictBaseModel):
     hdr_maximize: bool = False
     hdr_max_center: float = 0.6
     hdr_max_boundary: float = 1.0
-    hdr_color_picker: str = "#000000"
+    hdr_color_picker: ServerStr = None
     hdr_tint_ratio: float = 0.0
     hdr_apply_hires: bool = True
 
@@ -447,79 +454,79 @@ class GradingMixin(StrictBaseModel):
 class ColorCorrectMixin(StrictBaseModel):
     """img2img color correction (histogram-based)."""
 
-    img2img_color_correction: bool = False
-    color_correction_method: str = "histogram"
-    img2img_background_color: str = "#000000"
-    img2img_fix_steps: bool = False
+    img2img_color_correction: ServerBool = None
+    color_correction_method: ServerStr = None
+    img2img_background_color: ServerStr = None
+    img2img_fix_steps: ServerBool = None
 
 
 class SchedulersMixin(StrictBaseModel):
     """Sampler / scheduler tuning knobs."""
 
-    schedulers_sigma: str = "default"
-    schedulers_timestep_spacing: str = "default"
-    schedulers_beta_schedule: str = "default"
-    schedulers_prediction_type: str = "default"
-    schedulers_shift: float = 3.0
-    schedulers_base_shift: float = 0.5
-    schedulers_max_shift: float = 1.15
-    schedulers_sigma_adjust: float = 1.0
-    schedulers_sigma_adjust_min: float = 0.2
-    schedulers_sigma_adjust_max: float = 1.0
-    schedulers_use_thresholding: bool = False
-    schedulers_dynamic_shift: bool = False
-    schedulers_rescale_betas: bool = False
-    schedulers_use_loworder: bool = True
-    schedulers_timesteps: str = ""
+    schedulers_sigma: ServerStr = None
+    schedulers_timestep_spacing: ServerStr = None
+    schedulers_beta_schedule: ServerStr = None
+    schedulers_prediction_type: ServerStr = None
+    schedulers_shift: ServerFloat = None
+    schedulers_base_shift: ServerFloat = None
+    schedulers_max_shift: ServerFloat = None
+    schedulers_sigma_adjust: ServerFloat = None
+    schedulers_sigma_adjust_min: ServerFloat = None
+    schedulers_sigma_adjust_max: ServerFloat = None
+    schedulers_use_thresholding: ServerBool = None
+    schedulers_dynamic_shift: ServerBool = None
+    schedulers_rescale_betas: ServerBool = None
+    schedulers_use_loworder: ServerBool = None
+    schedulers_timesteps: ServerStr = None
 
 
 class FreeUMixin(StrictBaseModel):
     """FreeU UNet skip-connection rescaling."""
 
-    freeu_enabled: bool = False
-    freeu_b1: float = 1.2
-    freeu_b2: float = 1.4
-    freeu_s1: float = 0.9
-    freeu_s2: float = 0.2
+    freeu_enabled: ServerBool = None
+    freeu_b1: ServerFloat = None
+    freeu_b2: ServerFloat = None
+    freeu_s1: ServerFloat = None
+    freeu_s2: ServerFloat = None
 
 
 class HypertileMixin(StrictBaseModel):
     """HyperTile attention tiling for UNet and VAE."""
 
-    hypertile_unet_enabled: bool = False
-    hypertile_hires_only: bool = False
-    hypertile_unet_tile: int = 0
-    hypertile_unet_min_tile: int = 0
-    hypertile_unet_swap_size: int = 1
-    hypertile_unet_depth: int = 0
-    hypertile_vae_enabled: bool = False
-    hypertile_vae_tile: int = 128
-    hypertile_vae_swap_size: int = 1
+    hypertile_unet_enabled: ServerBool = None
+    hypertile_hires_only: ServerBool = None
+    hypertile_unet_tile: ServerInt = None
+    hypertile_unet_min_tile: ServerInt = None
+    hypertile_unet_swap_size: ServerInt = None
+    hypertile_unet_depth: ServerInt = None
+    hypertile_vae_enabled: ServerBool = None
+    hypertile_vae_tile: ServerInt = None
+    hypertile_vae_swap_size: ServerInt = None
 
 
 class TeaCacheMixin(StrictBaseModel):
     """TeaCache step skipping."""
 
-    teacache_enabled: bool = False
-    teacache_thresh: float = 0.15
+    teacache_enabled: ServerBool = None
+    teacache_thresh: ServerFloat = None
 
 
 class TokenMergeMixin(StrictBaseModel):
     """Token merging (ToMe) and token downsampling (ToDo)."""
 
-    token_merging_method: str = "None"
-    tome_ratio: float = 0.0
-    todo_ratio: float = 0.0
+    token_merging_method: ServerStr = None
+    tome_ratio: ServerFloat = None
+    todo_ratio: ServerFloat = None
 
 
 class LoraMixin(StrictBaseModel):
     """LoRA / extra-network behavior toggles."""
 
-    lora_fuse_native: bool = False
-    lora_fuse_diffusers: bool = False
-    lora_force_reload: bool = False
-    extra_networks_default_multiplier: float = 1.0
-    lora_apply_tags: int = 0
+    lora_fuse_native: ServerBool = None
+    lora_fuse_diffusers: ServerBool = None
+    lora_force_reload: ServerBool = None
+    extra_networks_default_multiplier: ServerFloat = None
+    lora_apply_tags: ServerInt = None
 
 
 class AdvancedMixin(StrictBaseModel):
@@ -534,18 +541,18 @@ class OutputSavingMixin(StrictBaseModel):
     """Per-stage save toggles forwarded to the backend pipeline."""
 
     save_images: bool = True
-    samples_save: bool = True
-    samples_format: str = "png"
-    save_images_before_highres_fix: bool = False
-    save_images_before_refiner: bool = False
-    save_images_before_detailer: bool = False
-    save_images_before_color_correction: bool = False
-    grid_save: bool = False
-    grid_format: str = "png"
-    return_grid: bool = False
-    keep_incomplete: bool = False
-    image_metadata: bool = True
-    jpeg_quality: int = 95
+    samples_save: ServerBool = None
+    samples_format: ServerStr = None
+    save_images_before_highres_fix: ServerBool = None
+    save_images_before_refiner: ServerBool = None
+    save_images_before_detailer: ServerBool = None
+    save_images_before_color_correction: ServerBool = None
+    grid_save: ServerBool = None
+    grid_format: ServerStr = None
+    return_grid: ServerBool = None
+    keep_incomplete: ServerBool = None
+    image_metadata: ServerBool = None
+    jpeg_quality: ServerInt = None
 
 
 class InputProcessParams(StrictBaseModel):
@@ -572,18 +579,18 @@ class Img2ImgMixin(StrictBaseModel):
     mask: str | None = Field(default=None, description="Inpaint mask (upload ref or base64); white = inpaint area")
     skip_processing: bool = Field(default=False, description="Send inputs without server preprocessing (resize-before, mask, control units); a multi-image model takes them as one set in list order")
     input_type: int = 0
-    width_before: int = 512
-    height_before: int = 512
+    width_before: int = 1024
+    height_before: int = 1024
     mask_blur: int = 0
     inpaint_full_res: bool = False
     inpaint_full_res_padding: int = 32
     inpainting_mask_invert: int = 0
-    mask_apply_overlay: bool = True
-    include_mask: bool = False
-    inpainting_mask_weight: float = 1.0
+    mask_apply_overlay: ServerBool = None
+    include_mask: ServerBool = None
+    inpainting_mask_weight: ServerFloat = None
     resize_mode_before: int = 0
     resize_name_before: str = "None"
-    denoising_strength: float = 0.5
+    denoising_strength: float = 0.3
 
 
 class ControlMixin(StrictBaseModel):

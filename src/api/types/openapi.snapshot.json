@@ -2215,7 +2215,7 @@
             "type": "number"
           },
           "cfg_scale": {
-            "default": 7,
+            "default": 6,
             "title": "Cfg Scale",
             "type": "number"
           },
@@ -2236,9 +2236,16 @@
             "type": "integer"
           },
           "color_correction_method": {
-            "default": "histogram",
-            "title": "Color Correction Method",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Unset uses the server's setting.",
+            "title": "Color Correction Method"
           },
           "control": {
             "items": {
@@ -2248,7 +2255,7 @@
             "type": "array"
           },
           "denoising_strength": {
-            "default": 0.5,
+            "default": 0.3,
             "title": "Denoising Strength",
             "type": "number"
           },
@@ -2303,34 +2310,76 @@
             "type": "object"
           },
           "extra_networks_default_multiplier": {
-            "default": 1,
-            "title": "Extra Networks Default Multiplier",
-            "type": "number"
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Unset uses the server's setting.",
+            "title": "Extra Networks Default Multiplier"
           },
           "freeu_b1": {
-            "default": 1.2,
-            "title": "Freeu B1",
-            "type": "number"
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Unset uses the server's setting.",
+            "title": "Freeu B1"
           },
           "freeu_b2": {
-            "default": 1.4,
-            "title": "Freeu B2",
-            "type": "number"
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Unset uses the server's setting.",
+            "title": "Freeu B2"
           },
           "freeu_enabled": {
-            "default": false,
-            "title": "Freeu Enabled",
-            "type": "boolean"
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Unset uses the server's setting.",
+            "title": "Freeu Enabled"
           },
           "freeu_s1": {
-            "default": 0.9,
-            "title": "Freeu S1",
-            "type": "number"
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Unset uses the server's setting.",
+            "title": "Freeu S1"
           },
           "freeu_s2": {
-            "default": 0.2,
-            "title": "Freeu S2",
-            "type": "number"
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Unset uses the server's setting.",
+            "title": "Freeu S2"
           },
           "grading_brightness": {
             "default": 0,
@@ -2428,14 +2477,28 @@
             "type": "number"
           },
           "grid_format": {
-            "default": "png",
-            "title": "Grid Format",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Unset uses the server's setting.",
+            "title": "Grid Format"
           },
           "grid_save": {
-            "default": false,
-            "title": "Grid Save",
-            "type": "boolean"
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Unset uses the server's setting.",
+            "title": "Grid Save"
           },
           "hdr_apply_hires": {
             "default": true,
@@ -2463,9 +2526,16 @@
             "type": "number"
           },
           "hdr_color_picker": {
-            "default": "#000000",
-            "title": "Hdr Color Picker",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Unset uses the server's setting.",
+            "title": "Hdr Color Picker"
           },
           "hdr_max_boundary": {
             "default": 1,
@@ -2513,7 +2583,7 @@
             "type": "integer"
           },
           "height_before": {
-            "default": 512,
+            "default": 1024,
             "title": "Height Before",
             "type": "integer"
           },
@@ -2523,7 +2593,7 @@
             "type": "boolean"
           },
           "hr_denoising_strength": {
-            "default": 0.5,
+            "default": 0,
             "title": "Hr Denoising Strength",
             "type": "number"
           },
@@ -2533,7 +2603,7 @@
             "type": "boolean"
           },
           "hr_resize_context": {
-            "default": "",
+            "default": "None",
             "title": "Hr Resize Context",
             "type": "string"
           },
@@ -2553,89 +2623,194 @@
             "type": "integer"
           },
           "hr_scale": {
-            "default": 2,
+            "default": 1,
             "title": "Hr Scale",
             "type": "number"
           },
           "hr_second_pass_steps": {
-            "default": 0,
+            "default": 20,
             "title": "Hr Second Pass Steps",
             "type": "integer"
           },
           "hr_upscaler": {
-            "default": "None",
-            "title": "Hr Upscaler",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Unset uses the server's setting.",
+            "title": "Hr Upscaler"
           },
           "hypertile_hires_only": {
-            "default": false,
-            "title": "Hypertile Hires Only",
-            "type": "boolean"
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Unset uses the server's setting.",
+            "title": "Hypertile Hires Only"
           },
           "hypertile_unet_depth": {
-            "default": 0,
-            "title": "Hypertile Unet Depth",
-            "type": "integer"
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Unset uses the server's setting.",
+            "title": "Hypertile Unet Depth"
           },
           "hypertile_unet_enabled": {
-            "default": false,
-            "title": "Hypertile Unet Enabled",
-            "type": "boolean"
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Unset uses the server's setting.",
+            "title": "Hypertile Unet Enabled"
           },
           "hypertile_unet_min_tile": {
-            "default": 0,
-            "title": "Hypertile Unet Min Tile",
-            "type": "integer"
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Unset uses the server's setting.",
+            "title": "Hypertile Unet Min Tile"
           },
           "hypertile_unet_swap_size": {
-            "default": 1,
-            "title": "Hypertile Unet Swap Size",
-            "type": "integer"
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Unset uses the server's setting.",
+            "title": "Hypertile Unet Swap Size"
           },
           "hypertile_unet_tile": {
-            "default": 0,
-            "title": "Hypertile Unet Tile",
-            "type": "integer"
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Unset uses the server's setting.",
+            "title": "Hypertile Unet Tile"
           },
           "hypertile_vae_enabled": {
-            "default": false,
-            "title": "Hypertile Vae Enabled",
-            "type": "boolean"
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Unset uses the server's setting.",
+            "title": "Hypertile Vae Enabled"
           },
           "hypertile_vae_swap_size": {
-            "default": 1,
-            "title": "Hypertile Vae Swap Size",
-            "type": "integer"
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Unset uses the server's setting.",
+            "title": "Hypertile Vae Swap Size"
           },
           "hypertile_vae_tile": {
-            "default": 128,
-            "title": "Hypertile Vae Tile",
-            "type": "integer"
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Unset uses the server's setting.",
+            "title": "Hypertile Vae Tile"
           },
           "image_metadata": {
-            "default": true,
-            "title": "Image Metadata",
-            "type": "boolean"
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Unset uses the server's setting.",
+            "title": "Image Metadata"
           },
           "img2img_background_color": {
-            "default": "#000000",
-            "title": "Img2Img Background Color",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Unset uses the server's setting.",
+            "title": "Img2Img Background Color"
           },
           "img2img_color_correction": {
-            "default": false,
-            "title": "Img2Img Color Correction",
-            "type": "boolean"
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Unset uses the server's setting.",
+            "title": "Img2Img Color Correction"
           },
           "img2img_fix_steps": {
-            "default": false,
-            "title": "Img2Img Fix Steps",
-            "type": "boolean"
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Unset uses the server's setting.",
+            "title": "Img2Img Fix Steps"
           },
           "include_mask": {
-            "default": false,
-            "title": "Include Mask",
-            "type": "boolean"
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Unset uses the server's setting.",
+            "title": "Include Mask"
           },
           "inits": {
             "description": "Pre-flattened init images for control-mode workflows",
@@ -2661,9 +2836,16 @@
             "type": "integer"
           },
           "inpainting_mask_weight": {
-            "default": 1,
-            "title": "Inpainting Mask Weight",
-            "type": "number"
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Unset uses the server's setting.",
+            "title": "Inpainting Mask Weight"
           },
           "input_process": {
             "description": "One entry per input image, or empty: the processor Enso runs on it before the job, null for none",
@@ -2701,14 +2883,28 @@
             "type": "array"
           },
           "jpeg_quality": {
-            "default": 95,
-            "title": "Jpeg Quality",
-            "type": "integer"
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Unset uses the server's setting.",
+            "title": "Jpeg Quality"
           },
           "keep_incomplete": {
-            "default": false,
-            "title": "Keep Incomplete",
-            "type": "boolean"
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Unset uses the server's setting.",
+            "title": "Keep Incomplete"
           },
           "live_previews": {
             "default": true,
@@ -2717,24 +2913,52 @@
             "type": "boolean"
           },
           "lora_apply_tags": {
-            "default": 0,
-            "title": "Lora Apply Tags",
-            "type": "integer"
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Unset uses the server's setting.",
+            "title": "Lora Apply Tags"
           },
           "lora_force_reload": {
-            "default": false,
-            "title": "Lora Force Reload",
-            "type": "boolean"
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Unset uses the server's setting.",
+            "title": "Lora Force Reload"
           },
           "lora_fuse_diffusers": {
-            "default": false,
-            "title": "Lora Fuse Diffusers",
-            "type": "boolean"
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Unset uses the server's setting.",
+            "title": "Lora Fuse Diffusers"
           },
           "lora_fuse_native": {
-            "default": false,
-            "title": "Lora Fuse Native",
-            "type": "boolean"
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Unset uses the server's setting.",
+            "title": "Lora Fuse Native"
           },
           "mask": {
             "anyOf": [
@@ -2749,9 +2973,16 @@
             "title": "Mask"
           },
           "mask_apply_overlay": {
-            "default": true,
-            "title": "Mask Apply Overlay",
-            "type": "boolean"
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Unset uses the server's setting.",
+            "title": "Mask Apply Overlay"
           },
           "mask_blur": {
             "default": 0,
@@ -2790,7 +3021,7 @@
             "type": "number"
           },
           "refiner_steps": {
-            "default": 0,
+            "default": 5,
             "title": "Refiner Steps",
             "type": "integer"
           },
@@ -2815,9 +3046,16 @@
             "type": "string"
           },
           "return_grid": {
-            "default": false,
-            "title": "Return Grid",
-            "type": "boolean"
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Unset uses the server's setting.",
+            "title": "Return Grid"
           },
           "sampler_name": {
             "default": "Default",
@@ -2825,14 +3063,28 @@
             "type": "string"
           },
           "samples_format": {
-            "default": "png",
-            "title": "Samples Format",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Unset uses the server's setting.",
+            "title": "Samples Format"
           },
           "samples_save": {
-            "default": true,
-            "title": "Samples Save",
-            "type": "boolean"
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Unset uses the server's setting.",
+            "title": "Samples Save"
           },
           "save_images": {
             "default": true,
@@ -2840,24 +3092,52 @@
             "type": "boolean"
           },
           "save_images_before_color_correction": {
-            "default": false,
-            "title": "Save Images Before Color Correction",
-            "type": "boolean"
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Unset uses the server's setting.",
+            "title": "Save Images Before Color Correction"
           },
           "save_images_before_detailer": {
-            "default": false,
-            "title": "Save Images Before Detailer",
-            "type": "boolean"
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Unset uses the server's setting.",
+            "title": "Save Images Before Detailer"
           },
           "save_images_before_highres_fix": {
-            "default": false,
-            "title": "Save Images Before Highres Fix",
-            "type": "boolean"
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Unset uses the server's setting.",
+            "title": "Save Images Before Highres Fix"
           },
           "save_images_before_refiner": {
-            "default": false,
-            "title": "Save Images Before Refiner",
-            "type": "boolean"
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Unset uses the server's setting.",
+            "title": "Save Images Before Refiner"
           },
           "scale_by_after": {
             "default": 1,
@@ -2865,79 +3145,184 @@
             "type": "number"
           },
           "schedulers_base_shift": {
-            "default": 0.5,
-            "title": "Schedulers Base Shift",
-            "type": "number"
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Unset uses the server's setting.",
+            "title": "Schedulers Base Shift"
           },
           "schedulers_beta_schedule": {
-            "default": "default",
-            "title": "Schedulers Beta Schedule",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Unset uses the server's setting.",
+            "title": "Schedulers Beta Schedule"
           },
           "schedulers_dynamic_shift": {
-            "default": false,
-            "title": "Schedulers Dynamic Shift",
-            "type": "boolean"
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Unset uses the server's setting.",
+            "title": "Schedulers Dynamic Shift"
           },
           "schedulers_max_shift": {
-            "default": 1.15,
-            "title": "Schedulers Max Shift",
-            "type": "number"
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Unset uses the server's setting.",
+            "title": "Schedulers Max Shift"
           },
           "schedulers_prediction_type": {
-            "default": "default",
-            "title": "Schedulers Prediction Type",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Unset uses the server's setting.",
+            "title": "Schedulers Prediction Type"
           },
           "schedulers_rescale_betas": {
-            "default": false,
-            "title": "Schedulers Rescale Betas",
-            "type": "boolean"
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Unset uses the server's setting.",
+            "title": "Schedulers Rescale Betas"
           },
           "schedulers_shift": {
-            "default": 3,
-            "title": "Schedulers Shift",
-            "type": "number"
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Unset uses the server's setting.",
+            "title": "Schedulers Shift"
           },
           "schedulers_sigma": {
-            "default": "default",
-            "title": "Schedulers Sigma",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Unset uses the server's setting.",
+            "title": "Schedulers Sigma"
           },
           "schedulers_sigma_adjust": {
-            "default": 1,
-            "title": "Schedulers Sigma Adjust",
-            "type": "number"
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Unset uses the server's setting.",
+            "title": "Schedulers Sigma Adjust"
           },
           "schedulers_sigma_adjust_max": {
-            "default": 1,
-            "title": "Schedulers Sigma Adjust Max",
-            "type": "number"
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Unset uses the server's setting.",
+            "title": "Schedulers Sigma Adjust Max"
           },
           "schedulers_sigma_adjust_min": {
-            "default": 0.2,
-            "title": "Schedulers Sigma Adjust Min",
-            "type": "number"
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Unset uses the server's setting.",
+            "title": "Schedulers Sigma Adjust Min"
           },
           "schedulers_timestep_spacing": {
-            "default": "default",
-            "title": "Schedulers Timestep Spacing",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Unset uses the server's setting.",
+            "title": "Schedulers Timestep Spacing"
           },
           "schedulers_timesteps": {
-            "default": "",
-            "title": "Schedulers Timesteps",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Unset uses the server's setting.",
+            "title": "Schedulers Timesteps"
           },
           "schedulers_use_loworder": {
-            "default": true,
-            "title": "Schedulers Use Loworder",
-            "type": "boolean"
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Unset uses the server's setting.",
+            "title": "Schedulers Use Loworder"
           },
           "schedulers_use_thresholding": {
-            "default": false,
-            "title": "Schedulers Use Thresholding",
-            "type": "boolean"
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Unset uses the server's setting.",
+            "title": "Schedulers Use Thresholding"
           },
           "script_args": {
             "items": {},
@@ -2955,9 +3340,16 @@
             "type": "integer"
           },
           "sequential_seed": {
-            "default": false,
-            "title": "Sequential Seed",
-            "type": "boolean"
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Unset uses the server's setting.",
+            "title": "Sequential Seed"
           },
           "skip_processing": {
             "default": false,
@@ -2988,14 +3380,28 @@
             "type": "number"
           },
           "teacache_enabled": {
-            "default": false,
-            "title": "Teacache Enabled",
-            "type": "boolean"
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Unset uses the server's setting.",
+            "title": "Teacache Enabled"
           },
           "teacache_thresh": {
-            "default": 0.15,
-            "title": "Teacache Thresh",
-            "type": "number"
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Unset uses the server's setting.",
+            "title": "Teacache Thresh"
           },
           "tiling": {
             "default": false,
@@ -3003,19 +3409,40 @@
             "type": "boolean"
           },
           "todo_ratio": {
-            "default": 0,
-            "title": "Todo Ratio",
-            "type": "number"
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Unset uses the server's setting.",
+            "title": "Todo Ratio"
           },
           "token_merging_method": {
-            "default": "None",
-            "title": "Token Merging Method",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Unset uses the server's setting.",
+            "title": "Token Merging Method"
           },
           "tome_ratio": {
-            "default": 0,
-            "title": "Tome Ratio",
-            "type": "number"
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Unset uses the server's setting.",
+            "title": "Tome Ratio"
           },
           "type": {
             "const": "generate",
@@ -3039,7 +3466,7 @@
             "type": "integer"
           },
           "width_before": {
-            "default": 512,
+            "default": 1024,
             "title": "Width Before",
             "type": "integer"
           }
@@ -11546,7 +11973,7 @@
             "type": "number"
           },
           "cfg_scale": {
-            "default": 7,
+            "default": 6,
             "title": "Cfg Scale",
             "type": "number"
           },
@@ -11567,9 +11994,16 @@
             "type": "integer"
           },
           "color_correction_method": {
-            "default": "histogram",
-            "title": "Color Correction Method",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Unset uses the server's setting.",
+            "title": "Color Correction Method"
           },
           "control": {
             "items": {
@@ -11579,7 +12013,7 @@
             "type": "array"
           },
           "denoising_strength": {
-            "default": 0.5,
+            "default": 0.3,
             "title": "Denoising Strength",
             "type": "number"
           },
@@ -11639,34 +12073,76 @@
             "type": "object"
           },
           "extra_networks_default_multiplier": {
-            "default": 1,
-            "title": "Extra Networks Default Multiplier",
-            "type": "number"
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Unset uses the server's setting.",
+            "title": "Extra Networks Default Multiplier"
           },
           "freeu_b1": {
-            "default": 1.2,
-            "title": "Freeu B1",
-            "type": "number"
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Unset uses the server's setting.",
+            "title": "Freeu B1"
           },
           "freeu_b2": {
-            "default": 1.4,
-            "title": "Freeu B2",
-            "type": "number"
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Unset uses the server's setting.",
+            "title": "Freeu B2"
           },
           "freeu_enabled": {
-            "default": false,
-            "title": "Freeu Enabled",
-            "type": "boolean"
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Unset uses the server's setting.",
+            "title": "Freeu Enabled"
           },
           "freeu_s1": {
-            "default": 0.9,
-            "title": "Freeu S1",
-            "type": "number"
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Unset uses the server's setting.",
+            "title": "Freeu S1"
           },
           "freeu_s2": {
-            "default": 0.2,
-            "title": "Freeu S2",
-            "type": "number"
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Unset uses the server's setting.",
+            "title": "Freeu S2"
           },
           "grading_brightness": {
             "default": 0,
@@ -11764,14 +12240,28 @@
             "type": "number"
           },
           "grid_format": {
-            "default": "png",
-            "title": "Grid Format",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Unset uses the server's setting.",
+            "title": "Grid Format"
           },
           "grid_save": {
-            "default": false,
-            "title": "Grid Save",
-            "type": "boolean"
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Unset uses the server's setting.",
+            "title": "Grid Save"
           },
           "hdr_apply_hires": {
             "default": true,
@@ -11799,9 +12289,16 @@
             "type": "number"
           },
           "hdr_color_picker": {
-            "default": "#000000",
-            "title": "Hdr Color Picker",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Unset uses the server's setting.",
+            "title": "Hdr Color Picker"
           },
           "hdr_max_boundary": {
             "default": 1,
@@ -11849,7 +12346,7 @@
             "type": "integer"
           },
           "height_before": {
-            "default": 512,
+            "default": 1024,
             "title": "Height Before",
             "type": "integer"
           },
@@ -11859,7 +12356,7 @@
             "type": "boolean"
           },
           "hr_denoising_strength": {
-            "default": 0.5,
+            "default": 0,
             "title": "Hr Denoising Strength",
             "type": "number"
           },
@@ -11869,7 +12366,7 @@
             "type": "boolean"
           },
           "hr_resize_context": {
-            "default": "",
+            "default": "None",
             "title": "Hr Resize Context",
             "type": "string"
           },
@@ -11889,84 +12386,182 @@
             "type": "integer"
           },
           "hr_scale": {
-            "default": 2,
+            "default": 1,
             "title": "Hr Scale",
             "type": "number"
           },
           "hr_second_pass_steps": {
-            "default": 0,
+            "default": 20,
             "title": "Hr Second Pass Steps",
             "type": "integer"
           },
           "hr_upscaler": {
-            "default": "None",
-            "title": "Hr Upscaler",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Unset uses the server's setting.",
+            "title": "Hr Upscaler"
           },
           "hypertile_hires_only": {
-            "default": false,
-            "title": "Hypertile Hires Only",
-            "type": "boolean"
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Unset uses the server's setting.",
+            "title": "Hypertile Hires Only"
           },
           "hypertile_unet_depth": {
-            "default": 0,
-            "title": "Hypertile Unet Depth",
-            "type": "integer"
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Unset uses the server's setting.",
+            "title": "Hypertile Unet Depth"
           },
           "hypertile_unet_enabled": {
-            "default": false,
-            "title": "Hypertile Unet Enabled",
-            "type": "boolean"
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Unset uses the server's setting.",
+            "title": "Hypertile Unet Enabled"
           },
           "hypertile_unet_min_tile": {
-            "default": 0,
-            "title": "Hypertile Unet Min Tile",
-            "type": "integer"
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Unset uses the server's setting.",
+            "title": "Hypertile Unet Min Tile"
           },
           "hypertile_unet_swap_size": {
-            "default": 1,
-            "title": "Hypertile Unet Swap Size",
-            "type": "integer"
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Unset uses the server's setting.",
+            "title": "Hypertile Unet Swap Size"
           },
           "hypertile_unet_tile": {
-            "default": 0,
-            "title": "Hypertile Unet Tile",
-            "type": "integer"
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Unset uses the server's setting.",
+            "title": "Hypertile Unet Tile"
           },
           "hypertile_vae_enabled": {
-            "default": false,
-            "title": "Hypertile Vae Enabled",
-            "type": "boolean"
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Unset uses the server's setting.",
+            "title": "Hypertile Vae Enabled"
           },
           "hypertile_vae_swap_size": {
-            "default": 1,
-            "title": "Hypertile Vae Swap Size",
-            "type": "integer"
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Unset uses the server's setting.",
+            "title": "Hypertile Vae Swap Size"
           },
           "hypertile_vae_tile": {
-            "default": 128,
-            "title": "Hypertile Vae Tile",
-            "type": "integer"
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Unset uses the server's setting.",
+            "title": "Hypertile Vae Tile"
           },
           "image_metadata": {
-            "default": true,
-            "title": "Image Metadata",
-            "type": "boolean"
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Unset uses the server's setting.",
+            "title": "Image Metadata"
           },
           "img2img_background_color": {
-            "default": "#000000",
-            "title": "Img2Img Background Color",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Unset uses the server's setting.",
+            "title": "Img2Img Background Color"
           },
           "img2img_color_correction": {
-            "default": false,
-            "title": "Img2Img Color Correction",
-            "type": "boolean"
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Unset uses the server's setting.",
+            "title": "Img2Img Color Correction"
           },
           "img2img_fix_steps": {
-            "default": false,
-            "title": "Img2Img Fix Steps",
-            "type": "boolean"
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Unset uses the server's setting.",
+            "title": "Img2Img Fix Steps"
           },
           "include_grid": {
             "default": true,
@@ -11979,9 +12574,16 @@
             "type": "boolean"
           },
           "include_mask": {
-            "default": false,
-            "title": "Include Mask",
-            "type": "boolean"
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Unset uses the server's setting.",
+            "title": "Include Mask"
           },
           "include_subgrids": {
             "default": false,
@@ -12022,9 +12624,16 @@
             "type": "integer"
           },
           "inpainting_mask_weight": {
-            "default": 1,
-            "title": "Inpainting Mask Weight",
-            "type": "number"
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Unset uses the server's setting.",
+            "title": "Inpainting Mask Weight"
           },
           "input_process": {
             "description": "One entry per input image, or empty: the processor Enso runs on it before the job, null for none",
@@ -12062,14 +12671,28 @@
             "type": "array"
           },
           "jpeg_quality": {
-            "default": 95,
-            "title": "Jpeg Quality",
-            "type": "integer"
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Unset uses the server's setting.",
+            "title": "Jpeg Quality"
           },
           "keep_incomplete": {
-            "default": false,
-            "title": "Keep Incomplete",
-            "type": "boolean"
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Unset uses the server's setting.",
+            "title": "Keep Incomplete"
           },
           "live_previews": {
             "default": true,
@@ -12078,24 +12701,52 @@
             "type": "boolean"
           },
           "lora_apply_tags": {
-            "default": 0,
-            "title": "Lora Apply Tags",
-            "type": "integer"
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Unset uses the server's setting.",
+            "title": "Lora Apply Tags"
           },
           "lora_force_reload": {
-            "default": false,
-            "title": "Lora Force Reload",
-            "type": "boolean"
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Unset uses the server's setting.",
+            "title": "Lora Force Reload"
           },
           "lora_fuse_diffusers": {
-            "default": false,
-            "title": "Lora Fuse Diffusers",
-            "type": "boolean"
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Unset uses the server's setting.",
+            "title": "Lora Fuse Diffusers"
           },
           "lora_fuse_native": {
-            "default": false,
-            "title": "Lora Fuse Native",
-            "type": "boolean"
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Unset uses the server's setting.",
+            "title": "Lora Fuse Native"
           },
           "margin_size": {
             "default": 0,
@@ -12115,9 +12766,16 @@
             "title": "Mask"
           },
           "mask_apply_overlay": {
-            "default": true,
-            "title": "Mask Apply Overlay",
-            "type": "boolean"
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Unset uses the server's setting.",
+            "title": "Mask Apply Overlay"
           },
           "mask_blur": {
             "default": 0,
@@ -12161,7 +12819,7 @@
             "type": "number"
           },
           "refiner_steps": {
-            "default": 0,
+            "default": 5,
             "title": "Refiner Steps",
             "type": "integer"
           },
@@ -12186,9 +12844,16 @@
             "type": "string"
           },
           "return_grid": {
-            "default": false,
-            "title": "Return Grid",
-            "type": "boolean"
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Unset uses the server's setting.",
+            "title": "Return Grid"
           },
           "sampler_name": {
             "default": "Default",
@@ -12196,14 +12861,28 @@
             "type": "string"
           },
           "samples_format": {
-            "default": "png",
-            "title": "Samples Format",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Unset uses the server's setting.",
+            "title": "Samples Format"
           },
           "samples_save": {
-            "default": true,
-            "title": "Samples Save",
-            "type": "boolean"
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Unset uses the server's setting.",
+            "title": "Samples Save"
           },
           "save_images": {
             "default": true,
@@ -12211,24 +12890,52 @@
             "type": "boolean"
           },
           "save_images_before_color_correction": {
-            "default": false,
-            "title": "Save Images Before Color Correction",
-            "type": "boolean"
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Unset uses the server's setting.",
+            "title": "Save Images Before Color Correction"
           },
           "save_images_before_detailer": {
-            "default": false,
-            "title": "Save Images Before Detailer",
-            "type": "boolean"
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Unset uses the server's setting.",
+            "title": "Save Images Before Detailer"
           },
           "save_images_before_highres_fix": {
-            "default": false,
-            "title": "Save Images Before Highres Fix",
-            "type": "boolean"
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Unset uses the server's setting.",
+            "title": "Save Images Before Highres Fix"
           },
           "save_images_before_refiner": {
-            "default": false,
-            "title": "Save Images Before Refiner",
-            "type": "boolean"
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Unset uses the server's setting.",
+            "title": "Save Images Before Refiner"
           },
           "scale_by_after": {
             "default": 1,
@@ -12236,79 +12943,184 @@
             "type": "number"
           },
           "schedulers_base_shift": {
-            "default": 0.5,
-            "title": "Schedulers Base Shift",
-            "type": "number"
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Unset uses the server's setting.",
+            "title": "Schedulers Base Shift"
           },
           "schedulers_beta_schedule": {
-            "default": "default",
-            "title": "Schedulers Beta Schedule",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Unset uses the server's setting.",
+            "title": "Schedulers Beta Schedule"
           },
           "schedulers_dynamic_shift": {
-            "default": false,
-            "title": "Schedulers Dynamic Shift",
-            "type": "boolean"
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Unset uses the server's setting.",
+            "title": "Schedulers Dynamic Shift"
           },
           "schedulers_max_shift": {
-            "default": 1.15,
-            "title": "Schedulers Max Shift",
-            "type": "number"
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Unset uses the server's setting.",
+            "title": "Schedulers Max Shift"
           },
           "schedulers_prediction_type": {
-            "default": "default",
-            "title": "Schedulers Prediction Type",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Unset uses the server's setting.",
+            "title": "Schedulers Prediction Type"
           },
           "schedulers_rescale_betas": {
-            "default": false,
-            "title": "Schedulers Rescale Betas",
-            "type": "boolean"
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Unset uses the server's setting.",
+            "title": "Schedulers Rescale Betas"
           },
           "schedulers_shift": {
-            "default": 3,
-            "title": "Schedulers Shift",
-            "type": "number"
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Unset uses the server's setting.",
+            "title": "Schedulers Shift"
           },
           "schedulers_sigma": {
-            "default": "default",
-            "title": "Schedulers Sigma",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Unset uses the server's setting.",
+            "title": "Schedulers Sigma"
           },
           "schedulers_sigma_adjust": {
-            "default": 1,
-            "title": "Schedulers Sigma Adjust",
-            "type": "number"
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Unset uses the server's setting.",
+            "title": "Schedulers Sigma Adjust"
           },
           "schedulers_sigma_adjust_max": {
-            "default": 1,
-            "title": "Schedulers Sigma Adjust Max",
-            "type": "number"
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Unset uses the server's setting.",
+            "title": "Schedulers Sigma Adjust Max"
           },
           "schedulers_sigma_adjust_min": {
-            "default": 0.2,
-            "title": "Schedulers Sigma Adjust Min",
-            "type": "number"
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Unset uses the server's setting.",
+            "title": "Schedulers Sigma Adjust Min"
           },
           "schedulers_timestep_spacing": {
-            "default": "default",
-            "title": "Schedulers Timestep Spacing",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Unset uses the server's setting.",
+            "title": "Schedulers Timestep Spacing"
           },
           "schedulers_timesteps": {
-            "default": "",
-            "title": "Schedulers Timesteps",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Unset uses the server's setting.",
+            "title": "Schedulers Timesteps"
           },
           "schedulers_use_loworder": {
-            "default": true,
-            "title": "Schedulers Use Loworder",
-            "type": "boolean"
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Unset uses the server's setting.",
+            "title": "Schedulers Use Loworder"
           },
           "schedulers_use_thresholding": {
-            "default": false,
-            "title": "Schedulers Use Thresholding",
-            "type": "boolean"
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Unset uses the server's setting.",
+            "title": "Schedulers Use Thresholding"
           },
           "script_args": {
             "items": {},
@@ -12326,9 +13138,16 @@
             "type": "integer"
           },
           "sequential_seed": {
-            "default": false,
-            "title": "Sequential Seed",
-            "type": "boolean"
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Unset uses the server's setting.",
+            "title": "Sequential Seed"
           },
           "skip_processing": {
             "default": false,
@@ -12359,14 +13178,28 @@
             "type": "number"
           },
           "teacache_enabled": {
-            "default": false,
-            "title": "Teacache Enabled",
-            "type": "boolean"
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Unset uses the server's setting.",
+            "title": "Teacache Enabled"
           },
           "teacache_thresh": {
-            "default": 0.15,
-            "title": "Teacache Thresh",
-            "type": "number"
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Unset uses the server's setting.",
+            "title": "Teacache Thresh"
           },
           "tiling": {
             "default": false,
@@ -12374,19 +13207,40 @@
             "type": "boolean"
           },
           "todo_ratio": {
-            "default": 0,
-            "title": "Todo Ratio",
-            "type": "number"
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Unset uses the server's setting.",
+            "title": "Todo Ratio"
           },
           "token_merging_method": {
-            "default": "None",
-            "title": "Token Merging Method",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Unset uses the server's setting.",
+            "title": "Token Merging Method"
           },
           "tome_ratio": {
-            "default": 0,
-            "title": "Tome Ratio",
-            "type": "number"
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Unset uses the server's setting.",
+            "title": "Tome Ratio"
           },
           "type": {
             "const": "xyz-grid",
@@ -12410,7 +13264,7 @@
             "type": "integer"
           },
           "width_before": {
-            "default": 512,
+            "default": 1024,
             "title": "Width Before",
             "type": "integer"
           },
