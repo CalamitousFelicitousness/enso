@@ -29,6 +29,15 @@ export class Enso {
     await expect(this.canvas.getByText(/^Input/)).toBeVisible();
   }
 
+  /** Load the page again in the same profile. The tutorial shows only until
+   * it is closed once, so it is skipped only when it shows. */
+  async reopen(): Promise<void> {
+    await this.page.reload();
+    await expect(this.canvas.getByText(/^Input/).first()).toBeVisible();
+    const skip = this.page.getByRole("button", { name: "Skip" });
+    if (await skip.isVisible()) await skip.click();
+  }
+
   async openTab(tab: SubTab): Promise<void> {
     const radio = this.page.getByRole("radio", { name: tab, exact: true });
     // Clicking the active tab collapses the Left Panel
@@ -125,6 +134,22 @@ export class Enso {
     await expect(this.leftPanel.getByRole("button", { name: "Remove portrait.jpg" })).toHaveCount(
       files.length,
     );
+  }
+
+  /** Add a ControlNet frame through the Input tab and give it the file. */
+  async addControlFrame(file: string): Promise<void> {
+    await this.openTab("Input");
+    await this.leftPanel.getByRole("button", { name: "Add Input" }).click();
+    await this.page.getByRole("button", { name: "ControlNet", exact: true }).click();
+    const chooser = this.page.waitForEvent("filechooser");
+    await this.leftPanel.getByRole("button", { name: "Add Image" }).click();
+    await (await chooser).setFiles(file);
+  }
+
+  /** Choose an item of a frame's More menu, in its dock on the canvas. */
+  async frameMenu(position: number, item: string): Promise<void> {
+    await this.canvas.getByRole("button", { name: `More actions for Input ${position}` }).click();
+    await this.page.getByRole("menuitem", { name: item }).click();
   }
 
   /** The size the Output frame's header shows, as WxH. */
