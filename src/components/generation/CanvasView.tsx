@@ -13,7 +13,8 @@ import { useShortcutScope } from "@/hooks/useShortcutScope";
 import { useShortcut } from "@/hooks/useShortcut";
 import { useKeepAliveVisible } from "@/components/ui/keep-alive";
 import { dropFailed, payloadToFile } from "@/lib/sendTo";
-import type { ImagePayload } from "@/lib/drag";
+import type { EntryPayload, ImagePayload } from "@/lib/drag";
+import { recallEntry } from "@/inputs/recall";
 import { CanvasStage } from "@/canvas/CanvasStage";
 import { CanvasToolbar } from "@/canvas/CanvasToolbar";
 import { FramePanels } from "@/canvas/panels/FramePanels";
@@ -83,6 +84,11 @@ export const CanvasView = memo(function CanvasView() {
     },
     [hitTestFrame],
   );
+
+  // A library entry joins the inputs wherever it is dropped
+  const handleDropEntry = useCallback((payload: EntryPayload) => {
+    void recallEntry(payload.entryId, "add");
+  }, []);
 
   const handleFileInput = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -217,6 +223,7 @@ export const CanvasView = memo(function CanvasView() {
       viewport={mainViewport}
       onDropFiles={handleDropFiles}
       onDropImage={handleDropImage}
+      onDropEntry={handleDropEntry}
       onPasteFiles={handlePasteFiles}
       overlay={
         <FramePanels

@@ -2,9 +2,9 @@
 // in, and what a new entry is called.
 
 import { planTrim } from "@/lib/trim";
-import type { EntryKind, StoredEntry } from "./stored";
+import type { EntryKind, StoredEntry, StoredPicture } from "./stored";
 import { frameRoleLabel, positionLabel } from "./text";
-import type { Frame } from "./types";
+import { isComposed, type Frame } from "./types";
 
 /** Unpinned entries the library keeps; past it, the least recently used goes to the trash. */
 export const LIBRARY_CAP = 100;
@@ -72,4 +72,20 @@ export function defaultEntryName(
   if (kind === "set") return `Inputs ${stamp(now, timeZone)}`;
   const named = first.pictures[0]?.name.replace(/\.[^.]+$/, "").trim();
   return named || `${positionLabel(position)} (${frameRoleLabel(first)})`;
+}
+
+/** The pictures a card shows for an entry, at most four, and how many more
+ * there are: a composed frame's base picture, a set frame's pictures, or the
+ * first picture of each frame of a set. */
+export function entryThumbs(entry: Pick<StoredEntry, "kind" | "inputs">): {
+  pictures: StoredPicture[];
+  more: number;
+} {
+  const { frames } = entry.inputs;
+  const shown =
+    entry.kind === "set"
+      ? frames.flatMap((f) => f.pictures.slice(0, 1))
+      : (frames[0]?.pictures ?? []);
+  const limit = entry.kind === "frame" && frames[0] && isComposed(frames[0].role) ? 1 : 4;
+  return { pictures: shown.slice(0, limit), more: Math.max(0, shown.length - limit) };
 }

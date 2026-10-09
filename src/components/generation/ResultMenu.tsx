@@ -1,6 +1,7 @@
 import {
   ArchiveRestore,
   ArrowUpCircle,
+  BookmarkPlus,
   Download,
   GitCompare,
   GitCompareArrows,
@@ -11,6 +12,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import type { ReactNode } from "react";
+import { toast } from "sonner";
 import {
   ContextMenu,
   ContextMenuContent,
@@ -21,6 +23,7 @@ import {
 import { useRunAgain } from "@/hooks/useRunAgain";
 import { useJobFact } from "@/inputs/jobs";
 import { hasLegacyInputs } from "@/inputs/legacyResult";
+import { saveInputsAsSet } from "@/inputs/library";
 import { resultActions, type ActionReason } from "@/lib/jobs/cardActions";
 import {
   reasonText,
@@ -123,6 +126,19 @@ export function ResultMenu({
           onSelect={() => {
             if (result.jobId && !running) void runAgain(result.jobId);
           }}
+        />
+        <Item
+          icon={BookmarkPlus}
+          label="Save inputs to the library"
+          reason={reasons.saveInputs}
+          onSelect={() =>
+            void target()
+              .inputs()
+              .then((loaded) => {
+                if (loaded) void saveInputsAsSet(loaded.inputs, loaded.maps);
+                else toast.info(reasonText("notStored"));
+              })
+          }
         />
         <ContextMenuSeparator />
         <Item

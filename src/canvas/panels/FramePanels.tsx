@@ -2,14 +2,15 @@
 // context for frame reorder, the add buttons under each column, and the
 // Output dock.
 
-import { useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { DndContext, PointerSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { Plus } from "lucide-react";
 import { useCanvasStore } from "@/stores/canvasStore";
 import { useGenerationStore } from "@/stores/generationStore";
-import { useOutline } from "@/inputs/useOutline";
+import { useOutlineWithEnv } from "@/inputs/useOutline";
 import { moveFrame } from "@/inputs/edits";
+import { saveFrames } from "@/inputs/library";
 import type { CanvasLayout } from "@/canvas/useCanvasLayout";
 import { INPUTS_FULL_HINT } from "@/inputs/capacity";
 import { useSizeSourceMark } from "@/canvas/useSizeSource";
@@ -47,7 +48,15 @@ export function FramePanels({
   onAddInputFrame,
   onAddControlFrame,
 }: FramePanelsProps) {
-  const outline = useOutline();
+  const { outline, env } = useOutlineWithEnv();
+  // Saving reads the facts the canvas shows maps by, as they are when it runs
+  const envRef = useRef(env);
+  useEffect(() => {
+    envRef.current = env;
+  }, [env]);
+  const saveFrame = useCallback((frameId: string) => {
+    void saveFrames(envRef.current, [frameId]);
+  }, []);
   const hiresEnabled = useGenerationStore((s) => s.hiresEnabled);
   const hiresScale = useGenerationStore((s) => s.hiresScale);
   const hiresResizeX = useGenerationStore((s) => s.hiresResizeX);
@@ -107,6 +116,7 @@ export function FramePanels({
               onAddCell={onAddCell}
               onClearFrame={onClearFrame}
               onRemoveFrame={onRemoveFrame}
+              onSaveFrame={saveFrame}
               canRemove={canRemove}
               atCapacity={layout.inputsAtCapacity}
               sizeSource={sizeSource?.frameId === frame.frameId ? sizeSource : null}

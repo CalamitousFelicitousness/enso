@@ -12,6 +12,7 @@ const QuickSettingsTab = lazy(() =>
 const NetworksTab = lazy(() =>
   import("./tabs/NetworksTab").then((m) => ({ default: m.NetworksTab })),
 );
+const LibraryTab = lazy(() => import("./tabs/LibraryTab").then((m) => ({ default: m.LibraryTab })));
 const ModelsTab = lazy(() => import("./tabs/ModelsTab").then((m) => ({ default: m.ModelsTab })));
 const ProvidersTab = lazy(() =>
   import("./tabs/ProvidersTab").then((m) => ({ default: m.ProvidersTab })),
@@ -31,6 +32,7 @@ const ConsoleTab = lazy(() => import("./tabs/ConsoleTab").then((m) => ({ default
 const TAB_COMPONENTS: Record<string, React.LazyExoticComponent<React.ComponentType>> = {
   "quick-settings": QuickSettingsTab,
   networks: NetworksTab,
+  library: LibraryTab,
   models: ModelsTab,
   providers: ProvidersTab,
   queue: QueueTab,
@@ -47,6 +49,7 @@ const TAB_COMPONENTS: Record<string, React.LazyExoticComponent<React.ComponentTy
 const SELF_SCROLL_TABS = new Set<string>([
   "settings",
   "networks",
+  "library",
   "history",
   "console",
   "models",

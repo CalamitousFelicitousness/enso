@@ -3,17 +3,26 @@
 // no bytes of its own. The cap and the pins are applied inside the write,
 // from what the store holds then, so two tabs cannot both overrun them.
 
+import { useEffect } from "react";
 import { toast } from "sonner";
 import { create } from "zustand";
 import { inputsReady, useInputStore } from "@/stores/inputStore";
 import { useGenerationStore } from "@/stores/generationStore";
-import { defaultEntryName, MAX_PINNED_ENTRIES, overCap, pinned } from "@/lib/inputs/library";
+import { useUiStore } from "@/stores/uiStore";
+import {
+  defaultEntryName,
+  entryThumbs,
+  MAX_PINNED_ENTRIES,
+  overCap,
+  pinned,
+} from "@/lib/inputs/library";
 import { outlineEntry, type OutlineEnv } from "@/lib/inputs/outline";
 import {
   readEntry,
   splitEntry,
   type Entry,
   type EntryKind,
+  type Inputs,
   type StoredEntry,
 } from "@/lib/inputs/stored";
 import { LIBRARY } from "@/lib/inputs/storeLayout";
@@ -26,11 +35,13 @@ import {
   pinLimitText,
   SAVE_FAILED,
   savedText,
+  SHOW_IN_LIBRARY,
 } from "@/lib/inputs/text";
 import { holdsContent, type Frame } from "@/lib/inputs/types";
-import { readAllRecords, rewriteStore, updateRecord } from "./db";
+import { deleteRecords, readAllRecords, rewriteStore, updateRecord } from "./db";
 import { currentMapsOf } from "./maps";
 import { outlineOf } from "./outlineOf";
+import { thumbBlob } from "./thumbs";
 import { offerUndo } from "./undo";
 
 export interface LibraryState {
@@ -117,6 +128,29 @@ function evicted(entries: ReadonlyMap<string, StoredEntry>, now: number): Stored
 
 const NO_BLOBS: ReadonlyMap<string, Blob> = new Map();
 
+/** Open the Library. */
+export function showLibrary(): void {
+  useUiStore.getState().openRightTab("library");
+}
+
+/** Read the library when it comes into view, and again whenever the window
+ * comes back, since another tab may have saved or removed entries. */
+export function useLibrarySync(visible: boolean): void {
+  useEffect(() => {
+    if (!visible) return;
+    void loadLibrary();
+    const again = () => {
+      if (document.visibilityState === "visible") void loadLibrary();
+    };
+    window.addEventListener("focus", again);
+    document.addEventListener("visibilitychange", again);
+    return () => {
+      window.removeEventListener("focus", again);
+      document.removeEventListener("visibilitychange", again);
+    };
+  }, [visible]);
+}
+
 /** Store a new entry and tell it, with what it pushed out of the library. */
 async function storeEntry(
   entry: Entry,
@@ -143,6 +177,13 @@ async function storeEntry(
     return null;
   }
   show([record, ...pushedOut]);
+  // the card's thumbnails now, so the library never opens on pictures to decode
+  for (const picture of entryThumbs(record).pictures) {
+    const file = blobs.get(picture.cid) ?? null;
+    thumbBlob({ cid: picture.cid, file, width: picture.width, height: picture.height }).catch(
+      (err: unknown) => console.warn("[inputs] could not make a thumbnail", err),
+    );
+  }
   toast.success(savedText(record.name), {
     description:
       pushedOut.length > 0
@@ -151,8 +192,53 @@ async function storeEntry(
             retentionDays(),
           )
         : undefined,
+    action: { label: SHOW_IN_LIBRARY, onClick: showLibrary },
   });
   return record;
+}
+
+/** A name for a new set, from when it is saved. */
+function setName(now: number, frames: Frame[]): string {
+  const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  return defaultEntryName("set", frames[0], 1, now, timeZone);
+}
+
+/** Save inputs kept elsewhere, such as the frames a job was sent with, as a
+ * set; `maps` are maps they were sent with, by key, with their bytes. */
+export async function saveInputsAsSet(
+  inputs: Inputs,
+  maps: ReadonlyMap<string, { cid: string; blob: Blob }> = new Map(),
+): Promise<StoredEntry | null> {
+  if (!inputs.frames.some(holdsContent)) {
+    toast.info(NOTHING_TO_SAVE);
+    return null;
+  }
+  const now = Date.now();
+  return storeEntry(
+    {
+      id: crypto.randomUUID(),
+      kind: "set",
+      name: setName(now, inputs.frames),
+      savedAt: now,
+      usedAt: now,
+      pinned: false,
+      trashedAt: null,
+      inputs,
+      maps: Object.fromEntries([...maps].map(([key, map]) => [key, map.cid])),
+    },
+    new Map([...maps.values()].map((map) => [map.cid, map.blob])),
+  );
+}
+
+/** Delete a record this build cannot read, which stops every sweep while it
+ * is there. Its bytes go once nothing names them. */
+export async function deleteUnreadable(key: string): Promise<void> {
+  try {
+    await deleteRecords(LIBRARY, [key]);
+  } catch (err) {
+    console.error("[inputs] could not delete a library record", err);
+  }
+  await loadLibrary();
 }
 
 /** Why these frames cannot be saved, or null. A Control frame that uses
@@ -194,7 +280,10 @@ export async function saveFrames(
     {
       id: crypto.randomUUID(),
       kind,
-      name: defaultEntryName(kind, frames[0], position, now, timeZone),
+      name:
+        kind === "set"
+          ? setName(now, frames)
+          : defaultEntryName(kind, frames[0], position, now, timeZone),
       savedAt: now,
       usedAt: now,
       pinned: false,

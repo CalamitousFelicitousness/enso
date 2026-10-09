@@ -1,12 +1,13 @@
 // The Input tab: the outline of the input document, what keeps the request
 // from being built, and the inspector of the selected frame.
 
-import { Locate } from "lucide-react";
+import { BookmarkPlus, Locate } from "lucide-react";
 import { useInputStore } from "@/stores/inputStore";
 import { useModelCapabilities } from "@/hooks/useModelCapabilities";
 import { Button } from "@/components/ui/button";
 import { SectionDivider } from "@/components/ui/section-leader";
 import { useOutlineWithEnv } from "@/inputs/useOutline";
+import { saveFrames } from "@/inputs/library";
 import { applyFix } from "@/inputs/processing";
 import { revealFrame } from "@/inputs/reveal";
 import { outlineEntry, type Outline } from "@/lib/inputs/outline";
@@ -16,6 +17,8 @@ import {
   positionLabel,
   problemText,
   roleLabel,
+  SAVE_FRAME,
+  SAVE_SET,
 } from "@/lib/inputs/text";
 import { AddFrameMenu } from "./input/AddFrameMenu";
 import { FrameInspector } from "./input/FrameInspector";
@@ -55,9 +58,21 @@ export function InputTab() {
 
   return (
     <div className="flex flex-col gap-3 text-sm">
-      <div className="flex items-center justify-between">
-        <span className="text-2xs font-medium uppercase tracking-wider text-muted-foreground">
-          Inputs
+      <div className="flex items-center justify-between gap-2">
+        <span className="flex items-center gap-1">
+          <span className="text-2xs font-medium uppercase tracking-wider text-muted-foreground">
+            Inputs
+          </span>
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            className="text-muted-foreground"
+            onClick={() => void saveFrames(env, "all")}
+            title={SAVE_SET}
+            aria-label={SAVE_SET}
+          >
+            <BookmarkPlus size={11} />
+          </Button>
         </span>
         <span className="font-mono text-2xs tabular-nums text-foreground">
           {summaryText(outline, maxInputImages)}
@@ -98,16 +113,28 @@ export function InputTab() {
               {positionLabel(selected.position)}
               <span className="text-muted-foreground"> · {selectedRole}</span>
             </span>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-5 px-1.5 text-3xs text-muted-foreground"
-              onClick={() => revealFrame(selected.frameId)}
-              title="Bring this frame into view on the canvas"
-            >
-              <Locate size={11} />
-              Show on canvas
-            </Button>
+            <span className="flex items-center gap-1">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-5 px-1.5 text-3xs text-muted-foreground"
+                onClick={() => void saveFrames(env, [selected.frameId])}
+                title="Save this frame to the library"
+              >
+                <BookmarkPlus size={11} />
+                {SAVE_FRAME}
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-5 px-1.5 text-3xs text-muted-foreground"
+                onClick={() => revealFrame(selected.frameId)}
+                title="Bring this frame into view on the canvas"
+              >
+                <Locate size={11} />
+                Show on canvas
+              </Button>
+            </span>
           </div>
           <FrameInspector frameId={selected.frameId} />
         </>

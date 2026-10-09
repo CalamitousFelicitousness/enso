@@ -373,3 +373,57 @@ export function entryLine(
   const role = frame ? frameRoleLabel(frame) : "";
   return `Frame · ${role} · ${plural(pictures, "picture", "pictures")}`;
 }
+
+export const ADD_TO_INPUTS = "Add to inputs";
+export const REPLACE_INPUTS = "Replace inputs";
+export const PIN_ENTRY = "Pin";
+export const UNPIN_ENTRY = "Unpin";
+export const REMOVE_ENTRY = "Remove";
+export const RENAME_ENTRY = "Rename";
+export const SAVE_TO_LIBRARY = "Save to library";
+export const SAVE_FRAME = "Save frame";
+export const SAVE_SET = "Save these inputs as a set";
+export const DUPLICATE_FRAME = "Duplicate";
+export const NOTHING_TO_DUPLICATE = "Nothing to duplicate";
+export const LIBRARY_EMPTY =
+  "Nothing saved yet. Save a frame from the bar above it, or the inputs from the Input tab.";
+export const LIBRARY_NO_MATCH = "No saved inputs match the search";
+export const NEWER_ENTRY = "Saved by a newer version of Enso";
+export const DELETE_ENTRY = "Delete";
+
+/** What clicking a card does, short: a frame is added, a set takes the inputs' place. */
+export function entryVerb(kind: "frame" | "set"): string {
+  return kind === "set" ? "Replaces inputs" : "Adds to inputs";
+}
+
+/** What clicking a card does, in full. */
+export function entryVerbHint(kind: "frame" | "set"): string {
+  return kind === "set"
+    ? "Clicking the card puts this set in the place of the inputs"
+    : "Clicking the card adds this frame after the inputs";
+}
+
+/** A card's accessible name: '"Portrait", set of 4 inputs, pinned; Enter replaces the inputs'. */
+export function entryName(
+  name: string,
+  kind: "frame" | "set",
+  frames: readonly (Pick<Frame, "role" | "control"> & { pictures: readonly unknown[] })[],
+  pinned: boolean,
+): string {
+  const what =
+    kind === "set"
+      ? `set of ${plural(frames.length, "input", "inputs")}`
+      : `${frames[0] ? frameRoleLabel(frames[0]) : "empty"} frame, ${plural(frames[0]?.pictures.length ?? 0, "picture", "pictures")}`;
+  const verb = kind === "set" ? "Enter replaces the inputs" : "Enter adds it to the inputs";
+  return `"${name}", ${what}${pinned ? ", pinned" : ""}; ${verb}`;
+}
+
+/** "38 of 100 · 4 pinned": the unpinned entries against the cap, and the pins. */
+export function libraryCountText(unpinned: number, cap: number, pinned: number): string {
+  return pinned > 0 ? `${unpinned} of ${cap} · ${pinned} pinned` : `${unpinned} of ${cap}`;
+}
+
+/** "no model": a not-sent reason short enough for a header chip. */
+export function notSentReason(reason: NotSentReason): string {
+  return NOT_SENT[reason];
+}

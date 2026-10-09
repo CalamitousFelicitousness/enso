@@ -1,5 +1,6 @@
 import type { LucideIcon } from "lucide-react";
 import {
+  BookMarked,
   ImageIcon,
   Video,
   Sparkles,
@@ -57,6 +58,7 @@ export interface ExternalLink {
 export type RightTab =
   | "quick-settings"
   | "networks"
+  | "library"
   | "models"
   | "providers"
   | "queue"
@@ -77,6 +79,7 @@ export interface RightTabItem {
 export const RIGHT_TABS: RightTabItem[] = [
   { id: "quick-settings", label: "Quick Settings", icon: Gauge },
   { id: "networks", label: "Networks", icon: LayoutGrid },
+  { id: "library", label: "Library", icon: BookMarked },
   { id: "models", label: "Models", icon: Box },
   { id: "providers", label: "Providers", icon: CloudCog },
   { id: "queue", label: "Queue", icon: ListOrdered, hasSeparatorAfter: true },

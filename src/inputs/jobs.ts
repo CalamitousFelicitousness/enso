@@ -229,7 +229,11 @@ export async function loadJobForReplay(id: string): Promise<ReplayLoad | null> {
 export interface LoadedInputs {
   inputs: Inputs;
   lost: JoinLoss;
+  /** The maps the job sent as pictures, by key, with their bytes. */
+  maps: ReadonlyMap<string, { cid: string; blob: Blob }>;
 }
+
+const NO_MAPS: LoadedInputs["maps"] = new Map();
 
 /** The frames a result's job was sent with, with their bytes: from the job's
  * record, else from the snapshot an older build kept beside the result; null
@@ -240,8 +244,16 @@ export async function loadJobInputs(result: {
 }): Promise<LoadedInputs | null> {
   if (result.jobId) {
     const stored = await readDocument<ReadJob>(JOBS, result.jobId, readJob, (read) => read.cids);
-    const inputs = stored?.document.record.inputs;
-    if (stored) return inputs ? joinInputs(inputs, stored.blobs) : null;
+    const record = stored?.document.record;
+    if (stored && record) {
+      if (!record.inputs) return null;
+      const maps = new Map<string, { cid: string; blob: Blob }>();
+      for (const [key, cid] of Object.entries(record.maps)) {
+        const blob = stored.blobs.get(cid);
+        if (blob) maps.set(key, { cid, blob });
+      }
+      return { ...joinInputs(record.inputs, stored.blobs), maps };
+    }
   }
   if (result.inputsKey) {
     const stored = await readDocument<ReadSnapshot>(
@@ -252,7 +264,7 @@ export async function loadJobInputs(result: {
     );
     if (stored) {
       const { frames, size, lost } = joinSnapshot(stored.document.record, stored.blobs);
-      return { inputs: { frames, size, sizeSource: null }, lost };
+      return { inputs: { frames, size, sizeSource: null }, lost, maps: NO_MAPS };
     }
   }
   return null;

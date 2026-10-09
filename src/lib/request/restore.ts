@@ -43,7 +43,7 @@ export function resultTarget(result: GenerationResult, imageIndex: number): Rest
       const stored = await loadJobInputs(result);
       if (stored || !hasLegacyInputs(result)) return stored;
       const legacy = await legacyResultInputs(result);
-      return legacy && { inputs: legacy, lost: { pictures: [], maskObjects: 0 } };
+      return legacy && { inputs: legacy, lost: { pictures: [], maskObjects: 0 }, maps: new Map() };
     },
   };
 }

@@ -16,7 +16,13 @@ import { refitFrame } from "@/lib/inputs/geometry";
 import { cloneFrames, isBlank, newFrame } from "@/lib/inputs/reducers";
 import { addressChanges } from "@/lib/inputs/renumber";
 import type { Inputs, Removal } from "@/lib/inputs/stored";
-import { addedText, positionLabel, renumberText } from "@/lib/inputs/text";
+import {
+  addedText,
+  duplicatedText,
+  NOTHING_TO_DUPLICATE,
+  positionLabel,
+  renumberText,
+} from "@/lib/inputs/text";
 import {
   composedPictures,
   holdsContent,
@@ -424,6 +430,20 @@ export function addFrames(
   revealFrame(frames[0].id);
   offerUndo(title(positions), null, undo);
   return true;
+}
+
+/** A copy of a frame after the last one, under new ids and keeping its link,
+ * with Undo. False when there was nothing to copy or the model's limit refused it. */
+export function duplicateFrame(frameId: string): boolean {
+  const frame = useInputStore.getState().frames.find((f) => f.id === frameId);
+  if (!frame) return false;
+  if (isBlank(frame)) {
+    toast.info(NOTHING_TO_DUPLICATE);
+    return false;
+  }
+  const from = positionOf(frameId);
+  const [copy] = cloneFrames([frame], null, () => crypto.randomUUID(), "keep").frames;
+  return addFrames([copy], ([to]) => duplicatedText(from, to ?? from + 1));
 }
 
 /** Add a frame at the end of the list, give a Control frame its type, and

@@ -5,8 +5,26 @@
 
 import { useState } from "react";
 import { useSortable } from "@dnd-kit/sortable";
-import { Eye, GripVertical, ImagePlus, Info, Scan, Settings, Trash2, X } from "lucide-react";
+import {
+  BookmarkPlus,
+  Copy,
+  Eraser,
+  Eye,
+  GripVertical,
+  ImagePlus,
+  Info,
+  MoreHorizontal,
+  Scan,
+  Settings,
+  X,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { KeepAlivePanel, KeepAliveSwitch } from "@/components/ui/keep-alive";
 import { DockTab, FrameHeader, InfoLine } from "./FrameHeader";
 import { frameColor } from "@/canvas/frameColors";
@@ -14,10 +32,13 @@ import { useInputStore } from "@/stores/inputStore";
 import type { OutlineEntry, SizeSourcePick } from "@/lib/inputs/outline";
 import {
   controlTypeLabel,
+  DUPLICATE_FRAME,
   linkedLabel,
   notSentLabel,
+  notSentReason,
   positionLabel,
   roleLabel,
+  SAVE_TO_LIBRARY,
   sentLabel,
 } from "@/lib/inputs/text";
 import { composedPictures } from "@/lib/inputs/types";
@@ -28,7 +49,7 @@ import { FrameInspector } from "@/components/generation/tabs/input/FrameInspecto
 import { RoleToggle } from "@/components/generation/tabs/input/RoleToggle";
 import type { ViewportState } from "@/canvas/viewportBus";
 import { INPUTS_FULL_HINT } from "@/inputs/capacity";
-import { removePicture } from "@/inputs/edits";
+import { duplicateFrame, removePicture } from "@/inputs/edits";
 import { MapLine } from "./MapLine";
 
 interface FrameDockProps {
@@ -44,6 +65,8 @@ interface FrameDockProps {
   onAddCell?: ((frameId: string) => void) | undefined;
   onClearFrame?: ((frameId: string) => void) | undefined;
   onRemoveFrame?: ((frameId: string) => void) | undefined;
+  /** Save the frame to the library. */
+  onSaveFrame?: ((frameId: string) => void) | undefined;
   canRemove?: boolean | undefined;
   /** The input frames hold as many images as the active model takes. */
   atCapacity?: boolean | undefined;
@@ -79,6 +102,7 @@ export function FrameDock({
   onAddCell,
   onClearFrame,
   onRemoveFrame,
+  onSaveFrame,
   canRemove = true,
   atCapacity = false,
   sizeSource = null,
@@ -108,7 +132,7 @@ export function FrameDock({
   // The control type names the role; the header has no room for both
   const roleText =
     role === "control" && storeFrame ? controlTypeLabel(storeFrame.control.type) : roleLabel(role);
-  const label = `${positionLabel(entry.position)} (${roleText})`;
+  const label = positionLabel(entry.position);
   // Control and IP-Adapter headers carry their state chip instead of a size
   const sizeText =
     role === "initial" || role === "reference"
@@ -157,34 +181,37 @@ export function FrameDock({
     );
   };
 
-  const status = (
-    <>
-      {entry.hiddenBySwitch > 0 && (
-        <button
-          type="button"
-          onClick={() => showHiddenBySwitch(frame.frameId)}
-          title={
-            isSet
-              ? "Layers of this frame's composed role, hidden while it sends a set and not sent. Click to show them as pictures of the set."
-              : "Pictures hidden when this frame became composed; they are not sent. Click to show them as layers."
-          }
-          className="shrink-0 rounded-full bg-amber-500/15 px-1.5 text-[10px] font-medium text-amber-400 hover:bg-amber-500/25"
-        >
-          {entry.hiddenBySwitch} hidden
-        </button>
-      )}
-      {entry.notSent && (
-        <span className="shrink-0 rounded-full bg-amber-500/15 px-1.5 text-[10px] font-medium text-amber-400">
-          {notSentLabel(entry.notSent)}
-        </span>
-      )}
-      {entry.linkedTo !== null && (
-        <span className="shrink-0 rounded-full bg-white/5 px-1.5 text-[10px] font-medium text-muted-foreground">
-          {linkedLabel(entry.linkedTo)}
-        </span>
-      )}
-    </>
-  );
+  // One state chip, the most pressing: what keeps the frame from being sent,
+  // then pictures a role switch hid, then the frame whose picture it uses.
+  // The header has room for one beside the label; the Info tab lists them all.
+  const status = entry.notSent ? (
+    <span
+      title={notSentLabel(entry.notSent)}
+      className="shrink-0 rounded-full bg-amber-500/15 px-1.5 text-[10px] font-medium text-amber-400"
+    >
+      {notSentReason(entry.notSent)}
+    </span>
+  ) : entry.hiddenBySwitch > 0 ? (
+    <button
+      type="button"
+      onClick={() => showHiddenBySwitch(frame.frameId)}
+      title={
+        isSet
+          ? "Layers of this frame's composed role, hidden while it sends a set and not sent. Click to show them as pictures of the set."
+          : "Pictures hidden when this frame became composed; they are not sent. Click to show them as layers."
+      }
+      className="shrink-0 rounded-full bg-amber-500/15 px-1.5 text-[10px] font-medium text-amber-400 hover:bg-amber-500/25"
+    >
+      {entry.hiddenBySwitch} hidden
+    </button>
+  ) : entry.linkedTo !== null ? (
+    <span
+      title={linkedLabel(entry.linkedTo)}
+      className="shrink-0 rounded-full bg-white/5 px-1.5 text-[10px] font-medium text-muted-foreground"
+    >
+      {linkedLabel(entry.linkedTo)}
+    </span>
+  ) : null;
 
   const roleToggle = (
     <RoleToggle role={role} onChange={(option) => switchRole(frame.frameId, option)} />
@@ -219,14 +246,33 @@ export function FrameDock({
       >
         <ImagePlus size={12} />
       </Button>
-      <Button
-        variant="ghost"
-        size="icon-xs"
-        title={isSet ? "Clear all pictures" : "Clear all layers"}
-        onClick={handleClear}
-      >
-        <Trash2 size={12} />
-      </Button>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            title="More actions"
+            aria-label={`More actions for ${positionLabel(entry.position)}`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <MoreHorizontal size={12} />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-44">
+          <DropdownMenuItem className="text-2xs" onSelect={() => onSaveFrame?.(frame.frameId)}>
+            <BookmarkPlus size={14} />
+            {SAVE_TO_LIBRARY}
+          </DropdownMenuItem>
+          <DropdownMenuItem className="text-2xs" onSelect={() => duplicateFrame(frame.frameId)}>
+            <Copy size={14} />
+            {DUPLICATE_FRAME}
+          </DropdownMenuItem>
+          <DropdownMenuItem className="text-2xs" onSelect={handleClear}>
+            <Eraser size={14} />
+            {isSet ? "Clear all pictures" : "Clear all layers"}
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
       <Button
         variant="ghost"
         size="icon-xs"
@@ -284,6 +330,10 @@ export function FrameDock({
         </>
       )}
       {entry.notSent && <InfoLine label="State" value={notSentLabel(entry.notSent)} />}
+      {entry.linkedTo !== null && <InfoLine label="Picture" value={linkedLabel(entry.linkedTo)} />}
+      {entry.hiddenBySwitch > 0 && (
+        <InfoLine label="Hidden by a role switch" value={String(entry.hiddenBySwitch)} />
+      )}
       {unreadable > 0 && <InfoLine label="Could not be read" value={String(unreadable)} />}
     </div>
   );
@@ -305,6 +355,7 @@ export function FrameDock({
         mode="panel"
         color={accent}
         label={label}
+        labelDetail={roleText}
         labelAdornment={
           role === "initial" && sizeSource && sizeSource.pictureId === null ? (
             <SizeSourceBadge />

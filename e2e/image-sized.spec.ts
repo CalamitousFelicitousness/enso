@@ -49,5 +49,5 @@ test("switching the Reference to Initial unlocks Size", async ({ page }) => {
   await app.leftPanel.getByRole("button", { name: "switch Input 1 to Initial" }).click();
 
   await expect(app.slider("Width")).not.toHaveAttribute("aria-disabled", "true");
-  await expect(app.canvas.getByText(/^Input 1 \(Initial/)).toBeVisible();
+  await expect(app.canvas.getByRole("group", { name: "Input 1 Initial" })).toBeVisible();
 });

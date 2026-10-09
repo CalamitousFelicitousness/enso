@@ -201,6 +201,7 @@ describe("resultActions", () => {
       restoreInputs: null,
       restoreBoth: null,
       runAgain: null,
+      saveInputs: null,
     });
   });
 
@@ -210,12 +211,14 @@ describe("resultActions", () => {
       restoreInputs: "notStored",
       restoreBoth: "notStored",
       runAgain: "notStored",
+      saveInputs: "notStored",
     });
     expect(resultActions({ jobId: null, type: null, legacyInputs: false }, null)).toEqual({
       restoreSettings: null,
       restoreInputs: "olderResult",
       restoreBoth: "olderResult",
       runAgain: "olderResult",
+      saveInputs: "olderResult",
     });
     // an older build that kept the inputs beside the result
     expect(

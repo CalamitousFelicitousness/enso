@@ -130,7 +130,8 @@ export function queueSlots(
   ];
 }
 
-export type ResultAction = "restoreSettings" | "restoreInputs" | "restoreBoth" | "runAgain";
+export type ResultAction =
+  "restoreSettings" | "restoreInputs" | "restoreBoth" | "runAgain" | "saveInputs";
 
 export interface ResultFacts {
   /** The job the result came from; null for a result of an older build. */
@@ -159,6 +160,7 @@ export function resultActions(
   return {
     restoreSettings: settings,
     restoreInputs: inputs,
+    saveInputs: inputs,
     restoreBoth: settings ?? inputs,
     runAgain,
   };

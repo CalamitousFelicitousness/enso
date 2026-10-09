@@ -1,11 +1,12 @@
 // Palette entries for the input frames: one per role, which goes to the
-// first frame of that role or adds one, and the pending undo.
+// first frame of that role or adds one, processing, and saving to the library.
 
-import { Crosshair, Image, Images, Sparkles, Wand2 } from "lucide-react";
+import { BookmarkPlus, Crosshair, Image, Images, Sparkles, Wand2 } from "lucide-react";
 import { useRegisterCommand } from "@/lib/commandRegistry";
 import { useInputStore } from "@/stores/inputStore";
 import { useUiStore } from "@/stores/uiStore";
 import { addFrame } from "@/inputs/edits";
+import { saveFrames } from "@/inputs/library";
 import { processNow } from "@/inputs/processing";
 import { revealFrame } from "@/inputs/reveal";
 
@@ -30,6 +31,31 @@ export function useInputCommands(enabled: boolean): void {
       keywords: ["process", "preprocess", "map", "depth", "canny", "pose", "processor"],
       icon: Wand2,
       run: () => void processNow(env, "all", "Processing the inputs"),
+    },
+    enabled,
+  );
+  useRegisterCommand(
+    {
+      id: "inputs:save-set",
+      label: "Save the inputs to the library",
+      group: "Inputs",
+      keywords: ["library", "save", "keep", "set", "bookmark", "favourite", "preset"],
+      icon: BookmarkPlus,
+      run: () => void saveFrames(env, "all"),
+    },
+    enabled,
+  );
+  useRegisterCommand(
+    {
+      id: "inputs:save-frame",
+      label: "Save the selected frame to the library",
+      group: "Inputs",
+      keywords: ["library", "save", "keep", "frame", "bookmark", "favourite"],
+      icon: BookmarkPlus,
+      run: () => {
+        const { selectedFrameId } = useInputStore.getState();
+        if (selectedFrameId) void saveFrames(env, [selectedFrameId]);
+      },
     },
     enabled,
   );

@@ -94,6 +94,8 @@ export interface FrameHeaderProps {
   mode: "panel" | "hat";
   color: string;
   label: string;
+  /** Muted after the label, and the first to give way when the header is full. */
+  labelDetail?: string | undefined;
   /** Shown right after the label in panel mode. */
   labelAdornment?: ReactNode;
   sizeText?: string | undefined;
@@ -119,6 +121,7 @@ export function FrameHeader({
   mode,
   color,
   label,
+  labelDetail,
   labelAdornment,
   sizeText,
   status,
@@ -172,18 +175,29 @@ export function FrameHeader({
   const showExpandedSection = isPanel && !collapsed && (subheader || tabBar || drawer);
 
   return (
-    <div style={style} className="z-50" role="group" aria-label={label}>
+    <div
+      style={style}
+      className="z-50"
+      role="group"
+      aria-label={labelDetail ? `${label} ${labelDetail}` : label}
+    >
       <div className="flex flex-col overflow-hidden rounded-md shadow-lg" style={GLASS_STYLE}>
         <div
           className="flex items-center justify-between px-3 shrink-0"
           style={{ minHeight: HEADER_HEIGHT }}
         >
-          <div className="flex items-center gap-2 min-w-0">
+          <div className="flex items-center gap-2 min-w-0 overflow-hidden">
             <div
               className="shrink-0 rounded-full"
               style={{ width: 6, height: 6, backgroundColor: color }}
             />
-            <span className="text-[11px] font-medium text-foreground truncate">{label}</span>
+            <span className="shrink-0 text-[11px] font-medium text-foreground">{label}</span>
+            {/* the one part that gives way when the header is full */}
+            {labelDetail && (
+              <span className="-ml-1 min-w-0 truncate text-[11px] font-medium text-muted-foreground">
+                {labelDetail}
+              </span>
+            )}
             {labelAdornment}
             {sizeText && (
               <span className="text-[10px] text-muted-foreground font-mono tabular-nums shrink-0">
