@@ -225,6 +225,8 @@ def file_size(path: str):
 
 def get_storage():
     """Return disk usage grouped by category."""
+    from enso_api.job_queue import job_queue
+
     data_dir = paths.data_path or "."
     result = {}
 
@@ -233,8 +235,9 @@ def get_storage():
         ("cache.json", os.path.join(data_dir, "data", "cache.json")),
         ("metadata.json", os.path.join(data_dir, "data", "metadata.json")),
         ("extensions.json", os.path.join(data_dir, "data", "extensions.json")),
-        ("jobs.db", os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "jobs.db")),
     ]
+    if job_queue.store is not None:
+        cache_files.append(("jobs.db", job_queue.store.db_path))
     result["caches"] = [{"label": label, "path": p, "size": file_size(p)} for label, p in cache_files]
 
     # Temp
