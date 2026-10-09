@@ -3,7 +3,7 @@
 // A document store without a reader stops every sweep.
 
 import { readJob, readMap, readRemoval, readSnapshot, readWorking } from "./stored";
-import { mapExpiry, removalExpiry } from "./sweep";
+import { mapExpiry, removalExpiry, type StoreReader } from "./sweep";
 
 /** The working document. */
 export const DOCUMENTS = "documents";
@@ -23,16 +23,17 @@ export const META = "meta";
 export type DocumentStore =
   typeof DOCUMENTS | typeof SNAPSHOTS | typeof TRASH | typeof MAPS | typeof JOBS;
 
-/** Reads one record of a document store: the cids it names, and when it may
- * be dropped (epoch ms), if ever. Throws on a record it cannot account for. */
-export type StoreReader = (record: unknown) => { cids: string[]; expiresAt?: number };
-
 export const READERS: Readonly<Record<DocumentStore, StoreReader>> = {
   [DOCUMENTS]: (record) => ({ cids: readWorking(record).cids }),
   [SNAPSHOTS]: (record) => ({ cids: readSnapshot(record).cids }),
   [TRASH]: (record) => {
     const read = readRemoval(record);
-    return { cids: read.cids, expiresAt: removalExpiry(read.record.removedAt) };
+    // what the user removed goes with its record; a map keeps the grace
+    return {
+      cids: read.cids,
+      expiresAt: removalExpiry(read.record.removedAt),
+      inTrash: true,
+    };
   },
   [MAPS]: (record) => {
     const read = readMap(record);

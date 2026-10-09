@@ -2,16 +2,15 @@
 // live in the blobs store, written once each, because the browser copies every
 // Blob held in a record each time that record is put.
 
+import { BLOBS, JOBS, JOBS_BY_CREATION, META, READERS, STORES } from "@/lib/inputs/storeLayout";
 import {
-  BLOBS,
-  JOBS,
-  JOBS_BY_CREATION,
-  META,
-  READERS,
-  STORES,
+  planSweep,
+  readForSweep,
+  type Orphans,
   type StoreReader,
-} from "@/lib/inputs/storeLayout";
-import { planSweep, type Orphans } from "@/lib/inputs/sweep";
+  type StoreRecords,
+  type SweepPlan,
+} from "@/lib/inputs/sweep";
 
 const NAME = "enso-inputs";
 const VERSION = 5;
@@ -317,10 +316,22 @@ export async function unreadableBlobs(blobs: ReadonlyMap<string, Blob>): Promise
   return checked.filter(Boolean);
 }
 
-/** Delete expired records, blobs no document names any more (per planSweep)
- * and the revision claims, which only matter between tabs open at the same
- * time. Everything is read and deleted in one transaction, and nothing is
- * deleted unless every record of every document store was read. */
+async function putMeta(key: string, value: unknown): Promise<void> {
+  const db = await open();
+  const tx = db.transaction(META, "readwrite");
+  const done = finished(tx);
+  tx.objectStore(META).put(value, key);
+  tx.commit();
+  await done;
+}
+
+/** Delete expired records, blobs no document names any more (per planSweep:
+ * at once for what the trash held) and the revision claims, which only
+ * matter between tabs open at the same time. Everything is read and deleted
+ * in one transaction, and nothing is deleted unless every record of every
+ * document store was read. The transaction only deletes, so a full disk does
+ * not stop it; the orphan map is written after, and without it each unnamed
+ * blob starts its grace again. */
 async function sweep(readers: Readonly<Record<string, StoreReader>>): Promise<void> {
   const db = await open();
   const names = [...db.objectStoreNames];
@@ -333,28 +344,24 @@ async function sweep(readers: Readonly<Record<string, StoreReader>>): Promise<vo
   const now = Date.now();
   const tx = db.transaction(names, "readwrite");
   const done = finished(tx);
+  let plan: SweepPlan;
   try {
-    const named = new Set<string>();
+    const stores: StoreRecords<IDBValidKey>[] = [];
     for (const name of documentStores) {
       const store = tx.objectStore(name);
       const records: unknown[] = await result(store.getAll());
       const keys = await result(store.getAllKeys());
-      records.forEach((record, i) => {
-        const read = readers[name](record);
-        if (read.expiresAt !== undefined && read.expiresAt <= now) {
-          store.delete(keys[i]);
-          return;
-        }
-        for (const cid of read.cids) named.add(cid);
-      });
+      stores.push({ store: name, keys, records });
     }
+    const reading = readForSweep(stores, readers, now);
+    for (const { store, key } of reading.expired) tx.objectStore(store).delete(key);
     const keys = (await result(tx.objectStore(BLOBS).getAllKeys())).filter(
       (key) => typeof key === "string",
     );
     const orphans = ((await result(tx.objectStore(META).get(ORPHANS))) ?? {}) as Orphans;
-    const plan = planSweep(keys, named, orphans, now);
+    plan = planSweep(keys, reading.named, orphans, now, reading.urgent);
     for (const key of plan.remove) tx.objectStore(BLOBS).delete(key);
-    tx.objectStore(META).put(plan.orphans, ORPHANS);
+    tx.objectStore(META).delete(ORPHANS);
     tx.objectStore(META).delete(IDBKeyRange.bound(CLAIM, `${CLAIM}￿`));
   } catch (err) {
     done.catch(() => {});
@@ -366,6 +373,9 @@ async function sweep(readers: Readonly<Record<string, StoreReader>>): Promise<vo
     throw err;
   }
   await done;
+  await putMeta(ORPHANS, plan.orphans).catch((err: unknown) => {
+    console.warn("[inputs] could not store when unused pictures were first seen", err);
+  });
 }
 
 let entered: Promise<void> | null = null;
