@@ -317,6 +317,8 @@ def register_api(app: FastAPI):  # register api
     # @app.get("/sdapi/v1/browser/files", response_model=list)
     async def ht_files(folder: str):
         """List all files in a gallery folder recursively. Returns encoded path strings for client-side rendering."""
+        if not is_allowed_path(folder):
+            raise HTTPException(status_code=403, detail="Path not allowed")
         try:
             t0 = time.time()
             files = files_cache.directory_files(folder, recursive=True)
@@ -340,8 +342,10 @@ def register_api(app: FastAPI):  # register api
         Returns the latest directory mtime across the folder tree (recursive).
         Clients can poll this to detect when new images have been saved.
         """
+        decoded = unquote(folder).replace("%3A", ":")
+        if not is_allowed_path(decoded):
+            raise HTTPException(status_code=403, detail="Path not allowed")
         try:
-            decoded = unquote(folder).replace("%3A", ":")
             # files_cache.directory_mtime is shallow for a single path: it returns
             # only the top directory's own mtime, which does not change when files
             # land in existing subdirectories (dated output folders). Walk the tree
@@ -360,6 +364,8 @@ def register_api(app: FastAPI):  # register api
         sorted alphabetically. Used for building folder tree navigation.
         """
         decoded = unquote(folder).replace("%3A", ":")
+        if not is_allowed_path(decoded):
+            raise HTTPException(status_code=403, detail="Path not allowed")
         directory = files_cache.get_directory(decoded, fetch=True)
         if not directory or not directory.directories:
             return JSONResponse(content=[])
