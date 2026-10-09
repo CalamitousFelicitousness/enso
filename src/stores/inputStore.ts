@@ -41,6 +41,9 @@ import {
 /** A picture on its way into a frame; the store names it. */
 export type NewPicture = Omit<PictureSource, "id" | "cid">;
 
+/** A map on its way into a frame, with the cid its bytes are stored under when unchanged. */
+export type NewMap = NewPicture & { cid?: string };
+
 interface InputState extends WorkingDocument {
   /** The stored document is in, or the user chose to start without it.
    * Changes made before that wait for it. */
@@ -110,9 +113,9 @@ interface InputState extends WorkingDocument {
   /** The processor the frame's pictures go through, or none. */
   setProcessor: (frameId: string, processor: ProcessorSpec | null) => void;
   /** The map in a composed frame's composition's place; the processor goes. */
-  replaceComposition: (frameId: string, map: NewPicture) => void;
+  replaceComposition: (frameId: string, map: NewMap) => void;
   /** Each picture's map in its place; the processor goes. */
-  replacePictures: (frameId: string, maps: ReadonlyMap<string, NewPicture>) => void;
+  replacePictures: (frameId: string, maps: ReadonlyMap<string, NewMap>) => void;
 
   addStroke: (frameId: string, stroke: MaskStroke) => void;
   clearStrokes: (frameId: string) => void;
@@ -288,10 +291,10 @@ export const useInputStore = create<InputState>()(
             return activeItem ? { activeItem } : s;
           }),
         );
-      const named = (picture: NewPicture): PictureSource => ({
+      const named = (picture: NewPicture, cid: string = crypto.randomUUID()): PictureSource => ({
         ...picture,
         id: crypto.randomUUID(),
-        cid: crypto.randomUUID(),
+        cid,
       });
       const answered = (s: InputState, offer: LegacyRecord) =>
         s.offers.filter((o) => o.id !== offer.id);
@@ -411,10 +414,13 @@ export const useInputStore = create<InputState>()(
         setProcessor: (frameId, processor) =>
           editFrame(frameId, (f) => reduce.setProcessor(f, processor)),
         replaceComposition: (frameId, map) =>
-          editFrame(frameId, (f) => reduce.replaceComposition(f, named(map))),
+          editFrame(frameId, (f) => reduce.replaceComposition(f, named(map, map.cid))),
         replacePictures: (frameId, maps) =>
           editFrame(frameId, (f) =>
-            reduce.replacePictures(f, new Map([...maps].map(([id, map]) => [id, named(map)]))),
+            reduce.replacePictures(
+              f,
+              new Map([...maps].map(([id, map]) => [id, named(map, map.cid)])),
+            ),
           ),
 
         addStroke: (frameId, stroke) => editFrame(frameId, (f) => reduce.addStroke(f, stroke)),

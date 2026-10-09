@@ -4,7 +4,7 @@
 
 import { toast } from "sonner";
 import { useGenerationStore } from "@/stores/generationStore";
-import { useInputStore } from "@/stores/inputStore";
+import { useInputStore, type NewMap } from "@/stores/inputStore";
 import { resizeBlob } from "@/lib/resize";
 import {
   computeOutline,
@@ -379,10 +379,12 @@ export async function replaceWithMaps(env: OutlineEnv, frameId: string): Promise
     // a linked Control frame's map is drawn from its source's pictures
     const source = frames.find((f) => f.id === (frame.link?.frameId ?? frame.id)) ?? frame;
     const name = mapName(composedPictures(source)[0]?.name ?? "picture");
+    // bytes the resize left as they were are already stored under the map's cid
+    const cid = file === map.blob ? { cid: map.cid } : {};
     apply = () =>
-      useInputStore.getState().replaceComposition(frameId, { file, name, width, height });
+      useInputStore.getState().replaceComposition(frameId, { file, name, width, height, ...cid });
   } else {
-    const maps = new Map<string, { file: Blob; name: string; width: number; height: number }>();
+    const maps = new Map<string, NewMap>();
     for (const input of entry.sent) {
       const map = input.map?.state === "current" ? currentMap(input.map.key) : null;
       const picture = frame.pictures.find((p) => p.id === input.pictureId);
@@ -390,6 +392,7 @@ export async function replaceWithMaps(env: OutlineEnv, frameId: string): Promise
       touchMap(input.map.key);
       maps.set(picture.id, {
         file: map.blob,
+        cid: map.cid,
         name: mapName(picture.name),
         width: map.width,
         height: map.height,
