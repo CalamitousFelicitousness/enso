@@ -16,6 +16,13 @@ import { defineConfig, globalIgnores } from "eslint/config";
 // release that declares ESLint 10 support.
 const a11yConfig = fixupConfigRules(jsxA11y.flatConfigs.recommended);
 
+const randomUuid = {
+  object: "crypto",
+  property: "randomUUID",
+  message:
+    "Secure contexts only, so the app would not start over plain http; use newId from @/lib/id.",
+};
+
 export default defineConfig([
   globalIgnores([
     "dist",
@@ -48,6 +55,7 @@ export default defineConfig([
         "error",
         { argsIgnorePattern: "^_", varsIgnorePattern: "^_" },
       ],
+      "no-restricted-properties": ["error", randomUuid],
       "jsx-a11y/no-static-element-interactions": "error",
       "jsx-a11y/click-events-have-key-events": "error",
       // Radix-based Checkbox/Switch are the project's native form controls;
@@ -135,6 +143,7 @@ export default defineConfig([
         "error",
         { object: "URL", property: "createObjectURL", message: "Object URLs belong to media." },
         { object: "URL", property: "revokeObjectURL", message: "Object URLs belong to media." },
+        randomUuid,
       ],
     },
   },

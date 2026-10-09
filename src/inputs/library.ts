@@ -6,6 +6,7 @@
 import { useEffect } from "react";
 import { toast } from "sonner";
 import { create } from "zustand";
+import { newId } from "@/lib/id";
 import { inputsReady, useInputStore } from "@/stores/inputStore";
 import { useGenerationStore } from "@/stores/generationStore";
 import { useUiStore } from "@/stores/uiStore";
@@ -222,7 +223,7 @@ export async function saveInputsAsSet(
   const now = Date.now();
   return storeEntry(
     {
-      id: crypto.randomUUID(),
+      id: newId(),
       kind: "set",
       name: setName(now, inputs.frames),
       savedAt: now,
@@ -285,7 +286,7 @@ export async function saveFrames(
   const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
   return storeEntry(
     {
-      id: crypto.randomUUID(),
+      id: newId(),
       kind,
       name:
         kind === "set"

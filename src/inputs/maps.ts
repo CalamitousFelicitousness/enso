@@ -5,6 +5,7 @@
 // which keys a job is making and which failed, for the outline.
 
 import { create } from "zustand";
+import { newId } from "@/lib/id";
 import {
   computeOutline,
   type Outline,
@@ -196,7 +197,7 @@ export async function installMap(key: string, blob: Blob, cid?: string): Promise
   const now = Date.now();
   const entry: MapEntry = {
     key,
-    cid: cid ?? crypto.randomUUID(),
+    cid: cid ?? newId(),
     blob,
     width,
     height,

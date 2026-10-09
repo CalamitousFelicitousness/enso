@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { newId } from "@/lib/id";
 
 export interface PromptHistoryEntry {
   id: string;
@@ -44,7 +45,7 @@ export const usePromptHistoryStore = create<PromptHistoryState>()(
           const entry: PromptHistoryEntry = {
             ...draft,
             prompt,
-            id: crypto.randomUUID(),
+            id: newId(),
             pinned: false,
             timestamp: Date.now(),
           };

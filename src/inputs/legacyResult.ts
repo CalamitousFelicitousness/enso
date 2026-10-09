@@ -1,5 +1,6 @@
 // The inputs an older build kept beside a result, decoded into frames.
 
+import { newId } from "@/lib/id";
 import type { GenerationResult } from "@/stores/generationStore";
 import { readLegacyControl } from "@/lib/inputs/legacyControl";
 import { legacyResultSize, legacyResultToFrames } from "@/lib/inputs/legacyResult";
@@ -26,8 +27,8 @@ export async function legacyResultInputs(result: GenerationResult): Promise<Inpu
     : [];
   const frames = legacyResultToFrames(
     { image, strokes: result.inputMask ?? [], units, size },
-    () => crypto.randomUUID(),
-    () => crypto.randomUUID(),
+    newId,
+    newId,
   );
   return frames.length > 0 ? { frames, size, sizeSource: null } : null;
 }

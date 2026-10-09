@@ -3,6 +3,7 @@
 // Undo; every change that renumbers the sent pictures says which.
 
 import { toast } from "sonner";
+import { newId } from "@/lib/id";
 import { useGenerationStore } from "@/stores/generationStore";
 import { useInputStore, type NewMap } from "@/stores/inputStore";
 import { resizeBlob } from "@/lib/resize";
@@ -96,7 +97,7 @@ function putBeside(frame: Frame, index: number): void {
     store.putBackFrame(frame, index, []);
     return;
   }
-  const [copy] = cloneFrames([frame], null, () => crypto.randomUUID(), "keep").frames;
+  const [copy] = cloneFrames([frame], null, newId, "keep").frames;
   store.putBackFrame(copy, at + 1, []);
 }
 
@@ -487,7 +488,7 @@ export function duplicateFrame(frameId: string): boolean {
     return false;
   }
   const from = positionOf(frameId);
-  const [copy] = cloneFrames([frame], null, () => crypto.randomUUID(), "keep").frames;
+  const [copy] = cloneFrames([frame], null, newId, "keep").frames;
   return addFrames([copy], ([to]) => duplicatedText(from, to ?? from + 1));
 }
 

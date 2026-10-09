@@ -2,7 +2,7 @@ import type { CachedThumb } from "@/api/types/gallery";
 
 const DB_NAME = "SDNextReact";
 const STORE_NAME = "thumbs";
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 
 let dbPromise: Promise<IDBDatabase> | null = null;
 
@@ -12,11 +12,11 @@ function openDb(): Promise<IDBDatabase> {
     const req = indexedDB.open(DB_NAME, DB_VERSION);
     req.onupgradeneeded = () => {
       const db = req.result;
-      // V2: hash is now path-only, so clear stale entries from V1
+      // V3: keyed by the file path; V2 keyed by its SHA-256, which plain http cannot compute
       if (db.objectStoreNames.contains(STORE_NAME)) {
         db.deleteObjectStore(STORE_NAME);
       }
-      const store = db.createObjectStore(STORE_NAME, { keyPath: "hash" });
+      const store = db.createObjectStore(STORE_NAME, { keyPath: "path" });
       store.createIndex("folder", "folder", { unique: false });
     };
     req.onsuccess = () => resolve(req.result);
@@ -25,37 +25,30 @@ function openDb(): Promise<IDBDatabase> {
   return dbPromise;
 }
 
-/** Hash based on file path only - enables cache-first lookup without an API call. */
-export async function computeThumbHash(path: string): Promise<string> {
-  const encoded = new TextEncoder().encode(path);
-  const digest = await crypto.subtle.digest("SHA-256", encoded);
-  const arr = Array.from(new Uint8Array(digest));
-  return arr.map((b) => b.toString(16).padStart(2, "0")).join("");
-}
-
-export async function getThumb(hash: string): Promise<CachedThumb | undefined> {
+/** A file's cached thumb, by its path: no API call on a hit. */
+export async function getThumb(path: string): Promise<CachedThumb | undefined> {
   const db = await openDb();
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE_NAME, "readonly");
-    const req = tx.objectStore(STORE_NAME).get(hash);
+    const req = tx.objectStore(STORE_NAME).get(path);
     req.onsuccess = () => resolve(req.result as CachedThumb | undefined);
     req.onerror = () => reject(req.error ?? new Error("IDB request failed"));
   });
 }
 
 /** Batch-get multiple thumbs in a single transaction. */
-export async function batchGetThumbs(hashes: string[]): Promise<Map<string, CachedThumb>> {
-  if (hashes.length === 0) return new Map();
+export async function batchGetThumbs(paths: string[]): Promise<Map<string, CachedThumb>> {
+  if (paths.length === 0) return new Map();
   const db = await openDb();
   return new Promise((resolve, reject) => {
     const map = new Map<string, CachedThumb>();
     const tx = db.transaction(STORE_NAME, "readonly");
     const store = tx.objectStore(STORE_NAME);
-    let pending = hashes.length;
-    for (const hash of hashes) {
-      const req = store.get(hash);
+    let pending = paths.length;
+    for (const path of paths) {
+      const req = store.get(path);
       req.onsuccess = () => {
-        if (req.result) map.set(hash, req.result as CachedThumb);
+        if (req.result) map.set(path, req.result as CachedThumb);
         if (--pending === 0) resolve(map);
       };
       req.onerror = () => {
@@ -95,13 +88,13 @@ export async function deleteFolder(folder: string): Promise<void> {
   });
 }
 
-export async function deleteThumbsByHashes(hashes: string[]): Promise<void> {
-  if (hashes.length === 0) return;
+export async function deleteThumbs(paths: string[]): Promise<void> {
+  if (paths.length === 0) return;
   const db = await openDb();
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE_NAME, "readwrite");
     const store = tx.objectStore(STORE_NAME);
-    for (const hash of hashes) store.delete(hash);
+    for (const path of paths) store.delete(path);
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error ?? new Error("IDB transaction failed"));
   });
@@ -122,7 +115,7 @@ export async function cleanupFolder(folder: string, maxEntries: number): Promise
   const tx = db.transaction(STORE_NAME, "readwrite");
   const store = tx.objectStore(STORE_NAME);
   for (const entry of toDelete) {
-    store.delete(entry.hash);
+    store.delete(entry.path);
   }
   await new Promise<void>((resolve, reject) => {
     tx.oncomplete = () => resolve();

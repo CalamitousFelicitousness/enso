@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { newId } from "@/lib/id";
 import { base64ToBlob } from "@/lib/utils";
 import { createIdbStorage } from "@/lib/idbStorage";
 import { reportStorageProblem } from "@/lib/storageHealth";
@@ -152,7 +153,7 @@ export const useVideoCanvasStore = create<VideoCanvasState>()(
         const prev = get()[which === "init" ? "initFrame" : "lastFrame"];
         if (prev?.objectUrl) URL.revokeObjectURL(prev.objectUrl);
         const frame: VideoFrameImage = {
-          id: crypto.randomUUID(),
+          id: newId(),
           file,
           objectUrl,
           naturalWidth: w,
@@ -174,7 +175,7 @@ export const useVideoCanvasStore = create<VideoCanvasState>()(
 
       addReference: (file, objectUrl, w, h, meta) => {
         const frame: VideoFrameImage = {
-          id: crypto.randomUUID(),
+          id: newId(),
           file,
           objectUrl,
           naturalWidth: w,

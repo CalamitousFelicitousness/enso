@@ -3,6 +3,7 @@
 // and go into the next bake. A result is applied only if the
 // frame's masks, size and consumed lines are still what the bake saw.
 
+import { newId } from "@/lib/id";
 import { useCanvasStore } from "@/stores/canvasStore";
 import { useGenerationStore } from "@/stores/generationStore";
 import { useInputStore } from "@/stores/inputStore";
@@ -193,9 +194,9 @@ function applyResult(fs: FrameState, job: Job, output: BakeOutput): void {
     const prev = prevId ? frame.mask.objects.find((m) => m.id === prevId) : undefined;
     rememberMaskBitmap(region.blob, region.bitmap);
     return {
-      id: prev?.id ?? crypto.randomUUID(),
+      id: prev?.id ?? newId(),
       // every bake draws new pixels, so every region is new content
-      cid: crypto.randomUUID(),
+      cid: newId(),
       blob: region.blob,
       name: prev?.name ?? `Mask ${region.x},${region.y}`,
       visible: prev?.visible ?? true,

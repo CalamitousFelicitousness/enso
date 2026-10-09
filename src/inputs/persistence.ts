@@ -3,6 +3,7 @@
 // what builds before the input document left in the canvas record.
 
 import type { StorageValue } from "zustand/middleware";
+import { newId } from "@/lib/id";
 import { createGatedStorage, idbBackend, type KeyValueBackend } from "@/lib/idbStorage";
 import { applyImports, EMPTY_WORKING, planImports, type LegacyRecord } from "@/lib/inputs/imports";
 import {
@@ -150,7 +151,7 @@ async function withoutDeadBlobs(state: unknown): Promise<unknown> {
 }
 
 async function convert(source: FoundSource): Promise<LegacyImport> {
-  return legacyToFrames(await withoutDeadBlobs(source.state), () => crypto.randomUUID());
+  return legacyToFrames(await withoutDeadBlobs(source.state), newId);
 }
 
 /** The control units record older builds kept beside the canvas: one format. */
@@ -176,8 +177,8 @@ async function convertControl(source: FoundSource, doc: WorkingDocument): Promis
       displayHeight: REFERENCE_HEIGHT,
       initialFrameId: doc.frames.find((f) => f.role === "initial")?.id ?? null,
     },
-    () => crypto.randomUUID(),
-    () => crypto.randomUUID(),
+    newId,
+    newId,
   );
   return { frames, notes, selectedFrameId: null, activeItem: null, sizeSource: null };
 }
@@ -250,7 +251,6 @@ async function importLegacy(
   doc: WorkingDocument,
 ): Promise<{ doc: WorkingDocument; notes: ImportNote[]; offers: LegacyRecord[]; unread: boolean }> {
   try {
-    const newId = () => crypto.randomUUID();
     const sources = await findSources(doc.imports);
     const plan = planImports(doc.imports, sources);
     const found = plan.load && sources.find((s) => s.id === plan.load?.id);

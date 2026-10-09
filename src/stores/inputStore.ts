@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { newId } from "@/lib/id";
 import { useGenerationStore } from "@/stores/generationStore";
 import { reportStorageProblem } from "@/lib/storageHealth";
 import { exceedsLimit } from "@/lib/inputs/capacity";
@@ -247,7 +248,7 @@ function dropUnreadable(cids: string[]): void {
   });
 }
 
-const seedFrame = reduce.newFrame(crypto.randomUUID(), "initial");
+const seedFrame = reduce.newFrame(newId(), "initial");
 
 export const useInputStore = create<InputState>()(
   persist(
@@ -291,9 +292,9 @@ export const useInputStore = create<InputState>()(
             return activeItem ? { activeItem } : s;
           }),
         );
-      const named = (picture: NewPicture, cid: string = crypto.randomUUID()): PictureSource => ({
+      const named = (picture: NewPicture, cid: string = newId()): PictureSource => ({
         ...picture,
-        id: crypto.randomUUID(),
+        id: newId(),
         cid,
       });
       const answered = (s: InputState, offer: LegacyRecord) =>
@@ -311,7 +312,7 @@ export const useInputStore = create<InputState>()(
         imageLimit: null,
 
         addFrame: (role, at) => {
-          const frame = reduce.newFrame(crypto.randomUUID(), role);
+          const frame = reduce.newFrame(newId(), role);
           edit((frames) => reduce.insertFrame(frames, frame, at));
           return frame.id;
         },
@@ -463,7 +464,7 @@ export const useInputStore = create<InputState>()(
               working(s),
               offer,
               loaded,
-              () => crypto.randomUUID(),
+              newId,
               keepsFrames(offer),
             );
             return { ...doc, offers: answered(s, offer), report: addToReport(s.report, { notes }) };

@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { newId } from "@/lib/id";
 
 export interface EnhanceHistoryEntry {
   id: string;
@@ -114,7 +115,7 @@ export const usePromptEnhanceStore = create<PromptEnhanceState>()(
         const { history, historyLimit } = get();
         const newEntry: EnhanceHistoryEntry = {
           ...entry,
-          id: crypto.randomUUID(),
+          id: newId(),
           timestamp: Date.now(),
         };
         set({ history: [newEntry, ...history].slice(0, historyLimit) });

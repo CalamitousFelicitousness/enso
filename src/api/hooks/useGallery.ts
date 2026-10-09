@@ -10,13 +10,7 @@ import type {
   CachedThumb,
 } from "../types/gallery";
 import { useGalleryStore } from "@/stores/galleryStore";
-import {
-  computeThumbHash,
-  getThumb,
-  putThumb,
-  batchGetThumbs,
-  deleteThumbsByHashes,
-} from "@/lib/thumbnailCache";
+import { getThumb, putThumb, batchGetThumbs, deleteThumbs } from "@/lib/thumbnailCache";
 import {
   getCachedFolder,
   setCachedFolder,
@@ -123,24 +117,14 @@ const FILE_BATCH_INTERVAL = 150; // ms between flushing accumulated files to the
  */
 async function readCachedThumbs(files: GalleryFile[]): Promise<[string, CachedThumb][]> {
   if (files.length === 0) return [];
-  // Compute hashes in parallel (crypto.subtle.digest is async but very fast)
-  const pairs = await Promise.all(
-    files.map(async (f) => ({ id: f.id, hash: await computeThumbHash(f.fullPath) })),
-  );
-
-  const hashToId = new Map<string, string>();
-  const hashes: string[] = [];
-  for (const { id, hash } of pairs) {
-    hashToId.set(hash, id);
-    hashes.push(hash);
-  }
+  const pathToId = new Map(files.map((f) => [f.fullPath, f.id]));
 
   // Batch-read from IndexedDB in a single transaction
-  const cached = await batchGetThumbs(hashes);
+  const cached = await batchGetThumbs([...pathToId.keys()]);
 
   const batch: [string, CachedThumb][] = [];
-  for (const [hash, thumb] of cached) {
-    const fileId = hashToId.get(hash);
+  for (const [path, thumb] of cached) {
+    const fileId = pathToId.get(path);
     if (fileId) batch.push([fileId, thumb]);
   }
   return batch;
@@ -541,8 +525,7 @@ export function useGalleryRefresh() {
  */
 export async function fetchThumb(file: GalleryFile): Promise<CachedThumb | null> {
   try {
-    const hash = await computeThumbHash(file.fullPath);
-    const cached = await getThumb(hash);
+    const cached = await getThumb(file.fullPath);
     if (cached) return cached;
   } catch {
     // IndexedDB read errors are non-fatal, fall through to API
@@ -553,9 +536,8 @@ export async function fetchThumb(file: GalleryFile): Promise<CachedThumb | null>
     const resp = await api.get<BrowserThumb>("/sdapi/v2/browser/thumb", { file: file.fullPath });
     if (!resp || !resp.data) return null;
 
-    const hash = await computeThumbHash(file.fullPath);
     const entry: CachedThumb = {
-      hash,
+      path: file.fullPath,
       folder: file.folder,
       data: resp.data,
       width: resp.width,
@@ -693,8 +675,7 @@ export function useBackgroundPreloader(files: GalleryFile[]) {
 
 async function cleanupThumbsForFiles(files: GalleryFile[]) {
   try {
-    const hashes = await Promise.all(files.map((f) => computeThumbHash(f.fullPath)));
-    await deleteThumbsByHashes(hashes);
+    await deleteThumbs(files.map((f) => f.fullPath));
   } catch {
     // Non-fatal
   }

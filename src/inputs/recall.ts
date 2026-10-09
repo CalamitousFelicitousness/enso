@@ -2,6 +2,7 @@
 // the inputs or put in their place, and what the trash keeps put back.
 
 import { toast } from "sonner";
+import { newId } from "@/lib/id";
 import { useGenerationStore } from "@/stores/generationStore";
 import { inputsReady } from "@/stores/inputStore";
 import { refitFrame } from "@/lib/inputs/geometry";
@@ -83,12 +84,7 @@ export async function recallEntry(id: string, mode: RecallMode): Promise<boolean
     const { entry, lost } = joinEntry(stored.document.record, stored.blobs);
     await inputsReady();
     await installEntryMaps(entry.maps, stored.blobs);
-    const clone = cloneFrames(
-      entry.inputs.frames,
-      entry.inputs.sizeSource,
-      () => crypto.randomUUID(),
-      "drop",
-    );
+    const clone = cloneFrames(entry.inputs.frames, entry.inputs.sizeSource, newId, "drop");
     if (mode === "add") {
       const now = sizeNow();
       const frames = sameSize(entry.inputs.size, now)

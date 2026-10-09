@@ -38,7 +38,7 @@ export interface GallerySort {
 }
 
 export interface CachedThumb {
-  hash: string;
+  path: string;
   folder: string;
   data: string;
   width: number;

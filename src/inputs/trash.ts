@@ -6,6 +6,7 @@
 
 import { toast } from "sonner";
 import { create } from "zustand";
+import { newId } from "@/lib/id";
 import { inputsReady } from "@/stores/inputStore";
 import { LIBRARY, TRASH } from "@/lib/inputs/storeLayout";
 import {
@@ -77,7 +78,7 @@ function listed(key: string, record: StoredRemoval | null): void {
 
 /** Store a removal under a new key and return it. */
 export async function recordRemoval(removal: Removal): Promise<string> {
-  const key = crypto.randomUUID();
+  const key = newId();
   const { record, blobs } = splitRemoval(removal);
   // a record this build could not read back would stop every sweep
   joinRemoval(readRemoval(record).record, blobs);
