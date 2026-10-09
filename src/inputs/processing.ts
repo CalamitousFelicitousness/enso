@@ -118,6 +118,23 @@ export async function processFrames(
   }
 }
 
+// A job reports its maps twice (the maps event, then its result); the second
+// report must join the first one's fetch, not store the bytes again.
+const installing = new Map<string, Promise<void>>();
+
+async function fetchAndInstall(key: string, url: string): Promise<void> {
+  try {
+    const response = await fetch(`${api.getBaseUrl()}${url}`, {
+      headers: api.getAuthHeaders(),
+    });
+    if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
+    await installMap(key, await response.blob());
+  } catch (err) {
+    console.error("[inputs] could not fetch a map the server made", err);
+    markFailed({ [key]: "The map the server made could not be fetched" });
+  }
+}
+
 /** Fetch the maps a job reported into the cache, and note the failures. */
 export async function installMaps(
   maps: Record<string, string>,
@@ -128,17 +145,13 @@ export async function installMaps(
   await Promise.all(
     Object.entries(maps)
       .filter(([key]) => !current.has(key))
-      .map(async ([key, url]) => {
-        try {
-          const response = await fetch(`${api.getBaseUrl()}${url}`, {
-            headers: api.getAuthHeaders(),
-          });
-          if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
-          await installMap(key, await response.blob());
-        } catch (err) {
-          console.error("[inputs] could not fetch a map the server made", err);
-          markFailed({ [key]: "The map the server made could not be fetched" });
+      .map(([key, url]) => {
+        let pending = installing.get(key);
+        if (!pending) {
+          pending = fetchAndInstall(key, url).finally(() => installing.delete(key));
+          installing.set(key, pending);
         }
+        return pending;
       }),
   );
 }
