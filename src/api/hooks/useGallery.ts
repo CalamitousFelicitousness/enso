@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { api } from "../client";
 import type {
   BrowserFolder,
@@ -699,14 +700,33 @@ async function cleanupThumbsForFiles(files: GalleryFile[]) {
   }
 }
 
+type FileErrors = { file: string; error: string }[];
+
+/** Names the files a gallery action left in place, with the first reason. */
+function reportFileErrors(verb: "deleted" | "moved", errors: FileErrors) {
+  const [first] = errors;
+  if (!first) return;
+  const reason = `${first.file.split(/[\\/]/).pop()}: ${first.error}`;
+  toast.error(
+    errors.length === 1 ? `1 file was not ${verb}` : `${errors.length} files were not ${verb}`,
+    {
+      description: errors.length === 1 ? reason : `${reason}, and ${errors.length - 1} more`,
+    },
+  );
+}
+
+function describeError(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
+}
+
 export function useDeleteFiles() {
   return useMutation({
     mutationFn: (files: string[]) =>
-      api.post<{ deleted: string[]; errors: { file: string; error: string }[] }>(
-        "/sdapi/v2/browser/delete",
-        { files },
-      ),
+      api.post<{ deleted: string[]; errors: FileErrors }>("/sdapi/v2/browser/delete", { files }),
+    onError: (err) =>
+      toast.error("Could not delete the files", { description: describeError(err) }),
     onSuccess: (data) => {
+      reportFileErrors("deleted", data.errors);
       if (data.deleted.length === 0) return;
       const store = useGalleryStore.getState();
       const deletedSet = new Set(data.deleted);
@@ -722,11 +742,10 @@ export function useDeleteFiles() {
 export function useMoveFiles() {
   return useMutation({
     mutationFn: (params: { files: string[]; destination: string }) =>
-      api.post<{ moved: string[]; errors: { file: string; error: string }[] }>(
-        "/sdapi/v2/browser/move",
-        params,
-      ),
+      api.post<{ moved: string[]; errors: FileErrors }>("/sdapi/v2/browser/move", params),
+    onError: (err) => toast.error("Could not move the files", { description: describeError(err) }),
     onSuccess: (data, variables) => {
+      reportFileErrors("moved", data.errors);
       if (data.moved.length === 0) return;
       const store = useGalleryStore.getState();
       const movedSet = new Set(data.moved);

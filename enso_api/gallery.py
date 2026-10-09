@@ -409,8 +409,13 @@ def register_api(app: FastAPI):  # register api
             resolved = os.path.abspath(os.path.realpath(filepath))
             try:
                 if os.path.isfile(resolved):
-                    source_folders.add(os.path.dirname(resolved))
                     dest_path = os.path.join(dest_resolved, os.path.basename(resolved))
+                    # shutil.move replaces an existing file of the same name without a word
+                    if os.path.lexists(dest_path):
+                        reason = "Already in this folder" if os.path.dirname(resolved) == dest_resolved else "A file with this name is already there"
+                        errors.append({"file": filepath, "error": reason})
+                        continue
+                    source_folders.add(os.path.dirname(resolved))
                     shutil.move(resolved, dest_path)
                     moved.append(filepath)
                 else:
