@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { ImagesSubTab, NavView, RightTab, VideoSubTab } from "@/lib/constants";
+import type { ImagesSubTab, LibrarySubTab, NavView, RightTab, VideoSubTab } from "@/lib/constants";
 import { mergeUiState } from "@/lib/uiStateMerge";
 
 type ColorMode = "dark" | "light" | "system";
@@ -28,6 +28,7 @@ interface PanelSelections {
   systemSubTab: SystemSubTab;
   captionSubTab: CaptionSubTab;
   videoSubTab: VideoSubTab;
+  librarySubTab: LibrarySubTab;
   /** Free-form because backend Settings sections are dynamic. The synthetic
    * Connection / Appearance ids and any backend section id are valid; null
    * falls back to whichever section SettingsView resolves first. */
@@ -142,6 +143,7 @@ const DEFAULT_PANEL_SELECTIONS: PanelSelections = {
   systemSubTab: "Overview",
   captionSubTab: "vlm",
   videoSubTab: "prompts",
+  librarySubTab: "saved",
   settingsSection: null,
 };
 

@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { picture } from "./frames.fixture";
 import { MAP_SCHEMA, splitEntry, splitRemoval } from "./stored";
-import { readForSweep, RETENTION_MS } from "./sweep";
+import { readForSweep, RETENTION_MS, sweepPolicy } from "./sweep";
+
+const POLICY = sweepPolicy(7);
 import {
   BLOBS,
   DOCUMENTS,
@@ -26,19 +28,22 @@ describe("store layout", () => {
 
   it("reads a job record's cids and never lets it expire", () => {
     expect(
-      READERS[JOBS]({
-        schema: 1,
-        id: "j",
-        domain: "generate",
-        createdAt: 1,
-        checkpoint: null,
-        request: { prompt: "x" },
-        refs: {},
-        inputs: null,
-        mapKeys: [],
-        maps: { k: "cid-map" },
-        routed: true,
-      }),
+      READERS[JOBS](
+        {
+          schema: 1,
+          id: "j",
+          domain: "generate",
+          createdAt: 1,
+          checkpoint: null,
+          request: { prompt: "x" },
+          refs: {},
+          inputs: null,
+          mapKeys: [],
+          maps: { k: "cid-map" },
+          routed: true,
+        },
+        POLICY,
+      ),
     ).toEqual({ cids: ["cid-map"] });
   });
 });
@@ -69,6 +74,7 @@ describe("sweep policy", () => {
       ],
       READERS,
       now,
+      POLICY,
     );
     expect([...reading.urgent]).toEqual(["cid-p"]);
     expect(reading.expired.map((e) => e.store)).toEqual([TRASH, MAPS]);
@@ -91,12 +97,26 @@ describe("library entries in the sweep", () => {
     }).record;
 
   it("keeps an entry in the library for good", () => {
-    expect(READERS[LIBRARY](record(null))).toEqual({ cids: ["cid-map"] });
+    expect(READERS[LIBRARY](record(null), POLICY)).toEqual({ cids: ["cid-map"] });
   });
 
   it("lets a trashed entry expire with the removals, its bytes going with it", () => {
-    const facts = READERS[LIBRARY](record(5));
+    const facts = READERS[LIBRARY](record(5), POLICY);
     expect(facts.expiresAt).toBe(5 + RETENTION_MS);
     expect(facts.inTrash).toBe(true);
+  });
+});
+
+describe("the trash days the user set", () => {
+  it("decide when a removal expires", () => {
+    const { record } = splitRemoval({
+      removedAt: 1000,
+      cause: "removed",
+      size: null,
+      from: { position: 1, frameId: "f", role: "reference" },
+      content: { kind: "picture", index: 0, picture: picture("p") },
+    });
+    expect(READERS[TRASH](record, sweepPolicy(1)).expiresAt).toBe(1000 + 24 * 60 * 60 * 1000);
+    expect(READERS[TRASH](record, sweepPolicy(30)).expiresAt).toBe(1000 + 30 * 24 * 60 * 60 * 1000);
   });
 });

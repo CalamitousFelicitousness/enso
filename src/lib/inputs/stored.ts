@@ -7,22 +7,23 @@ import { refsIn } from "@/lib/jobs/replay";
 import type { ImportNote } from "./legacy";
 import { loose, type Loose } from "./loose";
 import type { SizeSourcePick } from "./outline";
-import type {
-  ActiveItem,
-  ControlSettings,
-  ControlType,
-  FitPolicy,
-  Frame,
-  FrameRole,
-  IpAdapterSettings,
-  JsonValue,
-  MaskObject,
-  MaskStroke,
-  MediaKind,
-  Picture,
-  ProcessorSpec,
-  Size,
-  Transform,
+import {
+  cidsOf,
+  type ActiveItem,
+  type ControlSettings,
+  type ControlType,
+  type FitPolicy,
+  type Frame,
+  type FrameRole,
+  type IpAdapterSettings,
+  type JsonValue,
+  type MaskObject,
+  type MaskStroke,
+  type MediaKind,
+  type Picture,
+  type ProcessorSpec,
+  type Size,
+  type Transform,
 } from "./types";
 
 /** Bumped when an older build could misread what a newer one stores. Schema 1
@@ -618,6 +619,18 @@ export interface Removal {
   /** The "Input N" it came from, and that frame's id. */
   from: { position: number; frameId: string; role: FrameRole };
   content: RemovalContent<Frame, Picture>;
+}
+
+/** Every cid a removal holds. */
+export function removalCids({ content }: Removal): string[] {
+  switch (content.kind) {
+    case "picture":
+      return [content.picture.cid];
+    case "frames":
+      return cidsOf(content.frames);
+    default:
+      return cidsOf([content.frame]);
+  }
 }
 
 export interface StoredRemoval extends Omit<Removal, "content"> {

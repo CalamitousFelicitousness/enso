@@ -9,6 +9,7 @@ import { create } from "zustand";
 import { inputsReady, useInputStore } from "@/stores/inputStore";
 import { useGenerationStore } from "@/stores/generationStore";
 import { useUiStore } from "@/stores/uiStore";
+import type { LibrarySubTab } from "@/lib/constants";
 import {
   defaultEntryName,
   entryThumbs,
@@ -26,8 +27,11 @@ import {
   type StoredEntry,
 } from "@/lib/inputs/stored";
 import { LIBRARY } from "@/lib/inputs/storeLayout";
-import { RETENTION_MS } from "@/lib/inputs/sweep";
 import {
+  DELETE_FOR_GOOD,
+  DELETE_INSTEAD,
+  entryChangeFailedText,
+  entryDeletedText,
   entryTrashedText,
   evictedText,
   linkedSaveText,
@@ -36,12 +40,17 @@ import {
   SAVE_FAILED,
   savedText,
   SHOW_IN_LIBRARY,
+  UNREADABLE_DELETE_FAILED,
+  type EntryChange,
 } from "@/lib/inputs/text";
 import { holdsContent, type Frame } from "@/lib/inputs/types";
-import { deleteRecords, readAllRecords, rewriteStore, updateRecord } from "./db";
+import { deleteRecords, readAllRecords, readTrashDays, rewriteStore, updateRecord } from "./db";
+import { TRASH_DAYS } from "@/lib/inputs/sweep";
 import { currentMapsOf } from "./maps";
 import { outlineOf } from "./outlineOf";
+import { failureText, isQuotaError, reportFull } from "./quota";
 import { thumbBlob } from "./thumbs";
+import { deleteAndTell } from "./trash";
 import { offerUndo } from "./undo";
 
 export interface LibraryState {
@@ -67,11 +76,6 @@ function show(changed: readonly StoredEntry[]): void {
     for (const entry of changed) entries.set(entry.id, entry);
     return { entries };
   });
-}
-
-/** The trash keeps what goes to it this many days. */
-export function retentionDays(): number {
-  return Math.round(RETENTION_MS / (24 * 60 * 60 * 1000));
 }
 
 let reading: Promise<void> | null = null;
@@ -128,9 +132,11 @@ function evicted(entries: ReadonlyMap<string, StoredEntry>, now: number): Stored
 
 const NO_BLOBS: ReadonlyMap<string, Blob> = new Map();
 
-/** Open the Library. */
-export function showLibrary(): void {
-  useUiStore.getState().openRightTab("library");
+/** Open the Library on one of its lists. */
+export function showLibrary(list: LibrarySubTab = "saved"): void {
+  const ui = useUiStore.getState();
+  ui.setPanelSelection("librarySubTab", list);
+  ui.openRightTab("library");
 }
 
 /** Read the library when it comes into view, and again whenever the window
@@ -173,7 +179,8 @@ async function storeEntry(
       })) ?? [];
   } catch (err) {
     console.error("[inputs] could not save to the library", err);
-    toast.error(SAVE_FAILED, { description: err instanceof Error ? err.message : String(err) });
+    toast.error(SAVE_FAILED, { description: failureText(err) });
+    if (isQuotaError(err)) reportFull("The saved inputs");
     return null;
   }
   show([record, ...pushedOut]);
@@ -184,15 +191,16 @@ async function storeEntry(
       (err: unknown) => console.warn("[inputs] could not make a thumbnail", err),
     );
   }
+  const days = pushedOut.length > 0 ? await readTrashDays().catch(() => TRASH_DAYS.fallback) : 0;
   toast.success(savedText(record.name), {
     description:
       pushedOut.length > 0
         ? evictedText(
             pushedOut.map((e) => e.name),
-            retentionDays(),
+            days,
           )
         : undefined,
-    action: { label: SHOW_IN_LIBRARY, onClick: showLibrary },
+    action: { label: SHOW_IN_LIBRARY, onClick: () => showLibrary() },
   });
   return record;
 }
@@ -237,6 +245,7 @@ export async function deleteUnreadable(key: string): Promise<void> {
     await deleteRecords(LIBRARY, [key]);
   } catch (err) {
     console.error("[inputs] could not delete a library record", err);
+    toast.error(UNREADABLE_DELETE_FAILED, { description: failureText(err) });
   }
   await loadLibrary();
 }
@@ -318,14 +327,36 @@ async function changeEntry(
   return changed[0] ?? null;
 }
 
-export function renameEntry(id: string, name: string): Promise<StoredEntry | null> {
-  const trimmed = name.trim();
-  return changeEntry(id, (e) => (trimmed && trimmed !== e.name ? { ...e, name: trimmed } : null));
+function nameOf(id: string): string {
+  return useLibrary.getState().entries.get(id)?.name ?? id;
 }
 
-/** The entry was recalled: it is the most recently used. */
-export function touchEntry(id: string): Promise<StoredEntry | null> {
-  return changeEntry(id, (e) => (e.trashedAt === null ? { ...e, usedAt: Date.now() } : null));
+/** A change to an entry was not stored: say which, and why. */
+function changeFailed(change: EntryChange, id: string, err: unknown): void {
+  console.error(`[inputs] could not ${change} a library entry`, err);
+  toast.error(entryChangeFailedText(change, nameOf(id)), { description: failureText(err) });
+}
+
+export async function renameEntry(id: string, name: string): Promise<StoredEntry | null> {
+  const trimmed = name.trim();
+  try {
+    return await changeEntry(id, (e) =>
+      trimmed && trimmed !== e.name ? { ...e, name: trimmed } : null,
+    );
+  } catch (err) {
+    changeFailed("rename", id, err);
+    return null;
+  }
+}
+
+/** The entry was recalled: it is the most recently used. Not stored, it only
+ * keeps its place in the order. */
+export async function touchEntry(id: string): Promise<void> {
+  try {
+    await changeEntry(id, (e) => (e.trashedAt === null ? { ...e, usedAt: Date.now() } : null));
+  } catch (err) {
+    console.warn("[inputs] could not mark a library entry used", err);
+  }
 }
 
 /** Pin or unpin an entry. A pin past the limit is refused and said so;
@@ -346,7 +377,7 @@ export async function setPinned(id: string, pin: boolean): Promise<boolean> {
     });
     if (changed) show([changed]);
   } catch (err) {
-    console.error("[inputs] could not pin a library entry", err);
+    changeFailed(pin ? "pin" : "unpin", id, err);
     return false;
   }
   if (refused) toast.info(pinLimitText(MAX_PINNED_ENTRIES));
@@ -383,19 +414,42 @@ export async function untrashEntry(
   });
 }
 
-/** Move an entry to the trash, with Undo. */
+/** Move an entry to the trash. Null when it is gone or there already. */
+export function moveToTrash(id: string): Promise<StoredEntry | null> {
+  return changeEntry(id, (e) => (e.trashedAt === null ? { ...e, trashedAt: Date.now() } : null));
+}
+
+/** Move an entry to the trash, with Undo. On a full disk the move, a write,
+ * is refused, and deleting the entry for good is offered in its place. */
 export async function trashEntry(id: string): Promise<void> {
   let trashed: StoredEntry | null;
   try {
-    trashed = await changeEntry(id, (e) =>
-      e.trashedAt === null ? { ...e, trashedAt: Date.now() } : null,
-    );
+    trashed = await moveToTrash(id);
   } catch (err) {
+    if (!isQuotaError(err)) {
+      changeFailed("trash", id, err);
+      return;
+    }
     console.error("[inputs] could not move a library entry to the trash", err);
+    const name = nameOf(id);
+    toast.error(entryChangeFailedText("trash", name), {
+      description: DELETE_INSTEAD,
+      action: { label: DELETE_FOR_GOOD, onClick: () => void deleteEntry(id, name) },
+    });
     return;
   }
   if (!trashed) return;
   offerUndo(entryTrashedText(trashed.name), null, async () => {
     await untrashEntry(id, false);
   });
+}
+
+/** Delete an entry for good, freeing what only it named. */
+async function deleteEntry(id: string, name: string): Promise<void> {
+  const deleted = await deleteAndTell(
+    [{ store: LIBRARY, key: id }],
+    entryDeletedText(name),
+    entryChangeFailedText("delete", name),
+  );
+  if (deleted) await loadLibrary();
 }

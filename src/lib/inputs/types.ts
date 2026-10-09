@@ -212,3 +212,12 @@ export function hasMask(frame: Frame): boolean {
 export function holdsContent(frame: Frame): boolean {
   return frame.pictures.length > 0 || hasMask(frame) || frame.ipAdapter.masks.length > 0;
 }
+
+/** Every cid the frames name: their pictures, mask objects and region masks. */
+export function cidsOf(frames: readonly Frame[]): string[] {
+  return frames.flatMap((frame) => [
+    ...frame.pictures.map((p) => p.cid),
+    ...frame.mask.objects.map((m) => m.cid),
+    ...frame.ipAdapter.masks.map((m) => m.cid),
+  ]);
+}

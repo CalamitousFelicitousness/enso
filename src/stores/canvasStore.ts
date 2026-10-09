@@ -4,6 +4,7 @@ import { createGatedStorage, idbBackend } from "@/lib/idbStorage";
 import { loose } from "@/lib/inputs/loose";
 import { reportStorageProblem } from "@/lib/storageHealth";
 import { DEFAULT_SIZE_MULTIPLE } from "@/lib/sizeCompute";
+import { writeProblems } from "@/inputs/quota";
 import type { FrameId } from "@/canvas/frameList";
 import type { ViewportState } from "@/canvas/viewportBus";
 
@@ -111,8 +112,7 @@ async function viewOfLegacyRecord(): Promise<StorageValue<PersistedCanvasState> 
 
 const canvasStorage = createGatedStorage<PersistedCanvasState>(canvasRecords, "enso-canvas/state", {
   seed: viewOfLegacyRecord,
-  onWriteError: () => reportStorageProblem({ kind: "write", id: "canvas", what: "canvas view" }),
-  onWriteRecovered: () => reportStorageProblem({ kind: "resolved", id: "canvas" }),
+  ...writeProblems("canvas", "canvas view", () => canvasStorage.retry()),
 });
 
 export const useCanvasStore = create<CanvasState>()(

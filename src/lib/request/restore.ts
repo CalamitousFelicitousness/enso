@@ -8,7 +8,8 @@ import { useGenerationStore, type GenerationState } from "@/stores/generationSto
 import type { GenerationResult } from "@/stores/generationStore";
 import { useImg2ImgStore } from "@/stores/img2imgStore";
 import { inputsReady } from "@/stores/inputStore";
-import { restoreFrames } from "@/inputs/edits";
+import { restoreFrames, type Inverse } from "@/inputs/edits";
+import { cidsOf } from "@/lib/inputs/types";
 import { loadJob, loadJobInputs, type LoadedInputs } from "@/inputs/jobs";
 import { hasLegacyInputs, legacyResultInputs } from "@/inputs/legacyResult";
 import { offerUndo } from "@/inputs/undo";
@@ -133,14 +134,19 @@ async function restoreWithInputs(target: RestoreTarget, kind: Exclude<RestoreKin
     applied = applySettings(target.settings.source);
   }
   const notes = applied?.notes ?? [];
-  let putBack: (() => void) | null = null;
+  let putBack: Inverse | null = null;
   let undone = false;
-  const offer = offerUndo(restoredText(kind), restoreNotesText(notes), () => {
-    undone = true;
-    // the frames first, then the settings, so the size from before wins
-    putBack?.();
-    applied?.revert();
-  });
+  const offer = offerUndo(
+    restoredText(kind),
+    restoreNotesText(notes),
+    () => {
+      undone = true;
+      // the frames first, then the settings, so the size from before wins
+      putBack?.run();
+      applied?.revert();
+    },
+    { holds: () => (putBack ? cidsOf(putBack.frames) : []) },
+  );
   const live = () => !undone && token === latest;
 
   let loaded: LoadedInputs | null = null;

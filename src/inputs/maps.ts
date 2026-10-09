@@ -18,6 +18,7 @@ import type { ProcessorFacts } from "@/lib/processorUtils";
 import { useJobQueueStore, type TrackedJob } from "@/stores/jobStore";
 import { imageSize } from "./media";
 import { readDocument, writeRecord } from "./db";
+import { isQuotaError, reportFull } from "./quota";
 
 export interface MapEntry {
   key: string;
@@ -216,6 +217,7 @@ export async function installMap(key: string, blob: Blob, cid?: string): Promise
     await writeRecord(MAPS, key, toRecord(entry), new Map([[entry.cid, blob]]));
   } catch (err) {
     console.error("[inputs] could not store a map", err);
+    if (isQuotaError(err)) reportFull("A processed map");
   }
 }
 

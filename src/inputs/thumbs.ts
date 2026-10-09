@@ -100,6 +100,12 @@ function release(cid: string): void {
   for (const [key] of idle.slice(0, Math.max(0, idle.length - IDLE_KEPT))) slots.delete(key);
 }
 
+/** Let go of the thumbnails of deleted pictures: the browser keeps a deleted
+ * blob's file on disk while a handle read from it is alive. */
+export function forgetThumbs(cids: Iterable<string>): void {
+  for (const cid of cids) slots.delete(cid);
+}
+
 /** The picture's thumbnail, read back or made and stored. */
 export function thumbBlob(source: ThumbSource): Promise<Blob> {
   const { thumb } = acquire(source);

@@ -3,6 +3,7 @@ import { persist } from "zustand/middleware";
 import { base64ToBlob } from "@/lib/utils";
 import { createIdbStorage } from "@/lib/idbStorage";
 import { reportStorageProblem } from "@/lib/storageHealth";
+import { writeProblems } from "@/inputs/quota";
 import type { ReferenceKind } from "@/lib/video/referenceMedia";
 import type { ViewportState } from "@/canvas/viewportBus";
 
@@ -91,9 +92,7 @@ const videoCanvasIdbStorage = createIdbStorage<PersistedVideoCanvasState>(
   "state",
   {
     legacyKey: "enso-video-canvas",
-    onWriteError: () =>
-      reportStorageProblem({ kind: "write", id: "video-canvas", what: "video inputs" }),
-    onWriteRecovered: () => reportStorageProblem({ kind: "resolved", id: "video-canvas" }),
+    ...writeProblems("video-canvas", "video inputs", () => videoCanvasIdbStorage.retry()),
   },
 );
 

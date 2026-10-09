@@ -1,5 +1,17 @@
 import { describe, expect, it } from "vitest";
-import { blobCid, planSweep, readForSweep, RETENTION_MS, type StoreReader } from "./sweep";
+import {
+  blobCid,
+  planReclaim,
+  planSweep,
+  readForSweep,
+  RETENTION_MS,
+  sweepPolicy,
+  trashDays,
+  trashOnlyCids,
+  type StoreReader,
+} from "./sweep";
+
+const POLICY = sweepPolicy(7);
 
 const DAY = 24 * 60 * 60 * 1000;
 const NOW = 1_800_000_000_000;
@@ -88,6 +100,7 @@ describe("readForSweep", () => {
       ],
       { docs: keeping },
       NOW,
+      POLICY,
     );
     expect([...reading.named]).toEqual(["a"]);
     expect(reading.expired).toEqual([{ store: "docs", key: "d2" }]);
@@ -102,6 +115,7 @@ describe("readForSweep", () => {
       ],
       { trash: releasing, maps: keeping },
       NOW,
+      POLICY,
     );
     expect([...reading.urgent]).toEqual(["x"]);
     expect(reading.expired.map((e) => e.key)).toEqual(["t", "m"]);
@@ -118,6 +132,7 @@ describe("readForSweep", () => {
       ],
       { trash: releasing },
       NOW,
+      POLICY,
     );
     expect([...reading.named]).toEqual(["x"]);
     expect(reading.urgent.size).toBe(0);
@@ -126,7 +141,54 @@ describe("readForSweep", () => {
 
   it("refuses a store it has no reader for", () => {
     expect(() =>
-      readForSweep([{ store: "other", keys: [1], records: [{ cids: [] }] }], {}, NOW),
+      readForSweep([{ store: "other", keys: [1], records: [{ cids: [] }] }], {}, NOW, POLICY),
     ).toThrow("no reader for other");
+  });
+});
+
+describe("trash days", () => {
+  it("keeps a stored number of days whole and within bounds, else the default", () => {
+    expect(trashDays(7)).toBe(7);
+    expect(trashDays(0)).toBe(1);
+    expect(trashDays(45)).toBe(30);
+    expect(trashDays(2.6)).toBe(3);
+    expect(trashDays(Number.NaN)).toBe(7);
+    expect(trashDays("7")).toBe(7);
+    expect(trashDays(undefined)).toBe(7);
+  });
+
+  it("turns the days into the time the trash keeps a record", () => {
+    expect(sweepPolicy(1).removalMs).toBe(24 * 60 * 60 * 1000);
+    expect(sweepPolicy(-3).removalMs).toBe(24 * 60 * 60 * 1000);
+  });
+});
+
+describe("trashOnlyCids", () => {
+  it("is what only records in the trash name", () => {
+    const only = trashOnlyCids([
+      { cids: ["a", "b"], inTrash: true },
+      { cids: ["b", "c"] },
+      { cids: ["d"], inTrash: true },
+    ]);
+    expect([...only].sort()).toEqual(["a", "d"]);
+  });
+});
+
+describe("planReclaim", () => {
+  it("frees what was asked for unless a record names it or this page holds it", () => {
+    const plan = planReclaim(
+      ["a", "a/thumb@320", "b", "c", "d"],
+      new Set(["a", "b", "c"]),
+      new Set(["b"]),
+      new Set(["c"]),
+    );
+    expect(plan).toEqual({ remove: ["a", "a/thumb@320"], waiting: ["c"] });
+  });
+
+  it("frees nothing that was not asked for", () => {
+    expect(planReclaim(["x"], new Set(), new Set(), new Set())).toEqual({
+      remove: [],
+      waiting: [],
+    });
   });
 });

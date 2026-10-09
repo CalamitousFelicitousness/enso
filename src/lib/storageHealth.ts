@@ -28,6 +28,13 @@ export type StorageProblem =
       /** Store this tab's version over the other tab's. */
       keepMine: () => void;
     }
+  | {
+      /** The browser refused a write because the origin's storage is full. */
+      kind: "full";
+      id: string;
+      /** What could not be stored, as a sentence's subject ("Changes to the inputs"). */
+      what: string;
+    }
   | { kind: "resolved"; id: string };
 
 type Listener = (problem: StorageProblem) => void;

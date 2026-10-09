@@ -21,6 +21,11 @@ import { Save, RotateCcw, Search, ListRestart, Plug, Unplug, Check } from "lucid
 import { useUiStore } from "@/stores/uiStore";
 import { generationHistoryDb, useGenerationStore } from "@/stores/generationStore";
 import { offerUndo } from "@/inputs/undo";
+import { loadLibrary, useLibrary } from "@/inputs/library";
+import { loadTrash, setTrashDays, useTrash } from "@/inputs/trash";
+import { sweepPolicy, TRASH_DAYS } from "@/lib/inputs/sweep";
+import { goingWith } from "@/lib/inputs/trash";
+import { TRASH_DAYS_LABEL, trashDaysText, trashDaysValue } from "@/lib/inputs/text";
 import { STRIP_LIMIT_MAX, STRIP_LIMIT_MIN } from "@/lib/resultStrip";
 import { STRIP_LIMIT_LABEL, stripLimitText, stripTrimmedText } from "@/lib/jobs/text";
 import type { ColorMode, CanvasBackground as CanvasBg } from "@/stores/uiStore";
@@ -308,7 +313,7 @@ function StripLimitRow() {
       title,
       description,
       () => useGenerationStore.getState().putBackResults(removed, previous),
-      () => void generationHistoryDb.deleteMany(removed.map((r) => r.id)),
+      { settle: () => void generationHistoryDb.deleteMany(removed.map((r) => r.id)) },
     );
   };
 
@@ -320,6 +325,39 @@ function StripLimitRow() {
       max={STRIP_LIMIT_MAX}
       describe={(shown) => stripLimitText(onStrip, shown)}
       onCommit={commit}
+    />
+  );
+}
+
+/** How long the trash keeps what goes to it. A shorter time deletes nothing
+ * until the next page start; the row counts what would go then. */
+function TrashDaysRow() {
+  const days = useTrash((s) => s.days);
+  const removals = useTrash((s) => s.removals);
+  const entries = useLibrary((s) => s.entries);
+  const [now] = useState(Date.now);
+  useEffect(() => {
+    void loadTrash();
+    void loadLibrary();
+  }, []);
+  const removed = useMemo(
+    () => [
+      ...[...removals.values()].map((r) => ({ removedAt: r.removedAt })),
+      ...[...entries.values()].flatMap((e) =>
+        e.trashedAt === null ? [] : [{ removedAt: e.trashedAt }],
+      ),
+    ],
+    [removals, entries],
+  );
+  return (
+    <CommittedSliderRow
+      label={TRASH_DAYS_LABEL}
+      value={days}
+      min={TRASH_DAYS.min}
+      max={TRASH_DAYS.max}
+      format={trashDaysValue}
+      describe={(shown) => trashDaysText(goingWith(removed, sweepPolicy(shown).removalMs, now))}
+      onCommit={(value) => void setTrashDays(value)}
     />
   );
 }
@@ -340,6 +378,7 @@ function BehaviorPanel() {
           <Switch checked={livePreviews} onCheckedChange={setLivePreviews} />
         </SettingRow>
         <StripLimitRow />
+        <TrashDaysRow />
       </div>
     </div>
   );

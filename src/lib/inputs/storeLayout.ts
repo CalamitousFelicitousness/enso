@@ -28,12 +28,12 @@ export type DocumentStore =
 export const READERS: Readonly<Record<DocumentStore, StoreReader>> = {
   [DOCUMENTS]: (record) => ({ cids: readWorking(record).cids }),
   [SNAPSHOTS]: (record) => ({ cids: readSnapshot(record).cids }),
-  [TRASH]: (record) => {
+  [TRASH]: (record, policy) => {
     const read = readRemoval(record);
     // what the user removed goes with its record; a map keeps the grace
     return {
       cids: read.cids,
-      expiresAt: removalExpiry(read.record.removedAt),
+      expiresAt: removalExpiry(read.record.removedAt, policy.removalMs),
       inTrash: true,
     };
   },
@@ -42,12 +42,16 @@ export const READERS: Readonly<Record<DocumentStore, StoreReader>> = {
     return { cids: read.cids, expiresAt: mapExpiry(read.record.usedAt) };
   },
   [JOBS]: (record) => ({ cids: readJob(record).cids }),
-  [LIBRARY]: (record) => {
+  [LIBRARY]: (record, policy) => {
     const read = readEntry(record);
     const { trashedAt } = read.record;
     return trashedAt === null
       ? { cids: read.cids }
-      : { cids: read.cids, expiresAt: removalExpiry(trashedAt), inTrash: true };
+      : {
+          cids: read.cids,
+          expiresAt: removalExpiry(trashedAt, policy.removalMs),
+          inTrash: true,
+        };
   },
 };
 

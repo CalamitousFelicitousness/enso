@@ -15,15 +15,17 @@ import {
 import { refitFrame } from "@/lib/inputs/geometry";
 import { cloneFrames, isBlank, newFrame } from "@/lib/inputs/reducers";
 import { addressChanges } from "@/lib/inputs/renumber";
-import type { Inputs, Removal } from "@/lib/inputs/stored";
+import { removalCids, type Inputs, type Removal } from "@/lib/inputs/stored";
 import {
   addedText,
   duplicatedText,
+  NOT_KEPT_IN_TRASH,
   NOTHING_TO_DUPLICATE,
   positionLabel,
   renumberText,
 } from "@/lib/inputs/text";
 import {
+  cidsOf,
   composedPictures,
   holdsContent,
   isComposed,
@@ -37,6 +39,7 @@ import { revealFrame } from "./reveal";
 import { keepingSize } from "./sizeSync";
 import { addFilesToInputs } from "./route";
 import { forgetRemoval, recordRemoval } from "./trash";
+import { isQuotaError, reportFull } from "./quota";
 import { offerUndo } from "./undo";
 import { outlineOf } from "./outlineOf";
 
@@ -49,6 +52,26 @@ const sizeNow = (): Size => {
   const { width, height } = useGenerationStore.getState();
   return { width, height };
 };
+
+/** What undoes a change, and the frames it would bring back, whose bytes
+ * must stay while it can. */
+export interface Inverse {
+  run: () => void;
+  frames: readonly Frame[];
+}
+
+/** An Undo offer for an inverse, holding the bytes of what it brings back. */
+export function offerInverse(
+  title: string,
+  description: string | null,
+  inverse: Inverse,
+  settle?: () => void,
+): void {
+  offerUndo(title, description, inverse.run, {
+    holds: () => cidsOf(inverse.frames),
+    ...(settle ? { settle } : {}),
+  });
+}
 
 /** Put a frame back where it was, or its content into the frame that took its place. */
 function putBackFrame(frame: Frame, index: number, linkedFrom: string[] = []): void {
@@ -78,16 +101,19 @@ function putBeside(frame: Frame, index: number): void {
 }
 
 /** What puts the list, its Size from pick and the frame size back as they are now. */
-function holdList(): () => void {
+function holdList(): Inverse {
   const { frames, sizeSource } = useInputStore.getState();
   const size = sizeNow();
-  return () =>
-    keepingSize(() => {
-      const store = useInputStore.getState();
-      store.restoreFrames(frames);
-      store.setSizeSource(sizeSource);
-      useGenerationStore.getState().setParams({ ...size });
-    });
+  return {
+    frames,
+    run: () =>
+      keepingSize(() => {
+        const store = useInputStore.getState();
+        store.restoreFrames(frames);
+        store.setSizeSource(sizeSource);
+        useGenerationStore.getState().setParams({ ...size });
+      }),
+  };
 }
 
 /** Put back what a removal took out, whatever the model's limit says: a
@@ -96,7 +122,7 @@ function holdList(): () => void {
  * whole), and each frame of a cleared list so. What a replace put aside comes
  * back beside what replaced it, and a replaced list takes the list's place
  * again, sending the list to the trash. Returns what undoes the put-back. */
-export function putBack(removal: Removal): () => void {
+export function putBack(removal: Removal): Inverse {
   const { content, cause, size, from } = removal;
   if (content.kind === "frames" && cause === "replaced") {
     const now = sizeNow();
@@ -151,11 +177,21 @@ async function removed(
     key = await recordRemoval(removal);
   } catch (err) {
     console.error("[inputs] could not keep what was removed", err);
+    if (isQuotaError(err)) {
+      // Undo still puts it back from memory
+      toast.warning(NOT_KEPT_IN_TRASH);
+      reportFull("A removed input");
+    }
   }
-  offerUndo(title, renumber, () => {
-    undo();
-    if (key) forgetRemoval(key);
-  });
+  offerUndo(
+    title,
+    renumber,
+    () => {
+      undo();
+      if (key) void forgetRemoval(key);
+    },
+    { holds: () => removalCids(removal) },
+  );
 }
 
 /** Remove a frame. The last frame stays. */
@@ -273,7 +309,7 @@ export function moveFrame(from: number, to: number): void {
  * trash. Returns what puts it back, at `previousSize`: the size from before
  * the restore began, which a restore of settings may already have changed.
  * Neither direction refits anything. */
-export function restoreFrames(inputs: Inputs, previousSize: Size): () => void {
+export function restoreFrames(inputs: Inputs, previousSize: Size): Inverse {
   const store = useInputStore.getState();
   const previous = { frames: store.frames, sizeSource: store.sizeSource };
   keepingSize(() => {
@@ -296,16 +332,19 @@ export function restoreFrames(inputs: Inputs, previousSize: Size): () => void {
       return null;
     });
   }
-  return () => {
-    keepingSize(() => {
-      const inputStore = useInputStore.getState();
-      inputStore.restoreFrames(previous.frames);
-      inputStore.setSizeSource(previous.sizeSource);
-      useGenerationStore.getState().setParams({ ...previousSize });
-    });
-    void record.then((key) => {
-      if (key) forgetRemoval(key);
-    });
+  return {
+    frames: previous.frames,
+    run: () => {
+      keepingSize(() => {
+        const inputStore = useInputStore.getState();
+        inputStore.restoreFrames(previous.frames);
+        inputStore.setSizeSource(previous.sizeSource);
+        useGenerationStore.getState().setParams({ ...previousSize });
+      });
+      void record.then((key) => {
+        if (key) void forgetRemoval(key);
+      });
+    },
   };
 }
 
@@ -418,17 +457,20 @@ export function addFrames(
 ): boolean {
   if (frames.length === 0) return false;
   const store = useInputStore.getState();
-  const undo = store.frames.every(isBlank)
+  const undo: Inverse = store.frames.every(isBlank)
     ? holdList()
-    : () => {
-        const current = useInputStore.getState();
-        for (const frame of frames) current.removeFrame(frame.id);
+    : {
+        frames: [],
+        run: () => {
+          const current = useInputStore.getState();
+          for (const frame of frames) current.removeFrame(frame.id);
+        },
       };
   if (!store.appendFrames(frames)) return false;
   const outline = outlineOf(useInputStore.getState().frames);
   const positions = frames.flatMap((f) => outlineEntry(outline, f.id)?.position ?? []);
   revealFrame(frames[0].id);
-  offerUndo(title(positions), null, undo);
+  offerInverse(title(positions), null, undo);
   return true;
 }
 

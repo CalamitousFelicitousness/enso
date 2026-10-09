@@ -12,7 +12,15 @@ import type {
   SentInput,
 } from "./outline";
 import type { AddressChange } from "./renumber";
-import type { ControlType, Frame, FrameRole, MediaKind, Size } from "./types";
+import type { StoredEntry, StoredFrame, StoredRemoval } from "./stored";
+import {
+  isComposed,
+  type ControlType,
+  type Frame,
+  type FrameRole,
+  type MediaKind,
+  type Size,
+} from "./types";
 
 const KIND: Record<MediaKind, string> = { image: "Image", video: "Video", audio: "Audio" };
 const ROLE: Record<FrameRole, string> = {
@@ -359,6 +367,30 @@ export const RECALL_FAILED = "Could not read the saved inputs";
 export const SAVE_FAILED = "Could not save to the library";
 export const SHOW_IN_LIBRARY = "Show in library";
 
+export type EntryChange = "rename" | "pin" | "unpin" | "trash" | "delete";
+
+const ENTRY_CHANGE_FAILED: Record<EntryChange, (name: string) => string> = {
+  rename: (name) => `Could not rename "${name}"`,
+  pin: (name) => `Could not pin "${name}"`,
+  unpin: (name) => `Could not unpin "${name}"`,
+  trash: (name) => `Could not move "${name}" to the trash`,
+  delete: (name) => `Could not delete "${name}"`,
+};
+
+/** 'Could not rename "Portrait"': a change to an entry that was not stored. */
+export function entryChangeFailedText(change: EntryChange, name: string): string {
+  return ENTRY_CHANGE_FAILED[change](name);
+}
+
+/** '"Portrait" deleted'. */
+export function entryDeletedText(name: string): string {
+  return `"${name}" deleted`;
+}
+
+export const DELETE_INSTEAD = "Storage is full. Delete it for good instead?";
+export const DELETE_FOR_GOOD = "Delete";
+export const UNREADABLE_DELETE_FAILED = "Could not delete the entry";
+
 /** "Frame · Reference · 3 pictures", "Set · 4 inputs · 1024×1024": what an entry holds. */
 export function entryLine(
   kind: "frame" | "set",
@@ -427,3 +459,151 @@ export function libraryCountText(unpinned: number, cap: number, pinned: number):
 export function notSentReason(reason: NotSentReason): string {
   return NOT_SENT[reason];
 }
+
+const describeFrame = (frame: StoredFrame): string => {
+  const what = isComposed(frame.role) ? ["layer", "layers"] : ["picture", "pictures"];
+  return `${frameRoleLabel(frame)}, ${plural(frame.pictures.length, what[0], what[1])}`;
+};
+
+/** What a frame's emptied or replaced content held: "2 layers, mask". */
+function contentsLabel(frame: StoredFrame): string {
+  const parts: string[] = [];
+  const what = isComposed(frame.role) ? ["layer", "layers"] : ["picture", "pictures"];
+  if (frame.pictures.length > 0) parts.push(plural(frame.pictures.length, what[0], what[1]));
+  if (frame.mask.objects.length > 0 || frame.mask.strokes.length > 0) parts.push("mask");
+  if (frame.ipAdapter.masks.length > 0) {
+    parts.push(plural(frame.ipAdapter.masks.length, "region mask", "region masks"));
+  }
+  return parts.join(", ") || "settings";
+}
+
+/** A removal as the trash names it: "Input 2 (Reference, 3 pictures)",
+ * "cat.png, from Input 2", "Cleared from Input 1: 2 layers, mask",
+ * "Cleared inputs (4 inputs)". */
+export function removalTitle({ cause, from, content }: StoredRemoval): string {
+  const where = positionLabel(from.position);
+  switch (content.kind) {
+    case "frame":
+      return `${where} (${describeFrame(content.frame)})`;
+    case "picture":
+      return `${content.picture.name}, from ${where}`;
+    case "contents":
+      return `${cause === "replaced" ? "Replaced in" : "Cleared from"} ${where}: ${contentsLabel(content.frame)}`;
+    case "frames":
+      return `${cause === "replaced" ? "Replaced inputs" : "Cleared inputs"} (${plural(content.frames.length, "input", "inputs")})`;
+  }
+}
+
+/** A library entry as the trash names it: '"Portrait", from the library (set, 3 inputs)'. */
+export function entryTrashTitle(entry: Pick<StoredEntry, "name" | "kind" | "inputs">): string {
+  const { frames } = entry.inputs;
+  const what =
+    entry.kind === "set"
+      ? `set, ${plural(frames.length, "input", "inputs")}`
+      : `${frames[0] ? frameRoleLabel(frames[0]) : "empty"} frame`;
+  return `"${entry.name}", from the library (${what})`;
+}
+
+const MINUTE = 60 * 1000;
+const HOUR = 60 * MINUTE;
+const DAY = 24 * HOUR;
+
+function ago(ms: number): string {
+  if (ms < MINUTE) return "just now";
+  if (ms < HOUR) return `${Math.floor(ms / MINUTE)} min ago`;
+  if (ms < DAY) return `${Math.floor(ms / HOUR)} h ago`;
+  return `${plural(Math.floor(ms / DAY), "day", "days")} ago`;
+}
+
+/** "removed 3 h ago · 6 days left", or that it goes at the next start. */
+export function trashAgeText(removedAt: number, expiresAt: number, now: number): string {
+  const left = expiresAt - now;
+  const when =
+    left <= 0
+      ? "goes at the next start"
+      : left >= DAY
+        ? `${plural(Math.floor(left / DAY), "day", "days")} left`
+        : `${plural(Math.max(1, Math.floor(left / HOUR)), "hour", "hours")} left`;
+  return `removed ${ago(now - removedAt)} · ${when}`;
+}
+
+export const TRASH_EMPTY_LABEL = "Empty the trash";
+export const RESTORE_FROM_TRASH = "Restore";
+export const DELETE_NOW = "Delete now";
+export const NO_LONGER_IN_TRASH = "No longer in the trash";
+export const NEWER_REMOVAL = "Removed by a newer version of Enso";
+export const DELETE_FROM_TRASH_FAILED = "Could not delete from the trash";
+
+/** "Deleted from the trash", or "The trash is emptied" for several. */
+export function deletedFromTrashText(count: number): string {
+  return count === 1 ? "Deleted from the trash" : "The trash is emptied";
+}
+
+/** "Nothing in the trash. Removed inputs stay here for 7 days." */
+export function trashEmptyText(days: number): string {
+  return `Nothing in the trash. Removed inputs stay here ${keptForText(days)}.`;
+}
+
+/** "about 85 MB": a size for people. */
+export function aboutSize(bytes: number): string {
+  if (bytes < 1024 * 1024) return `about ${Math.max(1, Math.round(bytes / 1024))} KB`;
+  if (bytes < 1024 * 1024 * 1024) return `about ${Math.round(bytes / (1024 * 1024))} MB`;
+  return `about ${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
+}
+
+/** "12 removed inputs and 2 saved entries": what the trash holds. */
+export function trashCountText(removals: number, entries: number): string {
+  const parts: string[] = [];
+  if (removals > 0) parts.push(plural(removals, "removed input", "removed inputs"));
+  if (entries > 0) parts.push(plural(entries, "saved entry", "saved entries"));
+  return parts.join(" and ") || "nothing";
+}
+
+/** What Empty asks before it deletes. */
+export function emptyTrashText(removals: number, entries: number, bytes: number | null): string {
+  const size = bytes === null ? "" : aboutSize(bytes);
+  const freed = size ? ` ${size.charAt(0).toUpperCase()}${size.slice(1)} is freed.` : "";
+  return `Delete ${trashCountText(removals, entries)} now?${freed} They cannot be brought back.`;
+}
+
+/** After deleting from the trash: the space freed, or when it will be. */
+export function reclaimedText(freed: number | null): string {
+  return freed === null
+    ? "The space is freed once Enso runs in one tab: close the other Enso tabs, then reload this one."
+    : freed > 0
+      ? `${aboutSize(freed)} freed`
+      : "No space freed: the pictures are still used elsewhere";
+}
+
+/** '"Portrait" is back in the library', with what that pushed out. */
+export function untrashedText(name: string): string {
+  return `"${name}" is back in the library`;
+}
+
+export const PINS_FULL_ON_RESTORE = "It came back unpinned: the pins are full";
+
+/** "Keep removed inputs for": the settings row and its lines. */
+export const TRASH_DAYS_LABEL = "Keep removed inputs for";
+
+export function trashDaysValue(days: number): string {
+  return plural(days, "day", "days");
+}
+
+/** The settings row's line: what the trash keeps, or what a shorter time drops. */
+export function trashDaysText(going: number): string {
+  return going > 0
+    ? `${plural(going, "removed input goes", "removed inputs go")} at the next start`
+    : "Removed inputs stay in the trash this long";
+}
+
+export const RESTORED_FROM_TRASH = "Restored from the trash";
+
+/** "One picture could not be read back": a restore from the trash lost bytes. */
+export function lostRestoredPicturesText(n: number): string {
+  return n === 1 ? "One picture could not be read back" : `${n} pictures could not be read back`;
+}
+
+export const NOT_KEPT_IN_TRASH = "Not kept in the trash: storage is full";
+export const STORAGE_FULL = "Storage is full.";
+export const FULL_WITH_OTHER_TABS =
+  "Storage is full. Close the other Enso tabs, then delete again.";

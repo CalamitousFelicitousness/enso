@@ -30,6 +30,7 @@ import {
   Terminal,
   ListOrdered,
   CloudCog,
+  Trash2,
   Film,
   FileVideo,
 } from "lucide-react";
@@ -128,6 +129,14 @@ export const VIDEO_SUB_TABS = [
 ] as const satisfies readonly SubTabItem[];
 
 export type VideoSubTab = (typeof VIDEO_SUB_TABS)[number]["id"];
+
+/** Sub-tabs of the Library in the Right Panel. */
+export const LIBRARY_SUB_TABS = [
+  { id: "saved", label: "Saved", icon: BookMarked },
+  { id: "trash", label: "Trash", icon: Trash2 },
+] as const satisfies readonly SubTabItem[];
+
+export type LibrarySubTab = (typeof LIBRARY_SUB_TABS)[number]["id"];
 
 /** External links at the bottom of the Left Rail */
 export const EXTERNAL_LINKS: ExternalLink[] = [

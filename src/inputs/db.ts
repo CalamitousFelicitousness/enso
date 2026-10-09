@@ -5,17 +5,28 @@
 import { BLOBS, JOBS, JOBS_BY_CREATION, META, READERS, STORES } from "@/lib/inputs/storeLayout";
 import {
   blobCid,
+  planReclaim,
   planSweep,
   readForSweep,
+  sweepPolicy,
+  trashDays,
+  trashOnlyCids,
   type Orphans,
+  type ReclaimPlan,
+  type RecordFacts,
   type StoreReader,
   type StoreRecords,
   type SweepPlan,
+  type SweepPolicy,
 } from "@/lib/inputs/sweep";
 
 const NAME = "enso-inputs";
 const VERSION = 6;
 const ORPHANS = "orphans";
+/** The days the trash keeps what goes to it, as the user set them. */
+const TRASH_DAYS = "trashDays";
+/** Cids of what the user deleted from the trash, whose bytes have not gone yet. */
+const RECLAIM = "reclaim";
 const LOCK = "enso-inputs";
 
 /** The database was created by a build with a newer layout. */
@@ -159,6 +170,9 @@ async function write(
   blobs: ReadonlyMap<string, Blob>,
   revision: number | null,
 ): Promise<void> {
+  // a running reclaim decides which blobs are stored; wait for it before
+  // deciding which of these to write
+  await reclaimed();
   const db = await open();
   const tx = db.transaction([store, BLOBS, META], "readwrite");
   const done = finished(tx);
@@ -263,6 +277,7 @@ export async function rewriteStore<T>(
   store: string,
   decide: (records: ReadonlyMap<string, unknown>) => Rewrite<T> | null,
 ): Promise<T | null> {
+  await reclaimed();
   const db = await open();
   const tx = db.transaction([store, BLOBS], "readwrite");
   const done = finished(tx);
@@ -389,6 +404,18 @@ export async function unreadableBlobs(blobs: ReadonlyMap<string, Blob>): Promise
   return checked.filter(Boolean);
 }
 
+function strings(value: unknown): string[] {
+  return Array.isArray(value) ? value.filter((v): v is string => typeof v === "string") : [];
+}
+
+/** How many days the trash keeps what goes to it. */
+export async function readTrashDays(): Promise<number> {
+  const db = await open();
+  return trashDays(
+    await result(db.transaction(META, "readonly").objectStore(META).get(TRASH_DAYS)),
+  );
+}
+
 async function putMeta(key: string, value: unknown): Promise<void> {
   const db = await open();
   const tx = db.transaction(META, "readwrite");
@@ -398,13 +425,204 @@ async function putMeta(key: string, value: unknown): Promise<void> {
   await done;
 }
 
+/** Set how many days the trash keeps what goes to it; the sweep of the next
+ * page start reads it. */
+export function writeTrashDays(days: number): Promise<void> {
+  return putMeta(TRASH_DAYS, trashDays(days));
+}
+
+/** Every record of every document store, read by its store's reader in one
+ * transaction; a record the reader refuses is left out. */
+async function readFacts(tx: IDBTransaction, stores: readonly string[]): Promise<RecordFacts[]> {
+  const policy = sweepPolicy(trashDays(await result(tx.objectStore(META).get(TRASH_DAYS))));
+  const facts: RecordFacts[] = [];
+  for (const name of stores) {
+    if (!Object.hasOwn(READERS, name)) continue;
+    const read = (READERS as Readonly<Record<string, StoreReader>>)[name];
+    for (const record of (await result(tx.objectStore(name).getAll())) as unknown[]) {
+      try {
+        facts.push(read(record, policy));
+      } catch {
+        // a record this build cannot read names nothing it can count
+      }
+    }
+  }
+  return facts;
+}
+
+/** The bytes emptying the trash would free: what only records in the trash
+ * name. Each blob is read on its own and let go at once. */
+export async function reclaimableBytes(): Promise<number> {
+  const db = await open();
+  const names = [...db.objectStoreNames];
+  const tx = db.transaction(names, "readonly");
+  const only = trashOnlyCids(
+    await readFacts(
+      tx,
+      names.filter((n) => n !== BLOBS && n !== META),
+    ),
+  );
+  const blobs = tx.objectStore(BLOBS);
+  let total = 0;
+  for (const cid of only) {
+    const own: unknown = await result(blobs.get(cid));
+    if (own instanceof Blob) total += own.size;
+    const derived = (await result(
+      blobs.getAll(IDBKeyRange.bound(`${cid}/`, `${cid}/￿`)),
+    )) as unknown[];
+    for (const blob of derived) if (blob instanceof Blob) total += blob.size;
+  }
+  return total;
+}
+
+/** What deleting for good did: the bytes it freed and whose cids they were,
+ * or that they wait for the next page start in one tab. */
+export type Reclaimed = { freed: number; cids: string[] } | { waiting: "otherTabs" };
+
+type Target = { store: string; key: string };
+
+/** Deletions of blobs under way; a write decides which blobs are stored only
+ * after them. */
+const freeing = new Set<Promise<unknown>>();
+
+async function reclaimed(): Promise<void> {
+  await Promise.allSettled(freeing);
+}
+
+/** The cids a record names, by its store's reader. None for a record the
+ * reader refuses: its bytes get the grace, like anything unnamed. */
+function namedBy(store: string, record: unknown, policy: SweepPolicy): string[] {
+  if (record === undefined || !Object.hasOwn(READERS, store)) return [];
+  try {
+    return (READERS as Readonly<Record<string, StoreReader>>)[store](record, policy).cids;
+  } catch {
+    return [];
+  }
+}
+
+/** Delete records for good and free the bytes only they named. A full disk
+ * refuses any write, so while this tab is the only one open the records and
+ * the bytes go in a transaction that only deletes. Bytes `live` names (what
+ * this page holds in memory) stay. With other tabs open nothing can be freed
+ * yet: the records go and their cids are noted for the next page start in one
+ * tab, in one transaction, which a full disk refuses whole. */
+export async function deleteForGood(
+  targets: readonly Target[],
+  live: () => ReadonlySet<string>,
+): Promise<Reclaimed> {
+  if (targets.length === 0) return { freed: 0, cids: [] };
+  if (!(await alone())) {
+    await deleteAndNote(targets);
+    return { waiting: "otherTabs" };
+  }
+  const run = deleteAndFree(targets, live);
+  freeing.add(run);
+  const settled = () => freeing.delete(run);
+  void run.then(settled, settled);
+  return run;
+}
+
+async function deleteAndNote(targets: readonly Target[]): Promise<void> {
+  const db = await open();
+  const stores = [...new Set(targets.map((t) => t.store))];
+  const tx = db.transaction([...stores, META], "readwrite");
+  const done = finished(tx);
+  try {
+    const policy = sweepPolicy(trashDays(await result(tx.objectStore(META).get(TRASH_DAYS))));
+    const asked = new Set(strings(await result(tx.objectStore(META).get(RECLAIM))));
+    for (const { store, key } of targets) {
+      const record: unknown = await result(tx.objectStore(store).get(key));
+      for (const cid of namedBy(store, record, policy)) asked.add(cid);
+      tx.objectStore(store).delete(key);
+    }
+    tx.objectStore(META).put([...asked], RECLAIM);
+    tx.commit();
+  } catch (err) {
+    done.catch(() => {});
+    try {
+      tx.abort();
+    } catch {
+      // already finished
+    }
+    throw err;
+  }
+  await done;
+}
+
+/** This tab alone: the records, and the blobs of their cids that no record
+ * names any more and this page does not hold. Held cids are noted after, in a
+ * write of their own; without the note their bytes get the grace. */
+async function deleteAndFree(
+  targets: readonly Target[],
+  live: () => ReadonlySet<string>,
+): Promise<Reclaimed> {
+  const db = await open();
+  const names = [...db.objectStoreNames];
+  const tx = db.transaction(names, "readwrite");
+  const done = finished(tx);
+  let freed = 0;
+  let plan: ReclaimPlan;
+  try {
+    const policy = sweepPolicy(trashDays(await result(tx.objectStore(META).get(TRASH_DAYS))));
+    const asked = new Set(strings(await result(tx.objectStore(META).get(RECLAIM))));
+    for (const { store, key } of targets) {
+      const record: unknown = await result(tx.objectStore(store).get(key));
+      for (const cid of namedBy(store, record, policy)) asked.add(cid);
+      tx.objectStore(store).delete(key);
+    }
+    // read after the deletes, so the deleted records name nothing
+    const facts = await readFacts(
+      tx,
+      names.filter((n) => n !== BLOBS && n !== META),
+    );
+    const named = new Set(facts.flatMap((f) => f.cids));
+    const keys = (await result(tx.objectStore(BLOBS).getAllKeys())).filter(
+      (key): key is string => typeof key === "string",
+    );
+    plan = planReclaim(keys, asked, named, live());
+    for (const key of plan.remove) {
+      const blob: unknown = await result(tx.objectStore(BLOBS).get(key));
+      if (blob instanceof Blob) freed += blob.size;
+      tx.objectStore(BLOBS).delete(key);
+    }
+    tx.objectStore(META).delete(RECLAIM);
+    tx.commit();
+  } catch (err) {
+    done.catch(() => {});
+    try {
+      tx.abort();
+    } catch {
+      // already finished
+    }
+    throw err;
+  }
+  await done;
+  for (const key of plan.remove) held.delete(key);
+  if (plan.waiting.length > 0) {
+    await putMeta(RECLAIM, plan.waiting).catch((err: unknown) => {
+      console.warn("[inputs] could not note the pictures this page holds", err);
+    });
+  }
+  return { freed, cids: [...new Set(plan.remove.map(blobCid))] };
+}
+
+/** Whether this page holds the only lock of the app: no other tab is open. */
+export async function alone(): Promise<boolean> {
+  if (!("locks" in navigator)) return false;
+  const { held = [], pending = [] } = await navigator.locks.query();
+  return (
+    held.filter((lock) => lock.name === LOCK).length === 1 &&
+    !pending.some((lock) => lock.name === LOCK)
+  );
+}
+
 /** Delete expired records, blobs no document names any more (per planSweep:
- * at once for what the trash held) and the revision claims, which only
- * matter between tabs open at the same time. Everything is read and deleted
- * in one transaction, and nothing is deleted unless every record of every
- * document store was read. The transaction only deletes, so a full disk does
- * not stop it; the orphan map is written after, and without it each unnamed
- * blob starts its grace again. */
+ * at once for what the trash held, noted cids included) and the revision
+ * claims, which only matter between tabs open at the same time. Everything
+ * is read and deleted in one transaction, and nothing is deleted unless every
+ * record of every document store was read. The transaction only deletes, so
+ * a full disk does not stop it; the orphan map is written after, and without
+ * it each unnamed blob starts its grace again. */
 async function sweep(readers: Readonly<Record<string, StoreReader>>): Promise<void> {
   const db = await open();
   const names = [...db.objectStoreNames];
@@ -426,8 +644,12 @@ async function sweep(readers: Readonly<Record<string, StoreReader>>): Promise<vo
       const keys = await result(store.getAllKeys());
       stores.push({ store: name, keys, records });
     }
-    const reading = readForSweep(stores, readers, now);
+    const policy = sweepPolicy(trashDays(await result(tx.objectStore(META).get(TRASH_DAYS))));
+    const reading = readForSweep(stores, readers, now, policy);
     for (const { store, key } of reading.expired) tx.objectStore(store).delete(key);
+    for (const cid of strings(await result(tx.objectStore(META).get(RECLAIM)))) {
+      reading.urgent.add(cid);
+    }
     const keys = (await result(tx.objectStore(BLOBS).getAllKeys())).filter(
       (key) => typeof key === "string",
     );
@@ -435,6 +657,7 @@ async function sweep(readers: Readonly<Record<string, StoreReader>>): Promise<vo
     plan = planSweep(keys, reading.named, orphans, now, reading.urgent);
     for (const key of plan.remove) tx.objectStore(BLOBS).delete(key);
     tx.objectStore(META).delete(ORPHANS);
+    tx.objectStore(META).delete(RECLAIM);
     tx.objectStore(META).delete(IDBKeyRange.bound(CLAIM, `${CLAIM}￿`));
   } catch (err) {
     done.catch(() => {});

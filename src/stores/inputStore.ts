@@ -26,6 +26,7 @@ import type {
   Transform,
 } from "@/lib/inputs/types";
 import { DocumentConflict, NewerDatabase } from "@/inputs/db";
+import { FULL_ID, isQuotaError, reportFull } from "@/inputs/quota";
 import {
   createInputsStorage,
   keepsFrames,
@@ -192,6 +193,8 @@ const storage = createInputsStorage(
         useStored: () => void useInputStore.persist.rehydrate(),
         keepMine: () => void overruleOtherTab().then(() => storage.retry()),
       });
+    } else if (isQuotaError(error)) {
+      reportFull("Changes to the inputs", () => storage.retry());
     } else if (error instanceof UnstorableDocument) {
       reportStorageProblem({
         kind: "write",
@@ -204,7 +207,10 @@ const storage = createInputsStorage(
       reportStorageProblem({ kind: "write", id: "inputs", what: "inputs" });
     }
   },
-  () => reportStorageProblem({ kind: "resolved", id: "inputs" }),
+  () => {
+    reportStorageProblem({ kind: "resolved", id: "inputs" });
+    reportStorageProblem({ kind: "resolved", id: FULL_ID });
+  },
 );
 
 /** Pictures whose bytes can no longer be read stay, marked unreadable; mask

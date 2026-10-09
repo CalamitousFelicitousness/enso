@@ -50,6 +50,7 @@ import {
   writeRecord,
 } from "./db";
 import { ReplayError, type Ledger, type SourceFrames } from "./materialise";
+import { isQuotaError, reportFull } from "./quota";
 
 /** The frames a job was built from, when they hold anything to bring back. */
 export function keptInputs(inputs: Inputs): Inputs | null {
@@ -183,6 +184,7 @@ export async function submitJob(submission: Submission): Promise<Job> {
   const written = recordJob(record, ledger.blobs).catch((err: unknown) => {
     console.error("[inputs] could not store a job's record", err);
     toast.warning(RECORD_FAILED, { description: RECORD_FAILED_DETAIL });
+    if (isQuotaError(err)) reportFull("The job's record");
   });
   await Promise.race([written, delay(RECORD_WAIT_MS)]);
   const priority = (request as { priority?: number }).priority ?? 0;
