@@ -4,26 +4,31 @@ import { reportLines } from "./report";
 import { defaultControl, defaultIpAdapter } from "./reducers";
 import {
   DOCUMENT_SCHEMA,
+  ENTRY_SCHEMA,
   JOB_SCHEMA,
+  joinEntry,
   joinFrames,
-  joinJobInputs,
+  joinInputs,
   joinRemoval,
   joinSnapshot,
   joinWorking,
   MAP_SCHEMA,
   NewerDocument,
+  readEntry,
   readJob,
   readMap,
   readRemoval,
   readSnapshot,
   readStoredFrames,
   readWorking,
+  splitEntry,
   splitFrames,
   splitJob,
   splitRemoval,
   splitSnapshot,
   splitWorking,
   UnreadableDocument,
+  type Entry,
   type JobRecord,
   type Removal,
   type Source,
@@ -457,7 +462,7 @@ describe("job records", () => {
     expect(read).toEqual(record);
     expect(read.schema).toBe(JOB_SCHEMA);
     expect(read.inputs?.schema).toBe(DOCUMENT_SCHEMA);
-    const { inputs, lost } = joinJobInputs(read.inputs!, blobs);
+    const { inputs, lost } = joinInputs(read.inputs!, blobs);
     expect(inputs.frames).toEqual(sample());
     expect(inputs.size).toEqual({ width: 704, height: 1280 });
     expect(inputs.sizeSource).toEqual({ frameId: "refs", pictureId: "a" });
@@ -526,5 +531,68 @@ describe("job records", () => {
     );
     expect(structuredClone(record)).toEqual(record);
     expect(readJob(structuredClone(record)).record).toEqual(record);
+  });
+});
+
+describe("library entries", () => {
+  const entry = (): Entry => {
+    const frames = sample();
+    return {
+      id: "e1",
+      kind: "set",
+      name: "Portrait",
+      savedAt: 1000,
+      usedAt: 2000,
+      pinned: true,
+      trashedAt: null,
+      inputs: {
+        size: { width: 640, height: 448 },
+        sizeSource: { frameId: "refs", pictureId: "a" },
+        frames,
+      },
+      maps: { "canny|k": "cid-map" },
+    };
+  };
+
+  it("round-trips an entry with its frames and maps", () => {
+    const original = entry();
+    const { record, blobs } = splitEntry(original);
+    expect(structuredClone(record)).toEqual(record);
+    const read = readEntry(record);
+    expect(read.record).toEqual(record);
+    const { entry: back, lost } = joinEntry(read.record, blobs);
+    expect(back).toEqual(original);
+    expect(lost).toEqual({ pictures: [], maskObjects: 0 });
+  });
+
+  it("lists every cid an entry names, its frames' and its maps', once each", () => {
+    const { record, blobs } = splitEntry(entry());
+    const { cids } = readEntry(record);
+    expect(new Set(cids).size).toBe(cids.length);
+    expect([...cids].sort()).toEqual([...blobs.keys(), "cid-map"].sort());
+  });
+
+  it("reads a trashed entry", () => {
+    const { record } = splitEntry({ ...entry(), trashedAt: 3000 });
+    expect(readEntry(record).record.trashedAt).toBe(3000);
+  });
+
+  it("refuses an entry with a field, kind or schema it does not know", () => {
+    const { record } = splitEntry(entry());
+    expect(() => readEntry({ ...record, extra: 1 })).toThrow(UnreadableDocument);
+    expect(() => readEntry({ ...record, kind: "folder" })).toThrow(UnreadableDocument);
+    expect(() => readEntry({ ...record, pinned: "yes" })).toThrow(UnreadableDocument);
+    expect(() => readEntry({ ...record, maps: { k: 1 } })).toThrow(UnreadableDocument);
+    expect(() => readEntry({ ...record, schema: ENTRY_SCHEMA + 1 })).toThrow(NewerDocument);
+    expect(() =>
+      readEntry({ ...record, inputs: { ...record.inputs, schema: DOCUMENT_SCHEMA + 1 } }),
+    ).toThrow(NewerDocument);
+  });
+
+  it("joins an entry whose picture bytes are gone with the picture marked", () => {
+    const { record } = splitEntry(entry());
+    const { entry: back, lost } = joinEntry(record, new Map());
+    expect(back.inputs.frames[0].pictures[0].file).toBeNull();
+    expect(lost.pictures.length).toBeGreaterThan(0);
   });
 });

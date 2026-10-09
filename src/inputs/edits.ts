@@ -13,10 +13,10 @@ import {
   type SentInput,
 } from "@/lib/inputs/outline";
 import { refitFrame } from "@/lib/inputs/geometry";
-import { cloneFrames, newFrame } from "@/lib/inputs/reducers";
+import { cloneFrames, isBlank, newFrame } from "@/lib/inputs/reducers";
 import { addressChanges } from "@/lib/inputs/renumber";
-import type { JobInputs, Removal } from "@/lib/inputs/stored";
-import { positionLabel, renumberText } from "@/lib/inputs/text";
+import type { Inputs, Removal } from "@/lib/inputs/stored";
+import { addedText, positionLabel, renumberText } from "@/lib/inputs/text";
 import {
   composedPictures,
   holdsContent,
@@ -267,7 +267,7 @@ export function moveFrame(from: number, to: number): void {
  * trash. Returns what puts it back, at `previousSize`: the size from before
  * the restore began, which a restore of settings may already have changed.
  * Neither direction refits anything. */
-export function restoreFrames(inputs: JobInputs, previousSize: Size): () => void {
+export function restoreFrames(inputs: Inputs, previousSize: Size): () => void {
   const store = useInputStore.getState();
   const previous = { frames: store.frames, sizeSource: store.sizeSource };
   keepingSize(() => {
@@ -401,6 +401,29 @@ export async function replacePicture(frameId: string, file: File): Promise<void>
     renumberText(addressChanges(before, sentNow())),
     () => useInputStore.getState().restoreFrame(frame),
   );
+}
+
+/** Add prepared frames after the inputs, or in the place of a blank list;
+ * select the first and say where they went, with Undo. False when the
+ * model's image limit refused them, which says so itself. */
+export function addFrames(
+  frames: Frame[],
+  title: (positions: number[]) => string = addedText,
+): boolean {
+  if (frames.length === 0) return false;
+  const store = useInputStore.getState();
+  const undo = store.frames.every(isBlank)
+    ? holdList()
+    : () => {
+        const current = useInputStore.getState();
+        for (const frame of frames) current.removeFrame(frame.id);
+      };
+  if (!store.appendFrames(frames)) return false;
+  const outline = outlineOf(useInputStore.getState().frames);
+  const positions = frames.flatMap((f) => outlineEntry(outline, f.id)?.position ?? []);
+  revealFrame(frames[0].id);
+  offerUndo(title(positions), null, undo);
+  return true;
 }
 
 /** Add a frame at the end of the list, give a Control frame its type, and

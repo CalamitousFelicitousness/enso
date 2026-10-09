@@ -86,6 +86,7 @@ export default defineConfig([
       "src/lib/request/restoreParams.ts",
       "src/lib/request/wire.ts",
       "src/lib/resultStrip.ts",
+      "src/lib/trim.ts",
     ],
     rules: {
       "@typescript-eslint/no-restricted-imports": [

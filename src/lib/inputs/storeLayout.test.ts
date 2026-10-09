@@ -1,11 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { picture } from "./frames.fixture";
-import { MAP_SCHEMA, splitRemoval } from "./stored";
+import { MAP_SCHEMA, splitEntry, splitRemoval } from "./stored";
 import { readForSweep, RETENTION_MS } from "./sweep";
 import {
   BLOBS,
   DOCUMENTS,
   JOBS,
+  LIBRARY,
   MAPS,
   META,
   READERS,
@@ -19,7 +20,7 @@ describe("store layout", () => {
     const documentStores = STORES.filter((name) => name !== BLOBS && name !== META);
     expect([...documentStores].sort()).toEqual(Object.keys(READERS).sort());
     expect([...STORES].sort()).toEqual(
-      [BLOBS, DOCUMENTS, JOBS, MAPS, META, SNAPSHOTS, TRASH].sort(),
+      [BLOBS, DOCUMENTS, JOBS, LIBRARY, MAPS, META, SNAPSHOTS, TRASH].sort(),
     );
   });
 
@@ -72,5 +73,30 @@ describe("sweep policy", () => {
     expect([...reading.urgent]).toEqual(["cid-p"]);
     expect(reading.expired.map((e) => e.store)).toEqual([TRASH, MAPS]);
     expect(reading.named.size).toBe(0);
+  });
+});
+
+describe("library entries in the sweep", () => {
+  const record = (trashedAt: number | null) =>
+    splitEntry({
+      id: "e",
+      kind: "frame",
+      name: "x",
+      savedAt: 0,
+      usedAt: 0,
+      pinned: false,
+      trashedAt,
+      inputs: { size: { width: 8, height: 8 }, sizeSource: null, frames: [] },
+      maps: { k: "cid-map" },
+    }).record;
+
+  it("keeps an entry in the library for good", () => {
+    expect(READERS[LIBRARY](record(null))).toEqual({ cids: ["cid-map"] });
+  });
+
+  it("lets a trashed entry expire with the removals, its bytes going with it", () => {
+    const facts = READERS[LIBRARY](record(5));
+    expect(facts.expiresAt).toBe(5 + RETENTION_MS);
+    expect(facts.inTrash).toBe(true);
   });
 });

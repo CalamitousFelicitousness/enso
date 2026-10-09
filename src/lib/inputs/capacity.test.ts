@@ -40,3 +40,18 @@ describe("exceedsLimit", () => {
     expect(exceedsLimit(off, back, 1)).toBe(true);
   });
 });
+
+describe("a recalled set and the limit", () => {
+  const two = [frame("man", "initial", layer("m")), frame("refs", "reference", picture("a"))];
+  const recalled = [frame("r1", "reference", picture("x")), frame("r2", "reference", picture("y"))];
+
+  it("joins when its frames are off, since they send nothing", () => {
+    const off = recalled.map((f) => ({ ...f, enabled: false }));
+    expect(exceedsLimit(two, [...two, ...off], 2)).toBe(false);
+  });
+
+  it("is refused when its frames would send past the limit", () => {
+    expect(exceedsLimit(two, [...two, ...recalled], 2)).toBe(true);
+    expect(exceedsLimit(two, [...two, ...recalled], 4)).toBe(false);
+  });
+});

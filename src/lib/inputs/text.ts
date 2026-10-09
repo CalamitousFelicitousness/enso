@@ -12,7 +12,7 @@ import type {
   SentInput,
 } from "./outline";
 import type { AddressChange } from "./renumber";
-import type { ControlType, FrameRole, MediaKind } from "./types";
+import type { ControlType, Frame, FrameRole, MediaKind, Size } from "./types";
 
 const KIND: Record<MediaKind, string> = { image: "Image", video: "Video", audio: "Audio" };
 const ROLE: Record<FrameRole, string> = {
@@ -289,3 +289,87 @@ export const SIZE_SOURCE_FIRST_LABEL = "Use Image 1";
 /** The server predates the sdnext change that lets a control unit keep its own picture beside an Initial picture. */
 export const CONTROL_PICTURE_SERVER_TEXT =
   "Control pictures beside an Initial picture need a newer sdnext (the control fix of 2026-10-05). Update the server, or turn the control units off.";
+
+/** "Reference", "ControlNet": what a frame does, by its control type when it is a Control frame. */
+export function frameRoleLabel(frame: Pick<Frame, "role" | "control">): string {
+  return frame.role === "control" ? controlTypeLabel(frame.control.type) : roleLabel(frame.role);
+}
+
+const plural = (n: number, one: string, many: string) => (n === 1 ? `1 ${one}` : `${n} ${many}`);
+
+/** "Added as Input 3", "Added as Inputs 3-4". */
+export function addedText(positions: number[]): string {
+  return `Added as ${positionsLabel(positions)}`;
+}
+
+/** "Input 2 duplicated as Input 5". */
+export function duplicatedText(from: number, to: number): string {
+  return `${positionLabel(from)} duplicated as ${positionLabel(to)}`;
+}
+
+export const NOTHING_TO_SAVE = "Nothing to save";
+
+/** Why a Control frame that uses another frame's picture is not saved on its own. */
+export function linkedSaveText(position: number, source: number): string {
+  return `${positionLabel(position)} uses ${positionLabel(source)}'s picture; save ${positionLabel(source)} or the inputs as a set`;
+}
+
+/** 'Saved as "Portrait"'. */
+export function savedText(name: string): string {
+  return `Saved as "${name}"`;
+}
+
+/** "for 7 days": how long the trash keeps what goes to it. */
+export function keptForText(days: number): string {
+  return `for ${plural(days, "day", "days")}`;
+}
+
+/** What a save pushed out of the library: '"Old" left the library and is in
+ * the trash for 7 days', or a count of entries. */
+export function evictedText(names: string[], days: number): string {
+  return names.length === 1
+    ? `"${names[0]}" left the library and is in the trash ${keptForText(days)}`
+    : `${names.length} entries left the library and are in the trash ${keptForText(days)}`;
+}
+
+/** 'Inputs replaced with "Portrait" at 1024×1024'. */
+export function replacedWithText(name: string, size: Size): string {
+  return `Inputs replaced with "${name}" at ${size.width}×${size.height}`;
+}
+
+/** 'One picture of "Portrait" could not be read', or a count. */
+export function lostEntryPicturesText(n: number, name: string): string {
+  return n === 1
+    ? `One picture of "${name}" could not be read`
+    : `${n} pictures of "${name}" could not be read`;
+}
+
+/** '"Portrait" moved to the trash'. */
+export function entryTrashedText(name: string): string {
+  return `"${name}" moved to the trash`;
+}
+
+/** "Up to 20 entries can be pinned". */
+export function pinLimitText(max: number): string {
+  return `Up to ${max} entries can be pinned`;
+}
+
+export const NO_LONGER_IN_LIBRARY = "No longer in the library";
+export const RECALL_FAILED = "Could not read the saved inputs";
+export const SAVE_FAILED = "Could not save to the library";
+export const SHOW_IN_LIBRARY = "Show in library";
+
+/** "Frame · Reference · 3 pictures", "Set · 4 inputs · 1024×1024": what an entry holds. */
+export function entryLine(
+  kind: "frame" | "set",
+  frames: readonly (Pick<Frame, "role" | "control"> & { pictures: readonly unknown[] })[],
+  size: Size,
+): string {
+  if (kind === "set") {
+    return `Set · ${plural(frames.length, "input", "inputs")} · ${size.width}×${size.height}`;
+  }
+  const [frame] = frames;
+  const pictures = frame ? frame.pictures.length : 0;
+  const role = frame ? frameRoleLabel(frame) : "";
+  return `Frame · ${role} · ${plural(pictures, "picture", "pictures")}`;
+}

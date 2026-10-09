@@ -13,19 +13,9 @@ export interface RecordSummary {
   createdAt: number;
 }
 
-/** The records past the newest `cap` that `keep` does not name, oldest first. */
-export function planJobTrim(
-  records: readonly RecordSummary[],
-  cap: number,
-  keep: ReadonlySet<string>,
-): string[] {
-  if (records.length <= cap) return [];
-  return [...records]
-    .sort((a, b) => b.createdAt - a.createdAt || a.id.localeCompare(b.id))
-    .slice(cap)
-    .filter((r) => !keep.has(r.id))
-    .reverse()
-    .map((r) => r.id);
+/** Records newest first, for `planTrim`. */
+export function newestFirst(a: RecordSummary, b: RecordSummary): number {
+  return b.createdAt - a.createdAt || a.id.localeCompare(b.id);
 }
 
 /** A record whose result can still reach the strip at a page start: a

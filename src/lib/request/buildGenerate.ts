@@ -25,7 +25,7 @@ import {
   type MapSlot,
   type SentInput,
 } from "@/lib/inputs/outline";
-import type { JobInputs } from "@/lib/inputs/stored";
+import type { Inputs } from "@/lib/inputs/stored";
 import {
   CONTROL_PICTURE_SERVER_TEXT,
   problemText,
@@ -48,7 +48,7 @@ export interface BuildResult {
   /** The maps the job makes before generating, by key. */
   mapKeys: string[];
   /** The frames the request was built from, as read once at the start. */
-  inputs: JobInputs;
+  inputs: Inputs;
   /** Where each upload the request names came from. */
   ledger: Ledger;
 }

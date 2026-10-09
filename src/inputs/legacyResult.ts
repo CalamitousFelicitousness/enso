@@ -3,7 +3,7 @@
 import type { GenerationResult } from "@/stores/generationStore";
 import { readLegacyControl } from "@/lib/inputs/legacyControl";
 import { legacyResultSize, legacyResultToFrames } from "@/lib/inputs/legacyResult";
-import type { JobInputs } from "@/lib/inputs/stored";
+import type { Inputs } from "@/lib/inputs/stored";
 import { decodeLegacyUnits, legacyBytes } from "./legacyControl";
 
 /** Whether an older build kept anything of the result's inputs beside it. */
@@ -18,7 +18,7 @@ export function hasLegacyInputs(result: GenerationResult): boolean {
 
 /** The flattened picture, strokes and control units an older build kept
  * beside a result, as frames; null when it kept none. */
-export async function legacyResultInputs(result: GenerationResult): Promise<JobInputs | null> {
+export async function legacyResultInputs(result: GenerationResult): Promise<Inputs | null> {
   const size = legacyResultSize(result.parameters);
   const image = await legacyBytes(result.inputImage ?? null);
   const units = result.controlUnits?.length

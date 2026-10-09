@@ -13,7 +13,7 @@ import {
 } from "@/lib/inputs/sweep";
 
 const NAME = "enso-inputs";
-const VERSION = 5;
+const VERSION = 6;
 const ORPHANS = "orphans";
 const LOCK = "enso-inputs";
 
@@ -244,6 +244,58 @@ export async function updateRecord(
   }
   await done;
   return changed !== null;
+}
+
+/** What a rewrite puts: records by key, the blobs they name, and what the
+ * caller learns from it. */
+export interface Rewrite<T> {
+  put: ReadonlyMap<string, unknown>;
+  blobs: ReadonlyMap<string, Blob>;
+  result: T;
+}
+
+/** Read every record of a store, decide from them what to put, and put it
+ * with any blob this page has not seen stored, in one transaction, so no
+ * other tab's write lands between the read and the put. `decide` returns
+ * null to put nothing; one that throws puts nothing and rejects. */
+export async function rewriteStore<T>(
+  store: string,
+  decide: (records: ReadonlyMap<string, unknown>) => Rewrite<T> | null,
+): Promise<T | null> {
+  const db = await open();
+  const tx = db.transaction([store, BLOBS], "readwrite");
+  const done = finished(tx);
+  let outcome: Rewrite<T> | null;
+  let fresh: [string, Blob][] = [];
+  try {
+    const os = tx.objectStore(store);
+    const keys = await result(os.getAllKeys());
+    const values: unknown[] = await result(os.getAll());
+    const records = new Map<string, unknown>();
+    keys.forEach((key, i) => {
+      if (typeof key === "string") records.set(key, values[i]);
+    });
+    outcome = decide(records);
+    if (outcome) {
+      fresh = [...outcome.blobs].filter(([cid]) => !held.has(cid));
+      for (const [cid, blob] of fresh) tx.objectStore(BLOBS).put(blob, cid);
+      for (const [key, value] of outcome.put) os.put(value, key);
+    }
+    tx.commit();
+  } catch (err) {
+    done.catch(() => {});
+    try {
+      tx.abort();
+    } catch {
+      // already finished
+    }
+    throw err;
+  }
+  await done;
+  if (!outcome) return null;
+  for (const [cid] of fresh) held.add(cid);
+  void restoreMissing(outcome.blobs);
+  return outcome.result;
 }
 
 /** The keys of a store's records. */

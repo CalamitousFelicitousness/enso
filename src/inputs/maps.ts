@@ -5,7 +5,12 @@
 // which keys a job is making and which failed, for the outline.
 
 import { create } from "zustand";
-import { computeOutline, type Outline, type ProcessingEnv } from "@/lib/inputs/outline";
+import {
+  computeOutline,
+  type Outline,
+  type OutlineEnv,
+  type ProcessingEnv,
+} from "@/lib/inputs/outline";
 import { MAP_SCHEMA, readMap, type ReadMap, type StoredMap } from "@/lib/inputs/stored";
 import { MAPS } from "@/lib/inputs/storeLayout";
 import type { Frame, Size } from "@/lib/inputs/types";
@@ -92,6 +97,17 @@ export async function outlineWithMaps(
   return computeOutline(frames, env());
 }
 
+/** The maps the frames name that are current, once the cache has answered for
+ * every key they name, so a stored map not read yet is not missed. */
+export async function currentMapsOf(frames: Frame[], env: OutlineEnv): Promise<MapEntry[]> {
+  const keys = new Set(
+    computeOutline(frames, env).entries.flatMap((e) => e.maps.map((m) => m.key)),
+  );
+  await lookupMaps(keys);
+  const { current } = useMapStore.getState();
+  return [...keys].flatMap((key) => current.get(key) ?? []);
+}
+
 /** A record is written as used again at most this often. */
 const TOUCH_MS = 24 * 60 * 60 * 1000;
 
@@ -171,13 +187,15 @@ export function currentMap(key: string): MapEntry | null {
 }
 
 /** Keep a map a processor made. It is current from here on, whatever a job
- * or an earlier failure said about its key. */
-export async function installMap(key: string, blob: Blob): Promise<void> {
+ * or an earlier failure said about its key. A map whose bytes are stored
+ * already, as a library entry's are, keeps its cid, so only its record is
+ * written. */
+export async function installMap(key: string, blob: Blob, cid?: string): Promise<void> {
   const { width, height } = await imageSize(blob);
   const now = Date.now();
   const entry: MapEntry = {
     key,
-    cid: crypto.randomUUID(),
+    cid: cid ?? crypto.randomUUID(),
     blob,
     width,
     height,

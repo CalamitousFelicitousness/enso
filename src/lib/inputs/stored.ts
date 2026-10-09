@@ -862,8 +862,9 @@ export interface StoredJob {
   routed: boolean;
 }
 
-/** A job's inputs with their bytes. */
-export interface JobInputs {
+/** Frames with their bytes, the frame size their placements are in and the
+ * Size from pick: what a job was built from, or what a library entry holds. */
+export interface Inputs {
   size: Size;
   sizeSource: SizeSourcePick | null;
   frames: Frame[];
@@ -873,7 +874,7 @@ export interface JobRecord extends Omit<StoredJob, "schema" | "request" | "refs"
   request: object;
   refs: Readonly<Record<string, Source>>;
   /** The frames with their bytes, or as another record stored them. */
-  inputs: JobInputs | StoredInputs | null;
+  inputs: Inputs | StoredInputs | null;
 }
 
 /** A job record's stored form. The request goes through JSON, as the server
@@ -892,12 +893,7 @@ export function splitJob(job: JobRecord): { record: StoredJob; blobs: Map<string
   if (job.inputs && "schema" in job.inputs) {
     inputs = structuredClone(job.inputs);
   } else if (job.inputs) {
-    inputs = {
-      schema: DOCUMENT_SCHEMA,
-      size: { ...job.inputs.size },
-      sizeSource: job.inputs.sizeSource && { ...job.inputs.sizeSource },
-      frames: splitInto(job.inputs.frames, blobs),
-    };
+    inputs = splitInputs(job.inputs, blobs);
   }
   return {
     record: {
@@ -1010,19 +1006,7 @@ export function readJob(value: unknown): ReadJob {
   const schema = num(r.schema, "job.schema");
   if (schema > JOB_SCHEMA) throw new NewerDocument(schema);
   const cids = new Set<string>();
-  const inputs = orNull(r.inputs, (raw): StoredInputs => {
-    const i = fields<StoredInputs>(raw, "job.inputs");
-    const framesSchema = num(i.schema, "job.inputs.schema");
-    if (framesSchema > DOCUMENT_SCHEMA) throw new NewerDocument(framesSchema);
-    const read = readStoredFrames(i.frames, framesSchema);
-    for (const cid of read.cids) cids.add(cid);
-    return exact(i, "job.inputs", {
-      schema: DOCUMENT_SCHEMA,
-      size: size(i.size, "job.inputs.size"),
-      sizeSource: orNull(i.sizeSource, (pick) => sizePick(pick, "job.inputs.sizeSource")),
-      frames: read.frames,
-    });
-  });
+  const inputs = orNull(r.inputs, (raw) => readInputs(raw, "job.inputs", cids));
   const refs = fields<Record<string, Source>>(r.refs, "job.refs");
   const maps = texts(r.maps, "job.maps");
   for (const cid of Object.values(maps)) cids.add(cid);
@@ -1053,11 +1037,127 @@ export function readJob(value: unknown): ReadJob {
   return { record, cids: [...cids] };
 }
 
-/** A job record's inputs with their bytes back. */
-export function joinJobInputs(
+/** Inputs in their stored form, their bytes put aside in `blobs`. */
+function splitInputs(inputs: Inputs, blobs: Map<string, Blob>): StoredInputs {
+  return {
+    schema: DOCUMENT_SCHEMA,
+    size: { ...inputs.size },
+    sizeSource: inputs.sizeSource && { ...inputs.sizeSource },
+    frames: splitInto(inputs.frames, blobs),
+  };
+}
+
+/** Stored inputs checked like the working document, their frames read at the
+ * schema they were stored with; the cids they name go into `cids`. */
+function readInputs(value: unknown, path: string, cids: Set<string>): StoredInputs {
+  const i = fields<StoredInputs>(value, path);
+  const framesSchema = num(i.schema, `${path}.schema`);
+  if (framesSchema > DOCUMENT_SCHEMA) throw new NewerDocument(framesSchema);
+  const read = readStoredFrames(i.frames, framesSchema);
+  for (const cid of read.cids) cids.add(cid);
+  return exact(i, path, {
+    schema: DOCUMENT_SCHEMA,
+    size: size(i.size, `${path}.size`),
+    sizeSource: orNull(i.sizeSource, (pick) => sizePick(pick, `${path}.sizeSource`)),
+    frames: read.frames,
+  });
+}
+
+/** Stored inputs with their bytes back. */
+export function joinInputs(
   inputs: StoredInputs,
   blobs: ReadonlyMap<string, Blob>,
-): { inputs: JobInputs; lost: JoinLoss } {
+): { inputs: Inputs; lost: JoinLoss } {
   const { frames, lost } = joinFrames(inputs.frames, blobs);
   return { inputs: { size: { ...inputs.size }, sizeSource: inputs.sizeSource, frames }, lost };
+}
+
+export const ENTRY_SCHEMA = 1;
+
+/** A frame saved on its own, added to the inputs when recalled, or a set of
+ * frames, which takes the inputs' place. */
+export type EntryKind = "frame" | "set";
+
+const ENTRY_KINDS: readonly EntryKind[] = ["frame", "set"];
+
+/** A saved frame or set in the library, under its own id. */
+export interface StoredEntry {
+  schema: number;
+  id: string;
+  kind: EntryKind;
+  name: string;
+  savedAt: number;
+  /** When it was saved, then each time it was recalled or brought back. */
+  usedAt: number;
+  pinned: boolean;
+  /** When it went to the trash; null while it is in the library. */
+  trashedAt: number | null;
+  inputs: StoredInputs;
+  /** The cid of each map that was current when it was saved, by key. */
+  maps: Record<string, string>;
+}
+
+/** A library entry with the bytes of its frames. */
+export interface Entry extends Omit<StoredEntry, "schema" | "inputs"> {
+  inputs: Inputs;
+}
+
+/** An entry's stored form, the bytes of its frames put aside in `blobs`. */
+export function splitEntry(entry: Entry): { record: StoredEntry; blobs: Map<string, Blob> } {
+  const blobs = new Map<string, Blob>();
+  return {
+    record: {
+      schema: ENTRY_SCHEMA,
+      id: entry.id,
+      kind: entry.kind,
+      name: entry.name,
+      savedAt: entry.savedAt,
+      usedAt: entry.usedAt,
+      pinned: entry.pinned,
+      trashedAt: entry.trashedAt,
+      inputs: splitInputs(entry.inputs, blobs),
+      maps: { ...entry.maps },
+    },
+    blobs,
+  };
+}
+
+export interface ReadEntry {
+  record: StoredEntry;
+  /** Every cid the entry names, its frames' and its maps', once each. */
+  cids: string[];
+}
+
+/** A stored library entry checked field by field, like the working document. */
+export function readEntry(value: unknown): ReadEntry {
+  const r = fields<StoredEntry>(value, "entry");
+  const schema = num(r.schema, "entry.schema");
+  if (schema > ENTRY_SCHEMA) throw new NewerDocument(schema);
+  const cids = new Set<string>();
+  const inputs = readInputs(r.inputs, "entry.inputs", cids);
+  const maps = texts(r.maps, "entry.maps");
+  for (const cid of Object.values(maps)) cids.add(cid);
+  const record = exact(r, "entry", {
+    schema: ENTRY_SCHEMA,
+    id: text(r.id, "entry.id"),
+    kind: oneOf(r.kind, ENTRY_KINDS, "entry.kind"),
+    name: text(r.name, "entry.name"),
+    savedAt: num(r.savedAt, "entry.savedAt"),
+    usedAt: num(r.usedAt, "entry.usedAt"),
+    pinned: flag(r.pinned, "entry.pinned"),
+    trashedAt: orNull(r.trashedAt, (raw) => num(raw, "entry.trashedAt")),
+    inputs,
+    maps,
+  });
+  return { record, cids: [...cids] };
+}
+
+/** A library entry with its bytes back. */
+export function joinEntry(
+  record: StoredEntry,
+  blobs: ReadonlyMap<string, Blob>,
+): { entry: Entry; lost: JoinLoss } {
+  const { inputs, lost } = joinInputs(record.inputs, blobs);
+  const { schema: _schema, ...rest } = record;
+  return { entry: { ...rest, inputs, maps: { ...record.maps } }, lost };
 }

@@ -6,7 +6,7 @@ import { useUiStore } from "@/stores/uiStore";
 import { outlineWithMaps } from "@/inputs/maps";
 import { createUploader, type Ledger } from "@/inputs/materialise";
 import { computeOutline } from "@/lib/inputs/outline";
-import type { JobInputs } from "@/lib/inputs/stored";
+import type { Inputs } from "@/lib/inputs/stored";
 import { problemText, unreadableText } from "@/lib/inputs/text";
 import type { Size } from "@/lib/inputs/types";
 import type { ProcessorFacts } from "@/lib/processorUtils";
@@ -16,7 +16,7 @@ import type { CloudImageJobParams, CloudModel } from "@/api/types/cloud";
 export interface CloudBuildResult {
   request: CloudImageJobParams;
   /** The frames the request was built from. */
-  inputs: JobInputs;
+  inputs: Inputs;
   /** Where each upload the request names came from. */
   ledger: Ledger;
 }
@@ -93,7 +93,7 @@ export async function buildCloudImageRequest(
   if (gen.steps !== 20) request.steps = gen.steps;
 
   const up = createUploader({ frames, size: frame });
-  const inputs: JobInputs = { frames, size: frame, sizeSource };
+  const inputs: Inputs = { frames, size: frame, sizeSource };
   const encoding = { provider: model.provider, model: model.id };
   // The primary Initial frame's encoded dimensions, for the mask
   let primaryEncoded: Size | null = null;

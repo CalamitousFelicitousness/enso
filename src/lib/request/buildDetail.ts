@@ -2,7 +2,7 @@ import { useGenerationStore } from "@/stores/generationStore";
 import { useInputStore } from "@/stores/inputStore";
 import { createUploader, type Ledger } from "@/inputs/materialise";
 import { computeOutline, firstInitialEntry } from "@/lib/inputs/outline";
-import type { JobInputs } from "@/lib/inputs/stored";
+import type { Inputs } from "@/lib/inputs/stored";
 import { detailProcessedText, unreadableText } from "@/lib/inputs/text";
 import { activeProcessor } from "@/lib/inputs/types";
 import type { DetailJobParams } from "@/api/types/v2";
@@ -11,7 +11,7 @@ import { serializeDetailerEntry, stripUndefined } from "./wire";
 export interface BuildDetailResult {
   request: DetailJobParams;
   /** The frames the request was built from. */
-  inputs: JobInputs;
+  inputs: Inputs;
   /** Where each upload the request names came from. */
   ledger: Ledger;
 }

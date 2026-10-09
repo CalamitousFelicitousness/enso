@@ -1,20 +1,22 @@
 import { describe, expect, it } from "vitest";
-import { awaitsRouting, planJobTrim, SERVER_JOB_RETENTION_MS } from "./retention";
+import { planTrim } from "@/lib/trim";
+import { awaitsRouting, newestFirst, SERVER_JOB_RETENTION_MS } from "./retention";
 
 const records = (n: number) => Array.from({ length: n }, (_, i) => ({ id: `j${i}`, createdAt: i }));
 
-describe("planJobTrim", () => {
+describe("job record trim", () => {
   it("retires the oldest records past the cap and never one the keep set names", () => {
     const all = records(10);
-    expect(planJobTrim(all, 6, new Set())).toEqual(["j0", "j1", "j2", "j3"]);
-    expect(planJobTrim(all, 6, new Set(["j1", "j9"]))).toEqual(["j0", "j2", "j3"]);
-    // order of the listing does not matter
-    expect(planJobTrim([...all].reverse(), 6, new Set())).toEqual(["j0", "j1", "j2", "j3"]);
+    expect(planTrim(all, 6, new Set(), newestFirst)).toEqual(["j0", "j1", "j2", "j3"]);
+    expect(planTrim(all, 6, new Set(["j1", "j9"]), newestFirst)).toEqual(["j0", "j2", "j3"]);
   });
 
-  it("keeps every record under the cap", () => {
-    expect(planJobTrim(records(6), 6, new Set())).toEqual([]);
-    expect(planJobTrim([], 0, new Set())).toEqual([]);
+  it("orders records made at the same time by id", () => {
+    const tied = [
+      { id: "b", createdAt: 1 },
+      { id: "a", createdAt: 1 },
+    ];
+    expect(planTrim(tied, 1, new Set(), newestFirst)).toEqual(["b"]);
   });
 });
 

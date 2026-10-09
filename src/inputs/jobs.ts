@@ -16,12 +16,12 @@ import { createIdbListDb, type IdbListDb } from "@/lib/idbListDb";
 import { loose } from "@/lib/inputs/loose";
 import {
   JOB_SCHEMA,
-  joinJobInputs,
+  joinInputs,
   joinSnapshot,
   readJob,
   readSnapshot,
   splitJob,
-  type JobInputs,
+  type Inputs,
   type JobRecord,
   type JoinLoss,
   type ReadJob,
@@ -33,7 +33,8 @@ import { holdsContent } from "@/lib/inputs/types";
 import type { JobFacts } from "@/lib/jobs/cardActions";
 import { isTerminal, jobKind, type JobDomain } from "@/lib/jobs/domains";
 import { replayNeeds, replayProblem } from "@/lib/jobs/replay";
-import { awaitsRouting, JOB_RECORDS_CAP, planJobTrim } from "@/lib/jobs/retention";
+import { awaitsRouting, JOB_RECORDS_CAP, newestFirst } from "@/lib/jobs/retention";
+import { planTrim } from "@/lib/trim";
 import { RECORD_FAILED, RECORD_FAILED_DETAIL } from "@/lib/jobs/text";
 import { generationHistoryDb } from "@/stores/generationStore";
 import { useJobQueueStore } from "@/stores/jobStore";
@@ -51,7 +52,7 @@ import {
 import { ReplayError, type Ledger, type SourceFrames } from "./materialise";
 
 /** The frames a job was built from, when they hold anything to bring back. */
-export function keptInputs(inputs: JobInputs): JobInputs | null {
+export function keptInputs(inputs: Inputs): Inputs | null {
   return inputs.frames.some(holdsContent) ? inputs : null;
 }
 
@@ -76,7 +77,7 @@ export interface Submission {
   ledger: Ledger;
   /** The frames the request was built from, or as an earlier record stored
    * them; null when they held nothing. */
-  inputs: JobInputs | StoredInputs | null;
+  inputs: Inputs | StoredInputs | null;
   /** The maps the job makes before generating. */
   mapKeys: string[];
   checkpoint: StoredJob["checkpoint"];
@@ -217,7 +218,7 @@ export async function loadJobForReplay(id: string): Promise<ReplayLoad | null> {
   const { record } = stored.document;
   const missing = replayNeeds(record).find((n) => !stored.blobs.has(n.cid));
   if (missing) throw new ReplayError(missing.what);
-  const joined = record.inputs ? joinJobInputs(record.inputs, stored.blobs).inputs : null;
+  const joined = record.inputs ? joinInputs(record.inputs, stored.blobs).inputs : null;
   return {
     record,
     inputs: joined ? { frames: joined.frames, size: joined.size } : NO_FRAMES,
@@ -226,7 +227,7 @@ export async function loadJobForReplay(id: string): Promise<ReplayLoad | null> {
 }
 
 export interface LoadedInputs {
-  inputs: JobInputs;
+  inputs: Inputs;
   lost: JoinLoss;
 }
 
@@ -240,7 +241,7 @@ export async function loadJobInputs(result: {
   if (result.jobId) {
     const stored = await readDocument<ReadJob>(JOBS, result.jobId, readJob, (read) => read.cids);
     const inputs = stored?.document.record.inputs;
-    if (stored) return inputs ? joinJobInputs(inputs, stored.blobs) : null;
+    if (stored) return inputs ? joinInputs(inputs, stored.blobs) : null;
   }
   if (result.inputsKey) {
     const stored = await readDocument<ReadSnapshot>(
@@ -328,7 +329,7 @@ async function retireOnce(): Promise<void> {
         ? [{ id: e.primaryKey, createdAt: e.key }]
         : [],
     );
-    const candidates = planJobTrim(summaries, JOB_RECORDS_CAP, keep);
+    const candidates = planTrim(summaries, JOB_RECORDS_CAP, keep, newestFirst);
     if (candidates.length > 0) {
       const now = Date.now();
       const records = await readRecords(JOBS, candidates);
