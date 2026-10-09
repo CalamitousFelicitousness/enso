@@ -7,7 +7,8 @@ import {
   useToggleProfiling,
 } from "@/api/hooks/useSystem";
 import { useRegisterCommand } from "@/lib/commandRegistry";
-import { useUiStore, type SystemSubTab } from "@/stores/uiStore";
+import { SYSTEM_SUB_TABS, type SystemSubTab } from "@/lib/constants";
+import { useUiStore } from "@/stores/uiStore";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -29,16 +30,6 @@ import { GpuMonitorSubTab } from "@/components/system/sub-tabs/GpuMonitorSubTab"
 import { SystemInfoSubTab } from "@/components/system/sub-tabs/SystemInfoSubTab";
 import { BenchmarkSubTab } from "@/components/system/sub-tabs/BenchmarkSubTab";
 import { StorageSubTab } from "@/components/system/sub-tabs/StorageSubTab";
-
-const SUB_TABS: readonly SystemSubTab[] = [
-  "Overview",
-  "Storage",
-  "Update",
-  "Activity",
-  "GPU Monitor",
-  "System Info",
-  "Benchmark",
-] as const;
 
 const SUB_PANELS = buildPanels([
   { id: "system-Overview", content: <OverviewSubTab /> },
@@ -140,19 +131,20 @@ export function SystemTab() {
         </div>
 
         <div className="flex items-center gap-1 flex-wrap">
-          {SUB_TABS.map((tab) => (
+          {SYSTEM_SUB_TABS.map((tab) => (
             <button
-              key={tab}
+              key={tab.id}
               type="button"
-              onClick={() => setActive(tab)}
+              aria-pressed={active === tab.id}
+              onClick={() => setActive(tab.id)}
               className={cn(
                 "px-2 py-0.5 rounded-md text-2xs font-medium transition-colors",
-                active === tab
+                active === tab.id
                   ? "bg-primary/15 text-primary ring-1 ring-primary/40"
                   : "bg-muted text-muted-foreground hover:text-foreground",
               )}
             >
-              {tab}
+              {tab.label}
             </button>
           ))}
         </div>

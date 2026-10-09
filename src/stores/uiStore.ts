@@ -1,25 +1,19 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { ImagesSubTab, LibrarySubTab, NavView, RightTab, VideoSubTab } from "@/lib/constants";
+import type {
+  ImagesSubTab,
+  LibrarySubTab,
+  ModelsSubTab,
+  NavView,
+  RightSubTabTarget,
+  RightTab,
+  SystemSubTab,
+  VideoSubTab,
+} from "@/lib/constants";
 import { mergeUiState } from "@/lib/uiStateMerge";
 
 type ColorMode = "dark" | "light" | "system";
 type CanvasBackground = "dots" | "noise" | "iso";
-
-type ModelsSubTab =
-  | "Current"
-  | "List"
-  | "Audit"
-  | "Metadata"
-  | "Loader"
-  | "Merge"
-  | "Replace"
-  | "CivitAI"
-  | "Huggingface"
-  | "Extract LoRA";
-
-type SystemSubTab =
-  "Overview" | "Storage" | "Update" | "Activity" | "GPU Monitor" | "System Info" | "Benchmark";
 
 type CaptionSubTab = "vlm" | "openclip" | "tagger" | "cloud" | "default";
 
@@ -109,6 +103,8 @@ interface UiState {
   setRightPanelWidth: (width: number) => void;
   setRightTab: (tab: RightTab) => void;
   openRightTab: (tab: RightTab) => void;
+  /** Open a Right Panel tab on one of its sub-tabs. */
+  openRightSubTab: (target: RightSubTabTarget) => void;
   setPanelSelection: <K extends keyof PanelSelections>(key: K, value: PanelSelections[K]) => void;
   setColorMode: (mode: ColorMode) => void;
   setAccentColor: (color: string) => void;
@@ -131,12 +127,26 @@ export type {
   ImagesSubTab,
   ColorMode,
   CanvasBackground,
-  ModelsSubTab,
-  SystemSubTab,
   CaptionSubTab,
   VideoSubTab,
   PanelSelections,
 };
+
+/** The panel selection that holds a Right Panel tab's sub-tab. */
+function subTabSelection(target: RightSubTabTarget): Partial<PanelSelections> {
+  switch (target.rightTab) {
+    case "library":
+      return { librarySubTab: target.subTab };
+    case "models":
+      return { modelsSubTab: target.subTab };
+    case "system":
+      return { systemSubTab: target.subTab };
+    default: {
+      const unknown: never = target;
+      return unknown;
+    }
+  }
+}
 
 const DEFAULT_PANEL_SELECTIONS: PanelSelections = {
   modelsSubTab: "Current",
@@ -196,6 +206,12 @@ export const useUiStore = create<UiState>()(
       setRightPanelWidth: (width) => set({ rightPanelWidth: Math.max(280, Math.min(720, width)) }),
       setRightTab: (tab) => set({ activeRightTab: tab }),
       openRightTab: (tab) => set({ activeRightTab: tab, rightPanelCollapsed: false }),
+      openRightSubTab: (target) =>
+        set((s) => ({
+          activeRightTab: target.rightTab,
+          rightPanelCollapsed: false,
+          panelSelections: { ...s.panelSelections, ...subTabSelection(target) },
+        })),
       setPanelSelection: (key, value) =>
         set((s) => ({
           panelSelections: { ...s.panelSelections, [key]: value },

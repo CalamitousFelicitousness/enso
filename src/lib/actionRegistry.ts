@@ -10,7 +10,13 @@ import {
   Images,
   Settings,
 } from "lucide-react";
-import { NAV_ITEMS, IMAGES_SUB_TABS, VIDEO_SUB_TABS, RIGHT_TABS } from "@/lib/constants";
+import {
+  NAV_ITEMS,
+  IMAGES_SUB_TABS,
+  VIDEO_SUB_TABS,
+  RIGHT_TABS,
+  RIGHT_SUB_TABS,
+} from "@/lib/constants";
 import { PARAM_MAP } from "@/lib/paramMap.generated";
 import { getAllCommands } from "@/lib/commandRegistry";
 import type { PaletteCommand } from "@/lib/commandRegistry";
@@ -181,6 +187,20 @@ export function buildActions(commands?: PaletteCommand[]): PaletteAction[] {
       group: "Navigation",
       keywords: ["panel", "right panel", tab.label.toLowerCase()],
       target: { rightTab: tab.id },
+    });
+  }
+
+  // --- Navigation: right panel sub-tabs ---
+  for (const { target, item } of RIGHT_SUB_TABS) {
+    const panel = RIGHT_TABS.find((t) => t.id === target.rightTab)?.label ?? target.rightTab;
+    actions.push({
+      kind: "navigate",
+      id: `right-${target.rightTab}-${item.id.toLowerCase().replace(/\s+/g, "-")}`,
+      label: `${panel} › ${item.label}`,
+      icon: item.icon,
+      group: "Navigation",
+      keywords: ["panel", panel.toLowerCase(), item.label.toLowerCase(), ...(item.keywords ?? [])],
+      target,
     });
   }
 

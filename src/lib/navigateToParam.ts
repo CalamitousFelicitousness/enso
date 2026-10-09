@@ -1,5 +1,11 @@
 import { useUiStore } from "@/stores/uiStore";
-import type { ImagesSubTab, NavView, RightTab, VideoSubTab } from "@/lib/constants";
+import type {
+  ImagesSubTab,
+  NavView,
+  RightSubTabTarget,
+  RightTab,
+  VideoSubTab,
+} from "@/lib/constants";
 
 interface ParamLocation {
   section?: string;
@@ -8,6 +14,7 @@ interface ParamLocation {
 
 export type NavigateTarget =
   | { rightTab: RightTab }
+  | RightSubTabTarget
   | ({ view: "images"; subTab?: ImagesSubTab } & ParamLocation)
   | ({ view: "video"; subTab?: VideoSubTab } & ParamLocation)
   | { view: Exclude<NavView, "images" | "video"> };
@@ -48,7 +55,8 @@ export async function navigateToParam(target: NavigateTarget) {
 
   // 1. Right panel tab navigation
   if ("rightTab" in target) {
-    store.openRightTab(target.rightTab);
+    if ("subTab" in target) store.openRightSubTab(target);
+    else store.openRightTab(target.rightTab);
     return;
   }
 

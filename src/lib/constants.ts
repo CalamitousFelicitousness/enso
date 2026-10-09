@@ -1,6 +1,22 @@
 import type { LucideIcon } from "lucide-react";
 import {
+  Activity,
   BookMarked,
+  CircleArrowUp,
+  CloudDownload,
+  Combine,
+  FolderInput,
+  Globe,
+  HardDrive,
+  LayoutDashboard,
+  List,
+  MemoryStick,
+  PackageCheck,
+  Replace,
+  Scissors,
+  ShieldCheck,
+  Tags,
+  Timer,
   ImageIcon,
   Video,
   Sparkles,
@@ -48,6 +64,8 @@ export interface SubTabItem {
   id: string;
   label: string;
   icon: LucideIcon;
+  /** Words the palette also finds it by. */
+  keywords?: readonly string[];
 }
 
 export interface ExternalLink {
@@ -132,11 +150,72 @@ export type VideoSubTab = (typeof VIDEO_SUB_TABS)[number]["id"];
 
 /** Sub-tabs of the Library in the Right Panel. */
 export const LIBRARY_SUB_TABS = [
-  { id: "saved", label: "Saved", icon: BookMarked },
-  { id: "trash", label: "Trash", icon: Trash2 },
+  { id: "saved", label: "Saved", icon: BookMarked, keywords: ["saved inputs", "sets", "frames"] },
+  { id: "trash", label: "Trash", icon: Trash2, keywords: ["removed", "deleted", "restore", "bin"] },
 ] as const satisfies readonly SubTabItem[];
 
 export type LibrarySubTab = (typeof LIBRARY_SUB_TABS)[number]["id"];
+
+/** Sub-tabs of the Models panel. A selection is stored by id, so ids stay as they are. */
+export const MODELS_SUB_TABS = [
+  { id: "Current", label: "Current", icon: PackageCheck, keywords: ["loaded", "analyze"] },
+  { id: "List", label: "List", icon: List, keywords: ["checkpoints", "all models"] },
+  { id: "Audit", label: "Audit", icon: ShieldCheck, keywords: ["check", "issues", "fix"] },
+  { id: "Metadata", label: "Metadata", icon: Tags, keywords: ["civitai", "previews", "sweep"] },
+  { id: "Loader", label: "Loader", icon: FolderInput, keywords: ["components", "pipeline"] },
+  { id: "Merge", label: "Merge", icon: Combine, keywords: ["combine", "blend", "checkpoint"] },
+  { id: "Replace", label: "Replace", icon: Replace, keywords: ["swap", "substitute"] },
+  { id: "CivitAI", label: "CivitAI", icon: CloudDownload, keywords: ["download", "browse"] },
+  {
+    id: "Huggingface",
+    label: "Huggingface",
+    icon: Globe,
+    keywords: ["hugging face", "hf", "download", "browse"],
+  },
+  {
+    id: "Extract LoRA",
+    label: "Extract LoRA",
+    icon: Scissors,
+    keywords: ["lora extract", "distill", "low rank"],
+  },
+] as const satisfies readonly SubTabItem[];
+
+export type ModelsSubTab = (typeof MODELS_SUB_TABS)[number]["id"];
+
+/** Sub-tabs of the System panel. A selection is stored by id, so ids stay as they are. */
+export const SYSTEM_SUB_TABS = [
+  { id: "Overview", label: "Overview", icon: LayoutDashboard, keywords: ["status", "server"] },
+  { id: "Storage", label: "Storage", icon: HardDrive, keywords: ["disk", "space", "folders"] },
+  { id: "Update", label: "Update", icon: CircleArrowUp, keywords: ["upgrade", "version", "git"] },
+  { id: "Activity", label: "Activity", icon: Activity, keywords: ["log", "requests"] },
+  { id: "GPU Monitor", label: "GPU Monitor", icon: MemoryStick, keywords: ["vram", "temperature"] },
+  { id: "System Info", label: "System Info", icon: Info, keywords: ["versions", "uptime"] },
+  { id: "Benchmark", label: "Benchmark", icon: Timer, keywords: ["speed", "performance"] },
+] as const satisfies readonly SubTabItem[];
+
+export type SystemSubTab = (typeof SYSTEM_SUB_TABS)[number]["id"];
+
+/** A Right Panel tab opened on one of its sub-tabs. */
+export type RightSubTabTarget =
+  | { rightTab: "library"; subTab: LibrarySubTab }
+  | { rightTab: "models"; subTab: ModelsSubTab }
+  | { rightTab: "system"; subTab: SystemSubTab };
+
+/** Every Right Panel sub-tab, with the target that opens it. */
+export const RIGHT_SUB_TABS: readonly { target: RightSubTabTarget; item: SubTabItem }[] = [
+  ...LIBRARY_SUB_TABS.map((item) => ({
+    target: { rightTab: "library" as const, subTab: item.id },
+    item,
+  })),
+  ...MODELS_SUB_TABS.map((item) => ({
+    target: { rightTab: "models" as const, subTab: item.id },
+    item,
+  })),
+  ...SYSTEM_SUB_TABS.map((item) => ({
+    target: { rightTab: "system" as const, subTab: item.id },
+    item,
+  })),
+];
 
 /** External links at the bottom of the Left Rail */
 export const EXTERNAL_LINKS: ExternalLink[] = [

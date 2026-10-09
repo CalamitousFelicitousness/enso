@@ -134,9 +134,7 @@ const NO_BLOBS: ReadonlyMap<string, Blob> = new Map();
 
 /** Open the Library on one of its lists. */
 export function showLibrary(list: LibrarySubTab = "saved"): void {
-  const ui = useUiStore.getState();
-  ui.setPanelSelection("librarySubTab", list);
-  ui.openRightTab("library");
+  useUiStore.getState().openRightSubTab({ rightTab: "library", subTab: list });
 }
 
 /** Read the library when it comes into view, and again whenever the window
