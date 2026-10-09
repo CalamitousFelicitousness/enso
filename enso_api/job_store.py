@@ -197,8 +197,8 @@ class JobStore:
         where_parts = [f"status IN ({','.join('?' for _ in terminal)})"]
         binds: list = list(terminal)
         if status:
-            where_parts = ["status = ?"]
-            binds = [status]
+            where_parts.append("status = ?")
+            binds.append(status)
         if job_type:
             where_parts.append("type = ?")
             binds.append(job_type)
