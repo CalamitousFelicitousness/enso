@@ -15,7 +15,7 @@ import { useOutlineWithEnv } from "@/inputs/useOutline";
 import { processorFacts } from "@/lib/processorUtils";
 import { preprocessorsQuery } from "@/api/hooks/useControl";
 import { detailProcessedText, fixLabel, problemText } from "@/lib/inputs/text";
-import { buildControlRequest, InputRefusal } from "@/lib/request/buildGenerate";
+import { buildControlRequest, InputRefusal, SettingRefusal } from "@/lib/request/buildGenerate";
 import { buildCloudImageRequest } from "@/lib/request/buildCloudImage";
 import { buildDetailRequest } from "@/lib/request/buildDetail";
 import { restoreSettings, restoreSettingsAndInputs, resultTarget } from "@/lib/request/restore";
@@ -248,6 +248,10 @@ export const ActionBar = memo(function ActionBar() {
     }).catch((err: unknown) => {
       if (err instanceof InputRefusal) {
         toast.warning("Can't generate with these input images", { description: err.message });
+        throw new UserAbortError(err.message);
+      }
+      if (err instanceof SettingRefusal) {
+        toast.warning("Can't generate with these settings", { description: err.message });
         throw new UserAbortError(err.message);
       }
       throw err;

@@ -387,6 +387,7 @@ def execute_generate(params: dict, job_id: str) -> dict:
     from modules.control.unit import Unit
 
     from enso_api import condition_images, control_units, sdnext_features
+    from enso_api.postprocess import resolve_path_ref
 
     condition_images.validate(params, shared.sd_model)
     control_units.validate(params, sdnext_features.control_separate_init())
@@ -469,6 +470,8 @@ def execute_generate(params: dict, job_id: str) -> dict:
     valid_params = set(inspect.signature(control_run_module.control_run).parameters.keys())
     # control_run's own cfg_true of 0 switches off the true CFG some pipelines run by default
     run_args = {k: v for k, v in {"cfg_true": -1.0, **params}.items() if k in valid_params and k not in SKIP_KEYS}
+    if run_args.get("grading_lut_file"):
+        run_args["grading_lut_file"] = resolve_path_ref(run_args["grading_lut_file"])
     run_args["sampler_index"] = sampler_index
     run_args["is_generator"] = True
     run_args["inputs"] = inputs

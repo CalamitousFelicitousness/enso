@@ -13,7 +13,8 @@ import { Combobox } from "@/components/ui/combobox";
 import { ColorPicker } from "@/components/ui/color-picker";
 import { Button } from "@/components/ui/button";
 import { Upload, X } from "lucide-react";
-import { uploadFile } from "@/lib/upload";
+import { cn } from "@/lib/utils";
+import { LUT_MISSING_TEXT, useLutStore } from "@/stores/lutStore";
 
 export function ColorTab() {
   const state = useGenerationStore(
@@ -96,23 +97,26 @@ export function ColorTab() {
   );
 
   const lutInputRef = useRef<HTMLInputElement>(null);
-  const lutFileName = state.gradingLutFile ? (state.gradingLutFile.split("/").pop() ?? "") : "";
+  const storedLut = useLutStore((s) => s.file);
+  const setStoredLut = useLutStore((s) => s.setFile);
   const hasLut = !!state.gradingLutFile;
+  const lutMissing = hasLut && storedLut?.name !== state.gradingLutFile;
 
   const handleLutFile = useCallback(
-    async (e: React.ChangeEvent<HTMLInputElement>) => {
+    (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
       e.target.value = "";
       if (!file) return;
-      const ref = await uploadFile(file);
-      setParam("gradingLutFile", ref);
+      setStoredLut(file);
+      setParam("gradingLutFile", file.name);
     },
-    [setParam],
+    [setParam, setStoredLut],
   );
 
   const clearLut = useCallback(() => {
     setParam("gradingLutFile", "");
-  }, [setParam]);
+    setStoredLut(null);
+  }, [setParam, setStoredLut]);
 
   return (
     <div className="flex flex-col gap-3 text-sm">
@@ -504,7 +508,12 @@ export function ColorTab() {
           </ParamLabel>
           {hasLut ? (
             <div className="flex items-center gap-1.5 flex-1 min-w-0">
-              <span className="text-2xs truncate flex-1">{lutFileName}</span>
+              <span
+                className={cn("text-2xs truncate flex-1", lutMissing && "text-destructive")}
+                title={lutMissing ? LUT_MISSING_TEXT : state.gradingLutFile}
+              >
+                {lutMissing ? `${state.gradingLutFile}: pick it again` : state.gradingLutFile}
+              </span>
               <Button variant="ghost" size="icon-sm" onClick={clearLut} title="Remove LUT">
                 <X size={12} />
               </Button>
@@ -517,7 +526,7 @@ export function ColorTab() {
               onClick={() => lutInputRef.current?.click()}
             >
               <Upload size={12} />
-              Upload .cube file
+              Choose .cube file
             </Button>
           )}
           <input
@@ -525,7 +534,7 @@ export function ColorTab() {
             type="file"
             accept=".cube"
             className="hidden"
-            onChange={(e) => void handleLutFile(e)}
+            onChange={handleLutFile}
           />
         </div>
         <ParamSlider

@@ -15,6 +15,8 @@ import { useScriptStore } from "@/stores/scriptStore";
 import { useImg2ImgStore } from "@/stores/img2imgStore";
 import { useInputStore } from "@/stores/inputStore";
 import { useUiStore } from "@/stores/uiStore";
+import { LUT_MISSING_TEXT, namedLut } from "@/stores/lutStore";
+import { uploadFile } from "@/lib/upload";
 import { outlineWithMaps } from "@/inputs/maps";
 import { createUploader, type Ledger, type Uploader } from "@/inputs/materialise";
 import type { ProcessorFacts } from "@/lib/processorUtils";
@@ -81,6 +83,11 @@ export interface ControlBuildOptions {
 /** The canvas holds inputs the loaded model cannot take as they are. */
 export class InputRefusal extends Error {
   override name = "InputRefusal";
+}
+
+/** A setting names something this browser no longer holds. */
+export class SettingRefusal extends Error {
+  override name = "SettingRefusal";
 }
 
 /** A slot whose map the cache holds, which goes out in its picture's place. */
@@ -244,6 +251,12 @@ export async function buildControlRequest({
     target,
   });
   const up = createUploader({ frames, size: frame });
+  // The LUT goes up with each job: an upload the server holds for 30 minutes cannot wait in the settings
+  if (gen.gradingLutFile) {
+    const lut = namedLut(gen.gradingLutFile);
+    if (!lut) throw new SettingRefusal(LUT_MISSING_TEXT);
+    request.grading_lut_file = await uploadFile(lut);
+  }
 
   if (ipAdapters.length > 0) {
     request.ip_adapter = await Promise.all(ipAdapters.map((send) => ipAdapterUnit(up, send)));

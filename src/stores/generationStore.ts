@@ -5,6 +5,7 @@ import type { MaskStroke } from "@/lib/inputs/types";
 import type { DetailerOverrides, DetailerModelEntry, JobWarning } from "@/api/types/v2";
 import type { WireParams } from "@/api/types/wireParams";
 import { DEFAULT_HIRES_UPSCALER } from "@/lib/hires";
+import { isUploadRef } from "@/lib/jobs/replay";
 import {
   clampStripLimit,
   migrateGeneration,
@@ -448,9 +449,13 @@ export const useGenerationStore = create<GenerationState>()(
     }),
     {
       name: "enso-generation",
-      version: 4,
-      // Every version before 4 took the strip's limit from sdnext's latent cache size
-      migrate: (persisted) => migrateGeneration(persisted),
+      version: 5,
+      // Every version before 4 took the strip's limit from sdnext's latent cache size;
+      // before 5 the LUT was an upload ref, which the server forgets 30 minutes after the pick
+      migrate: (persisted) => {
+        const state = migrateGeneration(persisted);
+        return isUploadRef(state["gradingLutFile"]) ? { ...state, gradingLutFile: "" } : state;
+      },
       partialize: (state) => {
         const p: Record<string, unknown> = {};
         for (const key of defaultParamKeys) p[key] = state[key];

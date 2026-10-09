@@ -125,7 +125,6 @@ export function generationParams(gen: GenerationState, ctx: GenerateParamsContex
     grading_split_tone_balance: gen.gradingSplitToneBalance,
     grading_vignette: gen.gradingVignette,
     grading_grain: gen.gradingGrain,
-    grading_lut_file: gen.gradingLutFile || undefined,
     grading_lut_strength: gen.gradingLutStrength,
     img2img_color_correction: gen.colorCorrectionEnabled,
     color_correction_method: gen.colorCorrectionMethod,
