@@ -40,6 +40,7 @@ def register_api(app, dependencies=None):
     except NewerDatabase as e:
         log.error(f"Enso: API off: {e}; run a newer Enso or move the file aside")
         return
+    media_boot.start()
 
     # Cloud provider registry, transport, and adapters now live in
     # modules.cloud (sdnext core). Provider CRUD goes through
@@ -202,6 +203,9 @@ def register_api(app, dependencies=None):
             "/sdapi/v2/blobs/adopt": 0,
             "/sdapi/v2/media": 0,
             "/sdapi/v2/media/settings": 0,
+            "/sdapi/v2/media/snapshot": 0,
+            "/sdapi/v2/media/verify": 0,
+            "/sdapi/v2/ws/events": 0,
             "/sdapi/v2/uploads/{ref_id}": 0,  # dormant until route-template keys
             "/sdapi/v2/jobs/{job_id}": 0,  # dormant until route-template keys
             "/sdapi/v2/jobs/{job_id}/images/{index}": 0,  # dormant until route-template keys

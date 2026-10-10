@@ -169,3 +169,15 @@ class Inflight:
 
 def free_space(path: str) -> int:
     return shutil.disk_usage(path).free
+
+
+def hash_file(path: str) -> tuple[str, bytes]:
+    """A file's SHA-256 and its first bytes, read in batches."""
+    digest = hashlib.sha256()
+    head = b""
+    with open(path, "rb") as f:
+        while data := f.read(BATCH):
+            if len(head) < HEAD_BYTES:
+                head += data[: HEAD_BYTES - len(head)]
+            digest.update(data)
+    return digest.hexdigest(), head

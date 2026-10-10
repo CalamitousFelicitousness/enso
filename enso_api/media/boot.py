@@ -4,6 +4,7 @@ import logging
 import os
 import sqlite3
 
+from enso_api.media.collector import reconcile
 from enso_api.media.errors import MediaOff
 from enso_api.media.layout import OPTION_LABEL, Layout, probe_folder, resolve_root
 from enso_api.media.schema import MIGRATIONS
@@ -110,6 +111,8 @@ def init(data_dir: str) -> None:
         except OSError as e:
             log.warning(f"Media store: could not record the root in {marker_path}: {e}")
     store = MediaStore(layout, db)
+    # Before the queue names its pending jobs' uploads: a row a power loss dropped is taken back in from its file first
+    reconcile(store, layout, walk=True)
     taken = store.take_legacy_uploads(uploads)
     state.store = store
     report = store.report()
@@ -117,3 +120,22 @@ def init(data_dir: str) -> None:
     holder = next((root for root in galleries if layout.real_root == root or layout.real_root.startswith(root + os.sep)), None)
     if holder is not None:
         log.info(f"Media store: {layout.root} is inside the Gallery folder {holder}, which leaves it out")
+
+
+def start() -> None:
+    """Start the store's thread after the queue, so its first pass knows which jobs are live."""
+    if state.store is None or state.worker is not None:
+        return
+    from enso_api import events
+    from enso_api.job_queue import job_queue
+    from enso_api.media import collector, verify
+    from enso_api.media.worker import MediaWorker
+
+    store = state.store
+    state.worker = MediaWorker(
+        reconcile=lambda walk: collector.reconcile(store, store.layout, walk),
+        collect=lambda: collector.run_pass(store, job_queue.live_jobs),
+        verify=lambda cancel, progress: verify.run(store, store.layout, cancel, progress),
+        on_progress=lambda verify_state: events.bump("media", verify=verify_state._asdict()),
+    )
+    state.worker.start()

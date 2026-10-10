@@ -97,6 +97,23 @@ class VerifyStateV2(BaseModel):
     total: int = 0
 
 
+class ResSnapshotV2(BaseModel):
+    path: str
+    bytes: int
+
+
+class MediaEventDataV2(BaseModel):
+    verify: VerifyStateV2 | None = None
+    """The verify pass's progress; absent when a collection pass changed what the store holds."""
+
+
+class MediaSettingsValuesV2(BaseModel):
+    trash_days: int
+    library_cap: int
+    record_cap: int
+    reserve_bytes: int
+
+
 class ResMediaReportV2(BaseModel):
     enabled: bool
     reason: str | None = None

@@ -23,13 +23,14 @@ from enso_api.media.models import (
     ResClaimV2,
     ResMediaReportV2,
     ResMediaSettingsV2,
+    ResSnapshotV2,
     SettingBoundV2,
     SpaceV2,
     VerifyStateV2,
 )
 from enso_api.media.settings import BOUNDS, Settings
 from enso_api.media.sniff import OCTET
-from enso_api.media.store import BlobRow, MediaStore
+from enso_api.media.store import BlobRow, MediaStore, SnapshotExists
 from enso_api.routes import media_file
 from enso_api.session import media_auth
 
@@ -243,7 +244,38 @@ async def patch_media_settings(body: ReqMediaSettingsV2, request: Request):
 
 
 def verify_state() -> VerifyStateV2:
-    return VerifyStateV2()
+    worker = boot.state.worker
+    return VerifyStateV2(**worker.verify_state()._asdict()) if worker is not None else VerifyStateV2()
+
+
+@router.post("/media/snapshot", response_model=ResSnapshotV2)
+async def post_media_snapshot():
+    """A consistent copy of the store's database in its snapshots folder; the blob files are backed up as files."""
+    store = store_or_503()
+    try:
+        path, size = await asyncio.to_thread(store.snapshot)
+    except SnapshotExists:
+        refuse(409, "snapshot_exists", "A snapshot was taken this same moment; take it again")
+    log.info(f"Media store: snapshot {path} size={size}")
+    return ResSnapshotV2(path=path, bytes=size)
+
+
+@router.post("/media/verify", response_model=VerifyStateV2)
+async def post_media_verify():
+    """Start hashing every blob again; progress arrives on the global socket as media events."""
+    store_or_503()
+    worker = boot.state.worker
+    if worker is None or not worker.request_verify():
+        refuse(409, "verify_running", "A verify pass is already running")
+    return verify_state()
+
+
+@router.delete("/media/verify", response_model=VerifyStateV2)
+async def delete_media_verify():
+    store_or_503()
+    if boot.state.worker is not None:
+        boot.state.worker.cancel_verify()
+    return verify_state()
 
 
 @router.get("/media", response_model=ResMediaReportV2)

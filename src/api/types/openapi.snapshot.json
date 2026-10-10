@@ -5927,6 +5927,50 @@
         "title": "LtxParams",
         "type": "object"
       },
+      "MediaEventDataV2": {
+        "properties": {
+          "verify": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/VerifyStateV2"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "title": "MediaEventDataV2",
+        "type": "object"
+      },
+      "MediaSettingsValuesV2": {
+        "properties": {
+          "library_cap": {
+            "title": "Library Cap",
+            "type": "integer"
+          },
+          "record_cap": {
+            "title": "Record Cap",
+            "type": "integer"
+          },
+          "reserve_bytes": {
+            "title": "Reserve Bytes",
+            "type": "integer"
+          },
+          "trash_days": {
+            "title": "Trash Days",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "trash_days",
+          "library_cap",
+          "record_cap",
+          "reserve_bytes"
+        ],
+        "title": "MediaSettingsValuesV2",
+        "type": "object"
+      },
       "MediaStoreStateV2": {
         "properties": {
           "enabled": {
@@ -10387,6 +10431,24 @@
         "title": "ResSetOptionsV2",
         "type": "object"
       },
+      "ResSnapshotV2": {
+        "properties": {
+          "bytes": {
+            "title": "Bytes",
+            "type": "integer"
+          },
+          "path": {
+            "title": "Path",
+            "type": "string"
+          }
+        },
+        "required": [
+          "path",
+          "bytes"
+        ],
+        "title": "ResSnapshotV2",
+        "type": "object"
+      },
       "ResSystemInfoV2": {
         "properties": {
           "backend": {
@@ -12359,6 +12421,43 @@
           "status"
         ],
         "title": "WsEventStatus",
+        "type": "object"
+      },
+      "WsGlobalMedia": {
+        "additionalProperties": false,
+        "description": "The media store changed, or its verify pass moved on: a page re-reads the media report.",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/MediaEventDataV2"
+          },
+          "type": {
+            "const": "media",
+            "default": "media",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "title": "WsGlobalMedia",
+        "type": "object"
+      },
+      "WsGlobalSettings": {
+        "additionalProperties": false,
+        "description": "The media store's settings changed, from any client.",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/MediaSettingsValuesV2"
+          },
+          "type": {
+            "const": "settings",
+            "default": "settings",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "title": "WsGlobalSettings",
         "type": "object"
       },
       "XyzAxisInfo": {
@@ -18142,6 +18241,69 @@
         ]
       }
     },
+    "/sdapi/v2/media/snapshot": {
+      "post": {
+        "description": "A consistent copy of the store's database in its snapshots folder; the blob files are backed up as files.",
+        "operationId": "post_media_snapshot_sdapi_v2_media_snapshot_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResSnapshotV2"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Post Media Snapshot",
+        "tags": [
+          "Media"
+        ]
+      }
+    },
+    "/sdapi/v2/media/verify": {
+      "delete": {
+        "operationId": "delete_media_verify_sdapi_v2_media_verify_delete",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VerifyStateV2"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Delete Media Verify",
+        "tags": [
+          "Media"
+        ]
+      },
+      "post": {
+        "description": "Start hashing every blob again; progress arrives on the global socket as media events.",
+        "operationId": "post_media_verify_sdapi_v2_media_verify_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VerifyStateV2"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Post Media Verify",
+        "tags": [
+          "Media"
+        ]
+      }
+    },
     "/sdapi/v2/memory": {
       "get": {
         "description": "Return RAM and CUDA memory usage statistics.",
@@ -20121,6 +20283,44 @@
         "summary": "Post Ws Ticket",
         "tags": [
           "Session",
+          "WebSocket"
+        ]
+      }
+    },
+    "/sdapi/v2/ws/events": {
+      "get": {
+        "description": "Documentation endpoint: the typed events of the global WebSocket at ``/sdapi/v2/ws``, which it pushes\nwhen a topic of :mod:`enso_api.events` moves. The live response is a representative media event.",
+        "operationId": "get_global_ws_event_schema_sdapi_v2_ws_events_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "discriminator": {
+                    "mapping": {
+                      "media": "#/components/schemas/WsGlobalMedia",
+                      "settings": "#/components/schemas/WsGlobalSettings"
+                    },
+                    "propertyName": "type"
+                  },
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/WsGlobalMedia"
+                    },
+                    {
+                      "$ref": "#/components/schemas/WsGlobalSettings"
+                    }
+                  ],
+                  "title": "Response Get Global Ws Event Schema Sdapi V2 Ws Events Get"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Global Ws Event Schema",
+        "tags": [
+          "v2",
           "WebSocket"
         ]
       }

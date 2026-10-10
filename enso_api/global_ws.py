@@ -4,6 +4,7 @@ from fastapi import WebSocket, WebSocketDisconnect
 from modules.logger import log
 from starlette.websockets import WebSocketState
 
+from enso_api import events
 from enso_api.session import admit_socket
 from enso_api.util import job_progress, preview_image
 
@@ -68,6 +69,8 @@ async def push_progress(ws: WebSocket):
     last_download_snapshot = None
     last_model = loaded_model_title()
     last_error = None
+    # A page re-reads on connect, so only what moves after it is pushed
+    sent = {topic: version.n for topic, version in events.current().items()}
     while ws.client_state == WebSocketState.CONNECTED:
         try:
             # A load or unload from any client, or a restart's startup load
@@ -75,6 +78,10 @@ async def push_progress(ws: WebSocket):
             if model != last_model:
                 last_model = model
                 await manager.send_json(ws, {"type": "model", "data": {"title": model}})
+            for topic, version in events.current().items():
+                if sent.get(topic) != version.n:
+                    sent[topic] = version.n
+                    await manager.send_json(ws, {"type": topic, "data": version.data})
             state = shared.state
             current_step = state.sampling_step
             current_job = state.job

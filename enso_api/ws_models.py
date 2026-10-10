@@ -17,6 +17,7 @@ from typing import Annotated, Literal
 
 from pydantic import Field
 
+from enso_api.media.models import MediaEventDataV2, MediaSettingsValuesV2
 from enso_api.models import CloudJobPhase, JobResult, JobStatus, StrictBaseModel
 
 
@@ -109,6 +110,24 @@ WsEvent = Annotated[
 ]
 """Discriminated union of per-job WS events. The ``type`` field narrows
 to the matching variant on the TS consumer side via ``switch (event.type)``."""
+
+
+class WsGlobalMedia(StrictBaseModel):
+    """The media store changed, or its verify pass moved on: a page re-reads the media report."""
+
+    type: Literal["media"] = "media"
+    data: MediaEventDataV2 = Field(default_factory=MediaEventDataV2)
+
+
+class WsGlobalSettings(StrictBaseModel):
+    """The media store's settings changed, from any client."""
+
+    type: Literal["settings"] = "settings"
+    data: MediaSettingsValuesV2
+
+
+WsGlobalEvent = Annotated[WsGlobalMedia | WsGlobalSettings, Field(discriminator="type")]
+"""Events on the global socket that come from the event counters (enso_api.events), one per topic that moved."""
 
 
 if __name__ == "__main__":

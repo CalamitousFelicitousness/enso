@@ -30,7 +30,7 @@ from enso_api.models import (
     VideoModelEnriched,
 )
 from enso_api.session import media_auth
-from enso_api.ws_models import WsEvent, WsEventPing
+from enso_api.ws_models import WsEvent, WsEventPing, WsGlobalEvent, WsGlobalMedia
 
 router = APIRouter(prefix="/sdapi/v2", tags=["v2"])
 # Files that <img> and <video> load, which carry the session cookie instead of an Authorization header
@@ -225,6 +225,13 @@ async def get_ws_event_schema():
     representative ping event for inspection.
     """
     return WsEventPing()
+
+
+@router.get("/ws/events", response_model=WsGlobalEvent, tags=["WebSocket"])
+async def get_global_ws_event_schema():
+    """Documentation endpoint: the typed events of the global WebSocket at ``/sdapi/v2/ws``, which it pushes
+    when a topic of :mod:`enso_api.events` moves. The live response is a representative media event."""
+    return WsGlobalMedia()
 
 
 def embed_base64(job: dict, resp: JobResponse) -> None:
