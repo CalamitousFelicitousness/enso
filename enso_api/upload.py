@@ -6,7 +6,6 @@ import time
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile
-from fastapi.responses import FileResponse
 from modules.logger import log
 from PIL import Image
 from pydantic import BaseModel
@@ -275,7 +274,9 @@ async def get_upload(ref_id: str):
     entry = store.get(ref_id)
     if entry is None:
         raise HTTPException(status_code=404, detail="Upload not found or expired")
-    return FileResponse(entry.path, media_type=entry.content_type, filename=entry.name)
+    from enso_api.routes import media_file
+
+    return media_file(entry.path, entry.name, "attachment", entry.content_type)
 
 
 @upload_router.delete("/uploads/{ref_id}", response_model=DeleteResponse)

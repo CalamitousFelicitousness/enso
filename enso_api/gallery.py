@@ -15,7 +15,7 @@ from PIL import Image
 from pydantic import BaseModel, Field  # pylint: disable=no-name-in-module
 from starlette.websockets import WebSocket, WebSocketState
 
-from enso_api.routes import MEDIA_TYPES
+from enso_api.routes import media_file
 from enso_api.session import admit_socket, media_auth
 from enso_api.video_result import sibling_thumb
 
@@ -290,13 +290,7 @@ def register_api(app: FastAPI):  # register api
             raise HTTPException(status_code=403, detail="Path not allowed")
         if not os.path.isfile(path):
             raise HTTPException(status_code=404, detail="File not found")
-        ext = os.path.splitext(path)[1].lstrip(".").lower()
-        return FileResponse(
-            path,
-            media_type=MEDIA_TYPES.get(ext, "application/octet-stream"),
-            filename=os.path.basename(path),
-            content_disposition_type="inline",
-        )
+        return media_file(path, os.path.basename(path))
 
     # @app.get("/sdapi/v1/browser/thumb", response_model=dict)
     def get_thumb(file: str):

@@ -257,14 +257,24 @@ MEDIA_TYPES = {
 }
 
 
+def media_file(path: str, filename: str | None = None, disposition: str = "inline", media_type: str | None = None) -> FileResponse:
+    """A media route's file, varying by Origin on every answer.
+
+    An <img> sends no Origin and gets no CORS headers; without the Vary a cache hands that copy to a later
+    fetch from a page on another origin, which CORS then refuses.
+    """
+    if media_type is None:
+        media_type = MEDIA_TYPES.get(os.path.splitext(path)[1].lstrip(".").lower(), "application/octet-stream")
+    return FileResponse(path, media_type=media_type, filename=filename, content_disposition_type=disposition, headers={"Vary": "Origin"})
+
+
 def serve_file_path(file_path: str):
     # Confine before touching the filesystem so a ref pointing outside the
     # allow-list cannot reveal whether such a file exists.
     confine_or_403(file_path)
     if not os.path.isfile(file_path):
         raise HTTPException(status_code=404, detail="File not found on disk")
-    ext = os.path.splitext(file_path)[1].lstrip(".").lower()
-    return FileResponse(file_path, media_type=MEDIA_TYPES.get(ext, "application/octet-stream"))
+    return media_file(file_path)
 
 
 def serve_job_file(job: dict, key: str, index: int):
@@ -352,13 +362,7 @@ async def get_output(output_id: str):
     if not os.path.isfile(file_path):
         log.debug(f"Outputs: {output_id} -> {file_path} missing on disk")
         raise HTTPException(status_code=404, detail="Output not found")
-    ext = os.path.splitext(file_path)[1].lstrip(".").lower()
-    return FileResponse(
-        file_path,
-        media_type=MEDIA_TYPES.get(ext, "application/octet-stream"),
-        filename=os.path.basename(file_path),
-        content_disposition_type="inline",
-    )
+    return media_file(file_path, os.path.basename(file_path))
 
 
 @router.get("/video/engines", response_model=list[VideoEngine], tags=["Video"])
