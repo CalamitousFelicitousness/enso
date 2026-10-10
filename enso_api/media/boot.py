@@ -5,8 +5,10 @@ import os
 import sqlite3
 
 from enso_api.media.collector import reconcile
+from enso_api.media.entries import Entries
 from enso_api.media.errors import MediaOff
 from enso_api.media.layout import OPTION_LABEL, Layout, probe_folder, resolve_root
+from enso_api.media.records import Records
 from enso_api.media.schema import MIGRATIONS
 from enso_api.media.store import MediaStore
 from enso_api.sqlite import Database, NewerDatabase
@@ -19,6 +21,8 @@ FIX_SETTING = "fix the setting and restart"
 class State:
     def __init__(self):
         self.store: MediaStore | None = None
+        self.entries: Entries | None = None
+        self.records: Records | None = None
         self.worker = None
         self.reason: str | None = None
         self.configured_root = ""
@@ -114,6 +118,8 @@ def init(data_dir: str) -> None:
     # Before the queue names its pending jobs' uploads: a row a power loss dropped is taken back in from its file first
     reconcile(store, layout, walk=True)
     taken = store.take_legacy_uploads(uploads)
+    state.entries = Entries(db, store.held, store.settings, store.now)
+    state.records = Records(db, store.held, store.resolve_ref, store.settings, store.now)
     state.store = store
     report = store.report()
     log.info(f"Media store: root={layout.root} blobs={report.count} size={report.bytes} lost={report.lost} free={report.free}{f' uploads taken in={taken}' if taken else ''}")

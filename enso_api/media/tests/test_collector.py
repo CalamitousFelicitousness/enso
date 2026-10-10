@@ -3,7 +3,9 @@ import time
 
 import pytest
 
+from enso_api import events
 from enso_api.media.collector import (
+    CLIENT_IDLE_MS,
     DAY_MS,
     DELETE_BATCH,
     GRACE_MS,
@@ -65,8 +67,8 @@ def test_urgent_only_for_hashes_nothing_else_names():
 
 
 def test_retires_records_per_client_past_the_cap_oldest_first():
-    rows = [RecordRow(f"c1-{i:03d}", "c1", NOW - 1000 * DAY_MS + i, True, "generate") for i in range(53)]
-    rows += [RecordRow(f"c2-{i:03d}", "c2", NOW - 1000 * DAY_MS + i, True, "generate") for i in range(50)]
+    rows = [RecordRow(f"c1-{i:03d}", "c1", NOW - 30 * DAY_MS + i, True, "generate") for i in range(53)]
+    rows += [RecordRow(f"c2-{i:03d}", "c2", NOW - 30 * DAY_MS + i, True, "generate") for i in range(50)]
     retired = plan(base(records=tuple(rows), settings=Settings(record_cap=50))).retire_records
     assert retired == ("c1-000", "c1-001", "c1-002")
 
@@ -82,6 +84,18 @@ def test_never_retires_a_live_or_young_unrouted_strip_record():
     )
     retired = plan(base(records=rows, live_jobs=frozenset({"live"}), settings=Settings(record_cap=50))).retire_records
     assert retired == ("unrouted-old", "process", "r49", "r48")
+
+
+def test_retires_every_record_of_a_client_idle_past_the_bound_but_a_live_one():
+    idle = NOW - CLIENT_IDLE_MS - DAY_MS
+    rows = (
+        RecordRow("gone-1", "gone", idle - 5, True, "generate"),
+        RecordRow("gone-2", "gone", idle, False, "generate"),
+        RecordRow("gone-live", "gone", idle - 9, True, "generate"),
+        RecordRow("here-1", "here", idle, True, "generate"),
+        RecordRow("here-2", "here", NOW - DAY_MS, True, "generate"),
+    )
+    assert plan(base(records=rows, live_jobs=frozenset({"gone-live"}))).retire_records == ("gone-1", "gone-2")
 
 
 def test_grace_transient_grace_and_touch():
@@ -139,6 +153,25 @@ def test_apply_frees_an_expired_entry_and_its_blob_in_one_pass(store, clock):
     assert applied.entries == 1
     assert store.row(row.hash) is None
     assert store.row(shared.hash) is not None
+
+
+def test_apply_reports_what_it_expired_evicted_and_retired_as_change_events(store, clock, monkeypatch):
+    monkeypatch.setattr(events, "versions", {})
+    monkeypatch.setattr(events, "logs", {})
+    row, _ = put(store, png(1))
+    store.update_settings({"library_cap": 10})
+    link_entry(store, "expired", [row.hash], trashed_at=clock.now)
+    for i in range(12):
+        link_entry(store, f"e{i:02d}", [row.hash])
+    with store.db.write() as w:
+        w.conn.execute("UPDATE entries SET pinned = 1 WHERE id = 'e00'")
+    link_record(store, "idle", [], client="gone", created_at=clock.now - CLIENT_IDLE_MS)
+    clock.advance(8 * DAY_MS)
+    store.set_meta("last_gc", str(clock.now - PASS_MS))
+    applied = collect(store)
+    assert (applied.expired, applied.evicted, applied.retired) == (["expired"], ["e01"], ["idle"])
+    owed = {event["type"]: event["data"].get("ids") for event in events.pending({})}
+    assert owed == {"trash": ["e01", "expired"], "library": ["e01"], "records": ["idle"], "media": None}
 
 
 def test_apply_keeps_a_blob_named_since_the_plan(store, clock):

@@ -9,6 +9,7 @@ from modules.logger import log
 
 from enso_api.confine import confine_or_403
 from enso_api.job_models import JobRequest
+from enso_api.media.models import MediaEventDataV2, VerifyStateV2
 from enso_api.models import (
     FramePackLoadResponse,
     JobListResponse,
@@ -52,6 +53,7 @@ def job_to_response(job: dict) -> JobResponse:
         id=job["id"],
         type=job["type"],
         status=job["status"],
+        priority=job.get("priority", 0),
         progress=job.get("progress", 0),
         step=job.get("step", 0),
         steps=job.get("steps", 0),
@@ -231,7 +233,7 @@ async def get_ws_event_schema():
 async def get_global_ws_event_schema():
     """Documentation endpoint: the typed events of the global WebSocket at ``/sdapi/v2/ws``, which it pushes
     when a topic of :mod:`enso_api.events` moves. The live response is a representative media event."""
-    return WsGlobalMedia()
+    return WsGlobalMedia(data=MediaEventDataV2(verify=VerifyStateV2()))
 
 
 def embed_base64(job: dict, resp: JobResponse) -> None:

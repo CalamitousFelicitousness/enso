@@ -17,7 +17,7 @@ from typing import Annotated, Literal
 
 from pydantic import Field
 
-from enso_api.media.models import MediaEventDataV2, MediaSettingsValuesV2
+from enso_api.media.models import ChangedIdsV2, MediaEventDataV2, MediaSettingsValuesV2
 from enso_api.models import CloudJobPhase, JobResult, JobStatus, StrictBaseModel
 
 
@@ -116,7 +116,7 @@ class WsGlobalMedia(StrictBaseModel):
     """The media store changed, or its verify pass moved on: a page re-reads the media report."""
 
     type: Literal["media"] = "media"
-    data: MediaEventDataV2 = Field(default_factory=MediaEventDataV2)
+    data: MediaEventDataV2
 
 
 class WsGlobalSettings(StrictBaseModel):
@@ -126,7 +126,28 @@ class WsGlobalSettings(StrictBaseModel):
     data: MediaSettingsValuesV2
 
 
-WsGlobalEvent = Annotated[WsGlobalMedia | WsGlobalSettings, Field(discriminator="type")]
+class WsGlobalLibrary(StrictBaseModel):
+    """Entries in the library changed, from any client."""
+
+    type: Literal["library"] = "library"
+    data: ChangedIdsV2
+
+
+class WsGlobalTrash(StrictBaseModel):
+    """Entries entered or left the trash, from any client."""
+
+    type: Literal["trash"] = "trash"
+    data: ChangedIdsV2
+
+
+class WsGlobalRecords(StrictBaseModel):
+    """Job records changed, from any client."""
+
+    type: Literal["records"] = "records"
+    data: ChangedIdsV2
+
+
+WsGlobalEvent = Annotated[WsGlobalMedia | WsGlobalSettings | WsGlobalLibrary | WsGlobalTrash | WsGlobalRecords, Field(discriminator="type")]
 """Events on the global socket that come from the event counters (enso_api.events), one per topic that moved."""
 
 

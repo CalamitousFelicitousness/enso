@@ -156,8 +156,8 @@ class UploadsMissing(Exception):
 
 def name_uploads(job_id: str, params) -> list[str]:
     """Name the uploads a job's request refers to, so the media store keeps them until the job is released; the ones it does not hold."""
+    from enso_api.documents import refs_in
     from enso_api.media import boot
-    from enso_api.upload import refs_in
 
     if isinstance(params, str):
         params = json.loads(params)

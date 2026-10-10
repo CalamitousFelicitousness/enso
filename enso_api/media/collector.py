@@ -9,9 +9,12 @@ import os
 import re
 import sqlite3
 from collections import Counter, defaultdict
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, field
 
+from enso_api import events
+from enso_api.domains import STRIP_DOMAINS
+from enso_api.media.entries import evict_past_cap
 from enso_api.media.ingest import Inflight, hash_file
 from enso_api.media.layout import Layout
 from enso_api.media.settings import Settings
@@ -31,7 +34,8 @@ PASS_SECONDS = 300
 PASS_MS = PASS_SECONDS * 1000
 FUTURE_SLACK_MS = 5 * 60 * 1000
 STRIP_RETENTION_MS = 168 * HOUR_MS
-STRIP_DOMAINS = frozenset({"generate", "video", "framepack", "ltx"})
+# A client that has saved no record this long has gone away: cleared site data, a private window, a test run
+CLIENT_IDLE_MS = 90 * DAY_MS
 DELETE_BATCH = 50
 
 LiveJobs = Callable[[], "set[str] | None"]
@@ -87,6 +91,7 @@ class Survey:
 class Plan:
     now: int
     trash_ms: int
+    library_cap: int | None = None  # None leaves the cap to the saves
     drop_job_names: tuple[str, ...] = ()
     delete_entries: tuple[str, ...] = ()
     retire_records: tuple[str, ...] = ()
@@ -106,9 +111,12 @@ class Applied:
     parts: int = 0
     kept: int = 0  # planned blobs that were named or touched since the plan
     rebased: int = 0
+    expired: list[str] = field(default_factory=list)  # trashed entries deleted
+    evicted: list[str] = field(default_factory=list)  # entries the cap moved to the trash
+    retired: list[str] = field(default_factory=list)  # records deleted
 
     def changed(self) -> bool:
-        return bool(self.names or self.entries or self.records or self.blobs or self.parts or self.rebased)
+        return bool(self.names or self.entries or self.records or self.blobs or self.parts or self.rebased or self.evicted)
 
 
 def survey(store: MediaStore, layout: Layout, inflight: Inflight, live_jobs: LiveJobs) -> Survey:
@@ -167,7 +175,8 @@ def plan(s: Survey) -> Plan:
         for record in s.records:
             by_client[record.client].append(record)
         for rows in by_client.values():
-            excess = len(rows) - s.settings.record_cap
+            idle = max(row.created_at for row in rows) < s.now - CLIENT_IDLE_MS
+            excess = len(rows) if idle else len(rows) - s.settings.record_cap
             for record in sorted(rows, key=lambda row: (row.created_at, row.job_id)):
                 if excess <= 0:
                     break
@@ -181,7 +190,7 @@ def plan(s: Survey) -> Plan:
     touched_before = s.now - URGENT_TOUCH_MS
     delete = sorted(blob.hash for blob in s.candidates if blob.unnamed_since is not None and blob.unnamed_since < s.now - (TRANSIENT_GRACE_MS if blob.transient else GRACE_MS) and blob.touched_at < touched_before)
     parts = sorted(part.path for part in s.parts if not part.registered and part.mtime_ms < s.now - PART_AGE_MS)
-    return Plan(s.now, trash_ms, tuple(drop), tuple(expiring), tuple(retire), tuple(delete), tuple(urgent), tuple(parts))
+    return Plan(s.now, trash_ms, s.settings.library_cap, tuple(drop), tuple(expiring), tuple(retire), tuple(delete), tuple(urgent), tuple(parts))
 
 
 def delete_blobs(store: MediaStore, hashes: tuple[str, ...], predicate: str, binds: tuple, applied: Applied) -> None:
@@ -212,6 +221,19 @@ def delete_blobs(store: MediaStore, hashes: tuple[str, ...], predicate: str, bin
                 applied.bytes += blob.size
 
 
+def free_now(store: MediaStore, hashes: Iterable[str]) -> int:
+    """Delete the blobs among these that nothing names and nothing touched within the hour; the bytes freed.
+
+    A blob claimed within the hour belongs to a save in flight and takes the grace, as does all of it when a step fails.
+    """
+    applied = Applied()
+    try:
+        delete_blobs(store, tuple(sorted(set(hashes))), "unnamed_since IS NOT NULL AND touched_at < ?", (store.now() - URGENT_TOUCH_MS,), applied)
+    except Exception as e:
+        log.warning(f"Media store: freeing stopped at {applied.bytes} bytes: {type(e).__name__}: {e}")
+    return applied.bytes
+
+
 def apply(store: MediaStore, p: Plan, live_jobs: LiveJobs) -> Applied:
     applied = Applied()
     if p.rebase:
@@ -230,11 +252,17 @@ def apply(store: MediaStore, p: Plan, live_jobs: LiveJobs) -> Applied:
     for batch in chunks(list(p.delete_entries), DELETE_BATCH):
         with store.db.write() as w:
             for entry_id in batch:
-                applied.entries += w.conn.execute("DELETE FROM entries WHERE id = ? AND trashed_at IS NOT NULL AND trashed_at < ?", (entry_id, p.now - p.trash_ms)).rowcount
+                if w.conn.execute("DELETE FROM entries WHERE id = ? AND trashed_at IS NOT NULL AND trashed_at < ?", (entry_id, p.now - p.trash_ms)).rowcount:
+                    applied.expired.append(entry_id)
+    applied.entries = len(applied.expired)
+    if p.library_cap is not None:
+        # Read and applied under the lock, never from the survey: a save or an untrash since then counts
+        applied.evicted = evict_past_cap(store.db, p.library_cap, p.now)
     if live is not None:
         for batch in chunks([job_id for job_id in p.retire_records if job_id not in live], DELETE_BATCH):
             with store.db.write() as w:
-                applied.records += w.conn.execute(f"DELETE FROM records WHERE job_id IN ({marks(len(batch))})", batch).rowcount
+                applied.retired.extend(row[0] for row in w.conn.execute(f"DELETE FROM records WHERE job_id IN ({marks(len(batch))}) RETURNING job_id", batch))
+    applied.records = len(applied.retired)
     touched_before = p.now - URGENT_TOUCH_MS
     grace = "unnamed_since IS NOT NULL AND unnamed_since < (CASE WHEN transient = 1 THEN ? ELSE ? END) AND touched_at < ?"
     delete_blobs(store, p.delete_blobs, grace, (p.now - TRANSIENT_GRACE_MS, p.now - GRACE_MS, touched_before), applied)
@@ -248,9 +276,15 @@ def apply(store: MediaStore, p: Plan, live_jobs: LiveJobs) -> Applied:
                 os.remove(path)
                 applied.parts += 1
     store.set_meta("last_gc", str(p.now))
+    if applied.expired or applied.evicted:
+        events.changed("trash", applied.expired + applied.evicted)
+    if applied.evicted:
+        events.changed("library", applied.evicted)
+    if applied.retired:
+        events.changed("records", applied.retired)
     if applied.changed():
         publish_media()
-        log.info(f"Media store: collected blobs={applied.blobs} size={applied.bytes} entries={applied.entries} records={applied.records} job names={applied.names} parts={applied.parts}")
+        log.info(f"Media store: collected blobs={applied.blobs} size={applied.bytes} entries={applied.entries} evicted={len(applied.evicted)} records={applied.records} job names={applied.names} parts={applied.parts}")
     log.debug(f"Media store: pass done kept={applied.kept}")
     return applied
 

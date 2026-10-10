@@ -15,6 +15,7 @@ def register_api(app, dependencies=None):
     from enso_api.job_queue import job_queue
     from enso_api.job_types import validate_registries
     from enso_api.media import boot as media_boot
+    from enso_api.media.catalog import router as catalog_router
     from enso_api.media.routes import router as media_store_router
     from enso_api.media.routes import serve_router as media_serve_router
     from enso_api.routes import media_router, router
@@ -82,6 +83,7 @@ def register_api(app, dependencies=None):
     app.include_router(session_router, dependencies=deps)
     app.include_router(session_public_router)
     app.include_router(media_store_router, dependencies=deps)
+    app.include_router(catalog_router, dependencies=deps)
     # Media routers carry their own auth: the session cookie, else what sdnext's auth admits
     app.include_router(media_router)
     app.include_router(upload_media_router)
@@ -165,6 +167,12 @@ def register_api(app, dependencies=None):
                 "/sdapi/v2/session": -1,
                 "/sdapi/v2/blobs/claim": -1,
                 "/sdapi/v2/media": -1,
+                # Refusals on these paths log their own line
+                "/sdapi/v2/submit": -1,
+                "/sdapi/v2/library": -1,
+                "/sdapi/v2/library/trash": -1,
+                "/sdapi/v2/library/trash/empty": -1,
+                "/sdapi/v2/records": -1,
             }
         )
     except ImportError:
@@ -206,6 +214,12 @@ def register_api(app, dependencies=None):
             "/sdapi/v2/media/snapshot": 0,
             "/sdapi/v2/media/verify": 0,
             "/sdapi/v2/ws/events": 0,
+            # The limiter charges after the handler ran, so a refused submit would follow a queued job
+            "/sdapi/v2/submit": 0,
+            "/sdapi/v2/library": 0,
+            "/sdapi/v2/library/trash": 0,
+            "/sdapi/v2/library/trash/empty": 0,
+            "/sdapi/v2/records": 0,
             "/sdapi/v2/uploads/{ref_id}": 0,  # dormant until route-template keys
             "/sdapi/v2/jobs/{job_id}": 0,  # dormant until route-template keys
             "/sdapi/v2/jobs/{job_id}/images/{index}": 0,  # dormant until route-template keys

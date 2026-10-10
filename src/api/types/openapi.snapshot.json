@@ -64,6 +64,29 @@
         "title": "CaptionParams",
         "type": "object"
       },
+      "ChangedIdsV2": {
+        "properties": {
+          "ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ids"
+          }
+        },
+        "required": [
+          "ids"
+        ],
+        "title": "ChangedIdsV2",
+        "type": "object"
+      },
       "CheckpointGuidanceV2": {
         "description": "Guidance settings the loaded pipeline applies.",
         "properties": {
@@ -1838,6 +1861,105 @@
           }
         },
         "title": "EnhanceParams",
+        "type": "object"
+      },
+      "EntrySummaryV2": {
+        "additionalProperties": false,
+        "properties": {
+          "control": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Control"
+          },
+          "frames": {
+            "minimum": 0,
+            "title": "Frames",
+            "type": "integer"
+          },
+          "height": {
+            "minimum": 0,
+            "title": "Height",
+            "type": "integer"
+          },
+          "inputs_schema": {
+            "minimum": 0,
+            "title": "Inputs Schema",
+            "type": "integer"
+          },
+          "pictures": {
+            "minimum": 0,
+            "title": "Pictures",
+            "type": "integer"
+          },
+          "role": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Role"
+          },
+          "width": {
+            "minimum": 0,
+            "title": "Width",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "frames",
+          "pictures",
+          "width",
+          "height",
+          "inputs_schema"
+        ],
+        "title": "EntrySummaryV2",
+        "type": "object"
+      },
+      "EntryThumbInV2": {
+        "additionalProperties": false,
+        "properties": {
+          "cid": {
+            "title": "Cid",
+            "type": "string"
+          },
+          "hash": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Hash",
+            "type": "string"
+          },
+          "height": {
+            "minimum": 0,
+            "title": "Height",
+            "type": "integer"
+          },
+          "thumb": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Thumb",
+            "type": "string"
+          },
+          "width": {
+            "minimum": 0,
+            "title": "Width",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "cid",
+          "hash",
+          "thumb",
+          "width",
+          "height"
+        ],
+        "title": "EntryThumbInV2",
         "type": "object"
       },
       "ExtensionVersionV2": {
@@ -3848,6 +3970,148 @@
         "title": "ItemEmbeddingV2",
         "type": "object"
       },
+      "ItemEntryV2": {
+        "properties": {
+          "bytes": {
+            "title": "Bytes",
+            "type": "integer"
+          },
+          "control": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Control"
+          },
+          "frames": {
+            "title": "Frames",
+            "type": "integer"
+          },
+          "height": {
+            "title": "Height",
+            "type": "integer"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "inputs_schema": {
+            "title": "Inputs Schema",
+            "type": "integer"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "pictures": {
+            "title": "Pictures",
+            "type": "integer"
+          },
+          "pinned": {
+            "title": "Pinned",
+            "type": "boolean"
+          },
+          "role": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Role"
+          },
+          "saved_at": {
+            "title": "Saved At",
+            "type": "integer"
+          },
+          "thumbs": {
+            "items": {
+              "$ref": "#/components/schemas/ItemThumbV2"
+            },
+            "title": "Thumbs",
+            "type": "array"
+          },
+          "trashed_at": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trashed At"
+          },
+          "trashed_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trashed By"
+          },
+          "trashed_cause": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trashed Cause"
+          },
+          "used_at": {
+            "title": "Used At",
+            "type": "integer"
+          },
+          "user": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User"
+          },
+          "width": {
+            "title": "Width",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "name",
+          "saved_at",
+          "used_at",
+          "pinned",
+          "frames",
+          "pictures",
+          "width",
+          "height",
+          "inputs_schema",
+          "bytes",
+          "thumbs"
+        ],
+        "title": "ItemEntryV2",
+        "type": "object"
+      },
       "ItemExtensionV2": {
         "properties": {
           "branch": {
@@ -5026,6 +5290,70 @@
         "title": "ItemPromptStyleV2",
         "type": "object"
       },
+      "ItemRecordV2": {
+        "properties": {
+          "client": {
+            "title": "Client",
+            "type": "string"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "integer"
+          },
+          "domain": {
+            "title": "Domain",
+            "type": "string"
+          },
+          "has_inputs": {
+            "title": "Has Inputs",
+            "type": "boolean"
+          },
+          "job_id": {
+            "title": "Job Id",
+            "type": "string"
+          },
+          "lost": {
+            "title": "Lost",
+            "type": "integer"
+          },
+          "missing_refs": {
+            "title": "Missing Refs",
+            "type": "integer"
+          },
+          "routed": {
+            "title": "Routed",
+            "type": "boolean"
+          },
+          "unavailable": {
+            "title": "Unavailable",
+            "type": "integer"
+          },
+          "user": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User"
+          }
+        },
+        "required": [
+          "job_id",
+          "client",
+          "domain",
+          "created_at",
+          "routed",
+          "has_inputs",
+          "missing_refs",
+          "lost",
+          "unavailable"
+        ],
+        "title": "ItemRecordV2",
+        "type": "object"
+      },
       "ItemSamplerV2": {
         "properties": {
           "compatible": {
@@ -5158,6 +5486,44 @@
           "type"
         ],
         "title": "ItemTaggerModelV2",
+        "type": "object"
+      },
+      "ItemThumbV2": {
+        "properties": {
+          "cid": {
+            "title": "Cid",
+            "type": "string"
+          },
+          "hash": {
+            "title": "Hash",
+            "type": "string"
+          },
+          "height": {
+            "title": "Height",
+            "type": "integer"
+          },
+          "lost": {
+            "title": "Lost",
+            "type": "boolean"
+          },
+          "thumb": {
+            "title": "Thumb",
+            "type": "string"
+          },
+          "width": {
+            "title": "Width",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "cid",
+          "hash",
+          "thumb",
+          "width",
+          "height",
+          "lost"
+        ],
+        "title": "ItemThumbV2",
         "type": "object"
       },
       "ItemUpscalerV2": {
@@ -5357,6 +5723,10 @@
             "title": "Id",
             "type": "string"
           },
+          "priority": {
+            "title": "Priority",
+            "type": "integer"
+          },
           "progress": {
             "title": "Progress",
             "type": "number"
@@ -5410,6 +5780,7 @@
           "id",
           "type",
           "status",
+          "priority",
           "progress",
           "step",
           "steps",
@@ -5930,16 +6301,12 @@
       "MediaEventDataV2": {
         "properties": {
           "verify": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/VerifyStateV2"
-              },
-              {
-                "type": "null"
-              }
-            ]
+            "$ref": "#/components/schemas/VerifyStateV2"
           }
         },
+        "required": [
+          "verify"
+        ],
         "title": "MediaEventDataV2",
         "type": "object"
       },
@@ -6683,6 +7050,24 @@
           "changed"
         ],
         "title": "OptionUpdateItemV2",
+        "type": "object"
+      },
+      "PinsV2": {
+        "properties": {
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "max": {
+            "title": "Max",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "count",
+          "max"
+        ],
+        "title": "PinsV2",
         "type": "object"
       },
       "PreprocessItem": {
@@ -7622,6 +8007,24 @@
         "title": "ProcessUpscaleParams",
         "type": "object"
       },
+      "PushedOutV2": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "PushedOutV2",
+        "type": "object"
+      },
       "RamMemoryV2": {
         "properties": {
           "error": {
@@ -7931,6 +8334,183 @@
           "files"
         ],
         "title": "ReqDownload",
+        "type": "object"
+      },
+      "ReqEmptyTrashV2": {
+        "additionalProperties": false,
+        "properties": {
+          "ids": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 1000,
+            "minItems": 1,
+            "title": "Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "ids"
+        ],
+        "title": "ReqEmptyTrashV2",
+        "type": "object"
+      },
+      "ReqEntryPatchV2": {
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "pinned": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pinned"
+          },
+          "trashed": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trashed"
+          },
+          "used": {
+            "anyOf": [
+              {
+                "const": true,
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Used"
+          }
+        },
+        "title": "ReqEntryPatchV2",
+        "type": "object"
+      },
+      "ReqEntryV2": {
+        "additionalProperties": false,
+        "properties": {
+          "hashes": {
+            "additionalProperties": {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            "title": "Hashes",
+            "type": "object"
+          },
+          "id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Id",
+            "type": "string"
+          },
+          "inputs": {
+            "additionalProperties": true,
+            "title": "Inputs",
+            "type": "object"
+          },
+          "kind": {
+            "enum": [
+              "frame",
+              "set"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "maps": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Maps",
+            "type": "object"
+          },
+          "migrating": {
+            "default": false,
+            "title": "Migrating",
+            "type": "boolean"
+          },
+          "name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "pinned": {
+            "default": false,
+            "title": "Pinned",
+            "type": "boolean"
+          },
+          "saved_at": {
+            "default": 0,
+            "minimum": 0,
+            "title": "Saved At",
+            "type": "integer"
+          },
+          "summary": {
+            "$ref": "#/components/schemas/EntrySummaryV2"
+          },
+          "thumbs": {
+            "items": {
+              "$ref": "#/components/schemas/EntryThumbInV2"
+            },
+            "title": "Thumbs",
+            "type": "array"
+          },
+          "trashed_at": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trashed At"
+          },
+          "unavailable": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Unavailable",
+            "type": "array"
+          },
+          "used_at": {
+            "default": 0,
+            "minimum": 0,
+            "title": "Used At",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "name",
+          "summary",
+          "inputs"
+        ],
+        "title": "ReqEntryV2",
         "type": "object"
       },
       "ReqFramePackLoadV2": {
@@ -8885,6 +9465,193 @@
         "title": "ReqPromptEnhanceV2",
         "type": "object"
       },
+      "ReqRecordPatchV2": {
+        "additionalProperties": false,
+        "properties": {
+          "routed": {
+            "const": true,
+            "title": "Routed",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "routed"
+        ],
+        "title": "ReqRecordPatchV2",
+        "type": "object"
+      },
+      "ReqRecordPutV2": {
+        "additionalProperties": false,
+        "properties": {
+          "checkpoint": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Checkpoint"
+          },
+          "client": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Client",
+            "type": "string"
+          },
+          "created_at": {
+            "minimum": 0,
+            "title": "Created At",
+            "type": "integer"
+          },
+          "domain": {
+            "maxLength": 32,
+            "minLength": 1,
+            "title": "Domain",
+            "type": "string"
+          },
+          "hashes": {
+            "additionalProperties": {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            "title": "Hashes",
+            "type": "object"
+          },
+          "inputs": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Inputs"
+          },
+          "map_keys": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Map Keys",
+            "type": "array"
+          },
+          "maps": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Maps",
+            "type": "object"
+          },
+          "refs": {
+            "additionalProperties": true,
+            "title": "Refs",
+            "type": "object"
+          },
+          "request": {
+            "additionalProperties": true,
+            "title": "Request",
+            "type": "object"
+          },
+          "routed": {
+            "title": "Routed",
+            "type": "boolean"
+          },
+          "unavailable": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Unavailable",
+            "type": "array"
+          }
+        },
+        "required": [
+          "client",
+          "request",
+          "domain",
+          "created_at",
+          "routed"
+        ],
+        "title": "ReqRecordPutV2",
+        "type": "object"
+      },
+      "ReqRecordV2": {
+        "additionalProperties": false,
+        "properties": {
+          "checkpoint": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Checkpoint"
+          },
+          "client": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Client",
+            "type": "string"
+          },
+          "hashes": {
+            "additionalProperties": {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            "title": "Hashes",
+            "type": "object"
+          },
+          "inputs": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Inputs"
+          },
+          "map_keys": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Map Keys",
+            "type": "array"
+          },
+          "maps": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Maps",
+            "type": "object"
+          },
+          "refs": {
+            "additionalProperties": true,
+            "title": "Refs",
+            "type": "object"
+          },
+          "unavailable": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Unavailable",
+            "type": "array"
+          }
+        },
+        "required": [
+          "client"
+        ],
+        "title": "ReqRecordV2",
+        "type": "object"
+      },
       "ReqReplaceV2": {
         "additionalProperties": false,
         "description": "POST /sdapi/v2/model/replace body.",
@@ -9022,6 +9789,140 @@
           "sd_model_checkpoint"
         ],
         "title": "ReqSetCheckpointV2",
+        "type": "object"
+      },
+      "ReqSubmitV2": {
+        "additionalProperties": false,
+        "properties": {
+          "job": {
+            "discriminator": {
+              "mapping": {
+                "caption": "#/components/schemas/CaptionParams",
+                "cloud_chat": "#/components/schemas/CloudChatParams",
+                "cloud_image": "#/components/schemas/CloudImageParams",
+                "cloud_stt": "#/components/schemas/CloudSttParams",
+                "cloud_tts": "#/components/schemas/CloudTtsParams",
+                "cloud_video": "#/components/schemas/CloudVideoParams",
+                "detail": "#/components/schemas/DetailParams",
+                "detect": "#/components/schemas/DetectParams",
+                "enhance": "#/components/schemas/EnhanceParams",
+                "framepack": "#/components/schemas/FramePackParams",
+                "generate": "#/components/schemas/GenerateParams",
+                "hf-download": "#/components/schemas/HfDownloadParams",
+                "loader-load": "#/components/schemas/LoaderLoadParams",
+                "lora-extract": "#/components/schemas/LoraExtractParams",
+                "ltx": "#/components/schemas/LtxParams",
+                "metadata-sweep": "#/components/schemas/MetadataSweepParams",
+                "model-load": "#/components/schemas/ModelLoadParams",
+                "model-merge": "#/components/schemas/ModelMergeParams",
+                "model-replace": "#/components/schemas/ModelReplaceParams",
+                "model-save": "#/components/schemas/ModelSaveParams",
+                "preprocess": "#/components/schemas/PreprocessParams",
+                "process": "#/components/schemas/ProcessParams",
+                "rembg": "#/components/schemas/RembgParams",
+                "upscale": "#/components/schemas/UpscaleParams",
+                "video": "#/components/schemas/VideoParams",
+                "xyz-grid": "#/components/schemas/XyzGridParams"
+              },
+              "propertyName": "type"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/GenerateParams"
+              },
+              {
+                "$ref": "#/components/schemas/UpscaleParams"
+              },
+              {
+                "$ref": "#/components/schemas/CaptionParams"
+              },
+              {
+                "$ref": "#/components/schemas/EnhanceParams"
+              },
+              {
+                "$ref": "#/components/schemas/DetectParams"
+              },
+              {
+                "$ref": "#/components/schemas/PreprocessParams"
+              },
+              {
+                "$ref": "#/components/schemas/DetailParams"
+              },
+              {
+                "$ref": "#/components/schemas/XyzGridParams"
+              },
+              {
+                "$ref": "#/components/schemas/VideoParams"
+              },
+              {
+                "$ref": "#/components/schemas/FramePackParams"
+              },
+              {
+                "$ref": "#/components/schemas/LtxParams"
+              },
+              {
+                "$ref": "#/components/schemas/ModelLoadParams"
+              },
+              {
+                "$ref": "#/components/schemas/ModelMergeParams"
+              },
+              {
+                "$ref": "#/components/schemas/ModelReplaceParams"
+              },
+              {
+                "$ref": "#/components/schemas/ModelSaveParams"
+              },
+              {
+                "$ref": "#/components/schemas/LoaderLoadParams"
+              },
+              {
+                "$ref": "#/components/schemas/LoraExtractParams"
+              },
+              {
+                "$ref": "#/components/schemas/HfDownloadParams"
+              },
+              {
+                "$ref": "#/components/schemas/MetadataSweepParams"
+              },
+              {
+                "$ref": "#/components/schemas/RembgParams"
+              },
+              {
+                "$ref": "#/components/schemas/ProcessParams"
+              },
+              {
+                "$ref": "#/components/schemas/CloudImageParams"
+              },
+              {
+                "$ref": "#/components/schemas/CloudChatParams"
+              },
+              {
+                "$ref": "#/components/schemas/CloudTtsParams"
+              },
+              {
+                "$ref": "#/components/schemas/CloudSttParams"
+              },
+              {
+                "$ref": "#/components/schemas/CloudVideoParams"
+              }
+            ],
+            "title": "Job"
+          },
+          "record": {
+            "$ref": "#/components/schemas/ReqRecordV2"
+          },
+          "submit_id": {
+            "pattern": "^[0-9a-f]{32}$",
+            "title": "Submit Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "submit_id",
+          "job",
+          "record"
+        ],
+        "title": "ReqSubmitV2",
         "type": "object"
       },
       "ReqTaggerV2": {
@@ -9635,6 +10536,216 @@
         "title": "ResEmbeddingsV2",
         "type": "object"
       },
+      "ResEntryChangeV2": {
+        "properties": {
+          "created": {
+            "title": "Created",
+            "type": "boolean"
+          },
+          "entry": {
+            "$ref": "#/components/schemas/ItemEntryV2"
+          },
+          "pushed_out": {
+            "items": {
+              "$ref": "#/components/schemas/PushedOutV2"
+            },
+            "title": "Pushed Out",
+            "type": "array"
+          },
+          "unpinned": {
+            "title": "Unpinned",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "entry",
+          "pushed_out",
+          "unpinned",
+          "created"
+        ],
+        "title": "ResEntryChangeV2",
+        "type": "object"
+      },
+      "ResEntryV2": {
+        "properties": {
+          "bytes": {
+            "title": "Bytes",
+            "type": "integer"
+          },
+          "control": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Control"
+          },
+          "frames": {
+            "title": "Frames",
+            "type": "integer"
+          },
+          "hashes": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Hashes",
+            "type": "object"
+          },
+          "height": {
+            "title": "Height",
+            "type": "integer"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "inputs": {
+            "additionalProperties": true,
+            "title": "Inputs",
+            "type": "object"
+          },
+          "inputs_schema": {
+            "title": "Inputs Schema",
+            "type": "integer"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "lost": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Lost",
+            "type": "array"
+          },
+          "maps": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Maps",
+            "type": "object"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "pictures": {
+            "title": "Pictures",
+            "type": "integer"
+          },
+          "pinned": {
+            "title": "Pinned",
+            "type": "boolean"
+          },
+          "role": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Role"
+          },
+          "saved_at": {
+            "title": "Saved At",
+            "type": "integer"
+          },
+          "thumbs": {
+            "items": {
+              "$ref": "#/components/schemas/ItemThumbV2"
+            },
+            "title": "Thumbs",
+            "type": "array"
+          },
+          "trashed_at": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trashed At"
+          },
+          "trashed_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trashed By"
+          },
+          "trashed_cause": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trashed Cause"
+          },
+          "unavailable": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Unavailable",
+            "type": "array"
+          },
+          "used_at": {
+            "title": "Used At",
+            "type": "integer"
+          },
+          "user": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User"
+          },
+          "width": {
+            "title": "Width",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "name",
+          "saved_at",
+          "used_at",
+          "pinned",
+          "frames",
+          "pictures",
+          "width",
+          "height",
+          "inputs_schema",
+          "bytes",
+          "thumbs",
+          "inputs",
+          "maps",
+          "hashes",
+          "unavailable",
+          "lost"
+        ],
+        "title": "ResEntryV2",
+        "type": "object"
+      },
       "ResExtraNetworkDetails": {
         "properties": {
           "items": {
@@ -9703,6 +10814,27 @@
           "limit"
         ],
         "title": "ResExtraNetworksV2",
+        "type": "object"
+      },
+      "ResFreedV2": {
+        "properties": {
+          "deleted": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Deleted",
+            "type": "array"
+          },
+          "freed": {
+            "title": "Freed",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "deleted",
+          "freed"
+        ],
+        "title": "ResFreedV2",
         "type": "object"
       },
       "ResGpuV2": {
@@ -9815,6 +10947,36 @@
           "output_register_failures"
         ],
         "title": "ResJobStatsV2",
+        "type": "object"
+      },
+      "ResLibraryV2": {
+        "properties": {
+          "cap": {
+            "title": "Cap",
+            "type": "integer"
+          },
+          "days": {
+            "title": "Days",
+            "type": "integer"
+          },
+          "entries": {
+            "items": {
+              "$ref": "#/components/schemas/ItemEntryV2"
+            },
+            "title": "Entries",
+            "type": "array"
+          },
+          "pins": {
+            "$ref": "#/components/schemas/PinsV2"
+          }
+        },
+        "required": [
+          "entries",
+          "cap",
+          "pins",
+          "days"
+        ],
+        "title": "ResLibraryV2",
         "type": "object"
       },
       "ResLogClearV2": {
@@ -10264,6 +11426,170 @@
         "title": "ResPurgeV2",
         "type": "object"
       },
+      "ResRecordV2": {
+        "properties": {
+          "checkpoint": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Checkpoint"
+          },
+          "client": {
+            "title": "Client",
+            "type": "string"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "integer"
+          },
+          "domain": {
+            "title": "Domain",
+            "type": "string"
+          },
+          "has_inputs": {
+            "title": "Has Inputs",
+            "type": "boolean"
+          },
+          "hashes": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Hashes",
+            "type": "object"
+          },
+          "inputs": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Inputs"
+          },
+          "job_id": {
+            "title": "Job Id",
+            "type": "string"
+          },
+          "lost": {
+            "title": "Lost",
+            "type": "integer"
+          },
+          "lost_cids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Lost Cids",
+            "type": "array"
+          },
+          "map_keys": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Map Keys",
+            "type": "array"
+          },
+          "maps": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Maps",
+            "type": "object"
+          },
+          "missing_ref_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Missing Ref Ids",
+            "type": "array"
+          },
+          "missing_refs": {
+            "title": "Missing Refs",
+            "type": "integer"
+          },
+          "refs": {
+            "additionalProperties": true,
+            "title": "Refs",
+            "type": "object"
+          },
+          "request": {
+            "additionalProperties": true,
+            "title": "Request",
+            "type": "object"
+          },
+          "routed": {
+            "title": "Routed",
+            "type": "boolean"
+          },
+          "unavailable": {
+            "title": "Unavailable",
+            "type": "integer"
+          },
+          "unavailable_cids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Unavailable Cids",
+            "type": "array"
+          },
+          "user": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User"
+          }
+        },
+        "required": [
+          "job_id",
+          "client",
+          "domain",
+          "created_at",
+          "routed",
+          "has_inputs",
+          "missing_refs",
+          "lost",
+          "unavailable",
+          "request",
+          "refs",
+          "map_keys",
+          "maps",
+          "hashes",
+          "unavailable_cids",
+          "lost_cids",
+          "missing_ref_ids"
+        ],
+        "title": "ResRecordV2",
+        "type": "object"
+      },
+      "ResRecordsV2": {
+        "properties": {
+          "records": {
+            "items": {
+              "$ref": "#/components/schemas/ItemRecordV2"
+            },
+            "title": "Records",
+            "type": "array"
+          }
+        },
+        "required": [
+          "records"
+        ],
+        "title": "ResRecordsV2",
+        "type": "object"
+      },
       "ResRefreshNetworksV2": {
         "properties": {
           "ok": {
@@ -10555,6 +11881,32 @@
           "tags"
         ],
         "title": "ResTaggerV2",
+        "type": "object"
+      },
+      "ResTrashV2": {
+        "properties": {
+          "days": {
+            "title": "Days",
+            "type": "integer"
+          },
+          "entries": {
+            "items": {
+              "$ref": "#/components/schemas/ItemEntryV2"
+            },
+            "title": "Entries",
+            "type": "array"
+          },
+          "reclaimable": {
+            "title": "Reclaimable",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "entries",
+          "reclaimable",
+          "days"
+        ],
+        "title": "ResTrashV2",
         "type": "object"
       },
       "ResVqaV2": {
@@ -12423,6 +13775,26 @@
         "title": "WsEventStatus",
         "type": "object"
       },
+      "WsGlobalLibrary": {
+        "additionalProperties": false,
+        "description": "Entries in the library changed, from any client.",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/ChangedIdsV2"
+          },
+          "type": {
+            "const": "library",
+            "default": "library",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "title": "WsGlobalLibrary",
+        "type": "object"
+      },
       "WsGlobalMedia": {
         "additionalProperties": false,
         "description": "The media store changed, or its verify pass moved on: a page re-reads the media report.",
@@ -12437,7 +13809,30 @@
             "type": "string"
           }
         },
+        "required": [
+          "data"
+        ],
         "title": "WsGlobalMedia",
+        "type": "object"
+      },
+      "WsGlobalRecords": {
+        "additionalProperties": false,
+        "description": "Job records changed, from any client.",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/ChangedIdsV2"
+          },
+          "type": {
+            "const": "records",
+            "default": "records",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "title": "WsGlobalRecords",
         "type": "object"
       },
       "WsGlobalSettings": {
@@ -12458,6 +13853,26 @@
           "data"
         ],
         "title": "WsGlobalSettings",
+        "type": "object"
+      },
+      "WsGlobalTrash": {
+        "additionalProperties": false,
+        "description": "Entries entered or left the trash, from any client.",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/ChangedIdsV2"
+          },
+          "type": {
+            "const": "trash",
+            "default": "trash",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "title": "WsGlobalTrash",
         "type": "object"
       },
       "XyzAxisInfo": {
@@ -18067,6 +19482,312 @@
         ]
       }
     },
+    "/sdapi/v2/library": {
+      "get": {
+        "description": "The library, pinned entries first then by last use; with ids, those entries whatever their state.",
+        "operationId": "get_library_sdapi_v2_library_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "ids",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "items": {
+                    "type": "string"
+                  },
+                  "maxItems": 200,
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Ids"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResLibraryV2"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Library",
+        "tags": [
+          "Library"
+        ]
+      },
+      "post": {
+        "description": "Save an entry; the least recently used unpinned entries past the cap move to the trash. Every picture, map\nand thumbnail it names must be uploaded first.",
+        "operationId": "post_library_sdapi_v2_library_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReqEntryV2"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResEntryChangeV2"
+                }
+              }
+            },
+            "description": "An entry with this id is stored already"
+          },
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResEntryChangeV2"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Post Library",
+        "tags": [
+          "Library"
+        ]
+      }
+    },
+    "/sdapi/v2/library/trash": {
+      "get": {
+        "description": "Trashed entries, newest first, with who trashed them and why, and the bytes deleting them all frees.",
+        "operationId": "get_trash_sdapi_v2_library_trash_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResTrashV2"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Trash",
+        "tags": [
+          "Library"
+        ]
+      }
+    },
+    "/sdapi/v2/library/trash/empty": {
+      "post": {
+        "description": "Delete the trashed entries listed; an id not in the trash is skipped.",
+        "operationId": "post_empty_trash_sdapi_v2_library_trash_empty_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReqEmptyTrashV2"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResFreedV2"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Post Empty Trash",
+        "tags": [
+          "Library"
+        ]
+      }
+    },
+    "/sdapi/v2/library/{entry_id}": {
+      "delete": {
+        "description": "Delete an entry from the trash for good.",
+        "operationId": "delete_library_entry_sdapi_v2_library__entry_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "entry_id",
+            "required": true,
+            "schema": {
+              "maxLength": 64,
+              "title": "Entry Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResFreedV2"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Library Entry",
+        "tags": [
+          "Library"
+        ]
+      },
+      "get": {
+        "description": "An entry with its document; a trashed entry reads too.",
+        "operationId": "get_library_entry_sdapi_v2_library__entry_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "entry_id",
+            "required": true,
+            "schema": {
+              "maxLength": 64,
+              "title": "Entry Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResEntryV2"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Library Entry",
+        "tags": [
+          "Library"
+        ]
+      },
+      "patch": {
+        "description": "Rename, pin, mark used, trash or bring back; an entry brought back or unpinned counts toward the cap again.",
+        "operationId": "patch_library_entry_sdapi_v2_library__entry_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "entry_id",
+            "required": true,
+            "schema": {
+              "maxLength": 64,
+              "title": "Entry Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReqEntryPatchV2"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResEntryChangeV2"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Patch Library Entry",
+        "tags": [
+          "Library"
+        ]
+      }
+    },
     "/sdapi/v2/loaded-models": {
       "get": {
         "description": "Enumerate all models currently loaded in memory.\n\nReturns entries for the main pipeline and refiner (with sub-components), ControlNet,\nLoRA, IP-Adapter, upscaler, detailer, and caption models. Each entry includes\ncategory, device, size in bytes, dtype, and quantization info where available.",
@@ -19355,6 +21076,251 @@
         ]
       }
     },
+    "/sdapi/v2/records": {
+      "get": {
+        "description": "Records by the browser that keeps them or by job ids, newest first; one of the two is required.",
+        "operationId": "get_records_sdapi_v2_records_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "client",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 64,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Client"
+            }
+          },
+          {
+            "in": "query",
+            "name": "routed",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Routed"
+            }
+          },
+          {
+            "in": "query",
+            "name": "ids",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "items": {
+                    "type": "string"
+                  },
+                  "maxItems": 200,
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Ids"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResRecordsV2"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Records",
+        "tags": [
+          "Library"
+        ]
+      }
+    },
+    "/sdapi/v2/records/{job_id}": {
+      "get": {
+        "description": "A record with its document, the cids whose bytes are lost and the refs that cannot be sent again as they are.",
+        "operationId": "get_record_sdapi_v2_records__job_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "maxLength": 64,
+              "title": "Job Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResRecordV2"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Record",
+        "tags": [
+          "Library"
+        ]
+      },
+      "patch": {
+        "description": "Mark a record routed: its result reached a strip, or never will.",
+        "operationId": "patch_record_sdapi_v2_records__job_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "maxLength": 64,
+              "title": "Job Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReqRecordPatchV2"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ItemRecordV2"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Patch Record",
+        "tags": [
+          "Library"
+        ]
+      },
+      "put": {
+        "description": "Store the record of a job that already ran, as a browser moves its records; a ref the server does not hold\nis kept and counted, never refused.",
+        "operationId": "put_record_sdapi_v2_records__job_id__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "maxLength": 64,
+              "title": "Job Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReqRecordPutV2"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ItemRecordV2"
+                }
+              }
+            },
+            "description": "A record of this job is stored already"
+          },
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ItemRecordV2"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Put Record",
+        "tags": [
+          "Library"
+        ]
+      }
+    },
     "/sdapi/v2/samplers": {
       "get": {
         "description": "List available samplers with optional compatibility filtering.",
@@ -19812,6 +21778,59 @@
         "summary": "Get Storage",
         "tags": [
           "System"
+        ]
+      }
+    },
+    "/sdapi/v2/submit": {
+      "post": {
+        "description": "Queue a job with its record. The record and the names of the job's uploads are written first, the job's row\nlast; a refusal leaves neither. A repeated submit_id answers the job it queued.",
+        "operationId": "post_submit_sdapi_v2_submit_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReqSubmitV2"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobResponse"
+                }
+              }
+            },
+            "description": "This submit_id queued its job before"
+          },
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Post Submit",
+        "tags": [
+          "Library",
+          "Jobs"
         ]
       }
     },
@@ -20298,8 +22317,11 @@
                 "schema": {
                   "discriminator": {
                     "mapping": {
+                      "library": "#/components/schemas/WsGlobalLibrary",
                       "media": "#/components/schemas/WsGlobalMedia",
-                      "settings": "#/components/schemas/WsGlobalSettings"
+                      "records": "#/components/schemas/WsGlobalRecords",
+                      "settings": "#/components/schemas/WsGlobalSettings",
+                      "trash": "#/components/schemas/WsGlobalTrash"
                     },
                     "propertyName": "type"
                   },
@@ -20309,6 +22331,15 @@
                     },
                     {
                       "$ref": "#/components/schemas/WsGlobalSettings"
+                    },
+                    {
+                      "$ref": "#/components/schemas/WsGlobalLibrary"
+                    },
+                    {
+                      "$ref": "#/components/schemas/WsGlobalTrash"
+                    },
+                    {
+                      "$ref": "#/components/schemas/WsGlobalRecords"
                     }
                   ],
                   "title": "Response Get Global Ws Event Schema Sdapi V2 Ws Events Get"

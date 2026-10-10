@@ -201,6 +201,18 @@ class MediaStore:
         found = self.get(digest)
         return self.path(found) if found else None
 
+    def held(self, hashes: Iterable[str]) -> set[str]:
+        """The hashes whose blob is held: a row not marked lost, its file there at its size. Never writes."""
+        wanted = sorted({h for h in hashes if isinstance(h, str) and HASH_RE.fullmatch(h)})
+        found: set[str] = set()
+        with self.db.read() as conn:
+            for part in chunks(wanted):
+                for row in conn.execute(f"SELECT * FROM blobs WHERE hash IN ({marks(len(part))}) AND lost_at IS NULL", part):
+                    blob = BlobRow.from_row(row)
+                    if self.file_ok(blob):
+                        found.add(blob.hash)
+        return found
+
     def claim(self, hashes: list[str]) -> Claim:
         """Sort hashes into present, missing and lost; the present ones are kept (touched, no longer transient), the lost ones marked.
 

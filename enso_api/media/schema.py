@@ -104,4 +104,15 @@ CREATE VIEW names AS SELECT hash FROM entry_blobs UNION SELECT hash FROM record_
     + link_triggers("job_blobs")
 )
 
-MIGRATIONS = [(1, SCHEMA_V1)]
+# What the list routes show without reading a document
+SCHEMA_V2 = """
+ALTER TABLE records ADD COLUMN has_inputs INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE records ADD COLUMN unheld_refs INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE records ADD COLUMN unavailable INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE records ADD COLUMN ref_hashes TEXT NOT NULL DEFAULT '[]';
+ALTER TABLE records ADD COLUMN submit_id TEXT;
+CREATE UNIQUE INDEX records_submit ON records(submit_id) WHERE submit_id IS NOT NULL;
+ALTER TABLE entries ADD COLUMN thumbs TEXT NOT NULL DEFAULT '[]';
+"""
+
+MIGRATIONS = [(1, SCHEMA_V1), (2, SCHEMA_V2)]

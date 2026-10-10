@@ -9,8 +9,8 @@ import sqlite3
 from fastapi import APIRouter, Depends, Path, Request, Response
 
 from enso_api import events
+from enso_api.errors import refuse
 from enso_api.media import boot
-from enso_api.media.errors import refuse
 from enso_api.media.ingest import Disconnected, ShortBody, Sink, Stalled, free_space, pump
 from enso_api.media.models import (
     LastVerifyV2,
@@ -240,6 +240,9 @@ async def patch_media_settings(body: ReqMediaSettingsV2, request: Request):
     settings = await asyncio.to_thread(store.update_settings, patch)
     log.info(f"Media store: settings {' '.join(f'{key}={value}' for key, value in patch.items())} by {caller_name(request)}")
     events.bump("settings", **settings.as_dict())
+    # A lowered cap or retention acts at the pass this starts, not up to five minutes later
+    if boot.state.worker is not None:
+        boot.state.worker.wake()
     return settings_response(settings)
 
 

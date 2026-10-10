@@ -133,6 +133,7 @@ class JobResponse(BaseModel):
     id: str
     type: str
     status: JobStatus
+    priority: int
     progress: float
     step: int
     steps: int

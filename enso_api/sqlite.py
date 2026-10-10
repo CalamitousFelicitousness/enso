@@ -112,15 +112,21 @@ class Database:
         return version
 
     @contextmanager
-    def write(self) -> Iterator[Writer]:
-        """The lock and BEGIN IMMEDIATE; COMMIT at the end unless committed, ROLLBACK on an exception."""
+    def write(self, durable: bool = False) -> Iterator[Writer]:
+        """The lock and BEGIN IMMEDIATE; COMMIT at the end unless committed, ROLLBACK on an exception.
+
+        `durable` commits under synchronous=FULL, which a power loss cannot undo, on a database that runs a lower level.
+        """
         if getattr(self.local, "writer", None) is not None:
             raise RuntimeError(f"{self.label}: a write block is already open on this thread")
         with self.lock:
+            raised = durable and self.synchronous != "FULL"
+            if raised:
+                self.writer.execute("PRAGMA synchronous=FULL")
             writer = Writer(self.writer)
-            self.writer.execute("BEGIN IMMEDIATE")
-            self.local.writer = writer
             try:
+                self.writer.execute("BEGIN IMMEDIATE")
+                self.local.writer = writer
                 yield writer
                 if not writer.committed:
                     writer.commit()
@@ -130,6 +136,8 @@ class Database:
                 raise
             finally:
                 self.local.writer = None
+                if raised:
+                    self.writer.execute(f"PRAGMA synchronous={self.synchronous}")
 
     @contextmanager
     def read(self, snapshot: bool = False) -> Iterator[sqlite3.Connection]:

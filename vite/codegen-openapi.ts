@@ -57,10 +57,11 @@ interface DiscoveredUnion {
 function discoverInlineUnions(snapshot: JsonObject): DiscoveredUnion[] {
   const out: DiscoveredUnion[] = [];
 
-  // The two unions we know need friendly aliases:
+  // The unions we know need friendly aliases:
   // - JobRequest: POST /sdapi/v2/jobs request body (Pydantic JobRequest TypeAlias)
   // - JobWsEvent: GET /sdapi/v2/jobs/ws-events response (WsEvent TypeAlias)
-  // Both are emitted inline because Pydantic's `Annotated[Union, Discriminator]`
+  // - GlobalWsEvent: GET /sdapi/v2/ws/events response (WsGlobalEvent TypeAlias)
+  // All are emitted inline because Pydantic's `Annotated[Union, Discriminator]`
   // type aliases don't get their own component schemas.
 
   const addIfDiscriminated = (name: string, schema: JsonValue) => {
@@ -95,16 +96,21 @@ function discoverInlineUnions(snapshot: JsonObject): DiscoveredUnion[] {
   )?.schema;
   if (jobsPostSchema !== undefined) addIfDiscriminated("JobRequest", jobsPostSchema);
 
-  const wsEventsPath = (snapshot.paths as JsonObject | undefined)?.["/sdapi/v2/jobs/ws-events"] as
-    JsonObject | undefined;
-  const wsEventsResp = (
-    (
-      ((wsEventsPath?.get as JsonObject | undefined)?.responses as JsonObject | undefined)?.[
-        "200"
-      ] as JsonObject | undefined
-    )?.content as JsonObject | undefined
-  )?.["application/json"] as JsonObject | undefined;
-  if (wsEventsResp?.schema !== undefined) addIfDiscriminated("JobWsEvent", wsEventsResp.schema);
+  const getResponseSchema = (route: string): JsonValue | undefined => {
+    const routePath = (snapshot.paths as JsonObject | undefined)?.[route] as JsonObject | undefined;
+    const ok = (
+      (
+        ((routePath?.get as JsonObject | undefined)?.responses as JsonObject | undefined)?.[
+          "200"
+        ] as JsonObject | undefined
+      )?.content as JsonObject | undefined
+    )?.["application/json"] as JsonObject | undefined;
+    return ok?.schema;
+  };
+  const jobEvents = getResponseSchema("/sdapi/v2/jobs/ws-events");
+  if (jobEvents !== undefined) addIfDiscriminated("JobWsEvent", jobEvents);
+  const globalEvents = getResponseSchema("/sdapi/v2/ws/events");
+  if (globalEvents !== undefined) addIfDiscriminated("GlobalWsEvent", globalEvents);
 
   return out;
 }
