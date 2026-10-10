@@ -54,6 +54,38 @@ def test_a_file_of_another_size_is_replaced(store, layout):
         assert f.read() == png(1)
 
 
+def test_a_held_file_with_wrong_bytes_is_replaced_by_a_reupload(store, layout):
+    row, _ = put(store, png(1))
+    path = layout.blob_path(row.hash, row.ext)
+    with open(path, "r+b") as f:
+        f.write(b"\0" * row.size)
+    corrupt = os.stat(path).st_ino
+    assert store.claim([row.hash]).present == [row.hash]
+    again, created = put(store, png(1))
+    assert not created
+    assert again.created_at == row.created_at
+    assert os.stat(path).st_ino != corrupt
+    with open(path, "rb") as f:
+        assert f.read() == png(1)
+
+
+def test_a_held_file_that_cannot_be_replaced_is_kept(store, layout, monkeypatch):
+    row, _ = put(store, png(1))
+    path = layout.blob_path(row.hash, row.ext)
+    held = os.stat(path).st_ino
+    finished, part = finish(store, png(1))
+
+    def in_use(src, dst):
+        raise PermissionError(13, "in use", dst)
+
+    monkeypatch.setattr(os, "replace", in_use)
+    again, created = store.place(finished, part, transient=False)
+    assert not created
+    assert os.stat(path).st_ino == held
+    assert not os.path.exists(part)
+    assert again.touched_at == store.now()
+
+
 def test_transient_is_cleared_by_a_kept_ingest_and_by_a_claim(store):
     row, _ = put(store, png(1), transient=True)
     assert row.transient

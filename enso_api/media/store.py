@@ -127,8 +127,9 @@ class MediaStore:
             return False
 
     def place(self, finished: Finished, part_path: str, transient: bool) -> tuple[BlobRow, bool]:
-        """Take a finished part in: dropped when the blob is already held, else renamed into place; the row and whether it is new.
+        """Take a finished part in, renamed into place; the row and whether it is new.
 
+        A held file is replaced too: a claim checks only its size, so a re-upload is what heals one whose bytes went bad.
         The rename, the folder's fsync and the row are one critical section under the write lock.
         """
         now = self.now()
@@ -136,7 +137,14 @@ class MediaStore:
             found = w.conn.execute("SELECT * FROM blobs WHERE hash = ?", (finished.digest,)).fetchone()
             existing = BlobRow.from_row(found) if found else None
             if existing is not None and existing.lost_at is None and self.file_ok(existing):
-                os.remove(part_path)
+                try:
+                    os.replace(part_path, self.path(existing))
+                    fsync_dir(self.layout.fan_dir(finished.digest))
+                except OSError as e:
+                    # Windows cannot replace a file a response is streaming; the held copy stays
+                    log.debug(f"Media store: kept the held copy of {finished.digest}: {e}")
+                    with contextlib.suppress(OSError):
+                        os.remove(part_path)
                 w.conn.execute("UPDATE blobs SET touched_at = ?, transient = transient AND ? WHERE hash = ?", (now, int(transient), finished.digest))
             else:
                 if existing is not None:
