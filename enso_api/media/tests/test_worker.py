@@ -3,7 +3,7 @@ import threading
 import pytest
 
 from enso_api import events
-from enso_api.media.worker import MediaWorker, VerifyState
+from enso_api.media.worker import MediaWorker, VerifyState, publish_media
 
 
 @pytest.fixture
@@ -93,3 +93,16 @@ def test_events_count_per_topic_and_keep_the_last_data():
     second = events.bump("test-topic", n=2)
     assert second == first + 1
     assert events.current()["test-topic"].data == {"n": 2}
+
+
+def test_a_verify_payload_survives_a_pass_publish(monkeypatch):
+    monkeypatch.setattr(events, "versions", {})
+    publish_media(VerifyState(True, 5, 10))
+    publish_media()
+    assert events.current()["media"] == events.Version(2, {"verify": {"running": True, "checked": 5, "total": 10}})
+
+
+def test_the_first_media_event_carries_an_idle_verify(monkeypatch):
+    monkeypatch.setattr(events, "versions", {})
+    publish_media()
+    assert events.current()["media"].data == {"verify": {"running": False, "checked": 0, "total": 0}}

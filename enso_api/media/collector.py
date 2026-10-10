@@ -12,12 +12,12 @@ from collections import Counter, defaultdict
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 
-from enso_api import events
 from enso_api.media.ingest import Inflight, hash_file
 from enso_api.media.layout import Layout
 from enso_api.media.settings import Settings
 from enso_api.media.sniff import EXTENSIONS, sniff
 from enso_api.media.store import BlobRow, MediaStore, chunks, marks
+from enso_api.media.worker import publish_media
 
 log = logging.getLogger("sd")
 
@@ -249,7 +249,7 @@ def apply(store: MediaStore, p: Plan, live_jobs: LiveJobs) -> Applied:
                 applied.parts += 1
     store.set_meta("last_gc", str(p.now))
     if applied.changed():
-        events.bump("media")
+        publish_media()
         log.info(f"Media store: collected blobs={applied.blobs} size={applied.bytes} entries={applied.entries} records={applied.records} job names={applied.names} parts={applied.parts}")
     log.debug(f"Media store: pass done kept={applied.kept}")
     return applied
@@ -382,7 +382,7 @@ def reconcile(store: MediaStore, layout: Layout, walk: bool) -> Reconciled:
         listed = ", ".join(result.unknown[:5]) + (" and more" if len(result.unknown) > 5 else "")
         log.warning(f"Media store: {len(result.unknown)} files under {layout.blobs} are not the store's and were left: {listed}")
     if result.lost or result.found or result.adopted or result.corrupt:
-        events.bump("media")
+        publish_media()
     return result
 
 

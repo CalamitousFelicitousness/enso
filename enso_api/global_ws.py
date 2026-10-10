@@ -78,10 +78,8 @@ async def push_progress(ws: WebSocket):
             if model != last_model:
                 last_model = model
                 await manager.send_json(ws, {"type": "model", "data": {"title": model}})
-            for topic, version in events.current().items():
-                if sent.get(topic) != version.n:
-                    sent[topic] = version.n
-                    await manager.send_json(ws, {"type": topic, "data": version.data})
+            for event in events.pending(sent):
+                await manager.send_json(ws, event)
             state = shared.state
             current_step = state.sampling_step
             current_job = state.job

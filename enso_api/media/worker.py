@@ -5,6 +5,8 @@ import threading
 from collections.abc import Callable
 from typing import NamedTuple
 
+from enso_api import events
+
 log = logging.getLogger("sd")
 
 PASS_SECONDS = 300
@@ -14,6 +16,21 @@ class VerifyState(NamedTuple):
     running: bool
     checked: int
     total: int
+
+
+IDLE = VerifyState(False, 0, 0)
+publish_lock = threading.Lock()
+
+
+def publish_media(verify: VerifyState | None = None) -> None:
+    """The one publisher of the media topic: every event carries the verify state, the last one published when none is given."""
+    with publish_lock:
+        if verify is not None:
+            data = verify._asdict()
+        else:
+            last = events.current().get("media")
+            data = last.data.get("verify") if last is not None else None
+        events.bump("media", verify=data or IDLE._asdict())
 
 
 Progress = Callable[[int, int], None]

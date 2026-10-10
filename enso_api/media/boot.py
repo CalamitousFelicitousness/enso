@@ -126,16 +126,15 @@ def start() -> None:
     """Start the store's thread after the queue, so its first pass knows which jobs are live."""
     if state.store is None or state.worker is not None:
         return
-    from enso_api import events
     from enso_api.job_queue import job_queue
     from enso_api.media import collector, verify
-    from enso_api.media.worker import MediaWorker
+    from enso_api.media.worker import MediaWorker, publish_media
 
     store = state.store
     state.worker = MediaWorker(
         reconcile=lambda walk: collector.reconcile(store, store.layout, walk),
         collect=lambda: collector.run_pass(store, job_queue.live_jobs),
         verify=lambda cancel, progress: verify.run(store, store.layout, cancel, progress),
-        on_progress=lambda verify_state: events.bump("media", verify=verify_state._asdict()),
+        on_progress=publish_media,
     )
     state.worker.start()
