@@ -10,12 +10,14 @@ import tempfile
 
 def register_api(app, dependencies=None):
     from modules import shared
+    from modules.logger import log
 
     from enso_api.job_queue import job_queue
     from enso_api.job_types import validate_registries
     from enso_api.routes import media_router, router
     from enso_api.session import public_router as session_public_router
     from enso_api.session import router as session_router
+    from enso_api.sqlite import NewerDatabase
     from enso_api.upload import init_upload_store, upload_media_router, upload_router
     from enso_api.ws import ws_job_endpoint
 
@@ -30,7 +32,11 @@ def register_api(app, dependencies=None):
     enso_data = os.path.join(paths.data_path, "data", "enso")
     # Uploads live beside the queue: a queued job names them past a restart, and sdnext empties its temp folder at boot
     init_upload_store(os.path.join(enso_data, "uploads"), ttl=1800)
-    job_queue.init(enso_data, legacy_path=enso_root)
+    try:
+        job_queue.init(enso_data, legacy_path=enso_root)
+    except NewerDatabase as e:
+        log.error(f"Enso: API off: {e}; run a newer Enso or move the file aside")
+        return
 
     # Cloud provider registry, transport, and adapters now live in
     # modules.cloud (sdnext core). Provider CRUD goes through
@@ -50,8 +56,6 @@ def register_api(app, dependencies=None):
 
     # control_run takes generate fields by name, so a keyword renamed in sdnext
     # would drop its field from every job without an error
-    from modules.logger import log
-
     from enso_api.executors import missing_sdnext_names, unforwarded_generate_fields
 
     unforwarded = unforwarded_generate_fields()

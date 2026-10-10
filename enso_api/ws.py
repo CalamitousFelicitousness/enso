@@ -25,15 +25,15 @@ async def ws_job_endpoint(ws: WebSocket, job_id: str):
 
     await ws.accept()
     # Closed after the accept: a socket closed before it fails its handshake, and the browser sees 1006
-    if job_queue.store.get(job_id) is None:
+    if await asyncio.to_thread(job_queue.store.get, job_id) is None:
         await ws.close(code=4004, reason="Job not found")
         return
     # Subscribed before the state is read: an end after the read arrives on the queue
     queue = job_queue.subscribe(job_id)
-    job = job_queue.store.get(job_id)
     log.debug(f"Job WebSocket: connected job={job_id}")
 
     try:
+        job = await asyncio.to_thread(job_queue.store.get, job_id)
         if job is None:
             await ws.close(code=4004, reason="Job not found")
             return

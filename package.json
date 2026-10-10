@@ -27,8 +27,9 @@
     "locale:refresh": "tsx scripts/locale-refresh.ts",
     "locale:check": "tsx scripts/locale-check.ts",
     "test": "vitest run",
+    "test:py": "venv/bin/pytest",
     "test:e2e": "playwright test",
-    "check": "pnpm run typecheck && pnpm run lint && pnpm run format:check && pnpm run format:py:check && pnpm run test"
+    "check": "pnpm run typecheck && pnpm run lint && pnpm run format:check && pnpm run format:py:check && pnpm run test && pnpm run test:py"
   },
   "dependencies": {
     "@codemirror/autocomplete": "^6.20.3",

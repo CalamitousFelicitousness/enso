@@ -85,10 +85,10 @@ async def submit_job(request: JobRequest):
     # A job that names an upload the server no longer holds would fail when it runs
     from enso_api.upload import missing_upload_issues
 
-    issues = missing_upload_issues(job_type, payload)
+    issues = await asyncio.to_thread(missing_upload_issues, job_type, payload)
     if issues:
         raise HTTPException(status_code=422, detail=issues)
-    job = job_queue.submit(job_type=job_type, params=payload, priority=priority)
+    job = await asyncio.to_thread(job_queue.submit, job_type=job_type, params=payload, priority=priority)
     return job_to_response(job)
 
 
@@ -103,7 +103,8 @@ async def list_jobs(
 ):
     from enso_api.job_queue import job_queue
 
-    items, total = job_queue.store.list(
+    items, total = await asyncio.to_thread(
+        job_queue.store.list,
         status=status,
         job_type=type,
         before=before,
@@ -165,7 +166,7 @@ async def bulk_job_action(request: ReqBulkJobV2):
 async def get_job(job_id: str):
     from enso_api.job_queue import job_queue
 
-    job = job_queue.store.get(job_id)
+    job = await asyncio.to_thread(job_queue.store.get, job_id)
     if job is None:
         raise HTTPException(status_code=404, detail=f"Job not found: {job_id}")
     resp = job_to_response(job)
@@ -174,7 +175,7 @@ async def get_job(job_id: str):
         from modules import shared
 
         if getattr(shared.opts, "api_v2_base64", False) and resp.result and resp.result.images:
-            embed_base64(job, resp)
+            await asyncio.to_thread(embed_base64, job, resp)
     except Exception:
         pass
     return resp
@@ -185,25 +186,29 @@ async def update_job(job_id: str, request: ReqJobUpdateV2):
     """Move a queued job by giving it another priority. 409 once the job has started."""
     from enso_api.job_queue import job_queue
 
-    if job_queue.store.get(job_id) is None:
-        raise HTTPException(status_code=404, detail=f"Job not found: {job_id}")
-    if not job_queue.store.set_priority(job_id, request.priority):
-        raise HTTPException(status_code=409, detail="The job started before it could be moved")
-    return job_to_response(job_queue.store.get(job_id))
+    def move() -> dict:
+        if job_queue.store.get(job_id) is None:
+            raise HTTPException(status_code=404, detail=f"Job not found: {job_id}")
+        if not job_queue.store.set_priority(job_id, request.priority):
+            raise HTTPException(status_code=409, detail="The job started before it could be moved")
+        return job_queue.store.get(job_id)
+
+    return job_to_response(await asyncio.to_thread(move))
 
 
 @router.delete("/jobs/{job_id}", response_model=StatusResponse, tags=["Jobs"])
 async def delete_job(job_id: str):
     from enso_api.job_queue import job_queue
 
-    job = job_queue.store.get(job_id)
-    if job is None:
-        raise HTTPException(status_code=404, detail=f"Job not found: {job_id}")
-    success = job_queue.cancel(job_id)
-    if not success:
-        raise HTTPException(status_code=409, detail="Job cannot be cancelled or deleted")
-    status = "cancelled" if job["status"] in ("pending", "running") else "deleted"
-    return {"id": job_id, "status": status}
+    def remove() -> str:
+        job = job_queue.store.get(job_id)
+        if job is None:
+            raise HTTPException(status_code=404, detail=f"Job not found: {job_id}")
+        if not job_queue.cancel(job_id):
+            raise HTTPException(status_code=409, detail="Job cannot be cancelled or deleted")
+        return "cancelled" if job["status"] in ("pending", "running") else "deleted"
+
+    return {"id": job_id, "status": await asyncio.to_thread(remove)}
 
 
 @router.get("/jobs/ws-events", response_model=WsEvent, tags=["WebSocket"])
@@ -317,26 +322,28 @@ def get_completed_job(job_id: str):
 # refs whose registration failed. Remove once that fallback has proven quiet.
 @media_router.get("/jobs/{job_id}/images/{index}", tags=["Jobs"], deprecated=True)
 async def get_job_image(job_id: str, index: int):
-    return serve_job_file(get_completed_job(job_id), "images", index)
+    return await asyncio.to_thread(lambda: serve_job_file(get_completed_job(job_id), "images", index))
 
 
 @media_router.get("/jobs/{job_id}/processed/{index}", tags=["Jobs"], deprecated=True)
 async def get_job_processed(job_id: str, index: int):
-    return serve_job_file(get_completed_job(job_id), "processed", index)
+    return await asyncio.to_thread(lambda: serve_job_file(get_completed_job(job_id), "processed", index))
 
 
 @media_router.get("/jobs/{job_id}/videos/{index}", tags=["Jobs"], deprecated=True)
 async def get_job_video(job_id: str, index: int):
-    return serve_job_file(get_completed_job(job_id), "videos", index)
+    return await asyncio.to_thread(lambda: serve_job_file(get_completed_job(job_id), "videos", index))
 
 
 @media_router.get("/jobs/{job_id}/videos/{index}/thumbnail", tags=["Jobs"], deprecated=True)
 async def get_job_video_thumbnail(job_id: str, index: int):
-    job = get_completed_job(job_id)
-    thumb_path = get_ref_field(job, "videos", index, "thumbnail_path")
-    if thumb_path is None:
-        raise HTTPException(status_code=404, detail="Thumbnail not available")
-    return serve_file_path(thumb_path)
+    def serve():
+        thumb_path = get_ref_field(get_completed_job(job_id), "videos", index, "thumbnail_path")
+        if thumb_path is None:
+            raise HTTPException(status_code=404, detail="Thumbnail not available")
+        return serve_file_path(thumb_path)
+
+    return await asyncio.to_thread(serve)
 
 
 @media_router.get("/outputs/{output_id}", tags=["Outputs"])
@@ -355,14 +362,17 @@ async def get_output(output_id: str):
     """
     from enso_api.job_queue import job_queue
 
-    row = job_queue.store.resolve_output(output_id)
-    if row is None:
-        raise HTTPException(status_code=404, detail="Output not found")
-    file_path = row["path"]
-    if not os.path.isfile(file_path):
-        log.debug(f"Outputs: {output_id} -> {file_path} missing on disk")
-        raise HTTPException(status_code=404, detail="Output not found")
-    return media_file(file_path, os.path.basename(file_path))
+    def serve():
+        row = job_queue.store.resolve_output(output_id)
+        if row is None:
+            raise HTTPException(status_code=404, detail="Output not found")
+        file_path = row["path"]
+        if not os.path.isfile(file_path):
+            log.debug(f"Outputs: {output_id} -> {file_path} missing on disk")
+            raise HTTPException(status_code=404, detail="Output not found")
+        return media_file(file_path, os.path.basename(file_path))
+
+    return await asyncio.to_thread(serve)
 
 
 @router.get("/video/engines", response_model=list[VideoEngine], tags=["Video"])

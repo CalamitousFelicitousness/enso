@@ -16,6 +16,7 @@ ignore-paths=venv,
              mcp,
              working-docs,
              .playwright-mcp,
+             .*/tests/,
 ignore-patterns=.*test*.py$
 jobs=8
 limit-inference-results=100
