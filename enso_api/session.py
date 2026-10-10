@@ -7,6 +7,7 @@ every same-origin load carries. A page on another origin gets the token for
 memory: a restart ends them and the browser asks again.
 """
 
+import re
 import secrets
 import threading
 import time
@@ -14,14 +15,20 @@ from base64 import b64decode
 from binascii import Error as Base64Error
 from hmac import compare_digest
 from typing import NamedTuple
+from urllib.parse import urlsplit
 
 from fastapi import APIRouter, HTTPException, Request, Response, WebSocket
+from modules.logger import log
 
 from enso_api.models import ResSessionV2, ResWsTicketV2
 
 SESSION_COOKIE = "enso-session"
 SESSION_SECONDS = 24 * 3600
 TICKET_SECONDS = 60
+
+# Origins already warned about, so a page retrying logs once; past the limit no more are recorded
+refused_origins: set[str] = set()
+REFUSED_ORIGINS_LOGGED = 32
 
 
 class Caller(NamedTuple):
@@ -125,11 +132,38 @@ async def media_auth(request: Request) -> None:
     raise HTTPException(status_code=401, detail="No session")
 
 
+def origin_allowed(ws: WebSocket) -> bool:
+    """A browser socket from this server's own origin or one sdnext's CORS settings allow; other clients send no Origin.
+
+    Browsers apply no CORS to a socket, and they send the session cookie from any page of the same site.
+    """
+    origin = ws.headers.get("origin")
+    if not origin:
+        return True
+    if urlsplit(origin).netloc.lower() == ws.headers.get("host", "").lower():
+        return True
+    from modules import shared
+
+    listed = getattr(shared.cmd_opts, "cors_origins", None) or ""
+    if origin in (entry.strip() for entry in listed.split(",")):
+        return True
+    pattern = getattr(shared.cmd_opts, "cors_regex", None)
+    return bool(pattern and re.fullmatch(pattern, origin))
+
+
 async def admit_socket(ws: WebSocket) -> bool:
-    """Whether a socket's caller is admitted; a refused one is closed with 1008.
+    """Whether a socket is admitted: 4003 for an origin not allowed, 1008 for a caller without a credential.
 
     The close follows an accept: a socket closed before it fails its handshake, and the browser sees 1006.
     """
+    if not origin_allowed(ws):
+        origin = ws.headers.get("origin", "")
+        if origin not in refused_origins and len(refused_origins) < REFUSED_ORIGINS_LOGGED:
+            refused_origins.add(origin)
+            log.warning(f'Enso: socket refused: origin="{origin[:200]}" is neither this server\'s ({ws.headers.get("host")}) nor in --cors-origins')
+        await ws.accept()
+        await ws.close(code=4003, reason="Origin not allowed")
+        return False
     if not auth_required() or session_caller(ws) is not None:
         return True
     if tickets.resolve(ws.query_params.get("ticket")) is not None:

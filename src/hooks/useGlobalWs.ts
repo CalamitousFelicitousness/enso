@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { toast } from "sonner";
 import { ws, ensureWs } from "@/api/wsManager";
 import { useBackendStatusStore } from "@/stores/backendStatusStore";
 import { useDownloadStore, type DownloadProgress } from "@/stores/downloadStore";
@@ -31,8 +32,15 @@ export function useGlobalWs() {
       useBackendStatusStore.getState().setConnected(true);
     });
 
-    const offClose = ws.on("close", () => {
+    const offClose = ws.on("close", (event) => {
       useBackendStatusStore.getState().setConnected(false);
+      if (event.code === 4003) {
+        toast.error("The server refuses live updates from this address", {
+          id: "socket-origin",
+          duration: Infinity,
+          description: `It takes sockets from its own address and from sdnext's --cors-origins; add ${window.location.origin} there.`,
+        });
+      }
     });
 
     const offMessage = ws.on("message", (raw: unknown) => {
