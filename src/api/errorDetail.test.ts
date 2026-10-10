@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatErrorDetail } from "./errorDetail";
+import { formatErrorDetail, issuesIn, refusalIn } from "./errorDetail";
 
 // Bodies recorded from POST /sdapi/v2/jobs on the live backend
 const STALE_PAGE = {
@@ -89,3 +89,61 @@ const UNHANDLED = {
   body: "",
   errors: "cannot import name 'do_vqa' from 'modules.api.caption' (modules/api/caption.py)",
 };
+
+// A refusal of Enso's routes inside sdnext's HTTPException envelope, recorded
+// from PATCH /sdapi/v2/library/{id}; the envelope keeps the status as `code`
+const PINS_FULL = {
+  error: "HTTPException",
+  code: 409,
+  detail: { code: "pins_full", message: "Up to 20 entries can be pinned", max: 20 },
+  body: "",
+  errors: "409: {'code': 'pins_full', 'message': 'Up to 20 entries can be pinned', 'max': 20}",
+};
+
+describe("refusals", () => {
+  it("read the code and the message, not the envelope's status", () => {
+    expect(refusalIn(PINS_FULL)).toEqual({
+      code: "pins_full",
+      message: "Up to 20 entries can be pinned",
+      max: 20,
+    });
+    expect(formatErrorDetail(PINS_FULL)).toBe("Up to 20 entries can be pinned");
+  });
+
+  it("read the same without the envelope", () => {
+    expect(refusalIn({ detail: PINS_FULL.detail })?.code).toBe("pins_full");
+  });
+
+  it("are nothing else: a string, an issue list, a dict without a code", () => {
+    expect(refusalIn({ detail: "Model not found" })).toBeNull();
+    expect(refusalIn(STALE_PAGE)).toBeNull();
+    expect(refusalIn({ detail: { message: "no code" } })).toBeNull();
+    expect(refusalIn(UNHANDLED)).toBeNull();
+  });
+});
+
+describe("issuesIn", () => {
+  it("keeps what each issue refused, for upload_missing the ref or the hash", () => {
+    const hash = "c".repeat(64);
+    const body = {
+      error: "HTTPException",
+      code: 422,
+      detail: [
+        {
+          loc: ["body", "job", "inputs", 0],
+          msg: "gone",
+          type: "upload_missing",
+          input: `upload:${hash}`,
+        },
+        {
+          loc: ["body", "record", "hashes", "cid-1"],
+          msg: "gone",
+          type: "upload_missing",
+          input: hash,
+        },
+      ],
+    };
+    expect(issuesIn(body)?.map((issue) => issue.input)).toEqual([`upload:${hash}`, hash]);
+    expect(issuesIn(PINS_FULL)).toBeNull();
+  });
+});

@@ -107,9 +107,10 @@ export function mayDelete(since: number, now: number): boolean {
   return now - since >= RETENTION_MS;
 }
 
-/** Plan one sweep over the stored blob keys. A named blob is never removed.
- * An urgent one goes at once; any other once it has gone unnamed for the
- * retention period, counted from the first sweep that saw it so. */
+/** Plan one sweep over stored keys: blob keys, or the cids of hashes rows. A
+ * named key is never removed. An urgent one goes at once; any other once it
+ * has gone unnamed for the retention period, counted from the first sweep
+ * that saw it so. */
 export function planSweep(
   keys: string[],
   named: ReadonlySet<string>,

@@ -13,8 +13,8 @@ import { canonicalJson } from "@/lib/inputs/freshness";
 import { optimizeImageForProvider } from "@/lib/imageOptimize";
 import type { ProviderEncoding, Source, StoredJob } from "@/lib/inputs/stored";
 import { composedPictures, type Frame, type Size } from "@/lib/inputs/types";
-import { refsIn, substituteRefs } from "@/lib/jobs/replay";
-import { replayMissingText, type ReplayMissing } from "@/lib/jobs/text";
+import { ReplayError, refsIn, substituteRefs } from "@/lib/jobs/replay";
+import type { ReplayMissing } from "@/lib/jobs/text";
 import { resizeBlob } from "@/lib/resize";
 import { currentJobRequest } from "@/lib/retiredJobFields";
 import { uploadBlob } from "@/lib/upload";
@@ -32,16 +32,6 @@ class MissingBytes extends Error {
   readonly missing: ReplayMissing;
   constructor(missing: ReplayMissing) {
     super(MISSING[missing]);
-    this.missing = missing;
-  }
-}
-
-/** A picture a job sent is no longer stored, so the job cannot be sent again as it was. */
-export class ReplayError extends Error {
-  override name = "ReplayError";
-  readonly missing: ReplayMissing;
-  constructor(missing: ReplayMissing) {
-    super(replayMissingText(missing));
     this.missing = missing;
   }
 }

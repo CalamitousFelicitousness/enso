@@ -36,11 +36,46 @@ export function formatValidationIssues(issues: ValidationIssue[]): string | null
   return lines.length > 0 ? lines.join("; ") : null;
 }
 
+/** A refusal of Enso's routes: a code, its message and the fields it names,
+ * such as the free space a 507 counts. */
+export interface Refusal {
+  code: string;
+  message: string;
+  [field: string]: unknown;
+}
+
+/** A 422 issue with the value it refused: an upload ref or a hash for
+ * `upload_missing`. */
+export interface Issue extends ValidationIssue {
+  input?: unknown;
+}
+
+function detailOf(body: unknown): unknown {
+  return typeof body === "object" && body !== null
+    ? (body as { detail?: unknown }).detail
+    : undefined;
+}
+
+/** The refusal a body carries, inside sdnext's error envelope or bare; null
+ * for any other body. sdnext's envelope keeps the status as its own `code`. */
+export function refusalIn(body: unknown): Refusal | null {
+  const detail = detailOf(body);
+  if (typeof detail !== "object" || detail === null || Array.isArray(detail)) return null;
+  const { code, message } = detail as { code?: unknown; message?: unknown };
+  return typeof code === "string" && typeof message === "string" ? (detail as Refusal) : null;
+}
+
+/** The issue list a 422 body carries; null for any other body. */
+export function issuesIn(body: unknown): Issue[] | null {
+  const detail = detailOf(body);
+  return Array.isArray(detail) ? (detail as Issue[]) : null;
+}
+
 /**
  * The reason a failed response gives, as one line: FastAPI's string detail, its
- * validation issues, the exception sdnext's handler reports in `errors` (with
- * its class from `error`), or a plain-text body. Null when there is none,
- * including an HTML error page from a proxy.
+ * validation issues, a refusal's message, the exception sdnext's handler
+ * reports in `errors` (with its class from `error`), or a plain-text body.
+ * Null when there is none, including an HTML error page from a proxy.
  */
 export function formatErrorDetail(body: unknown): string | null {
   if (typeof body === "string") {
@@ -51,6 +86,8 @@ export function formatErrorDetail(body: unknown): string | null {
   const { detail, error, errors } = body as { detail?: unknown; error?: unknown; errors?: unknown };
   if (typeof detail === "string" && detail.trim()) return detail.trim();
   if (Array.isArray(detail)) return formatValidationIssues(detail as ValidationIssue[]);
+  const refusal = refusalIn(body);
+  if (refusal) return refusal.message;
   if (typeof errors === "string" && errors.trim()) {
     const reason = errors.trim().split("\n")[0];
     return typeof error === "string" && error ? `${error}: ${reason}` : reason;

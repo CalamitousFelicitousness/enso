@@ -2,7 +2,16 @@
 // live in the blobs store, written once each, because the browser copies every
 // Blob held in a record each time that record is put.
 
-import { BLOBS, JOBS, JOBS_BY_CREATION, META, READERS, STORES } from "@/lib/inputs/storeLayout";
+import {
+  BLOBS,
+  HASHES,
+  JOBS,
+  JOBS_BY_CREATION,
+  META,
+  NON_DOCUMENT_STORES,
+  READERS,
+  STORES,
+} from "@/lib/inputs/storeLayout";
 import {
   blobCid,
   planReclaim,
@@ -21,8 +30,10 @@ import {
 } from "@/lib/inputs/sweep";
 
 const NAME = "enso-inputs";
-const VERSION = 6;
+const VERSION = 7;
 const ORPHANS = "orphans";
+/** When each hashes row that no document names was first seen unnamed. */
+const HASH_ORPHANS = "hashOrphans";
 /** The days the trash keeps what goes to it, as the user set them. */
 const TRASH_DAYS = "trashDays";
 /** Cids of what the user deleted from the trash, whose bytes have not gone yet. */
@@ -334,6 +345,50 @@ export async function putBlob(key: string, blob: Blob): Promise<void> {
   await done;
 }
 
+/** The hash the media store answered for a cid's bytes, and their size. */
+export interface Hashed {
+  hash: string;
+  size: number;
+}
+
+function hashedOf(value: unknown): Hashed | null {
+  if (typeof value !== "object" || value === null) return null;
+  const { hash, size } = value as { hash?: unknown; size?: unknown };
+  return typeof hash === "string" &&
+    /^[0-9a-f]{64}$/.test(hash) &&
+    typeof size === "number" &&
+    size >= 0
+    ? { hash, size }
+    : null;
+}
+
+/** The hashes remembered for these cids, read in one transaction; a cid
+ * without one is left out. */
+export async function readHashes(cids: readonly string[]): Promise<Map<string, Hashed>> {
+  const found = new Map<string, Hashed>();
+  if (cids.length === 0) return found;
+  const db = await open();
+  const os = db.transaction(HASHES, "readonly").objectStore(HASHES);
+  await Promise.all(
+    cids.map(async (cid) => {
+      const hashed = hashedOf(await result(os.get(cid)));
+      if (hashed) found.set(cid, hashed);
+    }),
+  );
+  return found;
+}
+
+/** Remember the hashes the media store answered for these cids' own bytes. */
+export async function rememberHashes(rows: ReadonlyMap<string, Hashed>): Promise<void> {
+  if (rows.size === 0) return;
+  const db = await open();
+  const tx = db.transaction(HASHES, "readwrite");
+  const done = finished(tx);
+  for (const [cid, hashed] of rows) tx.objectStore(HASHES).put(hashed, cid);
+  tx.commit();
+  await done;
+}
+
 /** The keys of a store's records. */
 export async function allKeys(store: string): Promise<IDBValidKey[]> {
   const db = await open();
@@ -431,6 +486,11 @@ export function writeTrashDays(days: number): Promise<void> {
   return putMeta(TRASH_DAYS, trashDays(days));
 }
 
+/** The stores of a database that hold documents. */
+function documentStoresOf(names: readonly string[]): string[] {
+  return names.filter((name) => !NON_DOCUMENT_STORES.includes(name));
+}
+
 /** Every record of every document store, read by its store's reader in one
  * transaction; a record the reader refuses is left out. */
 async function readFacts(tx: IDBTransaction, stores: readonly string[]): Promise<RecordFacts[]> {
@@ -456,12 +516,7 @@ export async function reclaimableBytes(): Promise<number> {
   const db = await open();
   const names = [...db.objectStoreNames];
   const tx = db.transaction(names, "readonly");
-  const only = trashOnlyCids(
-    await readFacts(
-      tx,
-      names.filter((n) => n !== BLOBS && n !== META),
-    ),
-  );
+  const only = trashOnlyCids(await readFacts(tx, documentStoresOf(names)));
   const blobs = tx.objectStore(BLOBS);
   let total = 0;
   for (const cid of only) {
@@ -571,10 +626,7 @@ async function deleteAndFree(
       tx.objectStore(store).delete(key);
     }
     // read after the deletes, so the deleted records name nothing
-    const facts = await readFacts(
-      tx,
-      names.filter((n) => n !== BLOBS && n !== META),
-    );
+    const facts = await readFacts(tx, documentStoresOf(names));
     const named = new Set(facts.flatMap((f) => f.cids));
     const keys = (await result(tx.objectStore(BLOBS).getAllKeys())).filter(
       (key): key is string => typeof key === "string",
@@ -585,6 +637,7 @@ async function deleteAndFree(
       if (blob instanceof Blob) freed += blob.size;
       tx.objectStore(BLOBS).delete(key);
     }
+    for (const cid of new Set(plan.remove.map(blobCid))) tx.objectStore(HASHES).delete(cid);
     tx.objectStore(META).delete(RECLAIM);
     tx.commit();
   } catch (err) {
@@ -617,16 +670,18 @@ export async function alone(): Promise<boolean> {
 }
 
 /** Delete expired records, blobs no document names any more (per planSweep:
- * at once for what the trash held, noted cids included) and the revision
- * claims, which only matter between tabs open at the same time. Everything
- * is read and deleted in one transaction, and nothing is deleted unless every
- * record of every document store was read. The transaction only deletes, so
- * a full disk does not stop it; the orphan map is written after, and without
- * it each unnamed blob starts its grace again. */
+ * at once for what the trash held, noted cids included), hashes rows by the
+ * same rule, and the revision claims, which only matter between tabs open at
+ * the same time. A row stays while a document names its cid, whether or not
+ * its bytes are still here: it is what fetches them back. Everything is read
+ * and deleted in one transaction, and nothing is deleted unless every record
+ * of every document store was read. The transaction only deletes, so a full
+ * disk does not stop it; the orphan maps are written after, and without them
+ * each unnamed blob and row starts its grace again. */
 async function sweep(readers: Readonly<Record<string, StoreReader>>): Promise<void> {
   const db = await open();
   const names = [...db.objectStoreNames];
-  const documentStores = names.filter((name) => name !== BLOBS && name !== META);
+  const documentStores = documentStoresOf(names);
   const unread = documentStores.filter((name) => !Object.hasOwn(readers, name));
   if (unread.length > 0) {
     console.warn(`[inputs] no sweep: no reader for ${unread.join(", ")}`);
@@ -636,6 +691,7 @@ async function sweep(readers: Readonly<Record<string, StoreReader>>): Promise<vo
   const tx = db.transaction(names, "readwrite");
   const done = finished(tx);
   let plan: SweepPlan;
+  let rowPlan: SweepPlan;
   try {
     const stores: StoreRecords<IDBValidKey>[] = [];
     for (const name of documentStores) {
@@ -656,7 +712,14 @@ async function sweep(readers: Readonly<Record<string, StoreReader>>): Promise<vo
     const orphans = ((await result(tx.objectStore(META).get(ORPHANS))) ?? {}) as Orphans;
     plan = planSweep(keys, reading.named, orphans, now, reading.urgent);
     for (const key of plan.remove) tx.objectStore(BLOBS).delete(key);
+    const rows = (await result(tx.objectStore(HASHES).getAllKeys())).filter(
+      (key) => typeof key === "string",
+    );
+    const rowOrphans = ((await result(tx.objectStore(META).get(HASH_ORPHANS))) ?? {}) as Orphans;
+    rowPlan = planSweep(rows, reading.named, rowOrphans, now, reading.urgent);
+    for (const key of rowPlan.remove) tx.objectStore(HASHES).delete(key);
     tx.objectStore(META).delete(ORPHANS);
+    tx.objectStore(META).delete(HASH_ORPHANS);
     tx.objectStore(META).delete(RECLAIM);
     tx.objectStore(META).delete(IDBKeyRange.bound(CLAIM, `${CLAIM}￿`));
   } catch (err) {
@@ -671,6 +734,9 @@ async function sweep(readers: Readonly<Record<string, StoreReader>>): Promise<vo
   await done;
   await putMeta(ORPHANS, plan.orphans).catch((err: unknown) => {
     console.warn("[inputs] could not store when unused pictures were first seen", err);
+  });
+  await putMeta(HASH_ORPHANS, rowPlan.orphans).catch((err: unknown) => {
+    console.warn("[inputs] could not store when unused hashes were first seen", err);
   });
 }
 

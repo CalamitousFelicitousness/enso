@@ -4,7 +4,17 @@
 
 import type { Source, StoredFrame, StoredJob } from "@/lib/inputs/stored";
 import { isVideoDomain } from "./domains";
-import type { ReplayMissing } from "./text";
+import { replayMissingText, type ReplayMissing } from "./text";
+
+/** A picture a job sent is no longer stored, so the job cannot be sent again as it was. */
+export class ReplayError extends Error {
+  override name = "ReplayError";
+  readonly missing: ReplayMissing;
+  constructor(missing: ReplayMissing) {
+    super(replayMissingText(missing));
+    this.missing = missing;
+  }
+}
 
 /** The server pins and resolves any string that starts with this, at any depth. */
 export const UPLOAD_PREFIX = "upload:";

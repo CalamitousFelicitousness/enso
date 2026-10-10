@@ -1,10 +1,14 @@
-import { formatErrorDetail } from "./errorDetail";
+import { formatErrorDetail, issuesIn, refusalIn, type Issue, type Refusal } from "./errorDetail";
 import type { WsTicket } from "./types/server";
 
 export class ApiError extends Error {
   status: number;
   statusText: string;
   body: unknown;
+  /** The code of a refusal of Enso's routes; null for any other body. */
+  code: string | null;
+  /** That refusal, with the fields it names. */
+  detail: Refusal | null;
 
   constructor(status: number, statusText: string, body: unknown) {
     super(`API Error ${status}: ${formatErrorDetail(body) ?? statusText}`);
@@ -12,7 +16,19 @@ export class ApiError extends Error {
     this.status = status;
     this.statusText = statusText;
     this.body = body;
+    this.detail = refusalIn(body);
+    this.code = this.detail?.code ?? null;
   }
+}
+
+/** The refusal an error carries, when it is a refusal of Enso's routes. */
+export function refusalOf(err: unknown): Refusal | null {
+  return err instanceof ApiError ? err.detail : null;
+}
+
+/** The issues of a 422 an error carries. */
+export function issuesOf(err: unknown): Issue[] | null {
+  return err instanceof ApiError ? issuesIn(err.body) : null;
 }
 
 /** ApiError for a failed response; the body is read once, then parsed as JSON when it is JSON. */
@@ -47,12 +63,14 @@ export class ApiClient {
     this.auth = null;
   }
 
+  /** The Authorization header's value, when credentials are set. */
+  getAuthorization(): string | null {
+    return this.auth ? `Basic ${btoa(`${this.auth.username}:${this.auth.password}`)}` : null;
+  }
+
   getAuthHeaders(): HeadersInit {
-    const headers: HeadersInit = {};
-    if (this.auth) {
-      headers["Authorization"] = `Basic ${btoa(`${this.auth.username}:${this.auth.password}`)}`;
-    }
-    return headers;
+    const authorization = this.getAuthorization();
+    return authorization ? { Authorization: authorization } : {};
   }
 
   private getHeaders(): HeadersInit {

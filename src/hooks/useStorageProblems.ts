@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { toast } from "sonner";
 import { onStorageProblem } from "@/lib/storageHealth";
-import { aboutSize } from "@/lib/inputs/text";
+import { aboutSize } from "@/lib/media/text";
 import { alone, reclaimableBytes } from "@/inputs/db";
 import { showLibrary } from "@/inputs/library";
 import { FULL_ID } from "@/inputs/quota";

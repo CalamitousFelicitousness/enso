@@ -89,6 +89,7 @@ export default defineConfig([
     files: [
       "src/lib/inputs/**/*.ts",
       "src/lib/jobs/**/*.ts",
+      "src/lib/media/**/*.ts",
       "src/lib/request/generateParams.ts",
       "src/lib/request/inputPlan.ts",
       "src/lib/request/restoreParams.ts",

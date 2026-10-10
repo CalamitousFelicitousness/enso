@@ -21,6 +21,8 @@ export const LIBRARY = "library";
 /** Picture bytes by cid, written once. */
 export const BLOBS = "blobs";
 export const META = "meta";
+/** The hash the media store answered for each cid's own bytes. */
+export const HASHES = "hashes";
 
 export type DocumentStore =
   typeof DOCUMENTS | typeof SNAPSHOTS | typeof TRASH | typeof MAPS | typeof JOBS | typeof LIBRARY;
@@ -55,8 +57,11 @@ export const READERS: Readonly<Record<DocumentStore, StoreReader>> = {
   },
 };
 
+/** The stores that hold no documents: no reader, and no sweep reads one as a document. */
+export const NON_DOCUMENT_STORES: readonly string[] = [BLOBS, META, HASHES];
+
 /** Every store the database has. */
-export const STORES: readonly string[] = [...Object.keys(READERS), BLOBS, META];
+export const STORES: readonly string[] = [...Object.keys(READERS), ...NON_DOCUMENT_STORES];
 
 /** The jobs store's index of records by when they were created. */
 export const JOBS_BY_CREATION = "createdAt";

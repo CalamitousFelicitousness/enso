@@ -7,10 +7,12 @@ const POLICY = sweepPolicy(7);
 import {
   BLOBS,
   DOCUMENTS,
+  HASHES,
   JOBS,
   LIBRARY,
   MAPS,
   META,
+  NON_DOCUMENT_STORES,
   READERS,
   SNAPSHOTS,
   STORES,
@@ -19,10 +21,11 @@ import {
 
 describe("store layout", () => {
   it("the store list and the sweep readers agree", () => {
-    const documentStores = STORES.filter((name) => name !== BLOBS && name !== META);
+    const documentStores = STORES.filter((name) => !NON_DOCUMENT_STORES.includes(name));
     expect([...documentStores].sort()).toEqual(Object.keys(READERS).sort());
+    expect([...NON_DOCUMENT_STORES].sort()).toEqual([BLOBS, HASHES, META].sort());
     expect([...STORES].sort()).toEqual(
-      [BLOBS, DOCUMENTS, JOBS, LIBRARY, MAPS, META, SNAPSHOTS, TRASH].sort(),
+      [BLOBS, DOCUMENTS, HASHES, JOBS, LIBRARY, MAPS, META, SNAPSHOTS, TRASH].sort(),
     );
   });
 

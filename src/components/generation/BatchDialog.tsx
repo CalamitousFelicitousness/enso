@@ -2,7 +2,7 @@ import { useState, useCallback } from "react";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import { submitJob, type Submission } from "@/inputs/jobs";
-import { UserAbortError } from "@/hooks/useSubmitToQueue";
+import { UserAbortError } from "@/lib/abort";
 import type { JobRequest } from "@/api/types/v2";
 import {
   Dialog,

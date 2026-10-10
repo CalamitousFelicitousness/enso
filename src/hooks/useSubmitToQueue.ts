@@ -1,17 +1,10 @@
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
 import { submitJob, type Submission } from "@/inputs/jobs";
+import { UserAbortError } from "@/lib/abort";
 
 interface SubmitOptions {
   build: () => Promise<Submission>;
-}
-
-/** Throw from a build implementation to cancel cleanly without a generic
- * "Failed to submit job" toast. The caller is expected to have already
- * surfaced a guidance message (e.g. via toast.warning) before throwing this.
- * Used by ActionBar to refuse local-video models on the Images view path. */
-export class UserAbortError extends Error {
-  override name = "UserAbortError";
 }
 
 export function useSubmitToQueue({ build }: SubmitOptions) {

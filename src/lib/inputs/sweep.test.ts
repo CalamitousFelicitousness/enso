@@ -77,6 +77,13 @@ describe("planSweep", () => {
     }
     expect(plan.remove).not.toContain("c");
   });
+
+  it("keeps a hashes row a document names, its bytes gone or not, and drops one unnamed past the grace", () => {
+    // rows are keyed by cid; the blob keys play no part, so a named row whose
+    // bytes vanished stays to fetch them back from the server
+    const plan = planSweep(["kept", "stale"], new Set(["kept"]), { stale: LONG_AGO }, NOW);
+    expect(plan).toEqual({ remove: ["stale"], orphans: {} });
+  });
 });
 
 describe("readForSweep", () => {

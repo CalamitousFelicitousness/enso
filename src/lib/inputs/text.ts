@@ -1,6 +1,7 @@
 // The words for inputs, in one place: the canvas, the Input tab, toasts and
 // accessible names all read them from here.
 
+import { aboutSize, ageText } from "@/lib/media/text";
 import type {
   Address,
   MapSlot,
@@ -504,16 +505,8 @@ export function entryTrashTitle(entry: Pick<StoredEntry, "name" | "kind" | "inpu
   return `"${entry.name}", from the library (${what})`;
 }
 
-const MINUTE = 60 * 1000;
-const HOUR = 60 * MINUTE;
+const HOUR = 60 * 60 * 1000;
 const DAY = 24 * HOUR;
-
-function ago(ms: number): string {
-  if (ms < MINUTE) return "just now";
-  if (ms < HOUR) return `${Math.floor(ms / MINUTE)} min ago`;
-  if (ms < DAY) return `${Math.floor(ms / HOUR)} h ago`;
-  return `${plural(Math.floor(ms / DAY), "day", "days")} ago`;
-}
 
 /** "removed 3 h ago · 6 days left", or that it goes at the next start. */
 export function trashAgeText(removedAt: number, expiresAt: number, now: number): string {
@@ -524,7 +517,7 @@ export function trashAgeText(removedAt: number, expiresAt: number, now: number):
       : left >= DAY
         ? `${plural(Math.floor(left / DAY), "day", "days")} left`
         : `${plural(Math.max(1, Math.floor(left / HOUR)), "hour", "hours")} left`;
-  return `removed ${ago(now - removedAt)} · ${when}`;
+  return `removed ${ageText(now - removedAt)} · ${when}`;
 }
 
 export const TRASH_EMPTY_LABEL = "Empty the trash";
@@ -542,13 +535,6 @@ export function deletedFromTrashText(count: number): string {
 /** "Nothing in the trash. Removed inputs stay here for 7 days." */
 export function trashEmptyText(days: number): string {
   return `Nothing in the trash. Removed inputs stay here ${keptForText(days)}.`;
-}
-
-/** "about 85 MB": a size for people. */
-export function aboutSize(bytes: number): string {
-  if (bytes < 1024 * 1024) return `about ${Math.max(1, Math.round(bytes / 1024))} KB`;
-  if (bytes < 1024 * 1024 * 1024) return `about ${Math.round(bytes / (1024 * 1024))} MB`;
-  return `about ${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
 }
 
 /** "12 removed inputs and 2 saved entries": what the trash holds. */

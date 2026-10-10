@@ -12,7 +12,7 @@ import {
   type XyzPreviewResponse,
 } from "@/api/hooks/useXyzAxisOptions";
 import { submitJob, type Submission } from "@/inputs/jobs";
-import { UserAbortError } from "@/hooks/useSubmitToQueue";
+import { UserAbortError } from "@/lib/abort";
 import { countAxisValues, groupAxisOptions } from "@/lib/xyzGrid";
 import type { XyzGridJobParams } from "@/api/types/v2";
 import {

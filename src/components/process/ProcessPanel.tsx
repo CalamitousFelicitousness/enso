@@ -11,7 +11,8 @@ import {
   selectProcessRunning,
 } from "@/stores/jobStore";
 import { useUiStore } from "@/stores/uiStore";
-import { useSubmitToQueue, UserAbortError } from "@/hooks/useSubmitToQueue";
+import { useSubmitToQueue } from "@/hooks/useSubmitToQueue";
+import { UserAbortError } from "@/lib/abort";
 import { unrecordedSubmission } from "@/inputs/jobs";
 import { sendToJob } from "@/hooks/useJobTracker";
 import { useRegisterCommand } from "@/lib/commandRegistry";

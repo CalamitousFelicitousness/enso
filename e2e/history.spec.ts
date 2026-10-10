@@ -2,10 +2,10 @@ import { expect, test } from "@playwright/test";
 import { Enso, PORTRAIT } from "./support/app";
 import { imageSizes, jobLog, loadedCheckpoint, pipelineCalls, type Job } from "./support/backend";
 
-// The record a job leaves in this browser: running it again uploads every
-// picture afresh and sends the request it was sent with; restoring its result
-// brings back its seed and its inputs. Needs the model the edit-model spec
-// needs, at the same sizes.
+// The record a job leaves: running it again sends the request it was sent
+// with, its pictures under the same refs, since the server names bytes by
+// their hash; restoring its result brings back its seed and its inputs. Needs
+// the model the edit-model spec needs, at the same sizes.
 const BASE = { width: 704, height: 1280 };
 const EDIT = "Change the neon sign color from pink to bright green. Keep everything else the same.";
 
@@ -48,7 +48,7 @@ function masked(value: unknown): unknown {
   return value;
 }
 
-test("running a job again sends the same request with fresh upload refs", async ({ page }) => {
+test("running a job again sends the same request with the same upload refs", async ({ page }) => {
   const app = new Enso(page);
   await prepare(app);
   const first: Job = await app.generate();
@@ -64,11 +64,10 @@ test("running a job again sends the same request with fresh upload refs", async 
   const sent = first.result?.params ?? {};
   const again = second.result?.params ?? {};
   expect(masked(again)).toEqual(masked(sent));
-  const before = new Set(refsOf(sent));
-  const after = new Set(refsOf(again));
-  expect(before.size).toBeGreaterThan(0);
-  expect(after.size).toBe(before.size);
-  expect([...after].filter((ref) => before.has(ref))).toEqual([]);
+  const before = [...new Set(refsOf(sent))].sort();
+  const after = [...new Set(refsOf(again))].sort();
+  expect(before.length).toBeGreaterThan(0);
+  expect(after).toEqual(before);
   const log = jobLog(second.id);
   if (log) expect(pipelineCalls(log)).toEqual(["Base 704x1280"]);
 });

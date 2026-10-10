@@ -15,7 +15,6 @@ import { deleteNow, loadTrash, measureTrash, useTrash } from "@/inputs/trash";
 import type { StoredEntry } from "@/lib/inputs/stored";
 import { sweepPolicy } from "@/lib/inputs/sweep";
 import {
-  aboutSize,
   DELETE_NOW,
   emptyTrashText,
   NEWER_REMOVAL,
@@ -26,6 +25,7 @@ import {
   trashEmptyText,
 } from "@/lib/inputs/text";
 import { byRemoval, entryItem, removalItem, type TrashItem } from "@/lib/inputs/trash";
+import { aboutSize } from "@/lib/media/text";
 
 /** The time, again every minute, for the "removed 3 h ago" lines. */
 function useMinute(active: boolean): number {

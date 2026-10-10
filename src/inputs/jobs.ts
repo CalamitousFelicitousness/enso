@@ -49,7 +49,8 @@ import {
   updateRecord,
   writeRecord,
 } from "./db";
-import { ReplayError, type Ledger, type SourceFrames } from "./materialise";
+import { ReplayError } from "@/lib/jobs/replay";
+import type { Ledger, SourceFrames } from "./materialise";
 import { isQuotaError, reportFull } from "./quota";
 
 /** The frames a job was built from, when they hold anything to bring back. */
