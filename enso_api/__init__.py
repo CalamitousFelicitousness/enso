@@ -34,6 +34,10 @@ def register_api(app, dependencies=None):
     # so the db lives with sdnext's own state files under <data_path>/data.
     enso_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     enso_data = os.path.join(paths.data_path, "data", "enso")
+    # Before the queue, which resumes pending jobs within a second of starting
+    from enso_api.stamp import register as register_stamp
+
+    register_stamp()
     # Before the queue, which names what its pending jobs use
     media_boot.init(paths.data_path)
     try:

@@ -15,6 +15,8 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
 
 TERMINAL = ("completed", "failed", "cancelled")
+# A row older than its file by more than this means the file was written again after the job
+OUTPUT_MTIME_SLACK_MS = 60_000
 
 SCHEMA_V1 = """
 CREATE TABLE IF NOT EXISTS jobs (
@@ -45,6 +47,15 @@ CREATE INDEX IF NOT EXISTS idx_outputs_path ON outputs(path);
 
 # Version 1 is the schema every earlier build created, so an existing file is stamped without a change
 MIGRATIONS = [(1, SCHEMA_V1)]
+
+
+def path_spellings(path: str) -> list[str]:
+    """The ways an outputs row may name a file: as given, normalised, resolved, and relative to the working folder."""
+    real = os.path.realpath(path)
+    spellings = [path, os.path.normpath(path), real]
+    with contextlib.suppress(ValueError):
+        spellings.append(os.path.relpath(real))
+    return list(dict.fromkeys(spellings))
 
 
 class JobStore:
@@ -257,8 +268,19 @@ class JobStore:
         """
         output_id = uuid.uuid4().hex[:16]
         with self.db.write() as w:
-            w.conn.execute("INSERT INTO outputs (id, path, job_id, created_at) VALUES (?, ?, ?, ?)", (output_id, path, job_id, self.now()))
+            w.conn.execute("INSERT INTO outputs (id, path, job_id, created_at) VALUES (?, ?, ?, ?)", (output_id, os.path.realpath(path), job_id, self.now()))
         return output_id
+
+    def output_job(self, paths: Sequence[str], mtime_ms: int) -> str | None:
+        """The job of the newest output row naming one of the paths, unless the file is newer than that row by more than the slack."""
+        if not paths:
+            return None
+        with self.db.read() as conn:
+            row = conn.execute(f"SELECT job_id, created_at FROM outputs WHERE path IN ({','.join('?' for _ in paths)}) ORDER BY created_at DESC LIMIT 1", list(paths)).fetchone()
+        if row is None or row[0] is None:
+            return None
+        created_ms = int(datetime.fromisoformat(row[1]).timestamp() * 1000)
+        return row[0] if mtime_ms <= created_ms + OUTPUT_MTIME_SLACK_MS else None
 
     def resolve_output(self, output_id: str) -> dict | None:
         with self.db.read() as conn:

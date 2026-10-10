@@ -5,6 +5,7 @@ import os
 import pytest
 
 from enso_api import job_queue as queue_module
+from enso_api.job_context import active_job
 from enso_api.job_queue import JobQueue
 from enso_api.job_store import JobStore
 from enso_api.job_warnings import JobLogCapture
@@ -119,6 +120,7 @@ def assert_unwound(queue, job_id, released):
     assert not queue.sdnext.queue_lock.held
     assert capture_handlers() == []
     assert job_id not in queue.stopped_ids
+    assert active_job.get() is None
     assert released.count(job_id) == 1
 
 
@@ -287,3 +289,21 @@ def test_boot_names_every_readable_row(queue, monkeypatch, caplog):
     queue.name_live_uploads()
     assert named == [{"seed": 2}]
     assert any("id=a not named" in r.message for r in caplog.records)
+
+
+def test_the_job_context_names_the_job_while_its_executor_runs(queue, released):
+    seen = []
+
+    def record(params, job_id):
+        seen.append(active_job.get())
+        return {"images": []}
+
+    queue.sdnext.table["generate"]["fn"] = record
+    queue.sdnext.table["cloud"]["fn"] = record
+    queue._cloud_pool = InlinePool()
+    queue.enqueue("generate", {}, 0, "a")
+    turn(queue)
+    queue.enqueue("cloud", {}, 0, "b")
+    turn(queue)
+    assert seen == ["a", "b"]
+    assert active_job.get() is None

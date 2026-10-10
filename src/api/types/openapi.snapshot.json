@@ -11314,6 +11314,38 @@
         "title": "ResOptionsInfoV2",
         "type": "object"
       },
+      "ResOutputJobV2": {
+        "properties": {
+          "job_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Job Id"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "enum": [
+                  "stamp",
+                  "table"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source"
+          }
+        },
+        "title": "ResOutputJobV2",
+        "type": "object"
+      },
       "ResPngInfoV2": {
         "properties": {
           "info": {
@@ -15895,6 +15927,49 @@
           }
         },
         "summary": "Get Folders",
+        "tags": [
+          "Gallery"
+        ]
+      }
+    },
+    "/sdapi/v2/browser/job": {
+      "get": {
+        "description": "The Enso job that made a file: the stamp in its metadata, else the newest record of the path while the file is\nnot newer than it. Read when asked, never cached: a file's job is known only once its job has ended.",
+        "operationId": "get_job_sdapi_v2_browser_job_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "file",
+            "required": true,
+            "schema": {
+              "title": "File",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResOutputJobV2"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Job",
         "tags": [
           "Gallery"
         ]

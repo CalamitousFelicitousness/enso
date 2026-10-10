@@ -4,6 +4,7 @@ import os
 import shutil
 import time
 import zipfile
+from typing import Literal
 from urllib.parse import quote, unquote
 
 from fastapi import Depends, FastAPI, HTTPException
@@ -37,6 +38,9 @@ OPTS_FOLDERS = [
     "outdir_control_grids",
 ]
 
+VIDEO_EXTENSIONS = {".mp4", ".webm", ".mov", ".avi", ".mkv", ".flv", ".wmv", ".m4v"}
+
+
 ### class definitions
 
 
@@ -55,6 +59,12 @@ class ReqMove(BaseModel):
 
 class ReqDownload(BaseModel):
     files: list[str] = Field(title="File paths to download")
+
+
+class ResOutputJobV2(BaseModel):
+    job_id: str | None = None
+    source: Literal["stamp", "table"] | None = None
+    """stamp: the file's own metadata names the job; table: the server's record of the outputs it saved does."""
 
 
 ### security helpers
@@ -306,15 +316,45 @@ def register_api(app: FastAPI):  # register api
         if not is_allowed_path(decoded):
             raise HTTPException(status_code=403, detail="Path not allowed")
         try:
-            video_extensions = {".mp4", ".webm", ".mov", ".avi", ".mkv", ".flv", ".wmv", ".m4v"}
             ext = os.path.splitext(decoded)[1].lower()
-            if ext in video_extensions:
+            if ext in VIDEO_EXTENSIONS:
                 return JSONResponse(content=get_video_thumbnail(decoded))
             return JSONResponse(content=get_image_thumbnail(decoded))
         except Exception as e:
             log.error(f"Gallery: {file} {e}")
             content = {"error": str(e)}
             return JSONResponse(content=content)
+
+    def get_job(file: str):
+        """The Enso job that made a file: the stamp in its metadata, else the newest record of the path while the file is
+        not newer than it. Read when asked, never cached: a file's job is known only once its job has ended."""
+        from enso_api.job_queue import job_queue
+        from enso_api.job_store import path_spellings
+        from enso_api.stamp import thumb_job
+
+        decoded = unquote(file).replace("%3A", ":")
+        if not is_allowed_path(decoded):
+            raise HTTPException(status_code=403, detail="Path not allowed")
+        texts: list[str | None] = []
+        mtime_ms = None
+        try:
+            mtime_ms = int(os.stat(decoded).st_mtime * 1000)
+            if os.path.splitext(decoded)[1].lower() not in VIDEO_EXTENSIONS:
+                with Image.open(decoded) as image:
+                    geninfo, items = images.read_info_from_image(image)
+                # A Process output of a picture that carried no parameters is stamped in its extras section alone
+                texts = [geninfo, items.get("extras")]
+        except Exception as e:
+            # A file without readable metadata can still be in the outputs table
+            log.debug(f"Gallery: no metadata read from {decoded}: {e}")
+
+        def lookup():
+            if job_queue.store is None or mtime_ms is None:
+                return None
+            return job_queue.store.output_job(path_spellings(decoded), mtime_ms)
+
+        job_id, source = thumb_job(texts, lookup)
+        return ResOutputJobV2(job_id=job_id, source=source)
 
     # @app.get("/sdapi/v1/browser/files", response_model=list)
     async def ht_files(folder: str):
@@ -463,6 +503,7 @@ def register_api(app: FastAPI):  # register api
 
     shared.api.add_api_route("/sdapi/v2/browser/folders", get_folders, methods=["GET"], response_model=list[str], tags=["Gallery"])
     shared.api.add_api_route("/sdapi/v2/browser/thumb", get_thumb, methods=["GET"], response_model=dict, tags=["Gallery"])
+    shared.api.add_api_route("/sdapi/v2/browser/job", get_job, methods=["GET"], response_model=ResOutputJobV2, tags=["Gallery"])
     shared.api.add_api_route("/sdapi/v2/browser/file", get_file, methods=["GET"], auth=False, dependencies=[Depends(media_auth)], response_class=FileResponse, tags=["Gallery"])
     shared.api.add_api_route("/sdapi/v2/browser/files", ht_files, methods=["GET"], response_model=list, tags=["Gallery"])
     shared.api.add_api_route("/sdapi/v2/browser/folder-info", get_folder_info, methods=["GET"], tags=["Gallery"])

@@ -8,6 +8,7 @@ import sqlite3
 import threading
 from concurrent.futures import ThreadPoolExecutor
 
+from enso_api.job_context import active_job
 from enso_api.job_store import JobStore
 from enso_api.job_warnings import JobLogCapture
 from enso_api.models import JobResult
@@ -484,6 +485,7 @@ class JobQueue:
                     return
                 self._current_job_id = job_id
                 stack.callback(self.clear_current, job_id)
+                stack.callback(active_job.reset, active_job.set(job_id))
                 log.info(f"Job queue: executing id={job_id} type={job_type}")
                 self.push_progress(job_id, WsEventStatus(status="running").model_dump(exclude_none=True))
 
@@ -556,6 +558,7 @@ class JobQueue:
         job_id = job["id"]
         with contextlib.ExitStack() as stack:
             stack.callback(self.leave, job_id)
+            stack.callback(active_job.reset, active_job.set(job_id))
             try:
                 log.info(f"Job queue: cloud executing id={job_id} type={job_type}")
                 self.push_progress(job_id, WsEventStatus(status="running").model_dump(exclude_none=True))
