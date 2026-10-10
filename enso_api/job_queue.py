@@ -10,7 +10,7 @@ from concurrent.futures import ThreadPoolExecutor
 from enso_api.job_store import JobStore
 from enso_api.job_warnings import JobLogCapture
 from enso_api.models import JobResult
-from enso_api.util import job_progress, preview_image
+from enso_api.util import job_progress, mark_dir_git_ignored, preview_image
 from enso_api.ws_models import (
     WsEventCancelled,
     WsEventCompleted,
@@ -119,34 +119,6 @@ def migrate_db_files(old_path: str, new_path: str) -> None:
         log.error(f"Job queue: db migration failed, starting fresh at {new_path}: {e}")
 
 
-GITIGNORE_SENTINEL = "# Enso runtime state, not part of the sdnext tree.\n*\n"
-
-
-def mark_dir_git_ignored(path: str) -> None:
-    """Write a self-ignoring .gitignore into Enso's state dir.
-
-    sdnext force-includes <data_path>/data and then excludes its own state
-    files one at a time by name, so a directory an extension creates is
-    untracked-and-visible in the checkout. A lone '*' covers the whole
-    directory including the sentinel itself, so nothing here reaches git.
-
-    Written only when missing or empty: a populated file is someone's
-    deliberate edit, and this is hygiene, so a failure to write it must not
-    interrupt boot. Deliberately no CACHEDIR.TAG, which would tell backup
-    tools this directory is regenerable.
-    """
-    target = os.path.join(path, ".gitignore")
-    try:
-        if os.path.exists(target) and os.path.getsize(target) > 0:
-            return
-        with open(target, "w", encoding="utf-8") as f:
-            f.write(GITIGNORE_SENTINEL)
-    except OSError as e:
-        from modules.logger import log
-
-        log.debug(f"Job queue: could not write {target}: {e}")
-
-
 def compute_stages(job_type: str, params: dict) -> list[str] | None:
     """Predict the generation stage sequence from request params."""
     if job_type != "generate":
@@ -172,24 +144,39 @@ def job_failure(e: Exception) -> tuple[int | None, str]:
     return (code if isinstance(code, int) else None), message
 
 
-TERMINAL_STATUSES = ("completed", "failed", "cancelled", "rejected")
+class UploadsMissing(Exception):
+    """A request names uploads the media store does not hold."""
+
+    def __init__(self, refs: list[str]):
+        super().__init__(f"{len(refs)} uploads not held")
+        self.refs = refs
 
 
-def pin_uploads(job_id: str, params) -> None:
-    """Hold the uploads a job names until it ends."""
-    from enso_api.upload import refs_in, upload_store
+def name_uploads(job_id: str, params) -> list[str]:
+    """Name the uploads a job's request refers to, so the media store keeps them until the job is released; the ones it does not hold."""
+    from enso_api.media import boot
+    from enso_api.upload import refs_in
 
     if isinstance(params, str):
         params = json.loads(params)
-    if upload_store is not None:
-        upload_store.pin(job_id, refs_in(params))
+    refs = refs_in(params)
+    if boot.state.store is None:
+        return sorted(refs)
+    return boot.state.store.name_job(job_id, refs)
 
 
 def release_uploads(job_id: str) -> None:
-    from enso_api.upload import upload_store
+    from enso_api.media import boot
 
-    if upload_store is not None:
-        upload_store.release(job_id)
+    if boot.state.store is None:
+        return
+    try:
+        boot.state.store.release_job(job_id)
+    except Exception as e:
+        # The collector drops the names of a job the queue no longer holds
+        from modules.logger import log
+
+        log.warning(f"Job queue: uploads of id={job_id} not released: {e}")
 
 
 class JobQueue:
@@ -205,6 +192,9 @@ class JobQueue:
         self._current_job_id: str | None = None
         self._initialized = False
         self.output_register_failures = 0
+        # Jobs whose runner has not reached its finally, whatever their row says
+        self.in_flight: set[str] = set()
+        self.in_flight_lock = threading.Lock()
 
     @property
     def running_job_id(self) -> str | None:
@@ -220,6 +210,24 @@ class JobQueue:
         """The user cancelled, stopped or skipped this job while it ran."""
         return job_id in self._cancel_ids or job_id in self.stopped_ids
 
+    def live_jobs(self) -> set[str] | None:
+        """Pending and running jobs and the runners still in flight; None before the queue runs."""
+        if not self._initialized or self.store is None:
+            return None
+        with self.in_flight_lock:
+            running = set(self.in_flight)
+        return self.store.live_ids() | running
+
+    def enter(self, job_id: str) -> None:
+        with self.in_flight_lock:
+            self.in_flight.add(job_id)
+
+    def leave(self, job_id: str) -> None:
+        """A runner is done with its job: its uploads are released."""
+        release_uploads(job_id)
+        with self.in_flight_lock:
+            self.in_flight.discard(job_id)
+
     def init(self, data_path: str, legacy_path: str | None = None) -> None:
         if self._initialized:
             return
@@ -229,8 +237,10 @@ class JobQueue:
         self.store = JobStore(db_path)
         mark_dir_git_ignored(data_path)
         self._recover_stale_jobs()
-        for job in self.store.list(status="pending", limit=1000)[0]:
-            pin_uploads(job["id"], job.get("params"))
+        for job_id in self.store.live_ids():
+            job = self.store.get(job_id)
+            if job is not None:
+                name_uploads(job_id, job.get("params"))
         self._worker_thread = threading.Thread(target=self._worker_loop, daemon=True, name="v2-job-worker")
         self._worker_thread.start()
         self._cloud_pool = ThreadPoolExecutor(max_workers=8, thread_name_prefix="cloud-worker")
@@ -242,16 +252,26 @@ class JobQueue:
         jobs, _ = self.store.list(status="running", limit=100)
         for job in jobs:
             self.set_status(job["id"], "failed", error="Server restarted", completed_at=JobStore.now())
+            release_uploads(job["id"])
 
     def set_status(self, job_id: str, status: str, **kwargs) -> None:
-        """Record a status change; a job that is over lets go of its uploads."""
         self.store.update_status(job_id, status, **kwargs)
-        if status in TERMINAL_STATUSES:
-            release_uploads(job_id)
 
     def submit(self, job_type: str, params: dict, priority: int = 0) -> dict:
-        job = self.store.create(job_type=job_type, params=params, priority=priority)
-        pin_uploads(job["id"], params)
+        """Queue a job; UploadsMissing when it names uploads the store does not hold.
+
+        Its uploads are named before its row exists, so the worker never starts it with them unnamed.
+        """
+        job_id = JobStore.new_id()
+        missing = name_uploads(job_id, params)
+        if missing:
+            release_uploads(job_id)
+            raise UploadsMissing(missing)
+        try:
+            job = self.store.create(job_type=job_type, params=params, priority=priority, job_id=job_id)
+        except BaseException:
+            release_uploads(job_id)
+            raise
         self._job_event.set()
         return job
 
@@ -350,17 +370,6 @@ class JobQueue:
                     log.debug(f"Job queue: purged {purged} old job rows")
         except Exception as e:
             log.debug(f"Job queue: job cleanup error: {e}")
-        try:
-            from enso_api.upload import upload_store
-
-            if upload_store is not None and self.store:
-                live = {job["id"] for status in ("pending", "running") for job in self.store.list(status=status, limit=1000)[0]}
-                dropped = upload_store.release_except(live)
-                expired = upload_store.cleanup_expired()
-                if dropped or expired:
-                    log.debug(f"Job queue: released pins of {dropped} finished jobs, removed {expired} expired uploads")
-        except Exception as e:
-            log.debug(f"Job queue: upload cleanup error: {e}")
 
     def _execute_job(self, job: dict) -> None:
         from modules.logger import log
@@ -373,6 +382,7 @@ class JobQueue:
         if entry is None:
             log.error(f"Job queue: unknown type={job_type} id={job_id}")
             self.set_status(job_id, "failed", error=f"Unknown job type: {job_type}", completed_at=JobStore.now())
+            release_uploads(job_id)
             return
 
         if entry["lock"]:
@@ -382,6 +392,7 @@ class JobQueue:
             # loop can't see this row as pending and double-dispatch it.
             self.set_status(job["id"], "running", started_at=JobStore.now())
             job["status"] = "running"
+            self.enter(job["id"])
             self._cloud_pool.submit(self._run_cloud_job, job, entry["fn"], job_type)
             if self.store.next_pending():
                 self._job_event.set()
@@ -392,6 +403,7 @@ class JobQueue:
 
         job_id = job["id"]
         self._current_job_id = job_id
+        self.enter(job_id)
         log.info(f"Job queue: executing id={job_id} type={job_type}")
         self.set_status(job_id, "running", started_at=JobStore.now())
         self.push_progress(job_id, WsEventStatus(status="running").model_dump(exclude_none=True))
@@ -462,6 +474,7 @@ class JobQueue:
             shared.state.disable_preview = False
             self._current_job_id = None
             self.stopped_ids.discard(job_id)
+            self.leave(job_id)
             if self.store.next_pending():
                 self._job_event.set()
 
@@ -487,6 +500,8 @@ class JobQueue:
             error_msg = f"{type(e).__name__}: {e}"
             self.set_status(job_id, "failed", completed_at=JobStore.now(), error=error_msg)
             self.push_progress(job_id, WsEventError(error=error_msg).model_dump(exclude_none=True))
+        finally:
+            self.leave(job_id)
 
     def _progress_poller(self, job_id: str, stop_event: threading.Event, stages: list[str] | None = None) -> None:
         from modules import shared

@@ -685,6 +685,14 @@ class ServerCapabilities(BaseModel):
     video: bool = True
     websocket: bool = True
     control_separate_init: bool = False
+    media_store: bool = False
+
+
+class MediaStoreStateV2(BaseModel):
+    enabled: bool = False
+    reason: str | None = None
+    """Why the store is off, naming the setting to fix."""
+    root: str | None = None
 
 
 class ServerModelInfo(BaseModel):
@@ -706,6 +714,7 @@ class ResServerInfoV2(BaseModel):
     capabilities: ServerCapabilities = Field(default_factory=ServerCapabilities)
     model: ServerModelInfo = Field(default_factory=ServerModelInfo)
     extension: ExtensionVersionV2 = Field(default_factory=ExtensionVersionV2)
+    media_store: MediaStoreStateV2 = Field(default_factory=MediaStoreStateV2)
 
 
 # --- Session models (v2) ---
@@ -790,6 +799,12 @@ class ResSystemInfoV2(BaseModel):
     pipeline: str = ""
     cross_attention: str = ""
     flags: list[str] = Field(default_factory=list)
+
+
+class StorageEntryV2(BaseModel):
+    label: str
+    path: str
+    size: int
 
 
 class GpuMetrics(BaseModel):

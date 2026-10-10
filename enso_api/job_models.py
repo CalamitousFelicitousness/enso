@@ -729,7 +729,7 @@ class PreprocessItem(StrictBaseModel):
 
 
 class PreprocessParams(JobBase):
-    """Run processors over pictures without generating; the maps come back as pinned uploads, like the generate pre-step's."""
+    """Run processors over pictures without generating; the maps go into the media store named by the job, like the generate pre-step's."""
 
     type: Literal["preprocess"] = "preprocess"
     items: list[PreprocessItem] = Field(default_factory=list)

@@ -84,10 +84,17 @@ def get_allowed_roots():
     return roots
 
 
+def outside_media_store(path: str) -> bool:
+    """False for the media store's root and anything under it, which the Gallery never lists or opens; by name, so a walk stays cheap."""
+    from enso_api.media import boot
+
+    return boot.state.store is None or not boot.state.store.layout.contains(path)
+
+
 def is_allowed_path(filepath: str) -> bool:
     """Check if a file path is within allowed gallery folders."""
     resolved = os.path.abspath(os.path.realpath(filepath))
-    return any(resolved.startswith(root + os.sep) or resolved == root for root in get_allowed_roots())
+    return any(resolved.startswith(root + os.sep) or resolved == root for root in get_allowed_roots()) and outside_media_store(resolved)
 
 
 ### ws connection manager
@@ -316,7 +323,7 @@ def register_api(app: FastAPI):  # register api
             raise HTTPException(status_code=403, detail="Path not allowed")
         try:
             t0 = time.time()
-            files = files_cache.directory_files(folder, recursive=True)
+            files = files_cache.directory_files(folder, recursive=outside_media_store)
             lines = []
             for f in files:
                 file = os.path.relpath(f, folder)
@@ -345,7 +352,7 @@ def register_api(app: FastAPI):  # register api
             # only the top directory's own mtime, which does not change when files
             # land in existing subdirectories (dated output folders). Walk the tree
             # and take the max so subdirectory changes are visible to polling clients.
-            mtime = max((d.mtime for d in files_cache.walk(decoded, recurse=True)), default=0.0)
+            mtime = max((d.mtime for d in files_cache.walk(decoded, recurse=outside_media_store)), default=0.0)
             return JSONResponse(content={"mtime": mtime})
         except Exception as e:
             shared.log.error(f'Gallery folder-info: folder="{folder}" {e}')
@@ -367,7 +374,7 @@ def register_api(app: FastAPI):  # register api
         subdirs = []
         for d in sorted(directory.directories):
             label = os.path.basename(d)
-            if label:
+            if label and outside_media_store(d):
                 subdirs.append({"path": d, "label": label})
         return JSONResponse(content=subdirs)
 
@@ -477,7 +484,7 @@ def register_api(app: FastAPI):  # register api
                 return
             t0 = time.time()
             numFiles = 0
-            files = files_cache.list_files(folder, recursive=True)
+            files = files_cache.list_files(folder, recursive=outside_media_store)
             # files = list(files_cache.directory_files(folder, recursive=True))
             # files.sort(key=os.path.getmtime)
             for f in files:

@@ -54,6 +54,21 @@ def register_cloud_options():
 register_cloud_options()
 
 
+def register_media_options():
+    """The media store's folder; an option because it locates the database holding the store's other settings.
+
+    Restricted like the output folders, so --hide-ui-dir-config keeps it from being changed through the API.
+    """
+    from modules import shared
+    from modules.shared import OptionInfo, opts
+
+    opts.add_option("enso_media_root", OptionInfo("", "Media store folder (restart to apply)", folder=True, section=("enso", "Enso")))
+    shared.restricted_opts.add("enso_media_root")
+
+
+register_media_options()
+
+
 def on_app_started(blocks, app):  # pylint: disable=unused-argument
     # SD.Next resets sys.path after loading each extension script,
     # so the path must be added here rather than at module level.

@@ -1,7 +1,7 @@
 """Enso API - v2 async job-queue API for SD.Next.
 
 Call ``register_api(app)`` from the extension entry point to mount all
-v2 routes, WebSocket endpoints, and the file-upload staging area.
+v2 routes, WebSocket endpoints and the media store.
 """
 
 import os
@@ -14,11 +14,14 @@ def register_api(app, dependencies=None):
 
     from enso_api.job_queue import job_queue
     from enso_api.job_types import validate_registries
+    from enso_api.media import boot as media_boot
+    from enso_api.media.routes import router as media_store_router
+    from enso_api.media.routes import serve_router as media_serve_router
     from enso_api.routes import media_router, router
     from enso_api.session import public_router as session_public_router
     from enso_api.session import router as session_router
     from enso_api.sqlite import NewerDatabase
-    from enso_api.upload import init_upload_store, upload_media_router, upload_router
+    from enso_api.upload import upload_media_router, upload_router
     from enso_api.ws import ws_job_endpoint
 
     deps = dependencies or []
@@ -30,8 +33,8 @@ def register_api(app, dependencies=None):
     # so the db lives with sdnext's own state files under <data_path>/data.
     enso_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     enso_data = os.path.join(paths.data_path, "data", "enso")
-    # Uploads live beside the queue: a queued job names them past a restart, and sdnext empties its temp folder at boot
-    init_upload_store(os.path.join(enso_data, "uploads"), ttl=1800)
+    # Before the queue, which names what its pending jobs use
+    media_boot.init(paths.data_path)
     try:
         job_queue.init(enso_data, legacy_path=enso_root)
     except NewerDatabase as e:
@@ -77,9 +80,11 @@ def register_api(app, dependencies=None):
     app.include_router(upload_router, dependencies=deps)
     app.include_router(session_router, dependencies=deps)
     app.include_router(session_public_router)
+    app.include_router(media_store_router, dependencies=deps)
     # Media routers carry their own auth: the session cookie, else what sdnext's auth admits
     app.include_router(media_router)
     app.include_router(upload_media_router)
+    app.include_router(media_serve_router)
     app.add_api_websocket_route("/sdapi/v2/jobs/{job_id}/ws", ws_job_endpoint)
 
     from enso_api.endpoints import router as endpoints_router
@@ -157,6 +162,8 @@ def register_api(app, dependencies=None):
                 "/sdapi/v2/jobs/stats": -1,
                 "/sdapi/v2/jobs/bulk": -1,
                 "/sdapi/v2/session": -1,
+                "/sdapi/v2/blobs/claim": -1,
+                "/sdapi/v2/media": -1,
             }
         )
     except ImportError:
@@ -189,6 +196,12 @@ def register_api(app, dependencies=None):
             "/sdapi/v2/session": 0,
             "/sdapi/v2/extra-networks/detail": 0,
             "/sdapi/v2/extra-networks/details": 0,
+            # Uploads of one action come in bursts, and each blob URL is its own window
+            "/sdapi/v2/blobs": 0,
+            "/sdapi/v2/blobs/claim": 0,
+            "/sdapi/v2/blobs/adopt": 0,
+            "/sdapi/v2/media": 0,
+            "/sdapi/v2/media/settings": 0,
             "/sdapi/v2/uploads/{ref_id}": 0,  # dormant until route-template keys
             "/sdapi/v2/jobs/{job_id}": 0,  # dormant until route-template keys
             "/sdapi/v2/jobs/{job_id}/images/{index}": 0,  # dormant until route-template keys

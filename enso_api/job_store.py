@@ -76,8 +76,12 @@ class JobStore:
             except (json.JSONDecodeError, TypeError, OSError):
                 pass
 
-    def create(self, job_type: str, params: dict, priority: int = 0) -> dict:
-        job_id = uuid.uuid4().hex[:16]
+    @staticmethod
+    def new_id() -> str:
+        return uuid.uuid4().hex[:16]
+
+    def create(self, job_type: str, params: dict, priority: int = 0, job_id: str | None = None) -> dict:
+        job_id = job_id or self.new_id()
         params_json = json.dumps(params, default=str)
         with self.db.write() as w:
             w.conn.execute(

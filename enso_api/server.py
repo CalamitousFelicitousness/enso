@@ -10,6 +10,7 @@ from enso_api.models import (
     CudaMemoryV2,
     ExtensionVersionV2,
     GpuMetrics,
+    MediaStoreStateV2,
     MemoryPeakUsage,
     MemoryUsage,
     MemoryWarnings,
@@ -71,7 +72,10 @@ async def get_server_info_v2():
     ver = installer.get_version()
     model_name = getattr(shared.opts, "sd_model_checkpoint", None)
     model_type = type(model_data.sd_model).__name__ if model_data.sd_model is not None else None
-    capabilities = ServerCapabilities(video=detect_video_capability(), control_separate_init=control_separate_init())
+    from enso_api.media import boot as media_boot
+
+    media = media_boot.state
+    capabilities = ServerCapabilities(video=detect_video_capability(), control_separate_init=control_separate_init(), media_store=media.store is not None)
     return ResServerInfoV2(
         version=VersionInfoV2(**{k: str(v) for k, v in ver.items() if k in VersionInfoV2.model_fields}),
         backend=shared.backend.name if hasattr(shared.backend, "name") else str(shared.backend),
@@ -79,6 +83,7 @@ async def get_server_info_v2():
         capabilities=capabilities,
         model=ServerModelInfo(name=model_name, type=model_type),
         extension=extension_version(),
+        media_store=MediaStoreStateV2(enabled=media.store is not None, reason=media.reason, root=media.root),
     )
 
 

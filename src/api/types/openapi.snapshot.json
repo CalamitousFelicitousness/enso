@@ -1,23 +1,6 @@
 {
   "components": {
     "schemas": {
-      "Body_upload_files_sdapi_v2_upload_post": {
-        "properties": {
-          "files": {
-            "items": {
-              "format": "binary",
-              "type": "string"
-            },
-            "title": "Files",
-            "type": "array"
-          }
-        },
-        "required": [
-          "files"
-        ],
-        "title": "Body_upload_files_sdapi_v2_upload_post",
-        "type": "object"
-      },
       "CaptionParams": {
         "additionalProperties": false,
         "description": "Image captioning via VLM, OpenCLIP, or tagger backends.",
@@ -867,19 +850,6 @@
           }
         },
         "title": "CudaMemoryV2",
-        "type": "object"
-      },
-      "DeleteResponse": {
-        "properties": {
-          "status": {
-            "title": "Status",
-            "type": "string"
-          }
-        },
-        "required": [
-          "status"
-        ],
-        "title": "DeleteResponse",
         "type": "object"
       },
       "DetailParams": {
@@ -5532,6 +5502,42 @@
         "title": "JobWarning",
         "type": "object"
       },
+      "LastVerifyV2": {
+        "properties": {
+          "at": {
+            "default": 0,
+            "title": "At",
+            "type": "integer"
+          },
+          "cancelled": {
+            "default": false,
+            "title": "Cancelled",
+            "type": "boolean"
+          },
+          "changed": {
+            "default": 0,
+            "title": "Changed",
+            "type": "integer"
+          },
+          "checked": {
+            "default": 0,
+            "title": "Checked",
+            "type": "integer"
+          },
+          "corrupt": {
+            "default": 0,
+            "title": "Corrupt",
+            "type": "integer"
+          },
+          "lost": {
+            "default": 0,
+            "title": "Lost",
+            "type": "integer"
+          }
+        },
+        "title": "LastVerifyV2",
+        "type": "object"
+      },
       "LoaderComponentOverrideV2": {
         "additionalProperties": false,
         "description": "One element of the components list in ReqLoaderLoadV2.",
@@ -5919,6 +5925,73 @@
           "prompt"
         ],
         "title": "LtxParams",
+        "type": "object"
+      },
+      "MediaStoreStateV2": {
+        "properties": {
+          "enabled": {
+            "default": false,
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "root": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Root"
+          }
+        },
+        "title": "MediaStoreStateV2",
+        "type": "object"
+      },
+      "MediaTermV2": {
+        "properties": {
+          "bytes": {
+            "default": 0,
+            "title": "Bytes",
+            "type": "integer"
+          },
+          "count": {
+            "default": 0,
+            "title": "Count",
+            "type": "integer"
+          }
+        },
+        "title": "MediaTermV2",
+        "type": "object"
+      },
+      "MediaTermsV2": {
+        "properties": {
+          "library": {
+            "$ref": "#/components/schemas/MediaTermV2"
+          },
+          "records": {
+            "$ref": "#/components/schemas/MediaTermV2"
+          },
+          "trash": {
+            "$ref": "#/components/schemas/MediaTermV2"
+          },
+          "unnamed": {
+            "$ref": "#/components/schemas/MediaTermV2"
+          }
+        },
+        "title": "MediaTermsV2",
         "type": "object"
       },
       "MemoryPeakUsage": {
@@ -6604,7 +6677,7 @@
       },
       "PreprocessParams": {
         "additionalProperties": false,
-        "description": "Run processors over pictures without generating; the maps come back as pinned uploads, like the generate pre-step's.",
+        "description": "Run processors over pictures without generating; the maps go into the media store named by the job, like the generate pre-step's.",
         "properties": {
           "items": {
             "items": {
@@ -7624,6 +7697,20 @@
         "title": "RembgParams",
         "type": "object"
       },
+      "ReqAdoptV2": {
+        "additionalProperties": false,
+        "properties": {
+          "output_id": {
+            "title": "Output Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "output_id"
+        ],
+        "title": "ReqAdoptV2",
+        "type": "object"
+      },
       "ReqBulkJobV2": {
         "properties": {
           "action": {
@@ -7744,6 +7831,30 @@
           "url"
         ],
         "title": "ReqCivitaiDownloadV2",
+        "type": "object"
+      },
+      "ReqClaimV2": {
+        "additionalProperties": false,
+        "properties": {
+          "bytes": {
+            "default": 0,
+            "minimum": 0,
+            "title": "Bytes",
+            "type": "integer"
+          },
+          "hashes": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 1000,
+            "title": "Hashes",
+            "type": "array"
+          }
+        },
+        "required": [
+          "hashes"
+        ],
+        "title": "ReqClaimV2",
         "type": "object"
       },
       "ReqDelete": {
@@ -7970,6 +8081,37 @@
           "filename"
         ],
         "title": "ReqLoraExtractV2",
+        "type": "object"
+      },
+      "ReqMediaSettingsV2": {
+        "additionalProperties": false,
+        "properties": {
+          "library_cap": {
+            "maximum": 1000,
+            "minimum": 10,
+            "title": "Library Cap",
+            "type": "integer"
+          },
+          "record_cap": {
+            "maximum": 2000,
+            "minimum": 50,
+            "title": "Record Cap",
+            "type": "integer"
+          },
+          "reserve_bytes": {
+            "maximum": 1099511627776,
+            "minimum": 268435456,
+            "title": "Reserve Bytes",
+            "type": "integer"
+          },
+          "trash_days": {
+            "maximum": 30,
+            "minimum": 1,
+            "title": "Trash Days",
+            "type": "integer"
+          }
+        },
+        "title": "ReqMediaSettingsV2",
         "type": "object"
       },
       "ReqMergeV2": {
@@ -9146,6 +9288,54 @@
         "title": "ReqXyzValidate",
         "type": "object"
       },
+      "ResBlobV2": {
+        "properties": {
+          "created": {
+            "title": "Created",
+            "type": "boolean"
+          },
+          "ext": {
+            "title": "Ext",
+            "type": "string"
+          },
+          "hash": {
+            "title": "Hash",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "ref": {
+            "title": "Ref",
+            "type": "string"
+          },
+          "size": {
+            "title": "Size",
+            "type": "integer"
+          },
+          "type": {
+            "title": "Type",
+            "type": "string"
+          },
+          "url": {
+            "title": "Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "hash",
+          "size",
+          "type",
+          "ext",
+          "name",
+          "ref",
+          "url",
+          "created"
+        ],
+        "title": "ResBlobV2",
+        "type": "object"
+      },
       "ResBulkJobV2": {
         "properties": {
           "action": {
@@ -9341,6 +9531,42 @@
           "loaded"
         ],
         "title": "ResCheckpointV2",
+        "type": "object"
+      },
+      "ResClaimV2": {
+        "properties": {
+          "lost": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Lost",
+            "type": "array"
+          },
+          "missing": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Missing",
+            "type": "array"
+          },
+          "present": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Present",
+            "type": "array"
+          },
+          "space": {
+            "$ref": "#/components/schemas/SpaceV2"
+          }
+        },
+        "required": [
+          "present",
+          "missing",
+          "lost",
+          "space"
+        ],
+        "title": "ResClaimV2",
         "type": "object"
       },
       "ResEmbeddingsV2": {
@@ -9581,6 +9807,156 @@
           "total"
         ],
         "title": "ResLogV2",
+        "type": "object"
+      },
+      "ResMediaReportV2": {
+        "properties": {
+          "by_term": {
+            "$ref": "#/components/schemas/MediaTermsV2"
+          },
+          "bytes": {
+            "default": 0,
+            "title": "Bytes",
+            "type": "integer"
+          },
+          "configured_root": {
+            "default": "",
+            "title": "Configured Root",
+            "type": "string"
+          },
+          "corrupt": {
+            "$ref": "#/components/schemas/MediaTermV2"
+          },
+          "count": {
+            "default": 0,
+            "title": "Count",
+            "type": "integer"
+          },
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "free": {
+            "default": 0,
+            "title": "Free",
+            "type": "integer"
+          },
+          "last_gc": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Gc"
+          },
+          "last_verify": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LastVerifyV2"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "lost": {
+            "default": 0,
+            "title": "Lost",
+            "type": "integer"
+          },
+          "previous_root": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Previous Root"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "root": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Root"
+          },
+          "snapshots": {
+            "$ref": "#/components/schemas/MediaTermV2"
+          },
+          "total": {
+            "default": 0,
+            "title": "Total",
+            "type": "integer"
+          },
+          "transient": {
+            "default": 0,
+            "title": "Transient",
+            "type": "integer"
+          },
+          "verify": {
+            "$ref": "#/components/schemas/VerifyStateV2"
+          }
+        },
+        "required": [
+          "enabled"
+        ],
+        "title": "ResMediaReportV2",
+        "type": "object"
+      },
+      "ResMediaSettingsV2": {
+        "properties": {
+          "bounds": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/SettingBoundV2"
+            },
+            "title": "Bounds",
+            "type": "object"
+          },
+          "library_cap": {
+            "title": "Library Cap",
+            "type": "integer"
+          },
+          "record_cap": {
+            "title": "Record Cap",
+            "type": "integer"
+          },
+          "reserve_bytes": {
+            "title": "Reserve Bytes",
+            "type": "integer"
+          },
+          "trash_days": {
+            "title": "Trash Days",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "trash_days",
+          "library_cap",
+          "record_cap",
+          "reserve_bytes",
+          "bounds"
+        ],
+        "title": "ResMediaSettingsV2",
         "type": "object"
       },
       "ResMemoryV2": {
@@ -9896,6 +10272,9 @@
           },
           "extension": {
             "$ref": "#/components/schemas/ExtensionVersionV2"
+          },
+          "media_store": {
+            "$ref": "#/components/schemas/MediaStoreStateV2"
           },
           "model": {
             "$ref": "#/components/schemas/ServerModelInfo"
@@ -10301,6 +10680,11 @@
             "title": "Img2Img",
             "type": "boolean"
           },
+          "media_store": {
+            "default": false,
+            "title": "Media Store",
+            "type": "boolean"
+          },
           "txt2img": {
             "default": true,
             "title": "Txt2Img",
@@ -10348,6 +10732,52 @@
         "title": "ServerModelInfo",
         "type": "object"
       },
+      "SettingBoundV2": {
+        "properties": {
+          "default": {
+            "title": "Default",
+            "type": "integer"
+          },
+          "high": {
+            "title": "High",
+            "type": "integer"
+          },
+          "low": {
+            "title": "Low",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "low",
+          "high",
+          "default"
+        ],
+        "title": "SettingBoundV2",
+        "type": "object"
+      },
+      "SpaceV2": {
+        "properties": {
+          "free": {
+            "title": "Free",
+            "type": "integer"
+          },
+          "needed": {
+            "title": "Needed",
+            "type": "integer"
+          },
+          "ok": {
+            "title": "Ok",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "ok",
+          "free",
+          "needed"
+        ],
+        "title": "SpaceV2",
+        "type": "object"
+      },
       "StatusResponse": {
         "properties": {
           "id": {
@@ -10364,6 +10794,29 @@
           "status"
         ],
         "title": "StatusResponse",
+        "type": "object"
+      },
+      "StorageEntryV2": {
+        "properties": {
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "path": {
+            "title": "Path",
+            "type": "string"
+          },
+          "size": {
+            "title": "Size",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "label",
+          "path",
+          "size"
+        ],
+        "title": "StorageEntryV2",
         "type": "object"
       },
       "UploadRef": {
@@ -10521,6 +10974,27 @@
           "type"
         ],
         "title": "ValidationError",
+        "type": "object"
+      },
+      "VerifyStateV2": {
+        "properties": {
+          "checked": {
+            "default": 0,
+            "title": "Checked",
+            "type": "integer"
+          },
+          "running": {
+            "default": false,
+            "title": "Running",
+            "type": "boolean"
+          },
+          "total": {
+            "default": 0,
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "title": "VerifyStateV2",
         "type": "object"
       },
       "VersionInfoV2": {
@@ -13458,6 +13932,229 @@
         "summary": "Post Benchmark Run",
         "tags": [
           "System"
+        ]
+      }
+    },
+    "/sdapi/v2/blobs": {
+      "post": {
+        "description": "Store the raw request body by its SHA-256: 201 for new bytes, 200 for bytes already held. Bytes nothing names\ngo seven days after their last name went, one hour for `transient` bytes read once; every upload or claim of\nthem keeps them for at least an hour more.",
+        "operationId": "post_blob_sdapi_v2_blobs_post",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "name",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Name"
+            }
+          },
+          {
+            "in": "query",
+            "name": "transient",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Transient",
+              "type": "boolean"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/octet-stream": {
+              "schema": {
+                "format": "binary",
+                "type": "string"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResBlobV2"
+                }
+              }
+            },
+            "description": "The server already held these bytes"
+          },
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResBlobV2"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Post Blob",
+        "tags": [
+          "Media"
+        ]
+      }
+    },
+    "/sdapi/v2/blobs/adopt": {
+      "post": {
+        "description": "Store an output the server holds, by its output id, without sending its bytes.",
+        "operationId": "post_adopt_sdapi_v2_blobs_adopt_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReqAdoptV2"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResBlobV2"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Post Adopt",
+        "tags": [
+          "Media"
+        ]
+      }
+    },
+    "/sdapi/v2/blobs/claim": {
+      "post": {
+        "description": "Which hashes the server holds, keeping those it does; `space` says whether `bytes` more fit.",
+        "operationId": "post_claim_sdapi_v2_blobs_claim_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReqClaimV2"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResClaimV2"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Post Claim",
+        "tags": [
+          "Media"
+        ]
+      }
+    },
+    "/sdapi/v2/blobs/{blob_hash}": {
+      "get": {
+        "description": "A stored blob, cached for good: its bytes never change. Range requests are honored.",
+        "operationId": "get_blob_sdapi_v2_blobs__blob_hash__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "blob_hash",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{64}$",
+              "title": "Blob Hash",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "name",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Blob",
+        "tags": [
+          "Media"
         ]
       }
     },
@@ -17362,6 +18059,89 @@
         ]
       }
     },
+    "/sdapi/v2/media": {
+      "get": {
+        "description": "What the store holds, by what keeps it, with the free space and the last collection and verify.",
+        "operationId": "get_media_report_sdapi_v2_media_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResMediaReportV2"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Media Report",
+        "tags": [
+          "Media"
+        ]
+      }
+    },
+    "/sdapi/v2/media/settings": {
+      "get": {
+        "operationId": "get_media_settings_sdapi_v2_media_settings_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResMediaSettingsV2"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Media Settings",
+        "tags": [
+          "Media"
+        ]
+      },
+      "patch": {
+        "description": "Change the store's policy for every client; the collector applies it at its next pass.",
+        "operationId": "patch_media_settings_sdapi_v2_media_settings_patch",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReqMediaSettingsV2"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResMediaSettingsV2"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Patch Media Settings",
+        "tags": [
+          "Media"
+        ]
+      }
+    },
     "/sdapi/v2/memory": {
       "get": {
         "description": "Return RAM and CUDA memory usage statistics.",
@@ -18852,7 +19632,16 @@
           "200": {
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "additionalProperties": {
+                    "items": {
+                      "$ref": "#/components/schemas/StorageEntryV2"
+                    },
+                    "type": "array"
+                  },
+                  "title": "Response Get Storage Sdapi V2 Storage Get",
+                  "type": "object"
+                }
               }
             },
             "description": "Successful Response"
@@ -18970,12 +19759,26 @@
     },
     "/sdapi/v2/upload": {
       "post": {
+        "deprecated": true,
+        "description": "Store multipart `files` in the media store, for a page from before POST /blobs; the refs name the stored hashes.",
         "operationId": "upload_files_sdapi_v2_upload_post",
         "requestBody": {
           "content": {
             "multipart/form-data": {
               "schema": {
-                "$ref": "#/components/schemas/Body_upload_files_sdapi_v2_upload_post"
+                "properties": {
+                  "files": {
+                    "items": {
+                      "format": "binary",
+                      "type": "string"
+                    },
+                    "type": "array"
+                  }
+                },
+                "required": [
+                  "files"
+                ],
+                "type": "object"
               }
             }
           },
@@ -18991,16 +19794,6 @@
               }
             },
             "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
           }
         },
         "summary": "Upload Files",
@@ -19010,47 +19803,9 @@
       }
     },
     "/sdapi/v2/uploads/{ref_id}": {
-      "delete": {
-        "operationId": "delete_upload_sdapi_v2_uploads__ref_id__delete",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "ref_id",
-            "required": true,
-            "schema": {
-              "title": "Ref Id",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/DeleteResponse"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Delete Upload",
-        "tags": [
-          "Upload"
-        ]
-      },
       "get": {
+        "deprecated": true,
+        "description": "An upload by the id in its ref: a hash, or the id an earlier build gave it.",
         "operationId": "get_upload_sdapi_v2_uploads__ref_id__get",
         "parameters": [
           {
@@ -19058,8 +19813,25 @@
             "name": "ref_id",
             "required": true,
             "schema": {
+              "pattern": "^([0-9a-f]{16}|[0-9a-f]{64})$",
               "title": "Ref Id",
               "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "name",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Name"
             }
           }
         ],

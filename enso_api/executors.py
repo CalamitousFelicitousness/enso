@@ -233,15 +233,15 @@ class PreStepFailed(Exception):
 
 
 def run_processors(job_id: str, slots: list[dict]) -> tuple[dict[str, str], dict[str, str]]:
-    """Run each slot's processor; the maps go out as uploads pinned to the job and one maps event, then `apply` takes each map."""
+    """Run each slot's processor; the maps go into the media store named by the job and out in one maps event, then `apply` takes each map."""
     import io
 
     from enso_api import preprocess
     from enso_api.job_queue import job_queue
-    from enso_api.upload import get_upload_store
+    from enso_api.media.boot import require_store
     from enso_api.ws_models import WsEventMaps
 
-    store = get_upload_store()
+    store = require_store()
     maps: dict[str, str] = {}
     failed: dict[str, str] = {}
     try:
@@ -255,9 +255,9 @@ def run_processors(job_id: str, slots: list[dict]) -> tuple[dict[str, str], dict
                 continue
             buf = io.BytesIO()
             image.save(buf, format="PNG")
-            entry = store.store(buf.getvalue(), "map.png", "image/png")
-            store.pin(job_id, {entry.ref_id})
-            maps[slot["key"]] = f"/sdapi/v2/uploads/{entry.ref_id}"
+            row, _ = store.ingest_bytes(buf.getvalue())
+            store.name_job(job_id, [row.hash])
+            maps[slot["key"]] = f"/sdapi/v2/blobs/{row.hash}"
             slot["apply"](image)
     finally:
         preprocess.release()
@@ -1011,9 +1011,9 @@ def execute_video(params: dict, job_id: str) -> dict:
     # be images and keep the decode path.
     def reference_entry(ref: str):
         if isinstance(ref, str) and ref.startswith("upload:"):
-            from enso_api.upload import get_upload_store
+            from enso_api.media.boot import require_store
 
-            path = get_upload_store().resolve_to_path(ref.removeprefix("upload:"))
+            path = require_store().resolve_to_path(ref.removeprefix("upload:"))
             if path is not None:
                 return path
         return helpers.decode_base64_to_image(ref)

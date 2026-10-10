@@ -124,7 +124,7 @@ if __name__ == "__main__":
         WsEventCancelled(),
         WsEventPing(),
         WsEventAck(command="interrupt"),
-        WsEventMaps(maps={"k1": "/sdapi/v2/uploads/abc"}, failed={"k2": "Canny: returned no map"}),
+        WsEventMaps(maps={"k1": "/sdapi/v2/blobs/" + "a" * 64}, failed={"k2": "Canny: returned no map"}),
     ]
     for sample in samples:
         print(sample.model_dump_json(exclude_none=True))

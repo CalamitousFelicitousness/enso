@@ -43,3 +43,31 @@ def is_model_cached(repo_id: str) -> bool:
 
     cache_folder = "models--" + repo_id.replace("/", "--")
     return any(os.path.isdir(os.path.join(cache_dir, cache_folder, "snapshots")) for cache_dir in [shared.opts.hfcache_dir, shared.opts.diffusers_dir])
+
+
+GITIGNORE_SENTINEL = "# Enso runtime state, not part of the sdnext tree.\n*\n"
+
+
+def mark_dir_git_ignored(path: str) -> None:
+    """Write a self-ignoring .gitignore into one of Enso's state folders.
+
+    sdnext force-includes <data_path>/data and then excludes its own state
+    files one at a time by name, so a directory an extension creates is
+    untracked-and-visible in the checkout. A lone '*' covers the whole
+    directory including the sentinel itself, so nothing here reaches git.
+
+    Written only when missing or empty: a populated file is someone's
+    deliberate edit, and this is hygiene, so a failure to write it must not
+    interrupt boot. Deliberately no CACHEDIR.TAG, which would tell backup
+    tools this directory is regenerable.
+    """
+    target = os.path.join(path, ".gitignore")
+    try:
+        if os.path.exists(target) and os.path.getsize(target) > 0:
+            return
+        with open(target, "w", encoding="utf-8") as f:
+            f.write(GITIGNORE_SENTINEL)
+    except OSError as e:
+        from modules.logger import log
+
+        log.debug(f"Enso: could not write {target}: {e}")

@@ -27,7 +27,7 @@ def resolve_ref(ref):
     """Resolve a V2 image / mask ref to raw bytes.
 
     Supported forms:
-    - ``upload:<id>`` - frontend-supplied reference from POST /sdapi/v2/upload
+    - ``upload:<id>`` - a blob the media store holds
     - bare base64 string - direct embedding
     - bytes - passthrough
     - None / empty - returns None
@@ -37,13 +37,12 @@ def resolve_ref(ref):
     if isinstance(ref, bytes):
         return ref
     if isinstance(ref, str) and ref.startswith("upload:"):
-        from enso_api.upload import get_upload_store
+        from enso_api.media.boot import require_store
 
-        ref_id = ref.split(":", 1)[1]
-        entry = get_upload_store().get(ref_id)
-        if entry is None:
-            raise ValueError(f"Upload reference not found or expired: {ref}")
-        return Path(entry.path).read_bytes()
+        path = require_store().resolve_to_path(ref.split(":", 1)[1])
+        if path is None:
+            raise ValueError(f"Upload reference not held: {ref}")
+        return Path(path).read_bytes()
     if isinstance(ref, str):
         return base64.b64decode(ref)
     raise TypeError(f"Unsupported ref type: {type(ref).__name__}")

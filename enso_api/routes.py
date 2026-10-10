@@ -82,13 +82,15 @@ async def submit_job(request: JobRequest):
         log.warning(f"submit_job: type {job_type!r} accepted by JobRequest but absent from EXECUTORS")
         raise HTTPException(status_code=500, detail=f"Job type {job_type!r} has no registered executor")
     priority = payload.pop("priority", 0)
-    # A job that names an upload the server no longer holds would fail when it runs
+    from enso_api.job_queue import UploadsMissing
     from enso_api.upload import missing_upload_issues
 
-    issues = await asyncio.to_thread(missing_upload_issues, job_type, payload)
-    if issues:
-        raise HTTPException(status_code=422, detail=issues)
-    job = await asyncio.to_thread(job_queue.submit, job_type=job_type, params=payload, priority=priority)
+    try:
+        job = await asyncio.to_thread(job_queue.submit, job_type=job_type, params=payload, priority=priority)
+    except UploadsMissing as e:
+        # A job naming an upload the server does not hold would fail when it runs
+        log.info(f"Jobs: refused type={job_type}: uploads not held: {', '.join(e.refs[:5])}{' and more' if len(e.refs) > 5 else ''}")
+        raise HTTPException(status_code=422, detail=missing_upload_issues(job_type, payload, set(e.refs))) from e
     return job_to_response(job)
 
 
@@ -262,7 +264,7 @@ MEDIA_TYPES = {
 }
 
 
-def media_file(path: str, filename: str | None = None, disposition: str = "inline", media_type: str | None = None) -> FileResponse:
+def media_file(path: str, filename: str | None = None, disposition: str = "inline", media_type: str | None = None, headers: dict[str, str] | None = None) -> FileResponse:
     """A media route's file, varying by Origin on every answer.
 
     An <img> sends no Origin and gets no CORS headers; without the Vary a cache hands that copy to a later
@@ -270,7 +272,7 @@ def media_file(path: str, filename: str | None = None, disposition: str = "inlin
     """
     if media_type is None:
         media_type = MEDIA_TYPES.get(os.path.splitext(path)[1].lstrip(".").lower(), "application/octet-stream")
-    return FileResponse(path, media_type=media_type, filename=filename, content_disposition_type=disposition, headers={"Vary": "Origin"})
+    return FileResponse(path, media_type=media_type, filename=filename, content_disposition_type=disposition, headers={"Vary": "Origin", **(headers or {})})
 
 
 def serve_file_path(file_path: str):
@@ -370,7 +372,8 @@ async def get_output(output_id: str):
         if not os.path.isfile(file_path):
             log.debug(f"Outputs: {output_id} -> {file_path} missing on disk")
             raise HTTPException(status_code=404, detail="Output not found")
-        return media_file(file_path, os.path.basename(file_path))
+        # The sequencer can hand a deleted output's path to a new file, so the bytes behind an id are not immutable
+        return media_file(file_path, os.path.basename(file_path), headers={"Cache-Control": "private, max-age=3600", "X-Content-Type-Options": "nosniff"})
 
     return await asyncio.to_thread(serve)
 

@@ -11,6 +11,8 @@ import threading
 from modules import paths, shared
 from modules.logger import log
 
+from enso_api.models import StorageEntryV2
+
 # ---------------------------------------------------------------------------
 # Server control
 # ---------------------------------------------------------------------------
@@ -295,6 +297,13 @@ def get_storage():
     ]
     result["models"] = [{"label": label, "path": p, "size": dir_size(p, recursive=False)} for label, p in model_dirs if p]
 
+    # The store's own total from its rows, not a walk of its folders
+    from enso_api.media import boot as media_boot
+
+    media_store = media_boot.state.store
+    if media_store is not None:
+        result["media"] = [{"label": "Media store", "path": media_store.layout.root, "size": media_store.report().bytes}]
+
     log.debug("API: storage scan complete")
     return result
 
@@ -314,4 +323,4 @@ def register_api():
     api.add_api_route("/sdapi/v2/update/apply", post_update_apply, methods=["POST"], tags=["System"])
     api.add_api_route("/sdapi/v2/benchmark/run", post_benchmark_run, methods=["POST"], tags=["System"])
     api.add_api_route("/sdapi/v2/benchmark/results", get_benchmark_results, methods=["GET"], tags=["System"])
-    api.add_api_route("/sdapi/v2/storage", get_storage, methods=["GET"], tags=["System"])
+    api.add_api_route("/sdapi/v2/storage", get_storage, methods=["GET"], tags=["System"], response_model=dict[str, list[StorageEntryV2]])

@@ -147,11 +147,11 @@ async def get_postprocess_scripts_v2():
 
 
 def resolve_path_ref(ref: str | None) -> str:
-    """An upload ref becomes the staged file's path; anything else is returned as given."""
+    """An upload ref becomes the stored file's path; anything else is returned as given."""
     if isinstance(ref, str) and ref.startswith("upload:"):
-        from enso_api.upload import get_upload_store
+        from enso_api.media.boot import require_store
 
-        return get_upload_store().resolve_to_path(ref.removeprefix("upload:")) or ""
+        return require_store().resolve_to_path(ref.removeprefix("upload:")) or ""
     return ref or ""
 
 
