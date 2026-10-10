@@ -20,6 +20,9 @@ import { Button } from "@/components/ui/button";
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
 import { SwipeMode } from "@/components/comparison/SwipeMode";
 import { VideoPlayer } from "@/components/video/VideoPlayer";
+import { MediaImg } from "@/components/ui/media";
+import { mediaUrl } from "@/api/session";
+import { downloadMedia, failedWith } from "@/lib/mediaFiles";
 import { useKeepAliveVisible } from "@/components/ui/keep-alive";
 
 const isVideoFile = (file: File) => file.type.startsWith("video/");
@@ -94,7 +97,7 @@ export function ProcessView() {
       .getState()
       .openComparison(
         { src: inputForResult, label: "Original" },
-        { src: result.url, label: "Processed" },
+        { src: mediaUrl(result.url), label: "Processed" },
       );
   }, [result, inputForResult]);
 
@@ -123,7 +126,7 @@ export function ProcessView() {
         <div className="flex-1 min-h-0">
           <SwipeMode
             imageA={{ src: inputForResult, label: "Original" }}
-            imageB={{ src: result.url, label: "Processed" }}
+            imageB={{ src: mediaUrl(result.url), label: "Processed" }}
           />
         </div>
       </div>
@@ -248,7 +251,11 @@ export function ProcessView() {
               </div>
             ) : result ? (
               <div className="relative h-full w-full group">
-                <img src={result.url} alt="Result" className="w-full h-full object-contain" />
+                <MediaImg
+                  image={result.url}
+                  alt="Result"
+                  className="w-full h-full object-contain"
+                />
                 <div className="absolute bottom-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity flex gap-2">
                   {canCompare && (
                     <Button variant="secondary" size="sm" onClick={() => setCompareMode(true)}>
@@ -261,11 +268,18 @@ export function ProcessView() {
                       {result.width} x {result.height}
                     </span>
                   )}
-                  <a href={result.url} download className="inline-flex">
-                    <Button variant="secondary" size="icon-sm">
-                      <Download size={14} />
-                    </Button>
-                  </a>
+                  <Button
+                    variant="secondary"
+                    size="icon-sm"
+                    title="Download"
+                    onClick={() =>
+                      void downloadMedia(result.url).catch(
+                        failedWith("Could not download the result"),
+                      )
+                    }
+                  >
+                    <Download size={14} />
+                  </Button>
                 </div>
               </div>
             ) : (
@@ -281,7 +295,7 @@ export function ProcessView() {
                   className={`flex-shrink-0 size-14 rounded overflow-hidden bg-muted/30${i === selectedResult ? " ring-2 ring-primary" : " opacity-70 hover:opacity-100"}`}
                   onClick={() => setSelectedResult(i)}
                 >
-                  <img src={r.url} alt="" className="w-full h-full object-cover" />
+                  <MediaImg image={r.url} alt="" className="w-full h-full object-cover" />
                 </button>
               ))}
             </div>

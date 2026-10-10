@@ -6,14 +6,14 @@ import { useGenerationStore } from "@/stores/generationStore";
 import { useUiStore } from "@/stores/uiStore";
 import type { VideoSubTab } from "@/lib/constants";
 import { useModelSelectionStore } from "@/stores/modelSelectionStore";
-import { loadImageFile, base64ToFile } from "@/lib/image";
+import { loadImageFile } from "@/lib/image";
 import { addFilesToInputs } from "@/inputs/route";
-import { resolveImageSrc } from "@/lib/utils";
+import { mediaBlob, mediaFile } from "@/lib/mediaFiles";
 import { engineToKind } from "@/lib/videoModel";
 import type { ImagePayload } from "@/lib/drag";
 import type { LocalVideoModel } from "@/api/types/cloud";
 import type { VideoWireParams } from "@/api/types/wireParams";
-import { browserFileUrl } from "@/api/browserFile";
+import { browserFilePath } from "@/api/browserFile";
 import { VIDEO_PARAMS, WIRE_TO_STORE, coerce, type VideoJobType } from "@/lib/video/paramRegistry";
 
 export function extractFrameFromVideo(videoUrl: string, time: number): Promise<Blob> {
@@ -98,13 +98,6 @@ export function sendFrameToUpscale(blob: Blob) {
   useUiStore.getState().setNavView("process");
 }
 
-export async function fetchRemoteImage(url: string, filename = "image.png"): Promise<File> {
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`Failed to fetch image: ${res.status}`);
-  const blob = await res.blob();
-  return blobToFile(blob, filename);
-}
-
 export async function sendImageToCanvas(file: File) {
   await addFilesToInputs([file]);
   useUiStore.getState().setNavView("images");
@@ -187,21 +180,14 @@ export async function sendResultToCanvas(
   result: { images: string[] },
   imageIndex: number,
 ): Promise<void> {
-  const raw = result.images[imageIndex];
-  const src = resolveImageSrc(raw);
-  const file = await fetchRemoteImage(src, "result.png");
-  await sendImageToCanvas(file);
+  await sendImageToCanvas(await mediaFile(result.images[imageIndex], "result.png"));
 }
 
 export async function sendResultToUpscale(
   result: { images: string[] },
   imageIndex: number,
 ): Promise<void> {
-  const raw = result.images[imageIndex];
-  const src = resolveImageSrc(raw);
-  const res = await fetch(src);
-  const blob = await res.blob();
-  sendFrameToUpscale(blob);
+  sendFrameToUpscale(await mediaBlob(result.images[imageIndex]));
 }
 
 /** The picture a drag from a result or the gallery carries, as a file.
@@ -212,21 +198,11 @@ export async function payloadToFile(payload: ImagePayload): Promise<File> {
       const result = useGenerationStore.getState().results.find((r) => r.id === payload.resultId);
       const raw = result?.images[payload.imageIndex];
       if (!raw) throw new Error("That result is no longer on the strip");
-      const src = resolveImageSrc(raw);
-      if (
-        src.startsWith("data:") ||
-        src.startsWith("blob:") ||
-        src.startsWith("/") ||
-        src.startsWith("http")
-      ) {
-        return fetchRemoteImage(src, "result.png");
-      }
-      // Raw base64 (no data: prefix)
-      return base64ToFile(raw, "result.png");
+      return mediaFile(raw, "result.png");
     }
     case "gallery-image":
-      return fetchRemoteImage(
-        browserFileUrl(payload.filePath),
+      return mediaFile(
+        browserFilePath(payload.filePath),
         payload.filePath.split("/").pop() ?? "gallery.png",
       );
   }

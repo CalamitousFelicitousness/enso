@@ -5,11 +5,13 @@ import threading
 import time
 import uuid
 
-from fastapi import APIRouter, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 from modules.logger import log
 from PIL import Image
 from pydantic import BaseModel
+
+from enso_api.session import media_auth
 
 REF_PREFIX = "upload:"
 FILE_PATTERN = re.compile(r"^([0-9a-f]{16})\.[A-Za-z0-9]+$")
@@ -215,6 +217,7 @@ MAX_FILE_SIZE = 50 * 1024 * 1024  # 50MB
 MAX_FILES_PER_REQUEST = 20
 
 upload_router = APIRouter(prefix="/sdapi/v2", tags=["Upload"])
+upload_media_router = APIRouter(prefix="/sdapi/v2", tags=["Upload"], dependencies=[Depends(media_auth)])
 
 
 IMAGE_SIGNATURES = {
@@ -266,7 +269,7 @@ async def upload_files(files: list[UploadFile]):
     return UploadResponse(uploads=refs)
 
 
-@upload_router.get("/uploads/{ref_id}")
+@upload_media_router.get("/uploads/{ref_id}")
 async def get_upload(ref_id: str):
     store = get_upload_store()
     entry = store.get(ref_id)

@@ -33,12 +33,14 @@ export type ProcessSections = {
 };
 
 export interface ProcessResultImage {
+  /** The server's output URL; load it through mediaUrl or MediaImg. */
   url: string;
   width: number;
   height: number;
 }
 
 export interface ProcessResultVideo {
+  /** The server's output URL; load it through mediaUrl or VideoPlayer. */
   url: string;
   width: number;
   height: number;

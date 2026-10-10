@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Play, Pause, Maximize, Minimize, SkipBack, SkipForward } from "lucide-react";
-import { cn, resolveImageSrc } from "@/lib/utils";
+import { cn } from "@/lib/utils";
+import { MediaImg, MediaVideo } from "@/components/ui/media";
 import { compareLabel } from "@/lib/video/resultLabel";
 import { isStillResult } from "@/lib/video/results";
 import { DEFAULT_FPS } from "./VideoPlayer";
@@ -20,8 +21,6 @@ function formatTime(seconds: number): string {
 }
 
 export function VideoCompare({ left, right }: VideoCompareProps) {
-  const leftSrc = resolveImageSrc(left.videoUrl);
-  const rightSrc = resolveImageSrc(right.videoUrl);
   const leftStill = isStillResult(left);
   const rightStill = isStillResult(right);
   // Stepping across two clips of different rates has no single answer, so the
@@ -120,7 +119,7 @@ export function VideoCompare({ left, right }: VideoCompareProps) {
       left.removeEventListener("play", onPlay);
       left.removeEventListener("pause", onPause);
     };
-  }, [leftSrc, rightSrc]);
+  }, [left.videoUrl, right.videoUrl]);
 
   useEffect(() => {
     const handleFsChange = () => setIsFullscreen(!!document.fullscreenElement);
@@ -183,11 +182,11 @@ export function VideoCompare({ left, right }: VideoCompareProps) {
       <div className="flex-1 flex min-h-0">
         <div className="flex-1 relative">
           {leftStill ? (
-            <img src={leftSrc} alt="" className="w-full h-full object-contain" />
+            <MediaImg image={left.videoUrl} alt="" className="w-full h-full object-contain" />
           ) : (
-            <video
+            <MediaVideo
               ref={leftRef}
-              src={leftSrc}
+              video={left.videoUrl}
               loop
               muted
               className="w-full h-full object-contain"
@@ -201,11 +200,11 @@ export function VideoCompare({ left, right }: VideoCompareProps) {
         <div className="w-px bg-border flex-shrink-0" />
         <div className="flex-1 relative">
           {rightStill ? (
-            <img src={rightSrc} alt="" className="w-full h-full object-contain" />
+            <MediaImg image={right.videoUrl} alt="" className="w-full h-full object-contain" />
           ) : (
-            <video
+            <MediaVideo
               ref={rightRef}
-              src={rightSrc}
+              video={right.videoUrl}
               loop
               muted
               className="w-full h-full object-contain"

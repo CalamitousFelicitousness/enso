@@ -1,6 +1,7 @@
 import { memo, useCallback, useRef } from "react";
 import type { GalleryFile, CachedThumb } from "@/api/types/gallery";
-import { browserFileUrl } from "@/api/browserFile";
+import { browserFilePath } from "@/api/browserFile";
+import { mediaUrl } from "@/api/session";
 import { useGalleryStore } from "@/stores/galleryStore";
 import { useDragSource } from "@/hooks/useDragSource";
 import { isVideoFile } from "@/lib/mediaType";
@@ -50,7 +51,7 @@ export const GalleryCard = memo(function GalleryCard({
     hoverTimer.current = setTimeout(() => {
       const el = videoRef.current;
       if (!el) return;
-      el.src = browserFileUrl(file.fullPath);
+      el.src = mediaUrl(browserFilePath(file.fullPath));
       el.play().catch(() => {});
     }, HOVER_DELAY);
   }, [isVideo, file.fullPath]);

@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { api } from "@/api/client";
+import { renewForSocket, socketUrl } from "@/api/session";
 import { WebSocketManager } from "@/api/websocket";
 import { useJobQueueStore, type TrackedJob } from "@/stores/jobStore";
 import { useGenerationStore } from "@/stores/generationStore";
@@ -103,18 +103,17 @@ export async function routeResult(
         );
       }
     } else if (domain === "process" || domain === "upscale" || domain === "rembg") {
-      const base = api.getBaseUrl();
       const vid = result.videos?.[0];
       const info = result.info?.["postprocessing"];
       useProcessStore.getState().setResults(
         result.images.map((img) => ({
-          url: `${base}${img.url}`,
+          url: img.url,
           width: img.width,
           height: img.height,
         })),
         vid
           ? {
-              url: `${base}${vid.url}`,
+              url: vid.url,
               width: vid.width,
               height: vid.height,
               duration: vid.duration,
@@ -181,9 +180,10 @@ export function useJobTracker() {
       const toOpen = nonTerminal.slice(0, Math.max(0, slotsAvailable));
 
       for (const job of toOpen) {
-        const wsUrl = api.getWebSocketUrl(`/sdapi/v2/jobs/${job.id}/ws`);
-        const manager = new WebSocketManager(wsUrl, () => api.getWsTicket());
         const jobId = job.id;
+        const manager = new WebSocketManager(() => socketUrl(`/sdapi/v2/jobs/${jobId}/ws`), {
+          onRefused: renewForSocket,
+        });
 
         const offMessage = manager.on("message", (raw: unknown) => {
           const data = raw as JobWsEvent;

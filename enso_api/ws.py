@@ -6,6 +6,7 @@ from fastapi import WebSocket, WebSocketDisconnect
 from modules.logger import log
 
 from enso_api.models import JobResult
+from enso_api.session import admit_socket
 from enso_api.ws_models import (
     WsEventAck,
     WsEventCancelled,
@@ -17,25 +18,16 @@ from enso_api.ws_models import (
 
 
 async def ws_job_endpoint(ws: WebSocket, job_id: str):
-    from modules import shared
-
-    if shared.cmd_opts.auth or shared.cmd_opts.auth_file:
-        try:
-            from modules.api.security import ws_tickets
-        except ImportError:
-            from enso_api.security_stubs import ws_tickets
-        ticket = ws.query_params.get("ticket")
-        if not ticket or not ws_tickets.validate(ticket):
-            await ws.close(code=1008, reason="Invalid or expired ticket")
-            return
+    if not await admit_socket(ws):
+        return
 
     from enso_api.job_queue import job_queue
 
+    await ws.accept()
+    # Closed after the accept: a socket closed before it fails its handshake, and the browser sees 1006
     if job_queue.store.get(job_id) is None:
         await ws.close(code=4004, reason="Job not found")
         return
-
-    await ws.accept()
     # Subscribed before the state is read: an end after the read arrives on the queue
     queue = job_queue.subscribe(job_id)
     job = job_queue.store.get(job_id)

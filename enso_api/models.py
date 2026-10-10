@@ -708,6 +708,23 @@ class ResServerInfoV2(BaseModel):
     extension: ExtensionVersionV2 = Field(default_factory=ExtensionVersionV2)
 
 
+# --- Session models (v2) ---
+
+
+class ResSessionV2(BaseModel):
+    required: bool
+    """Whether the server asks for credentials; no session is issued when it does not."""
+    token: str | None = None
+    """What the enso-session cookie carries; a page on another origin sends it as ?t= on GET media URLs."""
+    expires_at: int | None = None
+    """Epoch milliseconds."""
+    user: str | None = None
+
+
+class ResWsTicketV2(BaseModel):
+    ticket: str
+
+
 # --- Memory models (v2) ---
 
 

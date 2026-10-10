@@ -27,7 +27,6 @@ import {
   sendLastFrameToInit,
   sendLastFrameToLast,
 } from "@/lib/video/resultActions";
-import { resolveImageSrc } from "@/lib/utils";
 import { isStillResult } from "@/lib/video/results";
 import { useActiveVideoCaps } from "@/hooks/useActiveVideoCaps";
 import type { VideoResult } from "@/api/types/video";
@@ -39,7 +38,6 @@ interface VideoResultActionsProps {
 export function VideoResultActions({ result }: VideoResultActionsProps) {
   const [framePickerOpen, setFramePickerOpen] = useState(false);
   const [diffOpen, setDiffOpen] = useState(false);
-  const videoSrc = resolveImageSrc(result.videoUrl);
   const still = isStillResult(result);
   const caps = useActiveVideoCaps();
   const lastSlotAvailable = caps.last_image !== "ignored";
@@ -99,7 +97,7 @@ export function VideoResultActions({ result }: VideoResultActionsProps) {
       </DropdownMenu>
 
       <FramePickerDialog
-        videoUrl={videoSrc}
+        videoUrl={result.videoUrl}
         fps={result.fps}
         open={framePickerOpen}
         onOpenChange={setFramePickerOpen}

@@ -9916,6 +9916,52 @@
         "title": "ResServerInfoV2",
         "type": "object"
       },
+      "ResSessionV2": {
+        "properties": {
+          "expires_at": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires At"
+          },
+          "required": {
+            "title": "Required",
+            "type": "boolean"
+          },
+          "token": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Token"
+          },
+          "user": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User"
+          }
+        },
+        "required": [
+          "required"
+        ],
+        "title": "ResSessionV2",
+        "type": "object"
+      },
       "ResSetCheckpointV2": {
         "properties": {
           "checkpoint": {
@@ -10103,6 +10149,19 @@
           "ok"
         ],
         "title": "ResVqaV2",
+        "type": "object"
+      },
+      "ResWsTicketV2": {
+        "properties": {
+          "ticket": {
+            "title": "Ticket",
+            "type": "string"
+          }
+        },
+        "required": [
+          "ticket"
+        ],
+        "title": "ResWsTicketV2",
         "type": "object"
       },
       "ResXyzAxes": {
@@ -18750,6 +18809,28 @@
         ]
       }
     },
+    "/sdapi/v2/session": {
+      "post": {
+        "description": "Issue a session for the caller sdnext admitted, as the enso-session cookie and in the body.",
+        "operationId": "post_session_sdapi_v2_session_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResSessionV2"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Post Session",
+        "tags": [
+          "Session"
+        ]
+      }
+    },
     "/sdapi/v2/storage": {
       "get": {
         "description": "Return disk usage grouped by category.",
@@ -19238,13 +19319,15 @@
     },
     "/sdapi/v2/ws-ticket": {
       "post": {
-        "description": "Create a one-time WebSocket authentication ticket.",
+        "description": "A single-use ticket for one socket opened from another origin, valid 60 s.",
         "operationId": "post_ws_ticket_sdapi_v2_ws_ticket_post",
         "responses": {
           "200": {
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/ResWsTicketV2"
+                }
               }
             },
             "description": "Successful Response"
@@ -19252,6 +19335,7 @@
         },
         "summary": "Post Ws Ticket",
         "tags": [
+          "Session",
           "WebSocket"
         ]
       }

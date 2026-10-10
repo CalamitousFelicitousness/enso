@@ -6,7 +6,7 @@ import time
 import zipfile
 from urllib.parse import quote, unquote
 
-from fastapi import FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from modules import files_cache, images, modelstats, shared
 from modules.logger import log
@@ -16,6 +16,7 @@ from pydantic import BaseModel, Field  # pylint: disable=no-name-in-module
 from starlette.websockets import WebSocket, WebSocketState
 
 from enso_api.routes import MEDIA_TYPES
+from enso_api.session import admit_socket, media_auth
 from enso_api.video_result import sibling_thumb
 
 debug = log.debug if os.environ.get("SD_BROWSER_DEBUG", None) is not None else lambda *args, **kwargs: None
@@ -461,7 +462,7 @@ def register_api(app: FastAPI):  # register api
 
     shared.api.add_api_route("/sdapi/v2/browser/folders", get_folders, methods=["GET"], response_model=list[str], tags=["Gallery"])
     shared.api.add_api_route("/sdapi/v2/browser/thumb", get_thumb, methods=["GET"], response_model=dict, tags=["Gallery"])
-    shared.api.add_api_route("/sdapi/v2/browser/file", get_file, methods=["GET"], response_class=FileResponse, tags=["Gallery"])
+    shared.api.add_api_route("/sdapi/v2/browser/file", get_file, methods=["GET"], auth=False, dependencies=[Depends(media_auth)], response_class=FileResponse, tags=["Gallery"])
     shared.api.add_api_route("/sdapi/v2/browser/files", ht_files, methods=["GET"], response_model=list, tags=["Gallery"])
     shared.api.add_api_route("/sdapi/v2/browser/folder-info", get_folder_info, methods=["GET"], tags=["Gallery"])
     shared.api.add_api_route("/sdapi/v2/browser/subdirs", get_subdirs, methods=["GET"], tags=["Gallery"])
@@ -471,15 +472,8 @@ def register_api(app: FastAPI):  # register api
 
     @app.websocket("/sdapi/v2/browser/files")
     async def ws_files(ws: WebSocket):
-        if shared.cmd_opts.auth or shared.cmd_opts.auth_file:
-            try:
-                from modules.api.security import ws_tickets
-            except ImportError:
-                from enso_api.security_stubs import ws_tickets
-            ticket = ws.query_params.get("ticket")
-            if not ticket or not ws_tickets.validate(ticket):
-                await ws.close(code=1008, reason="Invalid or expired ticket")
-                return
+        if not await admit_socket(ws):
+            return
         try:
             await manager.connect(ws)
             folder = await ws.receive_text()

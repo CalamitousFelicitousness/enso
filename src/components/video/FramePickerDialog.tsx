@@ -9,8 +9,10 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
+import { MediaVideo } from "@/components/ui/media";
 
 interface FramePickerDialogProps {
+  /** The stored server URL, loaded with the session. */
   videoUrl: string;
   fps?: number | null | undefined;
   open: boolean;
@@ -112,10 +114,9 @@ export function FramePickerDialog({
         </DialogHeader>
 
         <div className="flex flex-col gap-3">
-          {/* eslint-disable-next-line jsx-a11y/media-has-caption -- generated video has no caption track */}
-          <video
+          <MediaVideo
             ref={videoRef}
-            src={videoUrl}
+            video={videoUrl}
             className="w-full rounded bg-black"
             onLoadedMetadata={handleLoadedMetadata}
             onTimeUpdate={handleTimeUpdate}

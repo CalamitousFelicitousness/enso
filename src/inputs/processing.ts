@@ -4,7 +4,7 @@
 // cache. The one outline fix that runs a job lives here too.
 
 import { toast } from "sonner";
-import { api } from "@/api/client";
+import { fetchMedia } from "@/api/session";
 import type { PreprocessItem, PreprocessJobParams } from "@/api/types/v2";
 import { fixRunsJob } from "@/lib/inputs/problems";
 import {
@@ -124,9 +124,7 @@ const installing = new Map<string, Promise<void>>();
 
 async function fetchAndInstall(key: string, url: string): Promise<void> {
   try {
-    const response = await fetch(`${api.getBaseUrl()}${url}`, {
-      headers: api.getAuthHeaders(),
-    });
+    const response = await fetchMedia(url);
     if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
     await installMap(key, await response.blob());
   } catch (err) {

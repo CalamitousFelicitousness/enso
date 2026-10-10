@@ -1,5 +1,6 @@
 import { Film, X } from "lucide-react";
-import { cn, resolveImageSrc } from "@/lib/utils";
+import { cn } from "@/lib/utils";
+import { MediaImg } from "@/components/ui/media";
 import { resultMeta } from "@/lib/video/resultLabel";
 import type { VideoResult } from "@/api/types/video";
 import type { CompareSlot } from "@/stores/videoStore";
@@ -35,8 +36,8 @@ export function CompareSlotTile({ slot, result, height, onClear }: CompareSlotTi
       )}
     >
       {result.thumbnailUrl ? (
-        <img
-          src={resolveImageSrc(result.thumbnailUrl)}
+        <MediaImg
+          image={result.thumbnailUrl}
           alt=""
           loading="lazy"
           decoding="async"

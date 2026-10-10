@@ -32,6 +32,7 @@ import type { ColorMode, CanvasBackground as CanvasBg } from "@/stores/uiStore";
 import { useConnectionStore } from "@/stores/connectionStore";
 import { api } from "@/api/client";
 import { ws } from "@/api/wsManager";
+import { startSession } from "@/api/session";
 import { queryClient } from "@/api/queryClient";
 
 const CONNECTION_SECTION_ID = "__connection";
@@ -437,6 +438,8 @@ function ConnectionPanel() {
       storeSetAuth(user, pass);
       if (user && pass) api.setAuth(user, pass);
       else api.clearAuth();
+      void startSession();
+      ws.restart();
     },
     [storeSetAuth],
   );
@@ -445,7 +448,8 @@ function ConnectionPanel() {
     const effectiveUrl = urlInput.replace(/\/$/, "") || window.location.origin;
     api.setBaseUrl(effectiveUrl);
     storeSetUrl(urlInput.replace(/\/$/, ""));
-    ws.updateUrl(api.getWebSocketUrl("/sdapi/v2/ws"));
+    void startSession();
+    ws.restart();
     void queryClient.invalidateQueries();
     await checkConnection(effectiveUrl);
     toast.success("Connection updated");
@@ -455,7 +459,8 @@ function ConnectionPanel() {
     storeReset();
     api.setBaseUrl(window.location.origin);
     api.clearAuth();
-    ws.updateUrl(api.getWebSocketUrl("/sdapi/v2/ws"));
+    void startSession();
+    ws.restart();
     void queryClient.invalidateQueries();
     setStatus("connected");
     setEditingAuth(false);

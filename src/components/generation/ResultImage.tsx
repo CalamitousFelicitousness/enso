@@ -1,6 +1,6 @@
-import { useState } from "react";
 import { ImageOff } from "lucide-react";
-import { cn, resolveImageSrc } from "@/lib/utils";
+import { cn } from "@/lib/utils";
+import { useMediaSrc } from "@/hooks/useMediaSrc";
 
 interface ResultImageProps {
   /** Durable output URL, data URI, blob URL, or raw base64. */
@@ -18,16 +18,9 @@ interface ResultImageProps {
  * A broken-image glyph reads as a bug; this reads as a fact about the file.
  */
 export function ResultImage({ image, alt, className, compact }: ResultImageProps) {
-  const [failed, setFailed] = useState(false);
-  // Reset while rendering rather than in an effect, so a changed image never
-  // paints one frame of the previous tile's failure state.
-  const [seen, setSeen] = useState(image);
-  if (seen !== image) {
-    setSeen(image);
-    setFailed(false);
-  }
+  const media = useMediaSrc(image);
 
-  if (failed) {
+  if (media.failed) {
     return (
       <div
         title={`${alt} - source no longer available`}
@@ -42,12 +35,5 @@ export function ResultImage({ image, alt, className, compact }: ResultImageProps
     );
   }
 
-  return (
-    <img
-      src={resolveImageSrc(image)}
-      alt={alt}
-      className={className}
-      onError={() => setFailed(true)}
-    />
-  );
+  return <img src={media.src} alt={alt} className={className} onError={media.onError} />;
 }

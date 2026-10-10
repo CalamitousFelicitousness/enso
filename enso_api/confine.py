@@ -59,16 +59,32 @@ def allowed_output_roots() -> list[str]:
     return sorted(roots)
 
 
+def is_confined_to(path: str, allowed_roots) -> bool:
+    """Whether `path` resolves inside one of `allowed_roots`.
+
+    Compared with commonpath, not a string prefix: a raw startswith accepts
+    the sibling `/outputs-evil` for root `/outputs`. commonpath matches whole
+    components, keeps `path == root` valid, and realpath strips trailing
+    separators. ValueError means the pair is not comparable (mixed
+    absolute/relative), which is never confined.
+    """
+    path = os.path.realpath(path)
+    for root in allowed_roots:
+        root = os.path.realpath(root)
+        try:
+            if os.path.commonpath([path, root]) == root:
+                return True
+        except ValueError:
+            continue
+    return False
+
+
 def confined_to_outputs(file_path: str) -> bool:
     """True when `file_path` resolves inside the allowed output roots.
 
     An empty root set (options unavailable) confines nothing and allows
     everything, preserving the historical behavior of the file routes.
     """
-    try:
-        from modules.api.security import is_confined_to
-    except ImportError:
-        from enso_api.security_stubs import is_confined_to
     allowed = allowed_output_roots()
     if not allowed:
         return True

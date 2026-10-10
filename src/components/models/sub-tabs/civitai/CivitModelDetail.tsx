@@ -90,13 +90,13 @@ import {
   quantFormatLabel,
 } from "@/lib/civitai";
 import {
-  fetchRemoteImage,
   sendImageToCanvas,
   sendFrameToVideoInit,
   sendPromptToGeneration,
   sendPromptToVideo,
   appendToGenerationPrompt,
 } from "@/lib/sendTo";
+import { mediaFile } from "@/lib/mediaFiles";
 
 interface CivitModelDetailProps {
   modelId: number | null;
@@ -879,7 +879,7 @@ function ImageLightbox({
                   onClick={() => {
                     void (async () => {
                       try {
-                        const file = await fetchRemoteImage(fullUrl);
+                        const file = await mediaFile(fullUrl, "image.png");
                         await sendImageToCanvas(file);
                         onCloseAll();
                         toast.success("Sent to Canvas");
@@ -896,7 +896,7 @@ function ImageLightbox({
                   onClick={() => {
                     void (async () => {
                       try {
-                        const file = await fetchRemoteImage(fullUrl);
+                        const file = await mediaFile(fullUrl, "image.png");
                         const blob = new Blob([await file.arrayBuffer()], {
                           type: file.type,
                         });
@@ -945,7 +945,7 @@ function ImageLightbox({
                       onClick={() => {
                         void (async () => {
                           try {
-                            const file = await fetchRemoteImage(fullUrl);
+                            const file = await mediaFile(fullUrl, "image.png");
                             await sendImageToCanvas(file);
                             sendPromptToGeneration(
                               meta["prompt"] as string,

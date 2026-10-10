@@ -56,13 +56,6 @@ export async function loadImageFile(file: File): Promise<LoadedImageFile> {
   };
 }
 
-export function base64ToFile(base64: string, name: string, mimeType = "image/png"): File {
-  const byteChars = atob(base64);
-  const bytes = new Uint8Array(byteChars.length);
-  for (let i = 0; i < byteChars.length; i++) bytes[i] = byteChars.charCodeAt(i);
-  return new File([bytes], name, { type: mimeType });
-}
-
 /** Strip `data:...;base64,` prefix from a data URI, returning raw base64. */
 export function stripDataPrefix(dataUri: string): string {
   const idx = dataUri.indexOf(",");

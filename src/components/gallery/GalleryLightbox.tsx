@@ -6,7 +6,9 @@ import { useKeepAliveVisible } from "@/components/ui/keep-alive";
 import { useDragSource } from "@/hooks/useDragSource";
 import { useImageZoomPan } from "@/hooks/useImageZoomPan";
 import { isVideoFile } from "@/lib/mediaType";
-import { browserFileUrl } from "@/api/browserFile";
+import { browserFilePath } from "@/api/browserFile";
+import { mediaUrl } from "@/api/session";
+import { MediaImg } from "@/components/ui/media";
 import { VideoPlayer } from "@/components/video/VideoPlayer";
 import {
   X,
@@ -43,7 +45,7 @@ export function GalleryLightbox() {
   // Full-size image URL
   const fullUrl = useMemo(() => {
     if (!file) return null;
-    return browserFileUrl(file.fullPath);
+    return browserFilePath(file.fullPath);
   }, [file]);
 
   const lightboxDrag = useDragSource(
@@ -77,12 +79,15 @@ export function GalleryLightbox() {
     const sortedFiles = useGalleryStore.getState().sortedFiles;
     const nextFile = sortedFiles[nextIndex];
     if (!nextFile) return;
-    const nextUrl = browserFileUrl(nextFile.fullPath);
+    const nextUrl = browserFilePath(nextFile.fullPath);
     const aName = file?.relativePath.split("/").pop() ?? "Image A";
     const bName = nextFile.relativePath.split("/").pop() ?? "Image B";
     useComparisonStore
       .getState()
-      .openComparison({ src: fullUrl, label: aName }, { src: nextUrl, label: bName });
+      .openComparison(
+        { src: mediaUrl(fullUrl), label: aName },
+        { src: mediaUrl(nextUrl), label: bName },
+      );
   }, [fullUrl, lightboxIndex, maxIndex, file]);
 
   // Keyboard shortcuts (scoped to "lightbox", only active when open AND the
@@ -177,8 +182,8 @@ export function GalleryLightbox() {
           onClick={(e) => e.stopPropagation()}
         >
           {fullUrl && (
-            <img
-              src={fullUrl}
+            <MediaImg
+              image={fullUrl}
               alt={filename}
               className="max-w-full max-h-full object-contain transition-transform duration-100"
               style={{ transform: zoom.style.transform }}

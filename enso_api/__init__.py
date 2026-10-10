@@ -13,8 +13,9 @@ def register_api(app, dependencies=None):
 
     from enso_api.job_queue import job_queue
     from enso_api.job_types import validate_registries
-    from enso_api.routes import router
-    from enso_api.upload import init_upload_store, upload_router
+    from enso_api.routes import media_router, router
+    from enso_api.session import router as session_router
+    from enso_api.upload import init_upload_store, upload_media_router, upload_router
     from enso_api.ws import ws_job_endpoint
 
     deps = dependencies or []
@@ -69,6 +70,10 @@ def register_api(app, dependencies=None):
 
     app.include_router(router, dependencies=deps)
     app.include_router(upload_router, dependencies=deps)
+    app.include_router(session_router, dependencies=deps)
+    # Media routers carry their own auth: the session cookie, else what sdnext's auth admits
+    app.include_router(media_router)
+    app.include_router(upload_media_router)
     app.add_api_websocket_route("/sdapi/v2/jobs/{job_id}/ws", ws_job_endpoint)
 
     from enso_api.endpoints import router as endpoints_router
@@ -120,7 +125,7 @@ def register_api(app, dependencies=None):
 
     register_loaded_models()
 
-    # Misc v2 routes (HuggingFace, extra-networks detail, ws-ticket)
+    # Misc v2 routes (HuggingFace, extra-networks detail)
     from enso_api.misc_routes import register_misc_routes
 
     register_misc_routes(app, shared.api.add_api_route)
@@ -145,6 +150,7 @@ def register_api(app, dependencies=None):
                 "/sdapi/v2/loaded-models": -1,
                 "/sdapi/v2/jobs/stats": -1,
                 "/sdapi/v2/jobs/bulk": -1,
+                "/sdapi/v2/session": -1,
             }
         )
     except ImportError:
@@ -174,6 +180,7 @@ def register_api(app, dependencies=None):
             "/sdapi/v2/jobs/stats": 0,
             "/sdapi/v2/jobs/bulk": 5,
             "/sdapi/v2/ws-ticket": 0,
+            "/sdapi/v2/session": 0,
             "/sdapi/v2/extra-networks/detail": 0,
             "/sdapi/v2/extra-networks/details": 0,
             "/sdapi/v2/uploads/{ref_id}": 0,  # dormant until route-template keys

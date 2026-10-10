@@ -11,6 +11,7 @@ from fastapi import HTTPException
 from modules import shared
 from modules.logger import log
 
+from enso_api.confine import is_confined_to
 from enso_api.models import (
     ReqCivitaiDownloadV2,
     ReqHfDownloadV2,
@@ -194,13 +195,8 @@ def post_civitai_download(req: ReqCivitaiDownloadV2):
     from modules.civitai.download_civitai import download_manager
     from modules.civitai.filemanage_civitai import get_type_folder
 
-    try:
-        from modules.api.security import is_confined_to, validate_download_url
-    except ImportError:
-        from enso_api.security_stubs import is_confined_to, validate_download_url
     if not req.url:
         return {"status": "Error: no url provided"}
-    validate_download_url(req.url)
     if not req.path:
         folder = str(get_type_folder(req.model_type or "Checkpoint"))
     elif os.path.isabs(req.path):
@@ -272,10 +268,6 @@ def get_model_probe(path: str):
     from modules import model_probe
     from modules.civitai.filemanage_civitai import iter_type_roots
 
-    try:
-        from modules.api.security import is_confined_to
-    except ImportError:
-        from enso_api.security_stubs import is_confined_to
     roots = [str(r) for r in iter_type_roots()]
     if not path or not is_confined_to(path, roots):
         return model_probe.error_result("unknown", "path outside model directories", "denied")
@@ -400,10 +392,6 @@ def audit_fix_plans(paths):
     from modules import files_cache, model_probe
     from modules.civitai.filemanage_civitai import iter_type_roots
 
-    try:
-        from modules.api.security import is_confined_to
-    except ImportError:
-        from enso_api.security_stubs import is_confined_to
     roots = [str(r) for r in iter_type_roots()]
     if paths:
         candidates = [p for p in paths if is_confined_to(p, roots) and os.path.isfile(p)]

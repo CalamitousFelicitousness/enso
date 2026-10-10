@@ -1,6 +1,4 @@
-import { api } from "./client";
-
-/** Full-size gallery file URL, served by the backend's gallery-confined route. */
-export function browserFileUrl(fullPath: string): string {
-  return `${api.getBaseUrl()}/sdapi/v2/browser/file?path=${encodeURIComponent(fullPath)}`;
+/** A gallery file's path on the server's gallery-confined route; load it through mediaUrl or useMediaSrc. */
+export function browserFilePath(fullPath: string): string {
+  return `/sdapi/v2/browser/file?path=${encodeURIComponent(fullPath)}`;
 }

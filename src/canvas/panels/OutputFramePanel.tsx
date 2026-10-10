@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button";
 import { useGenerationStore } from "@/stores/generationStore";
 import { useCanvasStore } from "@/stores/canvasStore";
 import { addFilesToInputs } from "@/inputs/route";
-import { downloadImage, generateImageFilename, resolveImageSrc } from "@/lib/utils";
+import { generateImageFilename } from "@/lib/utils";
+import { downloadMedia, failedWith, mediaFile } from "@/lib/mediaFiles";
 import type { GenerationInfo } from "@/api/types/generation";
 import { pickedSeeds } from "@/lib/request/restoreParams";
 import { JobWarnings } from "@/components/generation/JobWarnings";
@@ -75,20 +76,17 @@ export function OutputFramePanel({
 
   const handleSendToInput = useCallback(async () => {
     if (!selectedResult || selectedImageIndex === null) return;
-    const imageUrl = selectedResult.images[selectedImageIndex];
-    if (!imageUrl) return;
-    const resp = await fetch(imageUrl);
-    const blob = await resp.blob();
-    await addFilesToInputs([new File([blob], "from-output.png", { type: "image/png" })]);
+    const image = selectedResult.images[selectedImageIndex];
+    if (!image) return;
+    await addFilesToInputs([await mediaFile(image, "from-output.png")]);
   }, [selectedResult, selectedImageIndex]);
 
   const handleDownload = useCallback(() => {
     if (!selectedResult || selectedImageIndex === null) return;
-    const raw = selectedResult.images[selectedImageIndex];
-    if (!raw) return;
-    const src = resolveImageSrc(raw);
+    const image = selectedResult.images[selectedImageIndex];
+    if (!image) return;
     const filename = generateImageFilename(selectedResult.info, selectedImageIndex);
-    void downloadImage(src, filename);
+    downloadMedia(image, filename).catch(failedWith("Could not download the image"));
   }, [selectedResult, selectedImageIndex]);
 
   const actions = (
@@ -107,7 +105,9 @@ export function OutputFramePanel({
       <Button
         variant="ghost"
         size="icon-xs"
-        onClick={() => void handleSendToInput()}
+        onClick={() =>
+          void handleSendToInput().catch(failedWith("Could not send the image to the inputs"))
+        }
         disabled={!hasSelectedImage}
         title="Send selected output to Input frame"
         className="text-muted-foreground hover:bg-white/5 disabled:opacity-30"

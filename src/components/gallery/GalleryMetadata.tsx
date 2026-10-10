@@ -3,8 +3,11 @@ import { useGalleryStore } from "@/stores/galleryStore";
 import { useGenerationStore } from "@/stores/generationStore";
 import { applyParams } from "@/lib/request/restore";
 import { parseGenerationInfo } from "@/lib/parseGenerationInfo";
-import { sendImageToCanvas, sendPromptToGeneration, fetchRemoteImage } from "@/lib/sendTo";
-import { browserFileUrl } from "@/api/browserFile";
+import { sendImageToCanvas, sendPromptToGeneration } from "@/lib/sendTo";
+import { downloadMedia, failedWith, mediaFile } from "@/lib/mediaFiles";
+import { browserFilePath } from "@/api/browserFile";
+import { mediaUrl } from "@/api/session";
+import { MediaImg, MediaVideo } from "@/components/ui/media";
 import { isVideoFile } from "@/lib/mediaType";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -81,7 +84,7 @@ export function GalleryMetadata() {
   }
 
   const filename = selectedFile.relativePath.split("/").pop() ?? selectedFile.relativePath;
-  const fullUrl = browserFileUrl(selectedFile.fullPath);
+  const fullUrl = browserFilePath(selectedFile.fullPath);
 
   const formatSize = (bytes: number) => {
     if (bytes < 1024) return `${bytes} B`;
@@ -124,7 +127,7 @@ export function GalleryMetadata() {
   };
 
   const handleSendToCanvas = async () => {
-    const file = await fetchRemoteImage(fullUrl, filename);
+    const file = await mediaFile(fullUrl, filename);
     await sendImageToCanvas(file);
   };
 
@@ -140,15 +143,15 @@ export function GalleryMetadata() {
       <div className="flex-1 min-h-20 p-3 pb-0">
         <div className="rounded-md overflow-hidden border border-border bg-muted h-full">
           {isVideo ? (
-            <video
-              src={fullUrl}
+            <MediaVideo
+              video={fullUrl}
               poster={selectedThumb.data}
               controls
               muted
               className="w-full h-full object-contain"
             />
           ) : (
-            <img src={fullUrl} alt={filename} className="w-full h-full object-contain" />
+            <MediaImg image={fullUrl} alt={filename} className="w-full h-full object-contain" />
           )}
         </div>
       </div>
@@ -258,7 +261,11 @@ export function GalleryMetadata() {
                 variant="outline"
                 size="sm"
                 className="w-full h-6 text-2xs justify-start gap-2"
-                onClick={() => void handleSendToCanvas()}
+                onClick={() =>
+                  void handleSendToCanvas().catch(
+                    failedWith("Could not send the image to the canvas"),
+                  )
+                }
               >
                 <Paintbrush size={12} /> Send to canvas
               </Button>
@@ -279,7 +286,7 @@ export function GalleryMetadata() {
               className="w-full h-6 text-2xs justify-start gap-2"
               asChild
             >
-              <a href={fullUrl} target="_blank" rel="noopener noreferrer">
+              <a href={mediaUrl(fullUrl)} target="_blank" rel="noopener noreferrer">
                 <ExternalLink size={12} /> Open full size
               </a>
             </Button>
@@ -287,11 +294,13 @@ export function GalleryMetadata() {
               variant="outline"
               size="sm"
               className="w-full h-6 text-2xs justify-start gap-2"
-              asChild
+              onClick={() =>
+                void downloadMedia(fullUrl, filename).catch(
+                  failedWith("Could not download the file"),
+                )
+              }
             >
-              <a href={fullUrl} download={filename}>
-                <Download size={12} /> Download
-              </a>
+              <Download size={12} /> Download
             </Button>
           </div>
         </div>

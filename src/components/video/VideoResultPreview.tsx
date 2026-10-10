@@ -1,6 +1,6 @@
 import { createPortal } from "react-dom";
 import { Film } from "lucide-react";
-import { resolveImageSrc } from "@/lib/utils";
+import { MediaImg } from "@/components/ui/media";
 import { resultMeta } from "@/lib/video/resultLabel";
 import type { VideoResult } from "@/api/types/video";
 
@@ -29,8 +29,8 @@ export function VideoResultPreview({ result, anchorRect }: VideoResultPreviewPro
     >
       <div className="overflow-hidden rounded-lg border border-border bg-popover shadow-xl">
         {result.thumbnailUrl ? (
-          <img
-            src={resolveImageSrc(result.thumbnailUrl)}
+          <MediaImg
+            image={result.thumbnailUrl}
             alt=""
             className="max-h-64 w-64 bg-black object-contain"
           />

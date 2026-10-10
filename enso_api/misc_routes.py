@@ -1,6 +1,6 @@
 """Miscellaneous v2 routes extracted from modules/api/api.py.
 
-Contains HuggingFace settings, extra-networks detail, and WS-ticket endpoints.
+Contains HuggingFace settings and extra-networks detail endpoints.
 """
 
 from datetime import datetime
@@ -168,20 +168,6 @@ def get_extra_network_details(page: str | None = None, name: str | None = None, 
 
 
 # ---------------------------------------------------------------------------
-# WS ticket
-# ---------------------------------------------------------------------------
-
-
-def post_ws_ticket():
-    """Create a one-time WebSocket authentication ticket."""
-    try:
-        from modules.api.security import ws_tickets
-    except ImportError:
-        from enso_api.security_stubs import ws_tickets
-    return {"ticket": ws_tickets.create()}
-
-
-# ---------------------------------------------------------------------------
 # Registration
 # ---------------------------------------------------------------------------
 
@@ -195,4 +181,3 @@ def register_misc_routes(app, add_route):
     add_route("/sdapi/v2/huggingface/me", get_hf_profile, methods=["GET"], tags=["HuggingFace"])
     add_route("/sdapi/v2/extra-networks/detail", get_extra_network_detail, methods=["GET"], response_model=ItemExtraNetworkDetail, tags=["Enumerators"])
     add_route("/sdapi/v2/extra-networks/details", get_extra_network_details, methods=["GET"], response_model=ResExtraNetworkDetails, tags=["Enumerators"])
-    add_route("/sdapi/v2/ws-ticket", post_ws_ticket, methods=["POST"], tags=["WebSocket"])

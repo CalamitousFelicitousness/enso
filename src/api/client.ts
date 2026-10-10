@@ -1,4 +1,5 @@
 import { formatErrorDetail } from "./errorDetail";
+import type { WsTicket } from "./types/server";
 
 export class ApiError extends Error {
   status: number;
@@ -151,7 +152,7 @@ export class ApiClient {
   }
 
   async getWsTicket(): Promise<string> {
-    const resp = await this.post<{ ticket: string }>("/sdapi/v2/ws-ticket");
+    const resp = await this.post<WsTicket>("/sdapi/v2/ws-ticket");
     return resp.ticket;
   }
 }

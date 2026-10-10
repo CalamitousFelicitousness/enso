@@ -47,7 +47,6 @@ import {
   sendLastFrameToLast,
 } from "@/lib/video/resultActions";
 import { isStillResult } from "@/lib/video/results";
-import { resolveImageSrc } from "@/lib/utils";
 import { FramePickerDialog } from "./FramePickerDialog";
 import { ParamDiffDialog } from "./ParamDiffDialog";
 import { VideoResultPreview } from "./VideoResultPreview";
@@ -271,7 +270,7 @@ export const VideoResultStrip = memo(function VideoResultStrip() {
 
       {framePickerFor && (
         <FramePickerDialog
-          videoUrl={resolveImageSrc(framePickerFor.videoUrl)}
+          videoUrl={framePickerFor.videoUrl}
           fps={framePickerFor.fps}
           open
           onOpenChange={(open) => !open && setFramePickerFor(null)}

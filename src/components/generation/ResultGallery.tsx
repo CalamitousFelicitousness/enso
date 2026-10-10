@@ -3,13 +3,9 @@ import type { GenerationResult } from "@/stores/generationStore";
 import { useComparisonStore } from "@/stores/comparisonStore";
 import { useUiStore } from "@/stores/uiStore";
 import { restoreSettings, resultTarget } from "@/lib/request/restore";
-import {
-  cn,
-  downloadImage,
-  downloadAllAsZip,
-  generateImageFilename,
-  resolveImageSrc,
-} from "@/lib/utils";
+import { cn, generateImageFilename } from "@/lib/utils";
+import { mediaSrc } from "@/api/session";
+import { downloadAllAsZip, downloadMedia, failedWith } from "@/lib/mediaFiles";
 import { useDragSource } from "@/hooks/useDragSource";
 import { useHorizontalWheel } from "@/hooks/useHorizontalWheel";
 import { memo, useCallback, useRef, useState } from "react";
@@ -64,8 +60,8 @@ export const ResultGallery = memo(function ResultGallery() {
           .results.find((r) => r.id === compareCandidate.resultId);
         const resultB = useGenerationStore.getState().results.find((r) => r.id === resultId);
         if (resultA && resultB) {
-          const srcA = resolveImageSrc(resultA.images[compareCandidate.imageIndex]);
-          const srcB = resolveImageSrc(resultB.images[imageIndex]);
+          const srcA = mediaSrc(resultA.images[compareCandidate.imageIndex]);
+          const srcB = mediaSrc(resultB.images[imageIndex]);
           useComparisonStore.getState().openComparison(
             {
               src: srcA,
@@ -90,8 +86,8 @@ export const ResultGallery = memo(function ResultGallery() {
             .results.find((r) => r.id === compareCandidate.resultId);
           const resultB = useGenerationStore.getState().results.find((r) => r.id === resultId);
           if (resultA && resultB) {
-            const srcA = resolveImageSrc(resultA.images[compareCandidate.imageIndex]);
-            const srcB = resolveImageSrc(resultB.images[imageIndex]);
+            const srcA = mediaSrc(resultA.images[compareCandidate.imageIndex]);
+            const srcB = mediaSrc(resultB.images[imageIndex]);
             useComparisonStore.getState().openComparison(
               {
                 src: srcA,
@@ -132,7 +128,7 @@ export const ResultGallery = memo(function ResultGallery() {
     if (!result || !result.images[selectedImageIndex]) return;
     const image = result.images[selectedImageIndex];
     const filename = generateImageFilename(result.info, selectedImageIndex);
-    void downloadImage(image, filename);
+    downloadMedia(image, filename).catch(failedWith("Could not download the image"));
   }, [results, selectedResultId, selectedImageIndex]);
 
   const totalImages = results.reduce((sum, r) => sum + r.images.length, 0);
@@ -142,7 +138,7 @@ export const ResultGallery = memo(function ResultGallery() {
       setDownloading(true);
       downloadAllAsZip(results)
         .then(() => toast.success("Zip downloaded"))
-        .catch(() => toast.error("Failed to create zip"))
+        .catch(failedWith("Could not download the images"))
         .finally(() => {
           setDownloading(false);
           setConfirmAction(null);
@@ -484,7 +480,7 @@ const ResultThumb = memo(function ResultThumb({
   onCompareSettings,
   onCompare,
 }: ResultThumbProps) {
-  const src = resolveImageSrc(item.image);
+  const src = mediaSrc(item.image);
   const dragProps = useDragSource({
     type: "result-image",
     resultId: item.resultId,

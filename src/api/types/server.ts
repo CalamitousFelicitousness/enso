@@ -9,6 +9,8 @@ export type {
   ResGpuV2 as ResGPU,
   ResMemoryV2 as ResMemory,
   ResServerInfoV2 as ServerInfo,
+  ResSessionV2 as SessionInfo,
+  ResWsTicketV2 as WsTicket,
   ServerCapabilities,
   ServerModelInfo,
   VersionInfoV2 as VersionInfo,

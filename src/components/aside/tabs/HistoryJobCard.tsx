@@ -8,7 +8,7 @@ import { historySlots, type HistoryAction } from "@/lib/jobs/cardActions";
 import { jobKind } from "@/lib/jobs/domains";
 import { reasonText, RESTORE_BOTH, RESTORE_SETTINGS, RUN_AGAIN } from "@/lib/jobs/text";
 import { jobTarget, restoreSettings, restoreSettingsAndInputs } from "@/lib/request/restore";
-import { resolveImageSrc } from "@/lib/utils";
+import { MediaImg } from "@/components/ui/media";
 import { useGenerationStore } from "@/stores/generationStore";
 import { useJobQueueStore } from "@/stores/jobStore";
 import { useVideoStore } from "@/stores/videoStore";
@@ -95,8 +95,8 @@ export function HistoryJobCard({ job }: HistoryJobCardProps) {
     >
       {/* Thumbnail or type icon */}
       {thumbUrl ? (
-        <img
-          src={resolveImageSrc(thumbUrl)}
+        <MediaImg
+          image={thumbUrl}
           alt=""
           loading="lazy"
           decoding="async"

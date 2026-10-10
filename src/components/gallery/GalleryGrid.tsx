@@ -3,10 +3,11 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import { useGalleryStore } from "@/stores/galleryStore";
 import { useThumbnailLoader, useBackgroundPreloader } from "@/api/hooks/useGallery";
 import type { GalleryFile } from "@/api/types/gallery";
-import { browserFileUrl } from "@/api/browserFile";
+import { browserFilePath } from "@/api/browserFile";
 import { ConnectedGalleryCard } from "./GalleryCard";
 import { MasonryGrid } from "./MasonryGrid";
-import { sendImageToCanvas, fetchRemoteImage } from "@/lib/sendTo";
+import { sendImageToCanvas } from "@/lib/sendTo";
+import { failedWith, mediaFile } from "@/lib/mediaFiles";
 import {
   ContextMenu,
   ContextMenuTrigger,
@@ -258,10 +259,9 @@ export function GalleryGrid({
   const handleSendToCanvas = useCallback(() => {
     const f = contextFileRef.current;
     if (f) {
-      void fetchRemoteImage(
-        browserFileUrl(f.fullPath),
-        f.relativePath.split("/").pop() ?? "image.png",
-      ).then((blob) => sendImageToCanvas(blob));
+      mediaFile(browserFilePath(f.fullPath), f.relativePath.split("/").pop() ?? "image.png")
+        .then(sendImageToCanvas)
+        .catch(failedWith("Could not send the image to the canvas"));
     }
   }, []);
 

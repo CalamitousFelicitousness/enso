@@ -2,12 +2,14 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Film } from "lucide-react";
 import { PlayerControls } from "@/components/video/PlayerControls";
 import { useKeepAliveVisible } from "@/components/ui/keep-alive";
+import { useMediaSrc } from "@/hooks/useMediaSrc";
 
 const SPEEDS = [0.25, 0.5, 1, 2, 4] as const;
 const IDLE_TIMEOUT_MS = 2500;
 export const DEFAULT_FPS = 24;
 
 interface VideoPlayerProps {
+  /** A server path or URL, loaded with the session. */
   src: string | null;
   /** Playback rate probed from the saved container; the default is only a
    * fallback for results recorded before fps was carried. */
@@ -15,6 +17,7 @@ interface VideoPlayerProps {
 }
 
 function VideoPlayerInner({ src, fps }: { src: string; fps?: number | null | undefined }) {
+  const media = useMediaSrc(src);
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const idleTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -221,7 +224,8 @@ function VideoPlayerInner({ src, fps }: { src: string; fps?: number | null | und
       {/* eslint-disable-next-line jsx-a11y/media-has-caption -- generated video has no caption track */}
       <video
         ref={videoRef}
-        src={src}
+        src={media.src}
+        onError={media.onError}
         loop
         className="w-full h-full object-contain"
         onLoadedMetadata={handleLoadedMetadata}

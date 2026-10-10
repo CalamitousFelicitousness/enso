@@ -4,6 +4,7 @@ from fastapi import WebSocket, WebSocketDisconnect
 from modules.logger import log
 from starlette.websockets import WebSocketState
 
+from enso_api.session import admit_socket
 from enso_api.util import job_progress, preview_image
 
 
@@ -157,17 +158,8 @@ async def handle_command(ws: WebSocket, data: dict):
 
 
 async def ws_endpoint(ws: WebSocket):
-    from modules import shared
-
-    if shared.cmd_opts.auth or shared.cmd_opts.auth_file:
-        try:
-            from modules.api.security import ws_tickets
-        except ImportError:
-            from enso_api.security_stubs import ws_tickets
-        ticket = ws.query_params.get("ticket")
-        if not ticket or not ws_tickets.validate(ticket):
-            await ws.close(code=1008, reason="Invalid or expired ticket")
-            return
+    if not await admit_socket(ws):
+        return
     await manager.connect(ws)
     push_task = None
     try:

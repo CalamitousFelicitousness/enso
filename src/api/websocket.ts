@@ -10,41 +10,41 @@ interface WsEvents {
   max_retries: () => void;
 }
 
+interface WsOptions {
+  maxReconnectAttempts?: number;
+  /** Called once when the server refuses the socket (1008); true reconnects. */
+  onRefused?: () => Promise<boolean>;
+}
+
 export class WebSocketManager {
   private ws: WebSocket | null = null;
-  private url: string;
-  private ticketFn: (() => Promise<string>) | null;
+  /** Resolves the URL for each attempt, so the base and any ticket are current. Must not reject. */
+  private url: () => Promise<string>;
+  private onRefused: (() => Promise<boolean>) | null;
   private reconnectAttempts = 0;
   private maxReconnectAttempts = 10;
   private reconnectDelay = 1000;
   private maxReconnectDelay = 30_000;
   private shouldReconnect = true;
+  private refusedOnce = false;
+  /** Advances on every disconnect, so an attempt still resolving its URL opens nothing. */
+  private generation = 0;
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private listeners = new Map<keyof WsEvents, Set<(...args: never[]) => void>>();
 
-  constructor(
-    url: string,
-    ticketFn?: () => Promise<string>,
-    options?: { maxReconnectAttempts?: number },
-  ) {
+  constructor(url: () => Promise<string>, options?: WsOptions) {
     this.url = url;
-    this.ticketFn = ticketFn ?? null;
+    this.onRefused = options?.onRefused ?? null;
     this.maxReconnectAttempts = options?.maxReconnectAttempts ?? this.maxReconnectAttempts;
   }
 
   connect(): void {
     if (this.ws?.readyState === WebSocket.OPEN || this.ws?.readyState === WebSocket.CONNECTING)
       return;
-
-    if (this.ticketFn) {
-      this.ticketFn()
-        .then((ticket) =>
-          this.openSocket(`${this.url}${this.url.includes("?") ? "&" : "?"}ticket=${ticket}`),
-        )
-        .catch(() => this.openSocket(this.url));
-    } else {
-      this.openSocket(this.url);
-    }
+    const generation = this.generation;
+    void this.url().then((url) => {
+      if (generation === this.generation) this.openSocket(url);
+    });
   }
 
   private openSocket(url: string): void {
@@ -57,6 +57,7 @@ export class WebSocketManager {
     this.ws.onopen = () => {
       this.reconnectAttempts = 0;
       this.shouldReconnect = true;
+      this.refusedOnce = false;
       this.emit("open");
     };
 
@@ -75,10 +76,23 @@ export class WebSocketManager {
 
     this.ws.onclose = (event: CloseEvent) => {
       this.emit("close", event);
-      // Don't retry on explicit policy-violation close (auth/forbidden)
+      // Refused (1008): renew the credential once, then reconnect or stop
       if (event.code === 1008) {
-        this.shouldReconnect = false;
+        if (!this.onRefused || this.refusedOnce) {
+          this.shouldReconnect = false;
+          return;
+        }
+        this.refusedOnce = true;
+        const generation = this.generation;
+        void this.onRefused().then((again) => {
+          if (generation !== this.generation) return;
+          if (again) this.connect();
+          else this.shouldReconnect = false;
+        });
+        return;
       }
+      // A refusal after this close (a restart that ended the session, say) earns its own renewal
+      this.refusedOnce = false;
       // Don't retry on custom application close codes (e.g. 4004 "Job not found")
       if (event.code >= 4000 && event.code < 5000) {
         this.shouldReconnect = false;
@@ -107,6 +121,7 @@ export class WebSocketManager {
   }
 
   disconnect(): void {
+    this.generation++;
     this.shouldReconnect = false;
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer);
@@ -116,11 +131,12 @@ export class WebSocketManager {
     this.ws = null;
   }
 
-  updateUrl(url: string): void {
+  /** Close and connect again from the first attempt, as after the base or the credentials changed. */
+  restart(): void {
     this.disconnect();
-    this.url = url;
     this.reconnectAttempts = 0;
     this.shouldReconnect = true;
+    this.refusedOnce = false;
     this.connect();
   }
 

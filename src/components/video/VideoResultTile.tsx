@@ -1,6 +1,7 @@
-import { memo, useRef, useState, type ReactNode } from "react";
+import { memo, useRef, type ReactNode } from "react";
 import { Film, ImageOff, Pin } from "lucide-react";
-import { cn, resolveImageSrc } from "@/lib/utils";
+import { cn } from "@/lib/utils";
+import { useMediaSrc } from "@/hooks/useMediaSrc";
 import { DOMAIN_LABELS } from "@/lib/video/resultLabel";
 import type { VideoResult } from "@/api/types/video";
 import type { CompareSlot } from "@/stores/videoStore";
@@ -13,16 +14,9 @@ const ACTIONS_MIN_HEIGHT = 56;
 
 function Poster({ result }: { result: VideoResult }) {
   const src = result.thumbnailUrl;
-  const [failed, setFailed] = useState(false);
-  // Reset while rendering, so a recycled tile never paints one frame of the
-  // previous result's failure.
-  const [seen, setSeen] = useState(src);
-  if (seen !== src) {
-    setSeen(src);
-    setFailed(false);
-  }
+  const media = useMediaSrc(src);
 
-  if (!src || failed) {
+  if (!src || media.failed) {
     return (
       <div
         title={src ? "Poster no longer available" : "No poster was saved for this result"}
@@ -39,12 +33,12 @@ function Poster({ result }: { result: VideoResult }) {
 
   return (
     <img
-      src={resolveImageSrc(src)}
+      src={media.src}
       alt=""
       loading="lazy"
       decoding="async"
       className="h-full w-full object-cover"
-      onError={() => setFailed(true)}
+      onError={media.onError}
     />
   );
 }

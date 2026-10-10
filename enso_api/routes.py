@@ -3,7 +3,7 @@ import json
 import os
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import FileResponse
 from modules.logger import log
 
@@ -29,9 +29,12 @@ from enso_api.models import (
     VideoModelCapsV2,
     VideoModelEnriched,
 )
+from enso_api.session import media_auth
 from enso_api.ws_models import WsEvent, WsEventPing
 
 router = APIRouter(prefix="/sdapi/v2", tags=["v2"])
+# Files that <img> and <video> load, which carry the session cookie instead of an Authorization header
+media_router = APIRouter(prefix="/sdapi/v2", tags=["v2"], dependencies=[Depends(media_auth)])
 
 
 def job_to_response(job: dict) -> JobResponse:
@@ -302,22 +305,22 @@ def get_completed_job(job_id: str):
 # Deprecated: refs minted at completion now carry durable /outputs/{id} URLs,
 # so these job-scoped routes only serve rows persisted before that change and
 # refs whose registration failed. Remove once that fallback has proven quiet.
-@router.get("/jobs/{job_id}/images/{index}", tags=["Jobs"], deprecated=True)
+@media_router.get("/jobs/{job_id}/images/{index}", tags=["Jobs"], deprecated=True)
 async def get_job_image(job_id: str, index: int):
     return serve_job_file(get_completed_job(job_id), "images", index)
 
 
-@router.get("/jobs/{job_id}/processed/{index}", tags=["Jobs"], deprecated=True)
+@media_router.get("/jobs/{job_id}/processed/{index}", tags=["Jobs"], deprecated=True)
 async def get_job_processed(job_id: str, index: int):
     return serve_job_file(get_completed_job(job_id), "processed", index)
 
 
-@router.get("/jobs/{job_id}/videos/{index}", tags=["Jobs"], deprecated=True)
+@media_router.get("/jobs/{job_id}/videos/{index}", tags=["Jobs"], deprecated=True)
 async def get_job_video(job_id: str, index: int):
     return serve_job_file(get_completed_job(job_id), "videos", index)
 
 
-@router.get("/jobs/{job_id}/videos/{index}/thumbnail", tags=["Jobs"], deprecated=True)
+@media_router.get("/jobs/{job_id}/videos/{index}/thumbnail", tags=["Jobs"], deprecated=True)
 async def get_job_video_thumbnail(job_id: str, index: int):
     job = get_completed_job(job_id)
     thumb_path = get_ref_field(job, "videos", index, "thumbnail_path")
@@ -326,7 +329,7 @@ async def get_job_video_thumbnail(job_id: str, index: int):
     return serve_file_path(thumb_path)
 
 
-@router.get("/outputs/{output_id}", tags=["Outputs"])
+@media_router.get("/outputs/{output_id}", tags=["Outputs"])
 async def get_output(output_id: str):
     """Serve a generation output by its durable id.
 

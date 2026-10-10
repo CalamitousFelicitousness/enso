@@ -6,7 +6,8 @@ import {
   sendFrameToVideoInit,
   sendFrameToVideoLast,
 } from "@/lib/sendTo";
-import { downloadImage, resolveImageSrc } from "@/lib/utils";
+import { mediaSrc } from "@/api/session";
+import { downloadMedia, failedWith } from "@/lib/mediaFiles";
 import type { VideoResult } from "@/api/types/video";
 
 // Past the end of any clip; the extractor clamps to the real duration.
@@ -20,7 +21,7 @@ async function withFrame(
   message: string,
 ) {
   try {
-    place(await extractFrameFromVideo(resolveImageSrc(result.videoUrl), time));
+    place(await extractFrameFromVideo(mediaSrc(result.videoUrl), time));
     toast.success(message);
   } catch {
     toast.error("Failed to extract frame");
@@ -82,5 +83,7 @@ export function sendCapturedFrameToInit(blob: Blob) {
 
 export function downloadResult(result: VideoResult) {
   const stamp = new Date(result.timestamp).toISOString().replace(/[:.]/g, "-").slice(0, 19);
-  void downloadImage(resolveImageSrc(result.videoUrl), `enso-${stamp}.${result.format}`);
+  downloadMedia(result.videoUrl, `enso-${stamp}.${result.format}`).catch(
+    failedWith("Could not download the video"),
+  );
 }

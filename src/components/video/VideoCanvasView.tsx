@@ -36,7 +36,9 @@ import {
   probeVideoFile,
   referenceAccept,
 } from "@/lib/video/referenceMedia";
-import { contrastText, resolveImageSrc } from "@/lib/utils";
+import { contrastText } from "@/lib/utils";
+import { downloadResult } from "@/lib/video/resultActions";
+import { MediaImg } from "@/components/ui/media";
 
 // The picker admits reference video and audio, so the drop path has to as
 // well. Which slot a file is legal for is decided once it has landed.
@@ -442,16 +444,15 @@ export function VideoCanvasView() {
                   <>
                     <VideoResultActions result={selectedResult} />
 
-                    <a href={resolveImageSrc(selectedResult.videoUrl)} download>
-                      <Button
-                        variant="ghost"
-                        size="icon-xs"
-                        title="Download"
-                        className="hover:bg-black/10"
-                      >
-                        <Download size={16} style={{ color: outputTextColor }} />
-                      </Button>
-                    </a>
+                    <Button
+                      variant="ghost"
+                      size="icon-xs"
+                      title="Download"
+                      className="hover:bg-black/10"
+                      onClick={() => downloadResult(selectedResult)}
+                    >
+                      <Download size={16} style={{ color: outputTextColor }} />
+                    </Button>
                   </>
                 )}
               </>
@@ -477,16 +478,13 @@ export function VideoCanvasView() {
                 <VideoCompare left={compareLeft} right={compareRight} />
               ) : !isGenerating && selectedResult?.videoUrl ? (
                 isStillResult(selectedResult) ? (
-                  <img
-                    src={resolveImageSrc(selectedResult.videoUrl)}
+                  <MediaImg
+                    image={selectedResult.videoUrl}
                     alt=""
                     className="size-full object-contain"
                   />
                 ) : (
-                  <VideoPlayer
-                    src={resolveImageSrc(selectedResult.videoUrl)}
-                    fps={selectedResult.fps}
-                  />
+                  <VideoPlayer src={selectedResult.videoUrl} fps={selectedResult.fps} />
                 )
               ) : null}
             </div>

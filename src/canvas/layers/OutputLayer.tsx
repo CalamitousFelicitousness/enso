@@ -3,7 +3,7 @@ import { Layer, Image as KonvaImage, Rect } from "react-konva";
 import { CornerBrackets } from "@/canvas/layers/CornerBrackets";
 import { useGenerationStore } from "@/stores/generationStore";
 import { useJobQueueStore, selectViewedJob } from "@/stores/jobStore";
-import { resolveImageSrc } from "@/lib/utils";
+import { loadMediaImage } from "@/api/session";
 
 const BORDER_COLOR = "#60a5fa";
 
@@ -29,15 +29,21 @@ export function OutputLayer({ offsetX, placeholderWidth, placeholderHeight }: Ou
     const selected = results.find((r) => r.id === selectedResultId);
     const raw = selected?.images[selectedImageIndex ?? 0];
     if (raw) {
-      displaySrc = resolveImageSrc(raw);
+      displaySrc = raw;
     }
   }
 
   useEffect(() => {
     if (!displaySrc) return;
-    const img = new window.Image();
-    img.onload = () => setImage(img);
-    img.src = displaySrc;
+    let current = true;
+    loadMediaImage(displaySrc)
+      .then((img) => {
+        if (current) setImage(img);
+      })
+      .catch((err: unknown) => console.warn("[output] the image could not be loaded", err));
+    return () => {
+      current = false;
+    };
   }, [displaySrc]);
 
   // Clear stale image when there's nothing to display

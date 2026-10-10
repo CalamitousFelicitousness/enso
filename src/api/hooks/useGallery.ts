@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { api } from "../client";
+import { renewForSocket, socketUrl } from "../session";
 import type {
   BrowserFolder,
   BrowserSubdir,
@@ -159,22 +160,13 @@ interface StreamResult {
  * Returns a promise that resolves with the file list when #END# is received.
  * If `onFile` is provided, it is called for each file as they arrive (for progress).
  */
-async function getWsUrlWithTicket(basePath: string): Promise<string> {
-  const wsUrl = api.getWebSocketUrl(basePath);
-  try {
-    const ticket = await api.getWsTicket();
-    return `${wsUrl}?ticket=${ticket}`;
-  } catch {
-    return wsUrl;
-  }
-}
-
 async function streamFiles(
   folder: string,
   signal: AbortSignal,
   onFile?: (file: GalleryFile) => void,
+  renewed = false,
 ): Promise<StreamResult> {
-  const wsUrl = await getWsUrlWithTicket("/sdapi/v2/browser/files");
+  const wsUrl = await socketUrl("/sdapi/v2/browser/files");
   return new Promise((resolve, reject) => {
     const ws = new WebSocket(wsUrl);
     const allFiles: GalleryFile[] = [];
@@ -203,6 +195,15 @@ async function streamFiles(
 
     ws.onerror = () => reject(new Error("WebSocket error"));
     ws.onclose = (ev) => {
+      // Refused: the session the socket carried has ended, so renew it and stream once more
+      if (ev.code === 1008 && !renewed && !signal.aborted) {
+        void renewForSocket().then((again) =>
+          again
+            ? streamFiles(folder, signal, onFile, true).then(resolve, reject)
+            : reject(new Error("The server refused the folder listing")),
+        );
+        return;
+      }
       // If we already resolved via #END#, this is a no-op (promise only resolves once)
       if (ev.code !== 1000) reject(new Error("WebSocket closed unexpectedly"));
       else resolve({ files: allFiles });
@@ -308,7 +309,12 @@ async function backgroundRefresh(folder: string, signal: AbortSignal) {
 // WebSocket file streaming for cache-miss loads
 // ---------------------------------------------------------------------------
 
-function startFileStream(folder: string, ac: AbortController, hasChildSeed: boolean) {
+function startFileStream(
+  folder: string,
+  ac: AbortController,
+  hasChildSeed: boolean,
+  renewed = false,
+) {
   const buffer: GalleryFile[] = [];
   let flushTimer: ReturnType<typeof setTimeout> | null = null;
   const allFiles: GalleryFile[] = [];
@@ -341,7 +347,7 @@ function startFileStream(folder: string, ac: AbortController, hasChildSeed: bool
     }, FILE_BATCH_INTERVAL);
   };
 
-  void getWsUrlWithTicket("/sdapi/v2/browser/files").then((wsUrl) => {
+  void socketUrl("/sdapi/v2/browser/files").then((wsUrl) => {
     const ws = new WebSocket(wsUrl);
 
     const cleanupWs = () => {
@@ -415,10 +421,18 @@ function startFileStream(folder: string, ac: AbortController, hasChildSeed: bool
       useGalleryStore.getState().setLoadingFiles(false);
     };
 
-    ws.onclose = () => {
+    ws.onclose = (ev) => {
       if (flushTimer) {
         clearTimeout(flushTimer);
         flushTimer = null;
+      }
+      // Refused: the session the socket carried has ended, so renew it and stream once more
+      if (ev.code === 1008 && !renewed && !ac.signal.aborted) {
+        void renewForSocket().then((again) => {
+          if (again && !ac.signal.aborted) startFileStream(folder, ac, hasChildSeed, true);
+          else useGalleryStore.getState().setLoadingFiles(false);
+        });
+        return;
       }
       flush();
       useGalleryStore.getState().setLoadingFiles(false);
