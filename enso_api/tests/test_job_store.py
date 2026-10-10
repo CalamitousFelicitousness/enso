@@ -36,7 +36,7 @@ def test_delete_removes_the_staging_folder_after_the_row(root):
     store = JobStore(os.path.join(root, "jobs.db"))
     staging = os.path.join(root, "staging")
     os.makedirs(staging)
-    job = store.create("generate", {})
+    job = store.insert("generate", {})
     store.update_status(job["id"], "completed", result={"_staging_dir": staging})
     assert store.delete(job["id"])
     assert store.get(job["id"]) is None

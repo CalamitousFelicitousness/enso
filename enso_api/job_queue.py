@@ -1,6 +1,7 @@
 import asyncio
 import contextlib
 import json
+import logging
 import os
 import shutil
 import sqlite3
@@ -21,6 +22,11 @@ from enso_api.ws_models import (
 )
 
 OUTPUT_URL_PREFIX = "/sdapi/v2/outputs"
+
+# Statuses a runner may still move a job out of
+LIVE = ("pending", "running")
+
+log = logging.getLogger("sd")
 
 # (path key in a stored ref dict, url key it addresses)
 REF_ADDRESSES = (("path", "url"), ("thumbnail_path", "thumbnail_url"))
@@ -45,8 +51,6 @@ def assign_output_urls(store: JobStore, result, job_id: str) -> int:
     failed over bookkeeping, so failures keep the job-scoped URL, log a
     warning, and are returned for the stats counter.
     """
-    from modules.logger import log
-
     failures = 0
     try:
         from enso_api.confine import confined_to_outputs
@@ -101,8 +105,6 @@ def migrate_db_files(old_path: str, new_path: str) -> None:
     """
     if os.path.exists(new_path) or not os.path.exists(old_path):
         return
-    from modules.logger import log
-
     try:
         os.makedirs(os.path.dirname(new_path), exist_ok=True)
         conn = sqlite3.connect(old_path)
@@ -174,13 +176,45 @@ def release_uploads(job_id: str) -> None:
         boot.state.store.release_job(job_id)
     except Exception as e:
         # The collector drops the names of a job the queue no longer holds
-        from modules.logger import log
-
         log.warning(f"Job queue: uploads of id={job_id} not released: {e}")
 
 
+def job_params(job: dict) -> dict:
+    """A job row's request, parsed."""
+    params = job.get("params", {})
+    return json.loads(params) if isinstance(params, str) else params
+
+
+class Sdnext:
+    """The parts of sdnext the runners use, imported when first used; tests pass their own."""
+
+    @property
+    def state(self):
+        from modules import shared
+
+        return shared.state
+
+    @property
+    def queue_lock(self):
+        from modules.call_queue import queue_lock
+
+        return queue_lock
+
+    @property
+    def executors(self) -> dict:
+        from enso_api.executors import EXECUTORS
+
+        return EXECUTORS
+
+    def display(self, e: Exception, title: str) -> None:
+        from modules import errors
+
+        errors.display(e, title)
+
+
 class JobQueue:
-    def __init__(self):
+    def __init__(self, sdnext: Sdnext | None = None):
+        self.sdnext = sdnext or Sdnext()
         self.store: JobStore | None = None
         self._worker_thread: threading.Thread | None = None
         self._cloud_pool: ThreadPoolExecutor | None = None
@@ -192,6 +226,7 @@ class JobQueue:
         self._current_job_id: str | None = None
         self._initialized = False
         self.output_register_failures = 0
+        self.cleanup_counter = 0
         # Jobs whose runner has not reached its finally, whatever their row says
         self.in_flight: set[str] = set()
         self.in_flight_lock = threading.Lock()
@@ -237,14 +272,21 @@ class JobQueue:
         self.store = JobStore(db_path)
         mark_dir_git_ignored(data_path)
         self._recover_stale_jobs()
-        for job_id in self.store.live_ids():
-            job = self.store.get(job_id)
-            if job is not None:
-                name_uploads(job_id, job.get("params"))
+        self.name_live_uploads()
         self._worker_thread = threading.Thread(target=self._worker_loop, daemon=True, name="v2-job-worker")
         self._worker_thread.start()
         self._cloud_pool = ThreadPoolExecutor(max_workers=8, thread_name_prefix="cloud-worker")
         self._initialized = True
+
+    def name_live_uploads(self) -> None:
+        """Name the uploads of every job left pending; a row that cannot be read is its runner's to fail."""
+        for job_id in self.store.live_ids():
+            try:
+                job = self.store.get(job_id)
+                if job is not None:
+                    name_uploads(job_id, job.get("params"))
+            except Exception as e:
+                log.warning(f"Job queue: uploads of id={job_id} not named at boot: {type(e).__name__}: {e}")
 
     def _recover_stale_jobs(self):
         if self.store is None:
@@ -254,8 +296,9 @@ class JobQueue:
             self.set_status(job["id"], "failed", error="Server restarted", completed_at=JobStore.now())
             release_uploads(job["id"])
 
-    def set_status(self, job_id: str, status: str, **kwargs) -> None:
-        self.store.update_status(job_id, status, **kwargs)
+    def set_status(self, job_id: str, status: str, current: tuple[str, ...] = LIVE, **kwargs) -> bool:
+        """Write a status while the job's status is one of `current`; whether it was written."""
+        return self.store.update_status(job_id, status, current=current, **kwargs)
 
     def submit(self, job_type: str, params: dict, priority: int = 0) -> dict:
         """Queue a job; UploadsMissing when it names uploads the store does not hold.
@@ -268,31 +311,35 @@ class JobQueue:
             release_uploads(job_id)
             raise UploadsMissing(missing)
         try:
-            job = self.store.create(job_type=job_type, params=params, priority=priority, job_id=job_id)
+            return self.enqueue(job_type, params, priority, job_id)
         except BaseException:
             release_uploads(job_id)
             raise
-        self._job_event.set()
+
+    def enqueue(self, job_type: str, params: dict, priority: int, job_id: str) -> dict:
+        """Add the job's row and wake the worker; the row as written."""
+        job = self.store.insert(job_type, params, priority, job_id)
+        self.wake()
         return job
+
+    def wake(self) -> None:
+        self._job_event.set()
+
+    def wake_if_pending(self) -> None:
+        if self.store.next_pending():
+            self.wake()
 
     def cancel(self, job_id: str) -> bool:
         job = self.store.get(job_id)
         if job is None:
             return False
         if job["status"] == "running":
-            from enso_api.executors import EXECUTORS
-
-            entry = EXECUTORS.get(job["type"])
+            entry = self.sdnext.executors.get(job["type"])
             if entry and entry["lock"]:
                 self._cancel_ids.add(job_id)
-                try:
-                    from modules import shared
-
-                    shared.state.interrupt()
-                except Exception:
-                    pass
-            else:
-                self.set_status(job_id, "cancelled", completed_at=JobStore.now())
+                with contextlib.suppress(Exception):
+                    self.sdnext.state.interrupt()
+            elif self.set_status(job_id, "cancelled", completed_at=JobStore.now()):
                 self.push_progress(job_id, WsEventStatus(status="cancelled").model_dump(exclude_none=True))
             return True
         if job["status"] == "pending":
@@ -334,27 +381,40 @@ class JobQueue:
                     q.put_nowait(data)
 
     def _worker_loop(self) -> None:
-        from modules.logger import log
-
         log.debug("Job queue: worker started")
-        cleanup_counter = 0
+        failure = None
         while True:
-            self._job_event.wait(timeout=1.0)
-            self._job_event.clear()
-            if self.store is None:
-                continue
-            cleanup_counter += 1
-            if cleanup_counter >= 300:  # ~5 minutes
-                cleanup_counter = 0
-                self._periodic_cleanup()
-            job = self.store.next_pending()
-            if job is None:
-                continue
+            failure = self.guarded_turn(failure)
+
+    def guarded_turn(self, failure: str | None = None) -> str | None:
+        """A turn that never raises; a failure is logged once while it repeats and returned for the next call.
+
+        It decides no job's outcome: a row that failed before its runner started stays pending for the next turn.
+        """
+        try:
+            self.turn()
+        except Exception as e:
+            message = f"{type(e).__name__}: {e}"
+            if message != failure:
+                log.exception(f"Job queue: worker turn failed: {message}")
+            return message
+        return None
+
+    def turn(self) -> None:
+        """Wait for work, sweep every 300 turns (five minutes when idle), run the next pending job."""
+        self._job_event.wait(timeout=1.0)
+        self._job_event.clear()
+        if self.store is None:
+            return
+        self.cleanup_counter += 1
+        if self.cleanup_counter >= 300:
+            self.cleanup_counter = 0
+            self._periodic_cleanup()
+        job = self.store.next_pending()
+        if job is not None:
             self._execute_job(job)
 
     def _periodic_cleanup(self) -> None:
-        from modules.logger import log
-
         try:
             from enso_api.temp_store import cleanup_expired
 
@@ -372,140 +432,140 @@ class JobQueue:
             log.debug(f"Job queue: job cleanup error: {e}")
 
     def _execute_job(self, job: dict) -> None:
-        from modules.logger import log
-
-        from enso_api.executors import EXECUTORS
-
         job_id = job["id"]
         job_type = job["type"]
-        entry = EXECUTORS.get(job_type)
+        entry = self.sdnext.executors.get(job_type)
         if entry is None:
             log.error(f"Job queue: unknown type={job_type} id={job_id}")
             self.set_status(job_id, "failed", error=f"Unknown job type: {job_type}", completed_at=JobStore.now())
             release_uploads(job_id)
             return
-
         if entry["lock"]:
             self._run_local_job(job, entry["fn"], job_type, hold_lock=entry["lock"] is True)
         else:
-            # Flip to 'running' synchronously before pool dispatch so the worker
-            # loop can't see this row as pending and double-dispatch it.
-            self.set_status(job["id"], "running", started_at=JobStore.now())
-            job["status"] = "running"
-            self.enter(job["id"])
-            self._cloud_pool.submit(self._run_cloud_job, job, entry["fn"], job_type)
-            if self.store.next_pending():
-                self._job_event.set()
+            self._dispatch_cloud_job(job, entry["fn"], job_type)
+
+    def finish_failed(self, job_id: str, error: str) -> None:
+        """Record a live job's failure, as cancelled when the user cancelled it, and tell its subscribers."""
+        cancelled = job_id in self._cancel_ids
+        if not self.set_status(job_id, "cancelled" if cancelled else "failed", completed_at=JobStore.now(), error=error):
+            return
+        self.push_progress(job_id, WsEventError(error=error).model_dump(exclude_none=True))
+        if cancelled:
+            self.push_progress(job_id, WsEventStatus(status="cancelled").model_dump(exclude_none=True))
+
+    def finish_completed(self, job_id: str, result) -> None:
+        """Record a live job's result and tell its subscribers; a job cancelled meanwhile stays cancelled."""
+        self.output_register_failures += assign_output_urls(self.store, result, job_id)
+        result_json = json.dumps(result, default=str)
+        event = WsEventCompleted(result=JobResult.from_result_dict(result)).model_dump(exclude_none=True)
+        if self.set_status(job_id, "completed", completed_at=JobStore.now(), result=result_json):
+            self.push_progress(job_id, event)
+            log.info(f"Job queue: completed id={job_id}")
+        else:
+            log.info(f"Job queue: id={job_id} finished after it was cancelled")
+
+    def clear_current(self, job_id: str) -> None:
+        self._current_job_id = None
+        self.stopped_ids.discard(job_id)
+        self._cancel_ids.discard(job_id)
 
     def _run_local_job(self, job: dict, executor_fn, job_type: str, hold_lock: bool = True) -> None:
-        from modules import shared
-        from modules.logger import log
-
         job_id = job["id"]
-        self._current_job_id = job_id
-        self.enter(job_id)
-        log.info(f"Job queue: executing id={job_id} type={job_type}")
-        self.set_status(job_id, "running", started_at=JobStore.now())
-        self.push_progress(job_id, WsEventStatus(status="running").model_dump(exclude_none=True))
-
-        raw_params = job.get("params", {})
-        if isinstance(raw_params, str):
-            raw_params = json.loads(raw_params)
-        stages = compute_stages(job_type, raw_params)
-        if stages:
-            self.push_progress(job_id, WsEventStages(stages=stages).model_dump(exclude_none=True))
-
-        # When the client opts out of live previews, disable_preview is the single
-        # chokepoint: do_set_current_image() short-circuits before the latent decode,
-        # which silences the poller below, the global /ws push, and nextjob() at once.
-        shared.state.disable_preview = not raw_params.get("live_previews", True)
-
-        poller_stop = threading.Event()
-        poller = threading.Thread(target=self._progress_poller, args=(job_id, poller_stop, stages), daemon=True, name=f"v2-progress-{job_id[:8]}")
-        poller.start()
-
-        capture = JobLogCapture()
-        log.addHandler(capture)
-        try:
-            from modules.call_queue import queue_lock
-
-            # hold_lock=False for executors whose sdnext entry point acquires
-            # queue_lock internally; serialization still holds, just one level down
-            with queue_lock if hold_lock else contextlib.nullcontext():
-                if job_id in self._cancel_ids:
-                    self._cancel_ids.discard(job_id)
-                    self.set_status(job_id, "cancelled", completed_at=JobStore.now())
-                    self.push_progress(job_id, WsEventStatus(status="cancelled").model_dump(exclude_none=True))
+        capture = None
+        # A cleanup joins the stack as soon as its setup step succeeds
+        with contextlib.ExitStack() as stack:
+            stack.callback(self.wake_if_pending)
+            try:
+                self.enter(job_id)
+                stack.callback(self.leave, job_id)
+                if not self.set_status(job_id, "running", current=("pending",), started_at=JobStore.now()):
+                    log.info(f"Job queue: skipped id={job_id}, no longer pending")
                     return
-                params = job.get("params", {})
-                if isinstance(params, str):
-                    params = json.loads(params)
-                result = executor_fn(params, job_id)
-            if capture.entries:
-                result["warnings"] = capture.entries
-            self.output_register_failures += assign_output_urls(self.store, result, job_id)
-            result_json = json.dumps(result, default=str)
-            self.set_status(job_id, "completed", completed_at=JobStore.now(), result=result_json)
-            self.push_progress(job_id, WsEventCompleted(result=JobResult.from_result_dict(result)).model_dump(exclude_none=True))
-            log.info(f"Job queue: completed id={job_id}")
-        except Exception as e:
-            # Typed rejections (4xx code) are expected client errors: one line, no traceback
-            code, error_msg = job_failure(e)
-            if code is not None and 400 <= code < 500:
-                log.info(f"Job queue: rejected id={job_id} type={job_type} code={code} error={error_msg}")
-            elif getattr(e, "logged", False):
-                # the executor's own reason, else the error sdnext logged for it
-                error_msg = getattr(e, "reason", None) or capture.first_error() or error_msg
-                log.error(f"Job queue: failed id={job_id} type={job_type} error={error_msg}")
-            else:
-                from modules import errors
+                self._current_job_id = job_id
+                stack.callback(self.clear_current, job_id)
+                log.info(f"Job queue: executing id={job_id} type={job_type}")
+                self.push_progress(job_id, WsEventStatus(status="running").model_dump(exclude_none=True))
 
-                errors.display(e, f"Job queue: {job_type}")
-            self.set_status(job_id, "failed", completed_at=JobStore.now(), error=error_msg)
-            self.push_progress(job_id, WsEventError(error=error_msg).model_dump(exclude_none=True))
-            if job_id in self._cancel_ids:
-                self._cancel_ids.discard(job_id)
-                self.set_status(job_id, "cancelled", completed_at=JobStore.now())
-                self.push_progress(job_id, WsEventStatus(status="cancelled").model_dump(exclude_none=True))
-        finally:
-            log.removeHandler(capture)
-            poller_stop.set()
-            poller.join(timeout=2.0)
-            shared.state.disable_preview = False
-            self._current_job_id = None
-            self.stopped_ids.discard(job_id)
-            self.leave(job_id)
-            if self.store.next_pending():
-                self._job_event.set()
+                params = job_params(job)
+                stages = compute_stages(job_type, params)
+                if stages:
+                    self.push_progress(job_id, WsEventStages(stages=stages).model_dump(exclude_none=True))
+
+                # When the client opts out of live previews, disable_preview is the single
+                # chokepoint: do_set_current_image() short-circuits before the latent decode,
+                # which silences the poller below, the global /ws push, and nextjob() at once.
+                state = self.sdnext.state
+                state.disable_preview = not params.get("live_previews", True)
+                stack.callback(setattr, state, "disable_preview", False)
+
+                poller_stop = threading.Event()
+                poller = threading.Thread(target=self._progress_poller, args=(job_id, poller_stop, stages), daemon=True, name=f"v2-progress-{job_id[:8]}")
+                poller.start()
+                stack.callback(poller.join, timeout=2.0)
+                stack.callback(poller_stop.set)
+
+                capture = JobLogCapture()
+                log.addHandler(capture)
+                stack.callback(log.removeHandler, capture)
+
+                # hold_lock=False for executors whose sdnext entry point acquires
+                # queue_lock internally; serialization still holds, just one level down
+                with self.sdnext.queue_lock if hold_lock else contextlib.nullcontext():
+                    if job_id in self._cancel_ids:
+                        if self.set_status(job_id, "cancelled", completed_at=JobStore.now()):
+                            self.push_progress(job_id, WsEventStatus(status="cancelled").model_dump(exclude_none=True))
+                        return
+                    result = executor_fn(params, job_id)
+                if capture.entries:
+                    result["warnings"] = capture.entries
+                self.finish_completed(job_id, result)
+            except Exception as e:
+                # Typed rejections (4xx code) are expected client errors: one line, no traceback
+                code, error_msg = job_failure(e)
+                if code is not None and 400 <= code < 500:
+                    log.info(f"Job queue: rejected id={job_id} type={job_type} code={code} error={error_msg}")
+                elif getattr(e, "logged", False):
+                    # the executor's own reason, else the error sdnext logged for it
+                    error_msg = getattr(e, "reason", None) or (capture.first_error() if capture else None) or error_msg
+                    log.error(f"Job queue: failed id={job_id} type={job_type} error={error_msg}")
+                else:
+                    self.sdnext.display(e, f"Job queue: {job_type}")
+                self.finish_failed(job_id, error_msg)
+
+    def _dispatch_cloud_job(self, job: dict, executor_fn, job_type: str) -> None:
+        """Mark the job running and hand it to the pool, whose runner owns it from then on."""
+        job_id = job["id"]
+        with contextlib.ExitStack() as stack:
+            self.enter(job_id)
+            stack.callback(self.leave, job_id)
+            # Running before the pool takes it, so the next turn cannot dispatch it twice
+            if not self.set_status(job_id, "running", current=("pending",), started_at=JobStore.now()):
+                log.info(f"Job queue: skipped id={job_id}, no longer pending")
+            else:
+                job["status"] = "running"
+                try:
+                    self._cloud_pool.submit(self._run_cloud_job, job, executor_fn, job_type)
+                    stack.pop_all()
+                except Exception as e:
+                    log.error(f"Job queue: cloud dispatch failed id={job_id} {type(e).__name__}: {e}")
+                    self.finish_failed(job_id, f"{type(e).__name__}: {e}")
+        self.wake_if_pending()
 
     def _run_cloud_job(self, job: dict, executor_fn, job_type: str) -> None:
-        from modules.logger import log
-
         job_id = job["id"]
-        log.info(f"Job queue: cloud executing id={job_id} type={job_type}")
-        self.push_progress(job_id, WsEventStatus(status="running").model_dump(exclude_none=True))
-
-        try:
-            params = job.get("params", {})
-            if isinstance(params, str):
-                params = json.loads(params)
-            result = executor_fn(params, job_id)
-            self.output_register_failures += assign_output_urls(self.store, result, job_id)
-            result_json = json.dumps(result, default=str)
-            self.set_status(job_id, "completed", completed_at=JobStore.now(), result=result_json)
-            self.push_progress(job_id, WsEventCompleted(result=JobResult.from_result_dict(result)).model_dump(exclude_none=True))
-            log.info(f"Job queue: cloud completed id={job_id}")
-        except Exception as e:
-            log.error(f"Job queue: cloud failed id={job_id} {type(e).__name__}: {e}")
-            error_msg = f"{type(e).__name__}: {e}"
-            self.set_status(job_id, "failed", completed_at=JobStore.now(), error=error_msg)
-            self.push_progress(job_id, WsEventError(error=error_msg).model_dump(exclude_none=True))
-        finally:
-            self.leave(job_id)
+        with contextlib.ExitStack() as stack:
+            stack.callback(self.leave, job_id)
+            try:
+                log.info(f"Job queue: cloud executing id={job_id} type={job_type}")
+                self.push_progress(job_id, WsEventStatus(status="running").model_dump(exclude_none=True))
+                result = executor_fn(job_params(job), job_id)
+                self.finish_completed(job_id, result)
+            except Exception as e:
+                log.error(f"Job queue: cloud failed id={job_id} {type(e).__name__}: {e}")
+                self.finish_failed(job_id, f"{type(e).__name__}: {e}")
 
     def _progress_poller(self, job_id: str, stop_event: threading.Event, stages: list[str] | None = None) -> None:
-        from modules import shared
-
         last_step = -1
         last_job = ""
         last_textinfo = None
@@ -518,7 +578,7 @@ class JobQueue:
             try:
                 if self._current_job_id != job_id:
                     break
-                state = shared.state
+                state = self.sdnext.state
                 current_step = state.sampling_step
                 current_job = state.job
                 current_textinfo = state.textinfo

@@ -77,7 +77,7 @@ async def get_server_info_v2():
     media = media_boot.state
     capabilities = ServerCapabilities(video=detect_video_capability(), control_separate_init=control_separate_init(), media_store=media.store is not None)
     return ResServerInfoV2(
-        version=VersionInfoV2(**{k: str(v) for k, v in ver.items() if k in VersionInfoV2.model_fields}),
+        version=VersionInfoV2(**{k: str(v) for k, v in ver.items() if k in set(VersionInfoV2.model_fields)}),
         backend=shared.backend.name if hasattr(shared.backend, "name") else str(shared.backend),
         platform=devices.get_device_name() if hasattr(devices, "get_device_name") else str(shared.device),
         capabilities=capabilities,

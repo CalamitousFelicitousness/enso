@@ -12,6 +12,7 @@ from enso_api.sqlite import Database
 
 if TYPE_CHECKING:
     import sqlite3
+    from collections.abc import Sequence
 
 TERMINAL = ("completed", "failed", "cancelled")
 
@@ -80,15 +81,29 @@ class JobStore:
     def new_id() -> str:
         return uuid.uuid4().hex[:16]
 
-    def create(self, job_type: str, params: dict, priority: int = 0, job_id: str | None = None) -> dict:
-        job_id = job_id or self.new_id()
-        params_json = json.dumps(params, default=str)
+    def insert(self, job_type: str, params: dict, priority: int = 0, job_id: str | None = None) -> dict:
+        """Add a pending job; the row as written, built without a read after the commit."""
+        job = {
+            "id": job_id or self.new_id(),
+            "type": job_type,
+            "status": "pending",
+            "priority": priority,
+            "params": json.dumps(params, default=str),
+            "result": None,
+            "error": None,
+            "progress": 0.0,
+            "step": 0,
+            "steps": 0,
+            "created_at": self.now(),
+            "started_at": None,
+            "completed_at": None,
+        }
         with self.db.write() as w:
             w.conn.execute(
                 "INSERT INTO jobs (id, type, status, priority, params, created_at) VALUES (?, ?, 'pending', ?, ?, ?)",
-                (job_id, job_type, priority, params_json, self.now()),
+                (job["id"], job_type, priority, job["params"], job["created_at"]),
             )
-        return self.get(job_id)  # type: ignore[return-value]
+        return job
 
     def get(self, job_id: str) -> dict | None:
         with self.db.read() as conn:
@@ -121,7 +136,8 @@ class JobStore:
         with self.db.read() as conn:
             return {row[0] for row in conn.execute("SELECT id FROM jobs WHERE status IN ('pending', 'running')")}
 
-    def update_status(self, job_id: str, status: str, **kwargs) -> None:
+    def update_status(self, job_id: str, status: str, current: Sequence[str] | None = None, **kwargs) -> bool:
+        """Set a job's status and the given columns, with `current` only while its status is one of those; whether the row changed."""
         sets = ["status = ?"]
         binds: list = [status]
         for key in ("started_at", "completed_at", "error"):
@@ -132,9 +148,13 @@ class JobStore:
             sets.append("result = ?")
             val = kwargs["result"]
             binds.append(json.dumps(val, default=str) if not isinstance(val, str) else val)
+        where = "id = ?"
         binds.append(job_id)
+        if current:
+            where += f" AND status IN ({','.join('?' for _ in current)})"
+            binds.extend(current)
         with self.db.write() as w:
-            w.conn.execute(f"UPDATE jobs SET {', '.join(sets)} WHERE id = ?", binds)
+            return w.conn.execute(f"UPDATE jobs SET {', '.join(sets)} WHERE {where}", binds).rowcount > 0
 
     def set_priority(self, job_id: str, priority: int) -> bool:
         """Change a queued job's priority; False once it has left the queue."""
