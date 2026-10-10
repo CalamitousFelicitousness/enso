@@ -162,3 +162,50 @@ describe("renewAfterFailure", () => {
     expect(post).toHaveBeenCalledOnce();
   });
 });
+
+describe("endSession", () => {
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  async function settled(base: string | null, required: boolean) {
+    const loaded = await load();
+    if (base) loaded.api.setBaseUrl(base);
+    vi.spyOn(loaded.api, "post").mockResolvedValue({
+      required,
+      token: required ? "t1" : null,
+      expires_at: required ? Date.now() + 86_400_000 : null,
+      user: null,
+    });
+    await loaded.startSession();
+    const end = vi.spyOn(loaded.api, "delete").mockResolvedValue("");
+    return { ...loaded, end };
+  }
+
+  it("ends a session the page's cookie carries", async () => {
+    const { end, endSession } = await settled(null, true);
+    await endSession();
+    expect(end).toHaveBeenCalledWith("/sdapi/v2/session", undefined);
+  });
+
+  it("names the token of a session on another origin", async () => {
+    const { end, endSession } = await settled("http://127.0.0.1:7855", true);
+    await endSession();
+    expect(end).toHaveBeenCalledWith("/sdapi/v2/session", { t: "t1" });
+  });
+
+  it("has nothing to end on a server that asks for no credentials", async () => {
+    const { end, endSession } = await settled(null, false);
+    await endSession();
+    expect(end).not.toHaveBeenCalled();
+  });
+
+  it("takes a refusal for a session already ended", async () => {
+    const { ApiError, end, endSession } = await settled(null, true);
+    end.mockRejectedValue(new ApiError(404, "Not Found", {}));
+    await expect(endSession()).resolves.toBeUndefined();
+  });
+});

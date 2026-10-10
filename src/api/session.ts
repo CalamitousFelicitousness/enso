@@ -132,6 +132,19 @@ export function startSession(): Promise<void> {
   return ensureSession();
 }
 
+/** End the session this page holds on the server, before the credentials or the base change, so nothing
+ * they admitted outlives them. A server without sessions, or one that already forgot this one, has nothing
+ * to end. */
+export async function endSession(): Promise<void> {
+  const { mode, token } = useSessionStore.getState();
+  if (mode !== "cookie" && mode !== "token") return;
+  try {
+    await api.delete("/sdapi/v2/session", mode === "token" && token ? { t: token } : undefined);
+  } catch {
+    // nothing left to end
+  }
+}
+
 /** Resolves once the mode is known; asks again while the last request failed. */
 export async function sessionReady(): Promise<void> {
   const { mode } = useSessionStore.getState();

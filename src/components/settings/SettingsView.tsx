@@ -32,7 +32,7 @@ import type { ColorMode, CanvasBackground as CanvasBg } from "@/stores/uiStore";
 import { useConnectionStore } from "@/stores/connectionStore";
 import { api } from "@/api/client";
 import { ws } from "@/api/wsManager";
-import { startSession } from "@/api/session";
+import { endSession, startSession } from "@/api/session";
 import { queryClient } from "@/api/queryClient";
 
 const CONNECTION_SECTION_ID = "__connection";
@@ -434,7 +434,8 @@ function ConnectionPanel() {
   }, []);
 
   const saveAuth = useCallback(
-    (user: string, pass: string) => {
+    async (user: string, pass: string) => {
+      await endSession();
       storeSetAuth(user, pass);
       if (user && pass) api.setAuth(user, pass);
       else api.clearAuth();
@@ -446,6 +447,7 @@ function ConnectionPanel() {
 
   const handleConnect = useCallback(async () => {
     const effectiveUrl = urlInput.replace(/\/$/, "") || window.location.origin;
+    await endSession();
     api.setBaseUrl(effectiveUrl);
     storeSetUrl(urlInput.replace(/\/$/, ""));
     void startSession();
@@ -455,7 +457,8 @@ function ConnectionPanel() {
     toast.success("Connection updated");
   }, [urlInput, storeSetUrl, checkConnection]);
 
-  const handleReset = useCallback(() => {
+  const handleReset = useCallback(async () => {
+    await endSession();
     storeReset();
     api.setBaseUrl(window.location.origin);
     api.clearAuth();
@@ -513,7 +516,7 @@ function ConnectionPanel() {
                 size="xs"
                 variant="ghost"
                 className="text-destructive"
-                onClick={() => saveAuth("", "")}
+                onClick={() => void saveAuth("", "")}
               >
                 Remove
               </Button>
@@ -540,7 +543,7 @@ function ConnectionPanel() {
                 size="xs"
                 disabled={!userDraft.trim() || !passDraft.trim()}
                 onClick={() => {
-                  saveAuth(userDraft.trim(), passDraft.trim());
+                  void saveAuth(userDraft.trim(), passDraft.trim());
                   setEditingAuth(false);
                   setUserDraft("");
                   setPassDraft("");
@@ -570,7 +573,12 @@ function ConnectionPanel() {
             <Plug size={14} />
             Connect
           </Button>
-          <Button variant="secondary" size="sm" onClick={handleReset} className="text-xs">
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => void handleReset()}
+            className="text-xs"
+          >
             <Unplug size={14} />
             Reset to default
           </Button>

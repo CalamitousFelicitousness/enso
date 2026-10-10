@@ -14,6 +14,7 @@ def register_api(app, dependencies=None):
     from enso_api.job_queue import job_queue
     from enso_api.job_types import validate_registries
     from enso_api.routes import media_router, router
+    from enso_api.session import public_router as session_public_router
     from enso_api.session import router as session_router
     from enso_api.upload import init_upload_store, upload_media_router, upload_router
     from enso_api.ws import ws_job_endpoint
@@ -71,6 +72,7 @@ def register_api(app, dependencies=None):
     app.include_router(router, dependencies=deps)
     app.include_router(upload_router, dependencies=deps)
     app.include_router(session_router, dependencies=deps)
+    app.include_router(session_public_router)
     # Media routers carry their own auth: the session cookie, else what sdnext's auth admits
     app.include_router(media_router)
     app.include_router(upload_media_router)

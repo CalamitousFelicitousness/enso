@@ -18810,6 +18810,19 @@
       }
     },
     "/sdapi/v2/session": {
+      "delete": {
+        "description": "End the session this request carries, by its cookie or by ?t=, and clear the cookie.",
+        "operationId": "delete_session_sdapi_v2_session_delete",
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Delete Session",
+        "tags": [
+          "Session"
+        ]
+      },
       "post": {
         "description": "Issue a session for the caller sdnext admitted, as the enso-session cookie and in the body.",
         "operationId": "post_session_sdapi_v2_session_post",

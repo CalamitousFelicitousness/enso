@@ -75,6 +75,25 @@ export async function downloadMedia(image: string, filename?: string): Promise<v
   save(await response.blob(), name ?? "download");
 }
 
+/** Open a stored file in a new tab as a local copy, so a token in its URL never reaches the tab's address
+ * bar or the history. */
+export function openMediaCopy(image: string): void {
+  // Opened inside the click, before anything is awaited, so no popup blocker stops it
+  const tab = window.open("", "_blank");
+  if (!tab) return;
+  tab.opener = null;
+  mediaBlob(image)
+    .then((blob) => {
+      const url = URL.createObjectURL(blob);
+      tab.location.href = url;
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    })
+    .catch((err: unknown) => {
+      tab.close();
+      failedWith("Could not open the file")(err);
+    });
+}
+
 /** Download every image of the given results as one zip. */
 export async function downloadAllAsZip(
   results: { images: string[]; info: string }[],

@@ -36,11 +36,16 @@ class Caller(NamedTuple):
 
 
 class Expiring:
-    """Tokens that each admit a caller until a deadline; expired ones go on every issue."""
+    """Tokens that each admit a caller until a deadline, at most `per_caller` live at once for one caller.
 
-    def __init__(self, seconds: int, single_use: bool):
+    Every issue drops the expired tokens and the caller's oldest past the limit, so repeated issuing cannot
+    grow the store, and one caller's tokens never push out another's.
+    """
+
+    def __init__(self, seconds: int, single_use: bool, per_caller: int):
         self.seconds = seconds
         self.single_use = single_use
+        self.per_caller = per_caller
         self.items: dict[str, tuple[Caller, float]] = {}
         self.lock = threading.Lock()
 
@@ -48,8 +53,12 @@ class Expiring:
         now = time.time()
         token = secrets.token_urlsafe(32)
         with self.lock:
-            self.items = {key: item for key, item in self.items.items() if item[1] > now}
-            self.items[token] = (caller, now + self.seconds)
+            live = {key: item for key, item in self.items.items() if item[1] > now}
+            mine = sorted((item[1], key) for key, item in live.items() if item[0] == caller)
+            for _, key in mine[: max(0, len(mine) - self.per_caller + 1)]:
+                del live[key]
+            live[token] = (caller, now + self.seconds)
+            self.items = live
         return token, now + self.seconds
 
     def resolve(self, token: str | None) -> Caller | None:
@@ -61,9 +70,14 @@ class Expiring:
             return None
         return item[0]
 
+    def revoke(self, token: str | None) -> None:
+        if token:
+            with self.lock:
+                self.items.pop(token, None)
 
-sessions = Expiring(SESSION_SECONDS, single_use=False)
-tickets = Expiring(TICKET_SECONDS, single_use=True)
+
+sessions = Expiring(SESSION_SECONDS, single_use=False, per_caller=16)
+tickets = Expiring(TICKET_SECONDS, single_use=True, per_caller=32)
 
 
 def credentials() -> dict[str, str]:
@@ -193,6 +207,7 @@ async def post_session(request: Request, response: Response):
         return ResSessionV2(required=False)
     # Traded only for a credential sdnext takes, never for another session
     caller = admitted(request)
+    sessions.revoke(request.cookies.get(SESSION_COOKIE))
     token, expires = sessions.issue(caller)
     response.set_cookie(
         SESSION_COOKIE,
@@ -211,3 +226,15 @@ async def post_ws_ticket(request: Request):
     """A single-use ticket for one socket opened from another origin, valid 60 s."""
     ticket, _ = tickets.issue(admitted(request) if auth_required() else Caller(None))
     return ResWsTicketV2(ticket=ticket)
+
+
+# Mounted without sdnext's auth: holding a session is what it takes to end it, and an ended login has no credential left
+public_router = APIRouter(prefix="/sdapi/v2", tags=["Session"])
+
+
+@public_router.delete("/session", status_code=204)
+async def delete_session(request: Request, response: Response) -> None:
+    """End the session this request carries, by its cookie or by ?t=, and clear the cookie."""
+    sessions.revoke(request.cookies.get(SESSION_COOKIE))
+    sessions.revoke(request.query_params.get("t"))
+    response.delete_cookie(SESSION_COOKIE, path="/")

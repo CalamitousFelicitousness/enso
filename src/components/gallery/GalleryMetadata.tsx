@@ -4,9 +4,9 @@ import { useGenerationStore } from "@/stores/generationStore";
 import { applyParams } from "@/lib/request/restore";
 import { parseGenerationInfo } from "@/lib/parseGenerationInfo";
 import { sendImageToCanvas, sendPromptToGeneration } from "@/lib/sendTo";
-import { downloadMedia, failedWith, mediaFile } from "@/lib/mediaFiles";
+import { downloadMedia, failedWith, mediaFile, openMediaCopy } from "@/lib/mediaFiles";
 import { browserFilePath } from "@/api/browserFile";
-import { mediaUrl } from "@/api/session";
+import { mediaUrl, useSessionStore } from "@/api/session";
 import { MediaImg, MediaVideo } from "@/components/ui/media";
 import { isVideoFile } from "@/lib/mediaType";
 import { cn } from "@/lib/utils";
@@ -280,16 +280,7 @@ export function GalleryMetadata() {
                 <ImageIcon size={12} /> Send prompt to generation
               </Button>
             )}
-            <Button
-              variant="outline"
-              size="sm"
-              className="w-full h-6 text-2xs justify-start gap-2"
-              asChild
-            >
-              <a href={mediaUrl(fullUrl)} target="_blank" rel="noopener noreferrer">
-                <ExternalLink size={12} /> Open full size
-              </a>
-            </Button>
+            <OpenFullSize path={fullUrl} />
             <Button
               variant="outline"
               size="sm"
@@ -306,6 +297,31 @@ export function GalleryMetadata() {
         </div>
       </ScrollArea>
     </div>
+  );
+}
+
+/** A link, except on a base on another origin: there the tab gets a local copy, so the session token in
+ * the file's URL stays out of the address bar and the history. */
+function OpenFullSize({ path }: { path: string }) {
+  const tokenMode = useSessionStore((s) => s.mode === "token");
+  const label = (
+    <>
+      <ExternalLink size={12} /> Open full size
+    </>
+  );
+  const className = "w-full h-6 text-2xs justify-start gap-2";
+  if (tokenMode)
+    return (
+      <Button variant="outline" size="sm" className={className} onClick={() => openMediaCopy(path)}>
+        {label}
+      </Button>
+    );
+  return (
+    <Button variant="outline" size="sm" className={className} asChild>
+      <a href={mediaUrl(path)} target="_blank" rel="noopener noreferrer">
+        {label}
+      </a>
+    </Button>
   );
 }
 
