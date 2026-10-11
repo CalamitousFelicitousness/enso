@@ -28,6 +28,8 @@ export interface ParsedGenerationInfo {
   prompt: string;
   negativePrompt: string;
   params: Record<string, string>;
+  /** The Enso job a trailing stamp names; null without one. */
+  jobId: string | null;
 }
 
 export type GallerySortField = "name" | "mtime" | "size" | "width";

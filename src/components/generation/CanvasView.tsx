@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState, memo } from "react";
 import { toast } from "sonner";
 import { useCanvasStore } from "@/stores/canvasStore";
 import { useInputStore } from "@/stores/inputStore";
-import { addFilesToInputs } from "@/inputs/route";
+import { addFilesToInputs, addServerPictures } from "@/inputs/route";
 import { clearAllFrames, clearFrame, removeFrame } from "@/inputs/edits";
 import { composedPictures, isComposed } from "@/lib/inputs/types";
 import { frameBox, inBox } from "@/lib/inputs/layout";
@@ -12,7 +12,7 @@ import { useUiStore } from "@/stores/uiStore";
 import { useShortcutScope } from "@/hooks/useShortcutScope";
 import { useShortcut } from "@/hooks/useShortcut";
 import { useKeepAliveVisible } from "@/components/ui/keep-alive";
-import { dropFailed, payloadToFile } from "@/lib/sendTo";
+import { dropFailed, payloadToPicture } from "@/lib/sendTo";
 import type { EntryPayload, ImagePayload } from "@/lib/drag";
 import { recallEntry } from "@/inputs/recall";
 import { CanvasStage } from "@/canvas/CanvasStage";
@@ -76,10 +76,8 @@ export const CanvasView = memo(function CanvasView() {
   const handleDropImage = useCallback(
     (payload: ImagePayload, point: SurfacePoint) => {
       const frameId = hitTestFrame(point);
-      payloadToFile(payload)
-        .then((f: File) => {
-          void addFilesToInputs([f], frameId);
-        })
+      Promise.resolve()
+        .then(() => addServerPictures([payloadToPicture(payload)], frameId))
         .catch(dropFailed);
     },
     [hitTestFrame],

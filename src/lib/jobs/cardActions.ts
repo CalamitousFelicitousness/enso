@@ -24,6 +24,8 @@ export interface JobFacts {
   lost: number;
   /** Pictures the record could not keep when it was sent. */
   unavailable: number;
+  /** When the job was sent, epoch milliseconds. */
+  createdAt: number;
 }
 
 /** What is known of a job's record: its facts, being read, none kept, not
@@ -38,6 +40,8 @@ export type ActionReason =
   | "storeOff"
   | "olderServer"
   | "noRecord"
+  | "noJobFound"
+  | "lookupFailed"
   | "olderResult"
   | "noInputs"
   | "unfinished"
@@ -103,6 +107,19 @@ export function runAgainSlot<A extends string>(
     note: "loadsModel",
     ...(loads.model ? { model: loads.model } : {}),
   };
+}
+
+/** Restore a job's inputs: from the record of an image job that kept them,
+ * or from what an older build kept beside a result. */
+export function restoreInputsSlot<A extends string>(
+  action: A,
+  facts: FactsState,
+  legacyInputs = false,
+): Slot<A> {
+  if (typeof facts === "string")
+    return { action, reason: legacyInputs ? null : STATE_REASON[facts] };
+  if (facts.domain !== "generate") return { action, reason: "notGenerate" };
+  return { action, reason: facts.hasInputs ? null : "noInputs" };
 }
 
 export type HistoryAction = "restoreSettings" | "restoreBoth" | "runAgain" | "delete";
@@ -216,10 +233,10 @@ export function resultActions(
   facts: FactsState,
 ): Record<ResultAction, Slot<ResultAction>> {
   const settings = result.type === null || result.type === "generate" ? null : "notGenerate";
-  let inputs: ActionReason | null;
-  if (typeof facts !== "string") inputs = facts.hasInputs ? null : "noInputs";
-  else if (result.legacyInputs) inputs = null;
-  else inputs = result.jobId === null ? "olderResult" : stateReason(facts);
+  const inputs =
+    result.jobId === null && !result.legacyInputs
+      ? "olderResult"
+      : restoreInputsSlot("restoreInputs", facts, result.legacyInputs).reason;
   const runAgain: Slot<ResultAction> =
     result.jobId === null
       ? { action: "runAgain", reason: "olderResult" }
@@ -231,4 +248,51 @@ export function resultActions(
     restoreBoth: { action: "restoreBoth", reason: settings ?? inputs },
     runAgain,
   };
+}
+
+/** The reason every slot gives, when they all give the same one: a line
+ * above them can say it once. */
+export function sharedReason<A extends string>(slots: readonly Slot<A>[]): ActionReason | null {
+  const first = slots[0]?.reason ?? null;
+  return first !== null && slots.every((slot) => slot.reason === first) ? first : null;
+}
+
+export type GalleryAction = "restoreInputs" | "restoreBoth" | "runAgain";
+
+/** What the server said of the job that made a file. */
+export type OutputJobLookup =
+  { state: "loading" } | { state: "failed" } | { state: "none" } | { state: "found"; id: string };
+
+export interface GalleryJob {
+  lookup: OutputJobLookup;
+  /** This page tracks the job and it has not ended. */
+  running: boolean;
+  /** The model the job loads when it runs again. */
+  loads?: LoadsModel | null;
+}
+
+const LOOKUP_REASON: Record<Exclude<OutputJobLookup["state"], "found">, ActionReason> = {
+  loading: "loading",
+  failed: "lookupFailed",
+  none: "noJobFound",
+};
+
+/** A Gallery file's job slots: none until its job is known, then the rules
+ * every other view uses. */
+export function gallerySlots(job: GalleryJob, facts: FactsState): Slot<GalleryAction>[] {
+  const { lookup } = job;
+  const prelude =
+    lookup.state !== "found" ? LOOKUP_REASON[lookup.state] : job.running ? "unfinished" : null;
+  if (prelude) {
+    return (["restoreInputs", "restoreBoth", "runAgain"] as const).map((action) => ({
+      action,
+      reason: prelude,
+    }));
+  }
+  const inputs = restoreInputsSlot<GalleryAction>("restoreInputs", facts);
+  return [
+    inputs,
+    { ...inputs, action: "restoreBoth" },
+    runAgainSlot<GalleryAction>("runAgain", "completed", facts, job.loads ?? null),
+  ];
 }

@@ -235,6 +235,7 @@ function sentFacts(domain: JobDomain, record: ReqRecordV2): JobFacts {
     missingRefs: 0,
     lost: 0,
     unavailable: record.unavailable?.length ?? 0,
+    createdAt: Date.now(),
   };
 }
 

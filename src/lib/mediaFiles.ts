@@ -17,10 +17,10 @@ const isRawBase64 = (image: string) =>
   !image.startsWith("/") && !/^(data|blob|https?):/.test(image);
 
 /** The server's answer for a stored file, or the reason it has none, worded. */
-async function fetchOk(url: string): Promise<Response> {
+async function fetchOk(url: string, init?: RequestInit): Promise<Response> {
   let response: Response;
   try {
-    response = await fetchMedia(url);
+    response = await fetchMedia(url, init);
   } catch {
     throw new Error("The server could not be reached");
   }
@@ -29,13 +29,17 @@ async function fetchOk(url: string): Promise<Response> {
 }
 
 /** The bytes of a stored image: a server path or URL, a data: or blob: URL, or raw base64. */
-export async function mediaBlob(image: string): Promise<Blob> {
+export async function mediaBlob(image: string, init?: RequestInit): Promise<Blob> {
   if (isRawBase64(image)) return base64ToBlob(image);
-  return (await fetchOk(image)).blob();
+  return (await fetchOk(image, init)).blob();
 }
 
-export async function mediaFile(image: string, filename: string): Promise<File> {
-  const blob = await mediaBlob(image);
+export async function mediaFile(
+  image: string,
+  filename: string,
+  init?: RequestInit,
+): Promise<File> {
+  const blob = await mediaBlob(image, init);
   return new File([blob], filename, { type: blob.type });
 }
 

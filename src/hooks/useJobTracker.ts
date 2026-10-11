@@ -1,4 +1,6 @@
 import { useEffect, useRef } from "react";
+import { queryClient } from "@/api/queryClient";
+import { OUTPUT_JOBS_KEY } from "@/api/queryKeys";
 import { renewForSocket, socketUrl } from "@/api/session";
 import { WebSocketManager } from "@/api/websocket";
 import { useJobQueueStore, type TrackedJob } from "@/stores/jobStore";
@@ -246,6 +248,8 @@ export function useJobTracker() {
               s.completeJob(jobId, data.result);
               const tracked = s.jobs.get(jobId);
               if (tracked) void routeResult(tracked, data.result);
+              // its outputs now name it in the Gallery
+              void queryClient.invalidateQueries({ queryKey: OUTPUT_JOBS_KEY });
               break;
             }
             case "error":

@@ -16,6 +16,7 @@ export type {
   ResLibraryV2,
   ResMediaReportV2,
   ResMediaSettingsV2,
+  ResOutputJobV2,
   ResRecordsV2,
   ResRecordV2,
   ResTrashV2,

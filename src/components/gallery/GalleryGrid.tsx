@@ -3,11 +3,12 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import { useGalleryStore } from "@/stores/galleryStore";
 import { useThumbnailLoader, useBackgroundPreloader } from "@/api/hooks/useGallery";
 import type { GalleryFile } from "@/api/types/gallery";
-import { browserFilePath } from "@/api/browserFile";
 import { ConnectedGalleryCard } from "./GalleryCard";
 import { MasonryGrid } from "./MasonryGrid";
-import { sendImageToCanvas } from "@/lib/sendTo";
-import { failedWith, mediaFile } from "@/lib/mediaFiles";
+import { GalleryJobItems } from "./GalleryJob";
+import { sendPictureToCanvas } from "@/lib/sendTo";
+import { galleryPicture } from "@/inputs/adopt";
+import { failedWith } from "@/lib/mediaFiles";
 import { isVideoFile } from "@/lib/mediaType";
 import { VIDEO_TO_CANVAS_TEXT } from "@/lib/inputs/text";
 import {
@@ -252,12 +253,9 @@ export function GalleryGrid({
 
   const handleSendToCanvas = useCallback(() => {
     if (!contextFile || isVideoFile(contextFile.relativePath)) return;
-    mediaFile(
-      browserFilePath(contextFile.fullPath),
-      contextFile.relativePath.split("/").pop() ?? "image.png",
-    )
-      .then(sendImageToCanvas)
-      .catch(failedWith("Could not send the image to the canvas"));
+    sendPictureToCanvas(galleryPicture(contextFile.fullPath)).catch(
+      failedWith("Could not send the image to the canvas"),
+    );
   }, [contextFile]);
   const sendRefusal =
     contextFile && isVideoFile(contextFile.relativePath) ? VIDEO_TO_CANVAS_TEXT : null;
@@ -345,7 +343,7 @@ export function GalleryGrid({
           )}
         </div>
       </ContextMenuTrigger>
-      <ContextMenuContent className="w-48">
+      <ContextMenuContent className="w-60">
         {selectionCount > 0 ? (
           <ContextMenuItem onClick={handleDeselectAll}>
             <XSquare size={14} /> Deselect all
@@ -389,6 +387,12 @@ export function GalleryGrid({
             )}
           </span>
         </ContextMenuItem>
+        {contextFile && (
+          <>
+            <ContextMenuSeparator />
+            <GalleryJobItems path={contextFile.fullPath} />
+          </>
+        )}
       </ContextMenuContent>
     </ContextMenu>
   );

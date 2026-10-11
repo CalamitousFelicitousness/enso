@@ -5,9 +5,10 @@ import { ArrowLeftFromLine, Download, Layers, SlidersHorizontal } from "lucide-r
 import { Button } from "@/components/ui/button";
 import { useGenerationStore } from "@/stores/generationStore";
 import { useCanvasStore } from "@/stores/canvasStore";
-import { addFilesToInputs } from "@/inputs/route";
+import { addServerPictures } from "@/inputs/route";
+import { resultPicture } from "@/inputs/adopt";
 import { generateImageFilename } from "@/lib/utils";
-import { downloadMedia, failedWith, mediaFile } from "@/lib/mediaFiles";
+import { downloadMedia, failedWith } from "@/lib/mediaFiles";
 import type { GenerationInfo } from "@/api/types/generation";
 import { pickedSeeds } from "@/lib/request/restoreParams";
 import { JobWarnings } from "@/components/generation/JobWarnings";
@@ -78,7 +79,7 @@ export function OutputFramePanel({
     if (!selectedResult || selectedImageIndex === null) return;
     const image = selectedResult.images[selectedImageIndex];
     if (!image) return;
-    await addFilesToInputs([await mediaFile(image, "from-output.png")]);
+    await addServerPictures([resultPicture(image, "from-output.png")]);
   }, [selectedResult, selectedImageIndex]);
 
   const handleDownload = useCallback(() => {

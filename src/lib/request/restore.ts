@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { useGenerationStore, type GenerationState } from "@/stores/generationStore";
 import type { GenerationResult } from "@/stores/generationStore";
 import { useImg2ImgStore } from "@/stores/img2imgStore";
+import { useUiStore } from "@/stores/uiStore";
 import { inputsReady } from "@/stores/inputStore";
 import { restoreFrames, type Inverse } from "@/inputs/edits";
 import { cidsOf } from "@/lib/inputs/types";
@@ -50,6 +51,22 @@ export function resultTarget(result: GenerationResult, imageIndex: number): Rest
       const legacy = await legacyResultInputs(result);
       return legacy && { inputs: legacy, lost: { pictures: [], maskObjects: 0 }, maps: new Map() };
     },
+  };
+}
+
+/** A job known by its id alone, as a Gallery file or a picture's stamp names it. */
+export async function recordTarget(jobId: string): Promise<RestoreTarget> {
+  const load = await loadRecord(jobId);
+  const type = load?.record.request["type"];
+  return {
+    settings: load
+      ? settingsSourceOf(
+          load.record,
+          { type: typeof type === "string" ? type : "", status: "completed", result: null },
+          0,
+        )
+      : { ok: false, reason: "noRecord" },
+    inputs: (fetch) => loadJobInputs({ jobId }, fetch),
   };
 }
 
@@ -130,7 +147,11 @@ let waiting: { cancel: () => void } | null = null;
  * later restore came first. While their bytes come from the server the
  * notice says how far, and Cancel, Undo or Ctrl+Z stop it and put the
  * settings back. */
-async function restoreWithInputs(target: RestoreTarget, kind: Exclude<RestoreKind, "settings">) {
+async function restoreWithInputs(
+  target: RestoreTarget,
+  kind: Exclude<RestoreKind, "settings">,
+  elsewhere = false,
+) {
   waiting?.cancel();
   const token = ++latest;
   const gen = useGenerationStore.getState();
@@ -157,7 +178,7 @@ async function restoreWithInputs(target: RestoreTarget, kind: Exclude<RestoreKin
   const self = { cancel };
   waiting = self;
   const offer = offerUndo(
-    restoredText(kind),
+    restoredText(kind, elsewhere),
     restoreNotesText(notes),
     () => {
       if (!putBack) {
@@ -198,8 +219,9 @@ async function restoreWithInputs(target: RestoreTarget, kind: Exclude<RestoreKin
   }
   if (!live()) return;
   if (!loaded) {
-    if (applied) offer.update(restoredText("settings"), restoreNotesText([...notes, "inputsGone"]));
-    else {
+    if (applied) {
+      offer.update(restoredText("settings", elsewhere), restoreNotesText([...notes, "inputsGone"]));
+    } else {
       offer.withdraw();
       toast.info(restoreNotesText(["inputsGone"]));
     }
@@ -208,7 +230,7 @@ async function restoreWithInputs(target: RestoreTarget, kind: Exclude<RestoreKin
   await inputsReady();
   if (!live()) return;
   putBack = restoreFrames(loaded.inputs, previousSize);
-  if (fetching) offer.update(restoredText(kind), restoreNotesText(notes));
+  if (fetching) offer.update(restoredText(kind, elsewhere), restoreNotesText(notes));
   const lost = loaded.lost.pictures.length;
   if (lost > 0) toast.warning(lostPicturesText(lost));
 }
@@ -219,4 +241,14 @@ export function restoreInputs(target: RestoreTarget): Promise<void> {
 
 export function restoreSettingsAndInputs(target: RestoreTarget): Promise<void> {
   return restoreWithInputs(target, "both");
+}
+
+/** A restore started outside the Images view: that view opens, and the
+ * notice says where the inputs went. */
+export function restoreInImages(
+  target: RestoreTarget,
+  kind: Exclude<RestoreKind, "settings">,
+): Promise<void> {
+  useUiStore.getState().setNavView("images");
+  return restoreWithInputs(target, kind, true);
 }

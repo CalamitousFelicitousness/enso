@@ -20,6 +20,9 @@ export const SETTINGS_KEY = ["media-settings"] as const;
 export const REPORT_KEY = ["media-report"] as const;
 /** This browser's job records, for the record cap's counts. */
 export const MY_RECORDS_KEY = ["my-records"] as const;
+/** The job that made a Gallery file, by its path; a prefix of every file's. */
+export const OUTPUT_JOBS_KEY = ["output-job"] as const;
+export const outputJobKey = (path: string) => ["output-job", path] as const;
 
 /** Ask again after a failure, but not after a refusal: a 4xx, or a coded answer
  * such as the media store being off. */

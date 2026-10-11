@@ -1,11 +1,15 @@
 import type { ParsedGenerationInfo } from "@/api/types/gallery";
+import { stampIn, stripStamp } from "@/lib/jobs/stamp";
 
 const RE_PARAM = /\s*([\w ]+):\s*("(?:\\"|[^"])*"|[^,]*)(?:,|$)/g;
 const RE_SIZE = /^(\d+)x(\d+)$/;
 
-export function parseGenerationInfo(raw: string | null | undefined): ParsedGenerationInfo {
-  const result: ParsedGenerationInfo = { prompt: "", negativePrompt: "", params: {} };
-  if (!raw) return result;
+export function parseGenerationInfo(text: string | null | undefined): ParsedGenerationInfo {
+  const result: ParsedGenerationInfo = { prompt: "", negativePrompt: "", params: {}, jobId: null };
+  if (!text) return result;
+  // the stamp ends the text, after a negative prompt that has no parameter line too
+  result.jobId = stampIn(text);
+  const raw = result.jobId ? stripStamp(text) : text;
 
   const negIdx = raw.indexOf("Negative prompt:");
   const stepsIdx = raw.search(/\nSteps:\s/);

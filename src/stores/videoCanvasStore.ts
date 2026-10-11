@@ -44,15 +44,17 @@ interface VideoCanvasState {
   activeSlot: VideoSlotId;
 
   setViewport: (v: Partial<ViewportState>) => void;
-  setFrame: (which: "init" | "last", file: File, objectUrl: string, w: number, h: number) => void;
+  /** Answers the new frame's id. */
+  setFrame: (which: "init" | "last", file: File, objectUrl: string, w: number, h: number) => string;
   clearFrame: (which: "init" | "last") => void;
+  /** Answers the new reference's id. */
   addReference: (
     file: File,
     objectUrl: string,
     w: number,
     h: number,
     meta?: ReferenceMediaMeta,
-  ) => void;
+  ) => string;
   removeReference: (id: string) => void;
   reorderReference: (from: number, to: number) => void;
   clearReferences: () => void;
@@ -165,6 +167,7 @@ export const useVideoCanvasStore = create<VideoCanvasState>()(
           posterUrl: null,
         };
         set({ [which === "init" ? "initFrame" : "lastFrame"]: frame, activeSlot: which });
+        return frame.id;
       },
 
       clearFrame: (which) => {
@@ -187,6 +190,7 @@ export const useVideoCanvasStore = create<VideoCanvasState>()(
           posterUrl: meta?.posterUrl ?? null,
         };
         set((s) => ({ references: [...s.references, frame], activeSlot: "references" }));
+        return frame.id;
       },
 
       removeReference: (id) => {

@@ -1,8 +1,9 @@
 // The words for job records, restores and Run again, in one place: cards,
 // menus, toasts, the palette and the live suite read them from here.
 
-import { OLDER_SERVER } from "@/lib/media/text";
-import type { ActionNote, ActionReason } from "./cardActions";
+import { ageText, OLDER_SERVER } from "@/lib/media/text";
+import type { ActionNote, ActionReason, OutputJobLookup } from "./cardActions";
+import type { JobDomain } from "./domains";
 import type { LoadsModel } from "./requests";
 
 const REASON: Record<ActionReason, string> = {
@@ -13,10 +14,12 @@ const REASON: Record<ActionReason, string> = {
   loading: "Reading the job's record",
   factsError: "Could not read the job's record",
   noRecord: "Enso kept no record of this job",
+  noJobFound: "No Enso job found for this file",
+  lookupFailed: "Could not look up the job",
   olderResult: "This result was made by an older version of Enso",
   noInputs: "This job was sent with no input pictures",
   unfinished: "This job has not finished yet",
-  notGenerate: "Only the settings of an image generation can be restored",
+  notGenerate: "Only an image generation's settings and inputs can be restored",
   first: "Already first in the queue",
   last: "Already last in the queue",
   notQueued: "Only a queued job can be moved",
@@ -60,12 +63,44 @@ export const RESTORE_SETTINGS = "Restore settings";
 export const RESTORE_INPUTS = "Restore inputs";
 export const RESTORE_BOTH = "Restore settings and inputs";
 export const RUN_AGAIN = "Run again";
+export const RESTORE_JOB_INPUTS = "Restore the job's inputs";
+export const RUN_JOB_AGAIN = "Run the job again";
 export const NO_RESULT = "No result yet";
 
 /** Run again of a run over many pictures. */
 export function processesAgainText(count: number): string {
   return `Processes all ${count} pictures again`;
 }
+
+const JOB_NOUN: Record<JobDomain, string> = {
+  generate: "image",
+  upscale: "upscale",
+  rembg: "background removal",
+  process: "Process",
+  preprocess: "preprocess",
+  video: "video",
+  framepack: "FramePack",
+  ltx: "LTX",
+  "xyz-grid": "XYZ grid",
+};
+
+export const LOOKING_UP_JOB = "Looking up the job";
+
+/** The job that made a file, as the line above its job's slots says it:
+ * being looked up, none, known by id alone, or known by its record. */
+export function outputJobText(
+  lookup: OutputJobLookup,
+  record: { domain: JobDomain; createdAt: number } | null,
+  now: number,
+): string {
+  if (lookup.state === "loading") return LOOKING_UP_JOB;
+  if (lookup.state === "failed") return REASON.lookupFailed;
+  if (lookup.state === "none") return REASON.noJobFound;
+  if (!record) return `From Enso job ${lookup.id.slice(0, 8)}`;
+  return `From an Enso ${JOB_NOUN[record.domain]} job, ${ageText(now - record.createdAt)}`;
+}
+
+export const COPY_JOB_ID = "Copy the job's id";
 
 export const MOVE_UP = "Move up";
 export const MOVE_DOWN = "Move down";
@@ -78,8 +113,9 @@ const RESTORED: Record<RestoreKind, string> = {
   both: "Settings and inputs restored",
 };
 
-export function restoredText(kind: RestoreKind): string {
-  return RESTORED[kind];
+/** A restore's notice; one started in another view says where it landed. */
+export function restoredText(kind: RestoreKind, elsewhere = false): string {
+  return elsewhere ? `${RESTORED[kind]} in the Images view` : RESTORED[kind];
 }
 
 /** What a restore left as it was, for its notice. */

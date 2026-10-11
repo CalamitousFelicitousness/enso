@@ -69,6 +69,7 @@ describe("a job's facts", () => {
       missingRefs: 1,
       lost: 0,
       unavailable: 2,
+      createdAt: 1,
     });
     expect((await facts.loadFacts("theirs"))?.mine).toBe(false);
   });

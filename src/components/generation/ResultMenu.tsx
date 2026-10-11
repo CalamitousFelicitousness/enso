@@ -72,6 +72,7 @@ function Item({
       label={label}
       {...(slot ? slotWords(slot) : {})}
       busy={busy}
+      className="text-2xs"
       onAct={onSelect}
     />
   );

@@ -7,13 +7,13 @@ import { useUiStore } from "@/stores/uiStore";
 import type { VideoSubTab } from "@/lib/constants";
 import { useModelSelectionStore } from "@/stores/modelSelectionStore";
 import { loadImageFile } from "@/lib/image";
-import { addFilesToInputs } from "@/inputs/route";
+import { addFilesToInputs, addServerPictures } from "@/inputs/route";
+import { galleryPicture, resultPicture, type ServerPicture } from "@/inputs/adopt";
 import { mediaBlob, mediaFile } from "@/lib/mediaFiles";
 import { engineToKind } from "@/lib/videoModel";
 import type { ImagePayload } from "@/lib/drag";
 import type { LocalVideoModel } from "@/api/types/cloud";
 import type { VideoWireParams } from "@/api/types/wireParams";
-import { browserFilePath } from "@/api/browserFile";
 import { VIDEO_PARAMS, WIRE_TO_STORE, coerce, type VideoJobType } from "@/lib/video/paramRegistry";
 
 export function extractFrameFromVideo(videoUrl: string, time: number): Promise<Blob> {
@@ -103,6 +103,13 @@ export async function sendImageToCanvas(file: File) {
   useUiStore.getState().setNavView("images");
 }
 
+/** Send a picture the server holds to the canvas, which takes it into the
+ * store once it has entered a frame. */
+export async function sendPictureToCanvas(picture: ServerPicture) {
+  await addServerPictures([picture]);
+  useUiStore.getState().setNavView("images");
+}
+
 export function sendPromptToGeneration(prompt: string, negative?: string) {
   const gen = useGenerationStore.getState();
   gen.setParam("prompt", prompt);
@@ -180,7 +187,7 @@ export async function sendResultToCanvas(
   result: { images: string[] },
   imageIndex: number,
 ): Promise<void> {
-  await sendImageToCanvas(await mediaFile(result.images[imageIndex], "result.png"));
+  await sendPictureToCanvas(resultPicture(result.images[imageIndex]));
 }
 
 export async function sendResultToUpscale(
@@ -190,22 +197,25 @@ export async function sendResultToUpscale(
   sendFrameToUpscale(await mediaBlob(result.images[imageIndex]));
 }
 
-/** The picture a drag from a result or the gallery carries, as a file.
- * Rejects with the reason when it can no longer be had. */
-export async function payloadToFile(payload: ImagePayload): Promise<File> {
+/** The picture a drag from a result or the gallery carries. Throws with the
+ * reason when it can no longer be had. */
+export function payloadToPicture(payload: ImagePayload): ServerPicture {
   switch (payload.type) {
     case "result-image": {
       const result = useGenerationStore.getState().results.find((r) => r.id === payload.resultId);
       const raw = result?.images[payload.imageIndex];
       if (!raw) throw new Error("That result is no longer on the strip");
-      return mediaFile(raw, "result.png");
+      return resultPicture(raw);
     }
     case "gallery-image":
-      return mediaFile(
-        browserFilePath(payload.filePath),
-        payload.filePath.split("/").pop() ?? "gallery.png",
-      );
+      return galleryPicture(payload.filePath);
   }
+}
+
+/** The picture a drag carries, as a file. Rejects with the reason when it can no longer be had. */
+export async function payloadToFile(payload: ImagePayload): Promise<File> {
+  const picture = payloadToPicture(payload);
+  return mediaFile(picture.url, picture.name);
 }
 
 /** Say why a dropped picture could not be taken. */

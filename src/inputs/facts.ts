@@ -21,6 +21,7 @@ export function itemFacts(item: ItemRecordV2, client: string): JobFacts | null {
       missingRefs: item.missing_refs,
       lost: item.lost,
       unavailable: item.unavailable,
+      createdAt: item.created_at,
     }
   );
 }
@@ -43,5 +44,6 @@ export async function loadFacts(
     missingRefs: refsIn(legacy.request).length,
     lost: 0,
     unavailable: 0,
+    createdAt: legacy.createdAt,
   };
 }

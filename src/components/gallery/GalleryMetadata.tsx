@@ -3,8 +3,9 @@ import { useGalleryStore } from "@/stores/galleryStore";
 import { useGenerationStore } from "@/stores/generationStore";
 import { applyParams } from "@/lib/request/restore";
 import { parseGenerationInfo } from "@/lib/parseGenerationInfo";
-import { sendImageToCanvas, sendPromptToGeneration } from "@/lib/sendTo";
-import { downloadMedia, failedWith, mediaFile, openMediaCopy } from "@/lib/mediaFiles";
+import { sendPictureToCanvas, sendPromptToGeneration } from "@/lib/sendTo";
+import { galleryPicture } from "@/inputs/adopt";
+import { downloadMedia, failedWith, openMediaCopy } from "@/lib/mediaFiles";
 import { browserFilePath } from "@/api/browserFile";
 import { mediaUrl, useSessionStore } from "@/api/session";
 import { MediaImg, MediaVideo } from "@/components/ui/media";
@@ -12,6 +13,7 @@ import { isVideoFile } from "@/lib/mediaType";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
+import { GalleryJobRows } from "./GalleryJob";
 import { SectionLeader } from "@/components/ui/section-leader";
 import { Button } from "@/components/ui/button";
 import { Copy, Download, ExternalLink, ImageIcon, Check, Paintbrush, Wand2 } from "lucide-react";
@@ -126,10 +128,7 @@ export function GalleryMetadata() {
     applyParams(updates, "Settings applied from the image");
   };
 
-  const handleSendToCanvas = async () => {
-    const file = await mediaFile(fullUrl, filename);
-    await sendImageToCanvas(file);
-  };
+  const handleSendToCanvas = () => sendPictureToCanvas(galleryPicture(selectedFile.fullPath));
 
   const handleSendPromptOnly = () => {
     sendPromptToGeneration(genInfo.prompt, genInfo.negativePrompt || undefined);
@@ -246,6 +245,8 @@ export function GalleryMetadata() {
 
           {/* Actions */}
           <div className="space-y-1.5">
+            <GalleryJobRows path={selectedFile.fullPath} />
+            <Separator />
             {hasGenParams && (
               <Button
                 variant="outline"
@@ -253,7 +254,7 @@ export function GalleryMetadata() {
                 className="w-full h-6 text-2xs justify-start gap-2"
                 onClick={useAllSettings}
               >
-                <Wand2 size={12} /> Use all settings
+                <Wand2 size={12} /> Use the picture's settings
               </Button>
             )}
             {!isVideo && (

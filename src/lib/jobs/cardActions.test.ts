@@ -1,10 +1,13 @@
 import { describe, expect, it } from "vitest";
 import type { JobStatus } from "@/api/types/v2";
 import {
+  gallerySlots,
   historySlots,
   queueSlots,
+  restoreInputsSlot,
   resultActions,
   runAgainSlot,
+  sharedReason,
   type FactsState,
   type JobFacts,
   type Slot,
@@ -18,6 +21,7 @@ const facts = (patch: Partial<JobFacts> = {}): JobFacts => ({
   missingRefs: 0,
   lost: 0,
   unavailable: 0,
+  createdAt: 0,
   ...patch,
 });
 
@@ -217,5 +221,89 @@ describe("resultActions", () => {
       restoreInputs: "restoreInputs:noInputs",
       runAgain: "runAgain:ok",
     });
+  });
+});
+
+describe("restoreInputsSlot", () => {
+  const reason = (state: FactsState, legacy = false) =>
+    restoreInputsSlot("restoreInputs", state, legacy).reason;
+
+  it("restores an image job's inputs from its record", () => {
+    expect(reason(facts())).toBeNull();
+    expect(reason(facts({ hasInputs: false }))).toBe("noInputs");
+  });
+
+  it("refuses a job of any other kind", () => {
+    expect(reason(facts({ domain: "video" }))).toBe("notGenerate");
+    expect(reason(facts({ domain: "process" }))).toBe("notGenerate");
+  });
+
+  it("says why when the record cannot be had", () => {
+    expect(reason("loading")).toBe("loading");
+    expect(reason("none")).toBe("noRecord");
+    expect(reason("error")).toBe("factsError");
+    expect(reason("off")).toBe("storeOff");
+    expect(reason("older")).toBe("olderServer");
+  });
+
+  it("restores what an older build kept beside a result", () => {
+    expect(reason("none", true)).toBeNull();
+  });
+});
+
+describe("gallerySlots", () => {
+  const found = { state: "found", id: "j1" } as const;
+  const slots = (job: Partial<Parameters<typeof gallerySlots>[0]>, state: FactsState = facts()) =>
+    shape(gallerySlots({ lookup: found, running: false, ...job }, state));
+
+  it("waits, quietly, while the file's job is looked up", () => {
+    expect(slots({ lookup: { state: "loading" } })).toEqual([
+      "restoreInputs:loading",
+      "restoreBoth:loading",
+      "runAgain:loading",
+    ]);
+  });
+
+  it("says so when the file names no job, or the lookup failed", () => {
+    expect(slots({ lookup: { state: "none" } })).toEqual([
+      "restoreInputs:noJobFound",
+      "restoreBoth:noJobFound",
+      "runAgain:noJobFound",
+    ]);
+    expect(slots({ lookup: { state: "failed" } })).toEqual([
+      "restoreInputs:lookupFailed",
+      "restoreBoth:lookupFailed",
+      "runAgain:lookupFailed",
+    ]);
+  });
+
+  it("waits for a job this page is still running", () => {
+    expect(slots({ running: true })).toEqual([
+      "restoreInputs:unfinished",
+      "restoreBoth:unfinished",
+      "runAgain:unfinished",
+    ]);
+  });
+
+  it("follows the record as every other view does", () => {
+    expect(slots({})).toEqual(["restoreInputs:ok", "restoreBoth:ok", "runAgain:ok"]);
+    expect(
+      slots({ loads: { model: "Wan" } }, facts({ domain: "video", hasInputs: false })),
+    ).toEqual(["restoreInputs:notGenerate", "restoreBoth:notGenerate", "runAgain:note-loadsModel"]);
+    expect(slots({}, "off")).toEqual([
+      "restoreInputs:storeOff",
+      "restoreBoth:storeOff",
+      "runAgain:storeOff",
+    ]);
+  });
+});
+
+describe("sharedReason", () => {
+  it("is the reason every slot gives, else none", () => {
+    const slot = (reason: Slot<"a">["reason"]): Slot<"a"> => ({ action: "a", reason });
+    expect(sharedReason([slot("noJobFound"), slot("noJobFound")])).toBe("noJobFound");
+    expect(sharedReason([slot("noJobFound"), slot("noRecord")])).toBeNull();
+    expect(sharedReason([slot(null), slot(null)])).toBeNull();
+    expect(sharedReason([])).toBeNull();
   });
 });

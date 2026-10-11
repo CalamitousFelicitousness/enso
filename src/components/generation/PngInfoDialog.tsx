@@ -1,6 +1,15 @@
 import { useState, useCallback, useRef } from "react";
 import { toDisplayString } from "@/lib/utils";
-import { Upload, Copy, ChevronDown, Send, Wand2, Image as ImageIcon } from "lucide-react";
+import {
+  Upload,
+  Copy,
+  ChevronDown,
+  Send,
+  Wand2,
+  Image as ImageIcon,
+  ImageDown,
+  Repeat2,
+} from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -21,6 +30,18 @@ import { sendOne } from "@/inputs/uploads";
 import { ACTIONS } from "@/lib/media/progress";
 import { UPLOAD_FAILED } from "@/lib/media/text";
 import { SubmitLabel } from "@/components/ui/submit-label";
+import { SlotButton } from "@/components/ui/slot-row";
+import { useJobActions } from "@/hooks/useJobActions";
+import { useMinute } from "@/hooks/useMinute";
+import { sharedReason, type OutputJobLookup } from "@/lib/jobs/cardActions";
+import { jobIdOf } from "@/lib/jobs/stamp";
+import {
+  outputJobText,
+  reasonText,
+  RESTORE_JOB_INPUTS,
+  RUN_JOB_AGAIN,
+  slotWords,
+} from "@/lib/jobs/text";
 import { toast } from "sonner";
 
 const PARAM_GROUPS: { label: string; keys: string[] }[] = [
@@ -200,6 +221,47 @@ function resolveGroupEntries(items: Record<string, string>, keys: string[]): [st
   return entries;
 }
 
+/** The job a picked picture's text names, and its inputs and Run again. */
+function PngJobRow({ lookup, onRestore }: { lookup: OutputJobLookup; onRestore: () => void }) {
+  const job = useJobActions(lookup);
+  const now = useMinute();
+  const record = typeof job.facts === "string" ? null : job.facts;
+  const [inputs, , again] = job.slots;
+  const shared = sharedReason([inputs, again]);
+  const line = outputJobText(lookup, record, now);
+  const detail = shared && lookup.state === "found" ? reasonText(shared) : null;
+  return (
+    <div className="space-y-1.5 px-4 py-2 border-t">
+      <div className="text-2xs text-muted-foreground">
+        <p className="truncate" title={line}>
+          {line}
+        </p>
+        <p className="min-h-[1lh] truncate text-3xs opacity-70">{detail}</p>
+      </div>
+      <div className="flex gap-2">
+        <SlotButton
+          compact
+          icon={ImageDown}
+          label={RESTORE_JOB_INPUTS}
+          {...slotWords(inputs)}
+          onAct={() => {
+            job.act.restoreInputs();
+            onRestore();
+          }}
+        />
+        <SlotButton
+          compact
+          icon={Repeat2}
+          label={RUN_JOB_AGAIN}
+          {...slotWords(again)}
+          busy={job.busy}
+          onAct={job.act.runAgain}
+        />
+      </div>
+    </div>
+  );
+}
+
 export function PngInfoDialog({ open, onOpenChange }: PngInfoDialogProps) {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [fileRef, setFileRef] = useState<File | null>(null);
@@ -208,6 +270,8 @@ export function PngInfoDialog({ open, onOpenChange }: PngInfoDialogProps) {
   const [parameters, setParameters] = useState<Record<string, unknown>>({});
   const [dragging, setDragging] = useState(false);
   const [reading, setReading] = useState(false);
+  // the picture could not be read, so whether it names a job is not known
+  const [unread, setUnread] = useState(false);
   const dragCounter = useRef(0);
   const pngInfo = usePngInfo();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -232,6 +296,7 @@ export function PngInfoDialog({ open, onOpenChange }: PngInfoDialogProps) {
       setInfoText("");
       setItems({});
       setParameters({});
+      setUnread(false);
       setReading(true);
       try {
         const ref = await runUpload(({ batch }) => sendOne(batch, file, { name: file.name }), {
@@ -252,8 +317,9 @@ export function PngInfoDialog({ open, onOpenChange }: PngInfoDialogProps) {
               setParameters(data.parameters ?? {});
             },
             onError: (err) => {
-              if (current())
-                toast.error("Could not read the picture's info", { description: err.message });
+              if (!current()) return;
+              setUnread(true);
+              toast.error("Could not read the picture's info", { description: err.message });
             },
             onSettled: () => {
               if (current()) setReading(false);
@@ -263,6 +329,7 @@ export function PngInfoDialog({ open, onOpenChange }: PngInfoDialogProps) {
       } catch (err) {
         if (!current()) return;
         setReading(false);
+        setUnread(true);
         toast.error(UPLOAD_FAILED, {
           description: err instanceof Error ? err.message : String(err),
         });
@@ -319,6 +386,15 @@ export function PngInfoDialog({ open, onOpenChange }: PngInfoDialogProps) {
     },
     [processFile],
   );
+
+  const stampedJob = jobIdOf(parameters["Enso job"]);
+  const lookup: OutputJobLookup = reading
+    ? { state: "loading" }
+    : unread
+      ? { state: "failed" }
+      : stampedJob
+        ? { state: "found", id: stampedJob }
+        : { state: "none" };
 
   const handleApply = useCallback(() => {
     applyParams(pngInfoParams(parameters), "Settings applied from PNG info");
@@ -539,6 +615,8 @@ export function PngInfoDialog({ open, onOpenChange }: PngInfoDialogProps) {
                   )}
                 </div>
               </ScrollArea>
+
+              {fileRef && <PngJobRow lookup={lookup} onRestore={() => handleClose(false)} />}
 
               {/* Action bar */}
               {infoText && (

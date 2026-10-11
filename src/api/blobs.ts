@@ -137,9 +137,13 @@ export async function claim(
   return answer;
 }
 
-/** Take an output the server already holds into the store, by its id. */
-export function adopt(outputId: string): Promise<ResBlobV2> {
-  return api.post<ResBlobV2>("/sdapi/v2/blobs/adopt", { output_id: outputId });
+/** A file the server already holds: an output by its id, or a Gallery file by its path. */
+export type AdoptOrigin = { outputId: string } | { path: string };
+
+/** Take a file the server already holds into the store. */
+export function adopt(origin: AdoptOrigin): Promise<ResBlobV2> {
+  const body = "outputId" in origin ? { output_id: origin.outputId } : { path: origin.path };
+  return api.post<ResBlobV2>("/sdapi/v2/blobs/adopt", body);
 }
 
 const BLOB_PATH = "/sdapi/v2/blobs/";

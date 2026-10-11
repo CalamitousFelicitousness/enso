@@ -24,7 +24,9 @@ import { FrameHeader } from "@/canvas/panels/FrameHeader";
 import { VideoPlayer } from "@/components/video/VideoPlayer";
 import { VideoCompare } from "@/components/video/VideoCompare";
 import { VideoResultActions } from "@/components/video/VideoResultActions";
-import { dropFailed, payloadToFile } from "@/lib/sendTo";
+import { dropFailed, payloadToPicture } from "@/lib/sendTo";
+import { adoptFile, serverFile } from "@/inputs/adopt";
+import { useVideoHashStore } from "@/stores/videoHashStore";
 import type { ImagePayload } from "@/lib/drag";
 import { Button } from "@/components/ui/button";
 import { ParamSlider } from "@/components/generation/ParamSlider";
@@ -105,23 +107,28 @@ export function VideoCanvasView() {
   const maxReferences = refCaps.max_total > 0 ? refCaps.max_total : refCaps.max_images;
 
   const handleFileSelected = useCallback(
-    async (which: VideoSlotId, file: File) => {
+    async (which: VideoSlotId, file: File): Promise<string | null> => {
       if (which !== "references") {
         if (!file.type.startsWith("image/")) {
           toast.warning(`The ${which === "init" ? "Init" : "Last"} slot takes an image`, {
             description: file.name,
           });
-          return;
+          return null;
         }
         const loaded = await loadImageFile(file);
-        setFrame(which, loaded.file, loaded.objectUrl, loaded.naturalWidth, loaded.naturalHeight);
-        return;
+        return setFrame(
+          which,
+          loaded.file,
+          loaded.objectUrl,
+          loaded.naturalWidth,
+          loaded.naturalHeight,
+        );
       }
 
       const kind = classifyReferenceFile(file.name);
       if (!kind) {
         toast.warning(`Unsupported reference type: ${file.name}`);
-        return;
+        return null;
       }
       const refs = useVideoCanvasStore.getState().references;
       const kindMax =
@@ -132,25 +139,28 @@ export function VideoCanvasView() {
             : refCaps.max_audio;
       if (kind !== "image" && kindMax <= 0) {
         toast.warning("This model takes image references only");
-        return;
+        return null;
       }
       if (kindMax > 0 && refs.filter((r) => r.kind === kind).length >= kindMax) {
         toast.warning(`This model takes at most ${kindMax} ${kind} references`);
-        return;
+        return null;
       }
       if (maxReferences > 0 && refs.length >= maxReferences) {
         toast.warning(`This model takes at most ${maxReferences} references in total`);
-        return;
+        return null;
       }
 
       let objectUrl: string | null = null;
       try {
         if (kind === "image") {
           const loaded = await loadImageFile(file);
-          addReference(loaded.file, loaded.objectUrl, loaded.naturalWidth, loaded.naturalHeight, {
-            kind,
-          });
-          return;
+          return addReference(
+            loaded.file,
+            loaded.objectUrl,
+            loaded.naturalWidth,
+            loaded.naturalHeight,
+            { kind },
+          );
         }
         objectUrl = URL.createObjectURL(file);
         if (kind === "video") {
@@ -159,9 +169,9 @@ export function VideoCanvasView() {
             URL.revokeObjectURL(objectUrl);
             if (probe.posterUrl) URL.revokeObjectURL(probe.posterUrl);
             toast.warning(`Reference videos are limited to ${refCaps.video_max_seconds}s`);
-            return;
+            return null;
           }
-          addReference(file, objectUrl, probe.width, probe.height, {
+          return addReference(file, objectUrl, probe.width, probe.height, {
             kind,
             duration: probe.duration,
             hasAudio: probe.hasAudio,
@@ -169,13 +179,14 @@ export function VideoCanvasView() {
           });
         } else {
           const probe = await probeAudioFile(objectUrl);
-          addReference(file, objectUrl, 0, 0, { kind, duration: probe.duration });
+          return addReference(file, objectUrl, 0, 0, { kind, duration: probe.duration });
         }
       } catch (err) {
         if (objectUrl) URL.revokeObjectURL(objectUrl);
         toast.error(`Could not read ${file.name}`, {
           description: err instanceof Error ? err.message : String(err),
         });
+        return null;
       }
     },
     [setFrame, addReference, refCaps, maxReferences],
@@ -218,12 +229,19 @@ export function VideoCanvasView() {
     [handleFileSelected, hitTestTarget],
   );
 
+  // A picture the server holds is taken into its store once it has entered a
+  // slot, so the slot's file goes as a claim
   const handleDropImage = useCallback(
     (payload: ImagePayload, point: SurfacePoint) => {
       const target = hitTestTarget(point);
-      payloadToFile(payload)
-        .then((f: File) => handleFileSelected(target, f))
-        .catch(dropFailed);
+      void (async () => {
+        const picture = payloadToPicture(payload);
+        const file = await serverFile(picture);
+        const id = await handleFileSelected(target, file);
+        if (!id || !picture.origin) return;
+        const hash = await adoptFile(picture.origin, file.size);
+        if (hash) useVideoHashStore.getState().remember(id, hash);
+      })().catch(dropFailed);
     },
     [hitTestTarget, handleFileSelected],
   );

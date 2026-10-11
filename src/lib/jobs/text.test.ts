@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   closedPageText,
   noteText,
+  outputJobText,
   reasonText,
   replayMissingText,
   restoreNotesText,
@@ -57,5 +58,23 @@ describe("Run again words", () => {
     expect(replayMissingText("file")).toBe("A file this job sent is no longer stored");
     expect(reasonText("gone")).toBe(replayMissingText("file"));
     expect(reasonText("storeOff")).toBe("Job records are unavailable while the media store is off");
+  });
+});
+
+describe("the job a file came from", () => {
+  const now = 10 * 86_400_000;
+  const found = { state: "found", id: "0123abcd4567ef89" } as const;
+
+  it("is looked up, missing, unreadable, known by id, or known by its record", () => {
+    expect(outputJobText({ state: "loading" }, null, now)).toBe("Looking up the job");
+    expect(outputJobText({ state: "none" }, null, now)).toBe("No Enso job found for this file");
+    expect(outputJobText({ state: "failed" }, null, now)).toBe("Could not look up the job");
+    expect(outputJobText(found, null, now)).toBe("From Enso job 0123abcd");
+    expect(outputJobText(found, { domain: "generate", createdAt: now - 3 * 86_400_000 }, now)).toBe(
+      "From an Enso image job, 3 days ago",
+    );
+    expect(outputJobText(found, { domain: "framepack", createdAt: now }, now)).toBe(
+      "From an Enso FramePack job, just now",
+    );
   });
 });
