@@ -16,7 +16,6 @@ import {
   Scissors,
   ShieldCheck,
   Tags,
-  Timer,
   ImageIcon,
   Video,
   Sparkles,
@@ -190,7 +189,6 @@ export const SYSTEM_SUB_TABS = [
   { id: "Activity", label: "Activity", icon: Activity, keywords: ["log", "requests"] },
   { id: "GPU Monitor", label: "GPU Monitor", icon: MemoryStick, keywords: ["vram", "temperature"] },
   { id: "System Info", label: "System Info", icon: Info, keywords: ["versions", "uptime"] },
-  { id: "Benchmark", label: "Benchmark", icon: Timer, keywords: ["speed", "performance"] },
 ] as const satisfies readonly SubTabItem[];
 
 export type SystemSubTab = (typeof SYSTEM_SUB_TABS)[number]["id"];

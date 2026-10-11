@@ -1,14 +1,18 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type {
-  ImagesSubTab,
-  LibrarySubTab,
-  ModelsSubTab,
-  NavView,
-  RightSubTabTarget,
-  RightTab,
-  SystemSubTab,
-  VideoSubTab,
+import {
+  LIBRARY_SUB_TABS,
+  MODELS_SUB_TABS,
+  SYSTEM_SUB_TABS,
+  VIDEO_SUB_TABS,
+  type ImagesSubTab,
+  type LibrarySubTab,
+  type ModelsSubTab,
+  type NavView,
+  type RightSubTabTarget,
+  type RightTab,
+  type SystemSubTab,
+  type VideoSubTab,
 } from "@/lib/constants";
 import { mergeUiState } from "@/lib/uiStateMerge";
 
@@ -148,6 +152,13 @@ function subTabSelection(target: RightSubTabTarget): Partial<PanelSelections> {
   }
 }
 
+const SUB_TAB_IDS = {
+  modelsSubTab: MODELS_SUB_TABS.map((tab) => tab.id),
+  systemSubTab: SYSTEM_SUB_TABS.map((tab) => tab.id),
+  videoSubTab: VIDEO_SUB_TABS.map((tab) => tab.id),
+  librarySubTab: LIBRARY_SUB_TABS.map((tab) => tab.id),
+} satisfies Partial<Record<keyof PanelSelections, readonly string[]>>;
+
 const DEFAULT_PANEL_SELECTIONS: PanelSelections = {
   modelsSubTab: "Current",
   systemSubTab: "Overview",
@@ -248,7 +259,7 @@ export const useUiStore = create<UiState>()(
         } = state;
         return rest;
       },
-      merge: (persisted, current) => mergeUiState(persisted, current),
+      merge: (persisted, current) => mergeUiState(persisted, current, SUB_TAB_IDS),
     },
   ),
 );

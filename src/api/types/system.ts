@@ -21,29 +21,6 @@ export interface UpdateApplyResult {
   version?: UpdateCheckResult;
 }
 
-export interface BenchmarkRunRequest {
-  level?: string;
-  steps?: string;
-  width?: number;
-  height?: number;
-}
-
-export interface BenchmarkResult {
-  batch: number;
-  its: number | string;
-}
-
-export interface BenchmarkRunResult {
-  results: BenchmarkResult[];
-  error: string | null;
-}
-
-export interface BenchmarkHistory {
-  headers: string[];
-  data: (string | null)[][];
-  error?: string;
-}
-
 export interface StorageEntry {
   label: string;
   path: string;

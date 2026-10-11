@@ -4,9 +4,6 @@ import type {
   UpdateCheckResult,
   UpdateApplyRequest,
   UpdateApplyResult,
-  BenchmarkRunRequest,
-  BenchmarkRunResult,
-  BenchmarkHistory,
   HistoryResponse,
   SystemInfoFull,
   StorageInfo,
@@ -43,14 +40,6 @@ export function useUpdateCheck() {
   return useQuery({
     queryKey: ["update-check"],
     queryFn: () => api.get<UpdateCheckResult>("/sdapi/v2/update/check"),
-    enabled: false,
-  });
-}
-
-export function useBenchmarkResults() {
-  return useQuery({
-    queryKey: ["benchmark-results"],
-    queryFn: () => api.get<BenchmarkHistory>("/sdapi/v2/benchmark/results"),
     enabled: false,
   });
 }
@@ -108,17 +97,5 @@ export function useStorage() {
     queryFn: () => api.get<StorageInfo>("/sdapi/v2/storage"),
     enabled: false,
     retry: false,
-  });
-}
-
-export function useRunBenchmark() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationKey: ["benchmark-run"],
-    mutationFn: (req: BenchmarkRunRequest) =>
-      api.post<BenchmarkRunResult>("/sdapi/v2/benchmark/run", req),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ["benchmark-results"] });
-    },
   });
 }

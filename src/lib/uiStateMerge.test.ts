@@ -23,6 +23,19 @@ describe("mergeUiState", () => {
     expect(mergeUiState({ quickSettingsKeys: null }, current).quickSettingsKeys).toBeNull();
   });
 
+  it("falls back to the default for a stored sub-tab that no longer exists", () => {
+    const known = { modelsSubTab: ["Current", "List"] };
+    const stored = (modelsSubTab: unknown) =>
+      mergeUiState({ panelSelections: { modelsSubTab } }, current, known).panelSelections;
+    expect(stored("List").modelsSubTab).toBe("List");
+    expect(stored("Removed").modelsSubTab).toBe("Current");
+    expect(stored(null).modelsSubTab).toBe("Current");
+    expect(
+      mergeUiState({ panelSelections: { settingsSection: "Anything" } }, current, known)
+        .panelSelections.settingsSection,
+    ).toBe("Anything");
+  });
+
   it("finds the Input tab under the name an older build stored", () => {
     expect(mergeUiState({ activeImagesSubTab: "control" }, current).activeImagesSubTab).toBe(
       "input",

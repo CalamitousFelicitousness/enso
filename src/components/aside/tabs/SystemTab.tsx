@@ -28,7 +28,6 @@ import { UpdateSubTab } from "@/components/system/sub-tabs/UpdateSubTab";
 import { ActivityLogSubTab } from "@/components/system/sub-tabs/ActivityLogSubTab";
 import { GpuMonitorSubTab } from "@/components/system/sub-tabs/GpuMonitorSubTab";
 import { SystemInfoSubTab } from "@/components/system/sub-tabs/SystemInfoSubTab";
-import { BenchmarkSubTab } from "@/components/system/sub-tabs/BenchmarkSubTab";
 import { StorageSubTab } from "@/components/system/sub-tabs/StorageSubTab";
 
 const SUB_PANELS = buildPanels([
@@ -38,7 +37,6 @@ const SUB_PANELS = buildPanels([
   { id: "system-Activity", content: <ActivityLogSubTab /> },
   { id: "system-GPU Monitor", content: <GpuMonitorSubTab /> },
   { id: "system-System Info", content: <SystemInfoSubTab /> },
-  { id: "system-Benchmark", content: <BenchmarkSubTab /> },
 ]);
 
 export function SystemTab() {

@@ -1,10 +1,9 @@
-"""System operations API - restart, profiling, update, benchmark, storage.
+"""System operations API - restart, profiling, update, storage.
 
 Provides REST endpoints for system management operations that were previously
 only accessible through the Gradio UI.
 """
 
-import json
 import os
 import threading
 
@@ -140,61 +139,6 @@ def post_update_apply(rebase: bool = True, submodules: bool = True, extensions: 
 
 
 # ---------------------------------------------------------------------------
-# Benchmark
-# ---------------------------------------------------------------------------
-
-
-def post_benchmark_run(level: str = "quick", steps: str = "normal", width: int = 512, height: int = 512):
-    """
-    Run a performance benchmark.
-
-    Generates images at the specified resolution across one or more batch sizes
-    depending on ``level``: ``quick`` (batch 1), ``normal`` (1/2/4), or
-    ``extensive`` (1/2/4/8/16). Returns iterations-per-second for each batch.
-    """
-    try:
-        import importlib
-
-        spec = importlib.util.spec_from_file_location("benchmark", os.path.join(os.path.dirname(__file__), "..", "..", "extensions-builtin", "sd-extension-system-info", "benchmark.py"))
-        benchmark = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(benchmark)
-    except Exception as e:
-        return {"results": [], "error": f"Failed to load benchmark module: {e}"}
-    if level == "quick":
-        batches = [1]
-    elif level == "extensive":
-        batches = [1, 2, 4, 8, 16]
-    else:
-        batches = [1, 2, 4]
-    results = []
-    for batch in batches:
-        its = benchmark.run_benchmark(batch, steps, width, height)
-        results.append({"batch": batch, "its": its})
-        if its == "error":
-            break
-    return {"results": results, "error": None}
-
-
-def get_benchmark_results():
-    """
-    Get saved benchmark results.
-
-    Returns previously recorded benchmark data from the local results file,
-    including timestamps, iterations-per-second, system info, and GPU details.
-    """
-    bench_file = os.path.join(os.path.dirname(__file__), "..", "..", "extensions-builtin", "sd-extension-system-info", "scripts", "benchmark-data-local.json")
-    headers = ["timestamp", "it/s", "version", "system", "libraries", "gpu", "flags", "settings", "username", "note", "hash"]
-    if os.path.isfile(bench_file) and os.path.getsize(bench_file) > 0:
-        try:
-            with open(bench_file, encoding="utf-8") as f:
-                data = json.load(f)
-            return {"headers": headers, "data": data}
-        except Exception as e:
-            return {"headers": headers, "data": [], "error": str(e)}
-    return {"headers": headers, "data": []}
-
-
-# ---------------------------------------------------------------------------
 # Storage
 # ---------------------------------------------------------------------------
 
@@ -321,6 +265,4 @@ def register_api():
     api.add_api_route("/sdapi/v2/server/profiling", get_profiling, methods=["GET"], tags=["System"])
     api.add_api_route("/sdapi/v2/update/check", get_update_check, methods=["GET"], tags=["System"])
     api.add_api_route("/sdapi/v2/update/apply", post_update_apply, methods=["POST"], tags=["System"])
-    api.add_api_route("/sdapi/v2/benchmark/run", post_benchmark_run, methods=["POST"], tags=["System"])
-    api.add_api_route("/sdapi/v2/benchmark/results", get_benchmark_results, methods=["GET"], tags=["System"])
     api.add_api_route("/sdapi/v2/storage", get_storage, methods=["GET"], tags=["System"], response_model=dict[str, list[StorageEntryV2]])

@@ -128,7 +128,7 @@ def register_api(app, dependencies=None):
 
     register_gallery(app)
 
-    # System operations (restart, update, benchmark, storage)
+    # System operations (restart, update, storage)
     from enso_api.system_ops import register_api as register_system_ops
 
     register_system_ops()
@@ -247,7 +247,6 @@ def register_api(app, dependencies=None):
             "/sdapi/v2/caption/openclip": 5,
             "/sdapi/v2/prompt-enhance": 5,
             "/sdapi/v2/preprocess": 5,
-            "/sdapi/v2/benchmark/run": 5,
             "/sdapi/v2/xyz-grid/preview": 5,
         }
     )

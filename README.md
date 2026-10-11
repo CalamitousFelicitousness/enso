@@ -116,7 +116,6 @@ It runs as a standard SD.Next extension: drop it into `extensions-builtin/` and 
 ### System
 
 - Server info, memory, and GPU status
-- Benchmark runner
 - Update management
 - Storage analysis
 - Log viewer
@@ -192,7 +191,7 @@ enso/
 │   ├── ws.py                 # Per-job WebSocket
 │   ├── global_ws.py          # Global WebSocket (progress, interrupt)
 │   ├── gallery.py            # Gallery browser endpoints
-│   ├── system_ops.py         # Server, update, benchmark, storage
+│   ├── system_ops.py         # Server, update, storage
 │   ├── models_ops.py         # Model analysis, merge, replace, LoRA
 │   ├── loaded_models.py      # Loaded models inventory
 │   ├── endpoints.py          # Enumerator/config endpoints
