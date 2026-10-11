@@ -71,7 +71,7 @@ export function extendFrom(result: VideoResult) {
   );
 }
 
-export function reuseSettings(result: VideoResult) {
+export function restoreResultSettings(result: VideoResult) {
   restoreVideoSettings(result.params, result.domain);
   toast.success("Video settings restored");
 }

@@ -16,22 +16,22 @@ import { toast } from "sonner";
 import {
   ContextMenu,
   ContextMenuContent,
-  ContextMenuItem,
   ContextMenuSeparator,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
+import { SlotMenuItem } from "@/components/ui/slot-row";
 import { useRunAgain } from "@/hooks/useRunAgain";
 import { useJobFact } from "@/hooks/useJobFact";
 import { hasLegacyInputs } from "@/inputs/legacyResult";
 import { saveInputsAsSet } from "@/inputs/library";
 import { resultActions, type ResultAction, type Slot } from "@/lib/jobs/cardActions";
 import {
-  noteText,
   reasonText,
   RESTORE_BOTH,
   RESTORE_INPUTS,
   RESTORE_SETTINGS,
   RUN_AGAIN,
+  slotWords,
 } from "@/lib/jobs/text";
 import {
   restoreInputs,
@@ -53,27 +53,27 @@ interface ResultMenuProps {
 }
 
 function Item({
-  icon: Icon,
+  icon,
   label,
   slot = null,
+  busy = false,
   onSelect,
 }: {
   icon: LucideIcon;
   label: string;
   /** Why the item cannot act, or how it will; none for an item that always can. */
   slot?: Slot<ResultAction> | null;
+  busy?: boolean;
   onSelect: () => void;
 }) {
-  const reason = slot?.reason ?? null;
-  const line = reason ? reasonText(reason) : slot?.note ? noteText(slot.note) : null;
   return (
-    <ContextMenuItem disabled={reason !== null} onSelect={onSelect} className="text-2xs">
-      <Icon size={14} />
-      <span className="flex min-w-0 flex-col">
-        <span>{label}</span>
-        {line && <span className="text-3xs leading-tight text-muted-foreground">{line}</span>}
-      </span>
-    </ContextMenuItem>
+    <SlotMenuItem
+      icon={icon}
+      label={label}
+      {...(slot ? slotWords(slot) : {})}
+      busy={busy}
+      onAct={onSelect}
+    />
   );
 }
 
@@ -125,8 +125,9 @@ export function ResultMenu({
           icon={Repeat2}
           label={RUN_AGAIN}
           slot={reasons.runAgain}
+          busy={running}
           onSelect={() => {
-            if (result.jobId && !running) void runAgain(result.jobId);
+            if (result.jobId) void runAgain(result.jobId);
           }}
         />
         <Item

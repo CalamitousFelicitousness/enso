@@ -20,7 +20,7 @@ import { FramePickerDialog } from "./FramePickerDialog";
 import { ParamDiffDialog } from "./ParamDiffDialog";
 import {
   extendFrom,
-  reuseSettings,
+  restoreResultSettings,
   sendCapturedFrameToInit,
   sendFirstFrameToInit,
   sendFrameToUpscaleFrom,
@@ -79,9 +79,9 @@ export function VideoResultActions({ result }: VideoResultActionsProps) {
             <span>Send frame to Upscale</span>
           </DropdownMenuItem>
           <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={() => reuseSettings(result)}>
+          <DropdownMenuItem onClick={() => restoreResultSettings(result)}>
             <RotateCcw size={14} />
-            <span>Reuse Settings</span>
+            <span>Restore Settings</span>
           </DropdownMenuItem>
           {!still && (
             <DropdownMenuItem onClick={() => void extendFrom(result)}>

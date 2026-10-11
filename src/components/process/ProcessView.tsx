@@ -8,6 +8,7 @@ import {
   Maximize2,
   FolderInput,
   Plus,
+  Repeat2,
 } from "lucide-react";
 import { useProcessStore } from "@/stores/processStore";
 import { useComparisonStore } from "@/stores/comparisonStore";
@@ -24,11 +25,57 @@ import { MediaImg } from "@/components/ui/media";
 import { mediaUrl } from "@/api/session";
 import { downloadMedia, failedWith } from "@/lib/mediaFiles";
 import { UNREADABLE_FILE } from "@/lib/media/text";
+import { ActionSlot } from "@/components/ui/action-slot";
+import { useJobFact } from "@/hooks/useJobFact";
+import { useRunAgain } from "@/hooks/useRunAgain";
+import { runAgainSlot } from "@/lib/jobs/cardActions";
+import { NO_RESULT, processesAgainText, RUN_AGAIN, slotWords } from "@/lib/jobs/text";
 import { cn } from "@/lib/utils";
 import { useKeepAliveVisible } from "@/components/ui/keep-alive";
 
 const isVideoFile = (file: File) => file.type.startsWith("video/");
 const isImageFile = (file: File) => file.type.startsWith("image/");
+
+/** The line under the result: its info, Download and Run again, kept in place
+ * with or without a result. */
+function ResultFooter({ url }: { url: string | null }) {
+  const resultInfo = useProcessStore((s) => s.resultInfo);
+  const jobId = useProcessStore((s) => s.resultJobId);
+  const count = useProcessStore((s) => s.results.length);
+  const facts = useJobFact(jobId);
+  const { runAgain, isRunning } = useRunAgain();
+  const words = jobId
+    ? slotWords(runAgainSlot("runAgain", "completed", facts))
+    : { reason: NO_RESULT, quiet: false, note: null };
+  return (
+    <div className="flex h-7 flex-shrink-0 items-center gap-1 border-t border-border px-3">
+      <p
+        className="min-w-0 flex-1 truncate font-mono text-3xs text-muted-foreground"
+        title={resultInfo ?? undefined}
+      >
+        {resultInfo ?? ""}
+      </p>
+      <ActionSlot
+        label="Download"
+        icon={Download}
+        reason={url ? null : NO_RESULT}
+        onAct={() => {
+          if (url) void downloadMedia(url).catch(failedWith("Could not download the result"));
+        }}
+      />
+      <ActionSlot
+        label={RUN_AGAIN}
+        icon={Repeat2}
+        {...words}
+        note={!words.reason && count > 1 ? processesAgainText(count) : words.note}
+        busy={jobId ? isRunning(jobId) : false}
+        onAct={() => {
+          if (jobId) void runAgain(jobId);
+        }}
+      />
+    </div>
+  );
+}
 
 export function ProcessView() {
   const mode = useProcessStore((s) => s.mode);
@@ -40,7 +87,6 @@ export function ProcessView() {
   const outputDir = useProcessStore((s) => s.outputDir);
   const results = useProcessStore((s) => s.results);
   const resultVideo = useProcessStore((s) => s.resultVideo);
-  const resultInfo = useProcessStore((s) => s.resultInfo);
   const selectedResult = useProcessStore((s) => s.selectedResult);
   const compareMode = useProcessStore((s) => s.compareMode);
   const setFiles = useProcessStore((s) => s.setFiles);
@@ -290,18 +336,6 @@ export function ProcessView() {
                       {result.width} x {result.height}
                     </span>
                   )}
-                  <Button
-                    variant="secondary"
-                    size="icon-sm"
-                    title="Download"
-                    onClick={() =>
-                      void downloadMedia(result.url).catch(
-                        failedWith("Could not download the result"),
-                      )
-                    }
-                  >
-                    <Download size={14} />
-                  </Button>
                 </div>
               </div>
             ) : (
@@ -322,14 +356,7 @@ export function ProcessView() {
               ))}
             </div>
           )}
-          {resultInfo && (
-            <p
-              className="px-3 py-1.5 border-t border-border text-3xs text-muted-foreground font-mono truncate flex-shrink-0"
-              title={resultInfo}
-            >
-              {resultInfo}
-            </p>
-          )}
+          <ResultFooter url={resultVideo?.url ?? result?.url ?? null} />
         </div>
       </ResizablePanel>
     </ResizablePanelGroup>

@@ -10,6 +10,7 @@ import {
   Pin,
   PinOff,
   Plus,
+  Repeat2,
   Scissors,
   Trash2,
 } from "lucide-react";
@@ -31,6 +32,12 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
+import { SlotMenuItem } from "@/components/ui/slot-row";
+import { useJobFact } from "@/hooks/useJobFact";
+import { useRunAgain } from "@/hooks/useRunAgain";
+import { runAgainSlot } from "@/lib/jobs/cardActions";
+import { loadsModel } from "@/lib/jobs/requests";
+import { RESTORE_SETTINGS, RUN_AGAIN, slotWords } from "@/lib/jobs/text";
 import { useHorizontalWheel } from "@/hooks/useHorizontalWheel";
 import { useActiveVideoCaps } from "@/hooks/useActiveVideoCaps";
 import { useUiStore } from "@/stores/uiStore";
@@ -39,14 +46,14 @@ import { MAX_PINNED } from "@/lib/video/history";
 import {
   downloadResult,
   extendFrom,
-  reuseSettings,
+  restoreResultSettings,
   sendCapturedFrameToInit,
   sendFirstFrameToInit,
   sendFrameToUpscaleFrom,
   sendLastFrameToInit,
   sendLastFrameToLast,
 } from "@/lib/video/resultActions";
-import { isStillResult } from "@/lib/video/results";
+import { isStillResult, resultJobType } from "@/lib/video/results";
 import { FramePickerDialog } from "./FramePickerDialog";
 import { ParamDiffDialog } from "./ParamDiffDialog";
 import { VideoResultPreview } from "./VideoResultPreview";
@@ -54,6 +61,23 @@ import { VideoResultTile } from "./VideoResultTile";
 import type { VideoResult } from "@/api/types/video";
 
 const HOVER_DELAY_MS = 300;
+
+/** Run a result's job again; a local video job loads its model first, and says so. */
+function RunAgainItem({ result }: { result: VideoResult }) {
+  const facts = useJobFact(result.id);
+  const { runAgain, isRunning } = useRunAgain();
+  const loads = loadsModel(resultJobType(result), result.params);
+  const slot = runAgainSlot("runAgain", "completed", facts, loads);
+  return (
+    <SlotMenuItem
+      icon={Repeat2}
+      label={RUN_AGAIN}
+      {...slotWords(slot)}
+      busy={isRunning(result.id)}
+      onAct={() => void runAgain(result.id)}
+    />
+  );
+}
 
 interface HoverState {
   result: VideoResult;
@@ -90,7 +114,7 @@ export const VideoResultStrip = memo(function VideoResultStrip() {
   }, []);
 
   const handleActivate = useCallback((result: VideoResult) => {
-    reuseSettings(result);
+    restoreResultSettings(result);
   }, []);
 
   const handleContextMenu = useCallback((result: VideoResult) => {
@@ -135,7 +159,7 @@ export const VideoResultStrip = memo(function VideoResultStrip() {
         className="absolute right-0 bottom-0 left-0 flex justify-center gap-0.5 bg-gradient-to-t from-black/80 to-transparent px-0.5 pt-3 pb-0.5"
         onClick={(e) => e.stopPropagation()}
       >
-        <ActionBtn onClick={() => reuseSettings(result)} title="Reuse settings">
+        <ActionBtn onClick={() => restoreResultSettings(result)} title={RESTORE_SETTINGS}>
           <History size={10} />
         </ActionBtn>
         <ActionBtn
@@ -210,9 +234,10 @@ export const VideoResultStrip = memo(function VideoResultStrip() {
         </ContextMenuTrigger>
         {menuTarget && (
           <ContextMenuContent className="w-56">
-            <ContextMenuItem onClick={() => reuseSettings(menuTarget)}>
-              <History size={14} /> Reuse settings
+            <ContextMenuItem onClick={() => restoreResultSettings(menuTarget)}>
+              <History size={14} /> {RESTORE_SETTINGS}
             </ContextMenuItem>
+            <RunAgainItem result={menuTarget} />
             <ContextMenuItem onClick={() => handleSendToCompare(menuTarget)}>
               <Columns2 size={14} /> Send to compare
             </ContextMenuItem>

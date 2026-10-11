@@ -4,7 +4,7 @@
 // src/inputs/materialise.ts.
 
 import type { StoredFrame, StoredJob } from "@/lib/inputs/stored";
-import { isVideoDomain, type JobDomain } from "./domains";
+import type { JobDomain } from "./domains";
 import { replayMissingText, type ReplayMissing } from "./text";
 
 /** A picture a job sent is no longer stored, so the job cannot be sent again as it was. */
@@ -51,9 +51,9 @@ export function substituteRefs<T>(value: T, mapping: ReadonlyMap<string, string>
 
 /** Why a job is not sent again from its card, or how: `remake` when some of
  * its uploads are made again from the saved inputs (it still runs), `gone`
- * when one cannot be. Video and Process now jobs are sent again from their
- * own views. */
-export type ReplayProblemCode = "video" | "processNow" | "remake" | "gone";
+ * when a job without inputs sent a file the server lost. Process now jobs
+ * go again through Process now. */
+export type ReplayProblemCode = "processNow" | "remake" | "gone";
 
 /** What a record's facts say about sending its job again; null when the
  * server holds every upload it names. */
@@ -62,27 +62,39 @@ export function replayProblem(facts: {
   missingRefs: number;
   hasInputs: boolean;
 }): ReplayProblemCode | null {
-  if (isVideoDomain(facts.domain)) return "video";
   if (facts.domain === "preprocess") return "processNow";
   if (facts.missingRefs === 0) return null;
   return facts.hasInputs ? "remake" : "gone";
 }
 
-/** Whether an upload the server no longer holds cannot be made again: it has
- * no source, its source reads a frame the record lacks, or a picture whose
- * bytes are neither here nor on the server (`unheld`). */
+/** The color LUT a request sends: an image job's or a Process job's. */
+function lutRefOf(request: Record<string, unknown>): unknown {
+  const grading = request["grading"];
+  return typeof grading === "object" && grading !== null
+    ? (grading as Record<string, unknown>)["lut_cube_file"]
+    : request["grading_lut_file"];
+}
+
+/** What a job sent that the server no longer holds and that cannot be made
+ * again: an upload with no source (the color LUT, or a file sent as it
+ * was), or one whose source reads a frame the record lacks or a picture
+ * whose bytes are neither here nor on the server (`unheld`). Null when every
+ * one can be made again. */
 export function replayGone(
-  job: Pick<StoredJob, "refs" | "inputs" | "maps">,
+  job: Pick<StoredJob, "request" | "refs" | "inputs" | "maps">,
   missingRefs: readonly string[],
   unheld: (cid: string) => boolean,
-): boolean {
-  return missingRefs.some((ref) => {
+): ReplayMissing | null {
+  const lut = lutRefOf(job.request);
+  for (const ref of missingRefs) {
     const source = job.refs[ref];
-    if (!source) return true;
-    return replayNeeds({ refs: { [ref]: source }, inputs: job.inputs, maps: job.maps }).some(
+    if (!source) return ref === lut ? "lut" : "file";
+    const gone = replayNeeds({ refs: { [ref]: source }, inputs: job.inputs, maps: job.maps }).find(
       (need) => need.cid.startsWith("missing:") || unheld(need.cid),
     );
-  });
+    if (gone) return gone.what;
+  }
+  return null;
 }
 
 export interface NeededBytes {

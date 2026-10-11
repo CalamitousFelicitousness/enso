@@ -232,6 +232,8 @@ interface ProcessState {
   results: ProcessResultImage[];
   resultVideo: ProcessResultVideo | null;
   resultInfo: string | null;
+  /** The job the results came from, which Run again sends again. */
+  resultJobId: string | null;
   selectedResult: number;
   compareMode: boolean;
 
@@ -257,6 +259,7 @@ interface ProcessState {
     images: ProcessResultImage[],
     video: ProcessResultVideo | null,
     info: string | null,
+    jobId: string,
   ) => void;
   clearResults: () => void;
   setSelectedResult: (index: number) => void;
@@ -287,6 +290,7 @@ const NO_RESULTS = {
   results: [] as ProcessResultImage[],
   resultVideo: null,
   resultInfo: null,
+  resultJobId: null,
   selectedResult: 0,
   compareMode: false,
 };
@@ -376,8 +380,15 @@ export const useProcessStore = create<ProcessState>()(
           },
         })),
 
-      setResults: (results, resultVideo, resultInfo) =>
-        set({ results, resultVideo, resultInfo, selectedResult: 0, compareMode: false }),
+      setResults: (results, resultVideo, resultInfo, resultJobId) =>
+        set({
+          results,
+          resultVideo,
+          resultInfo,
+          resultJobId,
+          selectedResult: 0,
+          compareMode: false,
+        }),
       clearResults: () => set({ ...NO_RESULTS }),
       setSelectedResult: (selectedResult) => set({ selectedResult, compareMode: false }),
       setCompareMode: (compareMode) => set({ compareMode }),

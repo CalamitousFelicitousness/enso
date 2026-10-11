@@ -4,6 +4,7 @@ import {
   historySlots,
   queueSlots,
   resultActions,
+  runAgainSlot,
   type FactsState,
   type JobFacts,
   type Slot,
@@ -87,13 +88,45 @@ describe("historySlots", () => {
     expect(shape(queued)[0]).toBe("restoreSettings:unfinished");
   });
 
-  it("runs every recorded type again but the video ones and Process now", () => {
-    for (const type of ["detail", "cloud_image", "xyz-grid", "upscale", "rembg", "process"]) {
+  it("runs every recorded type again but Process now", () => {
+    const types = ["detail", "cloud_image", "xyz-grid", "upscale", "rembg", "process"];
+    for (const type of [...types, "video", "cloud_video", "framepack", "ltx"]) {
       expect(done(type, facts())).toEqual(["runAgain:ok", "delete:ok"]);
     }
-    for (const type of ["video", "cloud_video", "framepack", "ltx", "preprocess", "caption"]) {
+    for (const type of ["preprocess", "caption"]) {
       expect(done(type, facts())).toEqual(["delete:ok"]);
     }
+  });
+
+  it("says a video job loads its own model, by name", () => {
+    const [runAgain] = historySlots(
+      { type: "video", status: "completed", hasParams: true, loads: { model: "WAN 2.2 A14B T2V" } },
+      facts({ domain: "video", hasInputs: false }),
+    );
+    expect(runAgain).toEqual({
+      action: "runAgain",
+      reason: null,
+      note: "loadsModel",
+      model: "WAN 2.2 A14B T2V",
+    });
+  });
+});
+
+describe("runAgainSlot", () => {
+  it("says why when the server has no records to give", () => {
+    expect(runAgainSlot("runAgain", "completed", "off").reason).toBe("storeOff");
+    expect(runAgainSlot("runAgain", "completed", "older").reason).toBe("olderServer");
+  });
+
+  it("notes the model only on a slot that can act", () => {
+    const loads = { model: "LTXVideo 2.5 22B T2V Distilled" };
+    expect(runAgainSlot("runAgain", "running", facts(), loads).note).toBeUndefined();
+    expect(runAgainSlot("runAgain", "completed", "loading", loads).note).toBeUndefined();
+    expect(runAgainSlot("runAgain", "completed", facts(), { model: null })).toEqual({
+      action: "runAgain",
+      reason: null,
+      note: "loadsModel",
+    });
   });
 });
 
@@ -124,11 +157,14 @@ describe("queueSlots", () => {
     expect(queue("failed", "none")).toEqual(["view:noResult", "runAgain:noRecord", "remove:ok"]);
     expect(queue("failed", "loading")[1]).toBe("runAgain:loading");
     expect(queue("completed", facts(), "xyz-grid")[0]).toBe("view:otherView");
-    expect(queue("completed", facts({ domain: "video" }), "video")).toEqual([
+    expect(queue("completed", facts({ domain: "video", hasInputs: false }), "video")).toEqual([
       "view:ok",
-      "runAgain:video",
+      "runAgain:ok",
       "remove:ok",
     ]);
+    expect(
+      queue("completed", facts({ domain: "video", hasInputs: false, missingRefs: 1 }), "video")[1],
+    ).toBe("runAgain:gone");
     expect(queue("completed", facts({ missingRefs: 2 }))[1]).toBe("runAgain:note-remake");
   });
 });

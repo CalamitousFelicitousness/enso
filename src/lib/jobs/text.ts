@@ -1,12 +1,15 @@
 // The words for job records, restores and Run again, in one place: cards,
 // menus, toasts, the palette and the live suite read them from here.
 
+import { OLDER_SERVER } from "@/lib/media/text";
 import type { ActionNote, ActionReason } from "./cardActions";
+import type { LoadsModel } from "./requests";
 
 const REASON: Record<ActionReason, string> = {
-  video: "Video jobs cannot be run again yet",
   processNow: "Processing runs again through Process now",
-  gone: "This job cannot be run again: a picture it sent is gone",
+  gone: "A file this job sent is no longer stored",
+  storeOff: "Job records are unavailable while the media store is off",
+  olderServer: OLDER_SERVER,
   loading: "Reading the job's record",
   factsError: "Could not read the job's record",
   noRecord: "Enso kept no record of this job",
@@ -25,18 +28,45 @@ export function reasonText(reason: ActionReason): string {
   return REASON[reason];
 }
 
-const ACTION_NOTE: Record<ActionNote, string> = {
-  remake: "Some pictures are made again from the saved inputs",
-};
+/** What loading a job's own model does, named when the request names it. */
+function loadsText(model: string | null | undefined): string {
+  return `Loads ${model ?? "the job's video model"} first, in place of the loaded model`;
+}
 
-export function noteText(note: ActionNote): string {
-  return ACTION_NOTE[note];
+export function noteText(note: ActionNote, model?: string | null): string {
+  return note === "remake"
+    ? "Some pictures are made again from the saved inputs"
+    : loadsText(model);
+}
+
+/** A slot's words: why it cannot act, quiet while its record is read, or how it will. */
+export function slotWords(slot: {
+  reason: ActionReason | null;
+  note?: ActionNote;
+  model?: string;
+}): {
+  reason: string | null;
+  quiet: boolean;
+  note: string | null;
+} {
+  return {
+    reason: slot.reason ? reasonText(slot.reason) : null,
+    quiet: slot.reason === "loading",
+    note: slot.note ? noteText(slot.note, slot.model) : null,
+  };
 }
 
 export const RESTORE_SETTINGS = "Restore settings";
 export const RESTORE_INPUTS = "Restore inputs";
 export const RESTORE_BOTH = "Restore settings and inputs";
 export const RUN_AGAIN = "Run again";
+export const NO_RESULT = "No result yet";
+
+/** Run again of a run over many pictures. */
+export function processesAgainText(count: number): string {
+  return `Processes all ${count} pictures again`;
+}
+
 export const MOVE_UP = "Move up";
 export const MOVE_DOWN = "Move down";
 
@@ -72,6 +102,13 @@ export function lostPicturesText(count: number): string {
 }
 
 export const RUN_AGAIN_QUEUED = "Job queued again";
+
+/** A job queued again, and the model it loads first when it loads its own. */
+export function runAgainQueuedText(loads: LoadsModel | null): string {
+  if (!loads) return RUN_AGAIN_QUEUED;
+  return `${RUN_AGAIN_QUEUED}; it loads ${loads.model ?? "its video model"} first, in place of the loaded model`;
+}
+
 export const RUN_AGAIN_FAILED = "Could not run the job again";
 export const OTHER_MODEL = "Running on a different model";
 
@@ -80,12 +117,14 @@ export function otherModelText(ranOn: string, loaded: string): string {
 }
 
 /** What a job sent that a record no longer holds the bytes of. */
-export type ReplayMissing = "picture" | "mask" | "map";
+export type ReplayMissing = "picture" | "mask" | "map" | "lut" | "file";
 
 const MISSING: Record<ReplayMissing, string> = {
   picture: "A picture this job sent is no longer stored",
   mask: "A mask this job sent is no longer stored",
   map: "A map this job sent is no longer stored",
+  lut: "The color LUT this job sent is no longer stored",
+  file: "A file this job sent is no longer stored",
 };
 
 export function replayMissingText(missing: ReplayMissing): string {

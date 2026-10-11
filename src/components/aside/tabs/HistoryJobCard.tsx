@@ -6,7 +6,8 @@ import { useRunAgain } from "@/hooks/useRunAgain";
 import { useJobFact } from "@/hooks/useJobFact";
 import { historySlots, type HistoryAction } from "@/lib/jobs/cardActions";
 import { jobKind } from "@/lib/jobs/domains";
-import { noteText, reasonText, RESTORE_BOTH, RESTORE_SETTINGS, RUN_AGAIN } from "@/lib/jobs/text";
+import { loadsModel } from "@/lib/jobs/requests";
+import { RESTORE_BOTH, RESTORE_SETTINGS, RUN_AGAIN, slotWords } from "@/lib/jobs/text";
 import { ageText } from "@/lib/media/text";
 import { jobTarget, restoreSettings, restoreSettingsAndInputs } from "@/lib/request/restore";
 import { MediaImg } from "@/components/ui/media";
@@ -70,6 +71,7 @@ export function HistoryJobCard({ job }: HistoryJobCardProps) {
       type: job.type,
       status: job.status,
       hasParams: job.result !== null,
+      loads: loadsModel(job.type, job.result?.params),
     },
     facts,
   );
@@ -124,9 +126,7 @@ export function HistoryJobCard({ job }: HistoryJobCardProps) {
             key={slot.action}
             label={SLOTS[slot.action].label}
             icon={SLOTS[slot.action].icon}
-            reason={slot.reason && reasonText(slot.reason)}
-            quiet={slot.reason === "loading"}
-            note={slot.note ? noteText(slot.note) : null}
+            {...slotWords(slot)}
             busy={busy && slot.action !== "delete"}
             onAct={act[slot.action]}
           />

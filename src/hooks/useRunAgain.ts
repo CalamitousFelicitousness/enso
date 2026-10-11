@@ -1,7 +1,8 @@
 // Run a job again from its record: every upload is staged under the hash it
 // went out with, so the server's copies go as they are and only what it lacks
 // is made again from the record's frames. The request goes out as it was
-// sent, on whatever model is loaded.
+// sent: an image job on whatever model is loaded, a video job loading its own
+// when it runs. Its uploads can be cancelled from its toast; its post cannot.
 
 import { useCallback, useSyncExternalStore } from "react";
 import { toast } from "sonner";
@@ -13,15 +14,19 @@ import { readBlobs } from "@/inputs/db";
 import { loadRecord, replaySubmission, type RecordLoad } from "@/inputs/jobs";
 import { submitJob } from "@/inputs/submit";
 import { UploadBatch } from "@/inputs/uploads";
+import { UserAbortError } from "@/lib/abort";
 import { replayGone, replayProblem } from "@/lib/jobs/replay";
+import { loadsModel } from "@/lib/jobs/requests";
 import {
   OTHER_MODEL,
   otherModelText,
   reasonText,
+  replayMissingText,
   RUN_AGAIN_FAILED,
-  RUN_AGAIN_QUEUED,
+  runAgainQueuedText,
+  type ReplayMissing,
 } from "@/lib/jobs/text";
-import { batchText } from "@/lib/media/text";
+import { batchText, CANCEL, UPLOAD_CANCELLED } from "@/lib/media/text";
 
 /** Request types that run on the loaded checkpoint. */
 const LOCAL = new Set(["generate", "detail", "xyz-grid"]);
@@ -57,9 +62,9 @@ async function noteModel(checkpoint: { title: string; name: string }): Promise<v
   }
 }
 
-/** An upload the server lost cannot be made again: its source reads a
- * picture neither the server nor this browser holds. */
-async function goneForGood(load: RecordLoad): Promise<boolean> {
+/** What the server lost that cannot be made again: a source reads a picture
+ * neither the server nor this browser holds, or there is no source. */
+async function goneForGood(load: RecordLoad): Promise<ReplayMissing | null> {
   const unheld = [...load.unheld];
   const here =
     unheld.length > 0 ? await readBlobs(unheld).catch(() => new Map<string, Blob>()) : new Map();
@@ -71,6 +76,8 @@ export async function runAgain(jobId: string): Promise<Job | null> {
   if (busy.has(jobId)) return null;
   busy.add(jobId);
   changed();
+  // the job's own uploads, which its toast's Cancel stops
+  const abort = new AbortController();
   const id = `run-again-${jobId}`;
   try {
     const load = await loadRecord(jobId);
@@ -84,12 +91,13 @@ export async function runAgain(jobId: string): Promise<Job | null> {
       missingRefs: load.missingRefs.length,
       hasInputs: record.inputs !== null,
     });
-    if (problem === "video" || problem === "processNow" || problem === "gone") {
+    if (problem === "processNow" || problem === "gone") {
       toast.error(RUN_AGAIN_FAILED, { id, description: reasonText(problem) });
       return null;
     }
-    if (problem === "remake" && (await goneForGood(load))) {
-      toast.error(RUN_AGAIN_FAILED, { id, description: reasonText("gone") });
+    const gone = problem === "remake" ? await goneForGood(load) : null;
+    if (gone) {
+      toast.error(RUN_AGAIN_FAILED, { id, description: replayMissingText(gone) });
       return null;
     }
     const type = record.request["type"];
@@ -97,18 +105,28 @@ export async function runAgain(jobId: string): Promise<Job | null> {
       await noteModel(record.checkpoint);
     }
     const batch = new UploadBatch("Run again", {
+      signal: abort.signal,
       onProgress: (p) => {
         if (p.phase !== "claiming" && p.files > 0) {
-          toast.loading(batchText(p.done, p.files, p.sent, p.total), { id });
+          toast.loading(batchText(p.done, p.files, p.sent, p.total), {
+            id,
+            cancel: { label: CANCEL, onClick: () => abort.abort() },
+          });
         }
       },
     });
     const job = await submitJob(replaySubmission(load, batch));
-    toast.success(RUN_AGAIN_QUEUED, { id });
+    const loads = typeof type === "string" ? loadsModel(type, record.request) : null;
+    toast.success(runAgainQueuedText(loads), { id, cancel: undefined });
     return job;
   } catch (err) {
+    if (err instanceof UserAbortError) {
+      toast.info(UPLOAD_CANCELLED, { id, cancel: undefined });
+      return null;
+    }
     toast.error(RUN_AGAIN_FAILED, {
       id,
+      cancel: undefined,
       description: err instanceof Error ? err.message : String(err),
     });
     return null;

@@ -93,9 +93,11 @@ describe("replayProblem", () => {
     expect(replayProblem(facts({ missingRefs: 2, hasInputs: false }))).toBe("gone");
   });
 
-  it("leaves video and Process now jobs to their own views", () => {
-    expect(replayProblem(facts({ domain: "video" }))).toBe("video");
-    expect(replayProblem(facts({ domain: "framepack" }))).toBe("video");
+  it("runs a video job again while the server holds its files, and leaves Process now to its own", () => {
+    expect(replayProblem(facts({ domain: "video", hasInputs: false }))).toBeNull();
+    expect(replayProblem(facts({ domain: "framepack", hasInputs: false, missingRefs: 1 }))).toBe(
+      "gone",
+    );
     expect(replayProblem(facts({ domain: "preprocess" }))).toBe("processNow");
   });
 });
@@ -116,16 +118,25 @@ describe("replayGone", () => {
   }).record;
 
   it("makes a lost upload again while the pictures its source reads are held somewhere", () => {
-    expect(replayGone(stored, ["upload:a"], () => false)).toBe(false);
+    expect(replayGone(stored, ["upload:a"], () => false)).toBeNull();
   });
 
-  it("cannot when a picture its source reads is held nowhere", () => {
+  it("names a picture its source reads that is held nowhere", () => {
     const cid = stored.inputs?.frames[0]?.pictures[0]?.cid ?? "";
-    expect(replayGone(stored, ["upload:a"], (c) => c === cid)).toBe(true);
+    expect(replayGone(stored, ["upload:a"], (c) => c === cid)).toBe("picture");
   });
 
-  it("cannot when the lost upload has no source, such as a LUT", () => {
-    expect(replayGone(stored, ["upload:lut"], () => false)).toBe(true);
+  it("names a lost upload with no source: the color LUT, or a file sent as it was", () => {
+    expect(replayGone(stored, ["upload:lut"], () => false)).toBe("lut");
+    expect(replayGone(stored, ["upload:other"], () => false)).toBe("file");
+    const processed = {
+      ...stored,
+      request: { images: ["upload:p"], grading: { lut_cube_file: "upload:plut" } },
+      refs: {},
+      inputs: null,
+    };
+    expect(replayGone(processed, ["upload:plut"], () => false)).toBe("lut");
+    expect(replayGone(processed, ["upload:p"], () => false)).toBe("file");
   });
 });
 

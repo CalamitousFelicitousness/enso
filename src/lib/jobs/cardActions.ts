@@ -7,6 +7,7 @@
 import type { JobStatus } from "@/api/types/v2";
 import { isTerminal, isVideoDomain, type JobDomain } from "./domains";
 import { replayProblem, type ReplayProblemCode } from "./replay";
+import type { LoadsModel } from "./requests";
 
 /** What the server's record of a job says. */
 export interface JobFacts {
@@ -25,14 +26,17 @@ export interface JobFacts {
   unavailable: number;
 }
 
-/** What is known of a job's record: its facts, being read, none kept, or not
- * readable now. */
-export type FactsState = JobFacts | "loading" | "none" | "error";
+/** What is known of a job's record: its facts, being read, none kept, not
+ * readable now, or none to be had from this server: its media store is off,
+ * or it keeps no records (older Enso). */
+export type FactsState = JobFacts | "loading" | "none" | "error" | "off" | "older";
 
 export type ActionReason =
   | Exclude<ReplayProblemCode, "remake">
   | "loading"
   | "factsError"
+  | "storeOff"
+  | "olderServer"
   | "noRecord"
   | "olderResult"
   | "noInputs"
@@ -44,13 +48,16 @@ export type ActionReason =
   | "noResult"
   | "otherView";
 
-/** How a slot that can act will act, when that is worth saying. */
-export type ActionNote = "remake";
+/** How a slot that can act will act, when that is worth saying: some of its
+ * pictures are made again, or the job loads its own model first. */
+export type ActionNote = "remake" | "loadsModel";
 
 export interface Slot<A extends string> {
   action: A;
   reason: ActionReason | null;
   note?: ActionNote;
+  /** The model a `loadsModel` note names. */
+  model?: string;
 }
 
 /** The view a domain's results are shown in. */
@@ -63,27 +70,45 @@ export function viewOf(domain: JobDomain): ResultView | null {
   return null;
 }
 
+const STATE_REASON: Record<Exclude<FactsState, JobFacts>, ActionReason> = {
+  loading: "loading",
+  error: "factsError",
+  off: "storeOff",
+  older: "olderServer",
+  none: "noRecord",
+};
+
 /** The reason a known state gives where facts are needed, or null for facts. */
 function stateReason(facts: FactsState): ActionReason | null {
-  if (facts === "loading") return "loading";
-  if (facts === "error") return "factsError";
-  if (facts === "none") return "noRecord";
-  return null;
+  return typeof facts === "string" ? STATE_REASON[facts] : null;
 }
 
-function runAgainSlot<A extends string>(action: A, status: JobStatus, facts: FactsState): Slot<A> {
+/** Run a job again: from a finished job's record; a job that loads its own
+ * model says so, by name when its request names it. */
+export function runAgainSlot<A extends string>(
+  action: A,
+  status: JobStatus,
+  facts: FactsState,
+  loads: LoadsModel | null = null,
+): Slot<A> {
   if (!isTerminal(status)) return { action, reason: "unfinished" };
-  const known = stateReason(facts);
-  if (known || typeof facts === "string") return { action, reason: known };
+  if (typeof facts === "string") return { action, reason: STATE_REASON[facts] };
   const problem = replayProblem(facts);
   if (problem === "remake") return { action, reason: null, note: "remake" };
-  return { action, reason: problem };
+  if (problem) return { action, reason: problem };
+  if (!loads) return { action, reason: null };
+  return {
+    action,
+    reason: null,
+    note: "loadsModel",
+    ...(loads.model ? { model: loads.model } : {}),
+  };
 }
 
 export type HistoryAction = "restoreSettings" | "restoreBoth" | "runAgain" | "delete";
 
 /** Job types a History card runs again from: every type with a record but
- * the video ones and Process now, which their own views run again. */
+ * Process now, which runs again through Process now. */
 const REPLAYABLE = new Set([
   "generate",
   "detail",
@@ -92,6 +117,10 @@ const REPLAYABLE = new Set([
   "upscale",
   "rembg",
   "process",
+  "video",
+  "cloud_video",
+  "framepack",
+  "ltx",
 ]);
 
 export interface HistoryJob {
@@ -100,6 +129,8 @@ export interface HistoryJob {
   status: JobStatus;
   /** The server returned the request it ran, as a completed job does. */
   hasParams: boolean;
+  /** The model the job loads when it runs again. */
+  loads?: LoadsModel | null;
 }
 
 /** A History card's slots. Only a local image generation restores; a job
@@ -107,7 +138,7 @@ export interface HistoryJob {
 export function historySlots(job: HistoryJob, facts: FactsState): Slot<HistoryAction>[] {
   const remove: Slot<HistoryAction> = { action: "delete", reason: null };
   if (!REPLAYABLE.has(job.type)) return [remove];
-  const runAgain = runAgainSlot<HistoryAction>("runAgain", job.status, facts);
+  const runAgain = runAgainSlot<HistoryAction>("runAgain", job.status, facts, job.loads ?? null);
   if (job.type !== "generate") return [runAgain, remove];
   const known = stateReason(facts);
   const recorded = typeof facts !== "string";
@@ -133,6 +164,8 @@ export interface QueueJob {
   status: JobStatus;
   domain: JobDomain;
   hasResult: boolean;
+  /** The model the job loads when it runs again. */
+  loads?: LoadsModel | null;
 }
 
 /** A Queue card's three slots for its state. */
@@ -158,7 +191,7 @@ export function queueSlots(
   const view = !job.hasResult ? "noResult" : viewOf(job.domain) ? null : "otherView";
   return [
     { action: "view", reason: view },
-    runAgainSlot<QueueAction>("runAgain", job.status, facts),
+    runAgainSlot<QueueAction>("runAgain", job.status, facts, job.loads ?? null),
     { action: "remove", reason: null },
   ];
 }

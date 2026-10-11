@@ -9,3 +9,9 @@ export const STILL_FORMATS = new Set(["png", "jpg", "jpeg", "webp", "gif"]);
 export function isStillResult(result: VideoResult): boolean {
   return STILL_FORMATS.has(result.format);
 }
+
+/** The job type a result came from: a cloud video's request names its provider. */
+export function resultJobType(result: Pick<VideoResult, "domain" | "params">): string {
+  if (result.domain !== "video") return result.domain;
+  return "provider" in result.params ? "cloud_video" : "video";
+}

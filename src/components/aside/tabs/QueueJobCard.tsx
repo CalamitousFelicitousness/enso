@@ -7,14 +7,8 @@ import { useRunAgain } from "@/hooks/useRunAgain";
 import { useJobFact } from "@/hooks/useJobFact";
 import { queueSlots, type QueueAction } from "@/lib/jobs/cardActions";
 import { jobKind } from "@/lib/jobs/domains";
-import {
-  FAILED_WHILE_CLOSED,
-  MOVE_DOWN,
-  MOVE_UP,
-  noteText,
-  reasonText,
-  RUN_AGAIN,
-} from "@/lib/jobs/text";
+import { loadsModel } from "@/lib/jobs/requests";
+import { FAILED_WHILE_CLOSED, MOVE_DOWN, MOVE_UP, RUN_AGAIN, slotWords } from "@/lib/jobs/text";
 import { Badge } from "@/components/ui/badge";
 import { JobWarnings } from "@/components/generation/JobWarnings";
 import { JOB_ICONS } from "./jobIcons";
@@ -118,7 +112,12 @@ export function QueueJobCard({
     remove: () => onRemove(job),
   };
   const slots = queueSlots(
-    { status: job.status, domain: job.domain, hasResult: job.result !== null },
+    {
+      status: job.status,
+      domain: job.domain,
+      hasResult: job.result !== null,
+      loads: job.request ? loadsModel(job.request.type ?? "", job.request) : null,
+    },
     facts,
     place,
   );
@@ -142,9 +141,7 @@ export function QueueJobCard({
             key={slot.action}
             label={SLOTS[slot.action].label}
             icon={SLOTS[slot.action].icon}
-            reason={slot.reason && reasonText(slot.reason)}
-            quiet={slot.reason === "loading"}
-            note={slot.note ? noteText(slot.note) : null}
+            {...slotWords(slot)}
             busy={busy && slot.action !== "cancel"}
             onAct={act[slot.action]}
           />
