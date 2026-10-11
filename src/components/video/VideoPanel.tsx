@@ -19,7 +19,7 @@ import { useActiveVideoCaps } from "@/hooks/useActiveVideoCaps";
 import { useVideoCanvasStore } from "@/stores/videoCanvasStore";
 import { useVideoCapsDefaults } from "@/hooks/useVideoCapsDefaults";
 import { sendToJob } from "@/hooks/useJobTracker";
-import { useCancelJob } from "@/api/hooks/useJobs";
+import { useDeleteJob } from "@/api/hooks/useJobs";
 import { ACTIONS } from "@/lib/media/progress";
 import {
   BEING_SENT,
@@ -86,7 +86,7 @@ export function VideoPanel() {
 
   // the id alone, so a running job's progress does not re-render the panel
   const runningVideoJobId = useJobQueueStore((s) => selectVideoDomainRunning(s)?.id ?? null);
-  const cancelJob = useCancelJob();
+  const cancelJob = useDeleteJob();
 
   // The job loads its model when it runs, under the server's queue lock, so
   // a click never replaces the model of a job running ahead of it

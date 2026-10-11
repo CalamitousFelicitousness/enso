@@ -1,7 +1,7 @@
 import { memo, useCallback, useEffect, useMemo, useRef } from "react";
 import { Play, Square, SkipForward } from "lucide-react";
 import { toast } from "sonner";
-import { useCancelJob } from "@/api/hooks/useJobs";
+import { useDeleteJob } from "@/api/hooks/useJobs";
 import { usePostprocessScripts } from "@/api/hooks/usePostprocess";
 import { useProcessStore, type ProcessSectionKey } from "@/stores/processStore";
 import { useJobQueueStore, selectProcessActive, selectProcessRunning } from "@/stores/jobStore";
@@ -163,7 +163,7 @@ export function ProcessPanel() {
   const isActive = useJobQueueStore(selectProcessActive);
   // the id alone, so a running job's progress does not re-render the panel
   const runningId = useJobQueueStore((s) => selectProcessRunning(s)?.id ?? null);
-  const cancelJob = useCancelJob();
+  const cancelJob = useDeleteJob();
   const isProcessView = useUiStore((s) => s.activeNavView === "process");
 
   const { data: scriptList } = usePostprocessScripts();

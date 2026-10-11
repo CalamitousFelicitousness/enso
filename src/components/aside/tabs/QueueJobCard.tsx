@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { ChevronDown, ChevronUp, Eye, Repeat2, Trash2, X, type LucideIcon } from "lucide-react";
 import type { TrackedJob } from "@/stores/jobStore";
-import { useCancelJob } from "@/api/hooks/useJobs";
+import { useDeleteJob } from "@/api/hooks/useJobs";
 import { markJobCancelled } from "@/hooks/useJobTracker";
 import { useRunAgain } from "@/hooks/useRunAgain";
 import { useJobFact } from "@/hooks/useJobFact";
@@ -81,7 +81,7 @@ export function QueueJobCard({
   onMoveUp,
   onMoveDown,
 }: QueueJobCardProps) {
-  const cancelJob = useCancelJob();
+  const cancelJob = useDeleteJob();
   const { runAgain, isRunning } = useRunAgain();
   const facts = useJobFact(job.id);
   const kind = jobKind(job.request?.type ?? job.domain);

@@ -63,9 +63,6 @@ export function useDeleteJob() {
   });
 }
 
-/** @deprecated Use useDeleteJob - handles both cancel and delete */
-export const useCancelJob = useDeleteJob;
-
 /** Move a queued job by giving it another priority. The server refuses with
  * 409 once the job has started. */
 export function useMoveJob() {

@@ -43,7 +43,7 @@ import { usePromptHistoryStore } from "@/stores/promptHistoryStore";
 import { useSubmitToQueue } from "@/hooks/useSubmitToQueue";
 import { UserAbortError } from "@/lib/abort";
 import { sendToJob } from "@/hooks/useJobTracker";
-import { useCancelJob } from "@/api/hooks/useJobs";
+import { useDeleteJob } from "@/api/hooks/useJobs";
 import { useLoadModel } from "@/api/hooks/useModels";
 import { useModelCapabilities } from "@/hooks/useModelCapabilities";
 import { api } from "@/api/client";
@@ -160,7 +160,7 @@ export const ActionBar = memo(function ActionBar() {
   const [batchOpen, setBatchOpen] = useState(false);
   const [xyzOpen, setXyzOpen] = useState(false);
   const [diffOpen, setDiffOpen] = useState(false);
-  const cancelJob = useCancelJob();
+  const cancelJob = useDeleteJob();
   const loadModel = useLoadModel();
   const queryClient = useQueryClient();
 
