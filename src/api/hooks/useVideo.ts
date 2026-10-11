@@ -65,7 +65,7 @@ export function useFramePackVariants() {
 export function useLoadFramePack() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (params: { variant: string; attention: string }) =>
+    mutationFn: (params: { variant: string }) =>
       api.post<{ variant: string; messages: string[] }>("/sdapi/v2/framepack/load", params),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["framepack-variants"] });

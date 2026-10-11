@@ -386,7 +386,6 @@ class ReqFramePackLoadV2(StrictBaseModel):
     """Load a FramePack model variant."""
 
     variant: str = Field(default="Bi-Directional", title="Variant", description="FramePack variant (e.g. Bi-Directional)")
-    attention: str = Field(default="Default", title="Attention", description="Attention implementation")
 
 
 class ReqHuggingFaceSettingsV2(StrictBaseModel):

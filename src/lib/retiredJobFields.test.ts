@@ -61,6 +61,12 @@ describe("currentJobRequest", () => {
     expect(currentJobRequest(current)).toBe(current);
   });
 
+  it("drops FramePack's attention backend", () => {
+    expect(currentJobRequest(request("framepack", { attention: "sdpa", variant: "F1" }))).toEqual(
+      request("framepack", { variant: "F1" }),
+    );
+  });
+
   it("leaves other job types alone", () => {
     const detail = request("detail", { override_settings: { sd_vae: "None" } });
     expect(currentJobRequest(detail)).toBe(detail);

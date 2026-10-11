@@ -469,10 +469,13 @@ async def list_video_engine_models(engine: str):
 
 @router.post("/video/load", response_model=VideoLoadResponse, tags=["Video"])
 async def load_video_model(request: ReqVideoLoadV2):
+    # a load waits for the running job rather than replacing its model
     def load():
+        from modules.call_queue import queue_lock
         from modules.video_models import video_ui
 
-        return list(video_ui.model_load(request.engine, request.model))
+        with queue_lock:
+            return list(video_ui.model_load(request.engine, request.model))
 
     messages = await asyncio.to_thread(load)
     return {"engine": request.engine, "model": request.model, "messages": messages}
@@ -489,12 +492,14 @@ async def list_framepack_variants():
 @router.post("/framepack/load", response_model=FramePackLoadResponse, tags=["Video"])
 async def load_framepack_model(request: ReqFramePackLoadV2):
     def load():
+        from modules.call_queue import queue_lock
         from modules.framepack import framepack_wrappers
 
         messages = []
-        for item in framepack_wrappers.load_model(request.variant, request.attention):
-            if isinstance(item, tuple) and len(item) > 2 and isinstance(item[2], str):
-                messages.append(item[2])
+        with queue_lock:
+            for item in framepack_wrappers.load_model(request.variant):
+                if isinstance(item, tuple) and len(item) > 2 and isinstance(item[2], str):
+                    messages.append(item[2])
         return messages
 
     messages = await asyncio.to_thread(load)
@@ -504,9 +509,11 @@ async def load_framepack_model(request: ReqFramePackLoadV2):
 @router.post("/framepack/unload", response_model=MessageResponse, tags=["Video"])
 async def unload_framepack_model():
     def _unload():
+        from modules.call_queue import queue_lock
         from modules.framepack import framepack_wrappers
 
-        list(framepack_wrappers.unload_model())
+        with queue_lock:
+            list(framepack_wrappers.unload_model())
 
     await asyncio.to_thread(_unload)
     return {"messages": ["Model unloaded"]}

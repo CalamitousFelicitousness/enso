@@ -1,35 +1,53 @@
 import type { JobRequest } from "@/api/types/v2";
 
-/** Generate fields that took control_run's keyword names, old name to current. */
-const RENAMED: Readonly<Record<string, string>> = {
-  cfg_end: "cfg_stop",
-  diffusers_guidance_rescale: "cfg_rescale",
-  image_cfg_scale: "cfg_image",
-  pag_scale: "cfg_true",
-  pag_adaptive: "cfg_adaptive",
+interface Retired {
+  /** Old name to current. */
+  renamed: Readonly<Record<string, string>>;
+  dropped: ReadonlySet<string>;
+}
+
+const GENERATE: Retired = {
+  // generate fields that took control_run's keyword names
+  renamed: {
+    cfg_end: "cfg_stop",
+    diffusers_guidance_rescale: "cfg_rescale",
+    image_cfg_scale: "cfg_image",
+    pag_scale: "cfg_true",
+    pag_adaptive: "cfg_adaptive",
+  },
+  // none of these reached a pipeline
+  dropped: new Set([
+    "init_control",
+    "save_mask",
+    "save_mask_composite",
+    "return_mask",
+    "return_mask_composite",
+    "send_images",
+    "override_settings",
+  ]),
 };
 
-/** Generate fields the job schema no longer accepts; none of them reached a pipeline. */
-const DROPPED = new Set([
-  "init_control",
-  "save_mask",
-  "save_mask_composite",
-  "return_mask",
-  "return_mask_composite",
-  "send_images",
-  "override_settings",
-]);
+/** Fields a stored request can carry that its job type no longer accepts, by type. */
+const RETIRED: Readonly<Partial<Record<string, Retired>>> = {
+  generate: GENERATE,
+  "xyz-grid": GENERATE,
+  // sdnext's FramePack load and run take no attention backend
+  framepack: { renamed: {}, dropped: new Set(["attention"]) },
+};
 
-/** A stored generate or XYZ grid request under the current job schema. */
+/** A stored request under the current job schema. */
 export function currentJobRequest(request: JobRequest): JobRequest {
   const fields = request as unknown as Record<string, unknown>;
-  if (fields["type"] !== "generate" && fields["type"] !== "xyz-grid") return request;
-  if (!Object.keys(fields).some((key) => key in RENAMED || DROPPED.has(key))) return request;
+  const retired = RETIRED[String(fields["type"])];
+  if (!retired) return request;
+  const { renamed, dropped } = retired;
+  const isRetired = (key: string) => Object.hasOwn(renamed, key) || dropped.has(key);
+  if (!Object.keys(fields).some(isRetired)) return request;
   const current: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(fields)) {
-    if (!(key in RENAMED) && !DROPPED.has(key)) current[key] = value;
+    if (!isRetired(key)) current[key] = value;
   }
-  for (const [old, name] of Object.entries(RENAMED)) {
+  for (const [old, name] of Object.entries(renamed)) {
     if (old in fields && !(name in current)) current[name] = fields[old];
   }
   // pag_scale's 0 meant off; as cfg_true it would switch off a model's default true CFG

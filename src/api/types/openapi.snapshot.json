@@ -2025,11 +2025,6 @@
         "additionalProperties": false,
         "description": "FramePack video generation.",
         "properties": {
-          "attention": {
-            "default": "Default",
-            "title": "Attention",
-            "type": "string"
-          },
           "cfg_distilled": {
             "default": 10,
             "title": "Cfg Distilled",
@@ -8517,12 +8512,6 @@
         "additionalProperties": false,
         "description": "Load a FramePack model variant.",
         "properties": {
-          "attention": {
-            "default": "Default",
-            "description": "Attention implementation",
-            "title": "Attention",
-            "type": "string"
-          },
           "variant": {
             "default": "Bi-Directional",
             "description": "FramePack variant (e.g. Bi-Directional)",

@@ -6,7 +6,6 @@ import { ParamSlider } from "@/components/generation/ParamSlider";
 import { ParamGrid } from "@/components/generation/ParamRow";
 import { ParamLabel } from "@/components/generation/ParamLabel";
 import { SectionTimeline } from "@/components/video/SectionTimeline";
-import { Combobox } from "@/components/ui/combobox";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
@@ -31,7 +30,6 @@ export function FramePackSection() {
   const fpOptimizedPrompt = useVideoStore((s) => s.fpOptimizedPrompt);
   const fpCfgZero = useVideoStore((s) => s.fpCfgZero);
   const fpPreview = useVideoStore((s) => s.fpPreview);
-  const fpAttention = useVideoStore((s) => s.fpAttention);
   const fps = useVideoStore((s) => s.fps);
   const interpolate = useVideoStore((s) => s.interpolate);
   const setParam = useVideoStore((s) => s.setParam);
@@ -210,20 +208,6 @@ export function FramePackSection() {
         <div className="flex items-center gap-2">
           <Label className="text-2xs text-muted-foreground w-16 shrink-0">Preview</Label>
           <Switch checked={fpPreview} onCheckedChange={(v) => setParam("fpPreview", v)} />
-        </div>
-        <div className="flex items-center gap-2">
-          <ParamLabel
-            className="text-2xs text-muted-foreground w-16 shrink-0"
-            tooltip="Which attention backend to install when the model loads. At runtime the fastest available one wins in the order sage, flash, xformers, SDPA, so picking a slower backend here does not force it if a faster one is importable.<br><br>Changing this takes effect on the next model load."
-          >
-            Attention
-          </ParamLabel>
-          <Combobox
-            value={fpAttention}
-            onValueChange={(v) => setParam("fpAttention", v)}
-            options={["Default", "sdpa", "flash", "sage", "xformers"]}
-            className="h-6 text-2xs flex-1"
-          />
         </div>
       </SectionLeader>
     </>

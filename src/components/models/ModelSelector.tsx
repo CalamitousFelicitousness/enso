@@ -18,7 +18,6 @@ import {
 } from "@/api/hooks/useVideo";
 import { useModelSelectionStore } from "@/stores/modelSelectionStore";
 import { useUiStore } from "@/stores/uiStore";
-import { useVideoStore } from "@/stores/videoStore";
 import { useOptionsSubset } from "@/api/hooks/useSettings";
 import { useQueryClient } from "@tanstack/react-query";
 import { VideoModelBadges } from "@/components/models/VideoModelBadges";
@@ -174,7 +173,7 @@ export function ModelSelector() {
   // different model is selected, load that one instead. Cloud is a no-op
   // (selection is the configuration). Local video has no separate reload
   // route, so re-firing its load both loads and reloads; FramePack uses its
-  // dedicated endpoint with the current fpAttention from videoStore.
+  // dedicated endpoint.
   function handleLoadOrReload() {
     if (!activeModel) return;
     if (activeModel.source === "local") {
@@ -185,8 +184,7 @@ export function ModelSelector() {
       }
     } else if (activeModel.source === "local-video") {
       if (activeModel.kind === "framepack") {
-        const attention = useVideoStore.getState().fpAttention;
-        loadFramePack.mutate({ variant: activeModel.model, attention });
+        loadFramePack.mutate({ variant: activeModel.model });
       } else {
         loadVideoModel.mutate({ engine: activeModel.engine, model: activeModel.model });
       }

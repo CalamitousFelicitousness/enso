@@ -102,8 +102,7 @@ export function VideoPanel() {
       setIsLoadingModel(true);
       try {
         if (kind === "framepack") {
-          const attention = useVideoStore.getState().fpAttention;
-          await loadFramePack.mutateAsync({ variant: activeModel.model, attention });
+          await loadFramePack.mutateAsync({ variant: activeModel.model });
         } else {
           await loadVideoModel.mutateAsync({
             engine: activeModel.engine,

@@ -168,7 +168,6 @@ export interface FramePackJobParams {
   optimized_prompt?: boolean;
   use_cfgzero?: boolean;
   use_preview?: boolean;
-  attention?: string;
   vae_type?: string;
   init_image?: string | null;
   end_image?: string | null;

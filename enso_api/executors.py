@@ -1144,7 +1144,6 @@ def execute_framepack(params: dict, job_id: str) -> dict:
     resolution = params.get("resolution", 640)
     duration = params.get("duration", 4)
     variant = params.get("variant", "Bi-Directional")
-    attention = params.get("attention", "Default")
 
     jobid = shared.state.begin("API-V2-FP", api=True)
     try:
@@ -1184,7 +1183,9 @@ def execute_framepack(params: dict, job_id: str) -> dict:
             mp4_opt=params.get("codec_options", "crf=16"),
             mp4_ext=params.get("format", "mp4"),
             mp4_interpolate=params.get("interpolate", 0),
-            attention=attention,
+            # no upscale, as sdnext's video_run.run defaults to
+            mp4_scale=1.0,
+            mp4_upscaler="",
             vae_type=params.get("vae_type", "Full"),
             variant=variant,
             vlm_enhance=params.get("vlm_enhance", False),

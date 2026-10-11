@@ -260,12 +260,6 @@ export const VIDEO_PARAMS = {
     group: "framepack",
     wire: { framepack: "use_preview" },
   },
-  fpAttention: {
-    kind: "string",
-    default: "Default",
-    group: "framepack",
-    wire: { framepack: "attention" },
-  },
   fpVaeType: {
     kind: "string",
     default: "Full",

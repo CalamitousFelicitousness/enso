@@ -858,7 +858,6 @@ class FramePackParams(JobBase):
     use_teacache: bool = True
     use_cfgzero: bool = False
     use_preview: bool = True
-    attention: str = "Default"
     vae_type: str = "Full"
     init_image: str | None = None
     end_image: str | None = None
