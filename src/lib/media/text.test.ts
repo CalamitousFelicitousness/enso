@@ -3,6 +3,11 @@ import {
   aboutSize,
   ageText,
   batchText,
+  lutGoneText,
+  lutLineText,
+  lutSummaryText,
+  processOthersText,
+  stopUploadText,
   deleteForEveryoneText,
   emptyBothText,
   fetchingText,
@@ -66,9 +71,18 @@ describe("uploadFailureText", () => {
     );
     expect(uploadFailureText({ kind: "network" })).toBe("The server could not be reached");
     expect(uploadFailureText({ kind: "busy" })).toBe("The server is busy; try again in a minute");
-    expect(uploadFailureText({ kind: "unreadable", name: "cat.png" })).toBe(
+    expect(uploadFailureText({ kind: "unreadable", names: ["cat.png"], total: 1 })).toBe(
       "cat.png can no longer be read; add it again",
     );
+    expect(uploadFailureText({ kind: "unreadable", names: ["cat.png"], total: 40 })).toBe(
+      "1 of 40 files can no longer be read: cat.png",
+    );
+    expect(uploadFailureText({ kind: "unreadable", names: ["a.png", "b.png"], total: 400 })).toBe(
+      "2 of 400 files can no longer be read: a.png and b.png",
+    );
+    expect(
+      uploadFailureText({ kind: "unreadable", names: ["a.png", "b.png", "c.png"], total: 400 }),
+    ).toBe("3 of 400 files can no longer be read: a.png, b.png and 1 more");
     expect(
       uploadFailureText({ kind: "storeOff", message: "Media store off: /x is not writable" }),
     ).toBe("Media store off: /x is not writable");
@@ -274,5 +288,42 @@ describe("the words of moving this browser's older records", () => {
     expect(otherTargetText("a:1 (/x)", "b:2 (/y)")).toBe(
       "The move started toward a:1 (/x); this page is connected to b:2 (/y)",
     );
+  });
+});
+
+describe("the words of an upload's slot", () => {
+  it("say what Stop stops and what a run leaves out", () => {
+    expect(stopUploadText(null)).toBe("Stop the upload");
+    expect(stopUploadText(42)).toBe("Stop the upload, 42%");
+    expect(processOthersText(397)).toBe("Process the other 397");
+  });
+});
+
+describe("the words of a color LUT", () => {
+  it("name the LUT and where to pick it again", () => {
+    expect(lutGoneText("grade.cube", "images")).toBe(
+      'The color LUT "grade.cube" is no longer stored; pick it again in the Color tab',
+    );
+    expect(lutGoneText("grade.cube", "process")).toBe(
+      'The color LUT "grade.cube" is no longer stored; pick it again in Color Grading',
+    );
+  });
+
+  it("give each state its line and its header", () => {
+    const name = "grade.cube";
+    expect(lutLineText({ kind: "none" })).toBeNull();
+    expect(lutLineText({ kind: "ready", name })).toBeNull();
+    expect(lutLineText({ kind: "checking", name })).toBe('Checking the server for "grade.cube"');
+    expect(lutLineText({ kind: "held", name })).toBe('"grade.cube", getting it from the server');
+    expect(lutLineText({ kind: "unverified", name })).toBe(
+      'Could not ask the server for "grade.cube"; sending it asks again',
+    );
+    expect(lutLineText({ kind: "pickAgain", name })).toBe(
+      '"grade.cube" is no longer stored; pick it again',
+    );
+    expect(lutSummaryText({ kind: "none" })).toBeNull();
+    expect(lutSummaryText({ kind: "ready", name })).toBe(name);
+    expect(lutSummaryText({ kind: "held", name })).toBe(name);
+    expect(lutSummaryText({ kind: "pickAgain", name })).toBe("pick it again");
   });
 });

@@ -1,30 +1,15 @@
-import { useCallback, useRef } from "react";
-import { Upload, X } from "lucide-react";
 import { ParamSlider } from "@/components/generation/ParamSlider";
 import { ParamGrid } from "@/components/generation/ParamRow";
-import { ParamLabel } from "@/components/generation/ParamLabel";
+import { LutFileRow, LutSummary } from "@/components/generation/LutFileRow";
 import { ColorPicker } from "@/components/ui/color-picker";
-import { Button } from "@/components/ui/button";
 import { SectionLeader } from "@/components/ui/section-leader";
-import { uploadFile } from "@/lib/upload";
+import { useLutState } from "@/hooks/useLutState";
 import { ProcessSection } from "./ProcessSection";
 import { useProcessSection } from "./useProcessSection";
 
 export function GradingSection() {
   const { enabled, params, applies, setEnabled, set } = useProcessSection("grading");
-  const lutInputRef = useRef<HTMLInputElement>(null);
-  const hasLut = !!params.lut_cube_file;
-  const lutName = hasLut ? (params.lut_cube_file.split("/").pop() ?? "") : "";
-
-  const handleLutFile = useCallback(
-    async (e: React.ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0];
-      e.target.value = "";
-      if (!file) return;
-      set("lut_cube_file")(await uploadFile(file));
-    },
-    [set],
-  );
+  const lut = useLutState("process");
 
   return (
     <ProcessSection
@@ -197,45 +182,18 @@ export function GradingSection() {
           />
         </ParamGrid>
       </SectionLeader>
-      <SectionLeader title="LUT" level={1} collapsible defaultCollapsed>
-        <div className="flex items-center gap-2">
-          <ParamLabel
-            className="text-2xs text-muted-foreground w-16 flex-shrink-0"
-            tooltip="A .cube lookup table applied as the last grading step."
-          >
-            File
-          </ParamLabel>
-          {hasLut ? (
-            <div className="flex items-center gap-1.5 flex-1 min-w-0">
-              <span className="text-2xs truncate flex-1">{lutName}</span>
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                onClick={() => set("lut_cube_file")("")}
-                title="Remove LUT"
-              >
-                <X size={12} />
-              </Button>
-            </div>
-          ) : (
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-6 text-2xs gap-1.5 flex-1"
-              onClick={() => lutInputRef.current?.click()}
-            >
-              <Upload size={12} />
-              Upload .cube file
-            </Button>
-          )}
-          <input
-            ref={lutInputRef}
-            type="file"
-            accept=".cube"
-            className="hidden"
-            onChange={(e) => void handleLutFile(e)}
-          />
-        </div>
+      <SectionLeader
+        title="LUT"
+        level={1}
+        collapsible
+        defaultCollapsed
+        summary={lut.kind === "none" ? undefined : <LutSummary state={lut} />}
+      >
+        <LutFileRow
+          where="process"
+          state={lut}
+          tooltip="A .cube lookup table applied as the last grading step."
+        />
         <ParamSlider
           label="Strength"
           tooltip="1 applies the LUT fully, below 1 blends toward the original, above 1 exaggerates it."
@@ -244,8 +202,8 @@ export function GradingSection() {
           min={0}
           max={2}
           step={0.05}
-          disabled={!hasLut}
-          disabledHint="Upload a .cube file first"
+          disabled={lut.kind === "none"}
+          disabledHint="Choose a .cube file first"
         />
       </SectionLeader>
     </ProcessSection>

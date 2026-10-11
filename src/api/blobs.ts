@@ -5,20 +5,11 @@
 
 import { UserAbortError } from "@/lib/abort";
 import { isHash } from "@/lib/media/hash";
-import { uploadFailureText, type UploadFailure } from "@/lib/media/text";
+import { UploadRefused } from "@/lib/media/refused";
+import type { UploadFailure } from "@/lib/media/text";
 import { api, ApiError } from "./client";
 import { formatErrorDetail } from "./errorDetail";
 import type { ResBlobV2, ResClaimV2 } from "./types/media";
-
-/** Why an upload did not land, worded for a toast. */
-export class UploadRefused extends Error {
-  override name = "UploadRefused";
-  readonly failure: UploadFailure;
-  constructor(failure: UploadFailure, options?: ErrorOptions) {
-    super(uploadFailureText(failure), options);
-    this.failure = failure;
-  }
-}
 
 /** The failure a refused request names. `declared` is the size of the bytes
  * it carried, which a 507's `needed` counts beside the server's reserve and
@@ -107,13 +98,19 @@ export function ingest(blob: Blob, options: IngestOptions = {}): Promise<ResBlob
 
 const CLAIM_CHUNK = 1000;
 
+export interface ClaimOptions {
+  /** False for bytes read once: the claim touches them and leaves them to go within the hour. */
+  keep?: boolean;
+  signal?: AbortSignal;
+}
+
 /** Which hashes the server holds, keeping each one it holds for an hour, and
  * the room it has for `bytes` more. Rejects with UploadRefused, or
  * UserAbortError when the signal stops it. */
 export async function claim(
   hashes: readonly string[],
   bytes: number,
-  signal?: AbortSignal,
+  { keep = true, signal }: ClaimOptions = {},
 ): Promise<ResClaimV2> {
   const answer: ResClaimV2 = {
     present: [],
@@ -124,7 +121,7 @@ export async function claim(
   try {
     for (let start = 0; start === 0 || start < hashes.length; start += CLAIM_CHUNK) {
       const part = await api.post<ResClaimV2>(
-        "/sdapi/v2/blobs/claim",
+        keep ? "/sdapi/v2/blobs/claim" : "/sdapi/v2/blobs/claim?keep=false",
         { hashes: hashes.slice(start, start + CLAIM_CHUNK), bytes: start === 0 ? bytes : 0 },
         signal,
       );

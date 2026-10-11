@@ -10,20 +10,21 @@ import { activeProcessor, isPlaced } from "@/lib/inputs/types";
 import { firstInitialEntry } from "@/lib/inputs/outline";
 import { submissionOf, type Submission } from "@/inputs/submit";
 import type { UploadBatch } from "@/inputs/uploads";
-import { useSubmitProgress, type SubmitPhase } from "@/inputs/progress";
+import { useActionProgress, useUploadView } from "@/hooks/useActionProgress";
+import { ACTIONS } from "@/lib/media/progress";
 import { applyFix } from "@/inputs/processing";
 import { outlineOf } from "@/inputs/outlineOf";
 import { useOutlineWithEnv } from "@/inputs/useOutline";
 import { processorFacts } from "@/lib/processorUtils";
 import { preprocessorsQuery } from "@/api/hooks/useControl";
 import { detailProcessedText, fixLabel, problemText } from "@/lib/inputs/text";
-import { buildControlRequest, InputRefusal, SettingRefusal } from "@/lib/request/buildGenerate";
+import { buildControlRequest, InputRefusal } from "@/lib/request/buildGenerate";
 import { buildCloudImageRequest } from "@/lib/request/buildCloudImage";
 import { buildDetailRequest } from "@/lib/request/buildDetail";
 import { restoreSettings, restoreSettingsAndInputs, resultTarget } from "@/lib/request/restore";
 import { useRunAgain } from "@/hooks/useRunAgain";
 import { useJobFact } from "@/hooks/useJobFact";
-import { NO_SKIP, PREPARING, SENDING, STOP_UPLOAD, STORING, uploadingText } from "@/lib/media/text";
+import { BEING_SENT, NO_SKIP, SENDING, STOP_GENERATION, STOP_UPLOAD } from "@/lib/media/text";
 import { hasLegacyInputs } from "@/inputs/legacyResult";
 import { resultActions } from "@/lib/jobs/cardActions";
 import {
@@ -60,7 +61,7 @@ import {
   SkipForward,
   Square,
 } from "lucide-react";
-import { ProgressRing } from "@/components/ui/progress-ring";
+import { announceText, SubmitAnnouncer, SubmitLabel } from "@/components/ui/submit-label";
 import { useState, useCallback, useMemo, memo } from "react";
 import { toast } from "sonner";
 import { useUiStore } from "@/stores/uiStore";
@@ -77,19 +78,10 @@ import { BatchDialog } from "@/components/generation/BatchDialog";
 import { XyzGridDialog } from "@/components/generation/XyzGridDialog";
 import { GenerationDiffDialog } from "@/components/generation/GenerationDiffDialog";
 
-/** Names the Images view's submit in the progress store. */
-const IMAGES_ACTION = "images";
+const IMAGES_ACTION = ACTIONS.images;
 
-const PHASE_WORD: Record<SubmitPhase, string> = {
-  preparing: PREPARING,
-  uploading: "Uploading",
-  storing: STORING,
-  sending: SENDING,
-};
-
-/** The Generate button's icon and words: the submit's progress while it
- * uploads, then the running job's, else the verb. It reads the stores itself,
- * so an upload's events re-render it and nothing else. */
+/** The Generate button's icon and words. It reads the stores itself, so an
+ * upload's events re-render it and nothing else. */
 const GenerateLabel = memo(function GenerateLabel({
   verb,
   pendingCount,
@@ -97,49 +89,32 @@ const GenerateLabel = memo(function GenerateLabel({
   verb: string;
   pendingCount: number;
 }) {
-  const upload = useSubmitProgress((s) => s.byAction[IMAGES_ACTION]);
+  const upload = useUploadView(IMAGES_ACTION);
   const isActive = useJobQueueStore(selectGenerateActive);
   const runningJob = useJobQueueStore(selectRunningJob);
   const job = runningJob?.domain === "generate" ? runningJob : null;
-  if (upload) {
-    return (
-      <>
-        <ProgressRing progress={upload.percent / 100} size={14} strokeWidth={2} />
-        {upload.phase === "uploading" ? uploadingText(upload.percent) : PHASE_WORD[upload.phase]}
-      </>
-    );
-  }
-  if (isActive) {
-    const pct = Math.round((job?.progress ?? 0) * 100);
-    return (
-      <>
-        <ProgressRing progress={job?.progress ?? 0} size={14} strokeWidth={2} />
-        {`${job?.task || "Generating"}${pct > 0 ? ` ${pct}%` : ""}${pendingCount > 0 ? ` [+${pendingCount}]` : ""}`}
-      </>
-    );
-  }
   return (
-    <>
+    <SubmitLabel
+      upload={upload}
+      job={
+        isActive
+          ? { task: job?.task ?? null, progress: job?.progress ?? 0, queued: pendingCount }
+          : null
+      }
+      running="Generating"
+    >
       <Play size={14} />
       {`${verb}${pendingCount > 0 ? ` [${pendingCount}]` : ""}`}
-    </>
+    </SubmitLabel>
   );
 });
 
-/** Says each phase of the submit and the job once, for a screen reader. */
-function SubmitAnnouncer({
-  uploadPhase,
-  isActive,
-}: {
-  uploadPhase: SubmitPhase | null;
-  isActive: boolean;
-}) {
-  return (
-    <span className="sr-only" aria-live="polite">
-      {uploadPhase ? PHASE_WORD[uploadPhase] : isActive ? "Generating" : ""}
-    </span>
-  );
-}
+/** What a screen reader hears of the Generate button, beside it. */
+const GenerateAnnouncer = memo(function GenerateAnnouncer() {
+  const upload = useUploadView(IMAGES_ACTION);
+  const isActive = useJobQueueStore(selectGenerateActive);
+  return <SubmitAnnouncer text={announceText(upload, isActive, "Generating")} />;
+});
 
 export const ActionBar = memo(function ActionBar() {
   const clearSelection = useGenerationStore((s) => s.clearSelection);
@@ -322,10 +297,6 @@ export const ActionBar = memo(function ActionBar() {
           toast.warning("Can't generate with these input images", { description: err.message });
           throw new UserAbortError(err.message);
         }
-        if (err instanceof SettingRefusal) {
-          toast.warning("Can't generate with these settings", { description: err.message });
-          throw new UserAbortError(err.message);
-        }
         throw err;
       });
       clearSelection();
@@ -342,11 +313,17 @@ export const ActionBar = memo(function ActionBar() {
     [clearSelection, loadModel, queryClient],
   );
 
-  const { submit, isSubmitting, cancel } = useSubmitToQueue(
+  const {
+    submit,
+    isSubmitting: submitting,
+    cancel,
+  } = useSubmitToQueue(
     useMemo(() => ({ build: buildSubmission, action: IMAGES_ACTION }), [buildSubmission]),
   );
-  // the submit's phase alone: its percentage re-renders only the label
-  const uploadPhase = useSubmitProgress((s) => s.byAction[IMAGES_ACTION]?.phase ?? null);
+  // the run's phase alone, whichever of Generate, Batch or XYZ started it: its
+  // percentage re-renders only the label
+  const uploadPhase = useActionProgress(IMAGES_ACTION, (e) => e?.phase ?? null);
+  const isSubmitting = submitting || uploadPhase !== null;
 
   // Generate stays clickable while the inputs block it: it says what, offers
   // the fix, and opens the Input tab
@@ -369,12 +346,16 @@ export const ActionBar = memo(function ActionBar() {
 
   // Stop acts on an upload first, then on the running job
   const handleInterrupt = useCallback(() => {
+    if (uploadPhase === "sending") {
+      toast.info(BEING_SENT);
+      return;
+    }
     if (cancel()) return;
     if (runningJob && runningJob.domain === "generate") {
       sendToJob(runningJob.id, { type: "interrupt" });
       cancelJob.mutate(runningJob.id);
     }
-  }, [cancel, runningJob, cancelJob]);
+  }, [uploadPhase, cancel, runningJob, cancelJob]);
 
   const handleSkip = useCallback(() => {
     if (runningJob && runningJob.domain === "generate") {
@@ -567,7 +548,7 @@ export const ActionBar = memo(function ActionBar() {
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
-      <SubmitAnnouncer uploadPhase={uploadPhase} isActive={isActive} />
+      <GenerateAnnouncer />
       {/* Fixed width: the count appears without moving the buttons beside it */}
       <span
         className="grid w-4 shrink-0 place-items-center font-mono text-2xs tabular-nums text-amber-400"
@@ -586,17 +567,21 @@ export const ActionBar = memo(function ActionBar() {
         <XyzGridDialog open={xyzOpen} onOpenChange={setXyzOpen} build={buildSubmission} />
       )}
 
-      {/* Stop: the upload while one runs; disabled while the job is sent, which cannot be taken back */}
+      {/* Stop: the upload while one runs, then the job; while the job is sent, which cannot be taken back, it says so */}
       {isGenerating && (
         <Button
           type="button"
           data-param="stop"
           onClick={handleInterrupt}
-          disabled={uploadPhase === "sending"}
+          aria-disabled={uploadPhase === "sending" ? true : undefined}
+          className={uploadPhase === "sending" ? "opacity-50" : undefined}
           variant="destructive"
           size="icon-sm"
+          aria-label={
+            uploadPhase === "sending" ? SENDING : uploadPhase ? STOP_UPLOAD : STOP_GENERATION
+          }
           title={
-            uploadPhase === "sending" ? SENDING : uploadPhase ? STOP_UPLOAD : "Stop generation"
+            uploadPhase === "sending" ? BEING_SENT : uploadPhase ? STOP_UPLOAD : STOP_GENERATION
           }
         >
           <Square size={14} />

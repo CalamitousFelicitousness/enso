@@ -7,7 +7,7 @@
 import { create } from "zustand";
 import { toast } from "sonner";
 import { api, ApiError } from "@/api/client";
-import { UploadRefused } from "@/api/blobs";
+import { UploadRefused } from "@/lib/media/refused";
 import { queryClient } from "@/api/queryClient";
 import { LIBRARY_KEY, MY_RECORDS_KEY } from "@/api/queryKeys";
 import type {

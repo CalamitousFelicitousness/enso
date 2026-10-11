@@ -8,7 +8,7 @@ const NOW = 1_800_000_000_000;
 let migrate: typeof import("./migrate");
 let UserAbortError: typeof import("@/lib/abort").UserAbortError;
 let ApiError: typeof import("@/api/client").ApiError;
-let UploadRefused: typeof import("@/api/blobs").UploadRefused;
+let UploadRefused: typeof import("@/lib/media/refused").UploadRefused;
 
 beforeEach(async () => {
   vi.resetModules();
@@ -17,7 +17,7 @@ beforeEach(async () => {
   migrate = await import("./migrate");
   ({ UserAbortError } = await import("@/lib/abort"));
   ({ ApiError } = await import("@/api/client"));
-  ({ UploadRefused } = await import("@/api/blobs"));
+  ({ UploadRefused } = await import("@/lib/media/refused"));
 });
 
 afterEach(() => {

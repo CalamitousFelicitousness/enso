@@ -1,33 +1,34 @@
+import { useSyncExternalStore } from "react";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { createIdbStorage } from "@/lib/idbStorage";
+import { migratePendingLuts, type LutPlace, type PendingLut, type PendingLuts } from "@/lib/lut";
 import { reportStorageProblem } from "@/lib/storageHealth";
 import { writeProblems } from "@/inputs/quota";
 
-/** The color LUT the Color tab names: its bytes stay here and go up with each job. */
+/** The bytes of each view's color LUT, kept until the server holds them; the
+ * settings name a LUT by its name and the hash of these bytes. */
 interface LutState {
-  file: File | null;
-  setFile: (file: File | null) => void;
+  images: PendingLut | null;
+  process: PendingLut | null;
+  setPending: (where: LutPlace, pending: PendingLut | null) => void;
 }
 
-interface PersistedLutState {
-  file: File | null;
-}
-
-const lutStorage = createIdbStorage<PersistedLutState>("enso-color-lut", "state", {
+const lutStorage = createIdbStorage<PendingLuts>("enso-color-lut", "state", {
   ...writeProblems("color-lut", "color LUT", () => lutStorage.retry()),
 });
 
 export const useLutStore = create<LutState>()(
   persist(
     (set) => ({
-      file: null,
-      setFile: (file) => set({ file }),
+      images: null,
+      process: null,
+      setPending: (where, pending) => set({ [where]: pending }),
     }),
     {
       name: "enso-color-lut",
       storage: lutStorage,
-      version: 1,
+      version: 2,
       onRehydrateStorage: () => (_state, error) => {
         if (!error) {
           reportStorageProblem({ kind: "resolved", id: "color-lut" });
@@ -41,16 +42,16 @@ export const useLutStore = create<LutState>()(
           startEmpty: () => lutStorage.startEmpty(),
         });
       },
-      partialize: (state): PersistedLutState => ({ file: state.file }),
+      migrate: migratePendingLuts,
+      partialize: (state): PendingLuts => ({ images: state.images, process: state.process }),
     },
   ),
 );
 
-export const LUT_MISSING_TEXT =
-  "The color LUT is no longer stored in this browser. Pick it again in the Color tab, or remove it.";
-
-/** The stored LUT when it is the one the settings name. */
-export function namedLut(name: string): File | null {
-  const { file } = useLutStore.getState();
-  return name && file?.name === name ? file : null;
+/** Whether the stored bytes have been read: until then none count as here. */
+export function useLutsHydrated(): boolean {
+  return useSyncExternalStore(
+    (changed) => useLutStore.persist.onFinishHydration(changed),
+    () => useLutStore.persist.hasHydrated(),
+  );
 }

@@ -352,6 +352,20 @@ export function selectVideoDomainActiveJob(state: JobQueueState): TrackedJob | u
   );
 }
 
+export function selectVideoDomainRunning(state: JobQueueState): TrackedJob | undefined {
+  return Array.from(state.jobs.values()).find(
+    (j) => isVideoDomain(j.domain) && j.status === "running",
+  );
+}
+
+export function selectVideoPendingCount(state: JobQueueState): number {
+  let count = 0;
+  for (const j of state.jobs.values()) {
+    if (isVideoDomain(j.domain) && j.status === "pending") count++;
+  }
+  return count;
+}
+
 export function selectPendingJobsSorted(state: JobQueueState): TrackedJob[] {
   return Array.from(state.jobs.values())
     .filter((j) => j.status === "pending")
@@ -374,7 +388,6 @@ export const selectLtxActive = selectDomainActive("ltx");
 export const selectVideoProgress = selectDomainProgress("video");
 export const selectFramepackProgress = selectDomainProgress("framepack");
 export const selectLtxProgress = selectDomainProgress("ltx");
-export const selectProcessProgress = selectDomainProgress("process");
 
 export const selectVideoRunning = selectDomainRunning("video");
 export const selectProcessRunning = selectDomainRunning("process");

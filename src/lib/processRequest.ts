@@ -48,9 +48,11 @@ export function activeSections(settings: ProcessSettings): ProcessSectionKey[] {
   );
 }
 
+/** A Process job; `lut` is the staged ref of the color LUT, null for none. */
 export function buildProcessPayload(
   settings: ProcessSettings,
   inputs: ProcessInputs,
+  lut: string | null = null,
 ): ProcessJobParams {
   const payload: ProcessJobParams = {
     type: "process",
@@ -68,5 +70,6 @@ export function buildProcessPayload(
     // Each section's params object has the wire shape of its field.
     Object.assign(payload, { [WIRE_FIELD[key]]: settings.sections[key].params });
   }
+  if (payload.grading) payload.grading = { ...payload.grading, lut_cube_file: lut ?? "" };
   return payload;
 }

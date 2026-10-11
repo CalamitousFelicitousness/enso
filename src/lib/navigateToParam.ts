@@ -8,7 +8,8 @@ import type {
 } from "@/lib/constants";
 
 interface ParamLocation {
-  section?: string;
+  /** The section holding the param, or the path of nested sections down to it. */
+  section?: string | readonly string[];
   param?: string;
 }
 
@@ -17,7 +18,7 @@ export type NavigateTarget =
   | RightSubTabTarget
   | ({ view: "images"; subTab?: ImagesSubTab } & ParamLocation)
   | ({ view: "video"; subTab?: VideoSubTab } & ParamLocation)
-  | { view: Exclude<NavView, "images" | "video"> };
+  | ({ view: Exclude<NavView, "images" | "video"> } & ParamLocation);
 
 function waitForElement(
   selector: string,
@@ -72,30 +73,36 @@ export async function navigateToParam(target: NavigateTarget) {
     store.setPanelSelection("videoSubTab", target.subTab);
   }
 
-  // 4. If no param specified (tab-only navigation), we're done
-  if (!("param" in target) || !target.param) return;
+  // 4. Tab-only navigation ends here
+  const sections =
+    target.section === undefined
+      ? []
+      : typeof target.section === "string"
+        ? [target.section]
+        : target.section;
+  if (!target.param && sections.length === 0) return;
 
   // Scope the lookup to the target panel. Hidden panels stay mounted, so the
   // same data-param can exist in several at once. Panel ids are namespaced by
   // their host, so this resolves to exactly one element.
-  const panelId = target.subTab ? `${target.view}-${target.subTab}` : undefined;
+  const subTab = "subTab" in target ? target.subTab : undefined;
+  const panelId = subTab ? `${target.view}-${subTab}` : undefined;
   const scope = panelId ? await waitForElement(`[data-panel-id="${panelId}"]`) : document.body;
   if (!scope) {
     if (import.meta.env.DEV) console.warn(`[navigateToParam] no panel "${panelId}"`);
     return;
   }
 
-  // 5. Expand section if specified
-  if (target.section) {
+  // 5. Expand each section, outermost first: an inner one mounts when its parent opens
+  for (const name of sections) {
     // 500ms covers a lazily mounted panel plus a lazily mounted section.
-    const section = await waitForElement(`[data-section="${target.section}"]`, 500, scope);
+    const section = await waitForElement(`[data-section="${name}"]`, 500, scope);
     if (!section && import.meta.env.DEV) {
-      console.warn(`[navigateToParam] no section "${target.section}" in "${panelId}"`);
+      console.warn(`[navigateToParam] no section "${name}" in "${panelId}"`);
     }
-    document.dispatchEvent(
-      new CustomEvent("param-section-expand", { detail: { section: target.section } }),
-    );
+    document.dispatchEvent(new CustomEvent("param-section-expand", { detail: { section: name } }));
   }
+  if (!target.param) return;
 
   // 6. Wait for the param element to appear within the target panel
   const el = await waitForElement(`[data-param="${target.param}"]`, 500, scope);
@@ -109,4 +116,13 @@ export async function navigateToParam(target: NavigateTarget) {
 
   // 8. Highlight
   requestAnimationFrame(() => highlight(el));
+}
+
+/** Open the section that picks a view's color LUT. */
+export function openLutSection(where: "images" | "process"): void {
+  void navigateToParam(
+    where === "images"
+      ? { view: "images", subTab: "color", section: "lut" }
+      : { view: "process", section: ["color grading", "lut"] },
+  );
 }

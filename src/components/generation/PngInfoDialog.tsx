@@ -15,7 +15,12 @@ import { usePngInfo } from "@/api/hooks/usePngInfo";
 import { pngInfoParams } from "@/lib/pngInfoRestore";
 import { applyParams } from "@/lib/request/restore";
 import { sendImageToCanvas, sendFrameToVideoInit, sendPromptToGeneration } from "@/lib/sendTo";
-import { uploadFile } from "@/lib/upload";
+import { useUploadAction } from "@/hooks/useUploadAction";
+import { useUploadView } from "@/hooks/useActionProgress";
+import { sendOne } from "@/inputs/uploads";
+import { ACTIONS } from "@/lib/media/progress";
+import { UPLOAD_FAILED } from "@/lib/media/text";
+import { SubmitLabel } from "@/components/ui/submit-label";
 import { toast } from "sonner";
 
 const PARAM_GROUPS: { label: string; keys: string[] }[] = [
@@ -99,6 +104,20 @@ const SIZE_LABELS: Record<string, string> = {
 };
 
 const SIZE_SECOND_KEYS = new Set(["Size-2", "Hires fixed-2", "Hires size-2"]);
+
+const ACTION = ACTIONS.pngInfo;
+
+/** While a picture is read: its upload, then the server's parse. */
+function ReadingLine() {
+  const upload = useUploadView(ACTION);
+  return (
+    <p className="flex items-center gap-2 text-xs text-muted-foreground">
+      <SubmitLabel upload={upload} job={null} running="">
+        <span className="animate-pulse">Extracting info...</span>
+      </SubmitLabel>
+    </p>
+  );
+}
 
 interface PngInfoDialogProps {
   open: boolean;
@@ -188,32 +207,68 @@ export function PngInfoDialog({ open, onOpenChange }: PngInfoDialogProps) {
   const [items, setItems] = useState<Record<string, string>>({});
   const [parameters, setParameters] = useState<Record<string, unknown>>({});
   const [dragging, setDragging] = useState(false);
+  const [reading, setReading] = useState(false);
   const dragCounter = useRef(0);
   const pngInfo = usePngInfo();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { run: runUpload, cancel: stopUpload } = useUploadAction(ACTION, { transient: true });
+  // Each pick's number; a newer pick or a close leaves an older one's answer unshown
+  const pickRef = useRef(0);
+  // The preview's object URL, revoked when another replaces it or the dialog closes
+  const urlRef = useRef<string | null>(null);
+  const showPreview = useCallback((file: File | null) => {
+    if (urlRef.current) URL.revokeObjectURL(urlRef.current);
+    urlRef.current = file ? URL.createObjectURL(file) : null;
+    setPreviewUrl(urlRef.current);
+  }, []);
 
   const processFile = useCallback(
     async (file: File) => {
-      setPreviewUrl(URL.createObjectURL(file));
+      const pick = ++pickRef.current;
+      const current = () => pickRef.current === pick;
+      // this pick's run stops the previous one's upload, quietly; its parse goes first
+      showPreview(file);
       setFileRef(file);
+      setInfoText("");
+      setItems({});
+      setParameters({});
+      setReading(true);
       try {
-        const ref = await uploadFile(file);
+        const ref = await runUpload(({ batch }) => sendOne(batch, file, { name: file.name }), {
+          quiet: true,
+        });
+        if (!current()) return;
+        if (ref === null) {
+          setReading(false);
+          return;
+        }
         pngInfo.mutate(
           { image: ref },
           {
             onSuccess: (data) => {
+              if (!current()) return;
               setInfoText(data.info ?? "");
               setItems(data.items ?? {});
               setParameters(data.parameters ?? {});
             },
-            onError: () => toast.error("Failed to extract PNG info"),
+            onError: (err) => {
+              if (current())
+                toast.error("Could not read the picture's info", { description: err.message });
+            },
+            onSettled: () => {
+              if (current()) setReading(false);
+            },
           },
         );
-      } catch {
-        toast.error("Failed to upload image");
+      } catch (err) {
+        if (!current()) return;
+        setReading(false);
+        toast.error(UPLOAD_FAILED, {
+          description: err instanceof Error ? err.message : String(err),
+        });
       }
     },
-    [pngInfo],
+    [pngInfo, runUpload, showPreview],
   );
 
   const handleDrop = useCallback(
@@ -272,7 +327,10 @@ export function PngInfoDialog({ open, onOpenChange }: PngInfoDialogProps) {
 
   const handleClose = (nextOpen: boolean) => {
     if (!nextOpen) {
-      setPreviewUrl(null);
+      pickRef.current += 1;
+      stopUpload();
+      setReading(false);
+      showPreview(null);
       setFileRef(null);
       setInfoText("");
       setItems({});
@@ -429,10 +487,8 @@ export function PngInfoDialog({ open, onOpenChange }: PngInfoDialogProps) {
             <div className="flex-1 flex flex-col min-h-0 min-w-0 overflow-hidden">
               <ScrollArea className="flex-1 min-h-0">
                 <div className="p-4 space-y-3">
-                  {pngInfo.isPending ? (
-                    <p className="text-xs text-muted-foreground animate-pulse">
-                      Extracting info...
-                    </p>
+                  {reading ? (
+                    <ReadingLine />
                   ) : !infoText ? (
                     <p className="text-xs text-muted-foreground">
                       No generation info found in this image.

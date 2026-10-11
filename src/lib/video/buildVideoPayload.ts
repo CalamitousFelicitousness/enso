@@ -1,7 +1,8 @@
-import { uploadFile } from "@/lib/upload";
+import type { StageOptions, UploadBatch } from "@/inputs/uploads";
 import { normalizeCodecOptions } from "@/lib/videoOutputPresets";
 import { useVideoStore } from "@/stores/videoStore";
-import { getVideoInputs } from "@/lib/video/inputs";
+import { useVideoHashStore } from "@/stores/videoHashStore";
+import { getVideoInputs, type VideoInput } from "@/lib/video/inputs";
 import { VIDEO_PARAM_KEYS, wireKeyFor, type VideoJobType } from "@/lib/video/paramRegistry";
 import type { JobRequest } from "@/api/types/v2";
 import type { LocalVideoEngineKind, LocalVideoModel } from "@/api/types/cloud";
@@ -17,15 +18,32 @@ export function jobTypeForKind(kind: LocalVideoEngineKind): VideoJobType {
   return KIND_TO_JOB[kind];
 }
 
+/** How a video canvas file is staged: with the hash the canvas keeps for it,
+ * keeping the hash the server answers. */
+export function videoInputOptions(input: VideoInput): StageOptions {
+  const hash = useVideoHashStore.getState().hashes[input.id];
+  return {
+    name: input.file.name,
+    ...(hash ? { hash } : {}),
+    onHash: (hashed) => useVideoHashStore.getState().remember(input.id, hashed.hash),
+  };
+}
+
+export function stageVideoInput(batch: UploadBatch, input: VideoInput): string {
+  return batch.stage(input.file, videoInputOptions(input)).ref;
+}
+
 /** Build the job payload for a local video model by walking the param
  * registry; the per-job wire maps decide which store params ride along.
  * Pass the resolved caps (live query first) - the snapshot on `model` is
- * stale for selections persisted before the caps join existed. */
-export async function buildVideoPayload(
+ * stale for selections persisted before the caps join existed. Its files
+ * are staged on `batch`. */
+export function buildVideoPayload(
   kind: LocalVideoEngineKind,
   model: LocalVideoModel,
-  caps: VideoModelCaps | null = model.caps,
-): Promise<JobRequest> {
+  caps: VideoModelCaps | null,
+  batch: UploadBatch,
+): JobRequest {
   const job = KIND_TO_JOB[kind];
   const state = useVideoStore.getState();
 
@@ -55,8 +73,8 @@ export async function buildVideoPayload(
   const wantInit = caps ? caps.init_image !== "ignored" : true;
   const wantLast = caps ? caps.last_image !== "ignored" : true;
   const wantRefs = job === "video" && (caps?.references.supported ?? false);
-  const initRef = wantInit && init ? await uploadFile(init) : null;
-  const lastRef = wantLast && last ? await uploadFile(last) : null;
+  const initRef = wantInit && init ? stageVideoInput(batch, init) : null;
+  const lastRef = wantLast && last ? stageVideoInput(batch, last) : null;
   if (job === "ltx") {
     payload["condition_image"] = initRef;
     payload["condition_last"] = lastRef;
@@ -68,7 +86,7 @@ export async function buildVideoPayload(
     payload["last_image"] = lastRef;
     const maxRefs = caps ? caps.references.max_total || caps.references.max_images : refs.length;
     payload["references"] = wantRefs
-      ? await Promise.all(refs.slice(0, maxRefs || refs.length).map((f) => uploadFile(f)))
+      ? refs.slice(0, maxRefs || refs.length).map((input) => stageVideoInput(batch, input))
       : [];
   }
 

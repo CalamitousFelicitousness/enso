@@ -5,7 +5,7 @@
 // the server may have queued the job the moment it took the body.
 
 import { toast } from "sonner";
-import { UploadRefused } from "@/api/blobs";
+import { UploadRefused } from "@/lib/media/refused";
 import { api, ApiError, issuesOf } from "@/api/client";
 import { serverInfoQuery } from "@/api/hooks/useServer";
 import { queryClient } from "@/api/queryClient";

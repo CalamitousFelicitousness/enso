@@ -7,6 +7,7 @@ import { reportStorageProblem } from "@/lib/storageHealth";
 import { writeProblems } from "@/inputs/quota";
 import type { ReferenceKind } from "@/lib/video/referenceMedia";
 import type { ViewportState } from "@/canvas/viewportBus";
+import { useVideoHashStore } from "./videoHashStore";
 
 export interface VideoFrameImage {
   id: string;
@@ -235,9 +236,11 @@ export const useVideoCanvasStore = create<VideoCanvasState>()(
       name: "enso-video-canvas-v1",
       storage: videoCanvasIdbStorage,
       version: 1,
-      onRehydrateStorage: () => (_state, error) => {
+      onRehydrateStorage: () => (state, error) => {
         if (!error) {
           reportStorageProblem({ kind: "resolved", id: "video-canvas" });
+          const frames = [state?.initFrame, state?.lastFrame, ...(state?.references ?? [])];
+          useVideoHashStore.getState().retain(frames.flatMap((f) => (f ? [f.id] : [])));
           return;
         }
         reportStorageProblem({

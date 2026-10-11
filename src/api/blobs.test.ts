@@ -47,7 +47,13 @@ async function load() {
   const client = await import("./client");
   const blobs = await import("./blobs");
   const abort = await import("@/lib/abort");
-  return { ...client, ...blobs, UserAbortError: abort.UserAbortError };
+  const refused = await import("@/lib/media/refused");
+  return {
+    ...client,
+    ...blobs,
+    UserAbortError: abort.UserAbortError,
+    UploadRefused: refused.UploadRefused,
+  };
 }
 
 const stored = (created: boolean) => ({
@@ -181,6 +187,22 @@ describe("claim", () => {
     });
     await claim([], 3);
     expect(post).toHaveBeenCalledTimes(1);
+  });
+
+  it("asks a claim of bytes read once not to keep them", async () => {
+    const { api, claim } = await load();
+    const post = vi.spyOn(api, "post").mockResolvedValue({
+      present: [],
+      missing: [],
+      lost: [],
+      space: { ok: true, free: 9, needed: 3 },
+    });
+    await claim([HASH], 0, { keep: false });
+    await claim([HASH], 0);
+    expect(post.mock.calls.map(([path]) => path)).toEqual([
+      "/sdapi/v2/blobs/claim?keep=false",
+      "/sdapi/v2/blobs/claim",
+    ]);
   });
 });
 

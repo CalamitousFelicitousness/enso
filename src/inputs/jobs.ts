@@ -27,14 +27,14 @@ import { bytesFor, type FetchOptions } from "./fetch";
 import { legacyJob, markLegacyRouted } from "./legacyRecords";
 import { emptyLedger, materialise, type HeldMaps, type SourceFrames } from "./materialise";
 import type { Submission } from "./submit";
-import { UploadBatch } from "./uploads";
+import type { UploadBatch } from "./uploads";
 
 /** A job whose pictures went out without the uploader: its record keeps the
  * request and no frames. */
 export function unrecordedSubmission(
   domain: JobDomain,
   request: JobRequest,
-  batch: UploadBatch = new UploadBatch(domain),
+  batch: UploadBatch,
 ): Submission {
   return {
     domain,

@@ -1,6 +1,10 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { usePromptEnhanceStore } from "@/stores/promptEnhanceStore";
 import { usePromptEnhancer } from "@/hooks/usePromptEnhancer";
+import { useUploadView } from "@/hooks/useActionProgress";
+import type { UploadBatch } from "@/inputs/uploads";
+import { stopUploadText } from "@/lib/media/text";
+import { UploadRing } from "@/components/ui/submit-label";
 import { PromptField } from "./PromptField";
 import { ParamLabel } from "./ParamLabel";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
@@ -20,7 +24,7 @@ export interface PromptBlockProps {
    * sends no negative prompt. */
   negativeMode?: "collapsible" | "always" | "hidden";
   enhanceType: NonNullable<PromptEnhanceRequest["type"]>;
-  getVisionImage: () => Promise<string | null>;
+  getVisionImage: (batch: UploadBatch) => Promise<string | null>;
   placeholder?: string;
   negativePlaceholder?: string;
   className?: string;
@@ -30,6 +34,43 @@ export interface PromptBlockProps {
   actions?: ReactNode;
   /** Set on one instance only - TutorialOverlay resolves by first match. */
   tourId?: string;
+}
+
+/** Enhance. While its vision picture uploads it shows the upload's ring, and
+ * a click stops it. */
+function EnhanceButton({
+  action,
+  uploading,
+  pending,
+  onEnhance,
+  onStop,
+}: {
+  action: string;
+  uploading: boolean;
+  pending: boolean;
+  onEnhance: () => void;
+  onStop: () => void;
+}) {
+  const percent = useUploadView(action)?.percent ?? null;
+  const label = uploading ? stopUploadText(percent) : "Enhance prompt";
+  return (
+    <button
+      type="button"
+      onClick={uploading ? onStop : onEnhance}
+      disabled={pending}
+      className="p-0.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+      title={label}
+      aria-label={label}
+    >
+      {uploading ? (
+        <UploadRing percent={percent} />
+      ) : pending ? (
+        <Loader2 size={14} className="animate-spin" />
+      ) : (
+        <Sparkles size={14} />
+      )}
+    </button>
+  );
 }
 
 /** Prompt + negative prompt with the enhance controls, shared by the image
@@ -63,6 +104,9 @@ export function PromptBlock({
   const {
     enhance,
     isPending,
+    action,
+    uploading,
+    stopUpload,
     open: enhanceOpen,
     setOpen: setEnhanceOpen,
   } = usePromptEnhancer({ type: enhanceType, getPrompt, getVisionImage });
@@ -87,15 +131,13 @@ export function PromptBlock({
           <ParamLabel className="text-2xs text-muted-foreground">Prompt</ParamLabel>
           <div className="flex items-center gap-0.5">
             {actions}
-            <button
-              type="button"
-              onClick={() => void enhance()}
-              disabled={isPending}
-              className="p-0.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
-              title="Enhance prompt"
-            >
-              {isPending ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
-            </button>
+            <EnhanceButton
+              action={action}
+              uploading={uploading}
+              pending={isPending}
+              onEnhance={() => void enhance()}
+              onStop={stopUpload}
+            />
             <Popover open={enhanceOpen} onOpenChange={setEnhanceOpen}>
               <PopoverTrigger asChild>
                 <button
@@ -120,7 +162,7 @@ export function PromptBlock({
                 <ScrollArea className="max-h-[80vh]">
                   <PromptEnhanceWorkspace
                     onEnhance={() => void enhance()}
-                    isPending={isPending}
+                    isPending={isPending || uploading}
                     onClose={() => setEnhanceOpen(false)}
                     onAccept={accept}
                     onSelectPrompt={accept}

@@ -14,7 +14,12 @@ import { useOptionsSubset, useSetOptions } from "@/api/hooks/useSettings";
 import { useOpenClipCaption, useTaggerCaption, useVqaCaption } from "@/api/hooks/useCaption";
 import { useCloudCaption, useCloudVqa } from "@/api/hooks/useCloudText";
 import { useCloudDefaults } from "@/hooks/useCloudDefaults";
-import { uploadFile } from "@/lib/upload";
+import { useUploadAction } from "@/hooks/useUploadAction";
+import { useUploadView } from "@/hooks/useActionProgress";
+import { sendOne } from "@/inputs/uploads";
+import { ACTIONS } from "@/lib/media/progress";
+import { stopUploadText } from "@/lib/media/text";
+import { UploadRing } from "@/components/ui/submit-label";
 import { fileToBase64 } from "@/lib/image";
 import { CUSTOM_PROMPT_TASKS } from "@/lib/captionModels";
 import { VlmSettings } from "./methods/VlmSettings";
@@ -71,6 +76,49 @@ function DefaultCaptionSettings() {
   );
 }
 
+/** Caption. While its picture uploads the button shows the upload, and a
+ * click stops it. */
+function CaptionButton({
+  ready,
+  uploading,
+  processing,
+  onCaption,
+  onStop,
+}: {
+  ready: boolean;
+  uploading: boolean;
+  processing: boolean;
+  onCaption: () => void;
+  onStop: () => void;
+}) {
+  const percent = useUploadView(ACTIONS.caption)?.percent ?? null;
+  return (
+    <Button
+      onClick={uploading ? onStop : onCaption}
+      disabled={!ready || (processing && !uploading)}
+      size="sm"
+      className="w-full"
+    >
+      {uploading ? (
+        <>
+          <UploadRing percent={percent} />
+          {stopUploadText(percent)}
+        </>
+      ) : processing ? (
+        <>
+          <Loader2 size={14} className="animate-spin" />
+          Captioning...
+        </>
+      ) : (
+        <>
+          <Play size={14} />
+          Caption
+        </>
+      )}
+    </Button>
+  );
+}
+
 // Hoist panel JSX to module scope so React element references stay stable
 // across re-renders. Without this, every parent render rebuilds every panel,
 // forcing the reconciler to walk every kept-alive subtree on every state change.
@@ -111,6 +159,11 @@ export function CaptionPanel() {
   const cloudVqaMut = useCloudVqa();
   const cloudMode = useCaptionStore((s) => s.cloudMode);
   const cloudDefaults = useCloudDefaults();
+  const {
+    run: runUpload,
+    busy: uploading,
+    cancel: stopUpload,
+  } = useUploadAction(ACTIONS.caption, { transient: true });
 
   const handleCaption = useCallback(async () => {
     if (!image || isProcessing) return;
@@ -164,7 +217,8 @@ export function CaptionPanel() {
         return;
       }
 
-      const ref = await uploadFile(image);
+      const ref = await runUpload(({ batch }) => sendOne(batch, image, { name: image.name }));
+      if (ref === null) return;
 
       if (method === "vlm") {
         const s = settings.vlm;
@@ -238,6 +292,7 @@ export function CaptionPanel() {
     taggerMut,
     cloudCaptionMut,
     cloudVqaMut,
+    runUpload,
     setProcessing,
     setResult,
   ]);
@@ -246,24 +301,13 @@ export function CaptionPanel() {
     <div className="flex flex-col h-full">
       {/* Caption button */}
       <div className="px-3 py-2 border-b border-border">
-        <Button
-          onClick={() => void handleCaption()}
-          disabled={!image || isProcessing}
-          size="sm"
-          className="w-full"
-        >
-          {isProcessing ? (
-            <>
-              <Loader2 size={14} className="animate-spin" />
-              Captioning...
-            </>
-          ) : (
-            <>
-              <Play size={14} />
-              Caption
-            </>
-          )}
-        </Button>
+        <CaptionButton
+          ready={!!image}
+          uploading={uploading}
+          processing={isProcessing}
+          onCaption={() => void handleCaption()}
+          onStop={stopUpload}
+        />
       </div>
 
       {/* Method tabs + settings */}

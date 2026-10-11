@@ -6,7 +6,10 @@ import { useGenerationStore } from "@/stores/generationStore";
 import { useVideoStore } from "@/stores/videoStore";
 import { useProcessStore } from "@/stores/processStore";
 import { markRouted } from "@/inputs/jobs";
+import { forgetLostLut } from "@/inputs/luts";
 import { installMaps } from "@/inputs/processing";
+import { lutDropped } from "@/lib/lut";
+import { LUT_NOT_APPLIED, LUT_NOT_APPLIED_DETAIL } from "@/lib/media/text";
 import { isTerminal, isVideoDomain } from "@/lib/jobs/domains";
 import { previewMimeType } from "@/lib/image";
 import type { JobResult, JobWsEvent } from "@/api/types/v2";
@@ -105,6 +108,11 @@ export async function routeResult(
     } else if (domain === "process" || domain === "upscale" || domain === "rembg") {
       const vid = result.videos?.[0];
       const info = result.info?.["postprocessing"];
+      const sent = job.request ?? result.params;
+      if (lutDropped(sent, typeof info === "string" ? info : null)) {
+        forgetLostLut("process", sent);
+        toast.warning(LUT_NOT_APPLIED, { description: LUT_NOT_APPLIED_DETAIL });
+      }
       useProcessStore.getState().setResults(
         result.images.map((img) => ({
           url: img.url,

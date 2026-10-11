@@ -1,5 +1,5 @@
-import { useCallback, useMemo, useState } from "react";
-import { Play, Square, Loader2 } from "lucide-react";
+import { memo, useCallback, useMemo } from "react";
+import { Play, Square } from "lucide-react";
 import { useUiStore } from "@/stores/uiStore";
 import { useViewShortcut } from "@/hooks/useViewShortcut";
 import { useRegisterCommand } from "@/lib/commandRegistry";
@@ -8,24 +8,31 @@ import { useVideoStore } from "@/stores/videoStore";
 import { useModelSelectionStore } from "@/stores/modelSelectionStore";
 import {
   useJobQueueStore,
-  selectVideoActive,
-  selectFramepackActive,
-  selectLtxActive,
-  selectDomainProgress,
-  selectDomainRunning,
+  selectVideoDomainRunning,
+  selectVideoPendingCount,
 } from "@/stores/jobStore";
 import { useSubmitToQueue } from "@/hooks/useSubmitToQueue";
+import { useActionProgress, useUploadView } from "@/hooks/useActionProgress";
 import { unrecordedSubmission } from "@/inputs/jobs";
+import type { UploadBatch } from "@/inputs/uploads";
 import { useActiveVideoCaps } from "@/hooks/useActiveVideoCaps";
 import { useVideoCanvasStore } from "@/stores/videoCanvasStore";
 import { useVideoCapsDefaults } from "@/hooks/useVideoCapsDefaults";
 import { sendToJob } from "@/hooks/useJobTracker";
 import { useCancelJob } from "@/api/hooks/useJobs";
-import { useLoadVideoModel, useLoadFramePack } from "@/api/hooks/useVideo";
+import { ACTIONS } from "@/lib/media/progress";
+import {
+  BEING_SENT,
+  NOTHING_TO_STOP,
+  SENDING,
+  STOP_GENERATION,
+  STOP_UPLOAD,
+} from "@/lib/media/text";
 import { buildCloudVideoRequest } from "@/lib/request/buildCloudVideo";
 import { buildVideoPayload } from "@/lib/video/buildVideoPayload";
 import { resolveVideoUi, kindToDomain } from "@/lib/videoModel";
 import { Button } from "@/components/ui/button";
+import { announceText, SubmitAnnouncer, SubmitLabel } from "@/components/ui/submit-label";
 import { TabbedPanel } from "@/components/layout/TabbedPanel";
 import { tabPanelEntries } from "@/components/layout/tabRegistry";
 import { VIDEO_TAB_REGISTRY } from "./tabs/registry";
@@ -40,8 +47,33 @@ import { buildPanels } from "@/components/ui/tab-panels";
 const VIDEO_PANELS = buildPanels(tabPanelEntries(VIDEO_TAB_REGISTRY));
 const VIDEO_FOOTER = <VideoResultStrip />;
 
-/** Names the panel's submit in the progress store. */
-const ACTION = "video";
+const ACTION = ACTIONS.video;
+
+/** The Generate button's icon and words: the upload, then the running video
+ * job's task (a load reads "Load model") and percentage. It reads the stores
+ * itself, so progress re-renders it alone. */
+const GenerateLabel = memo(function GenerateLabel() {
+  const upload = useUploadView(ACTION);
+  const running = useJobQueueStore(selectVideoDomainRunning);
+  const queued = useJobQueueStore(selectVideoPendingCount);
+  return (
+    <SubmitLabel
+      upload={upload}
+      job={running ? { task: running.task || null, progress: running.progress, queued } : null}
+      running="Generating"
+    >
+      <Play size={14} />
+      {`Generate${queued > 0 ? ` [${queued}]` : ""}`}
+    </SubmitLabel>
+  );
+});
+
+/** What a screen reader hears of the Generate button, beside it. */
+const GenerateAnnouncer = memo(function GenerateAnnouncer() {
+  const upload = useUploadView(ACTION);
+  const running = useJobQueueStore(selectVideoDomainRunning);
+  return <SubmitAnnouncer text={announceText(upload, !!running, "Generating")} />;
+});
 
 export function VideoPanel() {
   const prompt = useVideoStore((s) => s.prompt);
@@ -52,81 +84,64 @@ export function VideoPanel() {
   const activeCaps = useActiveVideoCaps();
   useVideoCapsDefaults();
 
-  const isVideoActive = useJobQueueStore(selectVideoActive);
-  const isFramepackActive = useJobQueueStore(selectFramepackActive);
-  const isLtxActive = useJobQueueStore(selectLtxActive);
-  const isGenerating = isVideoActive || isFramepackActive || isLtxActive;
-  const selectProgress = useMemo(() => selectDomainProgress(domain), [domain]);
-  const selectRunning = useMemo(() => selectDomainRunning(domain), [domain]);
-  const progress = useJobQueueStore(selectProgress);
-  const runningVideoJob = useJobQueueStore(selectRunning);
-
+  // the id alone, so a running job's progress does not re-render the panel
+  const runningVideoJobId = useJobQueueStore((s) => selectVideoDomainRunning(s)?.id ?? null);
   const cancelJob = useCancelJob();
 
-  // Pre-submit load mutations - only used when generating with a local-video
-  // model. The unified action-row Load button writes the same mutations; this
-  // path lets us lazy-load when the user clicks Generate without an explicit
-  // Load click first (the "load on generate" semantic).
-  const loadVideoModel = useLoadVideoModel();
-  const loadFramePack = useLoadFramePack();
-  const [isLoadingModel, setIsLoadingModel] = useState(false);
-
-  // Prompt enhance
-
-  const build = useCallback(async () => {
-    if (kind === "cloud") {
-      return unrecordedSubmission(domain, await buildCloudVideoRequest());
-    }
-    if (kind === "empty" || !activeModel || activeModel.source !== "local-video") {
-      // Generate button is gated by canGenerate so this branch shouldn't
-      // run in practice. Throwing a regular Error lets useSubmitToQueue
-      // surface a real "Failed to submit" toast as a safety net.
-      throw new Error("No video model selected");
-    }
-    return unrecordedSubmission(domain, await buildVideoPayload(kind, activeModel, activeCaps));
-  }, [kind, domain, activeModel, activeCaps]);
-
-  const { submit, isSubmitting } = useSubmitToQueue(
-    useMemo(() => ({ build, action: ACTION }), [build]),
+  // The job loads its model when it runs, under the server's queue lock, so
+  // a click never replaces the model of a job running ahead of it
+  const build = useCallback(
+    (batch: UploadBatch) => {
+      if (kind === "cloud") {
+        return unrecordedSubmission(domain, buildCloudVideoRequest(batch), batch);
+      }
+      if (kind === "empty" || !activeModel || activeModel.source !== "local-video") {
+        // Generate button is gated by canGenerate so this branch shouldn't
+        // run in practice. Throwing a regular Error lets useSubmitToQueue
+        // surface a real "Failed to submit" toast as a safety net.
+        throw new Error("No video model selected");
+      }
+      return unrecordedSubmission(
+        domain,
+        buildVideoPayload(kind, activeModel, activeCaps, batch),
+        batch,
+      );
+    },
+    [kind, domain, activeModel, activeCaps],
   );
 
-  // "Load on generate": when the active model is local video, ensure it's
-  // loaded before submission. Server is idempotent (re-firing load when the
-  // model is already loaded is cheap), so we don't try to be clever about
-  // skipping when activeModel.loaded is already true - that snapshot can be
-  // stale, and the cost of being wrong is a redundant 50-200ms round-trip
-  // rather than a real generation failure.
-  const handleGenerate = useCallback(async () => {
-    if (kind === "generic" || kind === "ltx" || kind === "framepack") {
-      if (!activeModel || activeModel.source !== "local-video") return;
-      setIsLoadingModel(true);
-      try {
-        if (kind === "framepack") {
-          await loadFramePack.mutateAsync({ variant: activeModel.model });
-        } else {
-          await loadVideoModel.mutateAsync({
-            engine: activeModel.engine,
-            model: activeModel.model,
-          });
-        }
-      } catch (err) {
-        toast.error("Failed to load model", {
-          description: err instanceof Error ? err.message : String(err),
-        });
-        return;
-      } finally {
-        setIsLoadingModel(false);
-      }
-    }
-    void submit();
-  }, [kind, activeModel, loadVideoModel, loadFramePack, submit]);
+  const {
+    submit,
+    isSubmitting: submitting,
+    cancel,
+  } = useSubmitToQueue(useMemo(() => ({ build, action: ACTION }), [build]));
+  const uploadPhase = useActionProgress(ACTION, (e) => e?.phase ?? null);
+  const isSubmitting = submitting || uploadPhase !== null;
 
-  const handleCancel = useCallback(() => {
-    if (runningVideoJob) {
-      sendToJob(runningVideoJob.id, { type: "interrupt" });
-      cancelJob.mutate(runningVideoJob.id);
+  // Stop acts on the upload first, then on the running job
+  const handleStop = useCallback(() => {
+    if (uploadPhase === "sending") {
+      toast.info(BEING_SENT);
+      return;
     }
-  }, [runningVideoJob, cancelJob]);
+    if (cancel()) return;
+    if (runningVideoJobId) {
+      sendToJob(runningVideoJobId, { type: "interrupt" });
+      cancelJob.mutate(runningVideoJobId);
+      return;
+    }
+    toast.info(NOTHING_TO_STOP);
+  }, [uploadPhase, cancel, runningVideoJobId, cancelJob]);
+  const uploading = uploadPhase !== null && uploadPhase !== "sending";
+  const stopLabel =
+    uploadPhase === "sending"
+      ? SENDING
+      : uploading
+        ? STOP_UPLOAD
+        : runningVideoJobId
+          ? STOP_GENERATION
+          : NOTHING_TO_STOP;
+  const stopApplies = uploading || runningVideoJobId !== null;
 
   // Reference workflows condition on media: the server takes the init image
   // as reference 1 when the list is empty, so either satisfies the gate -
@@ -139,14 +154,13 @@ export function VideoPanel() {
     kind === "generic" && activeCaps.references.required && referenceCount === 0 && !initCounts;
 
   const canGenerate = kind !== "empty" && !!prompt.trim() && !missingRefs;
-  const progressPct = Math.round(progress * 100);
 
   // Own the generate shortcut and palette entries while Video is the active
   // view. Distinct command ids: the registry is one entry per id, so sharing
   // "actions:generate" would let one panel's cleanup drop the other's.
   const isVideoView = useUiStore((s) => s.activeNavView === "video");
   useViewShortcut("video", "generate", () => {
-    if (!isSubmitting && !isLoadingModel && canGenerate) void handleGenerate();
+    if (!isSubmitting && canGenerate) void submit();
   });
   useRegisterCommand(
     {
@@ -157,7 +171,7 @@ export function VideoPanel() {
       icon: Play,
       shortcutId: "generate",
       run: () => {
-        if (!isSubmitting && !isLoadingModel && canGenerate) void handleGenerate();
+        if (!isSubmitting && canGenerate) void submit();
       },
     },
     isVideoView,
@@ -169,7 +183,7 @@ export function VideoPanel() {
       group: "Actions",
       keywords: ["stop", "cancel", "abort"],
       icon: Square,
-      run: handleCancel,
+      run: handleStop,
     },
     isVideoView,
   );
@@ -188,11 +202,12 @@ export function VideoPanel() {
       header={
         <>
           {job && <VideoPresetSelector domain={job} />}
+          {/* Generate and Stop keep their places in every state */}
           <div className="flex gap-2">
             {/* Title rides the wrapper: a disabled button swallows pointer
                 events, so its own title never shows. */}
             <div
-              className="flex-1"
+              className="flex-1 min-w-0"
               title={
                 missingRefs
                   ? "This model conditions on references - add at least one reference or an init image"
@@ -201,45 +216,29 @@ export function VideoPanel() {
             >
               <Button
                 type="button"
-                onClick={() => void handleGenerate()}
-                disabled={isSubmitting || isLoadingModel || !canGenerate}
+                onClick={() => void submit()}
+                disabled={isSubmitting || !canGenerate}
                 variant="default"
                 size="sm"
                 className="w-full"
               >
-                {isLoadingModel ? (
-                  <>
-                    <Loader2 size={14} className="animate-spin" />
-                    Loading model...
-                  </>
-                ) : (
-                  <>
-                    <Play size={14} />
-                    Generate
-                  </>
-                )}
+                <GenerateLabel />
               </Button>
             </div>
-            {isGenerating && (
-              <Button type="button" onClick={handleCancel} variant="destructive" size="sm">
-                <Square size={14} />
-                Stop
-              </Button>
-            )}
+            <Button
+              type="button"
+              onClick={handleStop}
+              aria-disabled={stopApplies ? undefined : true}
+              className={stopApplies ? undefined : "opacity-50"}
+              variant="destructive"
+              size="icon-sm"
+              aria-label={stopLabel}
+              title={uploadPhase === "sending" ? BEING_SENT : stopLabel}
+            >
+              <Square size={14} />
+            </Button>
           </div>
-          {isGenerating && progressPct > 0 && (
-            <div className="flex items-center gap-2">
-              <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-primary rounded-full transition-[width] duration-300"
-                  style={{ width: `${progressPct}%` }}
-                />
-              </div>
-              <span className="text-xs text-muted-foreground font-mono tabular-nums">
-                {progressPct}%
-              </span>
-            </div>
-          )}
+          <GenerateAnnouncer />
         </>
       }
     />

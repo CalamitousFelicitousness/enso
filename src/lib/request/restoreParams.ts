@@ -11,6 +11,8 @@ import type { StoredJob } from "@/lib/inputs/stored";
 import type { ActionReason } from "@/lib/jobs/cardActions";
 import { isTerminal } from "@/lib/jobs/domains";
 import { isUploadRef } from "@/lib/jobs/replay";
+import { refHash } from "@/lib/lut";
+import { LUT_RESTORED } from "@/lib/media/text";
 import type { RestoreNote } from "@/lib/jobs/text";
 
 /** What settings are read from: the request, what the server recorded, and
@@ -73,9 +75,12 @@ export function extractParams(source: SettingsSource): ExtractedSettings {
   const notes: RestoreNote[] = [];
   const { seed, subseed } = pickedSeeds(p, info, imageIndex);
   if (seed < 0) notes.push("seedNotRecorded");
-  // A LUT goes out as an upload, which the server forgets 30 minutes later
-  const lutExpired = isUploadRef(p.grading_lut_file);
-  if (lutExpired) notes.push("lutNotRestored");
+  // A LUT goes out by the hash the server keeps its bytes under; the request
+  // does not carry its file's name. A ref of the staging store from before
+  // names nothing the server keeps.
+  const lutHash = refHash(p.grading_lut_file);
+  const lutLost = !lutHash && isUploadRef(p.grading_lut_file);
+  if (lutLost) notes.push("lutNotRestored");
 
   const params: Partial<GenerationState> = {
     // Prompt
@@ -200,7 +205,11 @@ export function extractParams(source: SettingsSource): ExtractedSettings {
     gradingSplitToneBalance: num(p.grading_split_tone_balance, 0.5),
     gradingVignette: num(p.grading_vignette, 0),
     gradingGrain: num(p.grading_grain, 0),
-    ...(lutExpired ? {} : { gradingLutFile: str(p.grading_lut_file, "") }),
+    ...(lutHash
+      ? { gradingLutFile: LUT_RESTORED, gradingLutHash: lutHash }
+      : lutLost
+        ? {}
+        : { gradingLutFile: str(p.grading_lut_file, ""), gradingLutHash: null }),
     gradingLutStrength: num(p.grading_lut_strength, 1.0),
 
     // Detailer enable flag (V2 + legacy share this one)

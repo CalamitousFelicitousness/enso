@@ -21,6 +21,8 @@ interface SectionLeaderProps {
   parentDisabled?: boolean | undefined;
   /** Action slot - rendered in the header row, right-aligned. */
   action?: React.ReactNode;
+  /** A short state after the title, which a collapsed section still shows. */
+  summary?: React.ReactNode;
   /** Tooltip HTML shown on hover over the section title. */
   tooltip?: string | undefined;
   children?: React.ReactNode;
@@ -49,6 +51,7 @@ const SectionLeader = memo(function SectionLeader({
   level = 0,
   parentDisabled = false,
   action,
+  summary,
   tooltip,
   children,
 }: SectionLeaderProps) {
@@ -109,6 +112,15 @@ const SectionLeader = memo(function SectionLeader({
     </span>
   ) : null;
 
+  const summarySlot = summary ? (
+    <span className="ml-1.5 flex min-w-0 items-center gap-1.5">
+      <span aria-hidden className="text-muted-foreground/40">
+        ·
+      </span>
+      {summary}
+    </span>
+  ) : null;
+
   // --- Chevron element ---
   const chevron = (
     <ChevronDown
@@ -158,6 +170,7 @@ const SectionLeader = memo(function SectionLeader({
             ),
           )}
         </button>
+        {summarySlot}
         {actionSlot}
       </div>
     );
@@ -191,6 +204,7 @@ const SectionLeader = memo(function SectionLeader({
           )}
         </button>
 
+        {summarySlot}
         {actionSlot}
 
         {collapsible && (
@@ -215,6 +229,7 @@ const SectionLeader = memo(function SectionLeader({
     header = (
       <div className={cn("flex items-center w-full", headerPy)}>
         {titleEl(cn(titleSize, "font-medium uppercase tracking-[0.06em] text-muted-foreground/60"))}
+        {summarySlot}
         {actionSlot}
       </div>
     );

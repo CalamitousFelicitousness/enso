@@ -88,6 +88,7 @@ export default defineConfig([
     // environment, so nothing here may reach a store, React or the DOM.
     files: [
       "src/lib/inputs/**/*.ts",
+      "src/lib/lut.ts",
       "src/lib/jobs/**/*.ts",
       "src/lib/media/**/*.ts",
       "src/lib/request/generateParams.ts",

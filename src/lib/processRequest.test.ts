@@ -74,4 +74,24 @@ describe("buildProcessPayload", () => {
     expect(batch.create_video).toBeDefined();
     expect(batch.input_dir).toBeUndefined();
   });
+
+  it("sends the color LUT by the ref it was staged under, never the stored setting", () => {
+    const sections = withEnabled(["grading"]);
+    // an older build kept the LUT as an upload ref inside the section's params
+    sections.grading = {
+      ...sections.grading,
+      params: { ...sections.grading.params, lut_cube_file: "upload:0123456789abcdef" },
+    };
+    const s = settings({ sections });
+    expect(buildProcessPayload(s, { images: ["upload:a"] }, "staged:lut").grading).toMatchObject({
+      lut_cube_file: "staged:lut",
+    });
+    expect(buildProcessPayload(s, { images: ["upload:a"] }).grading).toMatchObject({
+      lut_cube_file: "",
+    });
+    const off = settings({ sections: withEnabled(["upscale"]) });
+    expect(
+      buildProcessPayload(off, { images: ["upload:a"] }, "staged:lut").grading,
+    ).toBeUndefined();
+  });
 });

@@ -11,10 +11,12 @@ import {
   type XyzValidateResponse,
   type XyzPreviewResponse,
 } from "@/api/hooks/useXyzAxisOptions";
-import { clearSubmitProgress, setBatchProgress } from "@/inputs/progress";
-import { submitJob, type Submission } from "@/inputs/submit";
-import { UploadBatch } from "@/inputs/uploads";
-import { UserAbortError } from "@/lib/abort";
+import { newSubmitId, post, prepare, type Submission } from "@/inputs/submit";
+import type { UploadBatch } from "@/inputs/uploads";
+import { useUploadAction } from "@/hooks/useUploadAction";
+import { ACTIONS } from "@/lib/media/progress";
+import { UPLOAD_CANCELLED, WAIT_FOR_UPLOAD } from "@/lib/media/text";
+import { useActionProgress } from "@/hooks/useActionProgress";
 import { countAxisValues, groupAxisOptions } from "@/lib/xyzGrid";
 import type { XyzGridJobParams } from "@/api/types/v2";
 import {
@@ -31,6 +33,8 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Combobox, type ComboboxGroup } from "@/components/ui/combobox";
+
+const XYZ_FAILED = "Failed to submit XYZ Grid";
 
 interface XyzGridDialogProps {
   open: boolean;
@@ -226,7 +230,13 @@ export function XyzGridDialog({ open, onOpenChange, build }: XyzGridDialogProps)
   const [includeSubgrids, setIncludeSubgrids] = useState(false);
   const [includeTime, setIncludeTime] = useState(false);
   const [showOptions, setShowOptions] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  // the Images view's action: the Generate button shows its uploads and its Stop cancels them
+  // one run at a time: a new one would stop the Generate upload under way
+  const elsewhere = useActionProgress(ACTIONS.images, (e) => e !== undefined);
+  const { run, busy: isSubmitting } = useUploadAction(ACTIONS.images, {
+    cancelled: UPLOAD_CANCELLED,
+    failed: XYZ_FAILED,
+  });
   const [xValidation, setXValidation] = useState<AxisValidation>({
     isLoading: false,
   });
@@ -297,55 +307,55 @@ export function XyzGridDialog({ open, onOpenChange, build }: XyzGridDialogProps)
 
   const handleSubmit = useCallback(async () => {
     if (!axisOptions) return;
-    setIsSubmitting(true);
     try {
-      const batch = new UploadBatch("xyz", { onProgress: (p) => setBatchProgress("images", p) });
-      const submission = await build(batch);
-      // Extract generation params from the base payload, then overlay xyz-grid fields
-      const {
-        type: _type,
-        script_name: _sn,
-        script_args: _sa,
-        priority: basePriority,
-        ...baseParams
-      } = submission.request as Record<string, unknown> & {
-        type: string;
-        script_name?: string;
-        script_args?: unknown[];
-        priority?: number;
-      };
-      const xyzPayload: XyzGridJobParams = {
-        ...(baseParams as Omit<XyzGridJobParams, "type">),
-        type: "xyz-grid",
-        x_axis: xType && xValues.trim() ? { type: xType, values: xValues } : undefined,
-        y_axis: yType && yValues.trim() ? { type: yType, values: yValues } : undefined,
-        z_axis: showZ && zType && zValues.trim() ? { type: zType, values: zValues } : undefined,
-        draw_legend: drawLegend,
-        include_grid: true,
-        include_subgrids: includeSubgrids,
-        include_images: includeImages,
-        include_time: includeTime,
-        include_text: false,
-        margin_size: 0,
-        random_seeds: false,
-      };
-      if (basePriority !== undefined) xyzPayload.priority = basePriority;
-      // The grid keeps the base request's uploads, so its record sends them again
-      await submitJob({ ...submission, domain: "xyz-grid", request: xyzPayload });
-      toast.success("XYZ Grid queued", {
-        description: dimensionText ? `${dimensionText} = ${totalCells} images` : "Grid submitted",
+      await run(async (ctx) => {
+        const submission = await build(ctx.batch);
+        // Extract generation params from the base payload, then overlay xyz-grid fields
+        const {
+          type: _type,
+          script_name: _sn,
+          script_args: _sa,
+          priority: basePriority,
+          ...baseParams
+        } = submission.request as Record<string, unknown> & {
+          type: string;
+          script_name?: string;
+          script_args?: unknown[];
+          priority?: number;
+        };
+        const xyzPayload: XyzGridJobParams = {
+          ...(baseParams as Omit<XyzGridJobParams, "type">),
+          type: "xyz-grid",
+          x_axis: xType && xValues.trim() ? { type: xType, values: xValues } : undefined,
+          y_axis: yType && yValues.trim() ? { type: yType, values: yValues } : undefined,
+          z_axis: showZ && zType && zValues.trim() ? { type: zType, values: zValues } : undefined,
+          draw_legend: drawLegend,
+          include_grid: true,
+          include_subgrids: includeSubgrids,
+          include_images: includeImages,
+          include_time: includeTime,
+          include_text: false,
+          margin_size: 0,
+          random_seeds: false,
+        };
+        if (basePriority !== undefined) xyzPayload.priority = basePriority;
+        // The grid keeps the base request's uploads, so its record sends them again
+        const prepared = await prepare({ ...submission, domain: "xyz-grid", request: xyzPayload });
+        ctx.commit();
+        ctx.phase("sending");
+        await post(prepared, newSubmitId());
+        toast.success("XYZ Grid queued", {
+          description: dimensionText ? `${dimensionText} = ${totalCells} images` : "Grid submitted",
+        });
+        onOpenChange(false);
       });
-      onOpenChange(false);
     } catch (err) {
-      if (err instanceof UserAbortError) return;
-      toast.error("Failed to submit XYZ Grid", {
+      toast.error(XYZ_FAILED, {
         description: err instanceof Error ? err.message : String(err),
       });
-    } finally {
-      clearSubmitProgress("images");
-      setIsSubmitting(false);
     }
   }, [
+    run,
     axisOptions,
     build,
     xType,
@@ -515,13 +525,16 @@ export function XyzGridDialog({ open, onOpenChange, build }: XyzGridDialogProps)
         </div>
 
         <DialogFooter>
+          {elsewhere && !isSubmitting && (
+            <p className="mr-auto self-center text-2xs text-muted-foreground">{WAIT_FOR_UPLOAD}</p>
+          )}
           <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
           <Button
             size="sm"
             onClick={() => void handleSubmit()}
-            disabled={isSubmitting || !canSubmit}
+            disabled={isSubmitting || elsewhere || !canSubmit}
           >
             {isSubmitting && <Loader2 size={14} className="animate-spin mr-1" />}
             Generate Grid

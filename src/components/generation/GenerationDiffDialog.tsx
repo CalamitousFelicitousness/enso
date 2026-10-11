@@ -279,10 +279,27 @@ const DIFF_GROUPS: DiffGroup[] = [
   },
 ];
 
+/** Keys a row carries with its own, compared and applied together. */
+const LINKED: Partial<Record<string, readonly string[]>> = {
+  // a LUT is its file's name and the hash of its bytes; one without the other names another file
+  gradingLutFile: ["gradingLutHash"],
+};
+
+/** What a row shows of its keys' values. */
+function shown(key: string, values: Record<string, unknown>): unknown {
+  const hash = values["gradingLutHash"];
+  if (key === "gradingLutFile" && typeof hash === "string") {
+    return `${toDisplayString(values[key])} (${hash.slice(0, 8)})`;
+  }
+  return values[key];
+}
+
 interface DiffRow {
   key: string;
   current: unknown;
   result: unknown;
+  /** The result's values of the row's keys. */
+  apply: Record<string, unknown>;
   changed: boolean;
 }
 
@@ -321,12 +338,14 @@ export function GenerationDiffDialog({
       const rows: DiffRow[] = group.keys
         .filter((k) => k in mapped)
         .map((k) => {
-          const cur = current[k];
-          const res = mapped[k];
+          const keys = [k, ...(LINKED[k] ?? [])];
+          const cur = Object.fromEntries(keys.map((key) => [key, current[key]]));
+          const res = Object.fromEntries(keys.map((key) => [key, mapped[key]]));
           return {
             key: k,
-            current: cur,
-            result: res,
+            current: shown(k, cur),
+            result: shown(k, res),
+            apply: res,
             changed: JSON.stringify(cur) !== JSON.stringify(res),
           };
         });
@@ -341,15 +360,15 @@ export function GenerationDiffDialog({
     const updates: Record<string, unknown> = {};
     for (const group of groupedRows) {
       for (const row of group.rows) {
-        if (row.changed) updates[row.key] = row.result;
+        if (row.changed) Object.assign(updates, row.apply);
       }
     }
     applyParams(updates, `${totalChanged} setting${totalChanged !== 1 ? "s" : ""} applied`);
     onOpenChange(false);
   }, [groupedRows, totalChanged, onOpenChange]);
 
-  const handleApplyOne = useCallback((key: string, value: unknown) => {
-    applyParams({ [key]: value }, `${labelOf(key)} applied`);
+  const handleApplyOne = useCallback((row: DiffRow) => {
+    applyParams(row.apply, `${labelOf(row.key)} applied`);
   }, []);
 
   return (
@@ -406,7 +425,7 @@ function GroupSection({
   label: string;
   changedCount: number;
   rows: DiffRow[];
-  onApplyOne: (key: string, value: unknown) => void;
+  onApplyOne: (row: DiffRow) => void;
 }) {
   return (
     <>
@@ -429,7 +448,7 @@ function GroupSection({
             {row.changed && (
               <button
                 type="button"
-                onClick={() => onApplyOne(row.key, row.result)}
+                onClick={() => onApplyOne(row)}
                 className="hover:text-primary"
                 title="Apply this value"
               >

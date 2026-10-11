@@ -42,17 +42,31 @@ describe("extractParams", () => {
     expect(notes).toEqual(["seedNotRecorded"]);
   });
 
-  it("leaves out a color LUT sent as an upload and says so", () => {
+  it("restores a color LUT by the hash the server keeps it under", () => {
+    const hash = "c".repeat(64);
+    const kept = extractParams({
+      parameters: { seed: 1, grading_lut_file: `upload:${hash}`, grading_lut_strength: 0.5 },
+      info: null,
+      imageIndex: 0,
+    });
+    expect(kept.params.gradingLutFile).toBe("Color LUT (restored)");
+    expect(kept.params.gradingLutHash).toBe(hash);
+    expect(kept.params.gradingLutStrength).toBe(0.5);
+    expect(kept.notes).toEqual([]);
+    const none = extractParams({ parameters: { seed: 1 }, info: null, imageIndex: 0 });
+    expect(none.params.gradingLutFile).toBe("");
+    expect(none.params.gradingLutHash).toBeNull();
+  });
+
+  it("leaves out a color LUT sent through the staging store from before and says so", () => {
     const expired = extractParams({
-      parameters: { seed: 1, grading_lut_file: "upload:lut", grading_lut_strength: 0.5 },
+      parameters: { seed: 1, grading_lut_file: "upload:0123456789abcdef" },
       info: null,
       imageIndex: 0,
     });
     expect("gradingLutFile" in expired.params).toBe(false);
-    expect(expired.params.gradingLutStrength).toBe(0.5);
+    expect("gradingLutHash" in expired.params).toBe(false);
     expect(expired.notes).toEqual(["lutNotRestored"]);
-    const none = extractParams({ parameters: { seed: 1 }, info: null, imageIndex: 0 });
-    expect(none.params.gradingLutFile).toBe("");
   });
 
   it("returns the inpainting fields the request carries", () => {

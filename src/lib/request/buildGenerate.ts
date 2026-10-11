@@ -15,7 +15,7 @@ import { useScriptStore } from "@/stores/scriptStore";
 import { useImg2ImgStore } from "@/stores/img2imgStore";
 import { useInputStore } from "@/stores/inputStore";
 import { useUiStore } from "@/stores/uiStore";
-import { LUT_MISSING_TEXT, namedLut } from "@/stores/lutStore";
+import { stageLutOn } from "@/inputs/luts";
 import { outlineWithMaps } from "@/inputs/maps";
 import { createUploader, type Uploader } from "@/inputs/materialise";
 import type { UploadBatch } from "@/inputs/uploads";
@@ -85,11 +85,6 @@ export interface ControlBuildOptions {
 /** The canvas holds inputs the loaded model cannot take as they are. */
 export class InputRefusal extends Error {
   override name = "InputRefusal";
-}
-
-/** A setting names something this browser no longer holds. */
-export class SettingRefusal extends Error {
-  override name = "SettingRefusal";
 }
 
 /** A slot whose map the cache holds, which goes out in its picture's place. */
@@ -254,12 +249,9 @@ export async function buildControlRequest({
     target,
   });
   const up = createUploader({ frames, size: frame }, batch);
-  // The LUT goes with each job: the batch claims the server's copy once the page has sent it
-  if (gen.gradingLutFile) {
-    const lut = namedLut(gen.gradingLutFile);
-    if (!lut) throw new SettingRefusal(LUT_MISSING_TEXT);
-    request.grading_lut_file = batch.stage(lut, { name: lut.name }).ref;
-  }
+  // The LUT goes with each job by its hash, its bytes only when the server lacks them
+  const lut = stageLutOn(batch, "images");
+  if (lut) request.grading_lut_file = lut;
 
   if (ipAdapters.length > 0) {
     request.ip_adapter = await Promise.all(ipAdapters.map((send) => ipAdapterUnit(up, send)));

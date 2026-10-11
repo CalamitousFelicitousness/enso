@@ -1,12 +1,14 @@
 import { useState, useCallback } from "react";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
-import { clearSubmitProgress, setBatchProgress } from "@/inputs/progress";
+import type { RunContext } from "@/inputs/action";
 import { newSubmitId, post, prepare, type Prepared, type Submission } from "@/inputs/submit";
-import { UploadBatch } from "@/inputs/uploads";
+import type { UploadBatch } from "@/inputs/uploads";
 import { retryable } from "@/hooks/useSubmitToQueue";
-import { UserAbortError } from "@/lib/abort";
-import { RETRY } from "@/lib/media/text";
+import { useUploadAction } from "@/hooks/useUploadAction";
+import { ACTIONS } from "@/lib/media/progress";
+import { RETRY, UPLOAD_CANCELLED, WAIT_FOR_UPLOAD } from "@/lib/media/text";
+import { useActionProgress } from "@/hooks/useActionProgress";
 import type { JobRequest } from "@/api/types/v2";
 import {
   Dialog,
@@ -27,71 +29,70 @@ interface BatchDialogProps {
   build: (batch: UploadBatch) => Promise<Submission>;
 }
 
-/** Names the batch's uploads in the progress the Generate button shows. */
-const ACTION = "images";
+const FAILED = "Failed to submit batch";
+
+type Run = ReturnType<typeof useUploadAction>["run"];
+
+/** The jobs of one batch: each posted under its own id, which its Retry sends again. */
+interface Jobs {
+  run: Run;
+  ids: readonly string[];
+  base: number;
+  done: () => void;
+}
+
+/** Post the jobs from `from` on, once their uploads are on the server. */
+async function postFrom(ctx: RunContext, jobs: Jobs, prepared: Prepared, from: number) {
+  ctx.commit();
+  ctx.phase("sending");
+  let current = prepared;
+  let i = from;
+  try {
+    for (; i < jobs.ids.length; i++) {
+      const request = { ...current.request, seed: jobs.base + i } as JobRequest;
+      current = (await post({ ...current, request }, jobs.ids[i] ?? newSubmitId())).prepared;
+    }
+    toast.success(`Queued ${jobs.ids.length} jobs`, {
+      description: `Seeds ${jobs.base}-${jobs.base + jobs.ids.length - 1}`,
+    });
+    jobs.done();
+  } catch (err) {
+    const failedAt = i;
+    const again = () => void jobs.run((next) => postFrom(next, jobs, current, failedAt));
+    toast.error(`Queued ${failedAt} of ${jobs.ids.length} jobs`, {
+      description: err instanceof Error ? err.message : String(err),
+      ...(retryable(err) ? { action: { label: RETRY, onClick: again } } : {}),
+    });
+  }
+}
 
 export function BatchDialog({ open, onOpenChange, build }: BatchDialogProps) {
   const [count, setCount] = useState(4);
   const [baseSeed, setBaseSeed] = useState(-1);
   const [autoSeed, setAutoSeed] = useState(true);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  /** Post the jobs from `from` on, each under its own id, which its Retry sends again. */
-  const postFrom = useCallback(
-    async (prepared: Prepared, ids: readonly string[], base: number, from: number) => {
-      setIsSubmitting(true);
-      let current = prepared;
-      let i = from;
-      try {
-        for (; i < ids.length; i++) {
-          const request = { ...current.request, seed: base + i } as JobRequest;
-          current = (await post({ ...current, request }, ids[i] ?? newSubmitId())).prepared;
-        }
-        toast.success(`Queued ${ids.length} jobs`, {
-          description: `Seeds ${base}-${base + ids.length - 1}`,
-        });
-        onOpenChange(false);
-      } catch (err) {
-        const failedAt = i;
-        toast.error(`Queued ${failedAt} of ${ids.length} jobs`, {
-          description: err instanceof Error ? err.message : String(err),
-          ...(retryable(err)
-            ? {
-                action: {
-                  label: RETRY,
-                  onClick: () => void postFrom(current, ids, base, failedAt),
-                },
-              }
-            : {}),
-        });
-      } finally {
-        setIsSubmitting(false);
-      }
-    },
-    [onOpenChange],
-  );
+  // the Images view's action: the Generate button shows its uploads and its Stop cancels them
+  const { run, busy } = useUploadAction(ACTIONS.images, {
+    cancelled: UPLOAD_CANCELLED,
+    failed: FAILED,
+  });
+  // one run at a time: a new one would stop the Generate upload under way
+  const elsewhere = useActionProgress(ACTIONS.images, (e) => e !== undefined) && !busy;
 
   const handleSubmit = useCallback(async () => {
-    setIsSubmitting(true);
-    let prepared: Prepared;
+    const base = autoSeed ? Math.floor(Math.random() * 999999999) : baseSeed;
+    const jobs: Jobs = {
+      run,
+      ids: Array.from({ length: count }, newSubmitId),
+      base,
+      done: () => onOpenChange(false),
+    };
     try {
       // One build and one set of uploads: every job of the batch sends them with its own seed
-      const batch = new UploadBatch("batch", { onProgress: (p) => setBatchProgress(ACTION, p) });
-      prepared = await prepare(await build(batch));
+      await run(async (ctx) => postFrom(ctx, jobs, await prepare(await build(ctx.batch)), 0));
     } catch (err) {
-      setIsSubmitting(false);
-      if (err instanceof UserAbortError) return;
-      toast.error("Failed to submit batch", {
-        description: err instanceof Error ? err.message : String(err),
-      });
-      return;
-    } finally {
-      clearSubmitProgress(ACTION);
+      toast.error(FAILED, { description: err instanceof Error ? err.message : String(err) });
     }
-    const base = autoSeed ? Math.floor(Math.random() * 999999999) : baseSeed;
-    const ids = Array.from({ length: count }, newSubmitId);
-    await postFrom(prepared, ids, base, 0);
-  }, [build, count, baseSeed, autoSeed, postFrom]);
+  }, [build, count, baseSeed, autoSeed, run, onOpenChange]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -138,11 +139,14 @@ export function BatchDialog({ open, onOpenChange, build }: BatchDialogProps) {
           </div>
         </div>
         <DialogFooter>
+          {elsewhere && (
+            <p className="mr-auto self-center text-2xs text-muted-foreground">{WAIT_FOR_UPLOAD}</p>
+          )}
           <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button size="sm" onClick={() => void handleSubmit()} disabled={isSubmitting}>
-            {isSubmitting && <Loader2 size={14} className="animate-spin mr-1" />}
+          <Button size="sm" onClick={() => void handleSubmit()} disabled={busy || elsewhere}>
+            {busy && <Loader2 size={14} className="animate-spin mr-1" />}
             Submit {count} Jobs
           </Button>
         </DialogFooter>

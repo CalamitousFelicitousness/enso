@@ -7,7 +7,12 @@ import { useOpenClipCaption, useTaggerCaption, useVqaCaption } from "@/api/hooks
 import { useOptionsSubset } from "@/api/hooks/useSettings";
 import { useCaptionSettingsStore } from "@/stores/captionSettingsStore";
 import { sendPromptToGeneration } from "@/lib/sendTo";
-import { uploadFile } from "@/lib/upload";
+import { useUploadAction } from "@/hooks/useUploadAction";
+import { useUploadView } from "@/hooks/useActionProgress";
+import { sendOne } from "@/inputs/uploads";
+import { ACTIONS } from "@/lib/media/progress";
+import { UPLOAD_FAILED } from "@/lib/media/text";
+import { SubmitLabel } from "@/components/ui/submit-label";
 import { CUSTOM_PROMPT_TASKS } from "@/lib/captionModels";
 import { toast } from "sonner";
 
@@ -18,6 +23,21 @@ const CAPTION_TYPE_MAP: Record<CaptionDefaultType, "vlm" | "openclip" | "tagger"
   OpenCLiP: "openclip",
   Tagger: "tagger",
 };
+
+const ACTION = ACTIONS.interrogate;
+
+/** The running line: the picture's upload, then the caption method at work. */
+function RunningLine({ method }: { method: string }) {
+  const upload = useUploadView(ACTION);
+  return (
+    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+      <SubmitLabel upload={upload} job={null} running="">
+        <Loader2 size={14} className="animate-spin" />
+        Interrogating with {method}...
+      </SubmitLabel>
+    </div>
+  );
+}
 
 interface QuickInterrogateDialogProps {
   open: boolean;
@@ -30,7 +50,8 @@ export function QuickInterrogateDialog({ open, onOpenChange, file }: QuickInterr
   const [isRunning, setIsRunning] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const abortedRef = useRef(false);
+  // Each run's number; a closed dialog or a newer run leaves an older one's answer unshown
+  const runRef = useRef(0);
 
   const { data: captionOpts } = useOptionsSubset(["caption_default_type"]);
   const defaultType = (captionOpts?.["caption_default_type"] as CaptionDefaultType) ?? "VLM";
@@ -39,16 +60,26 @@ export function QuickInterrogateDialog({ open, onOpenChange, file }: QuickInterr
   const { mutateAsync: runOpenClip } = useOpenClipCaption();
   const { mutateAsync: runTagger } = useTaggerCaption();
   const { mutateAsync: runVqa } = useVqaCaption();
+  const { run: runUpload, cancel: stopUpload } = useUploadAction(ACTION, { transient: true });
 
   const runCaption = useCallback(
     async (imageFile: File) => {
+      const run = ++runRef.current;
+      const current = () => runRef.current === run;
       setIsRunning(true);
       setCaption(null);
       setError(null);
-      abortedRef.current = false;
       try {
-        const ref = await uploadFile(imageFile);
-        if (abortedRef.current) return;
+        // closing the dialog is its only stop, so a cancel says nothing
+        const ref = await runUpload(
+          ({ batch }) => sendOne(batch, imageFile, { name: imageFile.name }),
+          { quiet: true },
+        );
+        if (!current()) return;
+        if (ref === null) {
+          setError(UPLOAD_FAILED);
+          return;
+        }
 
         const settings = useCaptionSettingsStore.getState();
         let result: string | undefined;
@@ -102,20 +133,18 @@ export function QuickInterrogateDialog({ open, onOpenChange, file }: QuickInterr
           result = res.tags;
         }
 
-        if (!abortedRef.current) {
-          setCaption(result ?? "No caption returned");
-        }
+        if (current()) setCaption(result ?? "No caption returned");
       } catch (err) {
-        if (!abortedRef.current) {
+        if (current()) {
           const message = err instanceof Error ? err.message : String(err);
           setError(message);
           toast.error("Interrogation failed", { description: message });
         }
       } finally {
-        if (!abortedRef.current) setIsRunning(false);
+        if (current()) setIsRunning(false);
       }
     },
-    [method, runVqa, runOpenClip, runTagger],
+    [method, runVqa, runOpenClip, runTagger, runUpload],
   );
 
   // Auto-run when dialog opens with a file
@@ -125,13 +154,17 @@ export function QuickInterrogateDialog({ open, onOpenChange, file }: QuickInterr
     // eslint-disable-next-line react-hooks/set-state-in-effect -- side effect (URL.createObjectURL) drives state
     setPreviewUrl(url);
     void runCaption(file);
-    return () => URL.revokeObjectURL(url);
-  }, [open, file, runCaption]);
+    return () => {
+      URL.revokeObjectURL(url);
+      stopUpload();
+    };
+  }, [open, file, runCaption, stopUpload]);
 
   const handleClose = useCallback(
     (nextOpen: boolean) => {
       if (!nextOpen) {
-        abortedRef.current = true;
+        runRef.current += 1;
+        stopUpload();
         setCaption(null);
         setError(null);
         setIsRunning(false);
@@ -140,7 +173,7 @@ export function QuickInterrogateDialog({ open, onOpenChange, file }: QuickInterr
       }
       onOpenChange(nextOpen);
     },
-    [onOpenChange, previewUrl],
+    [onOpenChange, previewUrl, stopUpload],
   );
 
   const handleCopy = useCallback(() => {
@@ -192,10 +225,7 @@ export function QuickInterrogateDialog({ open, onOpenChange, file }: QuickInterr
           <ScrollArea className="flex-1 min-h-0">
             <div className="p-4">
               {isRunning ? (
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <Loader2 size={14} className="animate-spin" />
-                  Interrogating with {defaultType}...
-                </div>
+                <RunningLine method={defaultType} />
               ) : caption ? (
                 <div className="bg-muted/30 rounded p-3 text-2xs whitespace-pre-wrap break-words">
                   {caption}

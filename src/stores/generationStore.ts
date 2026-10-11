@@ -209,6 +209,8 @@ export interface GenerationState {
   gradingVignette: number;
   gradingGrain: number;
   gradingLutFile: string;
+  /** The hash the server holds the LUT named above under; null until it answered. */
+  gradingLutHash: string | null;
   gradingLutStrength: number;
 
   // Results
@@ -374,6 +376,7 @@ export const defaultParams = {
   gradingVignette: 0,
   gradingGrain: 0,
   gradingLutFile: "",
+  gradingLutHash: null,
   gradingLutStrength: 1.0,
 };
 
@@ -451,7 +454,7 @@ export const useGenerationStore = create<GenerationState>()(
       name: "enso-generation",
       version: 5,
       // Every version before 4 took the strip's limit from sdnext's latent cache size;
-      // before 5 the LUT was an upload ref, which the server forgets 30 minutes after the pick
+      // before 5 the LUT field held an upload ref from the staging store before the media store
       migrate: (persisted) => {
         const state = migrateGeneration(persisted);
         return isUploadRef(state["gradingLutFile"]) ? { ...state, gradingLutFile: "" } : state;

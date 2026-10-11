@@ -2,10 +2,12 @@ import { useVideoStore } from "@/stores/videoStore";
 import { useModelSelectionStore } from "@/stores/modelSelectionStore";
 import { supportsImageToVideo } from "@/lib/cloudVideo";
 import { getVideoInputs } from "@/lib/video/inputs";
-import { uploadFile } from "@/lib/upload";
+import { stageVideoInput } from "@/lib/video/buildVideoPayload";
+import type { UploadBatch } from "@/inputs/uploads";
 import type { CloudModel, CloudVideoJobParams } from "@/api/types/cloud";
 
-export async function buildCloudVideoRequest(): Promise<CloudVideoJobParams> {
+/** A cloud video job, its init image staged on `batch`. */
+export function buildCloudVideoRequest(batch: UploadBatch): CloudVideoJobParams {
   const { activeModel } = useModelSelectionStore.getState();
   const video = useVideoStore.getState();
   // VideoPanel.canGenerate guards entry on isCloudVideoModel(activeModel), so
@@ -25,7 +27,7 @@ export async function buildCloudVideoRequest(): Promise<CloudVideoJobParams> {
 
   const initImage = getVideoInputs().init;
   if (initImage && supportsImageToVideo(model)) {
-    request.image = await uploadFile(initImage);
+    request.image = stageVideoInput(batch, initImage);
   }
 
   return request;

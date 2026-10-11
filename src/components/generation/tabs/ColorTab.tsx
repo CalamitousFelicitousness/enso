@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef } from "react";
+import { useMemo } from "react";
 import { useGenerationStore } from "@/stores/generationStore";
 import { useShallow } from "zustand/react/shallow";
 import { ParamSlider } from "../ParamSlider";
@@ -11,10 +11,8 @@ import { SectionLeader, SectionDivider } from "@/components/ui/section-leader";
 
 import { Combobox } from "@/components/ui/combobox";
 import { ColorPicker } from "@/components/ui/color-picker";
-import { Button } from "@/components/ui/button";
-import { Upload, X } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { LUT_MISSING_TEXT, useLutStore } from "@/stores/lutStore";
+import { useLutState } from "@/hooks/useLutState";
+import { LutFileRow, LutSummary } from "../LutFileRow";
 
 export function ColorTab() {
   const state = useGenerationStore(
@@ -51,7 +49,6 @@ export function ColorTab() {
       gradingSplitToneBalance: s.gradingSplitToneBalance,
       gradingVignette: s.gradingVignette,
       gradingGrain: s.gradingGrain,
-      gradingLutFile: s.gradingLutFile,
       gradingLutStrength: s.gradingLutStrength,
     })),
   );
@@ -96,27 +93,7 @@ export function ColorTab() {
     [setParam],
   );
 
-  const lutInputRef = useRef<HTMLInputElement>(null);
-  const storedLut = useLutStore((s) => s.file);
-  const setStoredLut = useLutStore((s) => s.setFile);
-  const hasLut = !!state.gradingLutFile;
-  const lutMissing = hasLut && storedLut?.name !== state.gradingLutFile;
-
-  const handleLutFile = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0];
-      e.target.value = "";
-      if (!file) return;
-      setStoredLut(file);
-      setParam("gradingLutFile", file.name);
-    },
-    [setParam, setStoredLut],
-  );
-
-  const clearLut = useCallback(() => {
-    setParam("gradingLutFile", "");
-    setStoredLut(null);
-  }, [setParam, setStoredLut]);
+  const lut = useLutState("images");
 
   return (
     <div className="flex flex-col gap-3 text-sm">
@@ -498,45 +475,13 @@ export function ColorTab() {
 
       <SectionDivider />
 
-      <SectionLeader title="LUT" collapsible defaultCollapsed>
-        <div className="flex items-center gap-2">
-          <ParamLabel
-            className="text-2xs text-muted-foreground w-16 flex-shrink-0"
-            tooltip={getParamHelp("lut file")}
-          >
-            File
-          </ParamLabel>
-          {hasLut ? (
-            <div className="flex items-center gap-1.5 flex-1 min-w-0">
-              <span
-                className={cn("text-2xs truncate flex-1", lutMissing && "text-destructive")}
-                title={lutMissing ? LUT_MISSING_TEXT : state.gradingLutFile}
-              >
-                {lutMissing ? `${state.gradingLutFile}: pick it again` : state.gradingLutFile}
-              </span>
-              <Button variant="ghost" size="icon-sm" onClick={clearLut} title="Remove LUT">
-                <X size={12} />
-              </Button>
-            </div>
-          ) : (
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-6 text-2xs gap-1.5 flex-1"
-              onClick={() => lutInputRef.current?.click()}
-            >
-              <Upload size={12} />
-              Choose .cube file
-            </Button>
-          )}
-          <input
-            ref={lutInputRef}
-            type="file"
-            accept=".cube"
-            className="hidden"
-            onChange={handleLutFile}
-          />
-        </div>
+      <SectionLeader
+        title="LUT"
+        collapsible
+        defaultCollapsed
+        summary={lut.kind === "none" ? undefined : <LutSummary state={lut} />}
+      >
+        <LutFileRow where="images" state={lut} tooltip={getParamHelp("lut file")} />
         <ParamSlider
           label="Strength"
           keywords={["lut", "lookup", "color grading"]}
@@ -545,7 +490,7 @@ export function ColorTab() {
           min={0}
           max={2}
           step={0.05}
-          disabled={!hasLut}
+          disabled={lut.kind === "none"}
           tooltip="Controls the intensity of the applied LUT.<br>1.0 applies the LUT at full strength. Values below 1.0 blend toward the original colors, values above 1.0 amplify the effect.<br><br>Only active when a .cube LUT file is loaded."
         />
       </SectionLeader>

@@ -23,6 +23,8 @@ import { VideoPlayer } from "@/components/video/VideoPlayer";
 import { MediaImg } from "@/components/ui/media";
 import { mediaUrl } from "@/api/session";
 import { downloadMedia, failedWith } from "@/lib/mediaFiles";
+import { UNREADABLE_FILE } from "@/lib/media/text";
+import { cn } from "@/lib/utils";
 import { useKeepAliveVisible } from "@/components/ui/keep-alive";
 
 const isVideoFile = (file: File) => file.type.startsWith("video/");
@@ -31,6 +33,8 @@ const isImageFile = (file: File) => file.type.startsWith("image/");
 export function ProcessView() {
   const mode = useProcessStore((s) => s.mode);
   const previewUrls = useProcessStore((s) => s.previewUrls);
+  const files = useProcessStore((s) => s.files);
+  const unreadable = useProcessStore((s) => s.unreadable);
   const videoPreviewUrl = useProcessStore((s) => s.videoPreviewUrl);
   const inputDir = useProcessStore((s) => s.inputDir);
   const outputDir = useProcessStore((s) => s.outputDir);
@@ -190,22 +194,40 @@ export function ProcessView() {
           ) : mode === "batch" ? (
             <div className="h-full overflow-y-auto p-3">
               <div className="grid grid-cols-[repeat(auto-fill,minmax(96px,1fr))] gap-2">
-                {previewUrls.map((url, i) => (
-                  <div
-                    key={url}
-                    className={`relative aspect-square rounded overflow-hidden bg-muted/30 group/tile${i === selectedResult && results.length > 0 ? " ring-2 ring-primary" : ""}`}
-                  >
-                    <img src={url} alt="" className="w-full h-full object-cover" />
-                    <button
-                      type="button"
-                      className="absolute top-1 right-1 rounded bg-background/80 p-0.5 opacity-0 group-hover/tile:opacity-100 transition-opacity"
-                      onClick={() => removeFile(i)}
-                      title="Remove"
+                {previewUrls.map((url, i) => {
+                  const lost = files[i] !== undefined && unreadable.has(files[i]);
+                  return (
+                    <div
+                      key={url}
+                      title={lost ? UNREADABLE_FILE : undefined}
+                      className={cn(
+                        "relative aspect-square rounded overflow-hidden bg-muted/30 group/tile",
+                        lost
+                          ? "ring-2 ring-destructive"
+                          : i === selectedResult && results.length > 0 && "ring-2 ring-primary",
+                      )}
                     >
-                      <X size={12} />
-                    </button>
-                  </div>
-                ))}
+                      <img
+                        src={url}
+                        alt=""
+                        className={cn("w-full h-full object-cover", lost && "opacity-40")}
+                      />
+                      {lost && (
+                        <span className="absolute inset-x-0 bottom-0 bg-background/80 px-1 text-center text-4xs text-destructive">
+                          {UNREADABLE_FILE}
+                        </span>
+                      )}
+                      <button
+                        type="button"
+                        className="absolute top-1 right-1 rounded bg-background/80 p-0.5 opacity-0 group-hover/tile:opacity-100 transition-opacity"
+                        onClick={() => removeFile(i)}
+                        title="Remove"
+                      >
+                        <X size={12} />
+                      </button>
+                    </div>
+                  );
+                })}
                 <label className="flex flex-col items-center justify-center aspect-square rounded border border-dashed border-border cursor-pointer text-muted-foreground hover:text-foreground transition-colors">
                   <Plus size={18} />
                   <span className="text-3xs mt-1">Add</span>

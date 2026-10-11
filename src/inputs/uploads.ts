@@ -6,9 +6,10 @@
 // for the page's life derived bytes by what made them and other bytes by their
 // Blob. A memory never answers alone: the claim decides.
 
-import { claim, ingest, UploadRefused } from "@/api/blobs";
+import { claim, ingest } from "@/api/blobs";
 import { UserAbortError } from "@/lib/abort";
 import { newId } from "@/lib/id";
+import { UploadRefused } from "@/lib/media/refused";
 import type { Source } from "@/lib/inputs/stored";
 import type { Size } from "@/lib/inputs/types";
 import { UPLOAD_PREFIX } from "@/lib/jobs/replay";
@@ -42,8 +43,12 @@ export interface StageOptions {
   transient?: boolean;
   /** Kept with a job's record only: never fails the batch. */
   record?: boolean;
+  /** Bytes a setting names, such as a LUT, not one of the action's files. */
+  setting?: boolean;
   /** Where the bytes come from, named when they are gone. */
   source?: Source;
+  /** Told the hash the server holds the bytes under, held or sent. */
+  onHash?: (hashed: Hashed) => void;
 }
 
 export interface Staged {
@@ -75,7 +80,9 @@ interface Item {
   dims: Size | undefined;
   transient: boolean;
   record: boolean;
+  setting: boolean;
   source: Source | undefined;
+  onHash: ((hashed: Hashed) => void) | undefined;
 }
 
 const AT_ONCE = 2;
@@ -108,6 +115,8 @@ const TOOLS: BatchTools = { claim, ingest, readHashes, rememberHashes, readBlob 
 export interface BatchOptions {
   signal?: AbortSignal;
   onProgress?: (progress: BatchProgress) => void;
+  /** Items are read once unless staged otherwise. */
+  transient?: boolean;
   tools?: Partial<BatchTools>;
 }
 
@@ -115,6 +124,7 @@ export class UploadBatch {
   private readonly label: string;
   private readonly signal: AbortSignal | undefined;
   private readonly onProgress: ((progress: BatchProgress) => void) | undefined;
+  private readonly transient: boolean;
   private readonly tools: BatchTools;
   private readonly items: Item[] = [];
   private readonly byCid = new Map<string, Item>();
@@ -130,6 +140,7 @@ export class UploadBatch {
     this.label = label;
     this.signal = options.signal;
     this.onProgress = options.onProgress;
+    this.transient = options.transient ?? false;
     this.tools = { ...TOOLS, ...options.tools };
   }
 
@@ -140,13 +151,15 @@ export class UploadBatch {
     const same = this.find(bytes, options);
     if (same) {
       same.record &&= options.record ?? false;
-      same.transient &&= options.transient ?? false;
+      same.setting &&= options.setting ?? false;
+      same.transient &&= options.transient ?? this.transient;
       if (same.bytes === null) same.bytes = bytes;
       same.cid ??= options.cid;
       same.key ??= options.key;
       same.hash ??= options.hash;
       same.dims ??= options.dims;
       same.source ??= options.source;
+      same.onHash ??= options.onHash;
       this.index(same, bytes);
       return { ref: same.ref };
     }
@@ -158,9 +171,11 @@ export class UploadBatch {
       key: options.key,
       hash: options.hash,
       dims: options.dims,
-      transient: options.transient ?? false,
+      transient: options.transient ?? this.transient,
       record: options.record ?? false,
+      setting: options.setting ?? false,
       source: options.source,
+      onHash: options.onHash,
     };
     this.items.push(item);
     this.index(item, bytes);
@@ -189,6 +204,7 @@ export class UploadBatch {
   again(options: BatchOptions = {}, hashes?: ReadonlySet<string>): UploadBatch {
     const next = new UploadBatch(this.label, {
       tools: this.tools,
+      transient: this.transient,
       ...(this.signal ? { signal: this.signal } : {}),
       ...(this.onProgress ? { onProgress: this.onProgress } : {}),
       ...options,
@@ -241,9 +257,12 @@ export class UploadBatch {
   }
 
   /** What the browser remembers of an item's bytes: a hash it was given, the
-   * hashes row of its cid, the hash of what made it, or of its Blob. */
+   * hashes row of its cid, the hash of what made it, or of its Blob. A row of
+   * another size than the bytes staged names other bytes, and is not used. */
   private remembered(item: Item, rows: ReadonlyMap<string, Hashed>): Hashed | undefined {
-    const row = item.cid ? rows.get(item.cid) : undefined;
+    const stored = item.cid ? rows.get(item.cid) : undefined;
+    const row =
+      stored && item.bytes instanceof Blob && stored.size !== item.bytes.size ? undefined : stored;
     const size = item.bytes instanceof Blob ? item.bytes.size : row?.size;
     if (item.hash) return { hash: item.hash, size: size ?? 0 };
     if (row) return row;
@@ -275,10 +294,16 @@ export class UploadBatch {
     }));
     const hashes = [...new Set(plan.flatMap((p) => (p.hash ? [p.hash] : [])))];
     const claimed = claimBytes(plan);
-    const answer = await this.tools.claim(hashes, claimed, this.signal);
+    // bytes read once stay transient, so a claim of only those does not keep them
+    const keep = !this.items.every((item) => item.transient);
+    const answer = await this.tools.claim(hashes, claimed, {
+      keep,
+      ...(this.signal ? { signal: this.signal } : {}),
+    });
     const decided = planBatch(plan, answer, claimed);
     if (decided.refused) throw new UploadRefused({ kind: "space", ...decided.refused });
     const byRef = new Map(this.items.map((item) => [item.ref, item]));
+    await this.refuseUnreadable(decided.upload.map((ref) => byRef.get(ref)!));
     const newRows = new Map<string, Hashed>();
     for (const [ref, hash] of decided.held) {
       const item = byRef.get(ref)!;
@@ -375,6 +400,27 @@ export class UploadBatch {
     if (stopped.failure) throw stopped.failure;
   }
 
+  /** Before any byte goes, refuse the request's files that can no longer be
+   * read, all of them by name. A picture with a cid has its stored copy to
+   * fall back on, and made bytes and a setting's are read when they go. */
+  private async refuseUnreadable(uploading: readonly Item[]): Promise<void> {
+    const file = (item: Item): item is Item & { bytes: Blob } =>
+      !item.record && !item.setting && item.bytes instanceof Blob;
+    const files = this.items.filter(file);
+    const checked = uploading.filter(file).filter((item) => !item.cid);
+    const readability = await Promise.all(checked.map((item) => readable(item.bytes)));
+    this.check();
+    const unreadable = checked.filter((_, i) => !readability[i]);
+    if (unreadable.length > 0) {
+      throw new UploadRefused({
+        kind: "unreadable",
+        names: unreadable.map((item) => item.name),
+        total: files.length,
+        refs: unreadable.map((item) => item.ref),
+      });
+    }
+  }
+
   /** An item's bytes: as staged or made, else the stored copy of its cid when
    * its own Blob can no longer be read. Null when there are none; a request's
    * file that cannot be read is refused by name. */
@@ -383,7 +429,14 @@ export class UploadBatch {
     if (made && (await readable(made))) return made;
     const stored = item.cid ? await this.tools.readBlob(item.cid).catch(() => null) : null;
     if (stored && (await readable(stored))) return stored;
-    if (made && !item.record) throw new UploadRefused({ kind: "unreadable", name: item.name });
+    if (made && !item.record) {
+      throw new UploadRefused({
+        kind: "unreadable",
+        names: [item.name],
+        total: 1,
+        refs: [item.ref],
+      });
+    }
     return null;
   }
 
@@ -396,6 +449,7 @@ export class UploadBatch {
   ): void {
     if (item.bytes instanceof Blob) byBlob.set(item.bytes, hashed);
     if (blob) byBlob.set(blob, hashed);
+    item.onHash?.(hashed);
     if (item.key && item.dims) {
       derived.set(item.key, {
         ...hashed,
@@ -406,4 +460,18 @@ export class UploadBatch {
     }
     if (item.cid && rows.get(item.cid)?.hash !== hashed.hash) newRows.set(item.cid, hashed);
   }
+}
+
+/** Send one item on an action's batch; the ref of its bytes on the server. */
+export async function sendOne(
+  batch: UploadBatch,
+  bytes: Bytes,
+  options: StageOptions,
+): Promise<string> {
+  const staged = batch.stage(bytes, options);
+  const outcome = (await batch.run()).get(staged.ref);
+  if (!outcome || isGone(outcome)) {
+    throw new UploadRefused({ kind: "unreadable", names: [options.name], total: 1 });
+  }
+  return outcome.ref;
 }

@@ -1,9 +1,18 @@
 // The words of the media store's client side, in one place: uploads, their
 // refusals and the ages and sizes every list shows.
 
+import type { LutPlace, LutState } from "@/lib/lut";
 import type { SkipReason } from "./migration";
 
 const plural = (n: number, one: string, many: string) => (n === 1 ? `1 ${one}` : `${n} ${many}`);
+
+/** "a.png", "a.png and b.png", "a.png, b.png and 3 more". */
+function listed(names: readonly string[]): string {
+  const [first, second, ...rest] = names;
+  if (second === undefined) return first ?? "";
+  if (rest.length === 0) return `${first} and ${second}`;
+  return `${first}, ${second} and ${rest.length} more`;
+}
 
 const MINUTE = 60 * 1000;
 const HOUR = 60 * MINUTE;
@@ -37,8 +46,9 @@ export type UploadFailure =
   | { kind: "stalled" }
   | { kind: "network" }
   | { kind: "busy" }
-  /** A file the browser can no longer read, such as one moved or changed on disk. */
-  | { kind: "unreadable"; name: string }
+  /** Files the browser can no longer read, such as ones moved or changed on disk, of `total`
+   * sent; `refs` are their staged refs. */
+  | { kind: "unreadable"; names: readonly string[]; total: number; refs?: readonly string[] }
   /** The media store is off; the server's message says why. */
   | { kind: "storeOff"; message: string }
   | { kind: "server"; message: string };
@@ -55,8 +65,12 @@ export function uploadFailureText(failure: UploadFailure): string {
       return "The server could not be reached";
     case "busy":
       return "The server is busy; try again in a minute";
-    case "unreadable":
-      return `${failure.name} can no longer be read; add it again`;
+    case "unreadable": {
+      const [only] = failure.names;
+      if (failure.total === 1 && only !== undefined)
+        return `${only} can no longer be read; add it again`;
+      return `${failure.names.length} of ${plural(failure.total, "file", "files")} can no longer be read: ${listed(failure.names)}`;
+    }
     case "storeOff":
     case "server":
       return failure.message;
@@ -74,7 +88,30 @@ export function uploadingText(percent: number): string {
 
 export const STOP_UPLOAD = "Stop the upload";
 export const NO_SKIP = "No generation to skip";
+export const NO_IMAGE_TO_SKIP = "No image to skip";
+export const STOP_GENERATION = "Stop generation";
+export const STOP_PROCESSING = "Stop processing";
+export const NOTHING_TO_STOP = "Nothing to stop";
+export const BEING_SENT = "The job is being sent";
 export const UPLOAD_CANCELLED = "Upload cancelled, the job was not sent";
+/** A cancel of bytes read once, which send no job. */
+export const UPLOAD_STOPPED = "Upload cancelled";
+export const UPLOAD_FAILED = "Could not upload the picture";
+/** A dialog's submit while the view's own upload runs, which a new run would stop. */
+export const WAIT_FOR_UPLOAD = "Wait for the current upload to finish";
+
+/** "Stop the upload, 42%": the slot of a read-once flow while it uploads. */
+export function stopUploadText(percent: number | null): string {
+  return percent === null ? STOP_UPLOAD : `${STOP_UPLOAD}, ${percent}%`;
+}
+
+/** A file a run could not read, on its tile. */
+export const UNREADABLE_FILE = "Can no longer be read";
+
+/** "Process the other 397": a run without the files that can no longer be read. */
+export function processOthersText(count: number): string {
+  return `Process the other ${count}`;
+}
 export const SUBMIT_FAILED = "Could not send the job";
 export const RETRY = "Retry";
 export const CANCEL = "Cancel";
@@ -125,6 +162,57 @@ export function submitFailureText(failure: SubmitFailure): string {
     }
     case "server":
       return failure.message;
+  }
+}
+
+// The color LUTs, whose names and hashes are settings and whose bytes wait in the browser
+
+export const LUT_EARLIER = "LUT from an earlier version";
+export const LUT_RESTORED = "Color LUT (restored)";
+export const CHOOSE_CUBE = "Choose .cube file";
+export const LUT_PICK_AGAIN = "pick it again";
+export const LUT_NOT_APPLIED = "The color LUT was not applied";
+export const LUT_NOT_APPLIED_DETAIL =
+  "The server no longer held it when the job ran; the next run sends it again from this browser, or asks for it";
+export const OPEN_COLOR_TAB = "Open the Color tab";
+export const OPEN_COLOR_GRADING = "Open Color Grading";
+
+const LUT_PLACE: Record<LutPlace, string> = {
+  images: "the Color tab",
+  process: "Color Grading",
+};
+
+/** Why a build cannot send its LUT. */
+export function lutGoneText(name: string, where: LutPlace): string {
+  return `The color LUT "${name}" is no longer stored; pick it again in ${LUT_PLACE[where]}`;
+}
+
+/** The section's line under the file row while its LUT is not ready; null when it is. */
+export function lutLineText(state: LutState): string | null {
+  switch (state.kind) {
+    case "checking":
+      return `Checking the server for "${state.name}"`;
+    case "held":
+      return `"${state.name}", getting it from the server`;
+    case "pickAgain":
+      return `"${state.name}" is no longer stored; ${LUT_PICK_AGAIN}`;
+    case "unverified":
+      return `Could not ask the server for "${state.name}"; sending it asks again`;
+    case "none":
+    case "ready":
+      return null;
+  }
+}
+
+/** What a collapsed section's header says of its LUT; null for none. */
+export function lutSummaryText(state: LutState): string | null {
+  switch (state.kind) {
+    case "none":
+      return null;
+    case "pickAgain":
+      return LUT_PICK_AGAIN;
+    default:
+      return state.name;
   }
 }
 

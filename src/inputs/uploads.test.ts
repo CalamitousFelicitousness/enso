@@ -40,13 +40,18 @@ function fakes(options: { held?: string[]; room?: number; rows?: [string, string
     (options.rows ?? []).map(([cid, text]) => [cid, { hash: hashOf(text), size: text.length }]),
   );
   const stored = new Map<string, Blob>();
-  const asked = { claims: [] as { hashes: string[]; bytes: number }[], sent: [] as string[] };
+  const asked = {
+    claims: [] as { hashes: string[]; bytes: number }[],
+    keeps: [] as boolean[],
+    sent: [] as string[],
+  };
   let open = 0;
   let mostAtOnce = 0;
   let gate: Promise<void> = Promise.resolve();
   const tools: BatchTools = {
-    claim: (hashes, bytes) => {
+    claim: (hashes, bytes, claimed) => {
       asked.claims.push({ hashes: [...hashes], bytes });
+      asked.keeps.push(claimed?.keep ?? true);
       const answer: ResClaimV2 = {
         present: hashes.filter((h) => held.has(h)),
         missing: hashes.filter((h) => !held.has(h)),
@@ -236,6 +241,61 @@ describe("an upload batch", () => {
     await expect(batch.run()).rejects.toThrow("cat.png can no longer be read; add it again");
   });
 
+  it("refuses every file of the request that can no longer be read before any byte goes", async () => {
+    const server = fakes();
+    const batch = new uploads.UploadBatch("t", { tools: server.tools });
+    batch.stage(new BrokenBlob(["moved"]), { name: "a.png" });
+    batch.stage(new Blob(["fine"]), { name: "fine.png" });
+    batch.stage(new BrokenBlob(["gone"]), { name: "b.png" });
+    // a setting's bytes, such as a LUT, are not one of the files counted
+    batch.stage(new Blob(["LUT_3D_SIZE 2"]), { name: "grade.cube", setting: true });
+    await expect(batch.run()).rejects.toThrow(
+      "2 of 3 files can no longer be read: a.png and b.png",
+    );
+    expect(server.asked.sent).toEqual([]);
+  });
+
+  it("does not check a file the server holds already", async () => {
+    const server = fakes({ held: ["moved"] });
+    const batch = new uploads.UploadBatch("t", { tools: server.tools });
+    batch.stage(new BrokenBlob(["moved"]), { name: "a.png", hash: hashOf("moved") });
+    await expect(batch.run()).resolves.toBeDefined();
+  });
+
+  it("tells each item's stage the hash its bytes are held or went out under", async () => {
+    const server = fakes({ held: ["old"] });
+    const heard: string[] = [];
+    const onHash = (hashed: { hash: string }) => void heard.push(hashed.hash);
+    const batch = new uploads.UploadBatch("t", { tools: server.tools });
+    batch.stage(new Blob(["old"]), { name: "old.png", hash: hashOf("old"), onHash });
+    batch.stage(new Blob(["new"]), { name: "new.png", onHash });
+    await batch.run();
+    expect(heard.sort()).toEqual([hashOf("new"), hashOf("old")].sort());
+    await batch.again().run();
+    expect(heard).toHaveLength(4);
+  });
+
+  it("claims bytes read once without keeping them, and keeps a mixed batch's", async () => {
+    const server = fakes({ held: ["a"] });
+    const once = new uploads.UploadBatch("t", { tools: server.tools, transient: true });
+    once.stage(new Blob(["a"]), { name: "a.png", hash: hashOf("a") });
+    await once.run();
+    const mixed = new uploads.UploadBatch("t", { tools: server.tools });
+    mixed.stage(new Blob(["a"]), { name: "a.png", hash: hashOf("a"), transient: true });
+    mixed.stage(new Blob(["b"]), { name: "b.png" });
+    await mixed.run();
+    expect(server.asked.keeps).toEqual([false, true]);
+  });
+
+  it("does not trust a remembered row of another size than the bytes", async () => {
+    const server = fakes({ held: ["abc"], rows: [["cid-a", "abc"]] });
+    const batch = new uploads.UploadBatch("t", { tools: server.tools });
+    batch.stage(new Blob(["other bytes"]), { name: "a.png", cid: "cid-a" });
+    await batch.run();
+    expect(server.asked.claims[0].hashes).toEqual([]);
+    expect(server.asked.sent).toEqual(["a.png"]);
+  });
+
   it("keeps going when the hashes cannot be remembered", async () => {
     const server = fakes();
     vi.spyOn(console, "warn").mockImplementation(() => {});
@@ -305,5 +365,24 @@ describe("a batch sent again", () => {
     expect(batch.keptOut).toBeNull();
     await batch.run();
     expect(batch.keptOut).toEqual({ count: 1, room: 2 });
+  });
+});
+
+describe("sendOne", () => {
+  it("answers the ref of the bytes sent on the action's batch", async () => {
+    const server = fakes();
+    const batch = new uploads.UploadBatch("caption", { tools: server.tools, transient: true });
+    await expect(uploads.sendOne(batch, new Blob(["pic"]), { name: "pic.png" })).resolves.toBe(
+      `upload:${hashOf("pic")}`,
+    );
+    expect(server.asked.keeps).toEqual([false]);
+  });
+
+  it("refuses a picture whose bytes are gone, by its name", async () => {
+    const server = fakes();
+    const batch = new uploads.UploadBatch("t", { tools: server.tools });
+    await expect(uploads.sendOne(batch, null, { name: "pic.png" })).rejects.toThrow(
+      "pic.png can no longer be read; add it again",
+    );
   });
 });

@@ -1,22 +1,32 @@
-import { useCallback, useMemo } from "react";
-import { Play, Square, SkipForward, Loader2 } from "lucide-react";
+import { memo, useCallback, useEffect, useMemo, useRef } from "react";
+import { Play, Square, SkipForward } from "lucide-react";
 import { toast } from "sonner";
 import { useCancelJob } from "@/api/hooks/useJobs";
 import { usePostprocessScripts } from "@/api/hooks/usePostprocess";
 import { useProcessStore, type ProcessSectionKey } from "@/stores/processStore";
-import {
-  useJobQueueStore,
-  selectProcessActive,
-  selectProcessProgress,
-  selectProcessRunning,
-} from "@/stores/jobStore";
+import { useJobQueueStore, selectProcessActive, selectProcessRunning } from "@/stores/jobStore";
 import { useUiStore } from "@/stores/uiStore";
 import { useSubmitToQueue } from "@/hooks/useSubmitToQueue";
+import { useActionProgress, useUploadView } from "@/hooks/useActionProgress";
 import { UserAbortError } from "@/lib/abort";
+import type { RetryOffer } from "@/inputs/action";
 import { unrecordedSubmission } from "@/inputs/jobs";
+import { stageLutOn } from "@/inputs/luts";
+import type { UploadBatch } from "@/inputs/uploads";
 import { sendToJob } from "@/hooks/useJobTracker";
 import { useRegisterCommand } from "@/lib/commandRegistry";
-import { uploadFile, uploadFiles } from "@/lib/upload";
+import { ACTIONS } from "@/lib/media/progress";
+import type { UploadRefused } from "@/lib/media/refused";
+import {
+  batchText,
+  BEING_SENT,
+  NO_IMAGE_TO_SKIP,
+  NOTHING_TO_STOP,
+  processOthersText,
+  SENDING,
+  STOP_PROCESSING,
+  STOP_UPLOAD,
+} from "@/lib/media/text";
 import {
   activeSections,
   buildProcessPayload,
@@ -26,6 +36,7 @@ import {
 import type { ProcessMode } from "@/api/types/v2";
 import type { PostprocessScript } from "@/api/types/process";
 import { Button } from "@/components/ui/button";
+import { announceText, SubmitAnnouncer, SubmitLabel } from "@/components/ui/submit-label";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { SegmentedControl } from "@/components/ui/segmented-control";
@@ -86,18 +97,49 @@ const FALLBACK_ORDER: ProcessSectionKey[] = [
   "createVideo",
 ];
 
-const UPLOAD_CHUNK = 20;
+const ACTION = ACTIONS.process;
 
-/** Names the panel's submit in the progress store. */
-const ACTION = "process";
+/** What the view shows goes once the server has taken the job that replaces it. */
+const clearShownResults = () => useProcessStore.getState().clearResults();
 
-async function uploadAll(files: File[]): Promise<string[]> {
-  const refs: string[] = [];
-  for (let i = 0; i < files.length; i += UPLOAD_CHUNK) {
-    refs.push(...(await uploadFiles(files.slice(i, i + UPLOAD_CHUNK))));
-  }
-  return refs;
-}
+/** The Process button's icon and words: the upload, then the running job's
+ * percentage. It reads the stores itself, so progress re-renders it alone. */
+const ProcessLabel = memo(function ProcessLabel() {
+  const upload = useUploadView(ACTION);
+  const running = useJobQueueStore(selectProcessRunning);
+  return (
+    <SubmitLabel
+      upload={upload}
+      job={running ? { task: null, progress: running.progress, queued: 0 } : null}
+      running="Processing"
+    >
+      <Play size={14} />
+      Process
+    </SubmitLabel>
+  );
+});
+
+/** The line under the row, kept so the sections below never move. While an
+ * upload runs it is the upload's, as the button is: its files and bytes once
+ * its percentage shows. Otherwise the running job's task. */
+const ProcessCounts = memo(function ProcessCounts() {
+  const entry = useActionProgress(ACTION, (e) => e);
+  const running = useJobQueueStore(selectProcessRunning);
+  const counts = entry?.shown && (entry.phase === "uploading" || entry.phase === "storing");
+  const text = entry
+    ? counts
+      ? batchText(entry.done, entry.files, entry.sent, entry.total)
+      : ""
+    : (running?.task ?? "");
+  return <p className="h-4 truncate text-3xs text-muted-foreground tabular-nums">{text}</p>;
+});
+
+/** What a screen reader hears of the Process button, beside it. */
+const ProcessAnnouncer = memo(function ProcessAnnouncer() {
+  const upload = useUploadView(ACTION);
+  const running = useJobQueueStore(selectProcessRunning);
+  return <SubmitAnnouncer text={announceText(upload, !!running, "Processing")} />;
+});
 
 export function ProcessPanel() {
   const mode = useProcessStore((s) => s.mode);
@@ -119,8 +161,8 @@ export function ProcessPanel() {
   );
 
   const isActive = useJobQueueStore(selectProcessActive);
-  const progress = useJobQueueStore(selectProcessProgress);
-  const running = useJobQueueStore(selectProcessRunning);
+  // the id alone, so a running job's progress does not re-render the panel
+  const runningId = useJobQueueStore((s) => selectProcessRunning(s)?.id ?? null);
   const cancelJob = useCancelJob();
   const isProcessView = useUiStore((s) => s.activeNavView === "process");
 
@@ -132,7 +174,10 @@ export function ProcessPanel() {
     return [...known, ...FALLBACK_ORDER.filter((k) => !known.includes(k))];
   }, [scriptList]);
 
-  const build = useCallback(async () => {
+  // The files each staged ref sent, for the refusal of the ones that can no longer be read
+  const stagedFiles = useRef(new Map<string, File>());
+
+  const build = useCallback((batch: UploadBatch) => {
     const s = useProcessStore.getState();
     const settings: ProcessSettings = {
       mode: s.mode,
@@ -153,36 +198,96 @@ export function ProcessPanel() {
           : "Enable at least one section",
       );
     }
+    const staged = new Map<string, File>();
+    const stage = (file: File) => {
+      const { ref } = batch.stage(file, { name: file.name });
+      staged.set(ref, file);
+      return ref;
+    };
     let inputs: ProcessInputs = {};
     if (s.mode === "image") {
       const file = s.files[0] ?? refuse("Add an image first");
-      inputs = { images: [await uploadFile(file)] };
+      inputs = { images: [stage(file)] };
     } else if (s.mode === "batch") {
-      if (s.files.length === 0) refuse("Add images first");
-      inputs = { images: await uploadAll(s.files) };
+      // files a run could not read stay out until they are added again
+      const files = s.files.filter((f) => !s.unreadable.has(f));
+      if (files.length === 0) refuse("Add images first");
+      inputs = { images: files.map(stage) };
     } else if (s.mode === "folder") {
       if (!settings.inputDir) refuse("Enter a folder on the server to read");
     } else {
       const video = s.videoFile ?? refuse("Add a video first");
-      inputs = { video: await uploadFile(video) };
+      inputs = { video: stage(video) };
     }
-    s.clearResults();
-    return unrecordedSubmission("process", buildProcessPayload(settings, inputs));
+    const lut = activeSections(settings).includes("grading") ? stageLutOn(batch, "process") : null;
+    stagedFiles.current = staged;
+    return unrecordedSubmission("process", buildProcessPayload(settings, inputs, lut), batch);
   }, []);
 
-  const { submit, isSubmitting } = useSubmitToQueue(
-    useMemo(() => ({ build, action: ACTION }), [build]),
-  );
+  // A batch run with files it can no longer read marks them and offers the rest
+  const submitLatest = useRef<() => Promise<void>>(() => Promise.resolve());
+  const refused = useCallback((err: UploadRefused): RetryOffer | null => {
+    if (err.failure.kind !== "unreadable" || !err.failure.refs) return null;
+    const lost = err.failure.refs.flatMap((ref) => {
+      const file = stagedFiles.current.get(ref);
+      return file ? [file] : [];
+    });
+    const store = useProcessStore.getState();
+    store.markUnreadable(lost);
+    const others = stagedFiles.current.size - lost.length;
+    if (store.mode !== "batch" || lost.length === 0 || others === 0) return null;
+    return {
+      label: processOthersText(others),
+      run: () => void submitLatest.current(),
+      cancel: true,
+    };
+  }, []);
 
+  const {
+    submit,
+    isSubmitting: submitting,
+    cancel,
+  } = useSubmitToQueue(
+    useMemo(
+      () => ({ build, action: ACTION, refused, onPosted: clearShownResults }),
+      [build, refused],
+    ),
+  );
+  useEffect(() => {
+    submitLatest.current = submit;
+  }, [submit]);
+  const uploadPhase = useActionProgress(ACTION, (e) => e?.phase ?? null);
+  const isSubmitting = submitting || uploadPhase !== null;
+
+  // Stop acts on the upload first, then on the running job
   const handleStop = useCallback(() => {
-    if (!running) return;
-    sendToJob(running.id, { type: "interrupt" });
-    cancelJob.mutate(running.id);
-  }, [running, cancelJob]);
+    if (uploadPhase === "sending") {
+      toast.info(BEING_SENT);
+      return;
+    }
+    if (cancel()) return;
+    if (runningId) {
+      sendToJob(runningId, { type: "interrupt" });
+      cancelJob.mutate(runningId);
+      return;
+    }
+    toast.info(NOTHING_TO_STOP);
+  }, [uploadPhase, cancel, runningId, cancelJob]);
+  const uploading = uploadPhase !== null && uploadPhase !== "sending";
+  const stopLabel =
+    uploadPhase === "sending"
+      ? SENDING
+      : uploading
+        ? STOP_UPLOAD
+        : runningId
+          ? STOP_PROCESSING
+          : NOTHING_TO_STOP;
+  const stopApplies = uploading || runningId !== null;
 
   const handleSkip = useCallback(() => {
-    if (running) sendToJob(running.id, { type: "skip" });
-  }, [running]);
+    if (runningId) sendToJob(runningId, { type: "skip" });
+    else toast.info(NO_IMAGE_TO_SKIP);
+  }, [runningId]);
 
   useRegisterCommand(
     {
@@ -210,8 +315,6 @@ export function ProcessPanel() {
     isProcessView,
   );
 
-  const progressPct = Math.round(progress * 100);
-
   return (
     <div className="flex flex-col h-full">
       <div className="px-3 py-2 border-b border-border space-y-2">
@@ -238,6 +341,7 @@ export function ProcessPanel() {
             />
           </div>
         )}
+        {/* Process, Skip and Stop keep their places in every state */}
         <div className="flex gap-2">
           <Button
             type="button"
@@ -245,56 +349,37 @@ export function ProcessPanel() {
             onClick={() => void submit()}
             disabled={isSubmitting || isActive || !hasInput}
             size="sm"
-            className="flex-1"
+            className="flex-1 min-w-0"
           >
-            {isActive ? (
-              <>
-                <Loader2 size={14} className="animate-spin" />
-                Processing...
-              </>
-            ) : (
-              <>
-                <Play size={14} />
-                Process
-              </>
-            )}
+            <ProcessLabel />
           </Button>
-          {running && (
-            <Button
-              type="button"
-              onClick={handleSkip}
-              variant="secondary"
-              size="icon-sm"
-              title="Skip current image"
-            >
-              <SkipForward size={14} />
-            </Button>
-          )}
-          {isActive && (
-            <Button
-              type="button"
-              onClick={handleStop}
-              variant="destructive"
-              size="icon-sm"
-              title="Stop processing"
-            >
-              <Square size={14} />
-            </Button>
-          )}
+          <Button
+            type="button"
+            onClick={handleSkip}
+            aria-disabled={runningId ? undefined : true}
+            className={runningId ? undefined : "opacity-50"}
+            variant="secondary"
+            size="icon-sm"
+            aria-label={runningId ? "Skip current image" : NO_IMAGE_TO_SKIP}
+            title={runningId ? "Skip current image" : NO_IMAGE_TO_SKIP}
+          >
+            <SkipForward size={14} />
+          </Button>
+          <Button
+            type="button"
+            onClick={handleStop}
+            aria-disabled={stopApplies ? undefined : true}
+            className={stopApplies ? undefined : "opacity-50"}
+            variant="destructive"
+            size="icon-sm"
+            aria-label={stopLabel}
+            title={uploadPhase === "sending" ? BEING_SENT : stopLabel}
+          >
+            <Square size={14} />
+          </Button>
         </div>
-        {isActive && progressPct > 0 && (
-          <div className="flex items-center gap-2">
-            <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
-              <div
-                className="h-full bg-primary rounded-full transition-[width] duration-300"
-                style={{ width: `${progressPct}%` }}
-              />
-            </div>
-            <span className="text-xs text-muted-foreground font-mono tabular-nums">
-              {progressPct}%
-            </span>
-          </div>
-        )}
+        <ProcessCounts />
+        <ProcessAnnouncer />
         <TextToggle
           label="Save output"
           checked={saveOutput}

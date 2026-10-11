@@ -220,6 +220,8 @@ interface ProcessState {
   /** Image and batch inputs; image mode uses the first. */
   files: File[];
   previewUrls: string[];
+  /** Files a run found it could no longer read; marked, and left out of the next run. */
+  unreadable: ReadonlySet<File>;
   videoFile: File | null;
   videoPreviewUrl: string | null;
   inputDir: string;
@@ -235,6 +237,7 @@ interface ProcessState {
 
   setMode: (mode: ProcessMode) => void;
   setFiles: (files: File[]) => void;
+  markUnreadable: (files: File[]) => void;
   addFiles: (files: File[]) => void;
   removeFile: (index: number) => void;
   /** Replaces the inputs with one image; other views send images here. */
@@ -294,6 +297,7 @@ export const useProcessStore = create<ProcessState>()(
       mode: "image",
       files: [],
       previewUrls: [],
+      unreadable: new Set<File>(),
       videoFile: null,
       videoPreviewUrl: null,
       inputDir: "",
@@ -310,6 +314,7 @@ export const useProcessStore = create<ProcessState>()(
         set({
           files,
           previewUrls: files.map((f) => URL.createObjectURL(f)),
+          unreadable: new Set<File>(),
           ...NO_RESULTS,
         });
       },
@@ -325,15 +330,19 @@ export const useProcessStore = create<ProcessState>()(
       },
 
       removeFile: (index) => {
-        const { files, previewUrls } = get();
+        const { files, previewUrls, unreadable } = get();
         const url = previewUrls[index];
         if (url) URL.revokeObjectURL(url);
+        const removed = files[index];
         set({
           files: files.filter((_, i) => i !== index),
           previewUrls: previewUrls.filter((_, i) => i !== index),
+          unreadable: removed ? new Set([...unreadable].filter((f) => f !== removed)) : unreadable,
           ...NO_RESULTS,
         });
       },
+
+      markUnreadable: (files) => set((s) => ({ unreadable: new Set([...s.unreadable, ...files]) })),
 
       setImage: (file) => {
         const { mode } = get();
