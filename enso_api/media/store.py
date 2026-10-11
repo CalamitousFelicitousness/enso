@@ -221,8 +221,9 @@ class MediaStore:
                         found.add(blob.hash)
         return found
 
-    def claim(self, hashes: list[str]) -> Claim:
-        """Sort hashes into present, missing and lost; the present ones are kept (touched, no longer transient), the lost ones marked.
+    def claim(self, hashes: list[str], keep: bool = True) -> Claim:
+        """Sort hashes into present, missing and lost; the present ones are touched, and kept (no longer transient) unless
+        `keep` is false, the lost ones marked.
 
         The files are stat'ed outside the lock and the lost ones again inside it, since an ingest may heal one meanwhile.
         """
@@ -244,12 +245,13 @@ class MediaStore:
                 lost.append(h)
         if present or lost:
             now = self.now()
+            touch = "touched_at = ?, transient = 0" if keep else "touched_at = ?"
             # Under the lock a row without lost_at has its file: the collector and verify change both only while holding it
             states: dict[str, int | None] = {}
             with self.db.write() as w:
                 for part in chunks(present):
                     states.update((row[0], row[1]) for row in w.conn.execute(f"SELECT hash, lost_at FROM blobs WHERE hash IN ({marks(len(part))})", part))
-                    w.conn.execute(f"UPDATE blobs SET touched_at = ?, transient = 0 WHERE hash IN ({marks(len(part))}) AND lost_at IS NULL", [now, *part])
+                    w.conn.execute(f"UPDATE blobs SET {touch} WHERE hash IN ({marks(len(part))}) AND lost_at IS NULL", [now, *part])
                 for h in lost:
                     current = w.conn.execute("SELECT * FROM blobs WHERE hash = ?", (h,)).fetchone()
                     if current is not None and current["lost_at"] is None and not self.file_ok(BlobRow.from_row(current)):

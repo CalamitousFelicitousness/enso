@@ -60,7 +60,7 @@ def off(reason: str, uploads: str) -> None:
 
 def gallery_roots() -> list[str]:
     try:
-        from enso_api.gallery import get_allowed_roots
+        from enso_api.confine import get_allowed_roots
 
         return sorted(get_allowed_roots())
     except Exception:

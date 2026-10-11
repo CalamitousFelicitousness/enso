@@ -1,12 +1,11 @@
-"""Output-directory path confinement shared by file routes and output registration.
+"""Path confinement: the output folders file routes serve and outputs are registered under, and the Gallery's folders.
 
 Lives outside routes.py so job_queue can confine paths at registration time
 without importing the route module.
 """
 
 import os
-
-from fastapi import HTTPException
+from collections.abc import Iterable
 
 # Specific outdirs resolve against outdir_samples (or outdir_grids for grid
 # variants), mirroring how modules.paths targets them at save time. The cloud
@@ -20,6 +19,26 @@ OUTPUT_SPECIFIC_ATTRS = (
     "outdir_cloud_image",
     "outdir_cloud_video",
 )
+
+# The folders the Gallery lists beside browser_folders, each resolved against outdir_samples or outdir_grids
+GALLERY_FOLDERS = (
+    "outdir_samples",
+    "outdir_txt2img_samples",
+    "outdir_img2img_samples",
+    "outdir_control_samples",
+    "outdir_extras_samples",
+    "outdir_save",
+    "outdir_video",
+    "outdir_init_images",
+    "outdir_grids",
+    "outdir_txt2img_grids",
+    "outdir_img2img_grids",
+    "outdir_control_grids",
+)
+
+VIDEO_EXTENSIONS = {".mp4", ".webm", ".mov", ".avi", ".mkv", ".flv", ".wmv", ".m4v"}
+# What the Gallery lists, mirrored by the client's MEDIA_EXTENSIONS
+GALLERY_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp", ".tiff", ".tif", ".avif"} | VIDEO_EXTENSIONS
 
 
 def allowed_output_roots() -> list[str]:
@@ -98,5 +117,57 @@ def confine_or_403(file_path: str) -> None:
     (cloud video thumbnail subroute, future audio routes, etc.) without
     duplicating the attr list.
     """
+    from fastapi import HTTPException
+
     if not confined_to_outputs(file_path):
         raise HTTPException(status_code=403, detail="Access denied")
+
+
+def get_allowed_roots() -> set[str]:
+    """Every folder the Gallery lists, resolved: the output folders, browser_folders and models/Reference."""
+    from modules import shared
+    from modules.paths import resolve_output_path
+
+    roots = set()
+    base_samples = shared.opts.outdir_samples
+    base_grids = shared.opts.outdir_grids
+    if base_samples:
+        roots.add(os.path.abspath(os.path.realpath(base_samples)))
+    if base_grids:
+        roots.add(os.path.abspath(os.path.realpath(base_grids)))
+    for opt_key in GALLERY_FOLDERS:
+        val = getattr(shared.opts, opt_key, None)
+        if val:
+            base = base_grids if "grid" in opt_key else base_samples
+            resolved = resolve_output_path(base, val) if base else val
+            roots.add(os.path.abspath(os.path.realpath(resolved)))
+    for f in shared.opts.browser_folders.split(","):
+        f = f.strip()
+        if f:
+            roots.add(os.path.abspath(os.path.realpath(f)))
+    reference_dir = os.path.join("models", "Reference")
+    roots.add(os.path.abspath(os.path.realpath(reference_dir)))
+    return roots
+
+
+def outside_media_store(path: str) -> bool:
+    """False for the media store's root and anything under it, which the Gallery never lists or opens; by name, so a walk stays cheap."""
+    from enso_api.media import boot
+
+    return boot.state.store is None or not boot.state.store.layout.contains(path)
+
+
+def allowed_gallery_path(path: str, roots: Iterable[str], store_root: str | None) -> bool:
+    """Whether `path`, symlinks resolved, lies inside one of the Gallery's roots and outside the media store's."""
+    resolved = os.path.realpath(path)
+    if store_root is not None and is_confined_to(resolved, (store_root,)):
+        return False
+    return is_confined_to(resolved, roots)
+
+
+def is_allowed_path(filepath: str) -> bool:
+    """Whether the Gallery may open `filepath`."""
+    from enso_api.media import boot
+
+    store = boot.state.store
+    return allowed_gallery_path(filepath, get_allowed_roots(), store.layout.root if store is not None else None)

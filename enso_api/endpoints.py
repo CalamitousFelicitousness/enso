@@ -885,20 +885,24 @@ async def delete_log_v2():
 @router.post("/png-info", response_model=ResPngInfoV2, tags=["Server"])
 async def post_png_info_v2(req: ReqPngInfoV2):
     """Extract generation parameters from a PNG image's metadata."""
-    from modules import images, infotext, script_callbacks
-    from modules.api.helpers import decode_base64_to_image
+
+    def _read():
+        from modules import images, infotext, script_callbacks
+        from modules.api.helpers import decode_base64_to_image
+
+        image = decode_base64_to_image(req.image.strip())
+        if image is None:
+            return ResPngInfoV2(ok=False, info="")
+        geninfo, items = images.read_info_from_image(image)
+        if geninfo is None:
+            geninfo = ""
+        params = infotext.parse(geninfo)
+        script_callbacks.infotext_pasted_callback(geninfo, params)
+        return ResPngInfoV2(ok=True, info=geninfo, items=items, parameters=params)
 
     if not req.image.strip():
         return ResPngInfoV2(ok=False, info="")
-    image = decode_base64_to_image(req.image.strip())
-    if image is None:
-        return ResPngInfoV2(ok=False, info="")
-    geninfo, items = images.read_info_from_image(image)
-    if geninfo is None:
-        geninfo = ""
-    params = infotext.parse(geninfo)
-    script_callbacks.infotext_pasted_callback(geninfo, params)
-    return ResPngInfoV2(ok=True, info=geninfo, items=items, parameters=params)
+    return await asyncio.to_thread(_read)
 
 
 # --- Extensions ---

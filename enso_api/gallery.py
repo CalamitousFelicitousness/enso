@@ -16,29 +16,12 @@ from PIL import Image
 from pydantic import BaseModel, Field  # pylint: disable=no-name-in-module
 from starlette.websockets import WebSocket, WebSocketState
 
+from enso_api.confine import VIDEO_EXTENSIONS, is_allowed_path, outside_media_store
 from enso_api.routes import media_file
 from enso_api.session import admit_socket, media_auth
 from enso_api.video_result import sibling_thumb
 
 debug = log.debug if os.environ.get("SD_BROWSER_DEBUG", None) is not None else lambda *args, **kwargs: None
-
-
-OPTS_FOLDERS = [
-    "outdir_samples",
-    "outdir_txt2img_samples",
-    "outdir_img2img_samples",
-    "outdir_control_samples",
-    "outdir_extras_samples",
-    "outdir_save",
-    "outdir_video",
-    "outdir_init_images",
-    "outdir_grids",
-    "outdir_txt2img_grids",
-    "outdir_img2img_grids",
-    "outdir_control_grids",
-]
-
-VIDEO_EXTENSIONS = {".mp4", ".webm", ".mov", ".avi", ".mkv", ".flv", ".wmv", ".m4v"}
 
 
 ### class definitions
@@ -65,46 +48,6 @@ class ResOutputJobV2(BaseModel):
     job_id: str | None = None
     source: Literal["stamp", "table"] | None = None
     """stamp: the file's own metadata names the job; table: the server's record of the outputs it saved does."""
-
-
-### security helpers
-
-
-def get_allowed_roots():
-    """Collect all resolved gallery root folders."""
-    roots = set()
-    base_samples = shared.opts.outdir_samples
-    base_grids = shared.opts.outdir_grids
-    if base_samples:
-        roots.add(os.path.abspath(os.path.realpath(base_samples)))
-    if base_grids:
-        roots.add(os.path.abspath(os.path.realpath(base_grids)))
-    for opt_key in OPTS_FOLDERS:
-        val = getattr(shared.opts, opt_key, None)
-        if val:
-            base = base_grids if "grid" in opt_key else base_samples
-            resolved = resolve_output_path(base, val) if base else val
-            roots.add(os.path.abspath(os.path.realpath(resolved)))
-    for f in shared.opts.browser_folders.split(","):
-        f = f.strip()
-        if f:
-            roots.add(os.path.abspath(os.path.realpath(f)))
-    reference_dir = os.path.join("models", "Reference")
-    roots.add(os.path.abspath(os.path.realpath(reference_dir)))
-    return roots
-
-
-def outside_media_store(path: str) -> bool:
-    """False for the media store's root and anything under it, which the Gallery never lists or opens; by name, so a walk stays cheap."""
-    from enso_api.media import boot
-
-    return boot.state.store is None or not boot.state.store.layout.contains(path)
-
-
-def is_allowed_path(filepath: str) -> bool:
-    """Check if a file path is within allowed gallery folders."""
-    resolved = os.path.abspath(os.path.realpath(filepath))
-    return any(resolved.startswith(root + os.sep) or resolved == root for root in get_allowed_roots()) and outside_media_store(resolved)
 
 
 ### ws connection manager

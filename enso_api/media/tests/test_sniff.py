@@ -70,6 +70,12 @@ def test_text_cut_inside_a_character_is_still_text():
     assert sniff(head).ext == "txt"
 
 
+def test_a_cube_whose_size_line_is_past_the_head_is_text():
+    # pillow_lut reads a LUT by its path whatever the extension
+    lut = b"# " + b"x" * 4096 + b"\nLUT_3D_SIZE 2\n"
+    assert sniff(lut).ext == "txt"
+
+
 def test_only_media_is_inline():
     assert sniff(png(1)).inline
     assert sniff(b"LUT_3D_SIZE 2\n").type == OCTET

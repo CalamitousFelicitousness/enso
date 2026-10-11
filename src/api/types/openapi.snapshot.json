@@ -8139,7 +8139,7 @@
         "title": "RembgParams",
         "type": "object"
       },
-      "ReqAdoptV2": {
+      "ReqAdoptOutputV2": {
         "additionalProperties": false,
         "properties": {
           "output_id": {
@@ -8150,7 +8150,21 @@
         "required": [
           "output_id"
         ],
-        "title": "ReqAdoptV2",
+        "title": "ReqAdoptOutputV2",
+        "type": "object"
+      },
+      "ReqAdoptPathV2": {
+        "additionalProperties": false,
+        "properties": {
+          "path": {
+            "title": "Path",
+            "type": "string"
+          }
+        },
+        "required": [
+          "path"
+        ],
+        "title": "ReqAdoptPathV2",
         "type": "object"
       },
       "ReqBulkJobV2": {
@@ -15553,13 +15567,21 @@
     },
     "/sdapi/v2/blobs/adopt": {
       "post": {
-        "description": "Store an output the server holds, by its output id, without sending its bytes.",
+        "description": "Store a file the server holds without sending its bytes: an output by its id, or a Gallery file by its path.",
         "operationId": "post_adopt_sdapi_v2_blobs_adopt_post",
         "requestBody": {
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/ReqAdoptV2"
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/ReqAdoptOutputV2"
+                  },
+                  {
+                    "$ref": "#/components/schemas/ReqAdoptPathV2"
+                  }
+                ],
+                "title": "Request"
               }
             }
           },
@@ -15595,8 +15617,20 @@
     },
     "/sdapi/v2/blobs/claim": {
       "post": {
-        "description": "Which hashes the server holds, keeping those it does; `space` says whether `bytes` more fit.",
+        "description": "Which hashes the server holds, touching those it does; `space` says whether `bytes` more fit. A claim keeps what\nit finds unless `keep` is false, which leaves bytes read once transient.",
         "operationId": "post_claim_sdapi_v2_blobs_claim_post",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "keep",
+            "required": false,
+            "schema": {
+              "default": true,
+              "title": "Keep",
+              "type": "boolean"
+            }
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {

@@ -142,6 +142,24 @@ def test_apply_deletes_the_row_then_the_file(store, clock):
     assert not os.path.exists(store.layout.blob_path(row.hash, row.ext))
 
 
+def test_a_claim_without_keep_leaves_bytes_read_once_to_the_transient_grace(store, clock):
+    once, _ = put(store, png(1), transient=True)
+    kept, _ = put(store, png(2), transient=True)
+    start_clock(store, clock)
+    clock.advance(HOUR_MS // 2)
+    store.claim([once.hash], keep=False)
+    store.claim([kept.hash])
+    clock.advance(HOUR_MS)
+    store.set_meta("last_gc", str(clock.now - PASS_MS))
+    collect(store)
+    assert store.row(once.hash) is not None
+    clock.advance(1)
+    store.set_meta("last_gc", str(clock.now - PASS_MS))
+    collect(store)
+    assert store.row(once.hash) is None
+    assert store.row(kept.hash) is not None
+
+
 def test_apply_frees_an_expired_entry_and_its_blob_in_one_pass(store, clock):
     row, _ = put(store, png(1))
     shared, _ = put(store, png(2))

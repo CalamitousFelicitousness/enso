@@ -96,6 +96,14 @@ def test_transient_is_cleared_by_a_kept_ingest_and_by_a_claim(store):
     assert not store.row(other.hash).transient
 
 
+def test_a_claim_without_keep_touches_and_leaves_transient(store, clock):
+    row, _ = put(store, png(1), transient=True)
+    clock.advance(HOUR)
+    assert store.claim([row.hash], keep=False).present == [row.hash]
+    assert store.row(row.hash).transient
+    assert store.row(row.hash).touched_at == clock.now
+
+
 def test_get_never_writes(store, layout):
     row, _ = put(store, png(1))
     os.remove(layout.blob_path(row.hash, row.ext))

@@ -16,7 +16,8 @@ from enso_api.media.models import (
     LastVerifyV2,
     MediaTermsV2,
     MediaTermV2,
-    ReqAdoptV2,
+    ReqAdoptOutputV2,
+    ReqAdoptPathV2,
     ReqClaimV2,
     ReqMediaSettingsV2,
     ResBlobV2,
@@ -156,12 +157,13 @@ async def post_blob(request: Request, response: Response, name: str | None = Non
 
 
 @router.post("/blobs/claim", response_model=ResClaimV2)
-async def post_claim(request: ReqClaimV2):
-    """Which hashes the server holds, keeping those it does; `space` says whether `bytes` more fit."""
+async def post_claim(request: ReqClaimV2, keep: bool = True):
+    """Which hashes the server holds, touching those it does; `space` says whether `bytes` more fit. A claim keeps what
+    it finds unless `keep` is false, which leaves bytes read once transient."""
     store = store_or_503()
 
     def run():
-        claim = store.claim(request.hashes)
+        claim = store.claim(request.hashes, keep)
         space = store.inflight.space_for(request.bytes, free_space(store.layout.root), store.settings().reserve_bytes)
         return claim, space
 
@@ -169,18 +171,33 @@ async def post_claim(request: ReqClaimV2):
     return ResClaimV2(present=claim.present, missing=claim.missing, lost=claim.lost, space=SpaceV2(ok=space.ok, free=space.free, needed=space.needed))
 
 
-@router.post("/blobs/adopt", response_model=ResBlobV2)
-async def post_adopt(request: ReqAdoptV2):
-    """Store an output the server holds, by its output id, without sending its bytes."""
-    from enso_api.job_queue import job_queue
+def adopted_path(request: ReqAdoptOutputV2 | ReqAdoptPathV2) -> str:
+    """The file an adoption names: an output by its row, confined when it was registered, or a file the Gallery lists."""
+    if isinstance(request, ReqAdoptOutputV2):
+        from enso_api.job_queue import job_queue
 
+        output = job_queue.store.resolve_output(request.output_id)
+        path = output["path"] if output else None
+    else:
+        from enso_api.confine import GALLERY_EXTENSIONS, is_allowed_path
+
+        path = os.path.realpath(request.path)
+        if not is_allowed_path(path):
+            refuse(403, "path_not_allowed", "This file is outside the Gallery's folders")
+        if os.path.splitext(path)[1].lower() not in GALLERY_EXTENSIONS:
+            refuse(422, "not_media", "Only the pictures and videos the Gallery lists can be adopted")
+    if not path or not os.path.isfile(path):
+        refuse(404, "gone", "This file is no longer on the server")
+    return path
+
+
+@router.post("/blobs/adopt", response_model=ResBlobV2)
+async def post_adopt(request: ReqAdoptOutputV2 | ReqAdoptPathV2):
+    """Store a file the server holds without sending its bytes: an output by its id, or a Gallery file by its path."""
     store = store_or_503()
 
     def run() -> tuple[BlobRow, bool, str]:
-        output = job_queue.store.resolve_output(request.output_id)
-        path = output["path"] if output else None
-        if not path or not os.path.isfile(path):
-            refuse(404, "gone", "This output is no longer on the server")
+        path = adopted_path(request)
         size = os.path.getsize(path)
         reserve_bytes = store.settings().reserve_bytes
         if not store.inflight.space_for(size, free_space(store.layout.root), reserve_bytes).ok:
@@ -188,7 +205,7 @@ async def post_adopt(request: ReqAdoptV2):
         try:
             row, created = store.ingest_file(path)
         except FileNotFoundError:
-            refuse(404, "gone", "This output is no longer on the server")
+            refuse(404, "gone", "This file is no longer on the server")
         except (OSError, sqlite3.Error) as e:
             refuse_failure(e, store, size, reserve_bytes)
             raise

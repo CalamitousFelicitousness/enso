@@ -44,8 +44,13 @@ class ResClaimV2(BaseModel):
     space: SpaceV2
 
 
-class ReqAdoptV2(StrictBaseModel):
+class ReqAdoptOutputV2(StrictBaseModel):
     output_id: str
+
+
+class ReqAdoptPathV2(StrictBaseModel):
+    path: str
+    """A file the Gallery lists."""
 
 
 class SettingBoundV2(BaseModel):
