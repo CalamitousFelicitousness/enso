@@ -2,6 +2,7 @@ export type {
   ItemEntryV2,
   ItemRecordV2,
   ItemThumbV2,
+  LastVerifyV2,
   ReqEntryPatchV2,
   ReqEntryV2,
   ReqMediaSettingsV2,
@@ -19,6 +20,8 @@ export type {
   ResOutputJobV2,
   ResRecordsV2,
   ResRecordV2,
+  ResSnapshotV2,
   ResTrashV2,
+  VerifyStateV2,
 } from "@/lib/openapi-generated/types.gen";
 export type { Issue, Refusal } from "../errorDetail";

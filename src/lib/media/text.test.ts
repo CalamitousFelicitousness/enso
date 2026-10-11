@@ -33,6 +33,15 @@ import {
   unpinnedText,
   uploadFailureText,
   uploadingText,
+  cleanupText,
+  diskText,
+  filesText,
+  lastVerifyText,
+  pendingRootText,
+  previousRootText,
+  snapshotSavedText,
+  snapshotsText,
+  verifyingText,
 } from "./text";
 
 const MINUTE = 60 * 1000;
@@ -325,5 +334,47 @@ describe("the words of a color LUT", () => {
     expect(lutSummaryText({ kind: "ready", name })).toBe(name);
     expect(lutSummaryText({ kind: "held", name })).toBe(name);
     expect(lutSummaryText({ kind: "pickAgain", name })).toBe("pick it again");
+  });
+});
+
+describe("the words of the media store panel", () => {
+  const GB = 1024 * MB;
+  const now = 10 * DAY;
+
+  it("counts the files, the disk and a running verify", () => {
+    expect(filesText(1, 512)).toBe("1 file, 512 B");
+    expect(filesText(1234, 1.5 * GB)).toBe("1,234 files, 1.5 GB");
+    expect(diskText(228 * GB, 3.6 * 1024 * GB)).toBe("228 GB free of 3.6 TB");
+    expect(verifyingText(0, 0)).toBe("Starting the verify");
+    expect(verifyingText(0, 1)).toBe("Checking 0 of 1 file");
+    expect(verifyingText(1234, 5678)).toBe("Checking 1,234 of 5,678 files");
+  });
+
+  it("says how the last verify went, when the last cleanup ran, and where the store is", () => {
+    const last = {
+      at: now - 2 * HOUR,
+      checked: 52,
+      lost: 0,
+      corrupt: 0,
+      changed: 1,
+      cancelled: false,
+    };
+    expect(lastVerifyText(null, now)).toBe("Not verified yet");
+    expect(lastVerifyText(last, now)).toBe("Last verify 2 h ago: 52 checked, all intact");
+    expect(lastVerifyText({ ...last, lost: 1, corrupt: 2 }, now)).toBe(
+      "Last verify 2 h ago: 52 checked, 1 missing, 2 corrupt",
+    );
+    expect(lastVerifyText({ ...last, cancelled: true }, now)).toBe(
+      "Last verify 2 h ago: 52 checked, all intact, cancelled",
+    );
+    expect(cleanupText(null, now)).toBe("Not yet");
+    expect(cleanupText(now - 3 * MINUTE, now)).toBe("3 min ago");
+    expect(snapshotsText(0, 0)).toBe("None");
+    expect(snapshotsText(2, 18 * MB)).toBe("2 files, 18 MB");
+    expect(snapshotSavedText("/store/snapshots/media-1.db", 18 * MB)).toBe(
+      "/store/snapshots/media-1.db (18 MB)",
+    );
+    expect(pendingRootText("/mnt/new")).toBe("Set to /mnt/new, applies after a restart");
+    expect(previousRootText("/old")).toBe("The store at /old was not moved");
   });
 });

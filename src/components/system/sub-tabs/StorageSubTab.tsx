@@ -3,6 +3,7 @@ import { formatBytes } from "@/lib/utils";
 import { Section, BarRow, Row } from "../shared";
 import { Button } from "@/components/ui/button";
 import { AlertCircle, HardDrive, Loader2 } from "lucide-react";
+import { MediaStoreSection } from "./MediaStoreSection";
 
 const CATEGORY_LABELS: Record<string, string> = {
   caches: "Caches",
@@ -17,6 +18,8 @@ export function StorageSubTab() {
 
   return (
     <div className="space-y-4">
+      <MediaStoreSection />
+
       <Button size="sm" variant="outline" onClick={() => void refetch()} disabled={isFetching}>
         {isFetching ? (
           <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />

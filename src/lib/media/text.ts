@@ -1,7 +1,9 @@
 // The words of the media store's client side, in one place: uploads, their
 // refusals and the ages and sizes every list shows.
 
+import type { LastVerifyV2 } from "@/api/types/media";
 import type { LutPlace, LutState } from "@/lib/lut";
+import { formatBytes } from "@/lib/utils";
 import type { SkipReason } from "./migration";
 
 const plural = (n: number, one: string, many: string) => (n === 1 ? `1 ${one}` : `${n} ${many}`);
@@ -413,6 +415,77 @@ export function storeRowText(
       ? ` · set to ${configured}, applies after a restart`
       : "";
   return `${where}${space}${pending}`;
+}
+
+// The media store panel in System > Storage: its report, a snapshot of its
+// database and a verify of every file.
+
+export const TAKE_SNAPSHOT = "Take snapshot";
+export const VERIFY_FILES = "Verify files";
+export const CANCEL_VERIFY = "Cancel verify";
+export const REPORT_FAILED = "Could not read the media store";
+export const SNAPSHOT_SAVED = "Snapshot saved";
+export const SNAPSHOT_FAILED = "Could not take a snapshot";
+export const VERIFY_FAILED = "Could not change the verify";
+
+/** What keeps a held file, in the report's order. */
+export const TERM_LABELS = {
+  library: "Library",
+  records: "Job records",
+  trash: "Trash",
+  unnamed: "Unnamed",
+} as const;
+
+const counted = (n: number) => n.toLocaleString("en-US");
+
+/** "52 files, 1.2 GB". */
+export function filesText(count: number, bytes: number): string {
+  return `${count === 1 ? "1 file" : `${counted(count)} files`}, ${formatBytes(bytes, 1)}`;
+}
+
+/** "228 GB free of 3.6 TB". */
+export function diskText(free: number, total: number): string {
+  return `${formatBytes(free, 1)} free of ${formatBytes(total, 1)}`;
+}
+
+/** The verify's progress; its total is known once the pass has listed the files. */
+export function verifyingText(checked: number, total: number): string {
+  if (total === 0) return "Starting the verify";
+  return `Checking ${counted(checked)} of ${counted(total)} ${total === 1 ? "file" : "files"}`;
+}
+
+/** The last verify's outcome, or that none has run. */
+export function lastVerifyText(last: LastVerifyV2 | null | undefined, now: number): string {
+  if (!last) return "Not verified yet";
+  const { at = 0, checked = 0, lost = 0, corrupt = 0, cancelled = false } = last;
+  const found = [
+    lost > 0 ? `${counted(lost)} missing` : null,
+    corrupt > 0 ? `${counted(corrupt)} corrupt` : null,
+  ].filter((part) => part !== null);
+  const outcome = found.length > 0 ? found.join(", ") : "all intact";
+  const stopped = cancelled ? ", cancelled" : "";
+  return `Last verify ${ageText(now - at)}: ${counted(checked)} checked, ${outcome}${stopped}`;
+}
+
+/** When the last cleanup pass ran. */
+export function cleanupText(lastGc: number | null | undefined, now: number): string {
+  return lastGc ? ageText(now - lastGc) : "Not yet";
+}
+
+export function snapshotsText(count: number, bytes: number): string {
+  return count === 0 ? "None" : filesText(count, bytes);
+}
+
+export function snapshotSavedText(path: string, bytes: number): string {
+  return `${path} (${formatBytes(bytes, 1)})`;
+}
+
+export function pendingRootText(configured: string): string {
+  return `Set to ${configured}, applies after a restart`;
+}
+
+export function previousRootText(previous: string): string {
+  return `The store at ${previous} was not moved`;
 }
 
 /** The first answer from a server that keeps removed inputs for less time
