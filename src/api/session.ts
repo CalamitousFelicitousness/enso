@@ -24,6 +24,8 @@ interface SessionState {
   expiresAt: number;
   /** Advances whenever the mode or the token changes; a load refused before it may be tried again. */
   epoch: number;
+  /** The user the server knows this page as; null without credentials. */
+  user: string | null;
 }
 
 export const useSessionStore = create<SessionState>()(() => ({
@@ -31,6 +33,7 @@ export const useSessionStore = create<SessionState>()(() => ({
   token: null,
   expiresAt: 0,
   epoch: 0,
+  user: null,
 }));
 
 const HINT_KEY = "enso-session-mode";
@@ -99,6 +102,7 @@ async function requestSession(): Promise<void> {
   try {
     const info = await api.post<SessionInfo>("/sdapi/v2/session");
     if (request !== requested) return;
+    useSessionStore.setState({ user: info.user ?? null });
     if (!info.required) settle("open", null, 0);
     else settle(crossOrigin() ? "token" : "cookie", info.token ?? null, info.expires_at ?? 0);
   } catch (err) {

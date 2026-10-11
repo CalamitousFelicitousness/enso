@@ -13,7 +13,7 @@ import type {
   SentInput,
 } from "./outline";
 import type { AddressChange } from "./renumber";
-import type { StoredEntry, StoredFrame, StoredRemoval } from "./stored";
+import type { StoredFrame, StoredRemoval } from "./stored";
 import {
   isComposed,
   type ControlType,
@@ -49,6 +49,15 @@ export function roleLabel(role: FrameRole): string {
 
 export function controlTypeLabel(type: ControlType): string {
   return CONTROL_TYPE[type];
+}
+
+/** A role and control type as another build or the server names them: the
+ * label this build knows, else the name as it came. */
+export function roleLabelOf(role: string, control: string | null): string {
+  if (role === "control" && control && control in CONTROL_TYPE) {
+    return CONTROL_TYPE[control as ControlType];
+  }
+  return role in ROLE ? ROLE[role as FrameRole] : role;
 }
 
 /** "Input 2": a frame by its place in the list. */
@@ -388,23 +397,22 @@ export function entryDeletedText(name: string): string {
   return `"${name}" deleted`;
 }
 
-export const DELETE_INSTEAD = "Storage is full. Delete it for good instead?";
-export const DELETE_FOR_GOOD = "Delete";
-export const UNREADABLE_DELETE_FAILED = "Could not delete the entry";
+/** What a saved entry holds, as its card and the trash describe it. */
+export interface EntryShape {
+  kind: "frame" | "set";
+  frames: number;
+  pictures: number;
+  /** A frame entry's role ("Reference", "ControlNet"); null for a set. */
+  roleLabel: string | null;
+  size: Size;
+}
 
 /** "Frame · Reference · 3 pictures", "Set · 4 inputs · 1024×1024": what an entry holds. */
-export function entryLine(
-  kind: "frame" | "set",
-  frames: readonly (Pick<Frame, "role" | "control"> & { pictures: readonly unknown[] })[],
-  size: Size,
-): string {
-  if (kind === "set") {
-    return `Set · ${plural(frames.length, "input", "inputs")} · ${size.width}×${size.height}`;
+export function entryLine(shape: EntryShape): string {
+  if (shape.kind === "set") {
+    return `Set · ${plural(shape.frames, "input", "inputs")} · ${shape.size.width}×${shape.size.height}`;
   }
-  const [frame] = frames;
-  const pictures = frame ? frame.pictures.length : 0;
-  const role = frame ? frameRoleLabel(frame) : "";
-  return `Frame · ${role} · ${plural(pictures, "picture", "pictures")}`;
+  return `Frame · ${shape.roleLabel ?? ""} · ${plural(shape.pictures, "picture", "pictures")}`;
 }
 
 export const ADD_TO_INPUTS = "Add to inputs";
@@ -422,7 +430,6 @@ export const LIBRARY_EMPTY =
   "Nothing saved yet. Save a frame from the bar above it, or the inputs from the Input tab.";
 export const LIBRARY_NO_MATCH = "No saved inputs match the search";
 export const NEWER_ENTRY = "Saved by a newer version of Enso";
-export const DELETE_ENTRY = "Delete";
 
 /** What clicking a card does, short: a frame is added, a set takes the inputs' place. */
 export function entryVerb(kind: "frame" | "set"): string {
@@ -437,17 +444,12 @@ export function entryVerbHint(kind: "frame" | "set"): string {
 }
 
 /** A card's accessible name: '"Portrait", set of 4 inputs, pinned; Enter replaces the inputs'. */
-export function entryName(
-  name: string,
-  kind: "frame" | "set",
-  frames: readonly (Pick<Frame, "role" | "control"> & { pictures: readonly unknown[] })[],
-  pinned: boolean,
-): string {
+export function entryName(name: string, shape: EntryShape, pinned: boolean): string {
   const what =
-    kind === "set"
-      ? `set of ${plural(frames.length, "input", "inputs")}`
-      : `${frames[0] ? frameRoleLabel(frames[0]) : "empty"} frame, ${plural(frames[0]?.pictures.length ?? 0, "picture", "pictures")}`;
-  const verb = kind === "set" ? "Enter replaces the inputs" : "Enter adds it to the inputs";
+    shape.kind === "set"
+      ? `set of ${plural(shape.frames, "input", "inputs")}`
+      : `${shape.roleLabel ?? "empty"} frame, ${plural(shape.pictures, "picture", "pictures")}`;
+  const verb = shape.kind === "set" ? "Enter replaces the inputs" : "Enter adds it to the inputs";
   return `"${name}", ${what}${pinned ? ", pinned" : ""}; ${verb}`;
 }
 
@@ -496,28 +498,49 @@ export function removalTitle({ cause, from, content }: StoredRemoval): string {
 }
 
 /** A library entry as the trash names it: '"Portrait", from the library (set, 3 inputs)'. */
-export function entryTrashTitle(entry: Pick<StoredEntry, "name" | "kind" | "inputs">): string {
-  const { frames } = entry.inputs;
+export function entryTrashTitle(name: string, shape: EntryShape): string {
   const what =
-    entry.kind === "set"
-      ? `set, ${plural(frames.length, "input", "inputs")}`
-      : `${frames[0] ? frameRoleLabel(frames[0]) : "empty"} frame`;
-  return `"${entry.name}", from the library (${what})`;
+    shape.kind === "set"
+      ? `set, ${plural(shape.frames, "input", "inputs")}`
+      : `${shape.roleLabel ?? "empty"} frame`;
+  return `"${name}", from the library (${what})`;
 }
 
 const HOUR = 60 * 60 * 1000;
 const DAY = 24 * HOUR;
 
-/** "removed 3 h ago · 6 days left", or that it goes at the next start. */
-export function trashAgeText(removedAt: number, expiresAt: number, now: number): string {
-  const left = expiresAt - now;
+/** "removed 3 h ago · 6 days left"; an entry on the server says who removed
+ * it ("removed by alice", "pushed out by alice's save"). Past its time, what
+ * this browser stores goes at the next start and the server's within five
+ * minutes, at its next pass. */
+export function trashAgeText(
+  item: {
+    removedAt: number;
+    expiresAt: number;
+    source: "removal" | "entry" | "legacy";
+    by: string | null;
+    cause: "removed" | "evicted";
+  },
+  now: number,
+): string {
+  const left = item.expiresAt - now;
   const when =
     left <= 0
-      ? "goes at the next start"
+      ? item.source === "entry"
+        ? "goes within 5 minutes"
+        : "goes at the next start"
       : left >= DAY
         ? `${plural(Math.floor(left / DAY), "day", "days")} left`
         : `${plural(Math.max(1, Math.floor(left / HOUR)), "hour", "hours")} left`;
-  return `removed ${ageText(now - removedAt)} · ${when}`;
+  const what =
+    item.cause === "evicted"
+      ? item.by
+        ? `pushed out by ${item.by}'s save`
+        : "pushed out"
+      : item.by
+        ? `removed by ${item.by}`
+        : "removed";
+  return `${what} ${ageText(now - item.removedAt)} · ${when}`;
 }
 
 export const TRASH_EMPTY_LABEL = "Empty the trash";
@@ -537,21 +560,6 @@ export function trashEmptyText(days: number): string {
   return `Nothing in the trash. Removed inputs stay here ${keptForText(days)}.`;
 }
 
-/** "12 removed inputs and 2 saved entries": what the trash holds. */
-export function trashCountText(removals: number, entries: number): string {
-  const parts: string[] = [];
-  if (removals > 0) parts.push(plural(removals, "removed input", "removed inputs"));
-  if (entries > 0) parts.push(plural(entries, "saved entry", "saved entries"));
-  return parts.join(" and ") || "nothing";
-}
-
-/** What Empty asks before it deletes. */
-export function emptyTrashText(removals: number, entries: number, bytes: number | null): string {
-  const size = bytes === null ? "" : aboutSize(bytes);
-  const freed = size ? ` ${size.charAt(0).toUpperCase()}${size.slice(1)} is freed.` : "";
-  return `Delete ${trashCountText(removals, entries)} now?${freed} They cannot be brought back.`;
-}
-
 /** After deleting from the trash: the space freed, or when it will be. */
 export function reclaimedText(freed: number | null): string {
   return freed === null
@@ -566,20 +574,11 @@ export function untrashedText(name: string): string {
   return `"${name}" is back in the library`;
 }
 
-export const PINS_FULL_ON_RESTORE = "It came back unpinned: the pins are full";
-
 /** "Keep removed inputs for": the settings row and its lines. */
 export const TRASH_DAYS_LABEL = "Keep removed inputs for";
 
 export function trashDaysValue(days: number): string {
   return plural(days, "day", "days");
-}
-
-/** The settings row's line: what the trash keeps, or what a shorter time drops. */
-export function trashDaysText(going: number): string {
-  return going > 0
-    ? `${plural(going, "removed input goes", "removed inputs go")} at the next start`
-    : "Removed inputs stay in the trash this long";
 }
 
 export const RESTORED_FROM_TRASH = "Restored from the trash";

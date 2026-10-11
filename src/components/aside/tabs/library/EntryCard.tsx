@@ -1,7 +1,9 @@
 // One saved frame or set. Clicking a frame adds it to the inputs, clicking a
 // set puts it in their place; the row under the name says which, and holds
 // the other recall, Pin and Remove. Rename is in the menu and on F2, never on
-// a double click, which would run the click twice.
+// a double click, which would run the click twice. An entry an older build
+// kept in this browser recalls and nothing else until it is moved; one a
+// newer build saved can only go to the trash.
 
 import { useEffect, useRef, useState } from "react";
 import {
@@ -14,6 +16,9 @@ import {
   Trash2,
   type LucideIcon,
 } from "lucide-react";
+import { toast } from "sonner";
+import { blobUrl } from "@/api/blobs";
+import { mediaUrl } from "@/api/session";
 import {
   ContextMenu,
   ContextMenuContent,
@@ -25,24 +30,24 @@ import { ActionSlot } from "@/components/ui/action-slot";
 import { useDragSource } from "@/hooks/useDragSource";
 import { useNearViewport } from "@/hooks/useNearViewport";
 import { renameEntry, setPinned, trashEntry } from "@/inputs/library";
-import { recallEntry, type RecallMode } from "@/inputs/recall";
-import { useThumb } from "@/inputs/thumbs";
-import { entryThumbs } from "@/lib/inputs/library";
-import type { StoredEntry } from "@/lib/inputs/stored";
+import { recallEntry, recallLegacyEntry, type RecallMode } from "@/inputs/recall";
 import {
   ADD_TO_INPUTS,
   entryLine,
   entryName,
   entryVerb,
   entryVerbHint,
+  NEWER_ENTRY,
   PIN_ENTRY,
   REMOVE_ENTRY,
   RENAME_ENTRY,
   REPLACE_INPUTS,
   UNPIN_ENTRY,
 } from "@/lib/inputs/text";
+import { MOVE_FIRST } from "@/lib/media/text";
 import { cn } from "@/lib/utils";
 import { EntryThumbs } from "./EntryThumbs";
+import type { EntryModel } from "./entryModel";
 
 const RECALL: Record<RecallMode, { label: string; icon: LucideIcon }> = {
   add: { label: ADD_TO_INPUTS, icon: ArrowDownToLine },
@@ -52,22 +57,27 @@ const RECALL: Record<RecallMode, { label: string; icon: LucideIcon }> = {
 function MenuItem({
   icon: Icon,
   label,
+  reason = null,
   onSelect,
 }: {
   icon: LucideIcon;
   label: string;
+  reason?: string | null;
   onSelect: () => void;
 }) {
   return (
-    <ContextMenuItem className="text-2xs" onSelect={onSelect}>
+    <ContextMenuItem className="text-2xs" disabled={reason !== null} onSelect={onSelect}>
       <Icon size={14} />
-      {label}
+      <span className="flex min-w-0 flex-col">
+        <span>{label}</span>
+        {reason && <span className="text-3xs leading-tight text-muted-foreground">{reason}</span>}
+      </span>
     </ContextMenuItem>
   );
 }
 
 interface EntryCardProps {
-  entry: StoredEntry;
+  entry: EntryModel;
   /** 0 for the one card of the grid that Tab reaches. */
   tabIndex: 0 | -1;
   onFocusCard: (id: string) => void;
@@ -80,25 +90,43 @@ export function EntryCard({ entry, tabIndex, onFocusCard }: EntryCardProps) {
   const near = useNearViewport(cardRef);
   const [renaming, setRenaming] = useState(false);
   const [busy, setBusy] = useState(false);
-  const { pictures, more } = entryThumbs(entry);
-  const first = pictures[0];
-  const dragImage = useThumb(first && !first.missing ? { ...first, file: null } : null, near);
+  const server = entry.source === "server";
+  const first = entry.cells[0];
+  const dragImage =
+    first?.kind === "server" && !first.lost ? mediaUrl(blobUrl(first.hash)) : undefined;
   const drag = useDragSource(
-    renaming ? null : { type: "library-entry", entryId: entry.id, src: dragImage ?? undefined },
+    renaming || !server || entry.newer
+      ? null
+      : { type: "library-entry", entryId: entry.id, src: dragImage },
   );
+
+  // why each action cannot run, or null
+  const recallReason = entry.newer ? NEWER_ENTRY : null;
+  const changeReason = entry.newer ? NEWER_ENTRY : server ? null : MOVE_FIRST;
+  const removeReason = server ? null : MOVE_FIRST;
 
   const primary: RecallMode = entry.kind === "set" ? "replace" : "add";
   const other: RecallMode = primary === "add" ? "replace" : "add";
-  const { frames, size } = entry.inputs;
 
   const recall = (mode: RecallMode) => {
+    if (recallReason) {
+      toast.info(recallReason);
+      return;
+    }
     if (busy) return;
     setBusy(true);
-    void recallEntry(entry.id, mode).finally(() => setBusy(false));
+    const run = server ? recallEntry(entry.id, mode) : recallLegacyEntry(entry.id, mode);
+    void run.finally(() => setBusy(false));
   };
   const togglePin = () => void setPinned(entry.id, !entry.pinned);
-  const remove = () => void trashEntry(entry.id);
-  const startRename = () => setRenaming(true);
+  const remove = () => {
+    if (removeReason) toast.info(removeReason);
+    else void trashEntry(entry.id);
+  };
+  const startRename = () => {
+    if (changeReason) toast.info(changeReason);
+    else setRenaming(true);
+  };
 
   useEffect(() => {
     if (!renaming) return;
@@ -166,12 +194,17 @@ export function EntryCard({ entry, tabIndex, onFocusCard }: EntryCardProps) {
             type="button"
             data-entry-main
             tabIndex={tabIndex}
-            aria-label={entryName(entry.name, entry.kind, frames, entry.pinned)}
+            aria-label={entryName(entry.name, entry.shape, entry.pinned)}
             onFocus={() => onFocusCard(entry.id)}
             onKeyDown={onMainKeyDown}
             className="block w-full rounded-t-md outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
-            <EntryThumbs pictures={pictures} more={more} active={near} />
+            <EntryThumbs
+              cells={entry.cells}
+              more={entry.more}
+              active={near}
+              note={entry.newer ? NEWER_ENTRY : null}
+            />
           </button>
           <div className="flex min-w-0 flex-col gap-0.5 px-1.5 pt-1">
             <div className="flex min-w-0 items-center gap-1">
@@ -199,7 +232,7 @@ export function EntryCard({ entry, tabIndex, onFocusCard }: EntryCardProps) {
               )}
             </div>
             <span className="truncate text-4xs text-muted-foreground">
-              {entryLine(entry.kind, frames, size)}
+              {entryLine(entry.shape)}
             </span>
           </div>
           <div className="flex h-6 items-center gap-0.5 px-1 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
@@ -213,7 +246,7 @@ export function EntryCard({ entry, tabIndex, onFocusCard }: EntryCardProps) {
             <ActionSlot
               label={RECALL[other].label}
               icon={RECALL[other].icon}
-              reason={null}
+              reason={recallReason}
               busy={busy}
               tabIndex={-1}
               onAct={() => recall(other)}
@@ -221,14 +254,14 @@ export function EntryCard({ entry, tabIndex, onFocusCard }: EntryCardProps) {
             <ActionSlot
               label={pinLabel}
               icon={entry.pinned ? PinOff : Pin}
-              reason={null}
+              reason={changeReason}
               tabIndex={-1}
               onAct={togglePin}
             />
             <ActionSlot
               label={REMOVE_ENTRY}
               icon={Trash2}
-              reason={null}
+              reason={removeReason}
               tabIndex={-1}
               onAct={remove}
             />
@@ -236,13 +269,18 @@ export function EntryCard({ entry, tabIndex, onFocusCard }: EntryCardProps) {
         </div>
       </ContextMenuTrigger>
       <ContextMenuContent className="w-48">
-        <MenuItem {...RECALL[primary]} onSelect={() => recall(primary)} />
-        <MenuItem {...RECALL[other]} onSelect={() => recall(other)} />
+        <MenuItem {...RECALL[primary]} reason={recallReason} onSelect={() => recall(primary)} />
+        <MenuItem {...RECALL[other]} reason={recallReason} onSelect={() => recall(other)} />
         <ContextMenuSeparator />
-        <MenuItem icon={entry.pinned ? PinOff : Pin} label={pinLabel} onSelect={togglePin} />
-        <MenuItem icon={Pencil} label={RENAME_ENTRY} onSelect={startRename} />
+        <MenuItem
+          icon={entry.pinned ? PinOff : Pin}
+          label={pinLabel}
+          reason={changeReason}
+          onSelect={togglePin}
+        />
+        <MenuItem icon={Pencil} label={RENAME_ENTRY} reason={changeReason} onSelect={startRename} />
         <ContextMenuSeparator />
-        <MenuItem icon={Trash2} label={REMOVE_ENTRY} onSelect={remove} />
+        <MenuItem icon={Trash2} label={REMOVE_ENTRY} reason={removeReason} onSelect={remove} />
       </ContextMenuContent>
     </ContextMenu>
   );

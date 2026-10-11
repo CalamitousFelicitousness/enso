@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import { create } from "zustand";
 import { newId } from "@/lib/id";
 import { inputsReady } from "@/stores/inputStore";
-import { LIBRARY, TRASH } from "@/lib/inputs/storeLayout";
+import { TRASH } from "@/lib/inputs/storeLayout";
 import {
   joinRemoval,
   readRemoval,
@@ -17,7 +17,7 @@ import {
   type Removal,
   type StoredRemoval,
 } from "@/lib/inputs/stored";
-import { TRASH_DAYS, trashDays } from "@/lib/inputs/sweep";
+import { TRASH_DAYS } from "@/lib/inputs/sweep";
 import {
   DELETE_FROM_TRASH_FAILED,
   deletedFromTrashText,
@@ -33,9 +33,10 @@ import {
   readTrashDays,
   reclaimableBytes,
   writeDocument,
-  writeTrashDays,
   type Reclaimed,
 } from "./db";
+import { aboutSize, serverFreedText } from "@/lib/media/text";
+import { deleteEntry, emptyServerTrash } from "./library";
 import { liveCids } from "./live";
 import { failureText, isQuotaError, spaceFreed } from "./quota";
 import { forgetThumbs } from "./thumbs";
@@ -156,24 +157,10 @@ export function markRestoring(id: string, on: boolean): void {
   });
 }
 
-/** Set how many days the trash keeps what goes to it. The setting shows the
- * new value at once, so a run of key steps is not lost to the write. */
-export async function setTrashDays(days: number): Promise<void> {
-  const previous = useTrash.getState().days;
-  useTrash.setState({ days: trashDays(days) });
-  try {
-    await writeTrashDays(days);
-  } catch (err) {
-    console.error("[inputs] could not store the trash days", err);
-    useTrash.setState({ days: previous });
-    toast.error("Could not change how long the trash keeps things");
-  }
-}
-
 /** Delete records for good, freeing their bytes now when this is the only
  * Enso tab and at the next start in one tab otherwise, and say so under
  * `title`. False when nothing was deleted. */
-export async function deleteAndTell(
+async function deleteAndTell(
   targets: readonly { store: string; key: string }[],
   title: string,
   failedTitle: string,
@@ -196,16 +183,60 @@ export async function deleteAndTell(
   return true;
 }
 
-/** Delete items from the trash for good. The library's list is the caller's
- * to read again. */
-export async function deleteNow(
-  items: readonly Pick<TrashItem, "source" | "key">[],
-): Promise<void> {
-  if (items.length === 0) return;
+/** Delete one item from the trash for good: a removal here, or a saved entry
+ * for everyone. An older build's entry waits to be moved first. */
+export async function deleteNow(item: Pick<TrashItem, "source" | "key">): Promise<void> {
+  if (item.source === "entry") {
+    await deleteEntry(item.key);
+    return;
+  }
+  if (item.source !== "removal") return;
   const deleted = await deleteAndTell(
-    items.map((item) => ({ store: item.source === "removal" ? TRASH : LIBRARY, key: item.key })),
-    deletedFromTrashText(items.length),
+    [{ store: TRASH, key: item.key }],
+    deletedFromTrashText(1),
     DELETE_FROM_TRASH_FAILED,
   );
   if (deleted) await loadTrash();
+}
+
+/** Empty the trash as it was listed: the removals here, freed now when this
+ * is the only Enso tab, and the saved entries for everyone. One notice says
+ * what each part freed. */
+export async function emptyTrash(
+  removals: readonly string[],
+  entries: readonly string[],
+  serverReclaimable: number | null,
+): Promise<void> {
+  const parts: string[] = [];
+  if (removals.length > 0) {
+    try {
+      const outcome = await deleteForGood(
+        removals.map((key) => ({ store: TRASH, key })),
+        liveCids,
+      );
+      const freed = "freed" in outcome ? outcome.freed : null;
+      if ("cids" in outcome) forgetThumbs(outcome.cids);
+      if (freed !== null && freed > 0) spaceFreed();
+      parts.push(
+        entries.length > 0 && freed !== null && freed > 0
+          ? `${aboutSize(freed)} freed here`
+          : reclaimedText(freed),
+      );
+    } catch (err) {
+      console.error("[inputs] could not empty the trash", err);
+      toast.error(DELETE_FROM_TRASH_FAILED, {
+        description: isQuotaError(err) ? FULL_WITH_OTHER_TABS : failureText(err),
+      });
+    }
+    await loadTrash();
+  }
+  if (entries.length > 0) {
+    const server = await emptyServerTrash(entries);
+    if (server) parts.push(serverFreedText(server.freed, serverReclaimable));
+  }
+  if (parts.length > 0) {
+    toast(deletedFromTrashText(removals.length + entries.length), {
+      description: parts.join(". "),
+    });
+  }
 }

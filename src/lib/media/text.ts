@@ -20,7 +20,10 @@ export function ageText(ms: number): string {
 export function aboutSize(bytes: number): string {
   if (bytes < 1024 * 1024) return `about ${Math.max(1, Math.round(bytes / 1024))} KB`;
   if (bytes < 1024 * 1024 * 1024) return `about ${Math.round(bytes / (1024 * 1024))} MB`;
-  return `about ${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
+  const gb = bytes / (1024 * 1024 * 1024);
+  if (gb < 10) return `about ${gb.toFixed(1)} GB`;
+  if (gb < 1024) return `about ${Math.round(gb)} GB`;
+  return `about ${(gb / 1024).toFixed(1)} TB`;
 }
 
 /** Why an upload did not land. */
@@ -125,3 +128,207 @@ export function submitFailureText(failure: SubmitFailure): string {
 /** A server from before the media store: nothing can be uploaded to it. */
 export const OLDER_SERVER = "This server has no media store (older Enso)";
 export const STORE_OFF = "The media store is off";
+
+const capitalised = (text: string) => `${text.charAt(0).toUpperCase()}${text.slice(1)}`;
+
+// The library and its trash on the server
+
+/** "Media store off: the folder is not writable": the reason the server gave. */
+export function storeOffText(reason: string | null): string {
+  return reason ? `Media store off: ${reason}` : STORE_OFF;
+}
+
+export const LIBRARY_READ_FAILED = "Could not read the library";
+export const LOADING = "Loading";
+export const NOT_MOVED_HEADING = "In this browser, not moved yet";
+export const MOVE_FIRST = "Move it to the server first";
+export const DELETE_FOR_EVERYONE = "Delete for everyone";
+export const SAVING = "Saving to the library";
+
+/** "3 saved entries in this browser, not moved yet". */
+export function notMovedText(entries: number): string {
+  return `${plural(entries, "saved entry", "saved entries")} in this browser, not moved yet`;
+}
+
+/** '"Portrait" is in the trash; restore it first'. */
+export function inTrashText(name: string): string {
+  return `"${name}" is in the trash; restore it first`;
+}
+
+/** "It came back unpinned: 20 entries are pinned". */
+export function unpinnedText(max: number): string {
+  return `It came back unpinned: ${max} entries are pinned`;
+}
+
+/** Asked before deleting an entry another user removed. */
+export function deleteForEveryoneText(name: string, by: string): string {
+  return `Delete "${name}" for everyone? ${by} removed it. It cannot be brought back.`;
+}
+
+/** The size a list's part of the trash frees, or nothing while unmeasured. */
+const sizePart = (bytes: number | null, where: string) =>
+  bytes === null ? null : `${aboutSize(bytes)} ${where}`;
+
+/** "12 removed inputs here · 2 saved entries on the server · about 85 MB
+ * here, about 1.2 GB on the server": what the trash holds and frees. */
+export function trashHeaderText(
+  removals: number,
+  entries: number,
+  here: number | null,
+  server: number | null,
+): string {
+  const parts: string[] = [];
+  if (removals > 0) parts.push(`${plural(removals, "removed input", "removed inputs")} here`);
+  if (entries > 0) parts.push(`${plural(entries, "saved entry", "saved entries")} on the server`);
+  const sizes = [
+    removals > 0 ? sizePart(here, "here") : null,
+    entries > 0 ? sizePart(server, "on the server") : null,
+  ].filter((s): s is string => s !== null);
+  if (sizes.length > 0) parts.push(sizes.join(", "));
+  return parts.join(" · ");
+}
+
+/** The entries other users removed, for the Empty dialog. */
+export interface RemovedByOthers {
+  count: number;
+  /** Their one name, when one user removed them all. */
+  name: string | null;
+}
+
+/** What Empty asks before it deletes the listed removals here and the
+ * listed entries for everyone. */
+export function emptyBothText(
+  removals: number,
+  entries: number,
+  others: RemovedByOthers,
+  here: number | null,
+  server: number | null,
+): string {
+  const parts: string[] = [];
+  if (removals > 0) {
+    parts.push(`${plural(removals, "removed input", "removed inputs")} from this browser`);
+  }
+  if (entries > 0) {
+    const whose =
+      others.count === 0
+        ? ""
+        : others.name
+          ? ` (${others.count === 1 ? "one" : others.count} removed by ${others.name})`
+          : ` (${others.count} removed by others)`;
+    parts.push(`${plural(entries, "saved entry", "saved entries")}${whose} for everyone`);
+  }
+  const sizes = [
+    removals > 0 ? sizePart(here, "here") : null,
+    entries > 0 ? sizePart(server, "on the server") : null,
+  ].filter((s): s is string => s !== null);
+  const freed = sizes.length > 0 ? ` ${capitalised(sizes.join(" and "))} are freed.` : "";
+  return `Delete ${parts.join(" and ")}?${freed} They cannot be brought back.`;
+}
+
+/** After deleting from the trash on the server: what it freed, and that the
+ * rest goes within the week when some was kept for a save in progress. */
+export function serverFreedText(freed: number, reclaimable: number | null): string {
+  if (freed === 0) {
+    return reclaimable
+      ? "No space freed on the server yet; it goes within the week"
+      : "No space freed on the server yet";
+  }
+  const rest = reclaimable !== null && freed < reclaimable ? "; the rest goes within the week" : "";
+  return `${aboutSize(freed)} freed on the server${rest}`;
+}
+
+// The settings the server keeps for every browser
+
+export const LIBRARY_CAP_LABEL = "Saved entries kept";
+export const RECORD_CAP_LABEL = "Job records kept per browser";
+export const STORE_ROW_LABEL = "Media store";
+export const SETTING_FAILED = "Could not change the setting";
+export const SETTINGS_FROZEN = "Settings are frozen on this server";
+
+/** The retention row's line: what a shorter time lets go, here and on the server. */
+export function trashDaysBothText(here: number, server: number): string {
+  if (here === 0 && server === 0) return "Removed inputs stay in the trash this long";
+  const local = `${plural(here, "removed input in this browser goes", "removed inputs in this browser go")} at the next start`;
+  if (server === 0) return local;
+  if (here === 0) {
+    return `${plural(server, "saved entry in the trash goes", "saved entries in the trash go")} within 5 minutes`;
+  }
+  return `${local}, ${plural(server, "saved entry", "saved entries")} within 5 minutes`;
+}
+
+/** The library cap row's line. */
+export function libraryCapText(moving: number): string {
+  return moving > 0
+    ? `${plural(moving, "saved entry moves", "saved entries move")} to the trash within 5 minutes`
+    : "Past this, the least recently used entries move to the trash";
+}
+
+/** The record cap row's line. */
+export function recordCapText(mine: number): string {
+  return mine > 0
+    ? `${plural(mine, "of this browser's job records is", "of this browser's job records are")} deleted within 5 minutes`
+    : "Each browser keeps this many job records on the server";
+}
+
+/** A reduction the server applies for every browser, asked before it is sent. */
+export function reductionText(
+  setting: "trash_days" | "library_cap" | "record_cap",
+  value: number,
+  counts: { here: number; server: number },
+): { title: string; description: string } {
+  switch (setting) {
+    case "trash_days":
+      return {
+        title: `Keep removed inputs for ${plural(value, "day", "days")}?`,
+        description: `${capitalised(trashDaysBothText(counts.here, counts.server))}, for every browser. They cannot be brought back.`,
+      };
+    case "library_cap":
+      return {
+        title: `Keep ${plural(value, "saved entry", "saved entries")}?`,
+        description: `${capitalised(libraryCapText(counts.server))}, for every browser.`,
+      };
+    case "record_cap":
+      return {
+        title: `Keep ${plural(value, "job record", "job records")} per browser?`,
+        description:
+          counts.here > 0
+            ? `${plural(counts.here, "of this browser's job records is", "of this browser's job records are")} deleted within 5 minutes, and other browsers' records past ${value} too. Their results lose Restore inputs and Run again. They cannot be brought back.`
+            : `Every browser's job records past ${value} are deleted within 5 minutes. Their results lose Restore inputs and Run again. They cannot be brought back.`,
+      };
+  }
+}
+
+/** The store row: where the store is and the space left, or why it is off. */
+export function storeRowText(
+  state: { enabled: boolean; reason: string | null; root: string | null },
+  free: number | null,
+  configured: string | null,
+): string {
+  if (!state.enabled) return `Off: ${state.reason ?? "the server keeps no media store"}`;
+  const where = state.root ?? "";
+  const space = free === null ? "" : ` · ${aboutSize(free)} free`;
+  const pending =
+    configured && configured !== state.root
+      ? ` · set to ${configured}, applies after a restart`
+      : "";
+  return `${where}${space}${pending}`;
+}
+
+/** The first answer from a server that keeps removed inputs for less time
+ * than this browser did. */
+export function retentionNoticeText(
+  server: number,
+  local: number,
+): { title: string; description: string; keep: string; use: string } {
+  return {
+    title: `This server keeps removed inputs for ${plural(server, "day", "days")}; this browser kept them for ${plural(local, "day", "days")}.`,
+    description: `Removed inputs older than ${plural(server, "day", "days")} go at the next start.`,
+    keep: `Keep ${plural(local, "day", "days")} on the server`,
+    use: `Use ${plural(server, "day", "days")}`,
+  };
+}
+
+/** The standing notice while the server keeps no uploads. */
+export const STORE_OFF_DETAIL =
+  "Uploads, the library and job records are unavailable until it is fixed and the server restarted.";
+export const OLDER_SERVER_DETAIL = "Uploads, the library and job records are unavailable.";

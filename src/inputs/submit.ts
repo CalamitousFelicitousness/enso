@@ -185,7 +185,7 @@ export async function prepare(submission: Submission): Promise<Prepared> {
 }
 
 /** The hashes a 422 names as not held; null for any other refusal. */
-function missingIn(err: unknown): Set<string> | null {
+export function missingHashes(err: unknown): Set<string> | null {
   if (!(err instanceof ApiError) || err.status !== 422) return null;
   const misses = missesOf(issuesOf(err) ?? []);
   return misses.length > 0 ? new Set(misses) : null;
@@ -284,7 +284,7 @@ export async function post(
       track(current, job);
       return { job, prepared: current };
     } catch (err) {
-      const misses = missingIn(err);
+      const misses = missingHashes(err);
       if (misses && attempt === 0) {
         current = await resend(current, misses);
         continue;

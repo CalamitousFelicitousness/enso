@@ -16,6 +16,7 @@ import { useShortcut } from "@/hooks/useShortcut";
 import { useLoadedModelNotice } from "@/hooks/useLoadedModelNotice";
 import { useModelSync } from "@/hooks/useModelSync";
 import { useSizeMultipleSync } from "@/hooks/useSizeMultipleSync";
+import { useMediaSync } from "@/inputs/mediaSync";
 import { ShortcutOverlay } from "@/components/ShortcutOverlay";
 import { CommandPalette } from "@/components/CommandPalette";
 import { ComparisonDialog } from "@/components/comparison/ComparisonDialog";
@@ -31,6 +32,7 @@ export function AppShell() {
   useLoadedModelNotice();
   useModelSync();
   useSizeMultipleSync();
+  useMediaSync();
 
   useShortcut("toggle-left-rail", () => useUiStore.getState().toggleLeftRail());
   useShortcut("toggle-left-panel", () => useUiStore.getState().toggleLeftPanel());

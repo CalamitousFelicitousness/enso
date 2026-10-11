@@ -8,11 +8,12 @@ import {
   listOrder,
   overCap,
   pinned,
+  shapeOfStored,
   type EntryFacts,
 } from "./library";
 import { newFrame } from "./reducers";
 import { DOCUMENT_SCHEMA, splitFrames } from "./stored";
-import { libraryCountText } from "./text";
+import { entryLine, entryName, libraryCountText, roleLabelOf } from "./text";
 import type { Frame } from "./types";
 
 const facts = (id: string, usedAt: number, patch: Partial<EntryFacts> = {}): EntryFacts => ({
@@ -115,5 +116,57 @@ describe("libraryCountText", () => {
   it("counts the entries the cap applies to, and the pins beside them", () => {
     expect(libraryCountText(38, LIBRARY_CAP, 4)).toBe("38 of 100 · 4 pinned");
     expect(libraryCountText(38, LIBRARY_CAP, 0)).toBe("38 of 100");
+  });
+});
+
+describe("what a card says an entry holds", () => {
+  const stored = (kind: "frame" | "set", frames: Frame[]) => ({
+    kind,
+    inputs: {
+      schema: DOCUMENT_SCHEMA,
+      size: { width: 1024, height: 768 },
+      sizeSource: null,
+      frames: splitFrames(frames).frames,
+    },
+  });
+
+  it("describes a frame by its role and pictures, a set by its inputs and size", () => {
+    const one = shapeOfStored(
+      stored("frame", [frame("f", "reference", picture("a"), picture("b"))]),
+    );
+    expect(one).toEqual({
+      kind: "frame",
+      frames: 1,
+      pictures: 2,
+      roleLabel: "Reference",
+      size: { width: 1024, height: 768 },
+    });
+    expect(entryLine(one)).toBe("Frame · Reference · 2 pictures");
+    const set = shapeOfStored(
+      stored("set", [
+        frame("a", "initial", layer("x")),
+        frame("b", "reference", picture("y"), picture("z")),
+      ]),
+    );
+    expect(set).toMatchObject({ frames: 2, pictures: 3, roleLabel: null });
+    expect(entryLine(set)).toBe("Set · 2 inputs · 1024×768");
+  });
+
+  it("names a card for screen readers with what Enter does", () => {
+    const one = shapeOfStored(stored("frame", [frame("f", "reference", picture("a"))]));
+    expect(entryName("portrait", one, false)).toBe(
+      '"portrait", Reference frame, 1 picture; Enter adds it to the inputs',
+    );
+    const set = shapeOfStored(stored("set", [frame("a", "initial"), frame("b", "reference")]));
+    expect(entryName("Inputs", set, true)).toBe(
+      '"Inputs", set of 2 inputs, pinned; Enter replaces the inputs',
+    );
+  });
+
+  it("labels a role the server names, and keeps a name it does not know", () => {
+    expect(roleLabelOf("control", "controlnet")).toBe("ControlNet");
+    expect(roleLabelOf("control", null)).toBe("Control");
+    expect(roleLabelOf("ipAdapter", null)).toBe("IP-Adapter");
+    expect(roleLabelOf("sketch", null)).toBe("sketch");
   });
 });

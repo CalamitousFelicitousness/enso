@@ -17,8 +17,10 @@ afterEach(() => {
 });
 
 /** A query client that notes what it is asked to read again, a clock and a timer queue. */
+/** A query client that notes what it reads again and the data events set. */
 function harness() {
   const read: string[] = [];
+  const data = new Map<string, unknown>();
   let time = 0;
   const timers: { at: number; run: () => void }[] = [];
   const live = createLiveQueries(
@@ -27,9 +29,16 @@ function harness() {
         read.push(JSON.stringify(filters?.queryKey));
         return Promise.resolve();
       },
+      setQueryData: (key: readonly unknown[], update: (old: unknown) => unknown) => {
+        const id = JSON.stringify(key);
+        data.set(id, update(data.get(id)));
+        return data.get(id);
+      },
     } as never,
-    () => time,
-    (run, ms) => timers.push({ at: time + ms, run }),
+    {
+      now: () => time,
+      schedule: (run: () => void, ms: number) => timers.push({ at: time + ms, run }),
+    },
   );
   const advance = (ms: number) => {
     time += ms;
@@ -38,7 +47,7 @@ function harness() {
       timer.run();
     }
   };
-  return { live, read, advance };
+  return { live, read, advance, data };
 }
 
 const key = (...parts: string[]) => JSON.stringify(parts);
@@ -63,12 +72,46 @@ describe("the server's change events", () => {
     expect(read).toHaveLength(3);
   });
 
-  it("read the records again once a pass or a verify has ended, not while a verify runs", () => {
-    const { live, read } = harness();
+  it("show a verify's progress at once, and read the report, records and library when it ends", () => {
+    const { live, read, data } = harness();
+    data.set(key("media-report"), { enabled: true });
     live.event({ type: "media", data: { verify: { running: true, checked: 1, total: 9 } } });
     expect(read).toEqual([]);
+    expect(data.get(key("media-report"))).toEqual({
+      enabled: true,
+      verify: { running: true, checked: 1, total: 9 },
+    });
     live.event({ type: "media", data: { verify: { running: false, checked: 9, total: 9 } } });
-    expect(read).toEqual([key("record")]);
+    expect(read).toEqual([key("media-report"), key("record"), key("library")]);
+  });
+
+  it("read the library, its trash and entries again when either changes", () => {
+    const { live, read, advance } = harness();
+    live.event({ type: "library", data: { ids: ["e1"] } });
+    live.event({ type: "trash", data: { ids: null } });
+    expect(read).toEqual([key("library")]);
+    advance(THROTTLE_MS);
+    expect(read).toEqual([key("library"), key("library")]);
+  });
+
+  it("put changed settings over the ones held, keeping their bounds", () => {
+    const { live, data } = harness();
+    data.set(key("media-settings"), {
+      trash_days: 7,
+      library_cap: 100,
+      bounds: { trash_days: {} },
+    });
+    live.event({
+      type: "settings",
+      data: { trash_days: 3, library_cap: 50, record_cap: 200, reserve_bytes: 1 },
+    });
+    expect(data.get(key("media-settings"))).toEqual({
+      trash_days: 3,
+      library_cap: 50,
+      record_cap: 200,
+      reserve_bytes: 1,
+      bounds: { trash_days: {} },
+    });
   });
 
   it("read every live key on each open of the socket", () => {

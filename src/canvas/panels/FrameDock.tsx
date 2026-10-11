@@ -13,6 +13,7 @@ import {
   GripVertical,
   ImagePlus,
   Info,
+  Loader2,
   MoreHorizontal,
   Scan,
   Settings,
@@ -41,6 +42,8 @@ import {
   SAVE_TO_LIBRARY,
   sentLabel,
 } from "@/lib/inputs/text";
+import { useLibrarySaving } from "@/inputs/library";
+import { SAVING } from "@/lib/media/text";
 import { composedPictures } from "@/lib/inputs/types";
 import type { FramePosition } from "@/lib/inputs/layout";
 import { ReferenceSortableOverlay } from "@/canvas/ReferenceSortableOverlay";
@@ -112,6 +115,7 @@ export function FrameDock({
   const movePicture = useInputStore((s) => s.movePicture);
   const setPictureVisible = useInputStore((s) => s.setPictureVisible);
   const showHiddenBySwitch = useInputStore((s) => s.showHiddenBySwitch);
+  const saving = useLibrarySaving((s) => s.saving > 0);
 
   // The drag activator is the grip handle; pointer-down elsewhere in the
   // header focuses the frame. The orchestrator's PointerSensor needs 4px.
@@ -259,9 +263,13 @@ export function FrameDock({
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-44">
-          <DropdownMenuItem className="text-2xs" onSelect={() => onSaveFrame?.(frame.frameId)}>
-            <BookmarkPlus size={14} />
-            {SAVE_TO_LIBRARY}
+          <DropdownMenuItem
+            className="text-2xs"
+            disabled={saving}
+            onSelect={() => onSaveFrame?.(frame.frameId)}
+          >
+            {saving ? <Loader2 size={14} className="animate-spin" /> : <BookmarkPlus size={14} />}
+            {saving ? SAVING : SAVE_TO_LIBRARY}
           </DropdownMenuItem>
           <DropdownMenuItem className="text-2xs" onSelect={() => duplicateFrame(frame.frameId)}>
             <Copy size={14} />

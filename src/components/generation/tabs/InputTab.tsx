@@ -1,13 +1,13 @@
 // The Input tab: the outline of the input document, what keeps the request
 // from being built, and the inspector of the selected frame.
 
-import { BookmarkPlus, Locate } from "lucide-react";
+import { BookmarkPlus, Loader2, Locate } from "lucide-react";
 import { useInputStore } from "@/stores/inputStore";
 import { useModelCapabilities } from "@/hooks/useModelCapabilities";
 import { Button } from "@/components/ui/button";
 import { SectionDivider } from "@/components/ui/section-leader";
 import { useOutlineWithEnv } from "@/inputs/useOutline";
-import { saveFrames } from "@/inputs/library";
+import { saveFrames, useLibrarySaving } from "@/inputs/library";
 import { applyFix } from "@/inputs/processing";
 import { revealFrame } from "@/inputs/reveal";
 import { outlineEntry, type Outline } from "@/lib/inputs/outline";
@@ -20,9 +20,15 @@ import {
   SAVE_FRAME,
   SAVE_SET,
 } from "@/lib/inputs/text";
+import { SAVING } from "@/lib/media/text";
 import { AddFrameMenu } from "./input/AddFrameMenu";
 import { FrameInspector } from "./input/FrameInspector";
 import { OutlineList } from "./input/OutlineList";
+
+/** The save icon, turning while a save to the library uploads. */
+function SaveIcon({ busy }: { busy: boolean }) {
+  return busy ? <Loader2 size={11} className="animate-spin" /> : <BookmarkPlus size={11} />;
+}
 
 const count = (n: number, one: string, many: string) => (n === 1 ? `1 ${one}` : `${n} ${many}`);
 
@@ -52,6 +58,7 @@ export function InputTab() {
       : null;
   });
   const { maxInputImages } = useModelCapabilities();
+  const saving = useLibrarySaving((s) => s.saving > 0);
   const lockedType = outline.controls[0]?.settings.type ?? null;
   const problem = outline.problems[0];
   const selected = selectedFrameId ? outlineEntry(outline, selectedFrameId) : undefined;
@@ -67,11 +74,13 @@ export function InputTab() {
             variant="ghost"
             size="icon-xs"
             className="text-muted-foreground"
+            disabled={saving}
+            aria-busy={saving || undefined}
             onClick={() => void saveFrames(env, "all")}
-            title={SAVE_SET}
+            title={saving ? SAVING : SAVE_SET}
             aria-label={SAVE_SET}
           >
-            <BookmarkPlus size={11} />
+            <SaveIcon busy={saving} />
           </Button>
         </span>
         <span className="font-mono text-2xs tabular-nums text-foreground">
@@ -118,10 +127,12 @@ export function InputTab() {
                 variant="ghost"
                 size="sm"
                 className="h-5 px-1.5 text-3xs text-muted-foreground"
+                disabled={saving}
+                aria-busy={saving || undefined}
                 onClick={() => void saveFrames(env, [selected.frameId])}
-                title="Save this frame to the library"
+                title={saving ? SAVING : "Save this frame to the library"}
               >
-                <BookmarkPlus size={11} />
+                <SaveIcon busy={saving} />
                 {SAVE_FRAME}
               </Button>
               <Button

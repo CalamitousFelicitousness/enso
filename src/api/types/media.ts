@@ -1,10 +1,22 @@
 export type {
+  ItemEntryV2,
   ItemRecordV2,
+  ItemThumbV2,
+  ReqEntryPatchV2,
+  ReqEntryV2,
+  ReqMediaSettingsV2,
   ReqRecordV2,
   ReqSubmitV2,
   ResBlobV2,
   ResClaimV2,
+  ResEntryChangeV2,
+  ResEntryV2,
+  ResFreedV2,
+  ResLibraryV2,
+  ResMediaReportV2,
+  ResMediaSettingsV2,
   ResRecordsV2,
   ResRecordV2,
+  ResTrashV2,
 } from "@/lib/openapi-generated/types.gen";
 export type { Issue, Refusal } from "../errorDetail";

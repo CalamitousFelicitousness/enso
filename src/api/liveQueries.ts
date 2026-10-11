@@ -5,12 +5,18 @@
 // connected.
 
 import type { QueryClient } from "@tanstack/react-query";
-import { recordKey, RECORDS_KEY } from "./queryKeys";
+import { LIBRARY_KEY, recordKey, RECORDS_KEY, REPORT_KEY, SETTINGS_KEY } from "./queryKeys";
+import type { ResMediaReportV2, ResMediaSettingsV2 } from "./types/media";
 
 export const THROTTLE_MS = 500;
 
 /** The queries whose data only events keep current. */
-export const LIVE_KEYS: readonly (readonly string[])[] = [RECORDS_KEY];
+export const LIVE_KEYS: readonly (readonly string[])[] = [
+  RECORDS_KEY,
+  LIBRARY_KEY,
+  REPORT_KEY,
+  SETTINGS_KEY,
+];
 
 const TOPICS = ["records", "media", "library", "trash", "settings"] as const;
 type Topic = (typeof TOPICS)[number];
@@ -32,9 +38,17 @@ function idsOf(data: unknown): string[] | null {
   return Array.isArray(ids) ? ids.filter((id): id is string => typeof id === "string") : null;
 }
 
-function verifyRunning(data: unknown): boolean {
-  return (data as { verify?: { running?: unknown } } | undefined)?.verify?.running === true;
+type Verify = NonNullable<ResMediaReportV2["verify"]>;
+
+function verifyOf(data: unknown): Verify | null {
+  const verify = (data as { verify?: Verify } | undefined)?.verify;
+  return verify && typeof verify === "object" ? verify : null;
 }
+
+type SettingValues = Pick<
+  ResMediaSettingsV2,
+  "trash_days" | "library_cap" | "record_cap" | "reserve_bytes"
+>;
 
 export interface LiveQueries {
   event(msg: GlobalEvent): void;
@@ -43,10 +57,14 @@ export interface LiveQueries {
 }
 
 export function createLiveQueries(
-  client: Pick<QueryClient, "invalidateQueries">,
-  now: () => number = Date.now,
-  schedule: (run: () => void, ms: number) => unknown = setTimeout,
+  client: Pick<QueryClient, "invalidateQueries" | "setQueryData">,
+  options: {
+    now?: () => number;
+    schedule?: (run: () => void, ms: number) => unknown;
+  } = {},
 ): LiveQueries {
+  const now = options.now ?? Date.now;
+  const schedule = options.schedule ?? setTimeout;
   const last = new Map<string, number>();
   const queued = new Set<string>();
   const read = (key: readonly unknown[]) => {
@@ -77,12 +95,33 @@ export function createLiveQueries(
           else invalidate(RECORDS_KEY);
           break;
         }
-        case "media":
-          // a pass or a verify can find blobs lost or back, which the records count
-          if (!verifyRunning(msg.data)) invalidate(RECORDS_KEY);
+        case "library":
+        case "trash":
+          invalidate(LIBRARY_KEY);
           break;
-        default:
+        case "settings": {
+          const values = msg.data as SettingValues | undefined;
+          if (!values) break;
+          client.setQueryData<ResMediaSettingsV2>(SETTINGS_KEY, (old) =>
+            old ? { ...old, ...values } : old,
+          );
           break;
+        }
+        case "media": {
+          const verify = verifyOf(msg.data);
+          if (verify) {
+            client.setQueryData<ResMediaReportV2>(REPORT_KEY, (old) =>
+              old ? { ...old, verify } : old,
+            );
+          }
+          // a pass or a verify can find blobs lost or back, which records and cards count
+          if (!verify?.running) {
+            invalidate(REPORT_KEY);
+            invalidate(RECORDS_KEY);
+            invalidate(LIBRARY_KEY);
+          }
+          break;
+        }
       }
     },
     opened() {

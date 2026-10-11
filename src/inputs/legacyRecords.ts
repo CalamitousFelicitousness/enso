@@ -1,10 +1,17 @@
-// What older builds kept of jobs in this browser, read while it waits to be
-// moved to the server: a card, a restore, Run again and a page start find in
-// it a job the server has no record of. Nothing here writes but the routed
-// mark, which keeps a page start from routing a job twice.
+// What older builds kept in this browser of jobs and the library, read while
+// it waits to be moved to the server: a card, a restore, Run again and a page
+// start find in it a job the server has no record of, the Library its entries.
+// Nothing here writes but the routed mark, which keeps a page start from
+// routing a job twice.
 
-import { readJob, type ReadJob, type StoredJob } from "@/lib/inputs/stored";
-import { JOBS } from "@/lib/inputs/storeLayout";
+import {
+  readEntry,
+  readJob,
+  type ReadJob,
+  type StoredEntry,
+  type StoredJob,
+} from "@/lib/inputs/stored";
+import { JOBS, LIBRARY } from "@/lib/inputs/storeLayout";
 import { stripDomain } from "@/lib/jobs/domains";
 import { readAllRecords, readDocument, updateRecord } from "./db";
 
@@ -53,4 +60,28 @@ export async function markLegacyRouted(id: string): Promise<void> {
     const { record } = readJob(raw);
     return record.routed ? null : readJob({ ...record, routed: true }).record;
   });
+}
+
+/** An older build's library entries, read while they wait to be moved, and
+ * the keys of those this build cannot read. */
+export interface LegacyEntries {
+  entries: StoredEntry[];
+  unreadable: string[];
+}
+
+export async function legacyEntries(): Promise<LegacyEntries> {
+  const found: LegacyEntries = { entries: [], unreadable: [] };
+  try {
+    for (const [key, value] of await readAllRecords(LIBRARY)) {
+      if (typeof key !== "string") continue;
+      try {
+        found.entries.push(readEntry(value).record);
+      } catch {
+        found.unreadable.push(key);
+      }
+    }
+  } catch (err) {
+    console.warn("[inputs] the library of an older build could not be read", err);
+  }
+  return found;
 }

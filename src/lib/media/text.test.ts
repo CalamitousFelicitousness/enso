@@ -3,9 +3,23 @@ import {
   aboutSize,
   ageText,
   batchText,
+  deleteForEveryoneText,
+  emptyBothText,
   fetchingText,
+  inTrashText,
   keptOutText,
+  libraryCapText,
+  notMovedText,
+  recordCapText,
+  reductionText,
+  retentionNoticeText,
+  serverFreedText,
+  storeOffText,
+  storeRowText,
   submitFailureText,
+  trashDaysBothText,
+  trashHeaderText,
+  unpinnedText,
   uploadFailureText,
   uploadingText,
 } from "./text";
@@ -30,6 +44,8 @@ describe("aboutSize", () => {
     expect(aboutSize(10)).toBe("about 1 KB");
     expect(aboutSize(85 * MB)).toBe("about 85 MB");
     expect(aboutSize(1.2 * 1024 * MB)).toBe("about 1.2 GB");
+    expect(aboutSize(231 * 1024 * MB)).toBe("about 231 GB");
+    expect(aboutSize(3.6 * 1024 * 1024 * MB)).toBe("about 3.6 TB");
   });
 });
 
@@ -81,5 +97,111 @@ describe("the words of a submit", () => {
       "This job was queued before and has since been removed",
     );
     expect(submitFailureText({ kind: "tooLarge" })).toContain("too large");
+  });
+});
+
+describe("the words of the library and its trash", () => {
+  it("say why the store or an entry cannot be used", () => {
+    expect(storeOffText("/x is not writable")).toBe("Media store off: /x is not writable");
+    expect(storeOffText(null)).toBe("The media store is off");
+    expect(notMovedText(1)).toBe("1 saved entry in this browser, not moved yet");
+    expect(notMovedText(38)).toBe("38 saved entries in this browser, not moved yet");
+    expect(inTrashText("Portrait")).toBe('"Portrait" is in the trash; restore it first');
+    expect(unpinnedText(20)).toBe("It came back unpinned: 20 entries are pinned");
+    expect(deleteForEveryoneText("Portrait", "alice")).toBe(
+      'Delete "Portrait" for everyone? alice removed it. It cannot be brought back.',
+    );
+  });
+
+  it("head the trash with what it holds here and on the server", () => {
+    expect(trashHeaderText(12, 2, 85 * MB, 1.2 * 1024 * MB)).toBe(
+      "12 removed inputs here · 2 saved entries on the server · about 85 MB here, about 1.2 GB on the server",
+    );
+    expect(trashHeaderText(1, 0, null, 5 * MB)).toBe("1 removed input here");
+    expect(trashHeaderText(0, 1, null, 5 * MB)).toBe(
+      "1 saved entry on the server · about 5 MB on the server",
+    );
+    expect(trashHeaderText(0, 0, 0, 0)).toBe("");
+  });
+
+  it("ask before emptying both parts, saying who removed the entries", () => {
+    expect(emptyBothText(12, 2, { count: 1, name: "alice" }, 85 * MB, 1.2 * 1024 * MB)).toBe(
+      "Delete 12 removed inputs from this browser and 2 saved entries (one removed by alice) for everyone? About 85 MB here and about 1.2 GB on the server are freed. They cannot be brought back.",
+    );
+    expect(emptyBothText(0, 3, { count: 2, name: null }, null, null)).toBe(
+      "Delete 3 saved entries (2 removed by others) for everyone? They cannot be brought back.",
+    );
+    expect(emptyBothText(1, 0, { count: 0, name: null }, 2 * MB, null)).toBe(
+      "Delete 1 removed input from this browser? About 2 MB here are freed. They cannot be brought back.",
+    );
+  });
+
+  it("say what emptying freed on the server, and that the rest goes later", () => {
+    expect(serverFreedText(85 * MB, 85 * MB)).toBe("about 85 MB freed on the server");
+    expect(serverFreedText(85 * MB, 120 * MB)).toBe(
+      "about 85 MB freed on the server; the rest goes within the week",
+    );
+    expect(serverFreedText(85 * MB, null)).toBe("about 85 MB freed on the server");
+    expect(serverFreedText(0, null)).toBe("No space freed on the server yet");
+    expect(serverFreedText(0, 85 * MB)).toBe(
+      "No space freed on the server yet; it goes within the week",
+    );
+  });
+});
+
+describe("the words of the shared settings", () => {
+  it("describe each row at rest and while lowered", () => {
+    expect(trashDaysBothText(0, 0)).toBe("Removed inputs stay in the trash this long");
+    expect(trashDaysBothText(3, 2)).toBe(
+      "3 removed inputs in this browser go at the next start, 2 saved entries within 5 minutes",
+    );
+    expect(trashDaysBothText(1, 0)).toBe("1 removed input in this browser goes at the next start");
+    expect(trashDaysBothText(0, 1)).toBe("1 saved entry in the trash goes within 5 minutes");
+    expect(libraryCapText(0)).toBe("Past this, the least recently used entries move to the trash");
+    expect(libraryCapText(1)).toBe("1 saved entry moves to the trash within 5 minutes");
+    expect(libraryCapText(12)).toBe("12 saved entries move to the trash within 5 minutes");
+    expect(recordCapText(0)).toBe("Each browser keeps this many job records on the server");
+    expect(recordCapText(40)).toBe("40 of this browser's job records are deleted within 5 minutes");
+  });
+
+  it("ask before a reduction, with what it lets go for every browser", () => {
+    expect(reductionText("trash_days", 1, { here: 3, server: 0 })).toEqual({
+      title: "Keep removed inputs for 1 day?",
+      description:
+        "3 removed inputs in this browser go at the next start, for every browser. They cannot be brought back.",
+    });
+    expect(reductionText("library_cap", 50, { here: 0, server: 12 })).toEqual({
+      title: "Keep 50 saved entries?",
+      description: "12 saved entries move to the trash within 5 minutes, for every browser.",
+    });
+    expect(reductionText("record_cap", 50, { here: 40, server: 0 }).description).toBe(
+      "40 of this browser's job records are deleted within 5 minutes, and other browsers' records past 50 too. Their results lose Restore inputs and Run again. They cannot be brought back.",
+    );
+    expect(reductionText("record_cap", 50, { here: 0, server: 0 }).description).toBe(
+      "Every browser's job records past 50 are deleted within 5 minutes. Their results lose Restore inputs and Run again. They cannot be brought back.",
+    );
+  });
+
+  it("say where the store is, what is free, and a root waiting for a restart", () => {
+    const on = { enabled: true, reason: null, root: "/data/enso" };
+    expect(storeRowText(on, 231 * 1024 * MB, "/data/enso")).toBe("/data/enso · about 231 GB free");
+    expect(storeRowText(on, null, "/other")).toBe(
+      "/data/enso · set to /other, applies after a restart",
+    );
+    expect(
+      storeRowText({ enabled: false, reason: "/x is not writable", root: null }, null, null),
+    ).toBe("Off: /x is not writable");
+    expect(storeRowText({ enabled: false, reason: null, root: null }, null, null)).toBe(
+      "Off: the server keeps no media store",
+    );
+  });
+
+  it("offer a choice when the server keeps removed inputs for less time", () => {
+    expect(retentionNoticeText(7, 30)).toEqual({
+      title: "This server keeps removed inputs for 7 days; this browser kept them for 30 days.",
+      description: "Removed inputs older than 7 days go at the next start.",
+      keep: "Keep 30 days on the server",
+      use: "Use 7 days",
+    });
   });
 });

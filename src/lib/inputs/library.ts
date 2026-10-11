@@ -3,7 +3,7 @@
 
 import { planTrim } from "@/lib/trim";
 import type { EntryKind, StoredEntry, StoredPicture } from "./stored";
-import { frameRoleLabel, positionLabel } from "./text";
+import { frameRoleLabel, positionLabel, type EntryShape } from "./text";
 import { isComposed, type Frame } from "./types";
 
 /** Unpinned entries the library keeps; past it, the least recently used goes to the trash. */
@@ -88,4 +88,20 @@ export function entryThumbs(entry: Pick<StoredEntry, "kind" | "inputs">): {
       : (frames[0]?.pictures ?? []);
   const limit = entry.kind === "frame" && frames[0] && isComposed(frames[0].role) ? 1 : 4;
   return { pictures: shown.slice(0, limit), more: Math.max(0, shown.length - limit) };
+}
+
+/** What an entry this browser stored holds, as its card and the trash say it. */
+export function shapeOfStored(entry: Pick<StoredEntry, "kind" | "inputs">): EntryShape {
+  const { frames, size } = entry.inputs;
+  const first = frames[0];
+  return {
+    kind: entry.kind,
+    frames: frames.length,
+    pictures:
+      entry.kind === "set"
+        ? frames.reduce((n, f) => n + f.pictures.length, 0)
+        : (first?.pictures.length ?? 0),
+    roleLabel: entry.kind === "frame" && first ? frameRoleLabel(first) : null,
+    size,
+  };
 }
