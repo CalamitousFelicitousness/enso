@@ -1085,6 +1085,53 @@ export function joinInputs(
   return { inputs: { size: { ...inputs.size }, sizeSource: inputs.sizeSource, frames }, lost };
 }
 
+/** A job's record as the server returns it, in the stored shape: its request,
+ * the sources of its uploads, its frames, map keys and sent maps, each checked
+ * as a stored record's is. Fields the server adds beside them are not read. */
+export function readServerRecord(value: unknown): StoredJob {
+  const r = fields<Record<string, unknown>>(value, "record");
+  const refs = fields<Record<string, unknown>>(r["refs"], "record.refs");
+  const request = fields<Record<string, JsonValue>>(r["request"], "record.request");
+  return {
+    schema: JOB_SCHEMA,
+    id: text(r["job_id"], "record.job_id"),
+    domain: oneOf(r["domain"], DOMAINS, "record.domain"),
+    createdAt: num(r["created_at"], "record.created_at"),
+    checkpoint: orNull(r["checkpoint"] ?? null, (raw) => {
+      const c = fields<{ title: string; name: string }>(raw, "record.checkpoint");
+      return {
+        title: text(c.title, "record.checkpoint.title"),
+        name: text(c.name, "record.checkpoint.name"),
+      };
+    }),
+    request: Object.fromEntries(
+      Object.entries(request).map(([key, v]) => [key, json(v, `record.request.${key}`)]),
+    ),
+    refs: Object.fromEntries(
+      Object.entries(refs).map(([ref, v]) => [ref, source(v, `record.refs.${ref}`)]),
+    ),
+    inputs: orNull(r["inputs"] ?? null, (raw) => readInputs(raw, "record.inputs", new Set())),
+    mapKeys: list(r["map_keys"], "record.map_keys").map((k, i) => text(k, `record.map_keys[${i}]`)),
+    maps: texts(r["maps"], "record.maps"),
+    routed: flag(r["routed"], "record.routed"),
+  };
+}
+
+/** Inputs in their stored form: frames with their bytes split from them, or
+ * frames another record stored, as they are. */
+export function storedInputsOf(inputs: Inputs | StoredInputs): StoredInputs {
+  return "schema" in inputs ? structuredClone(inputs) : splitInputs(inputs, new Map());
+}
+
+/** Stored inputs as a record on the server carries them, checked like the
+ * working document, with every cid they name. Throws on what this build
+ * cannot read. */
+export function readStoredInputs(value: unknown): { inputs: StoredInputs; cids: string[] } {
+  const cids = new Set<string>();
+  const inputs = readInputs(value, "inputs", cids);
+  return { inputs, cids: [...cids] };
+}
+
 export const ENTRY_SCHEMA = 1;
 
 /** A frame saved on its own, added to the inputs when recalled, or a set of

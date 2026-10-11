@@ -21,11 +21,12 @@ import {
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
 import { useRunAgain } from "@/hooks/useRunAgain";
-import { useJobFact } from "@/inputs/jobs";
+import { useJobFact } from "@/hooks/useJobFact";
 import { hasLegacyInputs } from "@/inputs/legacyResult";
 import { saveInputsAsSet } from "@/inputs/library";
-import { resultActions, type ActionReason } from "@/lib/jobs/cardActions";
+import { resultActions, type ResultAction, type Slot } from "@/lib/jobs/cardActions";
 import {
+  noteText,
   reasonText,
   RESTORE_BOTH,
   RESTORE_INPUTS,
@@ -54,22 +55,23 @@ interface ResultMenuProps {
 function Item({
   icon: Icon,
   label,
-  reason = null,
+  slot = null,
   onSelect,
 }: {
   icon: LucideIcon;
   label: string;
-  reason?: ActionReason | null;
+  /** Why the item cannot act, or how it will; none for an item that always can. */
+  slot?: Slot<ResultAction> | null;
   onSelect: () => void;
 }) {
+  const reason = slot?.reason ?? null;
+  const line = reason ? reasonText(reason) : slot?.note ? noteText(slot.note) : null;
   return (
     <ContextMenuItem disabled={reason !== null} onSelect={onSelect} className="text-2xs">
       <Icon size={14} />
       <span className="flex min-w-0 flex-col">
         <span>{label}</span>
-        {reason && (
-          <span className="text-3xs leading-tight text-muted-foreground">{reasonText(reason)}</span>
-        )}
+        {line && <span className="text-3xs leading-tight text-muted-foreground">{line}</span>}
       </span>
     </ContextMenuItem>
   );
@@ -104,25 +106,25 @@ export function ResultMenu({
         <Item
           icon={History}
           label={RESTORE_SETTINGS}
-          reason={reasons.restoreSettings}
+          slot={reasons.restoreSettings}
           onSelect={() => restoreSettings(target())}
         />
         <Item
           icon={ImageDown}
           label={RESTORE_INPUTS}
-          reason={reasons.restoreInputs}
+          slot={reasons.restoreInputs}
           onSelect={() => void restoreInputs(target())}
         />
         <Item
           icon={ArchiveRestore}
           label={RESTORE_BOTH}
-          reason={reasons.restoreBoth}
+          slot={reasons.restoreBoth}
           onSelect={() => void restoreSettingsAndInputs(target())}
         />
         <Item
           icon={Repeat2}
           label={RUN_AGAIN}
-          reason={reasons.runAgain}
+          slot={reasons.runAgain}
           onSelect={() => {
             if (result.jobId && !running) void runAgain(result.jobId);
           }}
@@ -130,13 +132,13 @@ export function ResultMenu({
         <Item
           icon={BookmarkPlus}
           label="Save inputs to the library"
-          reason={reasons.saveInputs}
+          slot={reasons.saveInputs}
           onSelect={() =>
             void target()
-              .inputs()
+              .inputs({})
               .then((loaded) => {
                 if (loaded) void saveInputsAsSet(loaded.inputs, loaded.maps);
-                else toast.info(reasonText("notStored"));
+                else toast.info(reasonText("noRecord"));
               })
           }
         />

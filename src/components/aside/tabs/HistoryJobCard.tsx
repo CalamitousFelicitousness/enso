@@ -3,15 +3,13 @@ import { ArchiveRestore, History, Repeat2, Trash2, type LucideIcon } from "lucid
 import type { Job } from "@/api/types/v2";
 import { useDeleteJob } from "@/api/hooks/useJobs";
 import { useRunAgain } from "@/hooks/useRunAgain";
-import { useJobFact } from "@/inputs/jobs";
+import { useJobFact } from "@/hooks/useJobFact";
 import { historySlots, type HistoryAction } from "@/lib/jobs/cardActions";
 import { jobKind } from "@/lib/jobs/domains";
-import { reasonText, RESTORE_BOTH, RESTORE_SETTINGS, RUN_AGAIN } from "@/lib/jobs/text";
+import { noteText, reasonText, RESTORE_BOTH, RESTORE_SETTINGS, RUN_AGAIN } from "@/lib/jobs/text";
+import { ageText } from "@/lib/media/text";
 import { jobTarget, restoreSettings, restoreSettingsAndInputs } from "@/lib/request/restore";
 import { MediaImg } from "@/components/ui/media";
-import { useGenerationStore } from "@/stores/generationStore";
-import { useJobQueueStore } from "@/stores/jobStore";
-import { useVideoStore } from "@/stores/videoStore";
 import { Badge } from "@/components/ui/badge";
 import { JobWarnings } from "@/components/generation/JobWarnings";
 import { JOB_ICONS } from "./jobIcons";
@@ -36,15 +34,8 @@ function statusBadgeVariant(status: string): "default" | "secondary" | "destruct
   }
 }
 
-function formatRelativeTime(iso: string): string {
-  const seconds = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
-  if (seconds < 60) return "just now";
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `${minutes}m ago`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.floor(hours / 24);
-  return `${days}d ago`;
+function agoText(iso: string): string {
+  return ageText(Date.now() - new Date(iso).getTime());
 }
 
 interface HistoryJobCardProps {
@@ -55,9 +46,6 @@ export function HistoryJobCard({ job }: HistoryJobCardProps) {
   const deleteJob = useDeleteJob();
   const { runAgain, isRunning } = useRunAgain();
   const facts = useJobFact(job.id);
-  const onStrip = useGenerationStore((s) => s.results.some((r) => r.id === job.id));
-  const onVideoStrip = useVideoStore((s) => s.results.some((r) => r.id === job.id));
-  const tracked = useJobQueueStore((s) => s.jobs.has(job.id));
   const [restoring, setRestoring] = useState(false);
   const kind = jobKind(job.type);
   const TypeIcon = JOB_ICONS[kind.icon];
@@ -82,7 +70,6 @@ export function HistoryJobCard({ job }: HistoryJobCardProps) {
       type: job.type,
       status: job.status,
       hasParams: job.result !== null,
-      sentHere: onStrip || onVideoStrip || tracked,
     },
     facts,
   );
@@ -126,7 +113,7 @@ export function HistoryJobCard({ job }: HistoryJobCardProps) {
         )}
 
         <p className="text-4xs text-muted-foreground font-mono tabular-nums">
-          {formatRelativeTime(timestamp)}
+          {agoText(timestamp)}
         </p>
       </div>
 
@@ -138,6 +125,8 @@ export function HistoryJobCard({ job }: HistoryJobCardProps) {
             label={SLOTS[slot.action].label}
             icon={SLOTS[slot.action].icon}
             reason={slot.reason && reasonText(slot.reason)}
+            quiet={slot.reason === "loading"}
+            note={slot.note ? noteText(slot.note) : null}
             busy={busy && slot.action !== "delete"}
             onAct={act[slot.action]}
           />

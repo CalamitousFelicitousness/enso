@@ -334,6 +334,34 @@ export async function readBlob(key: string): Promise<Blob | null> {
   return blob;
 }
 
+/** Stored blobs by key, read in one transaction; a key without one is left out. */
+export async function readBlobs(keys: readonly string[]): Promise<Map<string, Blob>> {
+  const found = new Map<string, Blob>();
+  if (keys.length === 0) return found;
+  const db = await open();
+  const os = db.transaction(BLOBS, "readonly").objectStore(BLOBS);
+  await Promise.all(
+    keys.map(async (key) => {
+      const blob: unknown = await result(os.get(key));
+      if (blob instanceof Blob) {
+        found.set(key, blob);
+        if (key === blobCid(key)) held.add(key);
+      }
+    }),
+  );
+  return found;
+}
+
+/** A value this page keeps in the meta store, such as its client id. */
+export async function readMeta(key: string): Promise<unknown> {
+  const db = await open();
+  return result(db.transaction(META, "readonly").objectStore(META).get(key));
+}
+
+export function writeMeta(key: string, value: unknown): Promise<void> {
+  return putMeta(key, value);
+}
+
 /** Store a blob that belongs to a cid, such as a picture's thumbnail under
  * `<cid>/...`: no document names it, and the sweep deletes it with its cid. */
 export async function putBlob(key: string, blob: Blob): Promise<void> {
@@ -418,29 +446,6 @@ export async function readRecords(
     }),
   );
   return found;
-}
-
-/** An index's entries without their records: the index key and the record's
- * key, in index order. */
-export async function indexEntries(
-  store: string,
-  index: string,
-): Promise<{ key: IDBValidKey; primaryKey: IDBValidKey }[]> {
-  const db = await open();
-  const req = db.transaction(store, "readonly").objectStore(store).index(index).openKeyCursor();
-  return new Promise((resolve, reject) => {
-    const entries: { key: IDBValidKey; primaryKey: IDBValidKey }[] = [];
-    req.onsuccess = () => {
-      const cursor = req.result;
-      if (!cursor) {
-        resolve(entries);
-        return;
-      }
-      entries.push({ key: cursor.key, primaryKey: cursor.primaryKey });
-      cursor.continue();
-    };
-    req.onerror = () => reject(req.error ?? new Error("IDB request failed"));
-  });
 }
 
 /** The keys whose Blob can no longer be read, such as a dropped file that was

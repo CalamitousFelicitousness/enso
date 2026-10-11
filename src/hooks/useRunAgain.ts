@@ -1,6 +1,7 @@
-// Run a job again from this browser's record of it: every picture is made
-// again from its source over the frames the record kept and uploaded afresh,
-// and the request goes out as it was sent, on whatever model is loaded.
+// Run a job again from its record: every upload is staged under the hash it
+// went out with, so the server's copies go as they are and only what it lacks
+// is made again from the record's frames. The request goes out as it was
+// sent, on whatever model is loaded.
 
 import { useCallback, useSyncExternalStore } from "react";
 import { toast } from "sonner";
@@ -8,9 +9,11 @@ import { api } from "@/api/client";
 import { queryClient } from "@/api/queryClient";
 import type { CheckpointInfoV2 } from "@/api/types/models";
 import type { Job } from "@/api/types/v2";
-import { loadJobForReplay, submitJob } from "@/inputs/jobs";
-import { replay } from "@/inputs/materialise";
-import { replayProblem } from "@/lib/jobs/replay";
+import { readBlobs } from "@/inputs/db";
+import { loadRecord, replaySubmission, type RecordLoad } from "@/inputs/jobs";
+import { submitJob } from "@/inputs/submit";
+import { UploadBatch } from "@/inputs/uploads";
+import { replayGone, replayProblem } from "@/lib/jobs/replay";
 import {
   OTHER_MODEL,
   otherModelText,
@@ -18,6 +21,7 @@ import {
   RUN_AGAIN_FAILED,
   RUN_AGAIN_QUEUED,
 } from "@/lib/jobs/text";
+import { batchText } from "@/lib/media/text";
 
 /** Request types that run on the loaded checkpoint. */
 const LOCAL = new Set(["generate", "detail", "xyz-grid"]);
@@ -53,40 +57,58 @@ async function noteModel(checkpoint: { title: string; name: string }): Promise<v
   }
 }
 
+/** An upload the server lost cannot be made again: its source reads a
+ * picture neither the server nor this browser holds. */
+async function goneForGood(load: RecordLoad): Promise<boolean> {
+  const unheld = [...load.unheld];
+  const here =
+    unheld.length > 0 ? await readBlobs(unheld).catch(() => new Map<string, Blob>()) : new Map();
+  return replayGone(load.record, load.missingRefs, (cid) => load.unheld.has(cid) && !here.has(cid));
+}
+
 /** Send a recorded job again. Null when it was not sent; the reason is told. */
 export async function runAgain(jobId: string): Promise<Job | null> {
   if (busy.has(jobId)) return null;
   busy.add(jobId);
   changed();
+  const id = `run-again-${jobId}`;
   try {
-    const load = await loadJobForReplay(jobId);
+    const load = await loadRecord(jobId);
     if (!load) {
-      toast.error(RUN_AGAIN_FAILED, { description: reasonText("notStored") });
+      toast.error(RUN_AGAIN_FAILED, { id, description: reasonText("noRecord") });
       return null;
     }
     const { record } = load;
-    const problem = replayProblem(record);
-    if (problem) {
-      toast.error(RUN_AGAIN_FAILED, { description: reasonText(problem) });
+    const problem = replayProblem({
+      domain: record.domain,
+      missingRefs: load.missingRefs.length,
+      hasInputs: record.inputs !== null,
+    });
+    if (problem === "video" || problem === "processNow" || problem === "gone") {
+      toast.error(RUN_AGAIN_FAILED, { id, description: reasonText(problem) });
+      return null;
+    }
+    if (problem === "remake" && (await goneForGood(load))) {
+      toast.error(RUN_AGAIN_FAILED, { id, description: reasonText("gone") });
       return null;
     }
     const type = record.request["type"];
     if (record.checkpoint && typeof type === "string" && LOCAL.has(type)) {
       await noteModel(record.checkpoint);
     }
-    const { request, ledger } = await replay(record, load.inputs, load.held);
-    const job = await submitJob({
-      domain: record.domain,
-      request,
-      ledger,
-      inputs: record.inputs,
-      mapKeys: record.mapKeys,
-      checkpoint: record.checkpoint,
+    const batch = new UploadBatch("Run again", {
+      onProgress: (p) => {
+        if (p.phase !== "claiming" && p.files > 0) {
+          toast.loading(batchText(p.done, p.files, p.sent, p.total), { id });
+        }
+      },
     });
-    toast.success(RUN_AGAIN_QUEUED);
+    const job = await submitJob(replaySubmission(load, batch));
+    toast.success(RUN_AGAIN_QUEUED, { id });
     return job;
   } catch (err) {
     toast.error(RUN_AGAIN_FAILED, {
+      id,
       description: err instanceof Error ? err.message : String(err),
     });
     return null;

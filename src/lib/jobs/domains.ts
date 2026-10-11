@@ -70,3 +70,21 @@ export function stripDomain(domain: JobDomain): boolean {
 export function isTerminal(status: JobStatus): boolean {
   return status === "completed" || status === "failed" || status === "cancelled";
 }
+
+/** Every domain, as the server names them. */
+export const JOB_DOMAINS: readonly JobDomain[] = [
+  "generate",
+  "upscale",
+  "rembg",
+  "process",
+  "preprocess",
+  "video",
+  "framepack",
+  "ltx",
+  "xyz-grid",
+];
+
+/** A domain the server named; null for one this build does not know. */
+export function asJobDomain(value: string): JobDomain | null {
+  return JOB_DOMAINS.find((domain) => domain === value) ?? null;
+}

@@ -103,6 +103,8 @@ function fakes(options: { held?: string[]; room?: number; rows?: [string, string
     rows,
     stored,
     mostAtOnce: () => mostAtOnce,
+    /** The server loses the bytes with this text. */
+    forget: (text: string) => held.delete(hashOf(text)),
     hold: () => {
       let release = () => {};
       gate = new Promise((resolve) => (release = resolve));
@@ -258,5 +260,50 @@ describe("an upload batch", () => {
     expect(batch.run()).toBe(first);
     expect(() => batch.stage(new Blob(["b"]), { name: "b" })).toThrow();
     await first;
+  });
+});
+
+describe("a batch sent again", () => {
+  it("sends, under the same refs, the items whose bytes the server lost since", async () => {
+    const server = fakes();
+    const batch = new uploads.UploadBatch("t", { tools: server.tools });
+    const a = batch.stage(new Blob(["a"]), { name: "a.png" });
+    batch.stage(new Blob(["b"]), { name: "b.png" });
+    const first = await batch.run();
+    server.forget("a");
+    const second = await batch.again({}, new Set([hashOf("a")])).run();
+    expect([...second.keys()]).toEqual([a.ref]);
+    expect(second.get(a.ref)).toEqual(first.get(a.ref));
+    expect(server.asked.sent).toEqual(["a.png", "b.png", "a.png"]);
+  });
+
+  it("copies every item for a Retry and only claims what went before", async () => {
+    const server = fakes();
+    const batch = new uploads.UploadBatch("t", { tools: server.tools });
+    batch.stage(new Blob(["a"]), { name: "a.png" });
+    batch.stage(new Blob(["b"]), { name: "b.png" });
+    await batch.run();
+    await batch.again().run();
+    expect(server.asked.sent).toEqual(["a.png", "b.png"]);
+    expect(server.asked.claims.at(-1)).toEqual({ hashes: [hashOf("a"), hashOf("b")], bytes: 0 });
+  });
+
+  it("names the item each hash went out as, and nothing for a hash it never sent", async () => {
+    const server = fakes();
+    const batch = new uploads.UploadBatch("t", { tools: server.tools });
+    batch.stage(new Blob(["a"]), { name: "a.png" });
+    await batch.run();
+    expect(batch.namesOf(new Set([hashOf("a"), hashOf("z")]))).toEqual(
+      new Map([[hashOf("a"), "a.png"]]),
+    );
+  });
+
+  it("says how many of the record's pictures it left out and the room there was", async () => {
+    const server = fakes({ room: 2 });
+    const batch = new uploads.UploadBatch("t", { tools: server.tools });
+    batch.stage(new Blob(["kept"]), { name: "kept.png", cid: "c1", record: true });
+    expect(batch.keptOut).toBeNull();
+    await batch.run();
+    expect(batch.keptOut).toEqual({ count: 1, room: 2 });
   });
 });

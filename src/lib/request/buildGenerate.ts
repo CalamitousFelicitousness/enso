@@ -16,9 +16,9 @@ import { useImg2ImgStore } from "@/stores/img2imgStore";
 import { useInputStore } from "@/stores/inputStore";
 import { useUiStore } from "@/stores/uiStore";
 import { LUT_MISSING_TEXT, namedLut } from "@/stores/lutStore";
-import { uploadFile } from "@/lib/upload";
 import { outlineWithMaps } from "@/inputs/maps";
-import { createUploader, type Ledger, type Uploader } from "@/inputs/materialise";
+import { createUploader, type Uploader } from "@/inputs/materialise";
+import type { UploadBatch } from "@/inputs/uploads";
 import type { ProcessorFacts } from "@/lib/processorUtils";
 import {
   computeOutline,
@@ -51,8 +51,8 @@ export interface BuildResult {
   mapKeys: string[];
   /** The frames the request was built from, as read once at the start. */
   inputs: Inputs;
-  /** Where each upload the request names came from. */
-  ledger: Ledger;
+  /** What staged each upload the request names, and where it came from. */
+  uploader: Uploader;
 }
 
 export interface ControlBuildOptions {
@@ -78,6 +78,8 @@ export interface ControlBuildOptions {
   controlUnified: boolean | null;
   /** The server's processors, which every map key names. */
   processors: ProcessorFacts;
+  /** The action's uploads. */
+  batch: UploadBatch;
 }
 
 /** The canvas holds inputs the loaded model cannot take as they are. */
@@ -194,6 +196,7 @@ export async function buildControlRequest({
   controlSeparateInit,
   controlUnified,
   processors,
+  batch,
 }: ControlBuildOptions): Promise<BuildResult> {
   const gen = useGenerationStore.getState();
   const scripts = useScriptStore.getState();
@@ -250,12 +253,12 @@ export async function buildControlRequest({
     frame,
     target,
   });
-  const up = createUploader({ frames, size: frame });
-  // The LUT goes up with each job: an upload the server holds for 30 minutes cannot wait in the settings
+  const up = createUploader({ frames, size: frame }, batch);
+  // The LUT goes with each job: the batch claims the server's copy once the page has sent it
   if (gen.gradingLutFile) {
     const lut = namedLut(gen.gradingLutFile);
     if (!lut) throw new SettingRefusal(LUT_MISSING_TEXT);
-    request.grading_lut_file = await uploadFile(lut);
+    request.grading_lut_file = batch.stage(lut, { name: lut.name }).ref;
   }
 
   if (ipAdapters.length > 0) {
@@ -341,5 +344,5 @@ export async function buildControlRequest({
     ...sent.flatMap((s) => (processBefore(s.map) ? [s.map?.key ?? ""] : [])),
     ...controls.flatMap((c) => (processBefore(c.map) ? [c.map?.key ?? ""] : [])),
   ].filter(Boolean);
-  return { request, mapKeys, inputs: { frames, size: frame, sizeSource }, ledger: up.ledger };
+  return { request, mapKeys, inputs: { frames, size: frame, sizeSource }, uploader: up };
 }

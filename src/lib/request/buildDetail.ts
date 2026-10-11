@@ -1,6 +1,7 @@
 import { useGenerationStore } from "@/stores/generationStore";
 import { useInputStore } from "@/stores/inputStore";
-import { createUploader, type Ledger } from "@/inputs/materialise";
+import { createUploader, type Uploader } from "@/inputs/materialise";
+import type { UploadBatch } from "@/inputs/uploads";
 import { computeOutline, firstInitialEntry } from "@/lib/inputs/outline";
 import type { Inputs } from "@/lib/inputs/stored";
 import { detailProcessedText, unreadableText } from "@/lib/inputs/text";
@@ -12,13 +13,13 @@ export interface BuildDetailResult {
   request: DetailJobParams;
   /** The frames the request was built from. */
   inputs: Inputs;
-  /** Where each upload the request names came from. */
-  ledger: Ledger;
+  /** What staged each upload the request names, and where it came from. */
+  uploader: Uploader;
 }
 
 /** Build a "Detail only" job: flatten canvas, upload, request detailer-only pass.
  * The backend will skip encode/base/hires entirely and run only the detailer on the input. */
-export async function buildDetailRequest(): Promise<BuildDetailResult> {
+export async function buildDetailRequest(batch: UploadBatch): Promise<BuildDetailResult> {
   const gen = useGenerationStore.getState();
 
   // Detail-only runs on the first Initial frame that sends a picture, as it is
@@ -35,7 +36,7 @@ export async function buildDetailRequest(): Promise<BuildDetailResult> {
   if (unreadable) throw new Error(unreadable);
 
   const frame = { width: gen.width, height: gen.height };
-  const up = createUploader({ frames, size: frame });
+  const up = createUploader({ frames, size: frame }, batch);
   const { ref } = await up.composite(first.frameId, frame);
 
   const request: DetailJobParams = {
@@ -57,5 +58,5 @@ export async function buildDetailRequest(): Promise<BuildDetailResult> {
     request.override_settings = { ...gen.overrideSettings };
   }
 
-  return { request, inputs: { frames, size: frame, sizeSource }, ledger: up.ledger };
+  return { request, inputs: { frames, size: frame, sizeSource }, uploader: up };
 }

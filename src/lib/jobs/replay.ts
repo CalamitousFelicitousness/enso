@@ -1,9 +1,10 @@
-// What a job record needs before it can be sent again, and the request with
-// fresh upload refs in the place of the ones it was sent with. The uploads
-// themselves happen in src/inputs/materialise.ts.
+// What sending a recorded job again needs: the server holds its uploads under
+// their hashes, and an upload it no longer holds is made again from its source
+// over the frames the record kept. The uploads themselves happen in
+// src/inputs/materialise.ts.
 
-import type { Source, StoredFrame, StoredJob } from "@/lib/inputs/stored";
-import { isVideoDomain } from "./domains";
+import type { StoredFrame, StoredJob } from "@/lib/inputs/stored";
+import { isVideoDomain, type JobDomain } from "./domains";
 import { replayMissingText, type ReplayMissing } from "./text";
 
 /** A picture a job sent is no longer stored, so the job cannot be sent again as it was. */
@@ -48,25 +49,40 @@ export function substituteRefs<T>(value: T, mapping: ReadonlyMap<string, string>
   return walk(value) as T;
 }
 
-export type ReplayProblemCode = "video" | "processNow" | "lutUpload" | "unrecordedUploads";
+/** Why a job is not sent again from its card, or how: `remake` when some of
+ * its uploads are made again from the saved inputs (it still runs), `gone`
+ * when one cannot be. Video and Process now jobs are sent again from their
+ * own views. */
+export type ReplayProblemCode = "video" | "processNow" | "remake" | "gone";
 
-/** Sources whose bytes come from the job's frames. */
-const FROM_FRAMES = new Set<Source["kind"]>(["composite", "file", "mask", "ipMask"]);
+/** What a record's facts say about sending its job again; null when the
+ * server holds every upload it names. */
+export function replayProblem(facts: {
+  domain: JobDomain;
+  missingRefs: number;
+  hasInputs: boolean;
+}): ReplayProblemCode | null {
+  if (isVideoDomain(facts.domain)) return "video";
+  if (facts.domain === "preprocess") return "processNow";
+  if (facts.missingRefs === 0) return null;
+  return facts.hasInputs ? "remake" : "gone";
+}
 
-/** Why a record cannot be sent again, or null when every upload it names
- * can be made again from what it kept. */
-export function replayProblem(
-  job: Pick<StoredJob, "domain" | "request" | "refs" | "inputs" | "maps">,
-): ReplayProblemCode | null {
-  if (isVideoDomain(job.domain)) return "video";
-  if (job.domain === "preprocess") return "processNow";
-  for (const ref of refsIn(job.request)) {
+/** Whether an upload the server no longer holds cannot be made again: it has
+ * no source, its source reads a frame the record lacks, or a picture whose
+ * bytes are neither here nor on the server (`unheld`). */
+export function replayGone(
+  job: Pick<StoredJob, "refs" | "inputs" | "maps">,
+  missingRefs: readonly string[],
+  unheld: (cid: string) => boolean,
+): boolean {
+  return missingRefs.some((ref) => {
     const source = job.refs[ref];
-    if (!source) return job.request["grading_lut_file"] === ref ? "lutUpload" : "unrecordedUploads";
-    if (FROM_FRAMES.has(source.kind) && !job.inputs) return "unrecordedUploads";
-    if (source.kind === "map" && !(source.key in job.maps)) return "unrecordedUploads";
-  }
-  return null;
+    if (!source) return true;
+    return replayNeeds({ refs: { [ref]: source }, inputs: job.inputs, maps: job.maps }).some(
+      (need) => need.cid.startsWith("missing:") || unheld(need.cid),
+    );
+  });
 }
 
 export interface NeededBytes {

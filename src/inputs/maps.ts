@@ -191,8 +191,8 @@ export function currentMap(key: string): MapEntry | null {
 /** Keep a map a processor made. It is current from here on, whatever a job
  * or an earlier failure said about its key. A map whose bytes are stored
  * already, as a library entry's are, keeps its cid, so only its record is
- * written. */
-export async function installMap(key: string, blob: Blob, cid?: string): Promise<void> {
+ * written. Answers the map's cid. */
+export async function installMap(key: string, blob: Blob, cid?: string): Promise<string> {
   const { width, height } = await imageSize(blob);
   const now = Date.now();
   const entry: MapEntry = {
@@ -220,6 +220,7 @@ export async function installMap(key: string, blob: Blob, cid?: string): Promise
     console.error("[inputs] could not store a map", err);
     if (isQuotaError(err)) reportFull("A processed map");
   }
+  return entry.cid;
 }
 
 /** The map is being shown or sent: keep its record from expiring. */

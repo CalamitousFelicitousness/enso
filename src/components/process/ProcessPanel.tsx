@@ -88,6 +88,9 @@ const FALLBACK_ORDER: ProcessSectionKey[] = [
 
 const UPLOAD_CHUNK = 20;
 
+/** Names the panel's submit in the progress store. */
+const ACTION = "process";
+
 async function uploadAll(files: File[]): Promise<string[]> {
   const refs: string[] = [];
   for (let i = 0; i < files.length; i += UPLOAD_CHUNK) {
@@ -167,7 +170,9 @@ export function ProcessPanel() {
     return unrecordedSubmission("process", buildProcessPayload(settings, inputs));
   }, []);
 
-  const { submit, isSubmitting } = useSubmitToQueue(useMemo(() => ({ build }), [build]));
+  const { submit, isSubmitting } = useSubmitToQueue(
+    useMemo(() => ({ build, action: ACTION }), [build]),
+  );
 
   const handleStop = useCallback(() => {
     if (!running) return;

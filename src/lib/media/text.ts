@@ -57,3 +57,71 @@ export function uploadFailureText(failure: UploadFailure): string {
       return failure.message;
   }
 }
+
+/** What the Generate button says while its job is on the way. */
+export const PREPARING = "Preparing";
+export const STORING = "Storing";
+export const SENDING = "Sending";
+
+export function uploadingText(percent: number): string {
+  return `Uploading ${percent}%`;
+}
+
+export const STOP_UPLOAD = "Stop the upload";
+export const NO_SKIP = "No generation to skip";
+export const UPLOAD_CANCELLED = "Upload cancelled, the job was not sent";
+export const SUBMIT_FAILED = "Could not send the job";
+export const RETRY = "Retry";
+
+/** "Uploading 2 of 3 files, about 120 MB of 480 MB": a batch still on its way. */
+export function batchText(done: number, files: number, sent: number, total: number): string {
+  const size = total > 0 ? `, ${aboutSize(sent)} of ${aboutSize(total).replace("about ", "")}` : "";
+  return `Uploading ${done} of ${plural(files, "file", "files")}${size}`;
+}
+
+/** "Fetching 2 of 4 pictures, about 120 MB": bytes on their way from the server. */
+export function fetchingText(done: number, total: number, bytes: number): string {
+  const size = bytes > 0 ? `, ${aboutSize(bytes)}` : "";
+  return `Fetching ${done} of ${plural(total, "picture", "pictures")}${size}`;
+}
+
+export const RESTORE_CANCELLED = "Restore cancelled";
+
+/** Pictures kept only with a job's record that the server had no room for. */
+export function keptOutText(count: number, room: number): string {
+  const what = count === 1 ? "1 picture was" : `${count} pictures were`;
+  return `${what} not kept with the job: the server can take ${aboutSize(room)} more`;
+}
+
+/** Why a job and its record were not sent. */
+export type SubmitFailure =
+  | { kind: "full" }
+  | { kind: "busy" }
+  | { kind: "tooLarge" }
+  | { kind: "removed" }
+  | { kind: "stillMissing"; names: readonly string[] }
+  | { kind: "server"; message: string };
+
+export function submitFailureText(failure: SubmitFailure): string {
+  switch (failure.kind) {
+    case "full":
+      return "The server's disk is full";
+    case "busy":
+      return "The server is busy; try again in a minute";
+    case "tooLarge":
+      return "The request is too large for the server; a mask with very many strokes can cause it";
+    case "removed":
+      return "This job was queued before and has since been removed";
+    case "stillMissing": {
+      const [first, ...rest] = failure.names;
+      const more = rest.length > 0 ? ` and ${rest.length} more` : "";
+      return `The server does not hold ${first ?? "a picture"}${more} after a second try`;
+    }
+    case "server":
+      return failure.message;
+  }
+}
+
+/** A server from before the media store: nothing can be uploaded to it. */
+export const OLDER_SERVER = "This server has no media store (older Enso)";
+export const STORE_OFF = "The media store is off";

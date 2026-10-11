@@ -99,4 +99,13 @@ describe("progressOf", () => {
       ]).phase,
     ).toBe("storing");
   });
+
+  it("stays storing once every upload is done, not uploading at 100%", () => {
+    expect(
+      progressOf([
+        { sent: 10, total: 10, done: true },
+        { sent: 10, total: 10, done: true },
+      ]).phase,
+    ).toBe("storing");
+  });
 });

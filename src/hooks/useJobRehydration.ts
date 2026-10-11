@@ -1,23 +1,22 @@
 // The jobs this browser sent that the server still holds when a page starts.
 // Queued and running ones are tracked again; ones that ended while no page
 // was open reach the strip once, oldest first, or show that they failed. A
-// job this browser has no record of is the History tab's to show: the server
-// is shared with other browsers.
+// job whose record names another browser is the History tab's to show: the
+// server is shared.
 
 import { useEffect, useRef } from "react";
 import { toast } from "sonner";
-import { api } from "@/api/client";
+import { api, ApiError } from "@/api/client";
+import { queryClient } from "@/api/queryClient";
+import { recordKey, retryUnlessRefused } from "@/api/queryKeys";
+import { clientRecords } from "@/api/records";
 import type { Job, JobListResponse, JobRequest, JobStatus } from "@/api/types/v2";
-import {
-  adoptLegacyJob,
-  loadJob,
-  loadJobFacts,
-  markRouted,
-  retireJobRecords,
-  useJobFacts,
-} from "@/inputs/jobs";
+import { clientId } from "@/inputs/client";
+import { loadFacts } from "@/inputs/facts";
+import { loadRecord, markRouted, retireSnapshots } from "@/inputs/jobs";
+import { legacyUnrouted } from "@/inputs/legacyRecords";
 import type { StoredJob } from "@/lib/inputs/stored";
-import { isVideoDomain, stripDomain } from "@/lib/jobs/domains";
+import { asJobDomain, isVideoDomain, stripDomain, type JobDomain } from "@/lib/jobs/domains";
 import { closedPageText, onStripText } from "@/lib/jobs/text";
 import { useBackendStatusStore } from "@/stores/backendStatusStore";
 import { historyHydrated, useGenerationStore } from "@/stores/generationStore";
@@ -33,7 +32,7 @@ function list(status: JobStatus, limit: number): Promise<JobListResponse> {
 const millis = (iso: string | null) => (iso ? new Date(iso).getTime() : Date.now());
 
 function tracked(job: Job, record: StoredJob, endedWhileClosed: boolean): TrackedJob {
-  const priority = record.request["priority"];
+  const priority = job.priority ?? record.request["priority"];
   return {
     id: job.id,
     domain: record.domain,
@@ -61,21 +60,66 @@ function tracked(job: Job, record: StoredJob, endedWhileClosed: boolean): Tracke
   };
 }
 
-/** Track the queued and running jobs this browser sent. */
+const isLive = (status: JobStatus) => status === "pending" || status === "running";
+
+/** Track a queued or running job from its record. */
+async function track(job: Job): Promise<void> {
+  if (useJobQueueStore.getState().jobs.has(job.id)) return;
+  const load = await loadRecord(job.id);
+  if (load) useJobQueueStore.getState().rehydrateJob(tracked(job, load.record, false));
+}
+
+/** Track the queued and running jobs whose records name this browser. */
 async function trackLiveJobs(): Promise<void> {
   const [pending, running] = await Promise.all([list("pending", 50), list("running", 10)]);
-  for (const job of [...pending.items, ...running.items]) {
-    if (useJobQueueStore.getState().jobs.has(job.id)) continue;
-    const record = useJobFacts.getState().facts.has(job.id)
-      ? await loadJob(job.id)
-      : await adoptLegacyJob(job.id);
-    if (record) useJobQueueStore.getState().rehydrateJob(tracked(job, record, false));
+  const live = [...pending.items, ...running.items].filter(
+    (job) => !useJobQueueStore.getState().jobs.has(job.id),
+  );
+  // one read for every card and this pass: the facts share the cards' cache
+  const facts = await Promise.all(
+    live.map((job) =>
+      queryClient
+        .fetchQuery({
+          queryKey: recordKey(job.id),
+          queryFn: () => loadFacts(job.id),
+          staleTime: Infinity,
+          retry: retryUnlessRefused,
+        })
+        .catch(() => null),
+    ),
+  );
+  for (const [i, job] of live.entries()) {
+    if (facts[i]?.mine) await track(job);
   }
 }
 
+interface Candidate {
+  id: string;
+  domain: JobDomain;
+}
+
+/** This browser's records of strip jobs whose results have not arrived, on
+ * the server and in an older build's store. */
+async function unroutedCandidates(): Promise<Candidate[]> {
+  const found = new Map<string, Candidate>();
+  const server = await clientRecords(await clientId(), false).catch((err: unknown) => {
+    console.warn("[jobs] could not read this browser's records", err);
+    return [];
+  });
+  for (const item of server) {
+    const domain = asJobDomain(item.domain);
+    if (domain && stripDomain(domain)) found.set(item.job_id, { id: item.job_id, domain });
+  }
+  for (const record of await legacyUnrouted()) {
+    if (!found.has(record.id)) found.set(record.id, { id: record.id, domain: record.domain });
+  }
+  return [...found.values()];
+}
+
 /** Route the jobs this browser sent that ended while no page was open: each
- * result once, the newest a strip keeps; a failed job is shown failed. One
- * notice says how many. */
+ * result once, the newest a strip keeps; a failed job is shown failed. A
+ * record whose job the server no longer has is marked routed, never one that
+ * is only missing from a list the server caps. One notice says how many. */
 async function routeEndedJobs(): Promise<void> {
   // Without the stored history it is not known which results the strips hold
   if (!(await historyHydrated())) return;
@@ -84,31 +128,42 @@ async function routeEndedJobs(): Promise<void> {
     ...useVideoStore.getState().results.map((r) => r.id),
   ]);
   const [completed, failed] = await Promise.all([list("completed", 50), list("failed", 50)]);
-  const { facts } = useJobFacts.getState();
-  const ended = [...completed.items, ...failed.items]
-    .filter((job) => {
-      const fact = facts.get(job.id);
-      return (
-        fact !== undefined &&
-        !fact.routed &&
-        stripDomain(fact.domain) &&
-        !useJobQueueStore.getState().jobs.has(job.id) &&
-        !onStrip.has(job.id)
-      );
-    })
-    .sort((a, b) => millis(a.completed_at) - millis(b.completed_at));
+  const listed = new Map([...completed.items, ...failed.items].map((job) => [job.id, job]));
+
+  const ended: { job: Job; domain: JobDomain }[] = [];
+  for (const candidate of await unroutedCandidates()) {
+    if (useJobQueueStore.getState().jobs.has(candidate.id)) continue;
+    if (onStrip.has(candidate.id)) {
+      await markRouted(candidate.id);
+      continue;
+    }
+    let job = listed.get(candidate.id);
+    if (!job) {
+      try {
+        job = await api.get<Job>(`/sdapi/v2/jobs/${encodeURIComponent(candidate.id)}`);
+      } catch (err) {
+        // purged after its retention: its result is not coming
+        if (err instanceof ApiError && err.status === 404) await markRouted(candidate.id);
+        continue;
+      }
+    }
+    if (isLive(job.status)) await track(job);
+    else if (job.status === "completed" || job.status === "failed") {
+      ended.push({ job, domain: candidate.domain });
+    } else await markRouted(candidate.id);
+  }
+  ended.sort((a, b) => millis(a.job.completed_at) - millis(b.job.completed_at));
 
   // Past a strip's limit the oldest are only marked, so they never arrive later
   const room = {
     image: useGenerationStore.getState().historyLimit,
     video: useVideoStore.getState().historyLimit,
   };
-  const results = ended.filter((job) => job.status === "completed" && job.result);
-  const strip = (job: Job) =>
-    isVideoDomain(facts.get(job.id)?.domain ?? "generate") ? "video" : "image";
+  const strip = (domain: JobDomain) => (isVideoDomain(domain) ? "video" : "image");
   const routed = new Set<string>();
-  for (const job of [...results].reverse()) {
-    const which = strip(job);
+  for (const { job, domain } of [...ended].reverse()) {
+    if (job.status !== "completed" || !job.result) continue;
+    const which = strip(domain);
     if (room[which] > 0) {
       room[which] -= 1;
       routed.add(job.id);
@@ -117,9 +172,10 @@ async function routeEndedJobs(): Promise<void> {
 
   let finished = 0;
   let failures = 0;
-  for (const job of ended) {
-    const record = await loadJob(job.id);
-    if (!record) continue;
+  for (const { job } of ended) {
+    const load = await loadRecord(job.id).catch(() => null);
+    if (!load) continue;
+    const { record } = load;
     if (job.status === "completed" && job.result) {
       finished += 1;
       if (routed.has(job.id)) {
@@ -165,10 +221,9 @@ async function rehydrate(): Promise<void> {
   // The database is open and swept once the stored inputs are in
   await inputsReady();
   await serverAnswers();
-  await loadJobFacts();
   await trackLiveJobs();
   await routeEndedJobs();
-  await retireJobRecords();
+  await retireSnapshots();
 }
 
 export function useJobRehydration() {

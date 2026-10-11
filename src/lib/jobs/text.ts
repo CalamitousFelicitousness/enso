@@ -1,15 +1,15 @@
 // The words for job records, restores and Run again, in one place: cards,
 // menus, toasts, the palette and the live suite read them from here.
 
-import type { ActionReason } from "./cardActions";
+import type { ActionNote, ActionReason } from "./cardActions";
 
 const REASON: Record<ActionReason, string> = {
   video: "Video jobs cannot be run again yet",
   processNow: "Processing runs again through Process now",
-  lutUpload: "This job used a color LUT, which cannot be sent again yet",
-  unrecordedUploads: "This job cannot be run again: its pictures were not kept",
-  noRecord: "This job was sent from another browser",
-  notStored: "Its inputs could not be stored when it was sent",
+  gone: "This job cannot be run again: a picture it sent is gone",
+  loading: "Reading the job's record",
+  factsError: "Could not read the job's record",
+  noRecord: "Enso kept no record of this job",
   olderResult: "This result was made by an older version of Enso",
   noInputs: "This job was sent with no input pictures",
   unfinished: "This job has not finished yet",
@@ -23,6 +23,14 @@ const REASON: Record<ActionReason, string> = {
 
 export function reasonText(reason: ActionReason): string {
   return REASON[reason];
+}
+
+const ACTION_NOTE: Record<ActionNote, string> = {
+  remake: "Some pictures are made again from the saved inputs",
+};
+
+export function noteText(note: ActionNote): string {
+  return ACTION_NOTE[note];
 }
 
 export const RESTORE_SETTINGS = "Restore settings";
@@ -83,10 +91,6 @@ const MISSING: Record<ReplayMissing, string> = {
 export function replayMissingText(missing: ReplayMissing): string {
   return MISSING[missing];
 }
-
-export const RECORD_FAILED = "The job's inputs could not be stored";
-export const RECORD_FAILED_DETAIL =
-  "Its result will not bring them back and the job cannot be run again";
 
 export const MOVE_STARTED = "The job started before it could be moved";
 

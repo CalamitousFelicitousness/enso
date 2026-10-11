@@ -40,6 +40,9 @@ import { buildPanels } from "@/components/ui/tab-panels";
 const VIDEO_PANELS = buildPanels(tabPanelEntries(VIDEO_TAB_REGISTRY));
 const VIDEO_FOOTER = <VideoResultStrip />;
 
+/** Names the panel's submit in the progress store. */
+const ACTION = "video";
+
 export function VideoPanel() {
   const prompt = useVideoStore((s) => s.prompt);
   const activeModel = useModelSelectionStore((s) => s.activeModel);
@@ -83,7 +86,9 @@ export function VideoPanel() {
     return unrecordedSubmission(domain, await buildVideoPayload(kind, activeModel, activeCaps));
   }, [kind, domain, activeModel, activeCaps]);
 
-  const { submit, isSubmitting } = useSubmitToQueue(useMemo(() => ({ build }), [build]));
+  const { submit, isSubmitting } = useSubmitToQueue(
+    useMemo(() => ({ build, action: ACTION }), [build]),
+  );
 
   // "Load on generate": when the active model is local video, ensure it's
   // loaded before submission. Server is idempotent (re-firing load when the

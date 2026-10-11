@@ -1,5 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { aboutSize, ageText, uploadFailureText } from "./text";
+import {
+  aboutSize,
+  ageText,
+  batchText,
+  fetchingText,
+  keptOutText,
+  submitFailureText,
+  uploadFailureText,
+  uploadingText,
+} from "./text";
 
 const MINUTE = 60 * 1000;
 const HOUR = 60 * MINUTE;
@@ -41,5 +50,36 @@ describe("uploadFailureText", () => {
     expect(
       uploadFailureText({ kind: "storeOff", message: "Media store off: /x is not writable" }),
     ).toBe("Media store off: /x is not writable");
+  });
+});
+
+describe("the words of a submit", () => {
+  it("say how far an upload has got", () => {
+    expect(uploadingText(28)).toBe("Uploading 28%");
+    expect(batchText(2, 3, 120 * MB, 480 * MB)).toBe(
+      "Uploading 2 of 3 files, about 120 MB of 480 MB",
+    );
+    expect(batchText(0, 1, 0, 0)).toBe("Uploading 0 of 1 file");
+    expect(fetchingText(1, 4, 120 * MB)).toBe("Fetching 1 of 4 pictures, about 120 MB");
+    expect(fetchingText(0, 1, 0)).toBe("Fetching 0 of 1 picture");
+  });
+
+  it("say what was not kept with a job, and why a job was not sent", () => {
+    expect(keptOutText(1, 1200 * MB)).toBe(
+      "1 picture was not kept with the job: the server can take about 1.2 GB more",
+    );
+    expect(keptOutText(3, 5 * MB)).toBe(
+      "3 pictures were not kept with the job: the server can take about 5 MB more",
+    );
+    expect(submitFailureText({ kind: "stillMissing", names: ["cat.png", "a", "b"] })).toBe(
+      "The server does not hold cat.png and 2 more after a second try",
+    );
+    expect(submitFailureText({ kind: "stillMissing", names: [] })).toBe(
+      "The server does not hold a picture after a second try",
+    );
+    expect(submitFailureText({ kind: "removed" })).toBe(
+      "This job was queued before and has since been removed",
+    );
+    expect(submitFailureText({ kind: "tooLarge" })).toContain("too large");
   });
 });

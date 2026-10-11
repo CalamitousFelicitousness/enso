@@ -1,7 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { frame, layer, maskObject, picture } from "@/lib/inputs/frames.fixture";
-import { splitJob, type Source, type StoredJob } from "@/lib/inputs/stored";
-import { isUploadRef, refsIn, replayNeeds, replayProblem, substituteRefs } from "./replay";
+import { splitJob, type Source } from "@/lib/inputs/stored";
+import {
+  isUploadRef,
+  refsIn,
+  replayGone,
+  replayNeeds,
+  replayProblem,
+  substituteRefs,
+} from "./replay";
 
 const composite: Source = {
   kind: "composite",
@@ -9,23 +16,6 @@ const composite: Source = {
   drawnAt: { width: 64, height: 64 },
   encode: null,
 };
-
-function job(patch: Partial<StoredJob> = {}): StoredJob {
-  return {
-    schema: 1,
-    id: "job-1",
-    domain: "generate",
-    createdAt: 1,
-    checkpoint: null,
-    request: { type: "generate", prompt: "a cat", inputs: ["upload:a"] },
-    refs: { "upload:a": composite },
-    inputs: { schema: 3, size: { width: 64, height: 64 }, sizeSource: null, frames: [] },
-    mapKeys: [],
-    maps: {},
-    routed: false,
-    ...patch,
-  };
-}
 
 describe("refsIn", () => {
   it("finds every upload ref in a request, however deep, once each", () => {
@@ -86,26 +76,56 @@ describe("substituteRefs", () => {
 });
 
 describe("replayProblem", () => {
-  it("names why a record cannot be run again", () => {
-    expect(replayProblem(job())).toBeNull();
-    expect(replayProblem(job({ domain: "video" }))).toBe("video");
-    expect(replayProblem(job({ domain: "framepack" }))).toBe("video");
-    expect(replayProblem(job({ domain: "preprocess" }))).toBe("processNow");
-    // an upload with no source: the LUT, or anything else
-    expect(
-      replayProblem(job({ request: { inputs: ["upload:a"], grading_lut_file: "upload:lut" } })),
-    ).toBe("lutUpload");
-    expect(replayProblem(job({ request: { inputs: ["upload:z"] } }))).toBe("unrecordedUploads");
-    // a source from the frames, with no frames kept
-    expect(replayProblem(job({ inputs: null }))).toBe("unrecordedUploads");
-    // a map sent as a picture whose bytes the record does not name
-    const map: Source = { kind: "map", key: "k1", drawnAt: null, encode: null };
-    expect(replayProblem(job({ refs: { "upload:a": map } }))).toBe("unrecordedUploads");
-    expect(replayProblem(job({ refs: { "upload:a": map }, maps: { k1: "cid-k1" } }))).toBeNull();
+  const facts = (patch: Partial<Parameters<typeof replayProblem>[0]> = {}) => ({
+    domain: "generate" as const,
+    missingRefs: 0,
+    hasInputs: true,
+    ...patch,
   });
 
-  it("runs a job sent with no pictures again", () => {
-    expect(replayProblem(job({ request: { prompt: "a cat" }, refs: {}, inputs: null }))).toBeNull();
+  it("runs a job again as it was when the server holds every upload it names", () => {
+    expect(replayProblem(facts())).toBeNull();
+    expect(replayProblem(facts({ hasInputs: false }))).toBeNull();
+  });
+
+  it("makes missing uploads again from the saved inputs, or cannot without them", () => {
+    expect(replayProblem(facts({ missingRefs: 2 }))).toBe("remake");
+    expect(replayProblem(facts({ missingRefs: 2, hasInputs: false }))).toBe("gone");
+  });
+
+  it("leaves video and Process now jobs to their own views", () => {
+    expect(replayProblem(facts({ domain: "video" }))).toBe("video");
+    expect(replayProblem(facts({ domain: "framepack" }))).toBe("video");
+    expect(replayProblem(facts({ domain: "preprocess" }))).toBe("processNow");
+  });
+});
+
+describe("replayGone", () => {
+  const paint = frame("f1", "initial", layer("base"));
+  const stored = splitJob({
+    id: "j",
+    domain: "generate",
+    createdAt: 1,
+    checkpoint: null,
+    request: { inputs: ["upload:a"], grading_lut_file: "upload:lut" },
+    refs: { "upload:a": composite },
+    inputs: { size: { width: 64, height: 64 }, sizeSource: null, frames: [paint] },
+    mapKeys: [],
+    maps: {},
+    routed: false,
+  }).record;
+
+  it("makes a lost upload again while the pictures its source reads are held somewhere", () => {
+    expect(replayGone(stored, ["upload:a"], () => false)).toBe(false);
+  });
+
+  it("cannot when a picture its source reads is held nowhere", () => {
+    const cid = stored.inputs?.frames[0]?.pictures[0]?.cid ?? "";
+    expect(replayGone(stored, ["upload:a"], (c) => c === cid)).toBe(true);
+  });
+
+  it("cannot when the lost upload has no source, such as a LUT", () => {
+    expect(replayGone(stored, ["upload:lut"], () => false)).toBe(true);
   });
 });
 

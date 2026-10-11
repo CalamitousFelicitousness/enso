@@ -10,7 +10,10 @@ import { useImg2ImgStore } from "@/stores/img2imgStore";
 import { inputsReady } from "@/stores/inputStore";
 import { restoreFrames, type Inverse } from "@/inputs/edits";
 import { cidsOf } from "@/lib/inputs/types";
-import { loadJob, loadJobInputs, type LoadedInputs } from "@/inputs/jobs";
+import type { FetchOptions } from "@/inputs/fetch";
+import { loadJobInputs, loadRecord, type LoadedInputs } from "@/inputs/jobs";
+import { UserAbortError } from "@/lib/abort";
+import { fetchingText, RESTORE_CANCELLED } from "@/lib/media/text";
 import { hasLegacyInputs, legacyResultInputs } from "@/inputs/legacyResult";
 import { offerUndo } from "@/inputs/undo";
 import type { Job } from "@/api/types/v2";
@@ -30,18 +33,19 @@ import {
   type SettingsSource,
 } from "./restoreParams";
 
-/** What a restore reads: the settings, and the inputs once asked for. */
+/** What a restore reads: the settings, and the inputs once asked for, whose
+ * bytes may come from the server. */
 export interface RestoreTarget {
   settings: SettingsAnswer;
-  inputs: () => Promise<LoadedInputs | null>;
+  inputs: (fetch: FetchOptions) => Promise<LoadedInputs | null>;
 }
 
 /** A strip result, at the image picked. */
 export function resultTarget(result: GenerationResult, imageIndex: number): RestoreTarget {
   return {
     settings: resultSettings(result, imageIndex),
-    inputs: async () => {
-      const stored = await loadJobInputs(result);
+    inputs: async (fetch) => {
+      const stored = await loadJobInputs(result, fetch);
       if (stored || !hasLegacyInputs(result)) return stored;
       const legacy = await legacyResultInputs(result);
       return legacy && { inputs: legacy, lost: { pictures: [], maskObjects: 0 }, maps: new Map() };
@@ -49,12 +53,12 @@ export function resultTarget(result: GenerationResult, imageIndex: number): Rest
   };
 }
 
-/** A job as the server lists it, with this browser's record of it. */
+/** A job as the server lists it, with its record. */
 export async function jobTarget(job: Job): Promise<RestoreTarget> {
-  const record = await loadJob(job.id);
+  const load = await loadRecord(job.id);
   return {
-    settings: settingsSourceOf(record, job, 0),
-    inputs: () => loadJobInputs({ jobId: job.id }),
+    settings: settingsSourceOf(load?.record ?? null, job, 0),
+    inputs: (fetch) => loadJobInputs({ jobId: job.id }, fetch),
   };
 }
 
@@ -117,10 +121,17 @@ export function restoreSettings(target: RestoreTarget): void {
 
 let latest = 0;
 
+/** The restore still waiting on its inputs: a newer restore cancels it first,
+ * so the settings it applied do not outlive it. */
+let waiting: { cancel: () => void } | null = null;
+
 /** Restore inputs, or settings and inputs. The settings are applied at once;
  * the inputs replace the frames when they have been read, unless Undo or a
- * later restore came first. */
+ * later restore came first. While their bytes come from the server the
+ * notice says how far, and Cancel, Undo or Ctrl+Z stop it and put the
+ * settings back. */
 async function restoreWithInputs(target: RestoreTarget, kind: Exclude<RestoreKind, "settings">) {
+  waiting?.cancel();
   const token = ++latest;
   const gen = useGenerationStore.getState();
   // the size from before anything changed is the one Undo puts back
@@ -136,24 +147,54 @@ async function restoreWithInputs(target: RestoreTarget, kind: Exclude<RestoreKin
   const notes = applied?.notes ?? [];
   let putBack: Inverse | null = null;
   let undone = false;
+  let fetching = false;
+  const abort = new AbortController();
+  const cancel = () => {
+    undone = true;
+    abort.abort();
+    applied?.revert();
+  };
+  const self = { cancel };
+  waiting = self;
   const offer = offerUndo(
     restoredText(kind),
     restoreNotesText(notes),
     () => {
+      if (!putBack) {
+        cancel();
+        if (fetching) toast.info(RESTORE_CANCELLED);
+        return;
+      }
       undone = true;
       // the frames first, then the settings, so the size from before wins
-      putBack?.run();
+      putBack.run();
       applied?.revert();
     },
-    { holds: () => (putBack ? cidsOf(putBack.frames) : []) },
+    {
+      holds: () => (putBack ? cidsOf(putBack.frames) : []),
+      // another change took the notice: the inputs no longer land over it
+      settle: () => {
+        if (!putBack) abort.abort();
+      },
+    },
   );
-  const live = () => !undone && token === latest;
+  const live = () => !undone && token === latest && !abort.signal.aborted;
 
   let loaded: LoadedInputs | null = null;
   try {
-    loaded = await target.inputs();
+    loaded = await target.inputs({
+      signal: abort.signal,
+      onProgress: (p) => {
+        fetching = true;
+        offer.progress(fetchingText(p.done, p.total, p.bytes));
+      },
+    });
   } catch (err) {
-    console.error("[inputs] could not read a result's stored inputs", err);
+    if (!(err instanceof UserAbortError)) {
+      console.error("[inputs] could not read a result's stored inputs", err);
+    }
+  } finally {
+    if (waiting === self) waiting = null;
   }
   if (!live()) return;
   if (!loaded) {
@@ -167,6 +208,7 @@ async function restoreWithInputs(target: RestoreTarget, kind: Exclude<RestoreKin
   await inputsReady();
   if (!live()) return;
   putBack = restoreFrames(loaded.inputs, previousSize);
+  if (fetching) offer.update(restoredText(kind), restoreNotesText(notes));
   const lost = loaded.lost.pictures.length;
   if (lost > 0) toast.warning(lostPicturesText(lost));
 }

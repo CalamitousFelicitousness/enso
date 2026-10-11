@@ -34,7 +34,13 @@ export interface UndoOffer {
   update(title: string, description: string | null): void;
   /** Nothing to undo after all: the notice goes. */
   withdraw(): void;
+  /** The change waits on bytes: the notice says how far, with Cancel, until
+   * `update` says it landed. Cancel, the notice's Undo and Ctrl+Z run the
+   * undo, which stops the wait. Shown at most once a second. */
+  progress(text: string): void;
 }
+
+const PROGRESS_EVERY_MS = 1000;
 
 /** Say what was done and offer to undo it. A new offer replaces the pending one. */
 export function offerUndo(
@@ -62,9 +68,23 @@ export function offerUndo(
       onAutoClose: forget,
     });
   show(title, description);
+  let shownAt = 0;
   return {
     update: (text, detail) => {
       if (pending?.id === id) show(text, detail);
+    },
+    progress: (text) => {
+      const now = Date.now();
+      if (pending?.id !== id || now - shownAt < PROGRESS_EVERY_MS) return;
+      shownAt = now;
+      // a wait cannot be swiped away: its Undo would be lost with it
+      toast(text, {
+        id: TOAST_ID,
+        description: undefined,
+        duration: Infinity,
+        dismissible: false,
+        action: { label: "Cancel", onClick: () => void runUndo() },
+      });
     },
     withdraw: () => {
       if (pending?.id !== id) return;

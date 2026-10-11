@@ -4,10 +4,17 @@ import type { TrackedJob } from "@/stores/jobStore";
 import { useCancelJob } from "@/api/hooks/useJobs";
 import { markJobCancelled } from "@/hooks/useJobTracker";
 import { useRunAgain } from "@/hooks/useRunAgain";
-import { useJobFact } from "@/inputs/jobs";
+import { useJobFact } from "@/hooks/useJobFact";
 import { queueSlots, type QueueAction } from "@/lib/jobs/cardActions";
 import { jobKind } from "@/lib/jobs/domains";
-import { FAILED_WHILE_CLOSED, MOVE_DOWN, MOVE_UP, reasonText, RUN_AGAIN } from "@/lib/jobs/text";
+import {
+  FAILED_WHILE_CLOSED,
+  MOVE_DOWN,
+  MOVE_UP,
+  noteText,
+  reasonText,
+  RUN_AGAIN,
+} from "@/lib/jobs/text";
 import { Badge } from "@/components/ui/badge";
 import { JobWarnings } from "@/components/generation/JobWarnings";
 import { JOB_ICONS } from "./jobIcons";
@@ -136,6 +143,8 @@ export function QueueJobCard({
             label={SLOTS[slot.action].label}
             icon={SLOTS[slot.action].icon}
             reason={slot.reason && reasonText(slot.reason)}
+            quiet={slot.reason === "loading"}
+            note={slot.note ? noteText(slot.note) : null}
             busy={busy && slot.action !== "cancel"}
             onAct={act[slot.action]}
           />

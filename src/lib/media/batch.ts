@@ -92,8 +92,8 @@ export interface UploadShare {
   done: boolean;
 }
 
-/** The batch's progress from its uploads: storing once every byte is sent and
- * the server is still hashing and writing some of them. */
+/** The batch's progress from its uploads: storing once every byte is sent,
+ * while the server hashes and writes them and until the action moves on. */
 export function progressOf(shares: Iterable<UploadShare>): BatchProgress {
   let sent = 0;
   let total = 0;
@@ -105,6 +105,6 @@ export function progressOf(shares: Iterable<UploadShare>): BatchProgress {
     sent += share.done ? share.total : Math.min(share.sent, share.total);
     if (share.done) done += 1;
   }
-  const phase = done < files && total > 0 && sent >= total ? "storing" : "uploading";
+  const phase = total > 0 && sent >= total ? "storing" : "uploading";
   return { phase, sent, total, done, files };
 }

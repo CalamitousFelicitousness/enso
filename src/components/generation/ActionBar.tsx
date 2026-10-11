@@ -8,7 +8,9 @@ import {
 import { useInputStore } from "@/stores/inputStore";
 import { activeProcessor, isPlaced } from "@/lib/inputs/types";
 import { firstInitialEntry } from "@/lib/inputs/outline";
-import { keptInputs, type Submission } from "@/inputs/jobs";
+import { submissionOf, type Submission } from "@/inputs/submit";
+import type { UploadBatch } from "@/inputs/uploads";
+import { useSubmitProgress, type SubmitPhase } from "@/inputs/progress";
 import { applyFix } from "@/inputs/processing";
 import { outlineOf } from "@/inputs/outlineOf";
 import { useOutlineWithEnv } from "@/inputs/useOutline";
@@ -20,7 +22,8 @@ import { buildCloudImageRequest } from "@/lib/request/buildCloudImage";
 import { buildDetailRequest } from "@/lib/request/buildDetail";
 import { restoreSettings, restoreSettingsAndInputs, resultTarget } from "@/lib/request/restore";
 import { useRunAgain } from "@/hooks/useRunAgain";
-import { useJobFact } from "@/inputs/jobs";
+import { useJobFact } from "@/hooks/useJobFact";
+import { NO_SKIP, PREPARING, SENDING, STOP_UPLOAD, STORING, uploadingText } from "@/lib/media/text";
 import { hasLegacyInputs } from "@/inputs/legacyResult";
 import { resultActions } from "@/lib/jobs/cardActions";
 import {
@@ -74,6 +77,70 @@ import { BatchDialog } from "@/components/generation/BatchDialog";
 import { XyzGridDialog } from "@/components/generation/XyzGridDialog";
 import { GenerationDiffDialog } from "@/components/generation/GenerationDiffDialog";
 
+/** Names the Images view's submit in the progress store. */
+const IMAGES_ACTION = "images";
+
+const PHASE_WORD: Record<SubmitPhase, string> = {
+  preparing: PREPARING,
+  uploading: "Uploading",
+  storing: STORING,
+  sending: SENDING,
+};
+
+/** The Generate button's icon and words: the submit's progress while it
+ * uploads, then the running job's, else the verb. It reads the stores itself,
+ * so an upload's events re-render it and nothing else. */
+const GenerateLabel = memo(function GenerateLabel({
+  verb,
+  pendingCount,
+}: {
+  verb: string;
+  pendingCount: number;
+}) {
+  const upload = useSubmitProgress((s) => s.byAction[IMAGES_ACTION]);
+  const isActive = useJobQueueStore(selectGenerateActive);
+  const runningJob = useJobQueueStore(selectRunningJob);
+  const job = runningJob?.domain === "generate" ? runningJob : null;
+  if (upload) {
+    return (
+      <>
+        <ProgressRing progress={upload.percent / 100} size={14} strokeWidth={2} />
+        {upload.phase === "uploading" ? uploadingText(upload.percent) : PHASE_WORD[upload.phase]}
+      </>
+    );
+  }
+  if (isActive) {
+    const pct = Math.round((job?.progress ?? 0) * 100);
+    return (
+      <>
+        <ProgressRing progress={job?.progress ?? 0} size={14} strokeWidth={2} />
+        {`${job?.task || "Generating"}${pct > 0 ? ` ${pct}%` : ""}${pendingCount > 0 ? ` [+${pendingCount}]` : ""}`}
+      </>
+    );
+  }
+  return (
+    <>
+      <Play size={14} />
+      {`${verb}${pendingCount > 0 ? ` [${pendingCount}]` : ""}`}
+    </>
+  );
+});
+
+/** Says each phase of the submit and the job once, for a screen reader. */
+function SubmitAnnouncer({
+  uploadPhase,
+  isActive,
+}: {
+  uploadPhase: SubmitPhase | null;
+  isActive: boolean;
+}) {
+  return (
+    <span className="sr-only" aria-live="polite">
+      {uploadPhase ? PHASE_WORD[uploadPhase] : isActive ? "Generating" : ""}
+    </span>
+  );
+}
+
 export const ActionBar = memo(function ActionBar() {
   const clearSelection = useGenerationStore((s) => s.clearSelection);
   const lastResult = useGenerationStore((s) => s.results[0]);
@@ -122,155 +189,164 @@ export const ActionBar = memo(function ActionBar() {
   const loadModel = useLoadModel();
   const queryClient = useQueryClient();
 
-  const buildSubmission = useCallback(async (): Promise<Submission> => {
-    const { activeModel } = useModelSelectionStore.getState();
+  const buildSubmission = useCallback(
+    async (batch: UploadBatch): Promise<Submission> => {
+      const { activeModel } = useModelSelectionStore.getState();
 
-    // Active model belongs to the Video panel - refuse to build an image
-    // request from it. UserAbortError tells useSubmitToQueue to skip the
-    // "Failed to submit job" toast since we already surfaced guidance.
-    if (activeModel?.source === "local-video") {
-      toast.warning("Switch to Video view to use this model");
-      throw new UserAbortError("local-video model active on Images view");
-    }
+      // Active model belongs to the Video panel - refuse to build an image
+      // request from it. UserAbortError tells useSubmitToQueue to skip the
+      // "Failed to submit job" toast since we already surfaced guidance.
+      if (activeModel?.source === "local-video") {
+        toast.warning("Switch to Video view to use this model");
+        throw new UserAbortError("local-video model active on Images view");
+      }
 
-    // Selecting a local model only updates the store (manual-load semantics),
-    // so the backend may still have a different checkpoint loaded. Load the
-    // selected one before queueing or the job runs on the wrong model. Going
-    // through the shared ["checkpoint"] query and load mutation refreshes the
-    // dropdown's loaded-model label and dedupes a single load across the
-    // batch/xyz paths, which call buildRequest once.
-    let maxInputImages: number | null = null;
-    let requestSetsSize: boolean | null = null;
-    let sizeMultiple = DEFAULT_SIZE_MULTIPLE;
-    let detailerMode: DetailerMode | null = null;
-    let strengthSupported = true;
-    let controlSeparateInit: boolean | null = null;
-    let controlUnified: boolean | null = null;
-    let checkpoint: Submission["checkpoint"] =
-      activeModel?.source === "cloud"
-        ? { title: `${activeModel.provider}/${activeModel.id}`, name: activeModel.name }
-        : null;
-    // The canvas sized a lone Reference from the model it knew before this load
-    let referenceSets = activeModel?.source !== "cloud";
-    if (activeModel?.source === "local") {
-      const fetchCheckpoint = (staleTime: number) =>
-        queryClient.fetchQuery({
-          queryKey: ["checkpoint"],
-          queryFn: () => api.get<CheckpointInfoV2>("/sdapi/v2/checkpoint"),
-          staleTime,
+      // Selecting a local model only updates the store (manual-load semantics),
+      // so the backend may still have a different checkpoint loaded. Load the
+      // selected one before queueing or the job runs on the wrong model. Going
+      // through the shared ["checkpoint"] query and load mutation refreshes the
+      // dropdown's loaded-model label and dedupes a single load across the
+      // batch/xyz paths, which call buildRequest once.
+      let maxInputImages: number | null = null;
+      let requestSetsSize: boolean | null = null;
+      let sizeMultiple = DEFAULT_SIZE_MULTIPLE;
+      let detailerMode: DetailerMode | null = null;
+      let strengthSupported = true;
+      let controlSeparateInit: boolean | null = null;
+      let controlUnified: boolean | null = null;
+      let checkpoint: Submission["checkpoint"] =
+        activeModel?.source === "cloud"
+          ? { title: `${activeModel.provider}/${activeModel.id}`, name: activeModel.name }
+          : null;
+      // The canvas sized a lone Reference from the model it knew before this load
+      let referenceSets = activeModel?.source !== "cloud";
+      if (activeModel?.source === "local") {
+        const fetchCheckpoint = (staleTime: number) =>
+          queryClient.fetchQuery({
+            queryKey: ["checkpoint"],
+            queryFn: () => api.get<CheckpointInfoV2>("/sdapi/v2/checkpoint"),
+            staleTime,
+          });
+        let loaded = await fetchCheckpoint(30_000);
+        const shown = loaded.loaded && loaded.title === activeModel.title;
+        // For a pick not loaded yet, the canvas went by what the model reported when last loaded
+        const remembered: ModelCapabilityRecord | undefined =
+          useModelCapabilityStore.getState().byTitle[activeModel.title];
+        referenceSets = referenceSetsSize(
+          true,
+          (shown ? loaded.request_sets_size : remembered?.request_sets_size) ?? null,
+        );
+        if (!loaded.loaded || loaded.title !== activeModel.title) {
+          toast.info("Loading model", { description: activeModel.title });
+          await loadModel.mutateAsync(activeModel.title);
+          // The input limit and size multiple belong to the model just loaded
+          loaded = await fetchCheckpoint(0);
+        }
+        checkpoint = { title: loaded.title ?? activeModel.title, name: activeModel.model_name };
+        maxInputImages = loaded.max_input_images ?? null;
+        requestSetsSize = loaded.request_sets_size ?? null;
+        sizeMultiple = loaded.size_multiple ?? DEFAULT_SIZE_MULTIPLE;
+        detailerMode = loaded.detailer_mode ?? null;
+        strengthSupported = loaded.strength_applicable ?? true;
+        controlUnified = loaded.control_unified ?? null;
+        // Whether this sdnext leaves a control unit its own picture beside an Initial picture
+        const info = await queryClient.fetchQuery({
+          queryKey: ["server-info"],
+          queryFn: () => api.get<ServerInfo>("/sdapi/v2/server-info"),
+          staleTime: 30_000,
         });
-      let loaded = await fetchCheckpoint(30_000);
-      const shown = loaded.loaded && loaded.title === activeModel.title;
-      // For a pick not loaded yet, the canvas went by what the model reported when last loaded
-      const remembered: ModelCapabilityRecord | undefined =
-        useModelCapabilityStore.getState().byTitle[activeModel.title];
-      referenceSets = referenceSetsSize(
-        true,
-        (shown ? loaded.request_sets_size : remembered?.request_sets_size) ?? null,
-      );
-      if (!loaded.loaded || loaded.title !== activeModel.title) {
-        toast.info("Loading model", { description: activeModel.title });
-        await loadModel.mutateAsync(activeModel.title);
-        // The input limit and size multiple belong to the model just loaded
-        loaded = await fetchCheckpoint(0);
+        controlSeparateInit = info.capabilities?.control_separate_init ?? null;
       }
-      checkpoint = { title: loaded.title ?? activeModel.title, name: activeModel.model_name };
-      maxInputImages = loaded.max_input_images ?? null;
-      requestSetsSize = loaded.request_sets_size ?? null;
-      sizeMultiple = loaded.size_multiple ?? DEFAULT_SIZE_MULTIPLE;
-      detailerMode = loaded.detailer_mode ?? null;
-      strengthSupported = loaded.strength_applicable ?? true;
-      controlUnified = loaded.control_unified ?? null;
-      // Whether this sdnext leaves a control unit its own picture beside an Initial picture
-      const info = await queryClient.fetchQuery({
-        queryKey: ["server-info"],
-        queryFn: () => api.get<ServerInfo>("/sdapi/v2/server-info"),
-        staleTime: 30_000,
+
+      // Record the prompt being generated into the prompt-history popover.
+      const submitted = useGenerationStore.getState();
+      usePromptHistoryStore.getState().addEntry({
+        prompt: submitted.prompt,
+        negative: submitted.negativePrompt,
+        model: activeModel
+          ? activeModel.source === "local"
+            ? activeModel.model_name
+            : activeModel.name
+          : "",
+        width: submitted.width,
+        height: submitted.height,
+        steps: submitted.steps,
       });
-      controlSeparateInit = info.capabilities?.control_separate_init ?? null;
-    }
 
-    // Record the prompt being generated into the prompt-history popover.
-    const submitted = useGenerationStore.getState();
-    usePromptHistoryStore.getState().addEntry({
-      prompt: submitted.prompt,
-      negative: submitted.negativePrompt,
-      model: activeModel
-        ? activeModel.source === "local"
-          ? activeModel.model_name
-          : activeModel.name
-        : "",
-      width: submitted.width,
-      height: submitted.height,
-      steps: submitted.steps,
-    });
+      // Every map key names the server's processors: the list is fetched, not
+      // taken from a canvas that may not have it yet
+      const processors = processorFacts(await queryClient.fetchQuery(preprocessorsQuery));
 
-    // Every map key names the server's processors: the list is fetched, not
-    // taken from a canvas that may not have it yet
-    const processors = processorFacts(await queryClient.fetchQuery(preprocessorsQuery));
-
-    if (activeModel?.source === "cloud") {
-      const { request, inputs, ledger } = await buildCloudImageRequest(processors);
-      clearSelection();
-      return {
-        domain: "generate",
-        request,
-        ledger,
-        inputs: keptInputs(inputs),
-        mapKeys: [],
-        checkpoint,
-      };
-    }
-
-    const gen = useGenerationStore.getState();
-    if (gen.detailerEnabled && gen.detailerOnly) {
-      const { request, inputs, ledger } = await buildDetailRequest();
-      clearSelection();
-      return {
-        domain: "generate",
-        request,
-        ledger,
-        inputs: keptInputs(inputs),
-        mapKeys: [],
-        checkpoint,
-      };
-    }
-
-    const { request, mapKeys, inputs, ledger } = await buildControlRequest({
-      maxInputImages,
-      requestSetsSize,
-      sizeMultiple,
-      referenceSets,
-      strengthSupported,
-      detailerMode,
-      controlSeparateInit,
-      controlUnified,
-      processors,
-    }).catch((err: unknown) => {
-      if (err instanceof InputRefusal) {
-        toast.warning("Can't generate with these input images", { description: err.message });
-        throw new UserAbortError(err.message);
+      if (activeModel?.source === "cloud") {
+        const { request, inputs, uploader } = await buildCloudImageRequest(processors, batch);
+        clearSelection();
+        return submissionOf({
+          domain: "generate",
+          request,
+          batch,
+          uploader,
+          inputs,
+          mapKeys: [],
+          checkpoint,
+        });
       }
-      if (err instanceof SettingRefusal) {
-        toast.warning("Can't generate with these settings", { description: err.message });
-        throw new UserAbortError(err.message);
-      }
-      throw err;
-    });
-    clearSelection();
-    return {
-      domain: "generate",
-      request: { type: "generate", ...request },
-      ledger,
-      inputs: keptInputs(inputs),
-      mapKeys,
-      checkpoint,
-    };
-  }, [clearSelection, loadModel, queryClient]);
 
-  const { submit, isSubmitting } = useSubmitToQueue(
-    useMemo(() => ({ build: buildSubmission }), [buildSubmission]),
+      const gen = useGenerationStore.getState();
+      if (gen.detailerEnabled && gen.detailerOnly) {
+        const { request, inputs, uploader } = await buildDetailRequest(batch);
+        clearSelection();
+        return submissionOf({
+          domain: "generate",
+          request,
+          batch,
+          uploader,
+          inputs,
+          mapKeys: [],
+          checkpoint,
+        });
+      }
+
+      const { request, mapKeys, inputs, uploader } = await buildControlRequest({
+        maxInputImages,
+        requestSetsSize,
+        sizeMultiple,
+        referenceSets,
+        strengthSupported,
+        detailerMode,
+        controlSeparateInit,
+        controlUnified,
+        processors,
+        batch,
+      }).catch((err: unknown) => {
+        if (err instanceof InputRefusal) {
+          toast.warning("Can't generate with these input images", { description: err.message });
+          throw new UserAbortError(err.message);
+        }
+        if (err instanceof SettingRefusal) {
+          toast.warning("Can't generate with these settings", { description: err.message });
+          throw new UserAbortError(err.message);
+        }
+        throw err;
+      });
+      clearSelection();
+      return submissionOf({
+        domain: "generate",
+        request: { type: "generate", ...request },
+        batch,
+        uploader,
+        inputs,
+        mapKeys,
+        checkpoint,
+      });
+    },
+    [clearSelection, loadModel, queryClient],
   );
+
+  const { submit, isSubmitting, cancel } = useSubmitToQueue(
+    useMemo(() => ({ build: buildSubmission, action: IMAGES_ACTION }), [buildSubmission]),
+  );
+  // the submit's phase alone: its percentage re-renders only the label
+  const uploadPhase = useSubmitProgress((s) => s.byAction[IMAGES_ACTION]?.phase ?? null);
 
   // Generate stays clickable while the inputs block it: it says what, offers
   // the fix, and opens the Input tab
@@ -290,14 +366,15 @@ export const ActionBar = memo(function ActionBar() {
 
   const isGenerating = isActive || isSubmitting;
   const runningGenJob = useJobQueueStore(selectGenerateActive);
-  const progress = runningJob?.domain === "generate" ? runningJob.progress : 0;
 
+  // Stop acts on an upload first, then on the running job
   const handleInterrupt = useCallback(() => {
+    if (cancel()) return;
     if (runningJob && runningJob.domain === "generate") {
       sendToJob(runningJob.id, { type: "interrupt" });
       cancelJob.mutate(runningJob.id);
     }
-  }, [runningJob, cancelJob]);
+  }, [cancel, runningJob, cancelJob]);
 
   const handleSkip = useCallback(() => {
     if (runningJob && runningJob.domain === "generate") {
@@ -331,7 +408,7 @@ export const ActionBar = memo(function ActionBar() {
         legacyInputs: hasLegacyInputs(lastResult),
       },
       lastFacts,
-    ).runAgain;
+    ).runAgain.reason;
     if (reason || !lastResult.jobId) {
       toast.info(LAST_NOT_REPLAYABLE, {
         description: reasonText(reason ?? "olderResult"),
@@ -352,10 +429,6 @@ export const ActionBar = memo(function ActionBar() {
     },
     [lastResult, restoreLast],
   );
-
-  const progressPct = Math.round(progress * 100);
-  const phase = runningJob?.domain === "generate" ? runningJob.task : "";
-  const phaseLabel = phase || "Generating";
 
   // Scoped to the Images view: this panel stays mounted under KeepAlive after
   // the user switches away, so an unscoped registration would answer for Video.
@@ -468,40 +541,33 @@ export const ActionBar = memo(function ActionBar() {
           size="sm"
           className="flex-1 rounded-r-none"
         >
-          {isGenerating ? (
-            <ProgressRing progress={progress} size={14} strokeWidth={2} />
-          ) : (
-            <Play size={14} />
-          )}
-          {isGenerating
-            ? `${phaseLabel}${progressPct > 0 ? ` ${progressPct}%` : ""}${pendingCount > 0 ? ` [+${pendingCount}]` : ""}`
-            : detailerOnly
-              ? `Detail${pendingCount > 0 ? ` [${pendingCount}]` : ""}`
-              : `Generate${pendingCount > 0 ? ` [${pendingCount}]` : ""}`}
+          <GenerateLabel verb={detailerOnly ? "Detail" : "Generate"} pendingCount={pendingCount} />
         </Button>
-        {!isGenerating && (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                type="button"
-                variant="default"
-                size="sm"
-                className="px-1.5 rounded-l-none border-l border-primary-foreground/20"
-              >
-                <ChevronDown size={14} />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onSelect={() => setBatchOpen(true)}>
-                <Layers size={14} /> Batch Generation
-              </DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => setXyzOpen(true)}>
-                <Grid3X3 size={14} /> XYZ Grid
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        )}
+        {/* Stays in its slot while a job runs, so the row keeps its shape */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              type="button"
+              variant="default"
+              size="sm"
+              disabled={isGenerating}
+              aria-label="More ways to generate"
+              className="px-1.5 rounded-l-none border-l border-primary-foreground/20"
+            >
+              <ChevronDown size={14} />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onSelect={() => setBatchOpen(true)}>
+              <Layers size={14} /> Batch Generation
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => setXyzOpen(true)}>
+              <Grid3X3 size={14} /> XYZ Grid
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
+      <SubmitAnnouncer uploadPhase={uploadPhase} isActive={isActive} />
       {/* Fixed width: the count appears without moving the buttons beside it */}
       <span
         className="grid w-4 shrink-0 place-items-center font-mono text-2xs tabular-nums text-amber-400"
@@ -520,15 +586,18 @@ export const ActionBar = memo(function ActionBar() {
         <XyzGridDialog open={xyzOpen} onOpenChange={setXyzOpen} build={buildSubmission} />
       )}
 
-      {/* Stop button */}
+      {/* Stop: the upload while one runs; disabled while the job is sent, which cannot be taken back */}
       {isGenerating && (
         <Button
           type="button"
           data-param="stop"
           onClick={handleInterrupt}
+          disabled={uploadPhase === "sending"}
           variant="destructive"
           size="icon-sm"
-          title="Stop generation"
+          title={
+            uploadPhase === "sending" ? SENDING : uploadPhase ? STOP_UPLOAD : "Stop generation"
+          }
         >
           <Square size={14} />
         </Button>
@@ -558,19 +627,20 @@ export const ActionBar = memo(function ActionBar() {
         </>
       )}
 
-      {/* Skip button */}
-      {runningGenJob && (
-        <Button
-          type="button"
-          data-param="skip"
-          onClick={handleSkip}
-          variant="secondary"
-          size="icon-sm"
-          title="Skip current"
-        >
-          <SkipForward size={14} />
-        </Button>
-      )}
+      {/* Skip: always in its slot, unavailable while no generation runs */}
+      <Button
+        type="button"
+        data-param="skip"
+        onClick={handleSkip}
+        aria-disabled={runningGenJob ? undefined : true}
+        className={runningGenJob ? undefined : "opacity-50"}
+        variant="secondary"
+        size="icon-sm"
+        aria-label="Skip current"
+        title={runningGenJob ? "Skip current" : NO_SKIP}
+      >
+        <SkipForward size={14} />
+      </Button>
     </div>
   );
 });

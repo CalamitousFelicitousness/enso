@@ -2,13 +2,15 @@ import { useQuery } from "@tanstack/react-query";
 import { api } from "../client";
 import type { ResMemory, ResGPU, ServerInfo, LoadedModel } from "../types/server";
 
+/** What the server runs and offers; the hook and the submit path share the cache entry. */
+export const serverInfoQuery = {
+  queryKey: ["server-info"],
+  queryFn: () => api.get<ServerInfo>("/sdapi/v2/server-info"),
+  staleTime: 30_000,
+};
+
 export function useServerInfo() {
-  return useQuery({
-    queryKey: ["server-info"],
-    queryFn: () => api.get<ServerInfo>("/sdapi/v2/server-info"),
-    staleTime: 30_000,
-    retry: 2,
-  });
+  return useQuery({ ...serverInfoQuery, retry: 2 });
 }
 
 export function useMemory(enabled = true) {

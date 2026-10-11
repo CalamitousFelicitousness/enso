@@ -5,6 +5,7 @@ import { useBackendStatusStore } from "@/stores/backendStatusStore";
 import { useDownloadStore, type DownloadProgress } from "@/stores/downloadStore";
 import { previewMimeType } from "@/lib/image";
 import { queryClient } from "@/api/queryClient";
+import { createLiveQueries, isGlobalEvent } from "@/api/liveQueries";
 
 /** Query keys to invalidate when the backend reconnects (e.g. after restart). */
 const RECONNECT_INVALIDATE_KEYS = [
@@ -21,6 +22,7 @@ export function useGlobalWs() {
   useEffect(() => {
     ensureWs();
     let wasConnected = false;
+    const live = createLiveQueries(queryClient);
 
     const offOpen = ws.on("open", () => {
       if (wasConnected) {
@@ -28,6 +30,8 @@ export function useGlobalWs() {
           void queryClient.invalidateQueries({ queryKey: [key] });
         }
       }
+      // the socket owes nothing from before it opened, the first time included
+      live.opened();
       wasConnected = true;
       useBackendStatusStore.getState().setConnected(true);
     });
@@ -59,6 +63,8 @@ export function useGlobalWs() {
         void queryClient.invalidateQueries({ queryKey: ["control-modes"] });
       } else if (msg.type === "download" && Array.isArray(msg.data)) {
         useDownloadStore.getState().updateFromWs(msg.data as DownloadProgress[]);
+      } else if (isGlobalEvent(msg)) {
+        live.event(msg);
       }
     });
 

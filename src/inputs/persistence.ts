@@ -30,9 +30,11 @@ import {
   enterTab,
   latestRevision,
   readDocument,
+  readHashes,
   unreadableBlobs,
   writeDocument,
 } from "./db";
+import { bytesFor } from "./fetch";
 import { decodeLegacyUnits } from "./legacyControl";
 
 /** What reading the stored inputs turned up besides the document. */
@@ -274,10 +276,40 @@ async function importLegacy(
 
 const NO_LOSS: JoinLoss = { pictures: [], maskObjects: 0 };
 
+const HEAL_TIMEOUT_MS = 15_000;
+
+/** Fetch back from the server, by the hash remembered for each, the bytes
+ * the document names that this browser lost; the rest stay lost. Answers how
+ * many came back. */
+async function heal(cids: readonly string[], blobs: Map<string, Blob>): Promise<number> {
+  const missing = [...new Set(cids)].filter((cid) => !blobs.has(cid));
+  if (missing.length === 0) return 0;
+  try {
+    const rows = await readHashes(missing);
+    if (rows.size === 0) return 0;
+    const hashes = Object.fromEntries([...rows].map(([cid, row]) => [cid, row.hash]));
+    // a server that does not answer must not hold the page's inputs back
+    const { blobs: fetched } = await bytesFor(rows.keys(), hashes, {
+      signal: AbortSignal.timeout(HEAL_TIMEOUT_MS),
+    });
+    let healed = 0;
+    for (const [cid, blob] of fetched) {
+      if (blobs.has(cid)) continue;
+      blobs.set(cid, blob);
+      healed += 1;
+    }
+    return healed;
+  } catch (err) {
+    console.warn("[inputs] lost pictures could not be fetched back from the server", err);
+    return 0;
+  }
+}
+
 const backend: KeyValueBackend = {
   async get() {
     await enterTab();
     const stored = await readDocument(DOCUMENTS, KEY, readWorking, (read) => read.cids);
+    const healed = stored ? await heal(stored.document.cids, stored.blobs) : 0;
     const own = stored ? joinWorking(stored.document.record, stored.blobs) : null;
     revision = stored ? stored.document.record.revision : await latestRevision(DOCUMENTS, KEY);
     const before = own?.doc ?? EMPTY_WORKING;
@@ -286,9 +318,11 @@ const backend: KeyValueBackend = {
     const upgraded = stored?.document.notes ?? [];
     // An import is stored before the store may write, so a reload cannot find
     // the frames without their marks or the marks without their frames. A
-    // loss or an upgrade is stored too, or it would be reported on every load.
+    // loss or an upgrade is stored too, or it would be reported on every load;
+    // bytes fetched back are stored, or the next load would fetch them again.
     if (
       imported.doc !== before ||
+      healed > 0 ||
       lost.pictures.length > 0 ||
       lost.maskObjects > 0 ||
       upgraded.length > 0

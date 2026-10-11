@@ -16,11 +16,12 @@ import {
   claimBytes,
   planBatch,
   progressOf,
+  roomOf,
   type BatchProgress,
   type PlanItem,
   type UploadShare,
 } from "@/lib/media/batch";
-import { STAGED_PREFIX, type Outcome } from "@/lib/media/stage";
+import { isGone, STAGED_PREFIX, type Outcome } from "@/lib/media/stage";
 import { readBlob, readHashes, rememberHashes, type Hashed } from "./db";
 
 /** The bytes to send, a way to make them once they must go, or none. */
@@ -121,6 +122,8 @@ export class UploadBatch {
   private readonly byHash = new Map<string, Item>();
   private readonly byBytes = new Map<Blob, Item>();
   private running: Promise<ReadonlyMap<string, Outcome>> | null = null;
+  private outcomes: ReadonlyMap<string, Outcome> | null = null;
+  private leftOut: { count: number; room: number } | null = null;
 
   /** `label` names the action in the log. */
   constructor(label: string, options: BatchOptions = {}) {
@@ -166,8 +169,53 @@ export class UploadBatch {
 
   /** Send what the server lacks; each staged ref's outcome. Runs once. */
   run(): Promise<ReadonlyMap<string, Outcome>> {
-    this.running ??= this.go();
+    this.running ??= this.go().then((outcomes) => {
+      this.outcomes = outcomes;
+      return outcomes;
+    });
     return this.running;
+  }
+
+  /** The record-only items left out because the server had no room, and the
+   * room it had; null when none was. */
+  get keptOut(): { count: number; room: number } | null {
+    return this.leftOut;
+  }
+
+  /** A batch with the same items under the same refs, not run yet, so a
+   * request staged on this one stays valid: a Retry after a failed run, or,
+   * with `hashes`, the items whose bytes went out under one of them, for a
+   * server that no longer holds those. */
+  again(options: BatchOptions = {}, hashes?: ReadonlySet<string>): UploadBatch {
+    const next = new UploadBatch(this.label, {
+      tools: this.tools,
+      ...(this.signal ? { signal: this.signal } : {}),
+      ...(this.onProgress ? { onProgress: this.onProgress } : {}),
+      ...options,
+    });
+    for (const item of this.items) {
+      if (hashes && !hashes.has(this.hashOf(item.ref) ?? "")) continue;
+      const copy = { ...item };
+      next.items.push(copy);
+      next.index(copy, copy.bytes);
+    }
+    return next;
+  }
+
+  /** The name of the first item whose bytes went out under each of `hashes`;
+   * a hash no item sent is absent. */
+  namesOf(hashes: ReadonlySet<string>): Map<string, string> {
+    const names = new Map<string, string>();
+    for (const item of this.items) {
+      const hash = this.hashOf(item.ref);
+      if (hash && hashes.has(hash) && !names.has(hash)) names.set(hash, item.name);
+    }
+    return names;
+  }
+
+  private hashOf(ref: string): string | null {
+    const outcome = this.outcomes?.get(ref);
+    return outcome && !isGone(outcome) ? outcome.hash : null;
   }
 
   private find(bytes: Bytes, options: StageOptions): Item | undefined {
@@ -227,7 +275,8 @@ export class UploadBatch {
     }));
     const hashes = [...new Set(plan.flatMap((p) => (p.hash ? [p.hash] : [])))];
     const claimed = claimBytes(plan);
-    const decided = planBatch(plan, await this.tools.claim(hashes, claimed, this.signal), claimed);
+    const answer = await this.tools.claim(hashes, claimed, this.signal);
+    const decided = planBatch(plan, answer, claimed);
     if (decided.refused) throw new UploadRefused({ kind: "space", ...decided.refused });
     const byRef = new Map(this.items.map((item) => [item.ref, item]));
     const newRows = new Map<string, Hashed>();
@@ -239,6 +288,7 @@ export class UploadBatch {
     }
     for (const ref of decided.leftOut) outcomes.set(ref, gone(byRef.get(ref)!));
     if (decided.leftOut.length > 0) {
+      this.leftOut = { count: decided.leftOut.length, room: roomOf(answer.space, claimed) };
       console.info(
         `[uploads] ${this.label}: ${decided.leftOut.length} kept-only pictures left out for space`,
       );

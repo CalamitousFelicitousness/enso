@@ -48,7 +48,9 @@ function masked(value: unknown): unknown {
   return value;
 }
 
-test("running a job again sends the same request with the same upload refs", async ({ page }) => {
+test("running a job again sends the same request with the same refs and no upload", async ({
+  page,
+}) => {
   const app = new Enso(page);
   await prepare(app);
   const first: Job = await app.generate();
@@ -57,8 +59,16 @@ test("running a job again sends the same request with the same upload refs", asy
   // Changed in the UI between the runs: Run again sends what the job was sent with
   await app.setPrompt("A different prompt that must not be sent");
   await app.setSteps(12);
+  // the server holds every picture the job sent, so nothing goes up again
+  const uploads: string[] = [];
+  page.on("request", (request) => {
+    if (request.method() === "POST" && new URL(request.url()).pathname === "/sdapi/v2/blobs") {
+      uploads.push(request.url());
+    }
+  });
   const second = await app.runAgain();
   expect(second.error ?? null).toBeNull();
+  expect(uploads, "uploads during Run again").toEqual([]);
   expect(imageSizes(second)).toEqual(["704x1280"]);
 
   const sent = first.result?.params ?? {};

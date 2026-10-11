@@ -11,7 +11,9 @@ import {
   type XyzValidateResponse,
   type XyzPreviewResponse,
 } from "@/api/hooks/useXyzAxisOptions";
-import { submitJob, type Submission } from "@/inputs/jobs";
+import { clearSubmitProgress, setBatchProgress } from "@/inputs/progress";
+import { submitJob, type Submission } from "@/inputs/submit";
+import { UploadBatch } from "@/inputs/uploads";
 import { UserAbortError } from "@/lib/abort";
 import { countAxisValues, groupAxisOptions } from "@/lib/xyzGrid";
 import type { XyzGridJobParams } from "@/api/types/v2";
@@ -33,7 +35,7 @@ import { Combobox, type ComboboxGroup } from "@/components/ui/combobox";
 interface XyzGridDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  build: () => Promise<Submission>;
+  build: (batch: UploadBatch) => Promise<Submission>;
 }
 
 interface AxisValidation {
@@ -297,7 +299,8 @@ export function XyzGridDialog({ open, onOpenChange, build }: XyzGridDialogProps)
     if (!axisOptions) return;
     setIsSubmitting(true);
     try {
-      const submission = await build();
+      const batch = new UploadBatch("xyz", { onProgress: (p) => setBatchProgress("images", p) });
+      const submission = await build(batch);
       // Extract generation params from the base payload, then overlay xyz-grid fields
       const {
         type: _type,
@@ -339,6 +342,7 @@ export function XyzGridDialog({ open, onOpenChange, build }: XyzGridDialogProps)
         description: err instanceof Error ? err.message : String(err),
       });
     } finally {
+      clearSubmitProgress("images");
       setIsSubmitting(false);
     }
   }, [

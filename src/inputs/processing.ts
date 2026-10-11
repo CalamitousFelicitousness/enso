@@ -16,9 +16,11 @@ import {
 } from "@/lib/inputs/outline";
 import { positionsLabel, processOutcomeText, type ProcessOutcome } from "@/lib/inputs/text";
 import { useInputStore } from "@/stores/inputStore";
-import { submitJob } from "./jobs";
+import { rememberHashes } from "./db";
 import { installMap, lookupMaps, markFailed, useMapStore } from "./maps";
 import { createUploader, type Uploader } from "./materialise";
+import { submitJob } from "./submit";
+import { UploadBatch } from "./uploads";
 
 /** A map slot with the frame it belongs to and, for a Reference picture, which one. */
 export interface SlotOwner {
@@ -89,7 +91,8 @@ export async function processFrames(
   ];
   if (needed.length === 0) return missing.length === 0 ? "current" : "busy";
   try {
-    const up = createUploader({ frames, size: env.processing.frame });
+    const batch = new UploadBatch("Process now");
+    const up = createUploader({ frames, size: env.processing.frame }, batch);
     const items: PreprocessItem[] = [];
     for (const owner of needed) {
       items.push({
@@ -104,6 +107,7 @@ export async function processFrames(
     await submitJob({
       domain: "preprocess",
       request,
+      batch,
       ledger: up.ledger,
       inputs: null,
       mapKeys: items.map((i) => i.key),
@@ -122,11 +126,22 @@ export async function processFrames(
 // report must join the first one's fetch, not store the bytes again.
 const installing = new Map<string, Promise<void>>();
 
+/** A map the server stored names its hash in its URL. */
+const BLOB_URL = /\/sdapi\/v2\/blobs\/([0-9a-f]{64})$/;
+
 async function fetchAndInstall(key: string, url: string): Promise<void> {
   try {
     const response = await fetchMedia(url);
     if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
-    await installMap(key, await response.blob());
+    const blob = await response.blob();
+    const cid = await installMap(key, blob);
+    // a job that sends this map then claims the server's copy
+    const hash = BLOB_URL.exec(url)?.[1];
+    if (hash) {
+      await rememberHashes(new Map([[cid, { hash, size: blob.size }]])).catch((err: unknown) => {
+        console.warn("[inputs] a map's hash could not be remembered", err);
+      });
+    }
   } catch (err) {
     console.error("[inputs] could not fetch a map the server made", err);
     markFailed({ [key]: "The map the server made could not be fetched" });

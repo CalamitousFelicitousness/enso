@@ -559,6 +559,8 @@ export interface Job {
   completed_at: string | null;
   error: string | null;
   result: JobResult | null;
+  /** Higher runs first; absent from servers before the job records. */
+  priority?: number;
 }
 
 export interface JobListResponse {

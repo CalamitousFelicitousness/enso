@@ -1,5 +1,5 @@
 import { fileURLToPath } from "node:url";
-import { expect, type Locator, type Page } from "@playwright/test";
+import { expect, type Locator, type Page, type Response } from "@playwright/test";
 import { finishedJob, type Job } from "./backend";
 
 /** 528x960, a face in front of a neon sign: a detailer finds the face, and
@@ -23,7 +23,7 @@ export class Enso {
 
   async open(): Promise<void> {
     await this.page.goto("");
-    await this.page.getByRole("button", { name: "Skip" }).click();
+    await this.page.getByRole("button", { name: "Skip", exact: true }).click();
     // Focus mode centres the Output frame and leaves the Input frame under the Left Panel
     await this.canvas.getByRole("button", { name: "Canvas", exact: true }).click();
     await expect(this.canvas.getByText(/^Input/)).toBeVisible();
@@ -34,7 +34,7 @@ export class Enso {
   async reopen(): Promise<void> {
     await this.page.reload();
     await expect(this.canvas.getByText(/^Input/).first()).toBeVisible();
-    const skip = this.page.getByRole("button", { name: "Skip" });
+    const skip = this.page.getByRole("button", { name: "Skip", exact: true });
     if (await skip.isVisible()) await skip.click();
   }
 
@@ -159,18 +159,23 @@ export class Enso {
     return (await label.innerText()).replace("×", "x");
   }
 
+  /** The job a submit posted, once the server took it with its record. */
+  private submitted(): Promise<Response> {
+    return this.page.waitForResponse(
+      (response) =>
+        response.request().method() === "POST" &&
+        new URL(response.url()).pathname === "/sdapi/v2/submit",
+      { timeout: 120_000 },
+    );
+  }
+
   /** Click Generate and wait for the job to leave the queue. */
   async generate(): Promise<Job> {
     // Uploads and the request build run first, on a cold browser cache
-    const submitted = this.page.waitForResponse(
-      (response) =>
-        response.request().method() === "POST" &&
-        new URL(response.url()).pathname === "/sdapi/v2/jobs",
-      { timeout: 120_000 },
-    );
+    const submitted = this.submitted();
     await this.leftPanel.getByRole("button", { name: "Generate", exact: true }).click();
     const response = await submitted;
-    expect(response.status(), "POST /sdapi/v2/jobs").toBe(202);
+    expect(response.ok(), `POST /sdapi/v2/submit answered ${response.status()}`).toBe(true);
     const { id } = (await response.json()) as { id: string };
     return finishedJob(this.page.request, id);
   }
@@ -195,15 +200,10 @@ export class Enso {
 
   /** Run a result's job again and wait for the new job to leave the queue. */
   async runAgain(index = 0): Promise<Job> {
-    const submitted = this.page.waitForResponse(
-      (response) =>
-        response.request().method() === "POST" &&
-        new URL(response.url()).pathname === "/sdapi/v2/jobs",
-      { timeout: 120_000 },
-    );
+    const submitted = this.submitted();
     await this.resultMenu("Run again", index);
     const response = await submitted;
-    expect(response.status(), "POST /sdapi/v2/jobs").toBe(202);
+    expect(response.ok(), `POST /sdapi/v2/submit answered ${response.status()}`).toBe(true);
     const { id } = (await response.json()) as { id: string };
     return finishedJob(this.page.request, id);
   }

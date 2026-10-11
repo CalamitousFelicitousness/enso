@@ -1,8 +1,12 @@
 import { useState, useCallback } from "react";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
-import { submitJob, type Submission } from "@/inputs/jobs";
+import { clearSubmitProgress, setBatchProgress } from "@/inputs/progress";
+import { newSubmitId, post, prepare, type Prepared, type Submission } from "@/inputs/submit";
+import { UploadBatch } from "@/inputs/uploads";
+import { retryable } from "@/hooks/useSubmitToQueue";
 import { UserAbortError } from "@/lib/abort";
+import { RETRY } from "@/lib/media/text";
 import type { JobRequest } from "@/api/types/v2";
 import {
   Dialog,
@@ -20,8 +24,11 @@ import { Switch } from "@/components/ui/switch";
 interface BatchDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  build: () => Promise<Submission>;
+  build: (batch: UploadBatch) => Promise<Submission>;
 }
+
+/** Names the batch's uploads in the progress the Generate button shows. */
+const ACTION = "images";
 
 export function BatchDialog({ open, onOpenChange, build }: BatchDialogProps) {
   const [count, setCount] = useState(4);
@@ -29,29 +36,62 @@ export function BatchDialog({ open, onOpenChange, build }: BatchDialogProps) {
   const [autoSeed, setAutoSeed] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  /** Post the jobs from `from` on, each under its own id, which its Retry sends again. */
+  const postFrom = useCallback(
+    async (prepared: Prepared, ids: readonly string[], base: number, from: number) => {
+      setIsSubmitting(true);
+      let current = prepared;
+      let i = from;
+      try {
+        for (; i < ids.length; i++) {
+          const request = { ...current.request, seed: base + i } as JobRequest;
+          current = (await post({ ...current, request }, ids[i] ?? newSubmitId())).prepared;
+        }
+        toast.success(`Queued ${ids.length} jobs`, {
+          description: `Seeds ${base}-${base + ids.length - 1}`,
+        });
+        onOpenChange(false);
+      } catch (err) {
+        const failedAt = i;
+        toast.error(`Queued ${failedAt} of ${ids.length} jobs`, {
+          description: err instanceof Error ? err.message : String(err),
+          ...(retryable(err)
+            ? {
+                action: {
+                  label: RETRY,
+                  onClick: () => void postFrom(current, ids, base, failedAt),
+                },
+              }
+            : {}),
+        });
+      } finally {
+        setIsSubmitting(false);
+      }
+    },
+    [onOpenChange],
+  );
+
   const handleSubmit = useCallback(async () => {
     setIsSubmitting(true);
+    let prepared: Prepared;
     try {
-      // One build: every job of the batch sends the same uploads with its own seed
-      const submission = await build();
-      const resolvedBase = autoSeed ? Math.floor(Math.random() * 999999999) : baseSeed;
-      for (let i = 0; i < count; i++) {
-        const request = { ...submission.request, seed: resolvedBase + i } as JobRequest;
-        await submitJob({ ...submission, request });
-      }
-      toast.success(`Queued ${count} jobs`, {
-        description: `Seeds ${resolvedBase}-${resolvedBase + count - 1}`,
-      });
-      onOpenChange(false);
+      // One build and one set of uploads: every job of the batch sends them with its own seed
+      const batch = new UploadBatch("batch", { onProgress: (p) => setBatchProgress(ACTION, p) });
+      prepared = await prepare(await build(batch));
     } catch (err) {
+      setIsSubmitting(false);
       if (err instanceof UserAbortError) return;
       toast.error("Failed to submit batch", {
         description: err instanceof Error ? err.message : String(err),
       });
+      return;
     } finally {
-      setIsSubmitting(false);
+      clearSubmitProgress(ACTION);
     }
-  }, [build, count, baseSeed, autoSeed, onOpenChange]);
+    const base = autoSeed ? Math.floor(Math.random() * 999999999) : baseSeed;
+    const ids = Array.from({ length: count }, newSubmitId);
+    await postFrom(prepared, ids, base, 0);
+  }, [build, count, baseSeed, autoSeed, postFrom]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

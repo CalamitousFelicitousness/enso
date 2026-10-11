@@ -4,7 +4,8 @@ import { useImg2ImgStore } from "@/stores/img2imgStore";
 import { useInputStore } from "@/stores/inputStore";
 import { useUiStore } from "@/stores/uiStore";
 import { outlineWithMaps } from "@/inputs/maps";
-import { createUploader, type Ledger } from "@/inputs/materialise";
+import { createUploader, type Uploader } from "@/inputs/materialise";
+import type { UploadBatch } from "@/inputs/uploads";
 import { computeOutline } from "@/lib/inputs/outline";
 import type { Inputs } from "@/lib/inputs/stored";
 import { problemText, unreadableText } from "@/lib/inputs/text";
@@ -17,12 +18,13 @@ export interface CloudBuildResult {
   request: CloudImageJobParams;
   /** The frames the request was built from. */
   inputs: Inputs;
-  /** Where each upload the request names came from. */
-  ledger: Ledger;
+  /** What staged each upload the request names, and where it came from. */
+  uploader: Uploader;
 }
 
 export async function buildCloudImageRequest(
   processors: ProcessorFacts,
+  batch: UploadBatch,
 ): Promise<CloudBuildResult> {
   const { activeModel } = useModelSelectionStore.getState();
   const gen = useGenerationStore.getState();
@@ -92,7 +94,7 @@ export async function buildCloudImageRequest(
   if (gen.cfgScale !== 7) request.guidance = gen.cfgScale;
   if (gen.steps !== 20) request.steps = gen.steps;
 
-  const up = createUploader({ frames, size: frame });
+  const up = createUploader({ frames, size: frame }, batch);
   const inputs: Inputs = { frames, size: frame, sizeSource };
   const encoding = { provider: model.provider, model: model.id };
   // The primary Initial frame's encoded dimensions, for the mask
@@ -129,7 +131,7 @@ export async function buildCloudImageRequest(
 
   if (imageRefs.length === 0) {
     // No input images - pure txt2img. Return without setting image/images.
-    return { request, inputs, ledger: up.ledger };
+    return { request, inputs, uploader: up };
   }
 
   request.images = imageRefs;
@@ -142,5 +144,5 @@ export async function buildCloudImageRequest(
     if (mask) request.mask = mask;
   }
 
-  return { request, inputs, ledger: up.ledger };
+  return { request, inputs, uploader: up };
 }
