@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { Trash2, ListOrdered, Ban } from "lucide-react";
 import { toast } from "sonner";
 import { useJobQueueStore } from "@/stores/jobStore";
@@ -8,6 +8,7 @@ import { ApiError } from "@/api/client";
 import { useDeleteJob, useMoveJob, usePurgeJobs } from "@/api/hooks/useJobs";
 import { viewOf } from "@/lib/jobs/cardActions";
 import { MOVE_STARTED } from "@/lib/jobs/text";
+import { ClearHistoryDialog } from "./ClearHistoryDialog";
 import { QueueJobCard } from "./QueueJobCard";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -26,6 +27,7 @@ export function QueueTab() {
   );
   const deleteJob = useDeleteJob();
   const purgeJobs = usePurgeJobs();
+  const [confirmClear, setConfirmClear] = useState(false);
   const moveJob = useMoveJob();
 
   const { runningJobs, terminalJobs, totalCount, avgProgress } = useMemo(() => {
@@ -86,9 +88,13 @@ export function QueueTab() {
     purgeJobs.mutate(undefined, {
       onSuccess: (data) => {
         clearTerminal();
+        setConfirmClear(false);
         if (data.deleted > 0) toast.success(`Purged ${data.deleted} jobs`);
       },
-      onError: () => clearTerminal(),
+      onError: () => {
+        clearTerminal();
+        setConfirmClear(false);
+      },
     });
   }, [purgeJobs, clearTerminal]);
 
@@ -187,7 +193,7 @@ export function QueueTab() {
               size="icon"
               variant="ghost"
               className="h-5 w-5"
-              onClick={handleClearHistory}
+              onClick={() => setConfirmClear(true)}
               title="Clear history"
             >
               <Trash2 className="h-3 w-3" />
@@ -205,6 +211,13 @@ export function QueueTab() {
           ))}
         </div>
       )}
+      <ClearHistoryDialog
+        open={confirmClear}
+        here={terminalJobs.length}
+        isPending={purgeJobs.isPending}
+        onConfirm={handleClearHistory}
+        onCancel={() => setConfirmClear(false)}
+      />
     </div>
   );
 }

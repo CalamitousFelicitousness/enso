@@ -173,6 +173,24 @@ export const FAILED_WHILE_CLOSED = "Failed while the page was closed";
 
 const jobs = (n: number) => (n === 1 ? "1 job" : `${n} jobs`);
 
+/** The question before the finished jobs leave the server; null before they are counted. */
+export function clearHistoryTitle(finished: number | null): string {
+  if (finished === null) return "Remove every finished job from the server?";
+  return `Remove ${finished === 1 ? "1 finished job" : `${finished} finished jobs`} from the server?`;
+}
+
+/** How many of them this page knows; null for none. */
+export function fromThisBrowserText(here: number): string | null {
+  if (here === 0) return null;
+  return here === 1 ? "1 is from this browser." : `${here} are from this browser.`;
+}
+
+export const HISTORY_LOSES = "History loses them in every browser.";
+
+/** What leaving the server's job history leaves of a job. */
+export const RESULTS_KEPT =
+  "Saved results stay in the Gallery and on the strips, and Run again and Restore keep working; results that were not saved are deleted.";
+
 /** The jobs that ended while no page was open; null for none. */
 export function closedPageText(finished: number, failed: number): string | null {
   if (finished > 0 && failed > 0) {

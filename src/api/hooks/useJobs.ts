@@ -97,10 +97,11 @@ export function useBulkJobAction() {
   });
 }
 
-export function useJobStats() {
+export function useJobStats(enabled = true) {
   return useQuery({
     queryKey: ["v2-jobs", "stats"],
     queryFn: () => api.get<JobStats>("/sdapi/v2/jobs/stats"),
     staleTime: 10000,
+    enabled,
   });
 }

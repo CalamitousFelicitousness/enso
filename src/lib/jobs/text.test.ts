@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  clearHistoryTitle,
   closedPageText,
+  fromThisBrowserText,
   noteText,
   outputJobText,
   reasonText,
@@ -76,5 +78,16 @@ describe("the job a file came from", () => {
     expect(outputJobText(found, { domain: "framepack", createdAt: now }, now)).toBe(
       "From an Enso FramePack job, just now",
     );
+  });
+});
+
+describe("clearing the finished jobs", () => {
+  it("asks with the server's count, and says how many this browser sent", () => {
+    expect(clearHistoryTitle(380)).toBe("Remove 380 finished jobs from the server?");
+    expect(clearHistoryTitle(1)).toBe("Remove 1 finished job from the server?");
+    expect(clearHistoryTitle(null)).toBe("Remove every finished job from the server?");
+    expect(fromThisBrowserText(12)).toBe("12 are from this browser.");
+    expect(fromThisBrowserText(1)).toBe("1 is from this browser.");
+    expect(fromThisBrowserText(0)).toBeNull();
   });
 });

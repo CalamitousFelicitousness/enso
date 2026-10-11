@@ -8,6 +8,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Trash2 } from "lucide-react";
+import { HISTORY_LOSES, RESULTS_KEPT } from "@/lib/jobs/text";
 
 interface HistoryBulkDeleteDialogProps {
   open: boolean;
@@ -35,8 +36,7 @@ export function HistoryBulkDeleteDialog({
             Delete {count} {count === 1 ? "job" : "jobs"}
           </DialogTitle>
           <DialogDescription>
-            This will permanently remove {scope} from job history along with any associated output
-            files. This cannot be undone.
+            This removes {scope} from the server's job history. {HISTORY_LOSES} {RESULTS_KEPT}
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>
