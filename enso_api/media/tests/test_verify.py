@@ -64,3 +64,21 @@ def test_cancel_stops_between_files(store, layout):
     assert result.checked == 0
     assert seen[0] == (0, 5)
     assert json.loads(store.meta("last_verify"))["cancelled"] is True
+
+
+def test_progress_goes_out_by_time_not_by_count(store, layout, clock, monkeypatch):
+    for i in range(4):
+        put(store, png(i))
+    seen = []
+    run(store, layout, progress=lambda checked, total: seen.append(checked))
+    assert seen == [0, 4]
+    real = verify.check
+
+    def slow(*args):
+        real(*args)
+        clock.advance(verify.PROGRESS_MS)
+
+    monkeypatch.setattr(verify, "check", slow)
+    seen.clear()
+    run(store, layout, progress=lambda checked, total: seen.append(checked))
+    assert seen == [0, 1, 2, 3, 4, 4]

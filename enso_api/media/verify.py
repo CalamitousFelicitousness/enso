@@ -15,7 +15,8 @@ from enso_api.media.store import BlobRow, MediaStore
 log = logging.getLogger("sd")
 
 PAGE = 1000
-PROGRESS_EVERY = 100
+# by time, not by count: a store of a few large files still shows its progress
+PROGRESS_MS = 500
 
 
 @dataclass
@@ -63,6 +64,7 @@ def run(store: MediaStore, layout: Layout, cancel: threading.Event, progress: Ca
     with store.db.read() as conn:
         total = conn.execute("SELECT COUNT(*) FROM blobs WHERE lost_at IS NULL").fetchone()[0]
     progress(0, total)
+    published = store.now()
     after = ""
     while not result.cancelled:
         with store.db.read() as conn:
@@ -76,8 +78,9 @@ def run(store: MediaStore, layout: Layout, cancel: threading.Event, progress: Ca
                 break
             check(store, layout, row, result)
             result.checked += 1
-            if result.checked % PROGRESS_EVERY == 0:
+            if store.now() - published >= PROGRESS_MS:
                 progress(result.checked, total)
+                published = store.now()
     progress(result.checked, total)
     store.set_meta("last_verify", json.dumps(asdict(result)))
     log.info(f"Media store: verify checked={result.checked} of {total} corrupt={result.corrupt} lost={result.lost} changed={result.changed}{' cancelled' if result.cancelled else ''}")
