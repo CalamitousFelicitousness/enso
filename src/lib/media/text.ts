@@ -1,6 +1,8 @@
 // The words of the media store's client side, in one place: uploads, their
 // refusals and the ages and sizes every list shows.
 
+import type { SkipReason } from "./migration";
+
 const plural = (n: number, one: string, many: string) => (n === 1 ? `1 ${one}` : `${n} ${many}`);
 
 const MINUTE = 60 * 1000;
@@ -75,6 +77,7 @@ export const NO_SKIP = "No generation to skip";
 export const UPLOAD_CANCELLED = "Upload cancelled, the job was not sent";
 export const SUBMIT_FAILED = "Could not send the job";
 export const RETRY = "Retry";
+export const CANCEL = "Cancel";
 
 /** "Uploading 2 of 3 files, about 120 MB of 480 MB": a batch still on its way. */
 export function batchText(done: number, files: number, sent: number, total: number): string {
@@ -145,9 +148,19 @@ export const MOVE_FIRST = "Move it to the server first";
 export const DELETE_FOR_EVERYONE = "Delete for everyone";
 export const SAVING = "Saving to the library";
 
-/** "3 saved entries in this browser, not moved yet". */
-export function notMovedText(entries: number): string {
-  return `${plural(entries, "saved entry", "saved entries")} in this browser, not moved yet`;
+/** "38 saved entries and 120 job records", or one of them. */
+function heldText(entries: number, records: number): string {
+  return [
+    entries > 0 ? plural(entries, "saved entry", "saved entries") : null,
+    records > 0 ? plural(records, "job record", "job records") : null,
+  ]
+    .filter((part): part is string => part !== null)
+    .join(" and ");
+}
+
+/** "3 saved entries and 120 job records in this browser, not moved yet". */
+export function notMovedText(entries: number, records = 0): string {
+  return `${heldText(entries, records)} in this browser, not moved yet`;
 }
 
 /** '"Portrait" is in the trash; restore it first'. */
@@ -332,3 +345,114 @@ export function retentionNoticeText(
 export const STORE_OFF_DETAIL =
   "Uploads, the library and job records are unavailable until it is fixed and the server restarted.";
 export const OLDER_SERVER_DETAIL = "Uploads, the library and job records are unavailable.";
+
+// Moving this browser's older records to the server
+
+export const MOVE = "Move";
+export const NOT_NOW = "Not now";
+export const MOVING_ELSEWHERE = "Moving in another tab";
+export const DELETE_FROM_BROWSER = "Delete from this browser";
+export const MOVE_CANCELLED = "Move cancelled";
+export const MOVE_HERE = "Move here instead";
+
+/** The offer: what moves, to which server and store, and the room there. */
+export function moveOfferText(
+  entries: number,
+  records: number,
+  where: { server: string; root: string | null },
+  bytes: number,
+  free: number | null,
+): { title: string; description: string } {
+  const at = where.root ? `${where.server} (${where.root})` : where.server;
+  const room = free === null ? "" : `; ${aboutSize(free).replace("about ", "")} free there`;
+  return {
+    title: `Move ${heldText(entries, records)} to the server at ${at}?`,
+    description: `${capitalised(aboutSize(bytes))}${room}.`,
+  };
+}
+
+/** "Moving 12 of 158, about 340 MB of 1.2 GB". */
+export function movingText(done: number, total: number, bytes: number, totalBytes: number): string {
+  const size =
+    totalBytes > 0 ? `, ${aboutSize(bytes)} of ${aboutSize(totalBytes).replace("about ", "")}` : "";
+  return `Moving ${done} of ${total}${size}`;
+}
+
+/** After a move: what went, what arrived unpinned and what stayed. */
+export function movedAllText(
+  moved: { entries: number; records: number },
+  unpinned: number,
+  maxPins: number,
+  skipped: number,
+): { title: string; description: string | null } {
+  const lines: string[] = [];
+  if (unpinned > 0) {
+    lines.push(
+      `${plural(unpinned, "entry", "entries")} arrived unpinned: the server's ${maxPins} pins are taken`,
+    );
+  }
+  if (skipped > 0) lines.push(`${skipped} skipped; they stay in this browser`);
+  return {
+    title:
+      moved.entries + moved.records > 0
+        ? `Moved ${heldText(moved.entries, moved.records)}`
+        : "Nothing was moved",
+    description: lines.length > 0 ? lines.join(". ") : null,
+  };
+}
+
+/** Why a move stopped, and how far it got. */
+export function moveStoppedText(
+  status: number | null | "cancelled",
+  moved: number,
+): { title: string; description: string } {
+  const so =
+    moved > 0 ? `${moved} moved so far; the rest stay in this browser` : "Nothing was moved";
+  if (status === "cancelled") return { title: MOVE_CANCELLED, description: so };
+  const why =
+    status === null
+      ? "The server could not be reached"
+      : status === 507
+        ? "The server's disk is full"
+        : status === 503
+          ? "The media store is off"
+          : status === 429
+            ? "The server is busy; try again in a minute"
+            : status === 408
+              ? "The upload stalled"
+              : `The server answered ${status}`;
+  return { title: "The move stopped", description: `${why}. ${so}` };
+}
+
+/** Why an item stayed in this browser. */
+export function skipText(reason: SkipReason): string {
+  switch (reason.code) {
+    case "idle":
+      return "Older than 90 days: the server keeps a browser's job records for 90 days after its last job";
+    case "full":
+      return reason.kind === "entry"
+        ? `The server's library is full (${reason.count} of ${reason.cap})`
+        : `This browser has ${reason.count} of ${reason.cap} job records on the server`;
+    case "refused":
+      return reason.status === 413
+        ? "Too large for the server"
+        : `The server refused it: ${reason.reason}`;
+  }
+}
+
+/** A move begun toward one server is not finished toward another. */
+export function otherTargetText(from: string, to: string): string {
+  return `The move started toward ${from}; this page is connected to ${to}`;
+}
+
+/** "120 job records": records a move left here, grouped by why. */
+export function stayedRecordsText(count: number): string {
+  return plural(count, "job record", "job records");
+}
+
+/** Asked before deleting what a move left here. */
+export function deleteFromBrowserText(what: string, many: boolean): string {
+  return many
+    ? `Delete ${what} from this browser? They are not on the server, so they cannot be brought back.`
+    : `Delete ${what} from this browser? It is not on the server, so it cannot be brought back.`;
+}

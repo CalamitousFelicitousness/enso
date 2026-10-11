@@ -5,6 +5,7 @@ export type {
   ReqEntryPatchV2,
   ReqEntryV2,
   ReqMediaSettingsV2,
+  ReqRecordPutV2,
   ReqRecordV2,
   ReqSubmitV2,
   ResBlobV2,

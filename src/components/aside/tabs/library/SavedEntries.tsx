@@ -8,11 +8,13 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useLibrary } from "@/api/hooks/useMedia";
 import { useProgressiveRender } from "@/hooks/useProgressiveRender";
 import { useLegacyEntries } from "@/hooks/useLegacyEntries";
+import { useMigration } from "@/inputs/migrate";
 import { listOrder } from "@/lib/inputs/library";
 import { LIBRARY_EMPTY, LIBRARY_NO_MATCH, libraryCountText } from "@/lib/inputs/text";
 import { NOT_MOVED_HEADING } from "@/lib/media/text";
 import { EntryCard } from "./EntryCard";
 import { modelOfItem, modelOfStored, type EntryModel } from "./entryModel";
+import { StayedList } from "./StayedList";
 
 /** Cards rendered at once; more follow as the list scrolls. */
 const BATCH = 20;
@@ -103,6 +105,7 @@ function EntryGrid({ entries, label }: { entries: EntryModel[]; label: string })
 export function SavedEntries({ query, active }: { query: string; active: boolean }) {
   const library = useLibrary(active);
   const legacy = useLegacyEntries(active);
+  const stayed = useMigration((s) => s.skipped.size);
   const needle = query.trim().toLowerCase();
   const matches = (name: string) => !needle || name.toLowerCase().includes(needle);
 
@@ -137,12 +140,15 @@ export function SavedEntries({ query, active }: { query: string; active: boolean
             </p>
           )}
           {shown.length > 0 && <EntryGrid entries={shown} label="Saved inputs" />}
-          {legacyShown.length > 0 && (
+          {(legacyShown.length > 0 || stayed > 0) && (
             <section className="flex flex-col gap-2" aria-label={NOT_MOVED_HEADING}>
               <h4 className="text-2xs font-medium tracking-wider text-muted-foreground uppercase">
                 {NOT_MOVED_HEADING}
               </h4>
-              <EntryGrid entries={legacyShown} label={NOT_MOVED_HEADING} />
+              {legacyShown.length > 0 && (
+                <EntryGrid entries={legacyShown} label={NOT_MOVED_HEADING} />
+              )}
+              <StayedList />
             </section>
           )}
         </div>

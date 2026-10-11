@@ -1,7 +1,8 @@
 // The media store as this browser follows it: the trash's retention copied
 // where the page-start sweep reads it without asking the server, a notice
-// when the server's would let this browser's removed inputs go early, and a
-// standing notice while the server keeps no uploads.
+// when the server's would let this browser's removed inputs go early, a
+// standing notice while the server keeps no uploads, and the offer to move
+// what older builds kept here.
 
 import { useEffect } from "react";
 import { toast } from "sonner";
@@ -20,12 +21,17 @@ import {
   STORE_OFF_DETAIL,
   storeOffText,
 } from "@/lib/media/text";
+import { inputsReady } from "@/stores/inputStore";
 import { readTrashDays, writeTrashDays } from "./db";
 import { failureText } from "./quota";
+import { offerMove } from "./migrate";
 import { useTrash } from "./trash";
 
 const RETENTION_TOAST = "trash-days";
 const STORE_TOAST = "media-store";
+
+/** The move of what older builds kept here was offered on this page. */
+let offered = false;
 
 /** The shorter retention was asked about on this page. */
 let asked = false;
@@ -96,4 +102,11 @@ export function useMediaSync(): void {
       description: off === "older" ? OLDER_SERVER_DETAIL : STORE_OFF_DETAIL,
     });
   }, [off, reason]);
+
+  // what older builds kept here is offered once the store is known to be on
+  useEffect(() => {
+    if (off !== "on" || offered) return;
+    offered = true;
+    void inputsReady().then(offerMove);
+  }, [off]);
 }

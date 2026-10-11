@@ -9,7 +9,13 @@ import {
   inTrashText,
   keptOutText,
   libraryCapText,
+  moveOfferText,
+  moveStoppedText,
+  movedAllText,
+  movingText,
   notMovedText,
+  otherTargetText,
+  skipText,
   recordCapText,
   reductionText,
   retentionNoticeText,
@@ -203,5 +209,70 @@ describe("the words of the shared settings", () => {
       keep: "Keep 30 days on the server",
       use: "Use 7 days",
     });
+  });
+});
+
+describe("the words of moving this browser's older records", () => {
+  it("offer the move with what goes, where and the room there", () => {
+    expect(
+      moveOfferText(
+        38,
+        120,
+        { server: "127.0.0.1:7855", root: "/data/enso" },
+        1.2 * 1024 * MB,
+        231 * 1024 * MB,
+      ),
+    ).toEqual({
+      title:
+        "Move 38 saved entries and 120 job records to the server at 127.0.0.1:7855 (/data/enso)?",
+      description: "About 1.2 GB; 231 GB free there.",
+    });
+    expect(moveOfferText(0, 1, { server: "host", root: null }, 2 * MB, null)).toEqual({
+      title: "Move 1 job record to the server at host?",
+      description: "About 2 MB.",
+    });
+    expect(notMovedText(3, 120)).toBe(
+      "3 saved entries and 120 job records in this browser, not moved yet",
+    );
+  });
+
+  it("say how far a move has got, and what it did", () => {
+    expect(movingText(12, 158, 340 * MB, 1.2 * 1024 * MB)).toBe(
+      "Moving 12 of 158, about 340 MB of 1.2 GB",
+    );
+    expect(movingText(0, 3, 0, 0)).toBe("Moving 0 of 3");
+    expect(movedAllText({ entries: 38, records: 120 }, 3, 20, 5)).toEqual({
+      title: "Moved 38 saved entries and 120 job records",
+      description:
+        "3 entries arrived unpinned: the server's 20 pins are taken. 5 skipped; they stay in this browser",
+    });
+    expect(movedAllText({ entries: 0, records: 0 }, 0, 20, 2)).toEqual({
+      title: "Nothing was moved",
+      description: "2 skipped; they stay in this browser",
+    });
+  });
+
+  it("say why a move stopped and why an item stayed", () => {
+    expect(moveStoppedText(507, 12)).toEqual({
+      title: "The move stopped",
+      description: "The server's disk is full. 12 moved so far; the rest stay in this browser",
+    });
+    expect(moveStoppedText(null, 0).description).toBe(
+      "The server could not be reached. Nothing was moved",
+    );
+    expect(moveStoppedText("cancelled", 3).title).toBe("Move cancelled");
+    expect(skipText({ code: "idle" })).toContain("90 days");
+    expect(skipText({ code: "full", kind: "entry", cap: 100, count: 100 })).toBe(
+      "The server's library is full (100 of 100)",
+    );
+    expect(skipText({ code: "full", kind: "record", cap: 200, count: 200 })).toBe(
+      "This browser has 200 of 200 job records on the server",
+    );
+    expect(skipText({ code: "refused", status: 413, reason: "x" })).toBe(
+      "Too large for the server",
+    );
+    expect(otherTargetText("a:1 (/x)", "b:2 (/y)")).toBe(
+      "The move started toward a:1 (/x); this page is connected to b:2 (/y)",
+    );
   });
 });

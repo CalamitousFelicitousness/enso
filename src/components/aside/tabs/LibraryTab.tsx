@@ -12,9 +12,18 @@ import { useKeepAliveVisible } from "@/components/ui/keep-alive";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { useLibrary } from "@/api/hooks/useMedia";
 import { storeOffIn } from "@/api/queryKeys";
-import { useLegacyEntries } from "@/hooks/useLegacyEntries";
+import { startMove, useMigration } from "@/inputs/migrate";
 import { LIBRARY_SUB_TABS, type LibrarySubTab } from "@/lib/constants";
-import { LIBRARY_READ_FAILED, LOADING, notMovedText, RETRY, storeOffText } from "@/lib/media/text";
+import {
+  CANCEL,
+  LIBRARY_READ_FAILED,
+  LOADING,
+  MOVE,
+  movingText,
+  notMovedText,
+  RETRY,
+  storeOffText,
+} from "@/lib/media/text";
 import { useUiStore } from "@/stores/uiStore";
 import { SavedEntries } from "./library/SavedEntries";
 import { TrashSection } from "./library/TrashSection";
@@ -26,20 +35,30 @@ const OPTIONS = LIBRARY_SUB_TABS.map((tab) => ({
 }));
 
 /** The one line under the header: the store off, the library unreadable,
- * loading, or the entries an older build kept here. Its height is fixed. */
+ * loading, a move under way, or what older builds kept here. Its height and
+ * its one action's place are fixed. */
 function LibraryStatus({ active }: { active: boolean }) {
   const library = useLibrary(active);
-  const legacy = useLegacyEntries(active);
+  const held = useMigration((s) => s.held);
+  const progress = useMigration((s) => s.progress);
+  const controller = useMigration((s) => s.controller);
   const off = storeOffIn(library.error);
-  const notMoved = legacy.data?.entries.length ?? 0;
   let text = "";
-  let retry = false;
+  let action: { label: string; run: () => void } | null = null;
   if (off !== null) text = storeOffText(off || null);
   else if (library.isError) {
     text = LIBRARY_READ_FAILED;
-    retry = true;
+    action = { label: RETRY, run: () => void library.refetch() };
   } else if (library.isPending && active) text = LOADING;
-  else if (notMoved > 0) text = notMovedText(notMoved);
+  else if (controller) {
+    text = progress
+      ? movingText(progress.done, progress.total, progress.bytes, progress.totalBytes)
+      : movingText(0, 0, 0, 0);
+    action = { label: CANCEL, run: () => controller.abort() };
+  } else if (held.entries + held.records > 0) {
+    text = notMovedText(held.entries, held.records);
+    action = { label: MOVE, run: () => void startMove() };
+  }
   return (
     <div
       role="status"
@@ -48,14 +67,9 @@ function LibraryStatus({ active }: { active: boolean }) {
       <span className="min-w-0 flex-1 truncate" title={text}>
         {text}
       </span>
-      {retry && (
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-5 px-1.5 text-3xs"
-          onClick={() => void library.refetch()}
-        >
-          {RETRY}
+      {action && (
+        <Button variant="ghost" size="sm" className="h-5 px-1.5 text-3xs" onClick={action.run}>
+          {action.label}
         </Button>
       )}
     </div>

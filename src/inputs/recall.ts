@@ -177,7 +177,12 @@ export async function recallLegacyEntry(id: string, mode: RecallMode): Promise<b
       toast.error(RECALL_FAILED, { description: failureText(err) });
       return false;
     }
-    if (!stored || stored.document.record.trashedAt !== null) {
+    if (!stored) {
+      // another tab moved it to the server, where it keeps its id
+      recalling.delete(id);
+      return await recallEntry(id, mode);
+    }
+    if (stored.document.record.trashedAt !== null) {
       toast.info(NO_LONGER_IN_LIBRARY);
       return false;
     }
