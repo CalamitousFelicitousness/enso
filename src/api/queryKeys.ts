@@ -21,9 +21,12 @@ export const REPORT_KEY = ["media-report"] as const;
 /** This browser's job records, for the record cap's counts. */
 export const MY_RECORDS_KEY = ["my-records"] as const;
 
-/** Ask again after a failure, but not after a refusal. */
+/** Ask again after a failure, but not after a refusal: a 4xx, or a coded answer
+ * such as the media store being off. */
 export function retryUnlessRefused(failures: number, err: unknown): boolean {
-  if (err instanceof ApiError && err.status >= 400 && err.status < 500) return false;
+  if (err instanceof ApiError && (err.code !== null || (err.status >= 400 && err.status < 500))) {
+    return false;
+  }
   return failures < 2;
 }
 
