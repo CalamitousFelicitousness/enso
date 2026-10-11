@@ -1,4 +1,4 @@
-import { useMemo, useRef, useCallback, useEffect } from "react";
+import { useMemo, useRef, useEffect } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useGalleryStore } from "@/stores/galleryStore";
 import type { GalleryFile, CachedThumb } from "@/api/types/gallery";
@@ -24,9 +24,19 @@ interface MasonryGridProps {
   sorted: GalleryFile[];
   containerRef: React.RefObject<HTMLDivElement | null>;
   containerWidth: number;
+  onClick: (file: GalleryFile, index: number, e: React.MouseEvent) => void;
+  onDoubleClick: (index: number) => void;
+  onContextMenu: (file: GalleryFile, index: number) => void;
 }
 
-export function MasonryGrid({ sorted, containerRef, containerWidth }: MasonryGridProps) {
+export function MasonryGrid({
+  sorted,
+  containerRef,
+  containerWidth,
+  onClick,
+  onDoubleClick,
+  onContextMenu,
+}: MasonryGridProps) {
   const thumbSize = useGalleryStore((s) => s.thumbSize);
 
   // Snapshot thumbs to avoid layout thrash on individual thumb loads
@@ -98,21 +108,6 @@ export function MasonryGrid({ sorted, containerRef, containerWidth }: MasonryGri
     overscan: 3,
   });
 
-  const handleClick = useCallback((file: GalleryFile, index: number, e: React.MouseEvent) => {
-    const s = useGalleryStore.getState();
-    if (e.shiftKey || e.ctrlKey || e.metaKey) {
-      s.toggleSelect(file.id, index, e.shiftKey, e.ctrlKey || e.metaKey);
-    } else if (s.selectedIds.size > 0) {
-      s.toggleSelect(file.id, index, false, false);
-    } else {
-      s.selectFile(file, s.thumbs.get(file.id) ?? null);
-    }
-  }, []);
-
-  const handleDoubleClick = useCallback((index: number) => {
-    useGalleryStore.getState().openLightbox(index);
-  }, []);
-
   const cols = Math.max(2, Math.floor((containerWidth + GAP) / (thumbSize + GAP)));
   const colWidth = (containerWidth - (cols + 1) * GAP) / cols;
 
@@ -136,8 +131,9 @@ export function MasonryGrid({ sorted, containerRef, containerWidth }: MasonryGri
                     index={item.globalIndex}
                     size={Math.round(colWidth)}
                     height={item.height}
-                    onClick={handleClick}
-                    onDoubleClick={handleDoubleClick}
+                    onClick={onClick}
+                    onDoubleClick={onDoubleClick}
+                    onContextMenu={onContextMenu}
                   />
                 </div>
               );

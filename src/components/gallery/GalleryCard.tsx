@@ -74,6 +74,7 @@ export const GalleryCard = memo(function GalleryCard({
 
   return (
     <button
+      aria-label={filename}
       onClick={onClick}
       onDoubleClick={onDoubleClick}
       onContextMenu={onContextMenu}
@@ -115,12 +116,7 @@ export const GalleryCard = memo(function GalleryCard({
             </div>
           </>
         ) : (
-          <img
-            src={thumb.data}
-            alt={filename}
-            className="w-full h-full object-cover"
-            draggable={false}
-          />
+          <img src={thumb.data} alt="" className="w-full h-full object-cover" draggable={false} />
         )
       ) : (
         <div className="w-full h-full flex items-center justify-center">

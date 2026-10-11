@@ -8,6 +8,8 @@ import { ConnectedGalleryCard } from "./GalleryCard";
 import { MasonryGrid } from "./MasonryGrid";
 import { sendImageToCanvas } from "@/lib/sendTo";
 import { failedWith, mediaFile } from "@/lib/mediaFiles";
+import { isVideoFile } from "@/lib/mediaType";
+import { VIDEO_TO_CANVAS_TEXT } from "@/lib/inputs/text";
 import {
   ContextMenu,
   ContextMenuTrigger,
@@ -50,10 +52,8 @@ export function GalleryGrid({
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState(800);
 
-  // Track which card was right-clicked for context menu
-  const contextFileRef = useRef<GalleryFile | null>(null);
-  // Force-update only for context menu content rendering
-  const [, setContextTick] = useState(0);
+  // The card the menu was opened on; null when it was opened beside the cards
+  const [contextFile, setContextFile] = useState<GalleryFile | null>(null);
 
   // ResizeObserver for responsive columns
   useEffect(() => {
@@ -222,8 +222,7 @@ export function GalleryGrid({
   }, []);
 
   const handleContextMenu = useCallback((file: GalleryFile, index: number) => {
-    contextFileRef.current = file;
-    setContextTick((t) => t + 1);
+    setContextFile(file);
     const s = useGalleryStore.getState();
     if (!s.selectedIds.has(file.id)) {
       s.toggleSelect(file.id, index, false, false);
@@ -231,39 +230,37 @@ export function GalleryGrid({
   }, []);
 
   const handleCopyPath = useCallback(() => {
-    const f = contextFileRef.current;
-    if (f) navigator.clipboard.writeText(f.fullPath).catch(() => {});
-  }, []);
+    if (contextFile) navigator.clipboard.writeText(contextFile.fullPath).catch(() => {});
+  }, [contextFile]);
 
   const handleOpenLightbox = useCallback(() => {
-    const f = contextFileRef.current;
-    if (f) {
-      const s = useGalleryStore.getState();
-      const idx = s.sortedFiles.findIndex((sf) => sf.id === f.id);
-      if (idx >= 0) s.openLightbox(idx);
-    }
-  }, []);
+    if (!contextFile) return;
+    const s = useGalleryStore.getState();
+    const idx = s.sortedFiles.findIndex((sf) => sf.id === contextFile.id);
+    if (idx >= 0) s.openLightbox(idx);
+  }, [contextFile]);
 
   const handleSelectCtx = useCallback(() => {
-    const f = contextFileRef.current;
-    if (f) {
-      const s = useGalleryStore.getState();
-      const idx = s.sortedFiles.indexOf(f);
-      s.toggleSelect(f.id, idx >= 0 ? idx : 0, false, false);
-    }
-  }, []);
+    if (!contextFile) return;
+    const s = useGalleryStore.getState();
+    const idx = s.sortedFiles.indexOf(contextFile);
+    s.toggleSelect(contextFile.id, idx >= 0 ? idx : 0, false, false);
+  }, [contextFile]);
 
   const handleDeselectAll = useCallback(() => useGalleryStore.getState().deselectAll(), []);
   const handleSelectAll = useCallback(() => useGalleryStore.getState().selectAll(), []);
 
   const handleSendToCanvas = useCallback(() => {
-    const f = contextFileRef.current;
-    if (f) {
-      mediaFile(browserFilePath(f.fullPath), f.relativePath.split("/").pop() ?? "image.png")
-        .then(sendImageToCanvas)
-        .catch(failedWith("Could not send the image to the canvas"));
-    }
-  }, []);
+    if (!contextFile || isVideoFile(contextFile.relativePath)) return;
+    mediaFile(
+      browserFilePath(contextFile.fullPath),
+      contextFile.relativePath.split("/").pop() ?? "image.png",
+    )
+      .then(sendImageToCanvas)
+      .catch(failedWith("Could not send the image to the canvas"));
+  }, [contextFile]);
+  const sendRefusal =
+    contextFile && isVideoFile(contextFile.relativePath) ? VIDEO_TO_CANVAS_TEXT : null;
 
   // Read selection count only for context menu labels - use primitive
   const selectionCount = useGalleryStore((s) => s.selectedIds.size);
@@ -295,12 +292,20 @@ export function GalleryGrid({
   return (
     <ContextMenu>
       <ContextMenuTrigger asChild>
-        <div ref={containerRef} className="h-full overflow-auto">
+        {/* Cleared before a card's own handler names its file, so a menu opened beside the cards names none */}
+        <div
+          ref={containerRef}
+          className="h-full overflow-auto"
+          onContextMenuCapture={() => setContextFile(null)}
+        >
           {layoutMode === "masonry" ? (
             <MasonryGrid
               sorted={sorted}
               containerRef={containerRef}
               containerWidth={containerWidth}
+              onClick={handleClick}
+              onDoubleClick={handleDoubleClick}
+              onContextMenu={handleContextMenu}
             />
           ) : (
             <div className="relative w-full" style={{ height: virtualizer.getTotalSize() }}>
@@ -346,7 +351,7 @@ export function GalleryGrid({
             <XSquare size={14} /> Deselect all
           </ContextMenuItem>
         ) : (
-          <ContextMenuItem onClick={handleSelectCtx}>
+          <ContextMenuItem disabled={!contextFile} onClick={handleSelectCtx}>
             <CheckSquare size={14} /> Select
           </ContextMenuItem>
         )}
@@ -366,14 +371,23 @@ export function GalleryGrid({
           {selectionCount > 1 ? ` (${selectionCount})` : ""}
         </ContextMenuItem>
         <ContextMenuSeparator />
-        <ContextMenuItem onClick={handleOpenLightbox}>
+        <ContextMenuItem disabled={!contextFile} onClick={handleOpenLightbox}>
           <Maximize2 size={14} /> Open in lightbox
         </ContextMenuItem>
-        <ContextMenuItem onClick={handleCopyPath}>
+        <ContextMenuItem disabled={!contextFile} onClick={handleCopyPath}>
           <Copy size={14} /> Copy path
         </ContextMenuItem>
-        <ContextMenuItem onClick={handleSendToCanvas}>
-          <Paintbrush size={14} /> Send to canvas
+        <ContextMenuItem
+          disabled={!contextFile || sendRefusal !== null}
+          onClick={handleSendToCanvas}
+        >
+          <Paintbrush size={14} />
+          <span className="flex min-w-0 flex-col">
+            <span>Send to canvas</span>
+            {sendRefusal && (
+              <span className="text-3xs leading-tight text-muted-foreground">{sendRefusal}</span>
+            )}
+          </span>
         </ContextMenuItem>
       </ContextMenuContent>
     </ContextMenu>

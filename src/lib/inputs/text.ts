@@ -327,6 +327,8 @@ export function duplicatedText(from: number, to: number): string {
 
 export const NOTHING_TO_SAVE = "Nothing to save";
 
+export const VIDEO_TO_CANVAS_TEXT = "A video cannot be sent to the canvas";
+
 /** Why a Control frame that uses another frame's picture is not saved on its own. */
 export function linkedSaveText(position: number, source: number): string {
   return `${positionLabel(position)} uses ${positionLabel(source)}'s picture; save ${positionLabel(source)} or the inputs as a set`;
