@@ -5,6 +5,7 @@
 import { blobUrl } from "@/api/blobs";
 import { fetchMedia } from "@/api/session";
 import { UserAbortError } from "@/lib/abort";
+import { hashOf } from "@/lib/media/hash";
 import { readBlobs, rememberHashes, type Hashed } from "./db";
 
 export interface FetchProgress {
@@ -55,11 +56,12 @@ export async function bytesFor(
     return new Map<string, Blob>();
   });
   const lost: string[] = [];
-  const queue: [string, string][] = [];
+  const queue: [cid: string, hash: string, url: string][] = [];
   for (const cid of wanted) {
     if (blobs.has(cid)) continue;
-    const hash = hashes[cid];
-    if (hash) queue.push([cid, hash]);
+    const hash = hashOf(hashes, cid);
+    const url = hash && blobUrl(hash);
+    if (hash && url) queue.push([cid, hash, url]);
     else lost.push(cid);
   }
   if (queue.length === 0) return { blobs, lost };
@@ -70,8 +72,8 @@ export async function bytesFor(
   const worker = async () => {
     for (let next = queue.shift(); next; next = queue.shift()) {
       if (signal?.aborted) throw new UserAbortError("Fetch cancelled");
-      const [cid, hash] = next;
-      const response = await fetchMedia(blobUrl(hash), signal ? { signal } : undefined).catch(
+      const [cid, hash, url] = next;
+      const response = await fetchMedia(url, signal ? { signal } : undefined).catch(
         (err: unknown) => {
           throw signal?.aborted ? new UserAbortError("Fetch cancelled") : err;
         },

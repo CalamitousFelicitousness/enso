@@ -28,6 +28,7 @@ import {
   type SweepPlan,
   type SweepPolicy,
 } from "@/lib/inputs/sweep";
+import { isHash } from "@/lib/media/hash";
 
 const NAME = "enso-inputs";
 const VERSION = 7;
@@ -382,12 +383,7 @@ export interface Hashed {
 function hashedOf(value: unknown): Hashed | null {
   if (typeof value !== "object" || value === null) return null;
   const { hash, size } = value as { hash?: unknown; size?: unknown };
-  return typeof hash === "string" &&
-    /^[0-9a-f]{64}$/.test(hash) &&
-    typeof size === "number" &&
-    size >= 0
-    ? { hash, size }
-    : null;
+  return isHash(hash) && typeof size === "number" && size >= 0 ? { hash, size } : null;
 }
 
 /** The hashes remembered for these cids, read in one transaction; a cid

@@ -4,6 +4,7 @@
 // cache. The one outline fix that runs a job lives here too.
 
 import { toast } from "sonner";
+import { blobHash } from "@/api/blobs";
 import { fetchMedia } from "@/api/session";
 import type { PreprocessItem, PreprocessJobParams } from "@/api/types/v2";
 import { fixRunsJob } from "@/lib/inputs/problems";
@@ -126,9 +127,6 @@ export async function processFrames(
 // report must join the first one's fetch, not store the bytes again.
 const installing = new Map<string, Promise<void>>();
 
-/** A map the server stored names its hash in its URL. */
-const BLOB_URL = /\/sdapi\/v2\/blobs\/([0-9a-f]{64})$/;
-
 async function fetchAndInstall(key: string, url: string): Promise<void> {
   try {
     const response = await fetchMedia(url);
@@ -136,7 +134,7 @@ async function fetchAndInstall(key: string, url: string): Promise<void> {
     const blob = await response.blob();
     const cid = await installMap(key, blob);
     // a job that sends this map then claims the server's copy
-    const hash = BLOB_URL.exec(url)?.[1];
+    const hash = blobHash(url);
     if (hash) {
       await rememberHashes(new Map([[cid, { hash, size: blob.size }]])).catch((err: unknown) => {
         console.warn("[inputs] a map's hash could not be remembered", err);

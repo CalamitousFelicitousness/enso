@@ -19,6 +19,7 @@ import {
 } from "@/lib/inputs/stored";
 import type { JobDomain } from "@/lib/jobs/domains";
 import { refsIn, replayNeeds, substituteRefs, UPLOAD_PREFIX } from "@/lib/jobs/replay";
+import { hashOf, isHash } from "@/lib/media/hash";
 import { currentJobRequest } from "@/lib/retiredJobFields";
 import { generationHistoryDb } from "@/stores/generationStore";
 import { allKeys, deleteRecords, readDocument, readHashes } from "./db";
@@ -58,8 +59,6 @@ export interface RecordLoad {
   /** Read from an older build's record in this browser, not the server. */
   legacy: boolean;
 }
-
-const HASH = /^[0-9a-f]{64}$/;
 
 /** Every cid stored inputs name, with the name the picture had. */
 function namesOf(inputs: StoredInputs | null): Map<string, string> {
@@ -173,7 +172,7 @@ export function replaySubmission(
       : null;
     const staged = batch.stage(make, {
       name: sourceName(source, names, record.inputs),
-      ...(HASH.test(id) ? { hash: id } : {}),
+      ...(isHash(id) ? { hash: id } : {}),
       ...(source ? { source } : {}),
     });
     if (source) ledger.refs[staged.ref] = source;
@@ -182,7 +181,7 @@ export function replaySubmission(
   const kept = new Map(names);
   for (const cid of Object.values(record.maps)) kept.set(cid, "map.png");
   for (const [cid, name] of kept) {
-    const hash = hashes[cid];
+    const hash = hashOf(hashes, cid);
     const { ref } = batch.stage(null, { name, cid, record: true, ...(hash ? { hash } : {}) });
     ledger.cids.set(cid, ref);
   }

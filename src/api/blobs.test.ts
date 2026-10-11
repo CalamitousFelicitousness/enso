@@ -197,3 +197,21 @@ describe("ApiError", () => {
     expect(err.message).toBe("API Error 409: Up to 20 entries can be pinned");
   });
 });
+
+describe("blobUrl", () => {
+  it("builds a path for a hash and none for anything else", async () => {
+    const { blobUrl } = await load();
+    expect(blobUrl(HASH)).toBe(`/sdapi/v2/blobs/${HASH}`);
+    for (const bad of ["../../jobs", HASH.toUpperCase(), HASH.slice(1), `${HASH}/x`, ""]) {
+      expect(blobUrl(bad)).toBeNull();
+    }
+  });
+
+  it("reads the hash back from a blob's URL and from no other", async () => {
+    const { blobHash } = await load();
+    expect(blobHash(`/sdapi/v2/blobs/${HASH}`)).toBe(HASH);
+    expect(blobHash(`${PAGE}/sdapi/v2/blobs/${HASH}`)).toBe(HASH);
+    expect(blobHash(`/sdapi/v2/blobs/${HASH}?t=1`)).toBeNull();
+    expect(blobHash(`/sdapi/v2/uploads/${HASH}`)).toBeNull();
+  });
+});

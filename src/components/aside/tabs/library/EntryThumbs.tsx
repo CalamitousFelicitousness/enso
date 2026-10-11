@@ -60,10 +60,11 @@ function Cell({
   if (cell.kind === "local")
     return <LocalCell picture={cell.picture} active={active} className={className} />;
   // the thumbnail's bytes are gone: nothing to show, which is not the picture's loss
-  if (cell.lost) return <Missing className={className} title={NO_PREVIEW} />;
+  const src = cell.lost ? null : blobUrl(cell.hash);
+  if (!src) return <Missing className={className} title={NO_PREVIEW} />;
   return active ? (
     <MediaImg
-      image={blobUrl(cell.hash)}
+      image={src}
       alt=""
       loading="lazy"
       decoding="async"

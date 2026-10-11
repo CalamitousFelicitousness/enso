@@ -67,16 +67,17 @@ function Thumb({ item }: { item: TrashItem }) {
   const url = useThumb(local && !local.missing ? { ...local, file: null } : null);
   const thumb = item.thumb;
   if (thumb?.kind === "server") {
-    return thumb.lost ? (
-      <ImageOff size={12} className="text-muted-foreground" aria-hidden />
-    ) : (
+    const src = thumb.lost ? null : blobUrl(thumb.hash);
+    return src ? (
       <MediaImg
-        image={blobUrl(thumb.hash)}
+        image={src}
         alt=""
         loading="lazy"
         draggable={false}
         className="h-full w-full object-cover"
       />
+    ) : (
+      <ImageOff size={12} className="text-muted-foreground" aria-hidden />
     );
   }
   if (url) return <img src={url} alt="" draggable={false} className="h-full w-full object-cover" />;

@@ -4,6 +4,7 @@
 // XMLHttpRequest, the one browser API that reports upload progress.
 
 import { UserAbortError } from "@/lib/abort";
+import { isHash } from "@/lib/media/hash";
 import { uploadFailureText, type UploadFailure } from "@/lib/media/text";
 import { api, ApiError } from "./client";
 import { formatErrorDetail } from "./errorDetail";
@@ -144,7 +145,18 @@ export function adopt(outputId: string): Promise<ResBlobV2> {
   return api.post<ResBlobV2>("/sdapi/v2/blobs/adopt", { output_id: outputId });
 }
 
-/** The path a blob is served at; load it through mediaUrl. */
-export function blobUrl(hash: string): string {
-  return `/sdapi/v2/blobs/${hash}`;
+const BLOB_PATH = "/sdapi/v2/blobs/";
+
+/** The path a blob is served at, null for anything but a hash; load it
+ * through mediaUrl. */
+export function blobUrl(hash: string): string | null {
+  return isHash(hash) ? `${BLOB_PATH}${hash}` : null;
+}
+
+/** The hash a blob's URL names, else null. */
+export function blobHash(url: string): string | null {
+  const at = url.lastIndexOf(BLOB_PATH);
+  if (at < 0) return null;
+  const hash = url.slice(at + BLOB_PATH.length);
+  return isHash(hash) ? hash : null;
 }

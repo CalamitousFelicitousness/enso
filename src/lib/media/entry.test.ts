@@ -50,6 +50,22 @@ describe("assembleEntry", () => {
     expect(body.thumbs).toEqual([{ cid: "cid-a", hash: "ha", thumb: "ta", width: 64, height: 64 }]);
   });
 
+  it("keys a cid named like an inherited key as its own", () => {
+    const body = assembleEntry(
+      parts({
+        inputCids: ["__proto__"],
+        maps: {},
+        hashes: new Map([["__proto__", "hp"]]),
+        thumbs: [
+          { cid: "__proto__", thumb: "tp", width: 64, height: 64 },
+          { cid: "constructor", thumb: "tc", width: 64, height: 64 },
+        ],
+      }),
+    );
+    expect(JSON.stringify(body.hashes)).toBe('{"__proto__":"hp"}');
+    expect(body.thumbs?.map((t) => t.cid)).toEqual(["__proto__"]);
+  });
+
   it("trims and clamps the name, and copies the inputs", () => {
     const body = assembleEntry(parts({ name: `  ${"x".repeat(NAME_MAX + 50)}  ` }));
     expect([...body.name]).toHaveLength(NAME_MAX);

@@ -5,6 +5,7 @@
 import type { Source } from "@/lib/inputs/stored";
 import { ReplayError, UPLOAD_PREFIX } from "@/lib/jobs/replay";
 import type { ReplayMissing } from "@/lib/jobs/text";
+import { isHash } from "./hash";
 
 export const STAGED_PREFIX = "staged:";
 
@@ -79,7 +80,7 @@ export function missesOf(issues: readonly { type: string; input?: unknown }[]): 
     const hash = issue.input.startsWith(UPLOAD_PREFIX)
       ? issue.input.slice(UPLOAD_PREFIX.length)
       : issue.input;
-    if (/^[0-9a-f]{64}$/.test(hash)) hashes.add(hash);
+    if (isHash(hash)) hashes.add(hash);
   }
   return [...hashes];
 }

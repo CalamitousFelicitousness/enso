@@ -56,11 +56,11 @@ export interface EntryParts {
 /** The body of a save: a picture whose bytes did not get there is declared
  * unavailable, a map is left out, and a thumbnail goes only beside its picture. */
 export function assembleEntry(parts: EntryParts): ReqEntryV2 {
-  const hashes: Record<string, string> = {};
+  const hashes = new Map<string, string>();
   const unavailable: string[] = [];
   for (const cid of new Set(parts.inputCids)) {
     const hash = parts.hashes.get(cid);
-    if (hash) hashes[cid] = hash;
+    if (hash) hashes.set(cid, hash);
     else unavailable.push(cid);
   }
   const maps: Record<string, string> = {};
@@ -68,10 +68,10 @@ export function assembleEntry(parts: EntryParts): ReqEntryV2 {
     const hash = parts.hashes.get(cid);
     if (!hash) continue;
     maps[key] = cid;
-    hashes[cid] = hash;
+    hashes.set(cid, hash);
   }
   const thumbs = parts.thumbs.flatMap((t) => {
-    const hash = hashes[t.cid];
+    const hash = hashes.get(t.cid);
     return hash ? [{ cid: t.cid, hash, thumb: t.thumb, width: t.width, height: t.height }] : [];
   });
   return {
@@ -81,7 +81,7 @@ export function assembleEntry(parts: EntryParts): ReqEntryV2 {
     summary: entrySummary(parts.kind, parts.inputs),
     inputs: structuredClone(parts.inputs) as unknown as Record<string, unknown>,
     maps,
-    hashes,
+    hashes: Object.fromEntries(hashes),
     unavailable,
     thumbs,
     ...(parts.moved

@@ -92,8 +92,8 @@ export function EntryCard({ entry, tabIndex, onFocusCard }: EntryCardProps) {
   const [busy, setBusy] = useState(false);
   const server = entry.source === "server";
   const first = entry.cells[0];
-  const dragImage =
-    first?.kind === "server" && !first.lost ? mediaUrl(blobUrl(first.hash)) : undefined;
+  const dragPath = first?.kind === "server" && !first.lost ? blobUrl(first.hash) : null;
+  const dragImage = dragPath ? mediaUrl(dragPath) : undefined;
   const drag = useDragSource(
     renaming || !server || entry.newer
       ? null
