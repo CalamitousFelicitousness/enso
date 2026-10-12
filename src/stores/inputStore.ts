@@ -217,6 +217,11 @@ const storage = createInputsStorage(
   },
 );
 
+/** Resolves once the stored document holds the inputs as they are now. */
+export function settleInputs(): Promise<void> {
+  return storage.settle();
+}
+
 /** Pictures whose bytes can no longer be read stay, marked unreadable; mask
  * objects go. Their Blobs would fail every later write. */
 function dropUnreadable(cids: string[]): void {

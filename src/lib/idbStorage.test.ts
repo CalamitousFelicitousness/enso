@@ -181,6 +181,36 @@ describe("createGatedStorage", () => {
     expect(onWriteError).toHaveBeenCalledTimes(2);
   });
 
+  it("settles at once when nothing waits", async () => {
+    const { backend, writes } = memoryBackend();
+    const storage = createGatedStorage<Doc>(backend, "test");
+    await storage.getItem("doc");
+    await storage.settle();
+    expect(writes()).toBe(0);
+  });
+
+  it("settles a waiting write without the debounce", async () => {
+    const { backend, records, writes } = memoryBackend();
+    const storage = createGatedStorage<Doc>(backend, "test");
+    await storage.getItem("doc");
+    void storage.setItem("doc", record(5));
+    await storage.settle();
+    expect(records.get("doc")).toEqual(record(5));
+    expect(writes()).toBe(1);
+  });
+
+  it("settles after the write that runs and the value queued behind it", async () => {
+    const { backend, records, writes } = memoryBackend();
+    const storage = createGatedStorage<Doc>(backend, "test");
+    await storage.getItem("doc");
+    void storage.setItem("doc", record(1));
+    const settled = storage.settle();
+    void storage.setItem("doc", record(2));
+    await settled;
+    expect(records.get("doc")).toEqual(record(2));
+    expect(writes()).toBe(2);
+  });
+
   it("tries a failed write again on request", async () => {
     const { backend, records, fail } = memoryBackend();
     const storage = createGatedStorage<Doc>(backend, "test");

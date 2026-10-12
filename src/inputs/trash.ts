@@ -7,7 +7,7 @@
 import { toast } from "sonner";
 import { create } from "zustand";
 import { newId } from "@/lib/id";
-import { inputsReady } from "@/stores/inputStore";
+import { inputsReady, settleInputs } from "@/stores/inputStore";
 import { TRASH } from "@/lib/inputs/storeLayout";
 import {
   joinRemoval,
@@ -138,6 +138,8 @@ export function loadTrash(): Promise<void> {
 /** Measure what emptying the trash would free, for the screen and the notice. */
 export async function measureTrash(): Promise<number | null> {
   try {
+    // a removal's picture stays named by the stored document until its debounced save
+    await settleInputs();
     const bytes = await reclaimableBytes();
     useTrash.setState({ reclaimable: bytes });
     return bytes;
@@ -167,6 +169,7 @@ async function deleteAndTell(
 ): Promise<boolean> {
   let outcome: Reclaimed;
   try {
+    await settleInputs();
     outcome = await deleteForGood(targets, liveCids);
   } catch (err) {
     console.error("[inputs] could not delete for good", err);
@@ -210,6 +213,7 @@ export async function emptyTrash(
   const parts: string[] = [];
   if (removals.length > 0) {
     try {
+      await settleInputs();
       const outcome = await deleteForGood(
         removals.map((key) => ({ store: TRASH, key })),
         liveCids,

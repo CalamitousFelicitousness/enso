@@ -32,6 +32,9 @@ export interface GatedStorage<S> extends PersistStorage<S> {
   startEmpty(): void;
   /** Tries the last failed write again, unless a newer one is waiting. */
   retry(): void;
+  /** Writes what is waiting now, without the debounce, and resolves once no
+   * write is waiting or running; a failed write stays failed. */
+  settle(): Promise<void>;
 }
 
 /** Debounced PersistStorage over a key-value backend. Writes pass only once
@@ -59,6 +62,8 @@ export function createGatedStorage<S>(
   let timer: ReturnType<typeof setTimeout> | null = null;
   /** The value on its way to the backend, while a write is in flight. */
   let writing: StorageValue<S> | null = null;
+  /** The write in flight, done when it has landed or failed. */
+  let inflight: Promise<void> | null = null;
   let failing = false;
   let failed: { key: string; value: StorageValue<S> } | null = null;
   let open = false;
@@ -76,7 +81,7 @@ export function createGatedStorage<S>(
       timer = null;
     }
     writing = v;
-    backend
+    inflight = backend
       .set(k, v)
       .then(() => {
         stored = v;
@@ -92,6 +97,7 @@ export function createGatedStorage<S>(
       })
       .finally(() => {
         writing = null;
+        inflight = null;
         if (pendingKey !== null) flush();
       });
   }
@@ -157,6 +163,11 @@ export function createGatedStorage<S>(
       pendingKey = failed.key;
       pendingValue = failed.value;
       flush();
+    },
+    settle: async () => {
+      flush();
+      // a value queued while a write runs goes out when that one ends
+      while (inflight) await inflight;
     },
   };
 }
