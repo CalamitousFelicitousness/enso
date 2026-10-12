@@ -79,7 +79,8 @@ export async function loadRecord(id: string): Promise<RecordLoad | null> {
     return {
       record: readServerRecord(answer),
       hashes: answer.hashes,
-      missingRefs: answer.missing_ref_ids,
+      // the server names them by id; the record's sources are keyed by ref
+      missingRefs: answer.missing_ref_ids.map((id) => `${UPLOAD_PREFIX}${id}`),
       unheld: new Set([...answer.lost_cids, ...answer.unavailable_cids]),
       legacy: false,
     };
