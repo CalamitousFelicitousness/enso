@@ -211,13 +211,13 @@ def missing_sdnext_names() -> list[str]:
 
 
 class GenerationFailed(Exception):
-    """control_run ended without an image; sdnext has already logged the cause."""
+    """A generation ended without its output; sdnext has already logged the cause."""
 
     logged = True
 
-    def __init__(self, reason: str | None):
+    def __init__(self, reason: str | None, detail: str = "No image was generated. The Console shows the reason."):
         self.reason = reason  # control_run's own stop message, when it gave one
-        self.detail = reason or "No image was generated. The Console shows the reason."
+        self.detail = reason or detail
         super().__init__(self.detail)
 
 
@@ -988,12 +988,34 @@ def execute_preprocess(params: dict, job_id: str) -> dict:
 video_script_defaults: list = []
 
 
+def refuse_codec_options(params: dict) -> None:
+    """Refuse codec options sdnext's save rejects; such a job would generate and then save nothing."""
+    from modules.video_models import video_save
+
+    from enso_api.rejections import RequestRejected
+
+    # absent before sdnext limited the options to rate and quality keys, when it took any key
+    rejected_options = getattr(video_save, "rejected_options", None)
+    rejected = rejected_options(params.get("codec_options", "crf=16")) if rejected_options else []
+    if rejected:
+        raise RequestRejected(f"Codec options not accepted: {', '.join(rejected)}. The server takes rate and quality options only.")
+
+
+def require_saved(job_id: str, refs: list, wanted: bool) -> None:
+    """Fail a video job that saved nothing it was asked to save; sdnext has logged the cause."""
+    from enso_api.job_queue import job_queue
+
+    if wanted and not refs and not job_queue.stopped_by_user(job_id):
+        raise GenerationFailed(None, "No video was saved. The Console shows the reason.")
+
+
 def execute_video(params: dict, job_id: str) -> dict:
     from modules import processing, scripts_manager, shared, ui
     from modules.api import helpers
     from modules.api import script as api_script
     from modules.video_models import video_run
 
+    refuse_codec_options(params)
     engine = params.get("engine") or None
     model = params.get("model") or None
     width = params.get("width", 848)
@@ -1125,6 +1147,8 @@ def execute_video(params: dict, job_id: str) -> dict:
         # the core-reported values are the fallback
         videos_refs.append(build_video_ref(job_id, 0, path, thumb_path=thumb_path, width=16 * (int(width) // 16), height=16 * (int(height) // 16), fps=res.fps, frames=res.num_frames))
 
+    # a still is the product whatever save_video says
+    require_saved(job_id, videos_refs, res.still or params.get("save_video", True))
     info = {"engine": engine or "Loaded", "model": selected.name, "frames": res.num_frames, "fps": res.fps, "has_audio": res.has_audio}
     return {"videos": videos_refs, "info": info, "params": {k: v for k, v in params.items() if k not in ("type", "init_image", "last_image", "references")}}
 
@@ -1134,6 +1158,7 @@ def execute_framepack(params: dict, job_id: str) -> dict:
     from modules.api import helpers
     from modules.framepack import framepack_wrappers
 
+    refuse_codec_options(params)
     init_image = helpers.decode_base64_to_image(params["init_image"]) if params.get("init_image") else None
     end_image = helpers.decode_base64_to_image(params["end_image"]) if params.get("end_image") else None
 
@@ -1211,6 +1236,7 @@ def execute_framepack(params: dict, job_id: str) -> dict:
         videos_refs.append(build_video_ref(job_id, 0, path, probe=probe, width=resolution, height=resolution, fps=params.get("fps", 30)))
         info.update({"frames": probe["frames"], "fps": probe["fps"] or params.get("fps", 30), "has_audio": probe["has_audio"]})
 
+    require_saved(job_id, videos_refs, params.get("save_video", True))
     return {"videos": videos_refs, "info": info, "params": {k: v for k, v in params.items() if k not in ("type", "init_image", "end_image")}}
 
 
@@ -1219,6 +1245,7 @@ def execute_ltx(params: dict, job_id: str) -> dict:
     from modules.api import helpers
     from modules.ltx import ltx_process
 
+    refuse_codec_options(params)
     model = params.get("model", "")
     prompt = params.get("prompt", "")
     negative = params.get("negative", "")
@@ -1299,6 +1326,7 @@ def execute_ltx(params: dict, job_id: str) -> dict:
         videos_refs.append(build_video_ref(job_id, 0, path, probe=probe, width=width, height=height, fps=params.get("fps", 24)))
         info.update({"frames": probe["frames"], "fps": probe["fps"] or params.get("fps", 24), "has_audio": probe["has_audio"]})
 
+    require_saved(job_id, videos_refs, params.get("save_video", True))
     return {"videos": videos_refs, "info": info, "params": {k: v for k, v in params.items() if k not in ("type", "condition_image", "condition_last")}}
 
 
