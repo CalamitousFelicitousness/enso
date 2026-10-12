@@ -29,6 +29,7 @@ import {
   evictedText,
   linkedSaveText,
   NO_LONGER_IN_LIBRARY,
+  NO_LONGER_IN_TRASH,
   NOTHING_TO_SAVE,
   pinLimitText,
   SAVE_FAILED,
@@ -120,11 +121,11 @@ export function movedText(change: ResEntryChangeV2): string | null {
 }
 
 /** A change the server refused or that failed, said: an entry gone from the
- * library reads the lists again. */
-function refused(err: unknown, failedTitle: string): void {
+ * server reads the lists again. */
+function refused(err: unknown, failedTitle: string, goneText = NO_LONGER_IN_LIBRARY): void {
   const code = err instanceof ApiError ? err.code : null;
   if (code === "gone") {
-    toast.info(NO_LONGER_IN_LIBRARY);
+    toast.info(goneText);
     void queryClient.invalidateQueries({ queryKey: LIBRARY_KEY });
     return;
   }
@@ -209,7 +210,7 @@ export async function untrashEntry(id: string): Promise<ResEntryChangeV2 | null>
   try {
     return await patch(id, { trashed: false });
   } catch (err) {
-    refused(err, entryChangeFailedText("trash", nameOf(id)));
+    refused(err, entryChangeFailedText("trash", nameOf(id)), NO_LONGER_IN_TRASH);
     return null;
   }
 }
