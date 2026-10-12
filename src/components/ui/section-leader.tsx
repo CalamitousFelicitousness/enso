@@ -212,6 +212,7 @@ const SectionLeader = memo(function SectionLeader({
             type="button"
             onClick={toggleCollapse}
             onKeyDown={handleKeyDown}
+            aria-label={title}
             aria-expanded={!collapsed}
             className={cn(
               "ml-auto p-0.5 rounded-sm outline-none transition-colors duration-200",

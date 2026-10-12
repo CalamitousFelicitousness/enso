@@ -70,6 +70,8 @@ export function LeftTabRail() {
                     variant="ghost"
                     size="icon"
                     disabled={isGated}
+                    aria-label={item.label}
+                    aria-pressed={isActive}
                     onClick={() => {
                       if (isGated) return;
                       if (isActive) {
