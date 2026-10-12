@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { crc32, deflateSync } from "node:zlib";
 import { expect, test, type APIRequestContext } from "@playwright/test";
 import { Enso, openContext } from "./support/app";
-import { watchMedia } from "./support/backend";
+import { fileHash, watchMedia } from "./support/backend";
 
 // The server keeps what a browser uploads once, by its bytes' hash: a picture
 // past the old 50 MB upload limit goes up once and is claimed after, and
@@ -83,6 +83,7 @@ test("a picture past the old upload limit goes up once, then only as its hash", 
   const name = unique("e2e-media");
   const file = join(folder, `${name}.png`);
   const size = noisePng(file, 4480);
+  const hash = fileHash(file);
   expect(size).toBeGreaterThan(50 * 1024 * 1024);
 
   const app = new Enso(page);
@@ -101,7 +102,7 @@ test("a picture past the old upload limit goes up once, then only as its hash", 
   saved.push(await app.saveFrame(2));
   await traffic.settled();
   expect(traffic.uploads.filter((upload) => upload.size === size)).toEqual([]);
-  expect(traffic.present).toContain(picture[0]?.hash);
+  expect(traffic.present).toContain(hash);
 });
 
 test("another browser recalls a saved entry and keeps one copy of its picture", async ({
@@ -113,6 +114,7 @@ test("another browser recalls a saved entry and keeps one copy of its picture", 
   const name = unique("e2e-shared");
   const file = join(folder, `${name}.png`);
   const size = noisePng(file, 1024);
+  const hash = fileHash(file);
 
   const app = new Enso(page);
   await app.open();
@@ -121,8 +123,10 @@ test("another browser recalls a saved entry and keeps one copy of its picture", 
   await expect(app.outlineRow(2)).toBeVisible();
   saved.push(await app.saveFrame(2));
   await traffic.settled();
-  const hash = traffic.uploads.find((upload) => upload.size === size)?.hash;
-  expect(hash, "the picture went up with the save").toBeTruthy();
+  expect(
+    traffic.uploads.filter((upload) => upload.size === size),
+    "the picture went up with the save",
+  ).toEqual([{ hash, size, created: true }]);
 
   const other = await openContext(browser);
   try {

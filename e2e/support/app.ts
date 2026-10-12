@@ -25,11 +25,13 @@ export class Enso {
   readonly page: Page;
   readonly leftPanel: Locator;
   readonly canvas: Locator;
+  readonly rightPanel: Locator;
 
   constructor(page: Page) {
     this.page = page;
     this.leftPanel = page.getByRole("complementary").first();
     this.canvas = page.getByRole("main");
+    this.rightPanel = page.getByRole("complementary").nth(1);
   }
 
   async open(): Promise<void> {
@@ -143,8 +145,16 @@ export class Enso {
 
   /** Expand a collapsible section of the Left Panel by its title. */
   async expand(section: string): Promise<void> {
-    const chevron = this.leftPanel.getByRole("button", { name: section, exact: true });
-    if ((await chevron.getAttribute("aria-expanded")) !== "true") await chevron.click();
+    // The section's enable toggle carries its title too
+    const chevron = this.leftPanel
+      .getByRole("button", { name: section, exact: true })
+      .and(this.leftPanel.locator("[aria-expanded]"));
+    if ((await chevron.getAttribute("aria-expanded")) !== "true") {
+      // The title's description covers the chevron while the title has the pointer or focus
+      await chevron.focus();
+      await chevron.hover({ force: true });
+      await chevron.click();
+    }
     await expect(chevron).toHaveAttribute("aria-expanded", "true");
   }
 
@@ -173,7 +183,11 @@ export class Enso {
   async addControlFrame(file: string): Promise<void> {
     await this.openTab("Input");
     await this.leftPanel.getByRole("button", { name: "Add Input" }).click();
-    await this.page.getByRole("button", { name: "ControlNet", exact: true }).click();
+    // A ControlNet frame's type picker reads ControlNet too
+    await this.page
+      .getByRole("dialog")
+      .getByRole("button", { name: "ControlNet", exact: true })
+      .click();
     const chooser = this.page.waitForEvent("filechooser");
     await this.leftPanel.getByRole("button", { name: "Add Image" }).click();
     await (await chooser).setFiles(file);
@@ -291,7 +305,7 @@ export class Enso {
   /** Run the newest History card's job again and wait for the new job. */
   async runAgainFromHistory(): Promise<Job> {
     await this.openRightTab("History");
-    const slot = this.page.getByRole("button", { name: "Run again", exact: true }).first();
+    const slot = this.rightPanel.getByRole("button", { name: "Run again", exact: true }).first();
     // the slot reads its job's record before it acts
     await expect(slot).not.toHaveAttribute("aria-disabled", "true");
     return this.submit(() => slot.click());

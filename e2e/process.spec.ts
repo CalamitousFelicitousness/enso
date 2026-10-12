@@ -2,7 +2,7 @@ import { statSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { expect, test, type Page } from "@playwright/test";
 import { Enso } from "./support/app";
-import { jobLog, watchMedia, type Job } from "./support/backend";
+import { fileHash, jobLog, watchMedia, type Job } from "./support/backend";
 
 // A Process job with a color LUT applies it, runs again on the refs it was
 // sent with, and after a reload sends the LUT as its hash while the picture,
@@ -93,5 +93,5 @@ test("a Process job applies its LUT, runs again on the same refs, and sends the 
   expectLutRead(reloaded);
   await traffic.settled();
   expect(traffic.uploads.map((upload) => upload.size)).toEqual([pictureSize]);
-  expect(traffic.present).toContain(lut?.hash);
+  expect(traffic.present).toContain(fileHash(INVERT));
 });

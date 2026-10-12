@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { expect, type APIRequestContext, type Page } from "@playwright/test";
 
@@ -81,7 +82,8 @@ export function pipelineCalls(log: string[]): string[] {
 }
 
 export interface Upload {
-  hash: string;
+  /** Null when the browser kept no answer body. */
+  hash: string | null;
   size: number;
   /** The server had no copy of these bytes before. */
   created: boolean;
@@ -121,9 +123,17 @@ export function watchMedia(page: Page): MediaTraffic {
     const path = new URL(response.url()).pathname;
     let read: Promise<void> | null = null;
     if (path === "/sdapi/v2/blobs") {
-      read = response.json().then((body) => {
-        const { hash, size, created } = body as Upload;
-        traffic.uploads.push({ hash, size, created });
+      // The browser keeps no answer body for a 60 MB upload, so the size and the
+      // outcome come from the request and the status
+      read = Promise.all([
+        request.headerValue("content-length"),
+        response.json().catch(() => null),
+      ]).then(([length, body]) => {
+        traffic.uploads.push({
+          hash: (body as { hash?: string } | null)?.hash ?? null,
+          size: Number(length),
+          created: response.status() === 201,
+        });
       });
     } else if (path === "/sdapi/v2/blobs/claim") {
       read = response.json().then((body) => {
@@ -137,4 +147,9 @@ export function watchMedia(page: Page): MediaTraffic {
     reading.add(done);
   });
   return traffic;
+}
+
+/** The SHA-256 the media store names a file's bytes by. */
+export function fileHash(path: string): string {
+  return createHash("sha256").update(readFileSync(path)).digest("hex");
 }

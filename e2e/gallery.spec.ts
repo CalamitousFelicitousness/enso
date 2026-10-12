@@ -24,9 +24,11 @@ async function savedName(request: APIRequestContext, job: Job): Promise<string> 
   const answer = await request.get(url);
   expect(answer.ok(), `GET ${url} answered ${answer.status()}`).toBe(true);
   const disposition = answer.headers()["content-disposition"] ?? "";
-  const name = /filename\*=utf-8''([^;]+)/i.exec(disposition)?.[1];
+  // Starlette encodes the name (filename*) only when it needs encoding
+  const encoded = /filename\*=utf-8''([^;]+)/i.exec(disposition)?.[1];
+  const name = encoded ? decodeURIComponent(encoded) : /filename="([^"]+)"/i.exec(disposition)?.[1];
   expect(name, `a file name in "${disposition}"`).toBeTruthy();
-  return decodeURIComponent(name ?? "");
+  return name ?? "";
 }
 
 /** The label of the Gallery folder whose tree holds a file of this name. */
