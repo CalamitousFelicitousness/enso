@@ -62,6 +62,8 @@ describe("ageText", () => {
 describe("aboutSize", () => {
   it("rounds to what people read", () => {
     expect(aboutSize(10)).toBe("about 1 KB");
+    // nothing is not rounded up to something
+    expect(aboutSize(0)).toBe("0 KB");
     expect(aboutSize(85 * MB)).toBe("about 85 MB");
     expect(aboutSize(1.2 * 1024 * MB)).toBe("about 1.2 GB");
     expect(aboutSize(231 * 1024 * MB)).toBe("about 231 GB");
@@ -74,6 +76,10 @@ describe("uploadFailureText", () => {
     expect(
       uploadFailureText({ kind: "space", room: 1.2 * 1024 * MB, needed: 2.3 * 1024 * MB }),
     ).toBe("Not enough space on the server: this needs about 2.3 GB and it can take about 1.2 GB");
+    // the reserve is above the free space: nothing fits, which "about 1 KB" would hide
+    expect(uploadFailureText({ kind: "space", room: 0, needed: 125 * 1024 })).toBe(
+      "Not enough space on the server: this needs about 125 KB and it has no room left",
+    );
     expect(uploadFailureText({ kind: "full" })).toBe("The server's disk is full");
     expect(uploadFailureText({ kind: "stalled" })).toBe(
       "The upload stalled; check the connection and try again",

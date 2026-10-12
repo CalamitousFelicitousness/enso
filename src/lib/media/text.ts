@@ -31,6 +31,7 @@ export function ageText(ms: number): string {
 
 /** "about 85 MB": a size for people. */
 export function aboutSize(bytes: number): string {
+  if (bytes <= 0) return "0 KB";
   if (bytes < 1024 * 1024) return `about ${Math.max(1, Math.round(bytes / 1024))} KB`;
   if (bytes < 1024 * 1024 * 1024) return `about ${Math.round(bytes / (1024 * 1024))} MB`;
   const gb = bytes / (1024 * 1024 * 1024);
@@ -58,7 +59,7 @@ export type UploadFailure =
 export function uploadFailureText(failure: UploadFailure): string {
   switch (failure.kind) {
     case "space":
-      return `Not enough space on the server: this needs ${aboutSize(failure.needed)} and it can take ${aboutSize(failure.room)}`;
+      return `Not enough space on the server: this needs ${aboutSize(failure.needed)} and ${failure.room > 0 ? `it can take ${aboutSize(failure.room)}` : "it has no room left"}`;
     case "full":
       return "The server's disk is full";
     case "stalled":
