@@ -49,15 +49,7 @@ test("a saved frame comes back after a reload, and a removed one from the trash"
   await app.open();
   await app.addControlFrame(file);
   await expect(app.outlineRow(2)).toBeVisible();
-  // the save uploads first, on a cold page
-  const posted = page.waitForResponse(
-    (r) => r.request().method() === "POST" && new URL(r.url()).pathname === "/sdapi/v2/library",
-    { timeout: 120_000 },
-  );
-  await app.frameMenu(2, "Save to library");
-  const response = await posted;
-  expect(response.ok(), `POST /sdapi/v2/library answered ${response.status()}`).toBe(true);
-  saved = ((await response.json()) as { entry: { id: string } }).entry.id;
+  saved = await app.saveFrame(2);
   await expect
     .poll(() => app.toasts())
     .toContainEqual(expect.stringContaining(`Saved as "${name}"`));

@@ -1,5 +1,5 @@
 import { fileURLToPath } from "node:url";
-import { expect, type Locator, type Page, type Response } from "@playwright/test";
+import { expect, type Browser, type Locator, type Page, type Response } from "@playwright/test";
 import { finishedJob, type Job } from "./backend";
 
 /** 528x960, a face in front of a neon sign: a detailer finds the face, and
@@ -8,8 +8,19 @@ export const PORTRAIT = fileURLToPath(new URL("../fixtures/portrait.jpg", import
 
 export type SubTab = "Prompts" | "Sampler" | "Refine" | "Detail" | "Color" | "Input";
 
-/** Drives the Images view the way a user does. Every test starts from an
- * empty browser profile, so the app is in its first-run state. */
+export type View = "Images" | "Video" | "Process" | "Caption" | "Gallery";
+
+/** The app in a second browser with an empty profile, as someone else would
+ * open it. Close it with `app.page.context().close()`. */
+export async function openContext(browser: Browser): Promise<Enso> {
+  const context = await browser.newContext();
+  const app = new Enso(await context.newPage());
+  await app.open();
+  return app;
+}
+
+/** Drives the app the way a user does. Every test starts from an empty
+ * browser profile, so the app is in its first-run state. */
 export class Enso {
   readonly page: Page;
   readonly leftPanel: Locator;
@@ -29,13 +40,23 @@ export class Enso {
     await expect(this.canvas.getByText(/^Input/)).toBeVisible();
   }
 
-  /** Load the page again in the same profile. The tutorial shows only until
-   * it is closed once, so it is skipped only when it shows. */
+  /** Load the page again in the same profile, in whichever view it was. The
+   * tutorial shows only until it is closed once, so it is skipped only when
+   * it shows. */
   async reopen(): Promise<void> {
     await this.page.reload();
-    await expect(this.canvas.getByText(/^Input/).first()).toBeVisible();
+    await expect(
+      this.page.getByRole("navigation").getByRole("button", { pressed: true }).first(),
+    ).toBeVisible();
     const skip = this.page.getByRole("button", { name: "Skip", exact: true });
     if (await skip.isVisible()) await skip.click();
+  }
+
+  /** Switch the view by its Left Rail button; a click on the open view collapses its panel. */
+  async view(name: View): Promise<void> {
+    const button = this.page.getByRole("navigation").getByRole("button", { name, exact: true });
+    if ((await button.getAttribute("aria-pressed")) !== "true") await button.click();
+    await expect(button).toHaveAttribute("aria-pressed", "true");
   }
 
   async openTab(tab: SubTab): Promise<void> {
@@ -108,11 +129,23 @@ export class Enso {
     }).toPass({ timeout: 60_000 });
   }
 
+  /** Turn a switch of the Left Panel on or off: an enableable section's or a toggle's. */
+  async setSwitch(name: string, on: boolean): Promise<void> {
+    const toggle = this.leftPanel.getByRole("switch", { name, exact: true });
+    if ((await toggle.getAttribute("aria-checked")) !== String(on)) await toggle.click();
+    await expect(toggle).toHaveAttribute("aria-checked", String(on));
+  }
+
   /** Turn an enableable section of the open tab on. */
   async enable(section: string): Promise<void> {
-    const toggle = this.leftPanel.getByRole("switch", { name: section, exact: true });
-    if ((await toggle.getAttribute("aria-checked")) !== "true") await toggle.click();
-    await expect(toggle).toHaveAttribute("aria-checked", "true");
+    await this.setSwitch(section, true);
+  }
+
+  /** Expand a collapsible section of the Left Panel by its title. */
+  async expand(section: string): Promise<void> {
+    const chevron = this.leftPanel.getByRole("button", { name: section, exact: true });
+    if ((await chevron.getAttribute("aria-expanded")) !== "true") await chevron.click();
+    await expect(chevron).toHaveAttribute("aria-expanded", "true");
   }
 
   /** The row of a frame in the Input tab's outline. */
@@ -152,6 +185,19 @@ export class Enso {
     await this.page.getByRole("menuitem", { name: item }).click();
   }
 
+  /** Save a frame to the library from its More menu; the saved entry's id. */
+  async saveFrame(position: number): Promise<string> {
+    // the save uploads first, on a cold page
+    const posted = this.page.waitForResponse(
+      (r) => r.request().method() === "POST" && new URL(r.url()).pathname === "/sdapi/v2/library",
+      { timeout: 120_000 },
+    );
+    await this.frameMenu(position, "Save to library");
+    const response = await posted;
+    expect(response.ok(), `POST /sdapi/v2/library answered ${response.status()}`).toBe(true);
+    return ((await response.json()) as { entry: { id: string } }).entry.id;
+  }
+
   /** The size the Output frame's header shows, as WxH. */
   async outputFrameSize(): Promise<string> {
     const output = this.canvas.getByRole("group", { name: "Output" });
@@ -159,25 +205,64 @@ export class Enso {
     return (await label.innerText()).replace("×", "x");
   }
 
-  /** The job a submit posted, once the server took it with its record. */
-  private submitted(): Promise<Response> {
-    return this.page.waitForResponse(
+  /** Give the Process view its pictures. */
+  async processFiles(...files: string[]): Promise<void> {
+    await this.view("Process");
+    await this.leftPanel.getByRole("radio", { name: "Batch", exact: true }).click();
+    // The first file input in the page is the Top Bar's interrogate tool
+    await this.canvas
+      .locator('label:has-text("Drop images here") input[type=file]')
+      .setInputFiles(files);
+  }
+
+  /** Turn a Process section on and expand it. */
+  async processSection(title: string): Promise<void> {
+    await this.enable(title);
+    await this.expand(title);
+  }
+
+  /** Run the Process view and wait for its job to leave the queue. */
+  async process(): Promise<Job> {
+    return this.submit(() =>
+      this.leftPanel.getByRole("button", { name: "Process", exact: true }).click(),
+    );
+  }
+
+  /** Open a Gallery folder by its label and select a file in it by name. */
+  async galleryFile(folder: string, name: string): Promise<void> {
+    await this.view("Gallery");
+    await this.leftPanel.getByRole("button", { name: folder, exact: true }).click();
+    await this.page.getByPlaceholder("Search files...").fill(name);
+    // A card clicked while the filtered grid settles stays unselected
+    await expect(async () => {
+      await this.canvas.getByRole("button", { name, exact: true }).click({ timeout: 5000 });
+      await expect(this.canvas.getByRole("img", { name, exact: true })).toBeVisible({
+        timeout: 5000,
+      });
+    }).toPass({ timeout: 60_000 });
+  }
+
+  /** Do what posts a job with its record, then wait for the job to leave the queue. */
+  async submit(action: () => Promise<void>): Promise<Job> {
+    // Uploads and the request build run first, on a cold browser cache
+    const submitted = this.page.waitForResponse(
       (response) =>
         response.request().method() === "POST" &&
         new URL(response.url()).pathname === "/sdapi/v2/submit",
       { timeout: 120_000 },
     );
+    await action();
+    const response: Response = await submitted;
+    expect(response.ok(), `POST /sdapi/v2/submit answered ${response.status()}`).toBe(true);
+    const { id } = (await response.json()) as { id: string };
+    return finishedJob(this.page.request, id);
   }
 
   /** Click Generate and wait for the job to leave the queue. */
   async generate(): Promise<Job> {
-    // Uploads and the request build run first, on a cold browser cache
-    const submitted = this.submitted();
-    await this.leftPanel.getByRole("button", { name: "Generate", exact: true }).click();
-    const response = await submitted;
-    expect(response.ok(), `POST /sdapi/v2/submit answered ${response.status()}`).toBe(true);
-    const { id } = (await response.json()) as { id: string };
-    return finishedJob(this.page.request, id);
+    return this.submit(() =>
+      this.leftPanel.getByRole("button", { name: "Generate", exact: true }).click(),
+    );
   }
 
   /** Text of the toasts on screen. */
@@ -200,12 +285,16 @@ export class Enso {
 
   /** Run a result's job again and wait for the new job to leave the queue. */
   async runAgain(index = 0): Promise<Job> {
-    const submitted = this.submitted();
-    await this.resultMenu("Run again", index);
-    const response = await submitted;
-    expect(response.ok(), `POST /sdapi/v2/submit answered ${response.status()}`).toBe(true);
-    const { id } = (await response.json()) as { id: string };
-    return finishedJob(this.page.request, id);
+    return this.submit(() => this.resultMenu("Run again", index));
+  }
+
+  /** Run the newest History card's job again and wait for the new job. */
+  async runAgainFromHistory(): Promise<Job> {
+    await this.openRightTab("History");
+    const slot = this.page.getByRole("button", { name: "Run again", exact: true }).first();
+    // the slot reads its job's record before it acts
+    await expect(slot).not.toHaveAttribute("aria-disabled", "true");
+    return this.submit(() => slot.click());
   }
 
   /** Open a Right Panel tab by its rail button; a click on the open tab would close it. */

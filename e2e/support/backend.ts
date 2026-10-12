@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import { expect, type APIRequestContext } from "@playwright/test";
+import { expect, type APIRequestContext, type Page } from "@playwright/test";
 
 export interface Checkpoint {
   loaded: boolean;
@@ -78,4 +78,63 @@ export function pipelineCalls(log: string[]): string[] {
     const height = /'height': (\d+)/.exec(line);
     return call && width && height ? [`${call[1]} ${width[1]}x${height[1]}`] : [];
   });
+}
+
+export interface Upload {
+  hash: string;
+  size: number;
+  /** The server had no copy of these bytes before. */
+  created: boolean;
+}
+
+/** What a page sent the media store, in the order the answers came. */
+export interface MediaTraffic {
+  uploads: Upload[];
+  /** Every hash a claim answered as held. */
+  present: string[];
+  /** The job of each submit. */
+  jobs: Record<string, unknown>[];
+  /** Wait for the answers still being read. */
+  settled(): Promise<void>;
+  clear(): void;
+}
+
+/** Record what a page sends the media store from now on. */
+export function watchMedia(page: Page): MediaTraffic {
+  const reading = new Set<Promise<void>>();
+  const traffic: MediaTraffic = {
+    uploads: [],
+    present: [],
+    jobs: [],
+    settled: async () => {
+      await Promise.all(reading);
+    },
+    clear: () => {
+      traffic.uploads = [];
+      traffic.present = [];
+      traffic.jobs = [];
+    },
+  };
+  page.on("response", (response) => {
+    const request = response.request();
+    if (request.method() !== "POST" || !response.ok()) return;
+    const path = new URL(response.url()).pathname;
+    let read: Promise<void> | null = null;
+    if (path === "/sdapi/v2/blobs") {
+      read = response.json().then((body) => {
+        const { hash, size, created } = body as Upload;
+        traffic.uploads.push({ hash, size, created });
+      });
+    } else if (path === "/sdapi/v2/blobs/claim") {
+      read = response.json().then((body) => {
+        traffic.present.push(...(body as { present: string[] }).present);
+      });
+    } else if (path === "/sdapi/v2/submit") {
+      traffic.jobs.push((request.postDataJSON() as { job: Record<string, unknown> }).job);
+    }
+    if (!read) return;
+    const done = read.catch(() => {}).finally(() => reading.delete(done));
+    reading.add(done);
+  });
+  return traffic;
 }
