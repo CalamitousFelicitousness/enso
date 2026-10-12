@@ -91,8 +91,10 @@ function gone(item: Item): Outcome {
   return item.source ? { gone: true, source: item.source } : { gone: true };
 }
 
-/** Whether a Blob can still be read: a dropped file moved or changed on disk cannot. */
+/** Whether a Blob can still be read: a dropped file moved or changed on disk cannot.
+ * Chromium sizes a deleted file 0, and an empty slice reads without opening the file. */
 async function readable(blob: Blob): Promise<boolean> {
+  if (blob.size === 0) return false;
   try {
     await blob.slice(0, 1).arrayBuffer();
     return true;

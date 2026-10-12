@@ -255,6 +255,14 @@ describe("an upload batch", () => {
     expect(server.asked.sent).toEqual([]);
   });
 
+  it("refuses a file deleted on disk, whose size reads 0 and whose empty slice still reads", async () => {
+    const server = fakes();
+    const batch = new uploads.UploadBatch("t", { tools: server.tools });
+    batch.stage(new File([], "gone.png"), { name: "gone.png" });
+    await expect(batch.run()).rejects.toThrow("gone.png can no longer be read; add it again");
+    expect(server.asked.sent).toEqual([]);
+  });
+
   it("does not check a file the server holds already", async () => {
     const server = fakes({ held: ["moved"] });
     const batch = new uploads.UploadBatch("t", { tools: server.tools });
