@@ -226,11 +226,12 @@ def register_api(app, dependencies=None):
             "/sdapi/v2/library/trash": 0,
             "/sdapi/v2/library/trash/empty": 0,
             "/sdapi/v2/records": 0,
-            "/sdapi/v2/uploads/{ref_id}": 0,  # dormant until route-template keys
-            "/sdapi/v2/jobs/{job_id}": 0,  # dormant until route-template keys
-            "/sdapi/v2/jobs/{job_id}/images/{index}": 0,  # dormant until route-template keys
-            "/sdapi/v2/jobs/{job_id}/processed/{index}": 0,  # dormant until route-template keys
-            "/sdapi/v2/outputs/{output_id}": 0,  # dormant until route-template keys
+            # Route templates, which sdnext matches for paths that carry ids
+            "/sdapi/v2/uploads/{ref_id}": 0,
+            "/sdapi/v2/jobs/{job_id}": 0,
+            "/sdapi/v2/jobs/{job_id}/images/{index}": 0,
+            "/sdapi/v2/jobs/{job_id}/processed/{index}": 0,
+            "/sdapi/v2/outputs/{output_id}": 0,
             # Cost 5 - GPU / compute / IO intensive
             "/sdapi/v2/jobs": 5,
             "/sdapi/v2/video/load": 5,
