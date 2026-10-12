@@ -37,8 +37,8 @@ export const OUTPUT_PRESETS: OutputPreset[] = [
     label: "Web Share",
     codec: "libx264",
     format: "mp4",
-    codecOptions: "crf=23,faststart",
-    description: "Optimized for web playback",
+    codecOptions: "crf=23",
+    description: "Smaller H.264 file that plays in any browser",
   },
   {
     id: "lossless",
@@ -80,5 +80,15 @@ export function normalizeCodecOptions(value: string): string {
   return value
     .split(",")
     .map((seg) => (seg.includes("=") ? seg : seg.replace(":", "=")))
+    .join(",");
+}
+
+/** Codec options an earlier build stored, as the server takes them: normalized
+ * and without `faststart`, a muxer flag the encoder never applied, which the
+ * Web Share preset wrote and the server refuses. */
+export function repairCodecOptions(value: string): string {
+  return normalizeCodecOptions(value)
+    .split(",")
+    .filter((seg) => seg.trim() !== "faststart")
     .join(",");
 }

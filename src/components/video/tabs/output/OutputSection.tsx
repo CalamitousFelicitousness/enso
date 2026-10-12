@@ -129,7 +129,7 @@ export function OutputSection({ caps }: { caps?: VideoModelCaps }) {
           <div className="flex items-center gap-2">
             <ParamLabel
               className="text-2xs text-muted-foreground w-16 shrink-0"
-              tooltip="Raw ffmpeg encoder flags, comma separated, as <b>key=value</b> pairs. <b>crf=18</b> sets quality, <b>faststart</b> moves the index to the front for web playback.<br><br>Unknown flags are passed straight to the encoder, so a typo fails the save rather than the generation."
+              tooltip="Encoder options, comma separated, as <b>key=value</b> pairs: <b>crf=18</b> sets quality.<br><br>The server takes rate and quality options only, such as <b>crf</b>, <b>preset</b>, <b>tune</b> and <b>maxrate</b>. A job with any other option fails before it starts, naming the option."
             >
               Codec opts
             </ParamLabel>

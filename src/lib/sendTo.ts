@@ -15,6 +15,7 @@ import type { ImagePayload } from "@/lib/drag";
 import type { LocalVideoModel } from "@/api/types/cloud";
 import type { VideoWireParams } from "@/api/types/wireParams";
 import { VIDEO_PARAMS, WIRE_TO_STORE, coerce, type VideoJobType } from "@/lib/video/paramRegistry";
+import { repairCodecOptions } from "@/lib/videoOutputPresets";
 
 export function extractFrameFromVideo(videoUrl: string, time: number): Promise<Blob> {
   return new Promise((resolve, reject) => {
@@ -140,6 +141,9 @@ export function restoreVideoSettings(params: VideoWireParams, domain: VideoJobTy
     if (!storeKey) continue;
     const coerced = coerce(VIDEO_PARAMS[storeKey].kind, value);
     if (coerced !== undefined) updates[storeKey] = coerced;
+  }
+  if (typeof updates["codecOptions"] === "string") {
+    updates["codecOptions"] = repairCodecOptions(updates["codecOptions"]);
   }
 
   if (Object.keys(updates).length > 0) {
