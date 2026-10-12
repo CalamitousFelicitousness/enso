@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { queryClient } from "@/api/queryClient";
 import { OUTPUT_JOBS_KEY } from "@/api/queryKeys";
+import { jobLists } from "@/api/jobLists";
 import { renewForSocket, socketUrl } from "@/api/session";
 import { WebSocketManager } from "@/api/websocket";
 import { useJobQueueStore, type TrackedJob } from "@/stores/jobStore";
@@ -266,9 +267,12 @@ export function useJobTracker() {
               markJobCancelled(jobId);
               break;
           }
-          // History lists the job as it ended
+          // History lists the job as it ended; the Bottom Bar counts completed generate jobs
           if (data.type === "completed" || data.type === "error" || data.type === "cancelled") {
-            void queryClient.invalidateQueries({ queryKey: ["v2-jobs"] });
+            jobLists.lists();
+            if (data.type === "completed" && s.jobs.get(jobId)?.request?.type === "generate") {
+              jobLists.generations();
+            }
           }
         });
 

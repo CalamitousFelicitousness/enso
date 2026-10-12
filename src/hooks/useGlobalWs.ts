@@ -5,6 +5,7 @@ import { useBackendStatusStore } from "@/stores/backendStatusStore";
 import { useDownloadStore, type DownloadProgress } from "@/stores/downloadStore";
 import { previewMimeType } from "@/lib/image";
 import { queryClient } from "@/api/queryClient";
+import { jobLists } from "@/api/jobLists";
 import { createLiveQueries, isGlobalEvent } from "@/api/liveQueries";
 
 /** Query keys to invalidate when the backend reconnects (e.g. after restart). */
@@ -56,7 +57,7 @@ export function useGlobalWs() {
       } else if (msg.type === "status" && msg.data) {
         store.setStatus(msg.data);
         // The server went idle: every job that ran has ended, whichever client sent it
-        void queryClient.invalidateQueries({ queryKey: ["v2-jobs"] });
+        jobLists.lists();
       } else if (msg.type === "model") {
         // The server's loaded image model changed, from this page or any other client;
         // sdnext lists control models per model type

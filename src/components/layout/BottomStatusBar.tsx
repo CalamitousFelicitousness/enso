@@ -4,7 +4,7 @@ import {
   useModelLoadingTarget,
 } from "@/api/hooks/useModels";
 import { useMemory, useGpuStatus, useLoadedModels } from "@/api/hooks/useServer";
-import { useJobList } from "@/api/hooks/useJobs";
+import { useGenerationCount } from "@/api/hooks/useJobs";
 import { useBackendStatusStore } from "@/stores/backendStatusStore";
 
 import { LoadedModelsPanel } from "@/components/layout/LoadedModelsPanel";
@@ -117,7 +117,7 @@ export function BottomStatusBar() {
   const { data: loadedModels } = useLoadedModels();
   const { data: memory } = useMemory();
   const { data: gpuList } = useGpuStatus();
-  const { data: jobList } = useJobList({ status: "completed", type: "generate", limit: 1 });
+  const { data: genCount = 0 } = useGenerationCount();
   const wsConnected = useBackendStatusStore((s) => s.connected);
   const globalProgress = useBackendStatusStore((s) => s.progress);
   const globalStep = useBackendStatusStore((s) => s.step);
@@ -140,7 +140,6 @@ export function BottomStatusBar() {
   const vramPct =
     vramUsed != null && vramTotal != null && vramTotal > 0 ? (vramUsed / vramTotal) * 100 : 0;
 
-  const genCount = jobList?.total ?? 0;
   const isGenerating = globalStep > 0 || globalProgress > 0;
 
   // Status dot logic

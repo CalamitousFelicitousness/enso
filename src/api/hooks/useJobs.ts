@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useJobQueueStore } from "@/stores/jobStore";
 import { api } from "../client";
+import { GENERATIONS_KEY, JOB_LISTS_KEY } from "../jobLists";
 import type {
   Job,
   JobListResponse,
@@ -49,8 +50,23 @@ export function useJobList(params?: {
   if (params?.offset !== undefined) queryParams["offset"] = String(params.offset);
 
   return useQuery({
-    queryKey: ["v2-jobs", params],
+    queryKey: [...JOB_LISTS_KEY, params],
     queryFn: () => api.get<JobListResponse>("/sdapi/v2/jobs", queryParams),
+    staleTime: 5000,
+  });
+}
+
+/** How many generate jobs completed on the server. */
+export function useGenerationCount() {
+  return useQuery({
+    queryKey: GENERATIONS_KEY,
+    queryFn: () =>
+      api.get<JobListResponse>("/sdapi/v2/jobs", {
+        status: "completed",
+        type: "generate",
+        limit: "1",
+      }),
+    select: (list) => list.total,
     staleTime: 5000,
   });
 }

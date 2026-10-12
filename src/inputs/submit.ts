@@ -9,6 +9,7 @@ import { UploadRefused } from "@/lib/media/refused";
 import { api, ApiError, issuesOf } from "@/api/client";
 import { serverInfoQuery } from "@/api/hooks/useServer";
 import { queryClient } from "@/api/queryClient";
+import { jobLists } from "@/api/jobLists";
 import { recordKey } from "@/api/queryKeys";
 import type { ReqRecordV2 } from "@/api/types/media";
 import type { Job, JobRequest } from "@/api/types/v2";
@@ -246,7 +247,7 @@ function track(prepared: Prepared, job: Job): void {
     .trackJob(job.id, domain, { request: prepared.request, mapKeys, priority: job.priority ?? 0 });
   if (prepared.record)
     queryClient.setQueryData(recordKey(job.id), sentFacts(domain, prepared.record));
-  void queryClient.invalidateQueries({ queryKey: ["v2-jobs"] });
+  jobLists.lists();
 }
 
 function refusal(err: unknown): unknown {
