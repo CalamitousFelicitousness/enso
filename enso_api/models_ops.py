@@ -1,7 +1,9 @@
 """Model operations API - analyze, save, list, merge, replace, download, extract LoRA.
 
 Provides REST endpoints for model management operations that were previously
-only accessible through the Gradio UI.
+only accessible through the Gradio UI. Save, merge, replace, load and LoRA
+extract hold the queue lock like their job twins: each drives shared.state or
+changes the loaded model.
 """
 
 import inspect
@@ -87,8 +89,10 @@ def post_save(req: ReqModelSaveV2):
     an existing file.
     """
     from modules import sd_models
+    from modules.call_queue import queue_lock
 
-    result = sd_models.save_model(name=req.name, path=req.path, shard=req.shard, overwrite=req.overwrite)
+    with queue_lock:
+        result = sd_models.save_model(name=req.name, path=req.path, shard=req.shard, overwrite=req.overwrite)
     return {"status": result}
 
 
@@ -550,6 +554,7 @@ def post_merge(req: ReqMergeV2):
     alignment, and optional VAE bake-in. Saves the result as ``custom_name``.
     """
     from modules import errors, extras, sd_models
+    from modules.call_queue import queue_lock
 
     if not req.custom_name:
         return {"status": "Error: no output model name specified"}
@@ -557,7 +562,8 @@ def post_merge(req: ReqMergeV2):
         return {"status": "Error: primary and secondary models are required"}
     kwargs = {k: v for k, v in req.model_dump().items() if v not in (None, "None", "", 0, [])}
     try:
-        results = extras.run_modelmerger(None, **kwargs)
+        with queue_lock:
+            results = extras.run_modelmerger(None, **kwargs)
         status = results[-1] if isinstance(results, list) else str(results)
     except Exception as e:
         errors.display(e, "Merge")
@@ -575,32 +581,34 @@ def post_replace(req: ReqReplaceV2):
     with optional metadata (author, version, license, description).
     """
     from modules import extras
+    from modules.call_queue import queue_lock
 
     status = "Unknown"
-    for msg in extras.run_model_modules(
-        req.model_type,
-        req.model_name,
-        req.custom_name,
-        req.comp_unet,
-        req.comp_vae,
-        req.comp_te1,
-        req.comp_te2,
-        req.precision,
-        req.comp_scheduler,
-        req.comp_prediction,
-        req.comp_lora,
-        req.comp_fuse,
-        req.meta_author,
-        req.meta_version,
-        req.meta_license,
-        req.meta_desc,
-        req.meta_hint,
-        None,  # meta_thumbnail (PIL image - not applicable via API)
-        req.create_diffusers,
-        req.create_safetensors,
-        req.debug,
-    ):
-        status = msg
+    with queue_lock:
+        for msg in extras.run_model_modules(
+            req.model_type,
+            req.model_name,
+            req.custom_name,
+            req.comp_unet,
+            req.comp_vae,
+            req.comp_te1,
+            req.comp_te2,
+            req.precision,
+            req.comp_scheduler,
+            req.comp_prediction,
+            req.comp_lora,
+            req.comp_fuse,
+            req.meta_author,
+            req.meta_version,
+            req.meta_license,
+            req.meta_desc,
+            req.meta_hint,
+            None,  # meta_thumbnail (PIL image - not applicable via API)
+            req.create_diffusers,
+            req.create_safetensors,
+            req.debug,
+        ):
+            status = msg
     return {"status": status}
 
 
@@ -685,6 +693,7 @@ def post_loader_load(req: ReqLoaderLoadV2):
     Call loader/components first to discover available components.
     """
     from modules import ui_models_load
+    from modules.call_queue import queue_lock
 
     cls_name = None
     if not ui_models_load.components:
@@ -718,7 +727,8 @@ def post_loader_load(req: ReqLoaderLoadV2):
             if comp.quant is not None:
                 c.quant = comp.quant
     dataframes = [c.dataframe() for c in ui_models_load.components]
-    result = ui_models_load.load_model(req.model_type, cls_name, req.repo, dataframes)
+    with queue_lock:
+        result = ui_models_load.load_model(req.model_type, cls_name, req.repo, dataframes)
     return {"status": result}
 
 
@@ -744,11 +754,13 @@ def post_lora_extract(req: ReqLoraExtractV2):
     ``max_rank`` controls decomposition rank, ``modules`` selects which parts
     to extract (defaults to ["te", "unet"]).
     """
+    from modules.call_queue import queue_lock
     from modules.lora import lora_extract
 
     status = "Unknown"
-    for msg in lora_extract.make_lora(req.filename, req.max_rank, req.auto_rank, req.rank_ratio, req.modules, req.overwrite):
-        status = msg
+    with queue_lock:
+        for msg in lora_extract.make_lora(req.filename, req.max_rank, req.auto_rank, req.rank_ratio, req.modules, req.overwrite):
+            status = msg
     return {"status": status}
 
 

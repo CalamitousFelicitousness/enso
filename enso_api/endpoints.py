@@ -634,14 +634,11 @@ async def set_checkpoint_v2(req: ReqSetCheckpointV2):
 
     def _load():
         from modules import devices, modelloader, sd_models
+        from modules.call_queue import queue_lock
 
-        if req.force:
-            sd_models.unload_model_weights(op="model")
-        if req.dtype is not None:
-            shared.opts.cuda_dtype = req.dtype
-            devices.set_dtype()
         checkpoint = req.sd_model_checkpoint
-        # Handle reference models (same logic as ui_settings.reference_submit)
+        # Reference models (same logic as ui_settings.reference_submit) download
+        # outside the lock: a download can take minutes and touches no loaded weights
         ref_opts = modelloader.get_reference_opts(checkpoint, quiet=True)
         if ref_opts:
             if "@" not in checkpoint:
@@ -655,8 +652,15 @@ async def set_checkpoint_v2(req: ReqSetCheckpointV2):
                     checkpoint = loaded
                 else:
                     return None
-        shared.opts.sd_model_checkpoint = checkpoint
-        return sd_models.reload_model_weights()
+        # a load waits for the running job rather than replacing its model
+        with queue_lock:
+            if req.force:
+                sd_models.unload_model_weights(op="model")
+            if req.dtype is not None:
+                shared.opts.cuda_dtype = req.dtype
+                devices.set_dtype()
+            shared.opts.sd_model_checkpoint = checkpoint
+            return sd_models.reload_model_weights()
 
     model = await asyncio.to_thread(_load)
     return ResSetCheckpointV2(ok=model is not None, checkpoint=build_checkpoint_info())
@@ -707,10 +711,12 @@ async def reload_checkpoint_v2(force: bool = Query(default=False, description="U
 
     def _reload():
         from modules import sd_models
+        from modules.call_queue import queue_lock
 
-        if force:
-            sd_models.unload_model_weights(op="model")
-        sd_models.reload_model_weights()
+        with queue_lock:
+            if force:
+                sd_models.unload_model_weights(op="model")
+            sd_models.reload_model_weights()
 
     await asyncio.to_thread(_reload)
     return ResSetCheckpointV2(ok=True, checkpoint=build_checkpoint_info())
@@ -722,9 +728,11 @@ async def unload_checkpoint_v2():
 
     def _unload():
         from modules import sd_models
+        from modules.call_queue import queue_lock
 
-        sd_models.unload_model_weights(op="model")
-        sd_models.unload_model_weights(op="refiner")
+        with queue_lock:
+            sd_models.unload_model_weights(op="model")
+            sd_models.unload_model_weights(op="refiner")
 
     await asyncio.to_thread(_unload)
     return ResSetCheckpointV2(ok=True, checkpoint=build_checkpoint_info())
