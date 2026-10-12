@@ -328,7 +328,8 @@ function SectionTooltip({ tooltip, children }: { tooltip: string; children: Reac
           tabIndex={0}
           aria-pressed={pinned}
           className="outline-none focus-visible:ring-ring/50 focus-visible:ring-[3px] rounded-sm"
-          onFocus={() => setFocused(true)}
+          // Only keyboard focus shows the description: a click's focus would hold it over the chevron
+          onFocus={(e) => setFocused(e.currentTarget.matches(":focus-visible"))}
           onBlur={() => setFocused(false)}
           onPointerEnter={() => {
             hoverTimer.current = setTimeout(() => setHovered(true), 300);
