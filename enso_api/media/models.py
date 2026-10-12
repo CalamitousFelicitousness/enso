@@ -149,6 +149,12 @@ class ResMediaReportV2(BaseModel):
     last_gc: int | None = None
     last_verify: LastVerifyV2 | None = None
     verify: VerifyStateV2 = Field(default_factory=VerifyStateV2)
+    files_in_trash: MediaTermV2 = Field(default_factory=MediaTermV2)
+    """Gallery files in the trash with the sidecars that went with them; not counted in the blobs above."""
+    trash_lost: int = 0
+    """Gallery files whose file is gone from the trash; each row goes after the trash days."""
+    trash_strays: int = 0
+    """Folders in the trash no row holds, as the last check found them; they go after the trash days."""
 
 
 class ReqRecordV2(StrictBaseModel):
@@ -278,6 +284,8 @@ class ItemEntryV2(BaseModel):
     trashed_by: str | None = None
     trashed_cause: str | None = None
     """removed or evicted."""
+    expires_at: int | None = None
+    """When a trashed entry is deleted, from the server's clock and its trash days."""
     frames: int
     pictures: int
     role: str | None = None
@@ -346,3 +354,104 @@ class ResFreedV2(BaseModel):
     deleted: list[str]
     freed: int
     """The bytes deleted now; bytes claimed within the hour go with the grace."""
+
+
+class ReqTrashFilesV2(StrictBaseModel):
+    files: list[str] = Field(min_length=1, max_length=5000)
+
+
+class FileErrorV2(BaseModel):
+    file: str
+    error: str
+
+
+class MovedFileV2(BaseModel):
+    file: str
+    """A Gallery file that left its folder, as the request spelled it; a sidecar the Gallery lists is spelled in its folder."""
+    path: str
+    """Where it is in the trash."""
+
+
+class ItemTrashedFileV2(BaseModel):
+    id: str
+    name: str
+    folder: str
+    """The folder it came from, resolved."""
+    folder_label: str
+    """That folder as the Gallery names it."""
+    path: str
+    """The file in the trash, which the Gallery's read routes serve."""
+    kind: Literal["image", "video"]
+    size: int
+    bytes: int
+    """With the sidecars that went with it."""
+    mtime: int
+    trashed_at: int
+    trashed_by: str | None = None
+    expires_at: int
+    output_ids: list[str]
+    """The outputs rows that name it or its sidecars, which keep serving it from the trash."""
+    lost: bool
+    """Its file is gone from the trash; the row goes after the trash days."""
+
+
+class ResTrashedV2(BaseModel):
+    trashed: list[ItemTrashedFileV2]
+    moved: list[MovedFileV2]
+    errors: list[FileErrorV2]
+
+
+class ResGalleryTrashV2(BaseModel):
+    items: list[ItemTrashedFileV2]
+    total: int
+    bytes: int
+    days: int
+    as_of: int
+    """The server's time of this read; Empty sends it back, so what was trashed after is left."""
+
+
+class ReqRestoreFilesV2(StrictBaseModel):
+    ids: list[str] = Field(min_length=1, max_length=1000)
+    folder: str | None = None
+    """A Gallery folder to restore into, in place of each file's own."""
+
+
+class RestoredFileV2(BaseModel):
+    id: str
+    path: str
+    name: str
+    renamed: bool
+    """Another file had its name or a sidecar's, so it came back as `<stem> (restored)`."""
+    left: list[str]
+    """Sidecars that could not come back."""
+
+
+class IdErrorV2(BaseModel):
+    id: str
+    name: str
+    error: str
+
+
+class ResRestoredV2(BaseModel):
+    restored: list[RestoredFileV2]
+    errors: list[IdErrorV2]
+
+
+class ReqDeleteTrashedV2(StrictBaseModel):
+    ids: list[str] = Field(min_length=1, max_length=1000)
+
+
+class ReqEmptyGalleryTrashV2(StrictBaseModel):
+    as_of: int = Field(ge=0)
+
+
+class TrashedOutputV2(BaseModel):
+    item: str
+    expires_at: int
+
+
+class ResTrashedOutputsV2(BaseModel):
+    trashed: dict[str, TrashedOutputV2]
+    """Outputs whose files are in the trash, by output id."""
+    gone: dict[str, int]
+    """Outputs deleted from the trash within the hour, by output id, with when."""

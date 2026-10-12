@@ -4,6 +4,8 @@ from collections.abc import Mapping
 from dataclasses import dataclass, fields
 from typing import NamedTuple
 
+DAY_MS = 24 * 3600 * 1000
+
 
 class Bound(NamedTuple):
     low: int
@@ -25,6 +27,10 @@ class Settings:
     library_cap: int = BOUNDS["library_cap"].default
     record_cap: int = BOUNDS["record_cap"].default
     reserve_bytes: int = BOUNDS["reserve_bytes"].default
+
+    @property
+    def trash_ms(self) -> int:
+        return self.trash_days * DAY_MS
 
     def as_dict(self) -> dict[str, int]:
         return {field.name: getattr(self, field.name) for field in fields(self)}

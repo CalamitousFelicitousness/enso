@@ -110,7 +110,7 @@ def evict_in(conn: sqlite3.Connection, cap: int, keep: str | None, now: int, by:
     gone = []
     for entry_id in evictions(rows, cap, keep):
         found = conn.execute(
-            "UPDATE entries SET trashed_at = ?, trashed_by = ?, trashed_cause = 'evicted' WHERE id = ? AND trashed_at IS NULL AND pinned = 0 RETURNING id, name",
+            "UPDATE entries SET trashed_at = ?, trashed_by = ?, trashed_cause = 'evicted', clock_at = NULL WHERE id = ? AND trashed_at IS NULL AND pinned = 0 RETURNING id, name",
             (now, by, entry_id),
         ).fetchone()
         if found is not None:
@@ -145,7 +145,8 @@ def lost_among(conn: sqlite3.Connection, hashes: Iterable[str]) -> set[str]:
     return lost
 
 
-def items(conn: sqlite3.Connection, rows: list[sqlite3.Row]) -> list[dict]:
+def items(conn: sqlite3.Connection, rows: list[sqlite3.Row], trash_ms: int) -> list[dict]:
+    """List items; a trashed entry's expiry runs from its trash, or from a restarted collection clock when later."""
     thumbs = {row["id"]: json.loads(row["thumbs"]) for row in rows}
     lost = lost_among(conn, (t["thumb"] for listed in thumbs.values() for t in listed))
     return [
@@ -160,6 +161,7 @@ def items(conn: sqlite3.Connection, rows: list[sqlite3.Row]) -> list[dict]:
             "trashed_at": row["trashed_at"],
             "trashed_by": row["trashed_by"],
             "trashed_cause": row["trashed_cause"],
+            "expires_at": max(row["clock_at"] or 0, row["trashed_at"]) + trash_ms if row["trashed_at"] is not None else None,
             "frames": row["frames"],
             "pictures": row["pictures"],
             "role": row["role"],
@@ -183,7 +185,7 @@ class Entries:
 
     def item(self, conn: sqlite3.Connection, entry_id: str) -> dict | None:
         rows = conn.execute(f"{ITEM_SQL} WHERE e.id = ? GROUP BY e.id", (entry_id,)).fetchall()
-        return items(conn, rows)[0] if rows else None
+        return items(conn, rows, self.settings().trash_ms)[0] if rows else None
 
     def save(self, body: EntryIn, user: str | None, migrating: bool) -> Changed:
         """Store an entry; an id already stored answers the row as it is."""
@@ -265,10 +267,10 @@ class Entries:
             trashed = row["trashed_at"] is not None
             pinned = bool(row["pinned"])
             if change.trashed is True and not trashed:
-                sets.update(trashed_at=now, trashed_by=user, trashed_cause="removed")
+                sets.update(trashed_at=now, trashed_by=user, trashed_cause="removed", clock_at=None)
                 trashed = trash_moved = True
             elif change.trashed is False and trashed:
-                sets.update(trashed_at=None, trashed_by=None, trashed_cause=None, used_at=now)
+                sets.update(trashed_at=None, trashed_by=None, trashed_cause=None, clock_at=None, used_at=now)
                 trashed, trash_moved, counted = False, True, True
                 if pinned and pinned_count(w.conn, entry_id) >= MAX_PINNED:
                     sets["pinned"] = 0
@@ -300,7 +302,7 @@ class Entries:
                 rows = conn.execute(f"{ITEM_SQL} WHERE e.trashed_at IS NOT NULL GROUP BY e.id {TRASH_ORDER}").fetchall()
             else:
                 rows = conn.execute(f"{ITEM_SQL} WHERE e.trashed_at IS NULL GROUP BY e.id {LIBRARY_ORDER}").fetchall()
-            return items(conn, rows)
+            return items(conn, rows, self.settings().trash_ms)
 
     def get(self, entry_id: str) -> dict | None:
         """The entry with its document and the cids whose bytes are lost."""
@@ -327,6 +329,21 @@ class Entries:
                 if w.conn.execute("DELETE FROM entries WHERE id = ? AND trashed_at IS NOT NULL", (entry_id,)).rowcount:
                     deleted.ids.append(entry_id)
                     deleted.hashes.update(hashes)
+        return deleted
+
+    def delete_trashed(self, entry_id: str) -> Deleted:
+        """Delete one entry from the trash, checked in the same write: Gone when there is no such entry, refused when it
+        is not in the trash."""
+        deleted = Deleted()
+        with self.db.write(durable=True) as w:
+            row = w.conn.execute("SELECT trashed_at FROM entries WHERE id = ?", (entry_id,)).fetchone()
+            if row is None:
+                raise Gone(entry_id)
+            if row[0] is None:
+                raise Refused(409, "not_trashed", "Only an entry in the trash can be deleted")
+            deleted.hashes.update(found[0] for found in w.conn.execute("SELECT hash FROM entry_blobs WHERE entry_id = ?", (entry_id,)))
+            w.conn.execute("DELETE FROM entries WHERE id = ?", (entry_id,))
+            deleted.ids.append(entry_id)
         return deleted
 
     def reclaimable(self) -> int:

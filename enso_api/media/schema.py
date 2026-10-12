@@ -115,4 +115,40 @@ CREATE UNIQUE INDEX records_submit ON records(submit_id) WHERE submit_id IS NOT 
 ALTER TABLE entries ADD COLUMN thumbs TEXT NOT NULL DEFAULT '[]';
 """
 
-MIGRATIONS = [(1, SCHEMA_V1), (2, SCHEMA_V2)]
+# Gallery files in the trash, the output rows that follow them, and the outputs deleted from it for the browser cache's hour.
+# A row's state precedes every move: moving before a file leaves its folder, restoring with restore_to before it comes back.
+# clock_at is the retention clock a restarted collection set; it is cleared with every change of trashed_at.
+SCHEMA_V3 = """
+CREATE TABLE trashed_files (
+  id TEXT PRIMARY KEY,
+  state TEXT NOT NULL,
+  name TEXT NOT NULL,
+  folder TEXT NOT NULL,
+  companions TEXT NOT NULL DEFAULT '[]',
+  kind TEXT NOT NULL,
+  size INTEGER NOT NULL,
+  bytes INTEGER NOT NULL,
+  mtime INTEGER NOT NULL,
+  trashed_at INTEGER NOT NULL,
+  trashed_by TEXT,
+  clock_at INTEGER,
+  restore_to TEXT,
+  lost_at INTEGER
+);
+CREATE INDEX trashed_files_at ON trashed_files(trashed_at);
+CREATE INDEX trashed_files_state ON trashed_files(state);
+CREATE INDEX trashed_files_place ON trashed_files(folder, name);
+CREATE TABLE trashed_outputs (
+  output_id TEXT PRIMARY KEY,
+  item_id TEXT NOT NULL REFERENCES trashed_files(id) ON DELETE CASCADE,
+  name TEXT NOT NULL
+);
+CREATE INDEX trashed_outputs_item ON trashed_outputs(item_id);
+CREATE TABLE gone_outputs (
+  output_id TEXT PRIMARY KEY,
+  gone_at INTEGER NOT NULL
+);
+ALTER TABLE entries ADD COLUMN clock_at INTEGER;
+"""
+
+MIGRATIONS = [(1, SCHEMA_V1), (2, SCHEMA_V2), (3, SCHEMA_V3)]

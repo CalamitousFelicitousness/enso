@@ -241,12 +241,13 @@ def get_storage():
     ]
     result["models"] = [{"label": label, "path": p, "size": dir_size(p, recursive=False)} for label, p in model_dirs if p]
 
-    # The store's own total from its rows, not a walk of its folders
+    # The store's own total from its rows, not a walk of its folders: its blobs and the Gallery files in its trash
     from enso_api.media import boot as media_boot
 
     media_store = media_boot.state.store
     if media_store is not None:
-        result["media"] = [{"label": "Media store", "path": media_store.layout.root, "size": media_store.report().bytes}]
+        report = media_store.report()
+        result["media"] = [{"label": "Media store", "path": media_store.layout.root, "size": report.bytes + report.files_in_trash.bytes}]
 
     log.debug("API: storage scan complete")
     return result

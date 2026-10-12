@@ -1,3 +1,4 @@
+import asyncio
 import base64
 import contextlib
 import io
@@ -12,14 +13,13 @@ from fastapi import Depends, FastAPI, HTTPException
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from modules import files_cache, images, modelstats, shared
 from modules.logger import log
-from modules.paths import resolve_output_path
 from PIL import Image
 from pydantic import BaseModel, Field  # pylint: disable=no-name-in-module
 from starlette.websockets import WebSocket, WebSocketState
 
-from enso_api.confine import VIDEO_EXTENSIONS, is_allowed_path, outside_media_store, protected_roots
+from enso_api.confine import VIDEO_EXTENSIONS, gallery_folders, is_allowed_path, is_readable_path, outside_media_store, protected_roots
 from enso_api.errors import refuse
-from enso_api.media.companions import NOT_FOUND, PATH_NOT_ALLOWED, TAKEN, gather, is_media, protected_reason
+from enso_api.media.companions import PATH_NOT_ALLOWED, TAKEN, gather, is_media, protected_reason, reason_of
 from enso_api.media.placement import folder_lock, place
 from enso_api.routes import media_file
 from enso_api.session import admit_socket, media_auth
@@ -203,64 +203,28 @@ def register_api(app: FastAPI):  # register api
     # @app.get('/sdapi/v1/browser/folders', response_model=List[str])
     def get_folders():
         """List configured output folders for the image browser with path and display label."""
-
-        def make_folder(path, label=None):
-            """Create folder entry with path and display label."""
-            if label is None:
-                label = os.path.basename(path) or path
-            return {"path": path, "label": label}
-
-        reference_dir = os.path.join("models", "Reference")
-        base_samples = shared.opts.outdir_samples
-        base_grids = shared.opts.outdir_grids
-        # Build list of resolved output paths with labels
-        folders = []
-        if base_samples:
-            folders.append(make_folder(base_samples, os.path.basename(base_samples.rstrip("/\\"))))
-        if base_grids and base_grids != base_samples:
-            folders.append(make_folder(base_grids, os.path.basename(base_grids.rstrip("/\\"))))
-        # Use the specific folder setting values as labels (e.g., "outputs/text" -> "outputs/text")
-        folders.append(make_folder(resolve_output_path(base_samples, shared.opts.outdir_txt2img_samples), shared.opts.outdir_txt2img_samples))
-        folders.append(make_folder(resolve_output_path(base_samples, shared.opts.outdir_img2img_samples), shared.opts.outdir_img2img_samples))
-        folders.append(make_folder(resolve_output_path(base_samples, shared.opts.outdir_control_samples), shared.opts.outdir_control_samples))
-        folders.append(make_folder(resolve_output_path(base_samples, shared.opts.outdir_extras_samples), shared.opts.outdir_extras_samples))
-        folders.append(make_folder(resolve_output_path(base_samples, shared.opts.outdir_save), shared.opts.outdir_save))
-        folders.append(make_folder(resolve_output_path(base_samples, shared.opts.outdir_video), shared.opts.outdir_video))
-        folders.append(make_folder(resolve_output_path(base_samples, shared.opts.outdir_init_images), shared.opts.outdir_init_images))
-        folders.append(make_folder(resolve_output_path(base_grids, shared.opts.outdir_txt2img_grids), shared.opts.outdir_txt2img_grids))
-        folders.append(make_folder(resolve_output_path(base_grids, shared.opts.outdir_img2img_grids), shared.opts.outdir_img2img_grids))
-        folders.append(make_folder(resolve_output_path(base_grids, shared.opts.outdir_control_grids), shared.opts.outdir_control_grids))
-        # Custom browser folders and reference dir
-        for f in shared.opts.browser_folders.split(","):
-            f = f.strip()
-            if f:
-                folders.append(make_folder(f))
-        folders.append(make_folder(reference_dir, "Reference"))
-        # Filter empty and duplicates (by path)
-        seen_paths = set()
-        unique_folders = []
-        for f in folders:
-            path = f["path"].strip()
-            if path and path not in seen_paths and os.path.isdir(path):
-                seen_paths.add(path)
-                unique_folders.append(f)
-        debug(f"Browser folders: {unique_folders}")
-        return JSONResponse(content=unique_folders)
+        folders = gallery_folders()
+        debug(f"Browser folders: {folders}")
+        return JSONResponse(content=folders)
 
     # @app.get("/sdapi/v2/browser/file")
     async def get_file(path: str):
-        """Serve a gallery file at full size, confined to the configured gallery roots."""
-        if not is_allowed_path(path):
-            raise HTTPException(status_code=403, detail="Path not allowed")
-        if not os.path.isfile(path):
-            raise HTTPException(status_code=404, detail="File not found")
-        return media_file(path, os.path.basename(path))
+        """Serve a gallery file at full size, confined to the configured gallery roots and the files in the trash."""
+
+        def serve():
+            if not is_readable_path(path):
+                raise HTTPException(status_code=403, detail="Path not allowed")
+            if not os.path.isfile(path):
+                raise HTTPException(status_code=404, detail="File not found")
+            return media_file(path, os.path.basename(path))
+
+        return await asyncio.to_thread(serve)
 
     # @app.get("/sdapi/v1/browser/thumb", response_model=dict)
     def get_thumb(file: str):
         """Return a thumbnail and metadata (EXIF, dimensions, size, mtime) for a single image or video file."""
         decoded = unquote(file).replace("%3A", ":")
-        if not is_allowed_path(decoded):
+        if not is_readable_path(decoded):
             raise HTTPException(status_code=403, detail="Path not allowed")
         try:
             ext = os.path.splitext(decoded)[1].lower()
@@ -280,7 +244,7 @@ def register_api(app: FastAPI):  # register api
         from enso_api.stamp import thumb_job
 
         decoded = unquote(file).replace("%3A", ":")
-        if not is_allowed_path(decoded):
+        if not is_readable_path(decoded):
             raise HTTPException(status_code=403, detail="Path not allowed")
         texts: list[str | None] = []
         mtime_ms = None
@@ -350,7 +314,8 @@ def register_api(app: FastAPI):  # register api
         List subdirectories of a gallery folder.
 
         Returns immediate child directories with their path and display label,
-        sorted alphabetically. Used for building folder tree navigation.
+        sorted alphabetically, and why the Gallery keeps the files of a reference
+        or model folder. Used for building folder tree navigation.
         """
         decoded = unquote(folder).replace("%3A", ":")
         if not is_allowed_path(decoded):
@@ -358,11 +323,12 @@ def register_api(app: FastAPI):  # register api
         directory = files_cache.get_directory(decoded, fetch=True)
         if not directory or not directory.directories:
             return JSONResponse(content=[])
+        protected = protected_roots()
         subdirs = []
         for d in sorted(directory.directories):
             label = os.path.basename(d)
             if label and outside_media_store(d):
-                subdirs.append({"path": d, "label": label})
+                subdirs.append({"path": d, "label": label, "kept": protected_reason(os.path.realpath(d), protected)})
         return JSONResponse(content=subdirs)
 
     def forget_folders(paths: Iterable[str], folders: Iterable[str]) -> None:
@@ -376,9 +342,6 @@ def register_api(app: FastAPI):  # register api
             first = errors[0]
             log.info(f'Gallery {action}: refused {len(errors)} of {len(done) + len(errors)}, first "{first["file"]}": {first["error"]}')
 
-    def failure(error: OSError) -> str:
-        return NOT_FOUND if isinstance(error, FileNotFoundError) else (error.strerror or str(error))
-
     def delete_files(req: ReqDelete):
         """Delete gallery files with the sidecars that go with them. Links, files that are not pictures or videos, the
         reference and model folders, and a file still being written are refused."""
@@ -388,7 +351,7 @@ def register_api(app: FastAPI):  # register api
             try:
                 os.unlink(item.path)
             except OSError as e:
-                errors.extend({"file": path, "error": failure(e)} for path in item.asked())
+                errors.extend({"file": path, "error": reason_of(e)} for path in item.asked())
                 continue
             deleted.append(item.given)
             for companion in item.companions:
@@ -397,7 +360,7 @@ def register_api(app: FastAPI):  # register api
                 except OSError as e:
                     log.warning(f'Gallery delete: "{companion}" beside "{item.name}" kept: {e}')
                     if companion in item.requested:
-                        errors.append({"file": item.requested[companion], "error": failure(e)})
+                        errors.append({"file": item.requested[companion], "error": reason_of(e)})
                     continue
                 if is_media(companion):
                     deleted.append(item.spelled(companion))
@@ -445,7 +408,7 @@ def register_api(app: FastAPI):  # register api
                     errors.extend({"file": path, "error": TAKEN} for path in item.asked())
                     continue
                 except OSError as e:
-                    errors.extend({"file": path, "error": failure(e)} for path in item.asked())
+                    errors.extend({"file": path, "error": reason_of(e)} for path in item.asked())
                     continue
                 placed = [item.name]
                 for companion in item.companions:
@@ -454,7 +417,7 @@ def register_api(app: FastAPI):  # register api
                     except OSError as e:
                         log.warning(f'Gallery move: "{companion}" beside "{item.name}" kept: {e}')
                         if companion in item.requested:
-                            errors.append({"file": item.requested[companion], "error": failure(e)})
+                            errors.append({"file": item.requested[companion], "error": reason_of(e)})
                         continue
                     placed.append(companion)
             for name in placed:
@@ -470,7 +433,7 @@ def register_api(app: FastAPI):  # register api
     def download_files(req: ReqDownload):
         """Create a zip archive of gallery files and stream it to the client."""
         for filepath in req.files:
-            if not is_allowed_path(filepath):
+            if not is_readable_path(filepath):
                 refuse(403, "path_not_allowed", f"{PATH_NOT_ALLOWED}: {os.path.basename(filepath)}", label="Gallery")
         buf = io.BytesIO()
         with zipfile.ZipFile(buf, "w", zipfile.ZIP_STORED) as zf:

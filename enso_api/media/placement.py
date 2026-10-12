@@ -42,15 +42,16 @@ def fsync_folder(path: str) -> None:
         os.close(fd)
 
 
-def place(src: str, dst: str) -> None:
+def place(src: str, dst: str, part: str | None = None) -> None:
     """Move `src` to `dst`; FileExistsError when `dst` exists. One disk: a link, then the source unlinked. Across disks:
-    a copy into a part beside `dst`, flushed, linked to its name and the folder flushed before the source goes."""
+    a copy into a part beside `dst` (named `part` when given, so a crash leaves a name to clean up), flushed, linked to
+    its name and the folder flushed before the source goes."""
     try:
         os.link(src, dst)
     except OSError as e:
         if e.errno not in NO_LINK:
             raise
-        copy_across(src, dst)
+        copy_across(src, dst, part)
         return
     unlink_source(src, dst)
 
@@ -65,10 +66,10 @@ def unlink_source(src: str, dst: str) -> None:
         raise
 
 
-def copy_across(src: str, dst: str) -> None:
+def copy_across(src: str, dst: str, part: str | None = None) -> None:
     folder = os.path.dirname(dst)
     size = os.stat(src).st_size
-    part = os.path.join(folder, f".enso-{uuid.uuid4().hex[:16]}.part")
+    part = part or os.path.join(folder, f".enso-{uuid.uuid4().hex[:16]}.part")
     fd = os.open(part, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o644)
     try:
         with os.fdopen(fd, "wb") as out:

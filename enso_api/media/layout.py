@@ -12,7 +12,16 @@ from enso_api.media.sniff import EXTENSIONS
 
 HASH_RE = re.compile(r"[0-9a-f]{64}")
 LEGACY_RE = re.compile(r"[0-9a-f]{16}")
+# The id of a Gallery file in the trash, which names its folder there
+TRASH_ID_RE = re.compile(r"[0-9a-f]{16}")
 OPTION_LABEL = "Media store folder"
+
+
+def checked_id(item_id: str) -> str:
+    """A trash id, refused unless it is 16 lowercase hex, so no id becomes a path."""
+    if not isinstance(item_id, str) or not TRASH_ID_RE.fullmatch(item_id):
+        raise ValueError(f"not a trash id: {item_id!r}")
+    return item_id
 
 
 class Resolved(NamedTuple):
@@ -64,10 +73,14 @@ class Layout:
         self.tmp = os.path.join(root, "tmp")
         self.snapshots = os.path.join(root, "snapshots")
         self.corrupt = os.path.join(root, "corrupt")
+        self.trash = os.path.join(root, "trash")
+        # Trash folders on their way out, renamed here first so a crash never brings a deleted file back
+        self.gone = os.path.join(root, ".gone")
+        self.real_trash = os.path.join(self.real_root, "trash")
         self.lock_fd: int | None = None
 
     def make(self) -> None:
-        for path in (self.root, self.blobs, self.tmp, self.snapshots, self.corrupt):
+        for path in (self.root, self.blobs, self.tmp, self.snapshots, self.corrupt, self.trash, self.gone):
             os.makedirs(path, exist_ok=True)
 
     @staticmethod
@@ -87,6 +100,13 @@ class Layout:
 
     def new_part(self) -> str:
         return os.path.join(self.tmp, f"{uuid.uuid4().hex}.part")
+
+    def item_dir(self, item_id: str) -> str:
+        """The folder of a Gallery file in the trash."""
+        return os.path.join(self.trash, checked_id(item_id))
+
+    def gone_dir(self, item_id: str) -> str:
+        return os.path.join(self.gone, checked_id(item_id))
 
     def contains(self, path: str) -> bool:
         """Whether the path is the root or inside it, by name: no filesystem access, for walks that visit every folder."""

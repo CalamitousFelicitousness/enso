@@ -3,6 +3,7 @@
 Over names and stats only, with no sdnext import, so pytest runs it alone.
 """
 
+import itertools
 import os
 import stat
 from collections.abc import Callable, Collection, Iterable, Mapping, Sequence
@@ -43,6 +44,10 @@ def stem_owner(names: Iterable[str]) -> str:
     return min(names, key=lambda name: (not is_video(name), name))
 
 
+def reason_of(error: OSError) -> str:
+    return NOT_FOUND if isinstance(error, FileNotFoundError) else (error.strerror or str(error))
+
+
 def companions_of(name: str, files: Collection[str], leaving: Collection[str] = ()) -> list[str]:
     """The sidecars among a folder's regular files that go with `name`: its `<name>.thumb.png`, and its stem's `.txt`, `.json`
     and `.thumb.jpg` (a video's `.safetensors` too) once no other picture or video of the stem stays in the folder."""
@@ -63,6 +68,22 @@ def fold_companions(names: Sequence[str], files: Collection[str]) -> list[tuple[
     items = [(name, companions_of(name, files, leaving)) for name in dict.fromkeys(names)]
     taken = {companion for _, companions in items for companion in companions}
     return [(name, companions) for name, companions in items if name not in taken]
+
+
+def rename_companion(companion: str, stem: str, new_stem: str) -> str:
+    """A sidecar's name under a new stem: `clip.mp4.thumb.png` of `clip` becomes `clip (restored).mp4.thumb.png`."""
+    return new_stem + companion[len(stem) :] if companion.startswith(stem) else companion
+
+
+def free_stem(folder: str, stem: str, ext: str, companions: Sequence[str], exists: Callable[[str], bool]) -> str:
+    """The stem to put a file back under: its own while the file's name and every sidecar's are free in `folder`, else
+    the first of `<stem> (restored)`, `<stem> (restored 2)` and so on that is."""
+    for n in itertools.count(1):
+        candidate = stem if n == 1 else f"{stem} (restored)" if n == 2 else f"{stem} (restored {n - 1})"
+        names = [candidate + ext, *(rename_companion(companion, stem, candidate) for companion in companions)]
+        if not any(exists(os.path.join(folder, name)) for name in names):
+            return candidate
+    raise AssertionError("unreachable")
 
 
 def protected_reason(real: str, protected: Protected) -> str | None:

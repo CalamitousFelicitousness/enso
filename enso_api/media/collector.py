@@ -14,10 +14,11 @@ from dataclasses import dataclass, field
 
 from enso_api import events
 from enso_api.domains import STRIP_DOMAINS
+from enso_api.media.deleted import DeletedFiles
 from enso_api.media.entries import evict_past_cap
-from enso_api.media.ingest import Inflight, hash_file
+from enso_api.media.ingest import Inflight, free_space, hash_file
 from enso_api.media.layout import Layout
-from enso_api.media.settings import Settings
+from enso_api.media.settings import DAY_MS, Settings
 from enso_api.media.sniff import EXTENSIONS, sniff
 from enso_api.media.store import BlobRow, MediaStore, chunks, marks
 from enso_api.media.worker import publish_media
@@ -25,7 +26,6 @@ from enso_api.media.worker import publish_media
 log = logging.getLogger("sd")
 
 HOUR_MS = 3600 * 1000
-DAY_MS = 24 * HOUR_MS
 GRACE_MS = 7 * DAY_MS
 TRANSIENT_GRACE_MS = HOUR_MS
 URGENT_TOUCH_MS = HOUR_MS
@@ -37,6 +37,8 @@ STRIP_RETENTION_MS = 168 * HOUR_MS
 # A client that has saved no record this long has gone away: cleared site data, a private window, a test run
 CLIENT_IDLE_MS = 90 * DAY_MS
 DELETE_BATCH = 50
+# When a trashed entry's retention period started: its trash, or a restarted collection clock
+ENTRY_CLOCK_SQL = "MAX(COALESCE(clock_at, 0), trashed_at)"
 
 LiveJobs = Callable[[], "set[str] | None"]
 
@@ -51,7 +53,7 @@ class JobName:
 @dataclass(frozen=True)
 class TrashedEntry:
     id: str
-    trashed_at: int
+    clock: int  # trashed_at, or the restarted collection clock when later
 
 
 @dataclass(frozen=True)
@@ -125,7 +127,7 @@ def survey(store: MediaStore, layout: Layout, inflight: Inflight, live_jobs: Liv
     live = live_jobs()
     with store.db.read(snapshot=True) as conn:
         job_names = tuple(JobName(*row) for row in conn.execute("SELECT job_id, hash, named_at FROM job_blobs"))
-        trashed = tuple(TrashedEntry(*row) for row in conn.execute("SELECT id, trashed_at FROM entries WHERE trashed_at IS NOT NULL"))
+        trashed = tuple(TrashedEntry(*row) for row in conn.execute(f"SELECT id, {ENTRY_CLOCK_SQL} FROM entries WHERE trashed_at IS NOT NULL"))
         trashed_links = tuple((row[0], row[1]) for row in conn.execute("SELECT eb.entry_id, eb.hash FROM entry_blobs eb JOIN entries e ON e.id = eb.entry_id WHERE e.trashed_at IS NOT NULL"))
         name_counts: dict[str, int] = {}
         for part in chunks(sorted({h for _, h in trashed_links})):
@@ -164,7 +166,7 @@ def plan(s: Survey) -> Plan:
         # A name younger than a pass may belong to a job whose row is not written yet
         drop = sorted(job_id for job_id, named_at in newest.items() if job_id not in live and named_at < s.now - PASS_MS)
 
-    expiring = sorted(entry.id for entry in s.trashed if entry.trashed_at < s.now - trash_ms)
+    expiring = sorted(entry.id for entry in s.trashed if entry.clock < s.now - trash_ms)
     expiring_set = set(expiring)
     freed = Counter(h for entry_id, h in s.trashed_links if entry_id in expiring_set)
     urgent = sorted(h for h, count in freed.items() if s.name_counts.get(h, 0) == count)
@@ -237,9 +239,11 @@ def free_now(store: MediaStore, hashes: Iterable[str]) -> int:
 def apply(store: MediaStore, p: Plan, live_jobs: LiveJobs) -> Applied:
     applied = Applied()
     if p.rebase:
+        # Retention restarts through clock_at, so the trash lists keep when each item went to the trash
         with store.db.write() as w:
             applied.rebased = w.conn.execute("UPDATE blobs SET unnamed_since = ? WHERE unnamed_since IS NOT NULL", (p.now,)).rowcount
-            applied.rebased += w.conn.execute("UPDATE entries SET trashed_at = ? WHERE trashed_at IS NOT NULL", (p.now,)).rowcount
+            applied.rebased += w.conn.execute("UPDATE entries SET clock_at = ? WHERE trashed_at IS NOT NULL", (p.now,)).rowcount
+            applied.rebased += w.conn.execute("UPDATE trashed_files SET clock_at = ? WHERE state = 'trashed'", (p.now,)).rowcount
             w.conn.execute("INSERT INTO meta (key, value) VALUES ('last_gc', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value", (str(p.now),))
         log.info(f"Media store: collection clock restarted, nothing deleted this pass; graces and trash days restart for {applied.rebased} rows")
         return applied
@@ -252,7 +256,7 @@ def apply(store: MediaStore, p: Plan, live_jobs: LiveJobs) -> Applied:
     for batch in chunks(list(p.delete_entries), DELETE_BATCH):
         with store.db.write() as w:
             for entry_id in batch:
-                if w.conn.execute("DELETE FROM entries WHERE id = ? AND trashed_at IS NOT NULL AND trashed_at < ?", (entry_id, p.now - p.trash_ms)).rowcount:
+                if w.conn.execute(f"DELETE FROM entries WHERE id = ? AND trashed_at IS NOT NULL AND {ENTRY_CLOCK_SQL} < ?", (entry_id, p.now - p.trash_ms)).rowcount:
                     applied.expired.append(entry_id)
     applied.entries = len(applied.expired)
     if p.library_cap is not None:
@@ -420,7 +424,23 @@ def reconcile(store: MediaStore, layout: Layout, walk: bool) -> Reconciled:
     return result
 
 
-def run_pass(store: MediaStore, live_jobs: LiveJobs) -> Applied:
-    """One collection pass: the unnamed and lost rows checked against their files, then survey, plan and apply."""
+def run_pass(store: MediaStore, live_jobs: LiveJobs, deleted: DeletedFiles | None = None) -> Applied:
+    """One collection pass: the unnamed and lost rows checked against their files, then survey, plan and apply; then the
+    Gallery trash's files checked against their folders, its expiry, its folders no row holds, and the free-space
+    reserve. A pass that restarts the clocks deletes nothing."""
     reconcile(store, store.layout, walk=False)
-    return apply(store, plan(survey(store, store.layout, store.inflight, live_jobs)), live_jobs)
+    p = plan(survey(store, store.layout, store.inflight, live_jobs))
+    applied = apply(store, p, live_jobs)
+    if deleted is not None:
+        changed = deleted.check()
+        if not p.rebase:
+            settings = store.settings()
+            expired = deleted.expire(p.now, settings.trash_days)
+            if expired:
+                log.info(f"Gallery trash: expired={len(expired)}")
+            deleted.sweep(p.now, settings.trash_days)
+            changed += expired + deleted.relieve(free_space(store.layout.root), settings.reserve_bytes)
+        if changed:
+            events.changed("outputs", changed)
+            publish_media()
+    return applied

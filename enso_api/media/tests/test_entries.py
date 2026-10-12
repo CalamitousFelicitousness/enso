@@ -4,6 +4,7 @@ import pytest
 
 from enso_api.media.collector import HOUR_MS, free_now
 from enso_api.media.entries import MAX_PINNED, Entries, EntryIn, EntryPatch, EntryRank, Gone, Refused, evict_past_cap, evictions
+from enso_api.media.settings import DAY_MS
 from enso_api.media.tests.helpers import link_record, png, put
 
 
@@ -236,3 +237,32 @@ def test_the_pass_evicts_past_the_cap_and_never_a_pinned_or_trashed_row(entries,
     gone = evict_past_cap(db, 7, clock())
     assert gone == [ids[0], ids[1]]
     assert {item["id"] for item in entries.list(False)} == {*pins, *ids[2:5], *ids[6:]}
+
+
+def test_a_trashed_entry_expires_from_its_trash_or_a_later_restarted_clock(entries, store, clock):
+    (picture,) = blobs(store, 1)
+    entries.save(entry("e1", {"p": picture}), None, False)
+    assert entries.list(False)[0]["expires_at"] is None
+    trashed = entries.patch("e1", EntryPatch(trashed=True), None)
+    assert trashed.entry["expires_at"] == clock.now + 7 * DAY_MS
+    restarted = clock.now + DAY_MS
+    with store.db.write() as w:
+        w.conn.execute("UPDATE entries SET clock_at = ?", (restarted,))
+    assert entries.list(True)[0]["expires_at"] == restarted + 7 * DAY_MS
+    entries.patch("e1", EntryPatch(trashed=False), None)
+    clock.advance(1000)
+    again = entries.patch("e1", EntryPatch(trashed=True), None)
+    assert again.entry["expires_at"] == clock.now + 7 * DAY_MS
+
+
+def test_deleting_one_entry_checks_its_trash_in_the_same_write(entries, store):
+    (picture,) = blobs(store, 1)
+    entries.save(entry("kept", {"p": picture}), None, False)
+    with pytest.raises(Refused) as refused:
+        entries.delete_trashed("kept")
+    assert refused.value.code == "not_trashed"
+    with pytest.raises(Gone):
+        entries.delete_trashed("nope")
+    entries.patch("kept", EntryPatch(trashed=True), None)
+    deleted = entries.delete_trashed("kept")
+    assert (deleted.ids, deleted.hashes) == (["kept"], {picture})

@@ -89,6 +89,8 @@ class MediaReport:
     total: int
     last_gc: int | None
     last_verify: dict | None
+    files_in_trash: Term
+    trash_lost: int
 
 
 class SnapshotExists(Exception):
@@ -365,6 +367,8 @@ class MediaStore:
                 terms[name] = Term(count, size)
             lost = conn.execute("SELECT COUNT(*) FROM blobs WHERE lost_at IS NOT NULL").fetchone()[0]
             transient = conn.execute("SELECT COUNT(*) FROM blobs WHERE transient = 1 AND lost_at IS NULL").fetchone()[0]
+            in_trash = conn.execute("SELECT COUNT(*), COALESCE(SUM(bytes), 0) FROM trashed_files WHERE state = 'trashed' AND lost_at IS NULL").fetchone()
+            trash_lost = conn.execute("SELECT COUNT(*) FROM trashed_files WHERE lost_at IS NOT NULL").fetchone()[0]
             stored = {row[0]: row[1] for row in conn.execute("SELECT key, value FROM meta WHERE key IN ('last_gc', 'last_verify')")}
         usage = shutil.disk_usage(self.layout.root)
         last_verify = None
@@ -385,6 +389,8 @@ class MediaStore:
             total=usage.total,
             last_gc=last_gc,
             last_verify=last_verify if isinstance(last_verify, dict) else None,
+            files_in_trash=Term(in_trash[0], in_trash[1]),
+            trash_lost=trash_lost,
         )
 
     def snapshot(self) -> tuple[str, int]:

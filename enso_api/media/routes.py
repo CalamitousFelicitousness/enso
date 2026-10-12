@@ -179,10 +179,10 @@ def adopted_path(request: ReqAdoptOutputV2 | ReqAdoptPathV2) -> str:
         output = job_queue.store.resolve_output(request.output_id)
         path = output["path"] if output else None
     else:
-        from enso_api.confine import GALLERY_EXTENSIONS, is_allowed_path
+        from enso_api.confine import GALLERY_EXTENSIONS, is_readable_path
 
         path = os.path.realpath(request.path)
-        if not is_allowed_path(path):
+        if not is_readable_path(path):
             refuse(403, "path_not_allowed", "This file is outside the Gallery's folders")
         if os.path.splitext(path)[1].lower() not in GALLERY_EXTENSIONS:
             refuse(422, "not_media", "Only the pictures and videos the Gallery lists can be adopted")
@@ -322,4 +322,7 @@ async def get_media_report():
         last_gc=report.last_gc,
         last_verify=LastVerifyV2(**report.last_verify) if report.last_verify else None,
         verify=verify_state(),
+        files_in_trash=MediaTermV2(count=report.files_in_trash.count, bytes=report.files_in_trash.bytes),
+        trash_lost=report.trash_lost,
+        trash_strays=state.deleted.strays if state.deleted is not None else 0,
     )

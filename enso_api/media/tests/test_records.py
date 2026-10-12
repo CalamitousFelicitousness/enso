@@ -185,7 +185,7 @@ def test_migration_2_upgrades_a_version_1_file(root):
         w.conn.execute("INSERT INTO records (job_id, client, domain, created_at, document) VALUES ('j', 'c', 'generate', 1, '{}')")
         w.conn.execute("INSERT INTO entries (id, kind, name, saved_at, used_at, frames, pictures, width, height, schema, document) VALUES ('e', 'frame', 'e', 0, 0, 1, 1, 8, 8, 1, '{}')")
     first.close()
-    second = Database(path, MIGRATIONS, label="Media store")
+    second = Database(path, MIGRATIONS[:2], label="Media store")
     assert second.version == 2
     with second.read() as conn:
         assert tuple(conn.execute("SELECT has_inputs, unheld_refs, unavailable, ref_hashes, submit_id FROM records").fetchone()) == (0, 0, 0, "[]", None)

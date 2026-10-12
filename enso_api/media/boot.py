@@ -5,6 +5,7 @@ import os
 import sqlite3
 
 from enso_api.media.collector import reconcile
+from enso_api.media.deleted import DeletedFiles, Lookups
 from enso_api.media.entries import Entries
 from enso_api.media.errors import MediaOff
 from enso_api.media.layout import OPTION_LABEL, Layout, probe_folder, resolve_root
@@ -23,6 +24,7 @@ class State:
         self.store: MediaStore | None = None
         self.entries: Entries | None = None
         self.records: Records | None = None
+        self.deleted: DeletedFiles | None = None
         self.worker = None
         self.reason: str | None = None
         self.configured_root = ""
@@ -67,6 +69,25 @@ def gallery_roots() -> list[str]:
         return sorted(get_allowed_roots())
     except Exception:
         return []
+
+
+def trash_lookups() -> Lookups:
+    """What the Gallery trash reads beyond media.db; the outputs table is the queue's, which opens after the store."""
+    from enso_api.confine import is_allowed_path, protected_roots
+    from enso_api.job_queue import job_queue
+    from enso_api.media.ingest import free_space
+
+    def output_ids_at(files):
+        return job_queue.store.output_ids_at(files) if job_queue.store is not None else {}
+
+    def repath_outputs(pairs):
+        return job_queue.store.repath_outputs(pairs) if job_queue.store is not None else 0
+
+    def output_path(output_id: str) -> str | None:
+        row = job_queue.store.resolve_output(output_id) if job_queue.store is not None else None
+        return row["path"] if row else None
+
+    return Lookups(output_ids_at, repath_outputs, output_path, is_allowed_path, protected_roots, free_space)
 
 
 def init(data_dir: str) -> None:
@@ -125,6 +146,7 @@ def init(data_dir: str) -> None:
     taken = store.take_legacy_uploads(uploads)
     state.entries = Entries(db, store.held, store.settings, store.now)
     state.records = Records(db, store.held, store.resolve_ref, store.settings, store.now)
+    state.deleted = DeletedFiles(db, layout, trash_lookups(), store.settings, store.now)
     state.store = store
     report = store.report()
     log.info(f"Media store: root={layout.root} blobs={report.count} size={report.bytes} lost={report.lost} free={report.free}{f' uploads taken in={taken}' if taken else ''}")
@@ -134,7 +156,8 @@ def init(data_dir: str) -> None:
 
 
 def start() -> None:
-    """Start the store's thread after the queue, so its first pass knows which jobs are live."""
+    """Settle the Gallery trash and start the store's thread, both after the queue: a trash move left by a crash repaths
+    outputs rows, and the first pass needs to know which jobs are live."""
     if state.store is None or state.worker is not None:
         return
     from enso_api.job_queue import job_queue
@@ -142,9 +165,11 @@ def start() -> None:
     from enso_api.media.worker import MediaWorker, publish_media
 
     store = state.store
+    if state.deleted is not None:
+        state.deleted.reconcile()
     state.worker = MediaWorker(
         reconcile=lambda walk: collector.reconcile(store, store.layout, walk),
-        collect=lambda: collector.run_pass(store, job_queue.live_jobs),
+        collect=lambda: collector.run_pass(store, job_queue.live_jobs, state.deleted),
         verify=lambda cancel, progress: verify.run(store, store.layout, cancel, progress),
         on_progress=publish_media,
     )

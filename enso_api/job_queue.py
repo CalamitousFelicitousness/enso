@@ -48,6 +48,8 @@ def assign_output_urls(store: JobStore, result, job_id: str) -> int:
     on schedules of their own, and a durable address for a doomed file would
     lie about durability.
 
+    A file that went to the Gallery's trash before its job ended is registered at its path there, held by that item.
+
     Best-effort by contract: a finished generation must never be reported
     failed over bookkeeping, so failures keep the job-scoped URL, log a
     warning, and are returned for the stats counter.
@@ -55,9 +57,11 @@ def assign_output_urls(store: JobStore, result, job_id: str) -> int:
     failures = 0
     try:
         from enso_api.confine import confined_to_outputs
+        from enso_api.media import boot as media_boot
 
         if not isinstance(result, dict):
             return 0
+        deleted = media_boot.state.deleted
         for key in ("images", "processed", "videos"):
             refs = result.get(key)
             if not isinstance(refs, list):
@@ -72,7 +76,11 @@ def assign_output_urls(store: JobStore, result, job_id: str) -> int:
                     try:
                         if not confined_to_outputs(path):
                             raise ValueError("path outside allowed output roots")
-                        ref[url_key] = f"{OUTPUT_URL_PREFIX}/{store.register_output(path, job_id=job_id)}"
+                        held = deleted.holder_of(path) if deleted is not None else None
+                        output_id = store.register_output(held[1] if held else path, job_id=job_id)
+                        if held:
+                            deleted.attach(output_id, held[0], os.path.basename(path))
+                        ref[url_key] = f"{OUTPUT_URL_PREFIX}/{output_id}"
                     except Exception as e:
                         failures += 1
                         log.warning(f"Job queue: output registration failed job={job_id} path={path}: {e}")

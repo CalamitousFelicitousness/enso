@@ -147,7 +147,14 @@ class WsGlobalRecords(StrictBaseModel):
     data: ChangedIdsV2
 
 
-WsGlobalEvent = Annotated[WsGlobalMedia | WsGlobalSettings | WsGlobalLibrary | WsGlobalTrash | WsGlobalRecords, Field(discriminator="type")]
+class WsGlobalOutputs(StrictBaseModel):
+    """Gallery files entered or left the trash, from any client: the trash lists and what the strips show of their outputs change. The ids are trash items."""
+
+    type: Literal["outputs"] = "outputs"
+    data: ChangedIdsV2
+
+
+WsGlobalEvent = Annotated[WsGlobalMedia | WsGlobalSettings | WsGlobalLibrary | WsGlobalTrash | WsGlobalRecords | WsGlobalOutputs, Field(discriminator="type")]
 """Events on the global socket that come from the event counters (enso_api.events), one per topic that moved."""
 
 

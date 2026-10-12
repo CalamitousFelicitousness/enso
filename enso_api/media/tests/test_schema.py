@@ -1,8 +1,11 @@
+import os
 import sqlite3
 
 import pytest
 
+from enso_api.media.schema import MIGRATIONS
 from enso_api.media.tests.helpers import link_entry, link_record, png, put
+from enso_api.sqlite import Database
 
 
 def unnamed(store, digest):
@@ -70,3 +73,21 @@ def test_the_upsert_keeps_unnamed_since(store, clock):
     since = unnamed(store, row.hash)
     clock.advance(1000)
     assert put(store, png(1))[0].unnamed_since == since
+
+
+def test_migration_3_upgrades_a_version_2_file_and_a_trashed_file_takes_its_outputs_along(root):
+
+    path = os.path.join(root, "old.db")
+    first = Database(path, MIGRATIONS[:2], label="Media store")
+    with first.write() as w:
+        w.conn.execute("INSERT INTO entries (id, kind, name, saved_at, used_at, trashed_at, frames, pictures, width, height, schema, document) VALUES ('e', 'frame', 'e', 0, 0, 5, 1, 1, 8, 8, 1, '{}')")
+    first.close()
+    second = Database(path, MIGRATIONS, label="Media store")
+    assert second.version == 3
+    with second.write() as w:
+        assert w.conn.execute("SELECT clock_at FROM entries").fetchone()[0] is None
+        w.conn.execute("INSERT INTO trashed_files (id, state, name, folder, kind, size, bytes, mtime, trashed_at) VALUES ('i', 'trashed', 'a.png', '/f', 'image', 1, 1, 0, 0)")
+        w.conn.execute("INSERT INTO trashed_outputs (output_id, item_id, name) VALUES ('o', 'i', 'a.png')")
+        w.conn.execute("DELETE FROM trashed_files WHERE id = 'i'")
+        assert w.conn.execute("SELECT COUNT(*) FROM trashed_outputs").fetchone()[0] == 0
+    second.close()

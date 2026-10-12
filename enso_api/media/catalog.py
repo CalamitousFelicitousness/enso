@@ -15,24 +15,39 @@ from enso_api.errors import refuse, refuse_issues
 from enso_api.job_store import JobStore
 from enso_api.media import boot
 from enso_api.media.collector import free_now
+from enso_api.media.deleted import NOT_IN_TRASH, DeletedFiles
 from enso_api.media.entries import MAX_PINNED, Entries, EntryIn, EntryPatch, Gone, Refused
 from enso_api.media.models import (
+    FileErrorV2,
+    IdErrorV2,
     ItemEntryV2,
     ItemRecordV2,
+    ItemTrashedFileV2,
+    MovedFileV2,
     PinsV2,
+    ReqDeleteTrashedV2,
+    ReqEmptyGalleryTrashV2,
     ReqEmptyTrashV2,
     ReqEntryPatchV2,
     ReqEntryV2,
     ReqRecordPatchV2,
     ReqRecordPutV2,
+    ReqRestoreFilesV2,
     ReqSubmitV2,
+    ReqTrashFilesV2,
     ResEntryChangeV2,
     ResEntryV2,
     ResFreedV2,
+    ResGalleryTrashV2,
     ResLibraryV2,
     ResRecordsV2,
     ResRecordV2,
+    ResRestoredV2,
+    RestoredFileV2,
+    ResTrashedOutputsV2,
+    ResTrashedV2,
     ResTrashV2,
+    TrashedOutputV2,
 )
 from enso_api.media.records import RecordIn, Records
 from enso_api.media.store import MediaStore
@@ -250,12 +265,7 @@ async def delete_library_entry(entry_id: str = Path(max_length=64)):
     store, entries, _ = catalog_or_503()
 
     def delete():
-        found = entries.list(False, [entry_id])
-        if not found:
-            raise Gone(entry_id)
-        if found[0]["trashed_at"] is None:
-            raise Refused(409, "not_trashed", "Only an entry in the trash can be deleted")
-        deleted = entries.delete([entry_id])
+        deleted = entries.delete_trashed(entry_id)
         return deleted, free_now(store, deleted.hashes)
 
     deleted, freed = await run(delete, "Media store", ENTRY_GONE)
@@ -305,3 +315,113 @@ async def patch_record(body: ReqRecordPatchV2, job_id: str = Path(max_length=64)
     item = await run(lambda: records.route(job_id), "Media store", RECORD_GONE)
     events.changed("records", [job_id])
     return ItemRecordV2(**item)
+
+
+TRASH_LABEL = "Gallery"
+
+
+def deleted_or_503() -> DeletedFiles:
+    state = boot.state
+    if state.store is None or state.deleted is None:
+        refuse(503, "media_store_off", f"Media store off: {state.reason}", label=TRASH_LABEL)
+    return state.deleted
+
+
+def labelled(items: list[dict]) -> list[ItemTrashedFileV2]:
+    """Trash items with their folder as the Gallery names it."""
+    from enso_api.confine import folder_labeller
+
+    label = folder_labeller()
+    return [ItemTrashedFileV2(**item, folder_label=label(item["folder"])) for item in items]
+
+
+def forget_listings(folders: set[str]) -> None:
+    """Drop sdnext's cached listings of folders files left or came back to."""
+    from modules import files_cache
+
+    for folder in folders:
+        files_cache.delete_cached_directory(folder)
+
+
+def announce_files(ids: list[str]) -> None:
+    if ids:
+        events.changed("outputs", ids)
+        publish_media()
+
+
+@router.post("/browser/trash", response_model=ResTrashedV2, tags=["Gallery"])
+async def post_trash_files(body: ReqTrashFilesV2, request: Request):
+    """Move Gallery files with their sidecars into the trash. Their outputs rows follow them, so results that name them
+    keep loading; links, files that are not pictures or videos, the reference set, the model folders and a file still
+    being saved are refused."""
+    deleted = deleted_or_503()
+    user = user_of(request)
+
+    def trash():
+        result = deleted.trash(body.files, user)
+        forget_listings(result.folders)
+        return result, labelled(result.items)
+
+    result, items = await run(trash, TRASH_LABEL, NOT_IN_TRASH)
+    announce_files([item["id"] for item in result.items])
+    log.info(f"Gallery trash: trashed={len(result.items)} refused={len(result.errors)} by={user or 'anonymous'}")
+    return ResTrashedV2(trashed=items, moved=[MovedFileV2(**moved) for moved in result.moved], errors=[FileErrorV2(**error) for error in result.errors])
+
+
+@router.get("/browser/trash", response_model=ResGalleryTrashV2, tags=["Gallery"])
+async def get_trash_files():
+    """The Gallery files in the trash, newest first, with the server's time of the read."""
+    deleted = deleted_or_503()
+
+    def read():
+        listed = deleted.list()
+        return listed, labelled(listed.items), deleted.settings().trash_days
+
+    listed, items, days = await run(read, TRASH_LABEL, NOT_IN_TRASH)
+    return ResGalleryTrashV2(items=items, total=listed.total, bytes=listed.bytes, days=days, as_of=listed.as_of)
+
+
+@router.post("/browser/trash/restore", response_model=ResRestoredV2, tags=["Gallery"])
+async def post_restore_files(body: ReqRestoreFilesV2, request: Request):
+    """Put files back, each in its own folder or in `folder`, never over another file: a taken name, the file's or a
+    sidecar's, brings it back as `<stem> (restored)`."""
+    deleted = deleted_or_503()
+
+    def restore():
+        result = deleted.restore(body.ids, body.folder)
+        forget_listings(result.folders)
+        return result
+
+    result = await run(restore, TRASH_LABEL, NOT_IN_TRASH)
+    announce_files([item["id"] for item in result.items])
+    renamed = sum(1 for item in result.items if item["renamed"])
+    log.info(f"Gallery trash: restored={len(result.items)} renamed={renamed} refused={len(result.errors)} by={user_of(request) or 'anonymous'}")
+    return ResRestoredV2(restored=[RestoredFileV2(**item) for item in result.items], errors=[IdErrorV2(**error) for error in result.errors])
+
+
+@router.post("/browser/trash/delete", response_model=ResFreedV2, tags=["Gallery"])
+async def post_delete_trashed(body: ReqDeleteTrashedV2, request: Request):
+    """Delete files from the trash for good; an id not in the trash is skipped."""
+    deleted = deleted_or_503()
+    freed = await run(lambda: deleted.delete(body.ids), TRASH_LABEL, NOT_IN_TRASH)
+    announce_files(freed.ids)
+    log.info(f"Gallery trash: deleted={len(freed.ids)} of {len(body.ids)} freed={freed.bytes} by={user_of(request) or 'anonymous'}")
+    return ResFreedV2(deleted=freed.ids, freed=freed.bytes)
+
+
+@router.post("/browser/trash/empty", response_model=ResFreedV2, tags=["Gallery"])
+async def post_empty_gallery_trash(body: ReqEmptyGalleryTrashV2, request: Request):
+    """Delete every file that was in the trash when the list was read at `as_of`; what was trashed after stays."""
+    deleted = deleted_or_503()
+    freed = await run(lambda: deleted.empty(body.as_of), TRASH_LABEL, NOT_IN_TRASH)
+    announce_files(freed.ids)
+    log.info(f"Gallery trash: emptied={len(freed.ids)} freed={freed.bytes} by={user_of(request) or 'anonymous'}")
+    return ResFreedV2(deleted=freed.ids, freed=freed.bytes)
+
+
+@router.get("/browser/trash/outputs", response_model=ResTrashedOutputsV2, tags=["Gallery"])
+async def get_trashed_outputs():
+    """Which outputs have their files in the trash, and which were deleted from it within the hour."""
+    deleted = deleted_or_503()
+    found = await run(deleted.outputs_map, TRASH_LABEL, NOT_IN_TRASH)
+    return ResTrashedOutputsV2(trashed={output_id: TrashedOutputV2(item=item, expires_at=expires) for output_id, (item, expires) in found.trashed.items()}, gone=found.gone)

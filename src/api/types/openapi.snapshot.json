@@ -2000,6 +2000,24 @@
         "title": "ExtensionVersionV2",
         "type": "object"
       },
+      "FileErrorV2": {
+        "properties": {
+          "error": {
+            "title": "Error",
+            "type": "string"
+          },
+          "file": {
+            "title": "File",
+            "type": "string"
+          }
+        },
+        "required": [
+          "file",
+          "error"
+        ],
+        "title": "FileErrorV2",
+        "type": "object"
+      },
       "FramePackLoadResponse": {
         "properties": {
           "messages": {
@@ -3727,6 +3745,29 @@
         "title": "HfDownloadParams",
         "type": "object"
       },
+      "IdErrorV2": {
+        "properties": {
+          "error": {
+            "title": "Error",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "error"
+        ],
+        "title": "IdErrorV2",
+        "type": "object"
+      },
       "ImageRef": {
         "description": "One generated image.\n\n`url` is a durable output address (`/sdapi/v2/outputs/{id}`) minted at job\ncompletion. It resolves for as long as the file exists - across restarts,\nand after the job row it came from is swept - so clients may store it in\ndurable history. Staged `save_images=false` images instead carry a\njob-scoped URL that dies with the job row, matching their deliberately\nshort life. The on-disk path never crosses the wire.",
         "properties": {
@@ -3981,6 +4022,17 @@
               }
             ],
             "title": "Control"
+          },
+          "expires_at": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires At"
           },
           "frames": {
             "title": "Frames",
@@ -5521,6 +5573,97 @@
         "title": "ItemThumbV2",
         "type": "object"
       },
+      "ItemTrashedFileV2": {
+        "properties": {
+          "bytes": {
+            "title": "Bytes",
+            "type": "integer"
+          },
+          "expires_at": {
+            "title": "Expires At",
+            "type": "integer"
+          },
+          "folder": {
+            "title": "Folder",
+            "type": "string"
+          },
+          "folder_label": {
+            "title": "Folder Label",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "image",
+              "video"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "lost": {
+            "title": "Lost",
+            "type": "boolean"
+          },
+          "mtime": {
+            "title": "Mtime",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "output_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Output Ids",
+            "type": "array"
+          },
+          "path": {
+            "title": "Path",
+            "type": "string"
+          },
+          "size": {
+            "title": "Size",
+            "type": "integer"
+          },
+          "trashed_at": {
+            "title": "Trashed At",
+            "type": "integer"
+          },
+          "trashed_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trashed By"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "folder",
+          "folder_label",
+          "path",
+          "kind",
+          "size",
+          "bytes",
+          "mtime",
+          "trashed_at",
+          "expires_at",
+          "output_ids",
+          "lost"
+        ],
+        "title": "ItemTrashedFileV2",
+        "type": "object"
+      },
       "ItemUpscalerV2": {
         "properties": {
           "group": {
@@ -6952,6 +7095,24 @@
         "title": "ModelSaveParams",
         "type": "object"
       },
+      "MovedFileV2": {
+        "properties": {
+          "file": {
+            "title": "File",
+            "type": "string"
+          },
+          "path": {
+            "title": "Path",
+            "type": "string"
+          }
+        },
+        "required": [
+          "file",
+          "path"
+        ],
+        "title": "MovedFileV2",
+        "type": "object"
+      },
       "OptionComponentArgsV2": {
         "properties": {
           "choices": {
@@ -8329,6 +8490,25 @@
         "title": "ReqDelete",
         "type": "object"
       },
+      "ReqDeleteTrashedV2": {
+        "additionalProperties": false,
+        "properties": {
+          "ids": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 1000,
+            "minItems": 1,
+            "title": "Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "ids"
+        ],
+        "title": "ReqDeleteTrashedV2",
+        "type": "object"
+      },
       "ReqDownload": {
         "properties": {
           "files": {
@@ -8343,6 +8523,21 @@
           "files"
         ],
         "title": "ReqDownload",
+        "type": "object"
+      },
+      "ReqEmptyGalleryTrashV2": {
+        "additionalProperties": false,
+        "properties": {
+          "as_of": {
+            "minimum": 0,
+            "title": "As Of",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "as_of"
+        ],
+        "title": "ReqEmptyGalleryTrashV2",
         "type": "object"
       },
       "ReqEmptyTrashV2": {
@@ -9765,6 +9960,36 @@
         "title": "ReqReplaceV2",
         "type": "object"
       },
+      "ReqRestoreFilesV2": {
+        "additionalProperties": false,
+        "properties": {
+          "folder": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Folder"
+          },
+          "ids": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 1000,
+            "minItems": 1,
+            "title": "Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "ids"
+        ],
+        "title": "ReqRestoreFilesV2",
+        "type": "object"
+      },
       "ReqSetCheckpointV2": {
         "properties": {
           "dtype": {
@@ -9997,6 +10222,25 @@
           }
         },
         "title": "ReqTaggerV2",
+        "type": "object"
+      },
+      "ReqTrashFilesV2": {
+        "additionalProperties": false,
+        "properties": {
+          "files": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 5000,
+            "minItems": 1,
+            "title": "Files",
+            "type": "array"
+          }
+        },
+        "required": [
+          "files"
+        ],
+        "title": "ReqTrashFilesV2",
         "type": "object"
       },
       "ReqVideoLoadV2": {
@@ -10586,6 +10830,17 @@
             ],
             "title": "Control"
           },
+          "expires_at": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires At"
+          },
           "frames": {
             "title": "Frames",
             "type": "integer"
@@ -10840,6 +11095,42 @@
         "title": "ResFreedV2",
         "type": "object"
       },
+      "ResGalleryTrashV2": {
+        "properties": {
+          "as_of": {
+            "title": "As Of",
+            "type": "integer"
+          },
+          "bytes": {
+            "title": "Bytes",
+            "type": "integer"
+          },
+          "days": {
+            "title": "Days",
+            "type": "integer"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ItemTrashedFileV2"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "bytes",
+          "days",
+          "as_of"
+        ],
+        "title": "ResGalleryTrashV2",
+        "type": "object"
+      },
       "ResGpuV2": {
         "properties": {
           "chart_gpu_pct": {
@@ -11045,6 +11336,9 @@
             "title": "Enabled",
             "type": "boolean"
           },
+          "files_in_trash": {
+            "$ref": "#/components/schemas/MediaTermV2"
+          },
           "free": {
             "default": 0,
             "title": "Free",
@@ -11120,6 +11414,16 @@
           "transient": {
             "default": 0,
             "title": "Transient",
+            "type": "integer"
+          },
+          "trash_lost": {
+            "default": 0,
+            "title": "Trash Lost",
+            "type": "integer"
+          },
+          "trash_strays": {
+            "default": 0,
+            "title": "Trash Strays",
             "type": "integer"
           },
           "verify": {
@@ -11645,6 +11949,30 @@
         "title": "ResRefreshNetworksV2",
         "type": "object"
       },
+      "ResRestoredV2": {
+        "properties": {
+          "errors": {
+            "items": {
+              "$ref": "#/components/schemas/IdErrorV2"
+            },
+            "title": "Errors",
+            "type": "array"
+          },
+          "restored": {
+            "items": {
+              "$ref": "#/components/schemas/RestoredFileV2"
+            },
+            "title": "Restored",
+            "type": "array"
+          }
+        },
+        "required": [
+          "restored",
+          "errors"
+        ],
+        "title": "ResRestoredV2",
+        "type": "object"
+      },
       "ResScriptsV2": {
         "properties": {
           "scripts": {
@@ -11944,6 +12272,62 @@
         "title": "ResTrashV2",
         "type": "object"
       },
+      "ResTrashedOutputsV2": {
+        "properties": {
+          "gone": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Gone",
+            "type": "object"
+          },
+          "trashed": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/TrashedOutputV2"
+            },
+            "title": "Trashed",
+            "type": "object"
+          }
+        },
+        "required": [
+          "trashed",
+          "gone"
+        ],
+        "title": "ResTrashedOutputsV2",
+        "type": "object"
+      },
+      "ResTrashedV2": {
+        "properties": {
+          "errors": {
+            "items": {
+              "$ref": "#/components/schemas/FileErrorV2"
+            },
+            "title": "Errors",
+            "type": "array"
+          },
+          "moved": {
+            "items": {
+              "$ref": "#/components/schemas/MovedFileV2"
+            },
+            "title": "Moved",
+            "type": "array"
+          },
+          "trashed": {
+            "items": {
+              "$ref": "#/components/schemas/ItemTrashedFileV2"
+            },
+            "title": "Trashed",
+            "type": "array"
+          }
+        },
+        "required": [
+          "trashed",
+          "moved",
+          "errors"
+        ],
+        "title": "ResTrashedV2",
+        "type": "object"
+      },
       "ResVqaV2": {
         "properties": {
           "annotated_image": {
@@ -12112,6 +12496,42 @@
         "title": "ResXyzValidate",
         "type": "object"
       },
+      "RestoredFileV2": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "left": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Left",
+            "type": "array"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "path": {
+            "title": "Path",
+            "type": "string"
+          },
+          "renamed": {
+            "title": "Renamed",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "path",
+          "name",
+          "renamed",
+          "left"
+        ],
+        "title": "RestoredFileV2",
+        "type": "object"
+      },
       "ServerCapabilities": {
         "properties": {
           "control": {
@@ -12266,6 +12686,24 @@
           "size"
         ],
         "title": "StorageEntryV2",
+        "type": "object"
+      },
+      "TrashedOutputV2": {
+        "properties": {
+          "expires_at": {
+            "title": "Expires At",
+            "type": "integer"
+          },
+          "item": {
+            "title": "Item",
+            "type": "string"
+          }
+        },
+        "required": [
+          "item",
+          "expires_at"
+        ],
+        "title": "TrashedOutputV2",
         "type": "object"
       },
       "UploadRef": {
@@ -13848,6 +14286,26 @@
           "data"
         ],
         "title": "WsGlobalMedia",
+        "type": "object"
+      },
+      "WsGlobalOutputs": {
+        "additionalProperties": false,
+        "description": "Gallery files entered or left the trash, from any client: the trash lists and what the strips show of their outputs change. The ids are trash items.",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/ChangedIdsV2"
+          },
+          "type": {
+            "const": "outputs",
+            "default": "outputs",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "title": "WsGlobalOutputs",
         "type": "object"
       },
       "WsGlobalRecords": {
@@ -15637,7 +16095,7 @@
     },
     "/sdapi/v2/browser/delete": {
       "post": {
-        "description": "Delete gallery files after validating paths are within allowed folders.",
+        "description": "Delete gallery files with the sidecars that go with them. Links, files that are not pictures or videos, the\nreference and model folders, and a file still being written are refused.",
         "operationId": "delete_files_sdapi_v2_browser_delete_post",
         "requestBody": {
           "content": {
@@ -15717,7 +16175,7 @@
     },
     "/sdapi/v2/browser/file": {
       "get": {
-        "description": "Serve a gallery file at full size, confined to the configured gallery roots.",
+        "description": "Serve a gallery file at full size, confined to the configured gallery roots and the files in the trash.",
         "operationId": "get_file_sdapi_v2_browser_file_get",
         "parameters": [
           {
@@ -15908,7 +16366,7 @@
     },
     "/sdapi/v2/browser/move": {
       "post": {
-        "description": "Move gallery files to a destination folder after path validation.",
+        "description": "Move gallery files with their sidecars into a Gallery folder, never over a file of the same name; the outputs\nrows of what moved follow it, so its durable URLs keep working.",
         "operationId": "move_files_sdapi_v2_browser_move_post",
         "requestBody": {
           "content": {
@@ -15948,7 +16406,7 @@
     },
     "/sdapi/v2/browser/subdirs": {
       "get": {
-        "description": "List subdirectories of a gallery folder.\n\nReturns immediate child directories with their path and display label,\nsorted alphabetically. Used for building folder tree navigation.",
+        "description": "List subdirectories of a gallery folder.\n\nReturns immediate child directories with their path and display label,\nsorted alphabetically, and why the Gallery keeps the files of a reference\nor model folder. Used for building folder tree navigation.",
         "operationId": "get_subdirs_sdapi_v2_browser_subdirs_get",
         "parameters": [
           {
@@ -16028,6 +16486,222 @@
         },
         "summary": "Get Thumb",
         "tags": [
+          "Gallery"
+        ]
+      }
+    },
+    "/sdapi/v2/browser/trash": {
+      "get": {
+        "description": "The Gallery files in the trash, newest first, with the server's time of the read.",
+        "operationId": "get_trash_files_sdapi_v2_browser_trash_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResGalleryTrashV2"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Trash Files",
+        "tags": [
+          "Library",
+          "Gallery"
+        ]
+      },
+      "post": {
+        "description": "Move Gallery files with their sidecars into the trash. Their outputs rows follow them, so results that name them\nkeep loading; links, files that are not pictures or videos, the reference set, the model folders and a file still\nbeing saved are refused.",
+        "operationId": "post_trash_files_sdapi_v2_browser_trash_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReqTrashFilesV2"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResTrashedV2"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Post Trash Files",
+        "tags": [
+          "Library",
+          "Gallery"
+        ]
+      }
+    },
+    "/sdapi/v2/browser/trash/delete": {
+      "post": {
+        "description": "Delete files from the trash for good; an id not in the trash is skipped.",
+        "operationId": "post_delete_trashed_sdapi_v2_browser_trash_delete_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReqDeleteTrashedV2"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResFreedV2"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Post Delete Trashed",
+        "tags": [
+          "Library",
+          "Gallery"
+        ]
+      }
+    },
+    "/sdapi/v2/browser/trash/empty": {
+      "post": {
+        "description": "Delete every file that was in the trash when the list was read at `as_of`; what was trashed after stays.",
+        "operationId": "post_empty_gallery_trash_sdapi_v2_browser_trash_empty_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReqEmptyGalleryTrashV2"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResFreedV2"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Post Empty Gallery Trash",
+        "tags": [
+          "Library",
+          "Gallery"
+        ]
+      }
+    },
+    "/sdapi/v2/browser/trash/outputs": {
+      "get": {
+        "description": "Which outputs have their files in the trash, and which were deleted from it within the hour.",
+        "operationId": "get_trashed_outputs_sdapi_v2_browser_trash_outputs_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResTrashedOutputsV2"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Trashed Outputs",
+        "tags": [
+          "Library",
+          "Gallery"
+        ]
+      }
+    },
+    "/sdapi/v2/browser/trash/restore": {
+      "post": {
+        "description": "Put files back, each in its own folder or in `folder`, never over another file: a taken name, the file's or a\nsidecar's, brings it back as `<stem> (restored)`.",
+        "operationId": "post_restore_files_sdapi_v2_browser_trash_restore_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReqRestoreFilesV2"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResRestoredV2"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Post Restore Files",
+        "tags": [
+          "Library",
           "Gallery"
         ]
       }
@@ -20816,7 +21490,7 @@
     },
     "/sdapi/v2/outputs/{output_id}": {
       "get": {
-        "description": "Serve a generation output by its durable id.\n\nJob rows are queue bookkeeping and get swept; the files they produced are\nnot. Every saved ref is registered at completion, so the `url` and\n`thumbnail_url` a client stores keep resolving across restarts and long\nafter the job row is gone. Range requests are honored for video seeking.\n\n404 covers an unknown id and a registered file no longer on disk; the two\nare deliberately indistinguishable. Paths never cross the wire: the id is\nminted server-side and confined at registration time, so the serve path\ntrusts the row.",
+        "description": "Serve a generation output by its durable id.\n\nJob rows are queue bookkeeping and get swept; the files they produced are\nnot. Every saved ref is registered at completion, so the `url` and\n`thumbnail_url` a client stores keep resolving across restarts and long\nafter the job row is gone. Range requests are honored for video seeking.\n\n404 covers an unknown id, a registered file no longer on disk, and a file\nnewer than its row, which the sequencer wrote at a deleted output's path;\nthe three are deliberately indistinguishable. Paths never cross the wire:\nthe id is minted server-side and confined at registration time, so the\nserve path trusts the row.",
         "operationId": "get_output_sdapi_v2_outputs__output_id__get",
         "parameters": [
           {
@@ -22325,6 +22999,7 @@
                     "mapping": {
                       "library": "#/components/schemas/WsGlobalLibrary",
                       "media": "#/components/schemas/WsGlobalMedia",
+                      "outputs": "#/components/schemas/WsGlobalOutputs",
                       "records": "#/components/schemas/WsGlobalRecords",
                       "settings": "#/components/schemas/WsGlobalSettings",
                       "trash": "#/components/schemas/WsGlobalTrash"
@@ -22346,6 +23021,9 @@
                     },
                     {
                       "$ref": "#/components/schemas/WsGlobalRecords"
+                    },
+                    {
+                      "$ref": "#/components/schemas/WsGlobalOutputs"
                     }
                   ],
                   "title": "Response Get Global Ws Event Schema Sdapi V2 Ws Events Get"

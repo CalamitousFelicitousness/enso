@@ -284,3 +284,15 @@ def test_a_part_that_cannot_open_releases_its_reservation(store, layout):
     with pytest.raises(OSError):
         store.ingest_bytes(b"x" * 1000)
     assert store.inflight.outstanding() == 0
+
+
+def test_report_counts_the_gallery_files_in_the_trash_apart_from_the_blobs(store):
+    with store.db.write() as w:
+        w.conn.executemany(
+            "INSERT INTO trashed_files (id, state, name, folder, kind, size, bytes, mtime, trashed_at, lost_at) VALUES (?, ?, 'a.png', '/f', 'image', 1, ?, 0, 0, ?)",
+            [("0000000000000001", "trashed", 100, None), ("0000000000000002", "trashed", 50, 5), ("0000000000000003", "moving", 70, None)],
+        )
+    report = store.report()
+    assert (report.files_in_trash.count, report.files_in_trash.bytes) == (1, 100)
+    assert report.trash_lost == 1
+    assert report.count == 0

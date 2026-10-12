@@ -237,10 +237,15 @@ def test_apply_releases_the_lock_between_batches(store, clock, monkeypatch):
 def test_apply_rebases_and_deletes_nothing(store, clock):
     row, _ = put(store, png(1))
     link_entry(store, "old", [], trashed_at=0)
+    with store.db.write() as w:
+        w.conn.execute("INSERT INTO trashed_files (id, state, name, folder, kind, size, bytes, mtime, trashed_at) VALUES ('0000000000000001', 'trashed', 'a.png', '/f', 'image', 1, 1, 0, 0)")
     clock.advance(30 * DAY_MS)
     applied = collect(store)
-    assert applied.rebased == 2
+    assert applied.rebased == 3
     assert store.row(row.hash).unnamed_since == clock.now
+    with store.db.read() as conn:
+        assert tuple(conn.execute("SELECT trashed_at, clock_at FROM entries").fetchone()) == (0, clock.now)
+        assert tuple(conn.execute("SELECT trashed_at, clock_at FROM trashed_files").fetchone()) == (0, clock.now)
     assert store.meta("last_gc") == str(clock.now)
 
 
@@ -287,3 +292,52 @@ def test_survey_lists_parts_with_registration(store):
     assert [p.registered for p in survey(store, store.layout, store.inflight, set).parts] == [True]
     store.inflight.release(token)
     assert [p.registered for p in survey(store, store.layout, store.inflight, set).parts] == [False]
+
+
+def test_an_entry_whose_clock_restarted_expires_from_the_restart(store, clock):
+    link_entry(store, "old", [], trashed_at=0)
+    with store.db.write() as w:
+        w.conn.execute("UPDATE entries SET clock_at = ?", (clock.now,))
+    s = survey(store, store.layout, store.inflight, lambda: set())
+    assert s.trashed == (TrashedEntry("old", clock.now),)
+
+
+class FakeTrash:
+    def __init__(self):
+        self.calls: list[str] = []
+
+    def check(self):
+        self.calls.append("check")
+        return ["0000000000000002"]
+
+    def expire(self, now, days):
+        self.calls.append(f"expire {days}")
+        return ["0000000000000001"]
+
+    def sweep(self, now, days):
+        self.calls.append("sweep")
+        return 0
+
+    def relieve(self, free, reserve):
+        self.calls.append("relieve")
+        return []
+
+
+def test_a_pass_runs_the_gallery_trash_after_its_own_work_and_announces_what_went(store, clock, monkeypatch):
+    from enso_api.media.collector import run_pass
+
+    store.set_meta("last_gc", str(clock.now - PASS_MS))
+    changes: list[tuple[str, list[str]]] = []
+    monkeypatch.setattr(events, "changed", lambda topic, ids: changes.append((topic, sorted(ids))))
+    trash = FakeTrash()
+    run_pass(store, lambda: set(), trash)
+    assert trash.calls == ["check", "expire 7", "sweep", "relieve"]
+    assert ("outputs", ["0000000000000001", "0000000000000002"]) in changes
+
+
+def test_a_pass_that_restarts_the_clocks_deletes_nothing_from_the_gallery_trash(store, clock):
+    from enso_api.media.collector import run_pass
+
+    trash = FakeTrash()
+    run_pass(store, lambda: set(), trash)
+    assert trash.calls == ["check"]

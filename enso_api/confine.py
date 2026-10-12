@@ -6,7 +6,7 @@ without importing the route module.
 
 import os
 from collections import Counter
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 
 # Specific outdirs resolve against outdir_samples (or outdir_grids for grid
 # variants), mirroring how modules.paths targets them at save time. The cloud
@@ -207,3 +207,71 @@ def is_allowed_path(filepath: str) -> bool:
 
     hint = boot.state.hint
     return allowed_gallery_path(filepath, get_allowed_roots(), hint.root if hint is not None else None)
+
+
+def gallery_folders() -> list[dict]:
+    """The folders the Gallery lists, each with its label and why the Gallery keeps its files, when it does: the output
+    folders, browser_folders and the reference set."""
+    from modules import shared
+    from modules.paths import resolve_output_path
+
+    from enso_api.media.companions import protected_reason
+
+    def folder(path: str, label: str | None = None) -> dict:
+        return {"path": path, "label": label if label is not None else os.path.basename(path) or path}
+
+    base_samples = shared.opts.outdir_samples
+    base_grids = shared.opts.outdir_grids
+    folders = []
+    if base_samples:
+        folders.append(folder(base_samples, os.path.basename(base_samples.rstrip("/\\"))))
+    if base_grids and base_grids != base_samples:
+        folders.append(folder(base_grids, os.path.basename(base_grids.rstrip("/\\"))))
+    # The specific folders are labelled by their setting's value, such as outputs/text
+    for attr in GALLERY_FOLDERS:
+        if attr in ("outdir_samples", "outdir_grids"):
+            continue
+        value = getattr(shared.opts, attr, "")
+        base = base_grids if "grid" in attr else base_samples
+        folders.append(folder(resolve_output_path(base, value), value))
+    folders.extend(folder(f.strip()) for f in shared.opts.browser_folders.split(",") if f.strip())
+    folders.append(folder(os.path.join("models", "Reference"), "Reference"))
+    protected = protected_roots()
+    unique: dict[str, dict] = {}
+    for entry in folders:
+        path = entry["path"].strip()
+        if path and path not in unique and os.path.isdir(path):
+            unique[path] = {**entry, "kept": protected_reason(os.path.realpath(path), protected)}
+    return list(unique.values())
+
+
+def label_in(real: str, folders: Iterable[tuple[str, str]]) -> str | None:
+    """How the Gallery names a resolved folder: the label of the deepest listed folder holding it and the rest of its path."""
+    best: tuple[str, str] | None = None
+    for root, label in folders:
+        if (real == root or real.startswith(root.rstrip(os.sep) + os.sep)) and (best is None or len(root) > len(best[0])):
+            best = (root, label)
+    if best is None:
+        return None
+    rest = os.path.relpath(real, best[0])
+    return best[1] if rest == "." else f"{best[1].rstrip('/')}/{rest.replace(os.sep, '/')}"
+
+
+def folder_labeller():
+    """A function naming folders as the Gallery does, over the folders it lists now; a folder it no longer lists keeps its path."""
+    folders = [(os.path.realpath(entry["path"]), entry["label"]) for entry in gallery_folders()]
+    return lambda folder: label_in(os.path.realpath(folder), folders) or folder
+
+
+def readable_gallery_path_in(path: str, roots: Iterable[str], store_root: str | None, holds: Callable[[str], bool]) -> bool:
+    """Whether the Gallery may read `path`: a file it lists, or a file the trash holds."""
+    return allowed_gallery_path(path, roots, store_root) or holds(path)
+
+
+def is_readable_path(filepath: str) -> bool:
+    """Whether the Gallery's read routes may serve `filepath`; its write routes keep is_allowed_path."""
+    from enso_api.media import boot
+
+    hint = boot.state.hint
+    deleted = boot.state.deleted
+    return readable_gallery_path_in(filepath, get_allowed_roots(), hint.root if hint is not None else None, deleted.holds_path if deleted is not None else lambda path: False)
