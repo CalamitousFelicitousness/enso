@@ -1,6 +1,7 @@
 // The keys of the queries the media store's events keep current, and the
 // retry rule they share: a refusal answers the same when asked again.
 
+import { STORE_OFF } from "@/lib/media/text";
 import { ApiError } from "./client";
 
 /** One job's record, as the cards read it. */
@@ -33,9 +34,10 @@ export function retryUnlessRefused(failures: number, err: unknown): boolean {
   return failures < 2;
 }
 
-/** The media store is off on the server: a state, not an error. */
+/** The media store is off on the server: a state, not an error. The words
+ * to show are the refusal's own, a whole sentence. */
 export function storeOffIn(err: unknown): string | null {
   return err instanceof ApiError && err.code === "media_store_off"
-    ? (err.detail?.message ?? "")
+    ? err.detail?.message || STORE_OFF
     : null;
 }

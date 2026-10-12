@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import { create } from "zustand";
 import { api, ApiError } from "@/api/client";
 import { queryClient } from "@/api/queryClient";
-import { entryKey, LIBRARY_KEY, TRASH_KEY } from "@/api/queryKeys";
+import { entryKey, LIBRARY_KEY, storeOffIn, TRASH_KEY } from "@/api/queryKeys";
 import type {
   ItemEntryV2,
   ReqEntryPatchV2,
@@ -39,7 +39,7 @@ import {
 import { holdsContent, type Frame } from "@/lib/inputs/types";
 import { assembleEntry, byLibraryOrder, clampName, type ThumbPart } from "@/lib/media/entry";
 import { isGone, type Outcome } from "@/lib/media/stage";
-import { batchText, serverFreedText, storeOffText, unpinnedText } from "@/lib/media/text";
+import { batchText, serverFreedText, unpinnedText } from "@/lib/media/text";
 import { useGenerationStore } from "@/stores/generationStore";
 import { inputsReady, useInputStore } from "@/stores/inputStore";
 import { useUiStore } from "@/stores/uiStore";
@@ -135,9 +135,7 @@ function refused(err: unknown, failedTitle: string, goneText = NO_LONGER_IN_LIBR
   }
   const detail = err instanceof ApiError ? err.detail : null;
   const description =
-    code === "media_store_off"
-      ? storeOffText(detail?.message ?? null)
-      : (detail?.message ?? (err instanceof Error ? err.message : String(err)));
+    storeOffIn(err) ?? detail?.message ?? (err instanceof Error ? err.message : String(err));
   toast.error(failedTitle, { description });
 }
 

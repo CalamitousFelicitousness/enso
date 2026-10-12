@@ -22,7 +22,6 @@ import {
   movingText,
   notMovedText,
   RETRY,
-  storeOffText,
 } from "@/lib/media/text";
 import { useUiStore } from "@/stores/uiStore";
 import { SavedEntries } from "./library/SavedEntries";
@@ -45,7 +44,7 @@ function LibraryStatus({ active }: { active: boolean }) {
   const off = storeOffIn(library.error);
   let text = "";
   let action: { label: string; run: () => void } | null = null;
-  if (off !== null) text = storeOffText(off || null);
+  if (off !== null) text = off;
   else if (library.isError) {
     text = LIBRARY_READ_FAILED;
     action = { label: RETRY, run: () => void library.refetch() };

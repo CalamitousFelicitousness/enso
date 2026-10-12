@@ -37,7 +37,6 @@ import {
   SETTING_FAILED,
   SETTINGS_FROZEN,
   STORE_ROW_LABEL,
-  storeOffText,
   storeRowText,
   trashDaysBothText,
 } from "@/lib/media/text";
@@ -143,7 +142,7 @@ export function MediaSettingsRows() {
   };
 
   const describe = (setting: SharedSetting, shown: number): string => {
-    if (off !== null) return storeOffText(off || null);
+    if (off !== null) return off;
     if (!data) return LOADING;
     const lower = shown < (sending.get(setting) ?? data[setting]);
     const c = counts(setting, shown);
