@@ -1276,6 +1276,9 @@ def execute_ltx(params: dict, job_id: str) -> dict:
             mp4_frames=params.get("save_frames", False),
             mp4_sf=params.get("save_safetensors", False),
             mp4_thumb=params.get("save_thumbnail", True),
+            # no upscale, as sdnext's video_run.run defaults to
+            mp4_scale=1.0,
+            mp4_upscaler="",
             audio_enable=params.get("audio_enable", False),
             _overrides={},
         )
