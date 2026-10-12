@@ -55,6 +55,8 @@ export function useGlobalWs() {
         store.setStatus(msg.data);
       } else if (msg.type === "status" && msg.data) {
         store.setStatus(msg.data);
+        // The server went idle: every job that ran has ended, whichever client sent it
+        void queryClient.invalidateQueries({ queryKey: ["v2-jobs"] });
       } else if (msg.type === "model") {
         // The server's loaded image model changed, from this page or any other client;
         // sdnext lists control models per model type

@@ -266,6 +266,10 @@ export function useJobTracker() {
               markJobCancelled(jobId);
               break;
           }
+          // History lists the job as it ended
+          if (data.type === "completed" || data.type === "error" || data.type === "cancelled") {
+            void queryClient.invalidateQueries({ queryKey: ["v2-jobs"] });
+          }
         });
 
         const offBinary = manager.on("binary", (buf: ArrayBuffer) => {
