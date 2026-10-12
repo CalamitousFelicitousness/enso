@@ -1,5 +1,10 @@
-@import "tailwindcss";
+/* Frontend sources only: Tailwind's dev plugin reloads every page when a
+   scanned file that no module imports changes, such as a Python file */
+@import "tailwindcss" source(none);
 @import "tw-animate-css";
+@source "./";
+@source "../index.html";
+@source "../playground.html";
 
 @font-face {
   font-family: "IBM Plex Sans";
