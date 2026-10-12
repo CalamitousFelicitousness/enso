@@ -1,9 +1,10 @@
 import base64
+import contextlib
 import io
 import os
-import shutil
 import time
 import zipfile
+from collections.abc import Iterable
 from typing import Literal
 from urllib.parse import quote, unquote
 
@@ -16,7 +17,10 @@ from PIL import Image
 from pydantic import BaseModel, Field  # pylint: disable=no-name-in-module
 from starlette.websockets import WebSocket, WebSocketState
 
-from enso_api.confine import VIDEO_EXTENSIONS, is_allowed_path, outside_media_store
+from enso_api.confine import VIDEO_EXTENSIONS, is_allowed_path, outside_media_store, protected_roots
+from enso_api.errors import refuse
+from enso_api.media.companions import NOT_FOUND, PATH_NOT_ALLOWED, TAKEN, gather, is_media, protected_reason
+from enso_api.media.placement import folder_lock, place
 from enso_api.routes import media_file
 from enso_api.session import admit_socket, media_auth
 from enso_api.video_result import sibling_thumb
@@ -361,69 +365,113 @@ def register_api(app: FastAPI):  # register api
                 subdirs.append({"path": d, "label": label})
         return JSONResponse(content=subdirs)
 
+    def forget_folders(paths: Iterable[str], folders: Iterable[str]) -> None:
+        """Drop sdnext's cached listings of the folders a change touched, under the request's spelling and resolved."""
+        for folder in {*(os.path.dirname(os.path.abspath(path)) for path in paths), *folders}:
+            files_cache.delete_cached_directory(folder)
+
+    def report(action: str, done: list[str], errors: list[dict]) -> None:
+        log.debug(f"Gallery {action}: done={len(done)} refused={len(errors)}")
+        if errors:
+            first = errors[0]
+            log.info(f'Gallery {action}: refused {len(errors)} of {len(done) + len(errors)}, first "{first["file"]}": {first["error"]}')
+
+    def failure(error: OSError) -> str:
+        return NOT_FOUND if isinstance(error, FileNotFoundError) else (error.strerror or str(error))
+
     def delete_files(req: ReqDelete):
-        """Delete gallery files after validating paths are within allowed folders."""
-        deleted = []
-        errors = []
-        for filepath in req.files:
-            if not is_allowed_path(filepath):
-                errors.append({"file": filepath, "error": "Path not allowed"})
-                continue
-            resolved = os.path.abspath(os.path.realpath(filepath))
+        """Delete gallery files with the sidecars that go with them. Links, files that are not pictures or videos, the
+        reference and model folders, and a file still being written are refused."""
+        items, errors = gather(req.files, is_allowed_path, protected_roots(), time.time())
+        deleted: list[str] = []
+        for item in items:
             try:
-                if os.path.isfile(resolved):
-                    os.remove(resolved)
-                    deleted.append(filepath)
-                    folder = os.path.dirname(resolved)
-                    files_cache.delete_cached_directory(folder)
-                else:
-                    errors.append({"file": filepath, "error": "File not found"})
-            except Exception as e:
-                errors.append({"file": filepath, "error": str(e)})
-        log.debug(f"Gallery delete: deleted={len(deleted)} errors={len(errors)}")
+                os.unlink(item.path)
+            except OSError as e:
+                errors.extend({"file": path, "error": failure(e)} for path in item.asked())
+                continue
+            deleted.append(item.given)
+            for companion in item.companions:
+                try:
+                    os.unlink(os.path.join(item.folder, companion))
+                except OSError as e:
+                    log.warning(f'Gallery delete: "{companion}" beside "{item.name}" kept: {e}')
+                    if companion in item.requested:
+                        errors.append({"file": item.requested[companion], "error": failure(e)})
+                    continue
+                if is_media(companion):
+                    deleted.append(item.spelled(companion))
+        forget_folders(req.files, (item.folder for item in items))
+        report("delete", deleted, errors)
         return JSONResponse(content={"deleted": deleted, "errors": errors})
 
     def move_files(req: ReqMove):
-        """Move gallery files to a destination folder after path validation."""
+        """Move gallery files with their sidecars into a Gallery folder, never over a file of the same name; the outputs
+        rows of what moved follow it, so its durable URLs keep working."""
+        from enso_api.job_queue import job_queue
+
         if not is_allowed_path(req.destination):
-            return JSONResponse(content={"moved": [], "errors": [{"file": req.destination, "error": "Destination not allowed"}]}, status_code=403)
-        dest_resolved = os.path.abspath(os.path.realpath(req.destination))
-        if not os.path.isdir(dest_resolved):
-            return JSONResponse(content={"moved": [], "errors": [{"file": req.destination, "error": "Destination is not a directory"}]}, status_code=400)
-        moved = []
-        errors = []
-        source_folders = set()
-        for filepath in req.files:
-            if not is_allowed_path(filepath):
-                errors.append({"file": filepath, "error": "Path not allowed"})
+            refuse(403, "destination_not_allowed", "Destination not allowed", label="Gallery")
+        destination = os.path.realpath(req.destination)
+        if not os.path.isdir(destination):
+            refuse(400, "not_a_folder", "Destination is not a folder", label="Gallery")
+        protected = protected_roots()
+        kept = protected_reason(destination, protected)
+        if kept is not None:
+            refuse(403, "protected_folder", kept, label="Gallery")
+        items, errors = gather(req.files, is_allowed_path, protected, time.time())
+        store = job_queue.store
+        mtimes: dict[str, float] = {}
+        for item in items:
+            for name in (item.name, *item.companions):
+                with contextlib.suppress(OSError):
+                    mtimes[os.path.join(item.folder, name)] = os.stat(os.path.join(item.folder, name)).st_mtime * 1000
+        rows = store.output_ids_at(mtimes) if store is not None else {}
+        moved: list[str] = []
+        repaths: list[tuple[str, str]] = []
+        for item in items:
+            if item.folder == destination:
+                errors.extend({"file": path, "error": "Already in this folder"} for path in item.asked())
                 continue
-            resolved = os.path.abspath(os.path.realpath(filepath))
-            try:
-                if os.path.isfile(resolved):
-                    dest_path = os.path.join(dest_resolved, os.path.basename(resolved))
-                    # shutil.move replaces an existing file of the same name without a word
-                    if os.path.lexists(dest_path):
-                        reason = "Already in this folder" if os.path.dirname(resolved) == dest_resolved else "A file with this name is already there"
-                        errors.append({"file": filepath, "error": reason})
+            with folder_lock(destination):
+                taken = next((name for name in (item.name, *item.companions) if os.path.lexists(os.path.join(destination, name))), None)
+                if taken is not None:
+                    reason = TAKEN if taken == item.name else f"A file named {taken} is already there"
+                    errors.extend({"file": path, "error": reason} for path in item.asked())
+                    continue
+                try:
+                    place(item.path, os.path.join(destination, item.name))
+                except FileExistsError:
+                    errors.extend({"file": path, "error": TAKEN} for path in item.asked())
+                    continue
+                except OSError as e:
+                    errors.extend({"file": path, "error": failure(e)} for path in item.asked())
+                    continue
+                placed = [item.name]
+                for companion in item.companions:
+                    try:
+                        place(os.path.join(item.folder, companion), os.path.join(destination, companion))
+                    except OSError as e:
+                        log.warning(f'Gallery move: "{companion}" beside "{item.name}" kept: {e}')
+                        if companion in item.requested:
+                            errors.append({"file": item.requested[companion], "error": failure(e)})
                         continue
-                    source_folders.add(os.path.dirname(resolved))
-                    shutil.move(resolved, dest_path)
-                    moved.append(filepath)
-                else:
-                    errors.append({"file": filepath, "error": "File not found"})
-            except Exception as e:
-                errors.append({"file": filepath, "error": str(e)})
-        for folder in source_folders:
-            files_cache.delete_cached_directory(folder)
-        files_cache.delete_cached_directory(dest_resolved)
-        log.debug(f'Gallery move: moved={len(moved)} errors={len(errors)} dest="{req.destination}"')
+                    placed.append(companion)
+            for name in placed:
+                if is_media(name):
+                    moved.append(item.spelled(name))
+                repaths.extend((output_id, os.path.join(destination, name)) for output_id in rows.get(os.path.join(item.folder, name), ()))
+        if store is not None and repaths:
+            store.repath_outputs(repaths)
+        forget_folders(req.files, [*(item.folder for item in items), destination, os.path.abspath(req.destination)])
+        report("move", moved, errors)
         return JSONResponse(content={"moved": moved, "errors": errors})
 
     def download_files(req: ReqDownload):
         """Create a zip archive of gallery files and stream it to the client."""
         for filepath in req.files:
             if not is_allowed_path(filepath):
-                return JSONResponse(content={"error": f"Path not allowed: {filepath}"}, status_code=403)
+                refuse(403, "path_not_allowed", f"{PATH_NOT_ALLOWED}: {os.path.basename(filepath)}", label="Gallery")
         buf = io.BytesIO()
         with zipfile.ZipFile(buf, "w", zipfile.ZIP_STORED) as zf:
             seen_names = set()

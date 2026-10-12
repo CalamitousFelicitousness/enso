@@ -366,12 +366,14 @@ async def get_output(output_id: str):
     `thumbnail_url` a client stores keep resolving across restarts and long
     after the job row is gone. Range requests are honored for video seeking.
 
-    404 covers an unknown id and a registered file no longer on disk; the two
-    are deliberately indistinguishable. Paths never cross the wire: the id is
-    minted server-side and confined at registration time, so the serve path
-    trusts the row.
+    404 covers an unknown id, a registered file no longer on disk, and a file
+    newer than its row, which the sequencer wrote at a deleted output's path;
+    the three are deliberately indistinguishable. Paths never cross the wire:
+    the id is minted server-side and confined at registration time, so the
+    serve path trusts the row.
     """
     from enso_api.job_queue import job_queue
+    from enso_api.job_store import made_before
 
     def serve():
         row = job_queue.store.resolve_output(output_id)
@@ -380,6 +382,9 @@ async def get_output(output_id: str):
         file_path = row["path"]
         if not os.path.isfile(file_path):
             log.debug(f"Outputs: {output_id} -> {file_path} missing on disk")
+            raise HTTPException(status_code=404, detail="Output not found")
+        if not made_before(os.stat(file_path).st_mtime * 1000, row["created_at"]):
+            log.debug(f"Outputs: {output_id} -> {file_path} is a newer file than the one registered")
             raise HTTPException(status_code=404, detail="Output not found")
         # The sequencer can hand a deleted output's path to a new file, so the bytes behind an id are not immutable
         return media_file(file_path, os.path.basename(file_path), headers={"Cache-Control": "private, max-age=3600", "X-Content-Type-Options": "nosniff"})

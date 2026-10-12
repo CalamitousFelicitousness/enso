@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { api } from "../client";
+import { api, refusalOf } from "../client";
+import { queryClient } from "../queryClient";
+import { OUTPUT_JOBS_KEY } from "../queryKeys";
 import { renewForSocket, socketUrl } from "../session";
 import type {
   BrowserFolder,
@@ -711,7 +713,12 @@ function reportFileErrors(verb: "deleted" | "moved", errors: FileErrors) {
 }
 
 function describeError(err: unknown): string {
-  return err instanceof Error ? err.message : String(err);
+  return refusalOf(err)?.message ?? (err instanceof Error ? err.message : String(err));
+}
+
+/** A file that left a folder takes its job lookup with it, and one that arrived can name another job. */
+function forgetOutputJobs() {
+  void queryClient.invalidateQueries({ queryKey: OUTPUT_JOBS_KEY });
 }
 
 export function useDeleteFiles() {
@@ -730,6 +737,7 @@ export function useDeleteFiles() {
       store.removeFilesFromStore(deletedIds);
       if (store.activeFolder) invalidateFolder(store.activeFolder);
       void cleanupThumbsForFiles(deletedFiles);
+      forgetOutputJobs();
     },
   });
 }
@@ -750,6 +758,7 @@ export function useMoveFiles() {
       if (store.activeFolder) invalidateFolder(store.activeFolder);
       invalidateFolder(variables.destination);
       void cleanupThumbsForFiles(movedFiles);
+      forgetOutputJobs();
     },
   });
 }
@@ -767,5 +776,9 @@ export function useDownloadFiles() {
     URL.revokeObjectURL(url);
   }, []);
 
-  return useMutation({ mutationFn: downloadFn });
+  return useMutation({
+    mutationFn: downloadFn,
+    onError: (err) =>
+      toast.error("Could not download the files", { description: describeError(err) }),
+  });
 }

@@ -12,7 +12,7 @@ from enso_api.sqlite import Database
 
 if TYPE_CHECKING:
     import sqlite3
-    from collections.abc import Sequence
+    from collections.abc import Iterable, Mapping, Sequence
 
 TERMINAL = ("completed", "failed", "cancelled")
 # A row older than its file by more than this means the file was written again after the job
@@ -47,6 +47,8 @@ CREATE INDEX IF NOT EXISTS idx_outputs_path ON outputs(path);
 
 # Version 1 is the schema every earlier build created, so an existing file is stamped without a change
 MIGRATIONS = [(1, SCHEMA_V1)]
+# Spellings per query, under SQLite's bound-parameter limit
+LOOKUP_CHUNK = 500
 
 
 def path_spellings(path: str) -> list[str]:
@@ -56,6 +58,15 @@ def path_spellings(path: str) -> list[str]:
     with contextlib.suppress(ValueError):
         spellings.append(os.path.relpath(real))
     return list(dict.fromkeys(spellings))
+
+
+def iso_ms(text: str) -> int:
+    return int(datetime.fromisoformat(text).timestamp() * 1000)
+
+
+def made_before(mtime_ms: float, created_at: str) -> bool:
+    """Whether a file of this mtime is the one a row registered, not one written at its path afterwards."""
+    return mtime_ms <= iso_ms(created_at) + OUTPUT_MTIME_SLACK_MS
 
 
 class JobStore:
@@ -279,8 +290,33 @@ class JobStore:
             row = conn.execute(f"SELECT job_id, created_at FROM outputs WHERE path IN ({','.join('?' for _ in paths)}) ORDER BY created_at DESC LIMIT 1", list(paths)).fetchone()
         if row is None or row[0] is None:
             return None
-        created_ms = int(datetime.fromisoformat(row[1]).timestamp() * 1000)
-        return row[0] if mtime_ms <= created_ms + OUTPUT_MTIME_SLACK_MS else None
+        return row[0] if made_before(mtime_ms, row[1]) else None
+
+    def output_ids_at(self, files: Mapping[str, float]) -> dict[str, list[str]]:
+        """The output rows naming each file, by any spelling, given its mtime in milliseconds; rows older than the file
+        by more than the slack belong to an earlier file at the path and are left out."""
+        spelled: dict[str, str] = {}
+        for path in files:
+            for spelling in path_spellings(path):
+                spelled.setdefault(spelling, path)
+        found: dict[str, list[str]] = {path: [] for path in files}
+        spellings = list(spelled)
+        with self.db.read(snapshot=True) as conn:
+            for start in range(0, len(spellings), LOOKUP_CHUNK):
+                chunk = spellings[start : start + LOOKUP_CHUNK]
+                for row in conn.execute(f"SELECT id, path, created_at FROM outputs WHERE path IN ({','.join('?' for _ in chunk)})", chunk):
+                    path = spelled[row[1]]
+                    if made_before(files[path], row[2]):
+                        found[path].append(row[0])
+        return found
+
+    def repath_outputs(self, pairs: Iterable[tuple[str, str]]) -> int:
+        """Point output rows at the paths their files moved to, given as (output id, new path); the count changed."""
+        updates = [(os.path.realpath(path), output_id) for output_id, path in pairs]
+        if not updates:
+            return 0
+        with self.db.write() as w:
+            return sum(w.conn.execute("UPDATE outputs SET path = ? WHERE id = ?", update).rowcount for update in updates)
 
     def resolve_output(self, output_id: str) -> dict | None:
         with self.db.read() as conn:

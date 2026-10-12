@@ -178,6 +178,8 @@ def register_api(app, dependencies=None):
                 "/sdapi/v2/library/trash": -1,
                 "/sdapi/v2/library/trash/empty": -1,
                 "/sdapi/v2/records": -1,
+                "/sdapi/v2/browser/delete": -1,
+                "/sdapi/v2/browser/move": -1,
             }
         )
     except ImportError:
@@ -226,6 +228,9 @@ def register_api(app, dependencies=None):
             "/sdapi/v2/library/trash": 0,
             "/sdapi/v2/library/trash/empty": 0,
             "/sdapi/v2/records": 0,
+            # A Gallery action is one request however many files it names
+            "/sdapi/v2/browser/delete": 0,
+            "/sdapi/v2/browser/move": 0,
             # Route templates, which sdnext matches for paths that carry ids
             "/sdapi/v2/uploads/{ref_id}": 0,
             "/sdapi/v2/jobs/{job_id}": 0,

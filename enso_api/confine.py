@@ -5,6 +5,7 @@ without importing the route module.
 """
 
 import os
+from collections import Counter
 from collections.abc import Iterable
 
 # Specific outdirs resolve against outdir_samples (or outdir_grids for grid
@@ -123,6 +124,11 @@ def confine_or_403(file_path: str) -> None:
         raise HTTPException(status_code=403, detail="Access denied")
 
 
+def reference_folder() -> str:
+    """SD.Next's reference set, resolved as SD.Next resolves it: under its working folder, not the data folder."""
+    return os.path.abspath(os.path.realpath(os.path.join("models", "Reference")))
+
+
 def get_allowed_roots() -> set[str]:
     """Every folder the Gallery lists, resolved: the output folders, browser_folders and models/Reference."""
     from modules import shared
@@ -145,16 +151,46 @@ def get_allowed_roots() -> set[str]:
         f = f.strip()
         if f:
             roots.add(os.path.abspath(os.path.realpath(f)))
-    reference_dir = os.path.join("models", "Reference")
-    roots.add(os.path.abspath(os.path.realpath(reference_dir)))
+    roots.add(reference_folder())
     return roots
+
+
+def protected_roots() -> list[tuple[str, str]]:
+    """Folders the Gallery never removes files from or moves files into, resolved, each with the reason it gives:
+    the reference set, then the models folder, every folder option of SD.Next's System Paths, and the folder that holds
+    several of those options unless it holds an output folder too."""
+    from modules import paths, shared
+
+    from enso_api.media.companions import MODEL_FOLDERS_KEPT, REFERENCE_KEPT
+
+    def resolve(value: str) -> str:
+        return os.path.realpath(value if os.path.isabs(value) else os.path.join(paths.data_path, value))
+
+    roots = [(reference_folder(), REFERENCE_KEPT), (resolve(paths.models_path), MODEL_FOLDERS_KEPT)]
+    folders: list[str] = []
+    for key, info in shared.opts.data_labels.items():
+        section = getattr(info, "section", None) or ()
+        # Additional allowed folders and the temporary folder hold user files, not models
+        if section[:1] != ("system-paths",) or not getattr(info, "folder", False) or key in ("allowed_paths", "temp_dir"):
+            continue
+        value = getattr(shared.opts, key, None)
+        if isinstance(value, str) and value.strip():
+            folders.append(resolve(value.strip()))
+    roots += [(folder, MODEL_FOLDERS_KEPT) for folder in folders]
+    # Model folders set one by one under a shared parent leave that parent's other subfolders unnamed
+    outputs = allowed_output_roots()
+    for parent, count in Counter(os.path.dirname(folder) for folder in folders).items():
+        if count > 1 and not any(is_confined_to(output, (parent,)) for output in outputs):
+            roots.append((parent, MODEL_FOLDERS_KEPT))
+    return list(dict.fromkeys(roots))
 
 
 def outside_media_store(path: str) -> bool:
     """False for the media store's root and anything under it, which the Gallery never lists or opens; by name, so a walk stays cheap."""
     from enso_api.media import boot
 
-    return boot.state.store is None or not boot.state.store.layout.contains(path)
+    hint = boot.state.hint
+    return hint is None or not hint.contains(path)
 
 
 def allowed_gallery_path(path: str, roots: Iterable[str], store_root: str | None) -> bool:
@@ -169,5 +205,5 @@ def is_allowed_path(filepath: str) -> bool:
     """Whether the Gallery may open `filepath`."""
     from enso_api.media import boot
 
-    store = boot.state.store
-    return allowed_gallery_path(filepath, get_allowed_roots(), store.layout.root if store is not None else None)
+    hint = boot.state.hint
+    return allowed_gallery_path(filepath, get_allowed_roots(), hint.root if hint is not None else None)

@@ -27,6 +27,8 @@ class State:
         self.reason: str | None = None
         self.configured_root = ""
         self.previous_root: str | None = None
+        # The store's folder whenever it is known, open or not, so the Gallery never lists or opens what is inside it
+        self.hint: Layout | None = None
 
     @property
     def root(self) -> str | None:
@@ -82,6 +84,8 @@ def init(data_dir: str) -> None:
     marker = read_text(marker_path)
     resolved = resolve_root(state.configured_root, data_dir, marker, probe_folder)
     if resolved.root is None:
+        if marker:
+            state.hint = Layout(marker)
         off(f"{resolved.reason}; {FIX_SETTING}", uploads)
         return
     layout = Layout(resolved.root)
@@ -91,6 +95,7 @@ def init(data_dir: str) -> None:
     if inside is not None:
         off(f"{layout.root} set by '{OPTION_LABEL}' contains the Gallery folder {inside}; give the store a folder of its own and restart", uploads)
         return
+    state.hint = layout
     try:
         layout.make()
         if not layout.lock():
