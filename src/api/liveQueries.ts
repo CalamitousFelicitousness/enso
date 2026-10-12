@@ -5,7 +5,14 @@
 // connected.
 
 import type { QueryClient } from "@tanstack/react-query";
-import { LIBRARY_KEY, recordKey, RECORDS_KEY, REPORT_KEY, SETTINGS_KEY } from "./queryKeys";
+import {
+  LIBRARY_KEY,
+  MY_RECORDS_KEY,
+  recordKey,
+  RECORDS_KEY,
+  REPORT_KEY,
+  SETTINGS_KEY,
+} from "./queryKeys";
 import type { ResMediaReportV2, ResMediaSettingsV2 } from "./types/media";
 
 export const THROTTLE_MS = 500;
@@ -13,6 +20,7 @@ export const THROTTLE_MS = 500;
 /** The queries whose data only events keep current. */
 export const LIVE_KEYS: readonly (readonly string[])[] = [
   RECORDS_KEY,
+  MY_RECORDS_KEY,
   LIBRARY_KEY,
   REPORT_KEY,
   SETTINGS_KEY,
@@ -93,6 +101,8 @@ export function createLiveQueries(
           const ids = idsOf(msg.data);
           if (ids) ids.forEach((id) => invalidate(recordKey(id)));
           else invalidate(RECORDS_KEY);
+          // a record made, routed or retired changes what a lower cap would retire
+          invalidate(MY_RECORDS_KEY);
           break;
         }
         case "library":

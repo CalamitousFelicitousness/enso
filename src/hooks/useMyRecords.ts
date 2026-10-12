@@ -8,7 +8,7 @@ export function useMyRecords(enabled = true) {
   return useQuery({
     queryKey: MY_RECORDS_KEY,
     queryFn: async () => clientRecords(await clientId()),
-    staleTime: 60_000,
+    staleTime: Infinity,
     retry: retryUnlessRefused,
     enabled,
   });

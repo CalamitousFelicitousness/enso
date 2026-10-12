@@ -57,19 +57,34 @@ describe("the server's change events", () => {
     const { live, read } = harness();
     live.event({ type: "records", data: { ids: ["j1", "j2"] } });
     live.event({ type: "records", data: { ids: null } });
-    expect(read).toEqual([key("record", "j1"), key("record", "j2"), key("record")]);
+    expect(read.filter((k) => k !== key("my-records"))).toEqual([
+      key("record", "j1"),
+      key("record", "j2"),
+      key("record"),
+    ]);
+  });
+
+  it("read this browser's record list again when any record changes, once a window", () => {
+    const { live, read, advance } = harness();
+    const mine = () => read.filter((k) => k === key("my-records"));
+    live.event({ type: "records", data: { ids: ["j1"] } });
+    live.event({ type: "records", data: { ids: null } });
+    expect(mine()).toHaveLength(1);
+    advance(THROTTLE_MS);
+    expect(mine()).toHaveLength(2);
   });
 
   it("read a key at most once a window, and once more when a burst ends", () => {
     const { live, read, advance } = harness();
+    const j1 = () => read.filter((k) => k === key("record", "j1"));
     for (let i = 0; i < 10; i++) live.event({ type: "records", data: { ids: ["j1"] } });
-    expect(read).toEqual([key("record", "j1")]);
+    expect(j1()).toHaveLength(1);
     advance(THROTTLE_MS);
-    expect(read).toEqual([key("record", "j1"), key("record", "j1")]);
+    expect(j1()).toHaveLength(2);
     // a stream keeps reading, once a window
     advance(THROTTLE_MS);
     live.event({ type: "records", data: { ids: ["j1"] } });
-    expect(read).toHaveLength(3);
+    expect(j1()).toHaveLength(3);
   });
 
   it("show a verify's progress at once, and read the report, records and library when it ends", () => {
