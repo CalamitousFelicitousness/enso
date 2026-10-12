@@ -126,7 +126,7 @@ function TrashRow({ item, now, me }: { item: TrashItem; now: number; me: string 
       <ConfirmDialog
         open={confirming}
         title={DELETE_FOR_EVERYONE}
-        description={deleteForEveryoneText(item.title, item.by ?? "")}
+        description={deleteForEveryoneText(item.name ?? item.title, item.by ?? "")}
         confirmLabel="Delete"
         destructive
         onConfirm={() => {

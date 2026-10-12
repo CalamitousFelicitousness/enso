@@ -171,6 +171,7 @@ describe("serverEntryItem", () => {
       source: "entry",
       key: "s1",
       title: '"Portrait", from the library (Reference frame)',
+      name: "Portrait",
       thumb: { kind: "server", hash: "t1", lost: false },
       removedAt: 2000,
       expiresAt: 2000 + WEEK,

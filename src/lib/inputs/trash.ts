@@ -27,6 +27,8 @@ export interface TrashItem {
   /** The record's key where it lives. */
   key: string;
   title: string;
+  /** A saved entry's own name, which the title quotes; null for a removal. */
+  name: string | null;
   thumb: TrashThumb | null;
   removedAt: number;
   /** When it goes for good: at the first page start after this for what is
@@ -59,6 +61,7 @@ export function removalItem(key: string, removal: StoredRemoval, removalMs: numb
     source: "removal",
     key,
     title: removalTitle(removal),
+    name: null,
     thumb: local(firstPicture(removal)),
     removedAt: removal.removedAt,
     expiresAt: removalExpiry(removal.removedAt, removalMs),
@@ -77,6 +80,7 @@ export function legacyEntryItem(
     source: "legacy",
     key: entry.id,
     title: entryTrashTitle(entry.name, shapeOfStored(entry)),
+    name: entry.name,
     thumb: local(entryThumbs(entry).pictures[0]),
     removedAt: entry.trashedAt,
     expiresAt: removalExpiry(entry.trashedAt, removalMs),
@@ -96,6 +100,7 @@ export function serverEntryItem(
     source: "entry",
     key: item.id,
     title: entryTrashTitle(item.name, shapeOfItem(item)),
+    name: item.name,
     thumb: thumb ? { kind: "server", hash: thumb.thumb, lost: thumb.lost } : null,
     removedAt: item.trashed_at,
     expiresAt: item.trashed_at + days * DAY,
