@@ -231,6 +231,11 @@
   box-shadow: 0 0 12px 3px oklch(from var(--primary) l c h / 0.35);
 }
 
+/* A modal dialog turns pointer events off on the body; a toast's actions stay usable */
+[data-sonner-toast][data-visible="true"] {
+  pointer-events: auto;
+}
+
 /* A renumbered input flashes once where the change happened */
 @keyframes renumber {
   0% {
