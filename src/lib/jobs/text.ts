@@ -118,6 +118,16 @@ export function restoredText(kind: RestoreKind, elsewhere = false): string {
   return elsewhere ? `${RESTORED[kind]} in the Images view` : RESTORED[kind];
 }
 
+const RESTORING: Record<Exclude<RestoreKind, "settings">, string> = {
+  inputs: "Restoring inputs",
+  both: "Restoring settings and inputs",
+};
+
+/** A restore's notice while its inputs are read. */
+export function restoringText(kind: Exclude<RestoreKind, "settings">, elsewhere = false): string {
+  return elsewhere ? `${RESTORING[kind]} in the Images view` : RESTORING[kind];
+}
+
 /** What a restore left as it was, for its notice. */
 export type RestoreNote = "seedNotRecorded" | "lutNotRestored" | "inputsGone";
 

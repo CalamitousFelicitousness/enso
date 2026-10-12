@@ -24,6 +24,16 @@ describe("an Undo offer that waits on bytes", () => {
     expect(await undo.runUndo()).toBe(false);
   });
 
+  it("waits from the start when asked, its Undo the Cancel of the wait", async () => {
+    const run = vi.fn();
+    const offer = undo.offerUndo("Restoring inputs", null, run, { waiting: true });
+    expect(await undo.runUndo()).toBe(true);
+    expect(run).toHaveBeenCalledTimes(1);
+    // a cancelled change that lands after all offers nothing
+    offer.update("Inputs restored", null);
+    expect(await undo.runUndo()).toBe(false);
+  });
+
   it("offers its Undo again once the change landed", async () => {
     const run = vi.fn();
     const offer = undo.offerUndo("Inputs restored", null, run);

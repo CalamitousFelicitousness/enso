@@ -8,6 +8,7 @@ import {
   reasonText,
   replayMissingText,
   restoreNotesText,
+  restoringText,
   runAgainQueuedText,
   stripLimitText,
   stripTrimmedText,
@@ -31,6 +32,11 @@ describe("job words", () => {
       title: "6 older results removed from the strip",
       description: "They stay in History",
     });
+  });
+
+  it("says a restore is under way until its inputs land", () => {
+    expect(restoringText("both")).toBe("Restoring settings and inputs");
+    expect(restoringText("inputs", true)).toBe("Restoring inputs in the Images view");
   });
 
   it("joins what a restore left as it was", () => {

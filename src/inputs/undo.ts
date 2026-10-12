@@ -20,6 +20,9 @@ export interface OfferOptions {
   settle?: () => void;
   /** The cids of what Undo would put back, whose bytes must stay while it can. */
   holds?: () => Iterable<string>;
+  /** The change has not landed yet: the title says what it waits on, with
+   * Cancel, until `update` says it landed. */
+  waiting?: boolean;
 }
 
 const TOAST_ID = "inputs-undo";
@@ -47,7 +50,7 @@ export function offerUndo(
   title: string,
   description: string | null,
   undo: () => Promise<void> | void,
-  { settle, holds }: OfferOptions = {},
+  { settle, holds, waiting = false }: OfferOptions = {},
 ): UndoOffer {
   const id = ++counter;
   const replaced = pending;
@@ -67,7 +70,17 @@ export function offerUndo(
       onDismiss: forget,
       onAutoClose: forget,
     });
-  show(title, description);
+  // a wait cannot be swiped away: its Undo would be lost with it
+  const wait = (text: string) =>
+    toast(text, {
+      id: TOAST_ID,
+      description: undefined,
+      duration: Infinity,
+      dismissible: false,
+      action: { label: "Cancel", onClick: () => void runUndo() },
+    });
+  if (waiting) wait(title);
+  else show(title, description);
   let shownAt = 0;
   return {
     update: (text, detail) => {
@@ -77,14 +90,7 @@ export function offerUndo(
       const now = Date.now();
       if (pending?.id !== id || now - shownAt < PROGRESS_EVERY_MS) return;
       shownAt = now;
-      // a wait cannot be swiped away: its Undo would be lost with it
-      toast(text, {
-        id: TOAST_ID,
-        description: undefined,
-        duration: Infinity,
-        dismissible: false,
-        action: { label: "Cancel", onClick: () => void runUndo() },
-      });
+      wait(text);
     },
     withdraw: () => {
       if (pending?.id !== id) return;

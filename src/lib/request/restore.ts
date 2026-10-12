@@ -23,6 +23,7 @@ import {
   lostPicturesText,
   restoredText,
   restoreNotesText,
+  restoringText,
   type RestoreKind,
   type RestoreNote,
 } from "@/lib/jobs/text";
@@ -168,7 +169,6 @@ async function restoreWithInputs(
   const notes = applied?.notes ?? [];
   let putBack: Inverse | null = null;
   let undone = false;
-  let fetching = false;
   const abort = new AbortController();
   const cancel = () => {
     undone = true;
@@ -178,12 +178,12 @@ async function restoreWithInputs(
   const self = { cancel };
   waiting = self;
   const offer = offerUndo(
-    restoredText(kind, elsewhere),
-    restoreNotesText(notes),
+    restoringText(kind, elsewhere),
+    null,
     () => {
       if (!putBack) {
         cancel();
-        if (fetching) toast.info(RESTORE_CANCELLED);
+        toast.info(RESTORE_CANCELLED);
         return;
       }
       undone = true;
@@ -197,6 +197,7 @@ async function restoreWithInputs(
       settle: () => {
         if (!putBack) abort.abort();
       },
+      waiting: true,
     },
   );
   const live = () => !undone && token === latest && !abort.signal.aborted;
@@ -205,10 +206,7 @@ async function restoreWithInputs(
   try {
     loaded = await target.inputs({
       signal: abort.signal,
-      onProgress: (p) => {
-        fetching = true;
-        offer.progress(fetchingText(p.done, p.total, p.bytes));
-      },
+      onProgress: (p) => offer.progress(fetchingText(p.done, p.total, p.bytes)),
     });
   } catch (err) {
     if (!(err instanceof UserAbortError)) {
@@ -230,7 +228,7 @@ async function restoreWithInputs(
   await inputsReady();
   if (!live()) return;
   putBack = restoreFrames(loaded.inputs, previousSize);
-  if (fetching) offer.update(restoredText(kind, elsewhere), restoreNotesText(notes));
+  offer.update(restoredText(kind, elsewhere), restoreNotesText(notes));
   const lost = loaded.lost.pictures.length;
   if (lost > 0) toast.warning(lostPicturesText(lost));
 }
