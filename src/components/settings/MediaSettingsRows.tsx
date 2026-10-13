@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { ApiError, api } from "@/api/client";
 import { useLibrary, useMediaReport, useMediaSettings, useServerTrash } from "@/api/hooks/useMedia";
 import { useServerInfo } from "@/api/hooks/useServer";
+import { useGalleryTrash } from "@/api/hooks/useGalleryTrash";
 import { queryClient } from "@/api/queryClient";
 import { SETTINGS_KEY, storeOffIn } from "@/api/queryKeys";
 import type { ResMediaSettingsV2 } from "@/api/types/media";
@@ -19,7 +20,7 @@ import { failureText } from "@/inputs/quota";
 import { useTrash } from "@/inputs/trash";
 import { sweepPolicy } from "@/lib/inputs/sweep";
 import { TRASH_DAYS_LABEL, trashDaysValue } from "@/lib/inputs/text";
-import { goingOnServer, goingWith } from "@/lib/inputs/trash";
+import { clockStart, goingOnServer, goingWith } from "@/lib/inputs/trash";
 import { isTerminal } from "@/lib/jobs/domains";
 import {
   commitKind,
@@ -38,7 +39,7 @@ import {
   SETTINGS_FROZEN,
   STORE_ROW_LABEL,
   storeRowText,
-  trashDaysBothText,
+  trashDaysText,
 } from "@/lib/media/text";
 import { useJobQueueStore } from "@/stores/jobStore";
 import { CommittedSliderRow, SettingRow } from "./SettingRow";
@@ -84,6 +85,7 @@ export function MediaSettingsRows() {
   const settings = useMediaSettings(visible);
   const library = useLibrary(visible);
   const trash = useServerTrash(visible);
+  const files = useGalleryTrash(visible);
   const records = useMyRecords(visible);
   const report = useMediaReport(visible);
   const info = useServerInfo().data;
@@ -117,7 +119,10 @@ export function MediaSettingsRows() {
 
   const counts = (setting: SharedSetting, value: number): ReductionCounts => {
     switch (setting) {
-      case "trash_days":
+      case "trash_days": {
+        // each list's expiries were counted with the days it was read under
+        const entryDays = trash.data?.days ?? value;
+        const fileDays = files.data?.days ?? value;
         return {
           here: goingWith(
             [...removals.values()].map((r) => ({ removedAt: r.removedAt })),
@@ -126,18 +131,24 @@ export function MediaSettingsRows() {
           ),
           server: goingOnServer(
             (trash.data?.entries ?? []).flatMap((e) =>
-              e.trashed_at == null ? [] : [e.trashed_at],
+              e.trashed_at == null ? [] : [clockStart(e.expires_at, e.trashed_at, entryDays)],
             ),
             value,
             now,
           ),
+          files: goingOnServer(
+            (files.data?.items ?? []).map((f) => clockStart(f.expires_at, f.trashed_at, fileDays)),
+            value,
+            now,
+          ),
         };
+      }
       case "library_cap": {
         const unpinned = (library.data?.entries ?? []).filter((e) => !e.pinned).length;
-        return { here: 0, server: Math.max(0, unpinned - value) };
+        return { here: 0, server: Math.max(0, unpinned - value), files: 0 };
       }
       case "record_cap":
-        return { here: retirable(records.data ?? [], value, live, now), server: 0 };
+        return { here: retirable(records.data ?? [], value, live, now), server: 0, files: 0 };
     }
   };
 
@@ -148,7 +159,7 @@ export function MediaSettingsRows() {
     const c = counts(setting, shown);
     switch (setting) {
       case "trash_days":
-        return lower ? trashDaysBothText(c.here, c.server) : trashDaysBothText(0, 0);
+        return lower ? trashDaysText(c.here, c.server, c.files) : trashDaysText(0, 0, 0);
       case "library_cap":
         return libraryCapText(lower ? c.server : 0);
       case "record_cap":

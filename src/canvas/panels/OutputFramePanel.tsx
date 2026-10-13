@@ -1,13 +1,25 @@
 // The Output frame's dock: the selected result's facts, download, and send to an input frame.
 
 import { useCallback, useMemo, useState } from "react";
-import { ArrowLeftFromLine, Download, Layers, SlidersHorizontal } from "lucide-react";
+import {
+  ArrowLeftFromLine,
+  Download,
+  ImageOff,
+  Layers,
+  SlidersHorizontal,
+  Trash2,
+  Undo2,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useGenerationStore } from "@/stores/generationStore";
 import { useCanvasStore } from "@/stores/canvasStore";
 import { addServerPictures } from "@/inputs/route";
 import { resultPicture } from "@/inputs/adopt";
 import { generateImageFilename } from "@/lib/utils";
+import { restoreTrashed, useOutputFileState } from "@/api/hooks/useGalleryTrash";
+import type { OutputFileState } from "@/lib/gallery/trash";
+import { useMinute } from "@/hooks/useMinute";
+import { DELETED_FROM_TRASH, inTrashChipText, RESTORE, RESTORE_FILE } from "@/lib/gallery/text";
 import { downloadMedia, failedWith } from "@/lib/mediaFiles";
 import type { GenerationInfo } from "@/api/types/generation";
 import { pickedSeeds } from "@/lib/request/restoreParams";
@@ -23,6 +35,33 @@ function InfoRow({ label, value, mono = false }: { label: string; value: string;
         {value}
       </span>
     </div>
+  );
+}
+
+/** The dock's second line while the selected output's file is out of its
+ * folder: what became of it, and Restore while it is in the trash. */
+function FileTrashLine({ state, now }: { state: NonNullable<OutputFileState>; now: number }) {
+  const text =
+    state.state === "trashed" ? inTrashChipText(state.expiresAt, now) : DELETED_FROM_TRASH;
+  const Glyph = state.state === "trashed" ? Trash2 : ImageOff;
+  return (
+    <>
+      <Glyph size={12} className="shrink-0 text-amber-400" aria-hidden />
+      <span className="min-w-0 flex-1 truncate text-[10px] font-medium text-amber-400" title={text}>
+        {text}
+      </span>
+      {state.state === "trashed" && (
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-5 shrink-0 gap-1 px-1.5 text-[10px]"
+          title={RESTORE_FILE}
+          onClick={() => void restoreTrashed([state.item])}
+        >
+          <Undo2 size={12} /> {RESTORE}
+        </Button>
+      )}
+    </>
   );
 }
 
@@ -55,6 +94,11 @@ export function OutputFramePanel({
     selectedResult !== undefined &&
     selectedImageIndex !== null &&
     selectedResult.images[selectedImageIndex] !== undefined;
+
+  const fileState = useOutputFileState(
+    hasSelectedImage ? selectedResult.images[selectedImageIndex] : undefined,
+  );
+  const now = useMinute(fileState?.state === "trashed");
 
   const genInfo = useMemo<GenerationInfo | null>(() => {
     if (!selectedResult?.info) return null;
@@ -163,6 +207,7 @@ export function OutputFramePanel({
       color={OUTPUT_COLOR}
       label="Output"
       sizeText={sizeText}
+      statusLine={fileState ? <FileTrashLine state={fileState} now={now} /> : undefined}
       canvasX={canvasX}
       frameW={frameW}
       viewport={viewport}

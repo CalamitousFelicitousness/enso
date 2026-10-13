@@ -1,7 +1,16 @@
 import { describe, expect, it } from "vitest";
 import type { CachedThumb, GalleryFile } from "@/api/types/gallery";
 import type { ItemTrashedFileV2 } from "@/api/types/media";
-import { filesRemovedByOthers, rekeyThumbs, sortTime, TRASH_FOLDER, trashFiles } from "./trash";
+import {
+  filesRemovedByOthers,
+  outputsLeft,
+  outputsTrashed,
+  rekeyThumbs,
+  sortTime,
+  TRASH_FOLDER,
+  trashedState,
+  trashFiles,
+} from "./trash";
 
 const item: ItemTrashedFileV2 = {
   id: "0123456789abcdef",
@@ -102,5 +111,68 @@ describe("filesRemovedByOthers", () => {
   it("counts nobody else for files with no user, or a folder's files", () => {
     expect(filesRemovedByOthers([by(null)], null)).toEqual({ count: 0, name: null });
     expect(filesRemovedByOthers([by(null)], "alice")).toEqual({ count: 0, name: null });
+  });
+});
+
+describe("trashedState", () => {
+  const map = {
+    trashed: { "0123456789abcdef": { item: "i1", expires_at: 99 } },
+    gone: { fedcba9876543210: 5 },
+  };
+
+  it("finds an output in the trash, deleted from it, or left where it was", () => {
+    expect(trashedState("0123456789abcdef", map)).toEqual({
+      state: "trashed",
+      item: "i1",
+      expiresAt: 99,
+    });
+    expect(trashedState("fedcba9876543210", map)).toEqual({ state: "gone" });
+    expect(trashedState("1111111111111111", map)).toBeNull();
+  });
+
+  it("knows nothing without an output id or before the map is read", () => {
+    expect(trashedState(null, map)).toBeNull();
+    expect(trashedState("0123456789abcdef", undefined)).toBeNull();
+    expect(trashedState("constructor", map)).toBeNull();
+  });
+});
+
+describe("outputsTrashed and outputsLeft", () => {
+  const empty = { trashed: {}, gone: {} };
+  const other = { ...item, id: "fedcba9876543210", output_ids: ["o2", "o3"], expires_at: 7000 };
+
+  it("puts every output of the trashed items in the trash with its item and expiry", () => {
+    expect(outputsTrashed(empty, [item, other])).toEqual({
+      trashed: {
+        o1: { item: item.id, expires_at: 9000 },
+        o2: { item: other.id, expires_at: 7000 },
+        o3: { item: other.id, expires_at: 7000 },
+      },
+      gone: {},
+    });
+    expect(outputsTrashed(empty, [{ ...item, output_ids: [] }])).toBe(empty);
+  });
+
+  it("drops a restored item's outputs and marks a deleted item's gone", () => {
+    const map = outputsTrashed(empty, [item, other]);
+    expect(outputsLeft(map, new Set([other.id]), null)).toEqual({
+      trashed: { o1: { item: item.id, expires_at: 9000 } },
+      gone: {},
+    });
+    expect(outputsLeft(map, new Set([other.id]), 50)).toEqual({
+      trashed: { o1: { item: item.id, expires_at: 9000 } },
+      gone: { o2: 50, o3: 50 },
+    });
+    expect(outputsLeft(map, new Set(["nothing"]), 50)).toBe(map);
+  });
+
+  it("keeps an output id that names an object property as data", () => {
+    const map = outputsTrashed(empty, [{ ...item, output_ids: ["__proto__"] }]);
+    expect(Object.getPrototypeOf(map.trashed)).toBe(Object.prototype);
+    expect(trashedState("__proto__", map)).toEqual({
+      state: "trashed",
+      item: item.id,
+      expiresAt: 9000,
+    });
   });
 });

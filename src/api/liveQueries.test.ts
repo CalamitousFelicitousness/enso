@@ -130,18 +130,33 @@ describe("the server's change events", () => {
       reserve_bytes: 1,
       bounds: { trash_days: {} },
     });
-    // the Gallery trash's expiries move with the days
-    expect(read).toEqual([key("gallery-trash")]);
+    // the expiries of trashed entries, the Gallery trash and trashed outputs move with the days
+    expect(read).toEqual([key("library", "trash"), key("gallery-trash"), key("trashed-outputs")]);
   });
 
-  it("read the Gallery trash again and mark the job lookups stale when files enter or leave it", () => {
+  it("read the Gallery trash, the trashed outputs and the report again, and mark the job lookups stale, when files enter or leave the trash", () => {
     const { live, read, advance } = harness();
     const stale = `${key("output-job")} stale`;
     live.event({ type: "outputs", data: { ids: ["t1"] } });
     live.event({ type: "outputs", data: { ids: ["t2"] } });
-    expect(read).toEqual([key("gallery-trash"), stale, stale]);
+    expect(read).toEqual([
+      key("gallery-trash"),
+      key("trashed-outputs"),
+      stale,
+      key("media-report"),
+      stale,
+    ]);
     advance(THROTTLE_MS);
-    expect(read).toEqual([key("gallery-trash"), stale, stale, key("gallery-trash")]);
+    expect(read).toEqual([
+      key("gallery-trash"),
+      key("trashed-outputs"),
+      stale,
+      key("media-report"),
+      stale,
+      key("gallery-trash"),
+      key("trashed-outputs"),
+      key("media-report"),
+    ]);
   });
 
   it("read every live key on each open of the socket", () => {

@@ -3,10 +3,16 @@ import {
   deleteFilesNowText,
   deleteFilesNowTitle,
   emptyGalleryTrashText,
+  filesInTrashLineText,
   filesMovedToTrashText,
   filesRestoredText,
+  fileStateLabel,
+  fileStateText,
+  fileTrashReason,
   hiddenBySearchText,
   hiddenLeftText,
+  inTrashChipText,
+  inTrashOfText,
   moveManyText,
   moveManyTitle,
   notTrashedText,
@@ -124,5 +130,44 @@ describe("the Trash folder's lines and pickers", () => {
     );
     expect(restoreToTitle(1)).toBe("Restore 1 file to...");
     expect(restoreToTitle(1200)).toBe("Restore 1,200 files to...");
+  });
+});
+
+describe("a result's file in the trash", () => {
+  const DAY = 24 * 60 * 60 * 1000;
+
+  it("counts a batch's files in the trash, and the Library's files line", () => {
+    expect(inTrashOfText(1, 4)).toBe("1 of 4 in the trash");
+    expect(filesInTrashLineText(412, 1.2 * GB)).toBe(
+      "412 files in the trash on the server · about 1.2 GB",
+    );
+    expect(filesInTrashLineText(0, 0)).toBe("No files in the trash");
+  });
+
+  it("says how long it stays", () => {
+    expect(inTrashChipText(7 * DAY, DAY / 2)).toBe("In the trash · 6 days left");
+    expect(inTrashChipText(DAY, DAY - 2 * 60 * 60 * 1000)).toBe("In the trash · 2 hours left");
+    expect(inTrashChipText(DAY, DAY - 60 * 1000)).toBe("In the trash · 1 hour left");
+    expect(inTrashChipText(DAY, 2 * DAY)).toBe("In the trash · goes within 5 minutes");
+  });
+});
+
+describe("fileStateText, fileStateLabel and fileTrashReason", () => {
+  const trashed = { state: "trashed", item: "i", expiresAt: 9 } as const;
+  const gone = { state: "gone" } as const;
+
+  it("says where a result's file went, and nothing while it stayed", () => {
+    expect(fileStateText(trashed)).toBe("In the trash");
+    expect(fileStateText(gone)).toBe("Deleted from the trash");
+    expect(fileStateText(null)).toBeNull();
+    expect(fileStateLabel(trashed)).toBe("In the trash");
+    expect(fileStateLabel(gone)).toBe("Deleted");
+    expect(fileStateLabel(null)).toBeNull();
+  });
+
+  it("lets the trash actions act only on a file in the trash", () => {
+    expect(fileTrashReason(trashed)).toBeNull();
+    expect(fileTrashReason(gone)).toBe("Deleted from the trash");
+    expect(fileTrashReason(null)).toBe("Not in the trash");
   });
 });

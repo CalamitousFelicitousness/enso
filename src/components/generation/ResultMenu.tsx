@@ -20,6 +20,7 @@ import {
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
 import { SlotMenuItem } from "@/components/ui/slot-row";
+import { TrashedFileItems } from "./OutputTrash";
 import { useRunAgain } from "@/hooks/useRunAgain";
 import { useJobFact } from "@/hooks/useJobFact";
 import { hasLegacyInputs } from "@/inputs/legacyResult";
@@ -167,6 +168,7 @@ export function ResultMenu({
           label="Compare with..."
           onSelect={() => onCompareWith(result.id, imageIndex)}
         />
+        <TrashedFileItems url={result.images[imageIndex]} className="text-2xs" />
       </ContextMenuContent>
     </ContextMenu>
   );

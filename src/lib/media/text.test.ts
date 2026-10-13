@@ -28,7 +28,7 @@ import {
   storeOffText,
   storeRowText,
   submitFailureText,
-  trashDaysBothText,
+  trashDaysText,
   trashHeaderText,
   unpinnedText,
   uploadFailureText,
@@ -186,12 +186,18 @@ describe("the words of the library and its trash", () => {
 
 describe("the words of the shared settings", () => {
   it("describe each row at rest and while lowered", () => {
-    expect(trashDaysBothText(0, 0)).toBe("Removed inputs stay in the trash this long");
-    expect(trashDaysBothText(3, 2)).toBe(
-      "3 removed inputs in this browser go at the next start, 2 saved entries within 5 minutes",
+    expect(trashDaysText(0, 0, 0)).toBe(
+      "Removed inputs, saved entries and files stay in the trash this long",
     );
-    expect(trashDaysBothText(1, 0)).toBe("1 removed input in this browser goes at the next start");
-    expect(trashDaysBothText(0, 1)).toBe("1 saved entry in the trash goes within 5 minutes");
+    expect(trashDaysText(3, 2, 40)).toBe(
+      "3 removed inputs in this browser go at the next start; 2 saved entries and 40 files on the server go within 5 minutes",
+    );
+    expect(trashDaysText(1, 0, 0)).toBe("1 removed input in this browser goes at the next start");
+    expect(trashDaysText(0, 1, 0)).toBe("1 saved entry on the server goes within 5 minutes");
+    expect(trashDaysText(0, 0, 1)).toBe("1 file on the server goes within 5 minutes");
+    expect(trashDaysText(0, 1, 1)).toBe(
+      "1 saved entry and 1 file on the server go within 5 minutes",
+    );
     expect(libraryCapText(0)).toBe("Past this, the least recently used entries move to the trash");
     expect(libraryCapText(1)).toBe("1 saved entry moves to the trash within 5 minutes");
     expect(libraryCapText(12)).toBe("12 saved entries move to the trash within 5 minutes");
@@ -200,19 +206,22 @@ describe("the words of the shared settings", () => {
   });
 
   it("ask before a reduction, with what it lets go for every browser", () => {
-    expect(reductionText("trash_days", 1, { here: 3, server: 0 })).toEqual({
-      title: "Keep removed inputs for 1 day?",
+    expect(reductionText("trash_days", 1, { here: 3, server: 0, files: 0 })).toEqual({
+      title: "Keep the trash for 1 day?",
       description:
-        "3 removed inputs in this browser go at the next start, for every browser. They cannot be brought back.",
+        "3 removed inputs in this browser go at the next start. They cannot be brought back.",
     });
-    expect(reductionText("library_cap", 50, { here: 0, server: 12 })).toEqual({
+    expect(reductionText("trash_days", 2, { here: 0, server: 2, files: 40 }).description).toBe(
+      "2 saved entries and 40 files on the server go within 5 minutes, for everyone. They cannot be brought back.",
+    );
+    expect(reductionText("library_cap", 50, { here: 0, server: 12, files: 0 })).toEqual({
       title: "Keep 50 saved entries?",
       description: "12 saved entries move to the trash within 5 minutes, for every browser.",
     });
-    expect(reductionText("record_cap", 50, { here: 40, server: 0 }).description).toBe(
+    expect(reductionText("record_cap", 50, { here: 40, server: 0, files: 0 }).description).toBe(
       "40 of this browser's job records are deleted within 5 minutes, and other browsers' records past 50 too. Their results lose Restore inputs and Run again. They cannot be brought back.",
     );
-    expect(reductionText("record_cap", 50, { here: 0, server: 0 }).description).toBe(
+    expect(reductionText("record_cap", 50, { here: 0, server: 0, files: 0 }).description).toBe(
       "Every browser's job records past 50 are deleted within 5 minutes. Their results lose Restore inputs and Run again. They cannot be brought back.",
     );
   });
@@ -233,8 +242,10 @@ describe("the words of the shared settings", () => {
 
   it("offer a choice when the server keeps removed inputs for less time", () => {
     expect(retentionNoticeText(7, 30)).toEqual({
-      title: "This server keeps removed inputs for 7 days; this browser kept them for 30 days.",
-      description: "Removed inputs older than 7 days go at the next start.",
+      title:
+        "This server keeps its trash for 7 days; this browser kept removed inputs for 30 days.",
+      description:
+        "Removed inputs older than 7 days go at the next start. Saved entries and files in the trash stay that long too, for everyone.",
       keep: "Keep 30 days on the server",
       use: "Use 7 days",
     });

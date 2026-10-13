@@ -1,6 +1,8 @@
-import { memo, useRef, type ReactNode } from "react";
+import { memo, useId, useRef, type ReactNode } from "react";
 import { Film, ImageOff, Pin } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useOutputFileState } from "@/api/hooks/useGalleryTrash";
+import { OutputTrashMark } from "@/components/generation/OutputTrash";
 import { useMediaSrc } from "@/hooks/useMediaSrc";
 import { DOMAIN_LABELS } from "@/lib/video/resultLabel";
 import type { VideoResult } from "@/api/types/video";
@@ -74,12 +76,15 @@ export const VideoResultTile = memo(function VideoResultTile({
   actions,
 }: VideoResultTileProps) {
   const ref = useRef<HTMLDivElement>(null);
+  const fileState = useOutputFileState(result.videoUrl);
+  const describedBy = useId();
 
   return (
     <div
       ref={ref}
       role="button"
       tabIndex={0}
+      aria-describedby={fileState ? describedBy : undefined}
       onClick={() => onSelect?.(result)}
       onDoubleClick={() => onActivate?.(result)}
       onContextMenu={(e) => onContextMenu?.(result, e)}
@@ -99,7 +104,8 @@ export const VideoResultTile = memo(function VideoResultTile({
         selected ? "border-primary" : "border-transparent hover:border-muted-foreground/30",
       )}
     >
-      <Poster result={result} />
+      <Poster key={fileState?.state ?? "kept"} result={result} />
+      <OutputTrashMark id={describedBy} state={fileState} size={height} />
 
       <span className="absolute bottom-0 left-0 bg-black/60 px-1 text-4xs leading-tight text-white/80">
         {DOMAIN_LABELS[result.domain]}

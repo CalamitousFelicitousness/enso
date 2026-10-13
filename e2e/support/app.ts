@@ -256,6 +256,19 @@ export class Enso {
     }).toPass({ timeout: 60_000 });
   }
 
+  /** Open the Gallery's Trash folder; a click on the open folder would leave it. */
+  async galleryTrash(): Promise<void> {
+    await this.view("Gallery");
+    const trash = this.leftPanel.getByRole("button", { name: "Trash", exact: true });
+    if ((await trash.getAttribute("aria-current")) !== "true") await trash.click();
+    await expect(trash).toHaveAttribute("aria-current", "true");
+  }
+
+  /** Bring the selected files back from the Trash folder, each to its own folder. */
+  async restoreFiles(): Promise<void> {
+    await this.canvas.getByRole("button", { name: "Restore", exact: true }).first().click();
+  }
+
   /** Do what posts a job with its record, then wait for the job to leave the queue. */
   async submit(action: () => Promise<void>): Promise<Job> {
     // Uploads and the request build run first, on a cold browser cache

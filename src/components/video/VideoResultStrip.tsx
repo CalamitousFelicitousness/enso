@@ -13,6 +13,7 @@ import {
   Repeat2,
   Scissors,
   Trash2,
+  X,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -58,6 +59,8 @@ import { FramePickerDialog } from "./FramePickerDialog";
 import { ParamDiffDialog } from "./ParamDiffDialog";
 import { VideoResultPreview } from "./VideoResultPreview";
 import { VideoResultTile } from "./VideoResultTile";
+import { TrashedFileItems } from "@/components/generation/OutputTrash";
+import { REMOVE_FROM_STRIP } from "@/lib/gallery/text";
 import type { VideoResult } from "@/api/types/video";
 
 const HOVER_DELAY_MS = 300;
@@ -171,8 +174,8 @@ export const VideoResultStrip = memo(function VideoResultStrip() {
         <ActionBtn onClick={() => handleSendToCompare(result)} title="Send to compare">
           <Columns2 size={10} />
         </ActionBtn>
-        <ActionBtn onClick={() => handleDelete(result)} title="Delete">
-          <Trash2 size={10} />
+        <ActionBtn onClick={() => handleDelete(result)} title={REMOVE_FROM_STRIP}>
+          <X size={10} />
         </ActionBtn>
       </div>
     ),
@@ -283,9 +286,10 @@ export const VideoResultStrip = memo(function VideoResultStrip() {
             <ContextMenuItem onClick={() => downloadResult(menuTarget)}>
               <Download size={14} /> Download
             </ContextMenuItem>
+            <TrashedFileItems url={menuTarget.videoUrl} />
             <ContextMenuSeparator />
             <ContextMenuItem variant="destructive" onClick={() => handleDelete(menuTarget)}>
-              <Trash2 size={14} /> Delete
+              <X size={14} /> {REMOVE_FROM_STRIP}
             </ContextMenuItem>
           </ContextMenuContent>
         )}

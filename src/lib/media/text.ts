@@ -349,15 +349,25 @@ export const STORE_ROW_LABEL = "Media store";
 export const SETTING_FAILED = "Could not change the setting";
 export const SETTINGS_FROZEN = "Settings are frozen on this server";
 
-/** The retention row's line: what a shorter time lets go, here and on the server. */
-export function trashDaysBothText(here: number, server: number): string {
-  if (here === 0 && server === 0) return "Removed inputs stay in the trash this long";
-  const local = `${plural(here, "removed input in this browser goes", "removed inputs in this browser go")} at the next start`;
-  if (server === 0) return local;
-  if (here === 0) {
-    return `${plural(server, "saved entry in the trash goes", "saved entries in the trash go")} within 5 minutes`;
+/** The retention row's line: what a shorter time lets go, in this browser and
+ * on the server. */
+export function trashDaysText(here: number, entries: number, files: number): string {
+  if (here + entries + files === 0) {
+    return "Removed inputs, saved entries and files stay in the trash this long";
   }
-  return `${local}, ${plural(server, "saved entry", "saved entries")} within 5 minutes`;
+  const local =
+    here > 0
+      ? `${plural(here, "removed input in this browser goes", "removed inputs in this browser go")} at the next start`
+      : null;
+  const kept = [
+    entries > 0 ? plural(entries, "saved entry", "saved entries") : null,
+    files > 0 ? plural(files, "file", "files") : null,
+  ].filter((part) => part !== null);
+  const server =
+    kept.length > 0
+      ? `${kept.join(" and ")} on the server ${entries + files === 1 ? "goes" : "go"} within 5 minutes`
+      : null;
+  return [local, server].filter((part) => part !== null).join("; ");
 }
 
 /** The library cap row's line. */
@@ -378,14 +388,17 @@ export function recordCapText(mine: number): string {
 export function reductionText(
   setting: "trash_days" | "library_cap" | "record_cap",
   value: number,
-  counts: { here: number; server: number },
+  counts: { here: number; server: number; files: number },
 ): { title: string; description: string } {
   switch (setting) {
-    case "trash_days":
+    case "trash_days": {
+      // the server's part goes for every browser; the last part of the line is the server's
+      const everyone = counts.server + counts.files > 0 ? ", for everyone" : "";
       return {
-        title: `Keep removed inputs for ${plural(value, "day", "days")}?`,
-        description: `${capitalised(trashDaysBothText(counts.here, counts.server))}, for every browser. They cannot be brought back.`,
+        title: `Keep the trash for ${plural(value, "day", "days")}?`,
+        description: `${capitalised(trashDaysText(counts.here, counts.server, counts.files))}${everyone}. They cannot be brought back.`,
       };
+    }
     case "library_cap":
       return {
         title: `Keep ${plural(value, "saved entry", "saved entries")}?`,
@@ -436,6 +449,11 @@ export const TERM_LABELS = {
   trash: "Trash",
   unnamed: "Unnamed",
 } as const;
+
+/** The Gallery trash in the store panel: its files, and what a start found wrong there. */
+export const FILES_IN_TRASH_LABEL = "Files in the trash";
+export const TRASH_LOST_LABEL = "Missing from the trash";
+export const TRASH_STRAYS_LABEL = "Stray trash folders";
 
 const counted = (n: number) => n.toLocaleString("en-US");
 
@@ -496,8 +514,8 @@ export function retentionNoticeText(
   local: number,
 ): { title: string; description: string; keep: string; use: string } {
   return {
-    title: `This server keeps removed inputs for ${plural(server, "day", "days")}; this browser kept them for ${plural(local, "day", "days")}.`,
-    description: `Removed inputs older than ${plural(server, "day", "days")} go at the next start.`,
+    title: `This server keeps its trash for ${plural(server, "day", "days")}; this browser kept removed inputs for ${plural(local, "day", "days")}.`,
+    description: `Removed inputs older than ${plural(server, "day", "days")} go at the next start. Saved entries and files in the trash stay that long too, for everyone.`,
     keep: `Keep ${plural(local, "day", "days")} on the server`,
     use: `Use ${plural(server, "day", "days")}`,
   };

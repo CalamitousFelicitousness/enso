@@ -8,6 +8,7 @@ import { historySlots, type HistoryAction } from "@/lib/jobs/cardActions";
 import { jobKind } from "@/lib/jobs/domains";
 import { loadsModel } from "@/lib/jobs/requests";
 import { RESTORE_BOTH, RESTORE_SETTINGS, RUN_AGAIN, slotWords } from "@/lib/jobs/text";
+import { DELETE_JOB, DELETE_JOB_NOTE } from "@/lib/gallery/text";
 import { ageText } from "@/lib/media/text";
 import { jobTarget, restoreSettings, restoreSettingsAndInputs } from "@/lib/request/restore";
 import { MediaImg } from "@/components/ui/media";
@@ -16,11 +17,11 @@ import { JobWarnings } from "@/components/generation/JobWarnings";
 import { JOB_ICONS } from "./jobIcons";
 import { ActionSlot } from "@/components/ui/action-slot";
 
-const SLOTS: Record<HistoryAction, { label: string; icon: LucideIcon }> = {
+const SLOTS: Record<HistoryAction, { label: string; icon: LucideIcon; note?: string }> = {
   restoreSettings: { label: RESTORE_SETTINGS, icon: History },
   restoreBoth: { label: RESTORE_BOTH, icon: ArchiveRestore },
   runAgain: { label: RUN_AGAIN, icon: Repeat2 },
-  delete: { label: "Delete", icon: Trash2 },
+  delete: { label: DELETE_JOB, icon: Trash2, note: DELETE_JOB_NOTE },
 };
 
 function statusBadgeVariant(status: string): "default" | "secondary" | "destructive" | "outline" {
@@ -121,16 +122,20 @@ export function HistoryJobCard({ job }: HistoryJobCardProps) {
 
       {/* Slots fixed by the job's type, shown on hover or keyboard focus */}
       <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity shrink-0">
-        {slots.map((slot) => (
-          <ActionSlot
-            key={slot.action}
-            label={SLOTS[slot.action].label}
-            icon={SLOTS[slot.action].icon}
-            {...slotWords(slot)}
-            busy={busy && slot.action !== "delete"}
-            onAct={act[slot.action]}
-          />
-        ))}
+        {slots.map((slot) => {
+          const words = slotWords(slot);
+          return (
+            <ActionSlot
+              key={slot.action}
+              label={SLOTS[slot.action].label}
+              icon={SLOTS[slot.action].icon}
+              {...words}
+              note={words.note ?? SLOTS[slot.action].note ?? null}
+              busy={busy && slot.action !== "delete"}
+              onAct={act[slot.action]}
+            />
+          );
+        })}
       </div>
     </div>
   );

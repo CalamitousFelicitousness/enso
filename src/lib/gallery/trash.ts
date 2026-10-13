@@ -3,7 +3,7 @@
 // restore carries to the files' new paths.
 
 import type { CachedThumb, GalleryFile } from "@/api/types/gallery";
-import type { ItemTrashedFileV2 } from "@/api/types/media";
+import type { ItemTrashedFileV2, ResTrashedOutputsV2 } from "@/api/types/media";
 import type { RemovedByOthers } from "@/lib/media/text";
 
 /** The Trash folder's place among the Gallery's folders; never a path. */
@@ -62,4 +62,50 @@ export function filesRemovedByOthers(
     f.trash?.trashedBy && f.trash.trashedBy !== me ? [f.trash.trashedBy] : [],
   );
   return { count: names.length, name: new Set(names).size === 1 ? (names[0] ?? null) : null };
+}
+
+/** What became of an output's file: in the trash, with its item and when it
+ * goes, or deleted from it within the hour; null where it was left. */
+export type OutputFileState =
+  { state: "trashed"; item: string; expiresAt: number } | { state: "gone" } | null;
+
+export function trashedState(
+  outputId: string | null,
+  map: ResTrashedOutputsV2 | undefined,
+): OutputFileState {
+  if (outputId === null || !map) return null;
+  const trashed = Object.hasOwn(map.trashed, outputId) ? map.trashed[outputId] : undefined;
+  if (trashed) return { state: "trashed", item: trashed.item, expiresAt: trashed.expires_at };
+  return Object.hasOwn(map.gone, outputId) ? { state: "gone" } : null;
+}
+
+/** The outputs map with these items' outputs in the trash. */
+export function outputsTrashed(
+  map: ResTrashedOutputsV2,
+  items: readonly ItemTrashedFileV2[],
+): ResTrashedOutputsV2 {
+  const added = items.flatMap((item) =>
+    item.output_ids.map((id) => [id, { item: item.id, expires_at: item.expires_at }] as const),
+  );
+  if (added.length === 0) return map;
+  return { ...map, trashed: { ...map.trashed, ...Object.fromEntries(added) } };
+}
+
+/** The outputs map once these items left the trash: restored when `goneAt` is
+ * null, else deleted for good at that time. */
+export function outputsLeft(
+  map: ResTrashedOutputsV2,
+  items: ReadonlySet<string>,
+  goneAt: number | null,
+): ResTrashedOutputsV2 {
+  const entries = Object.entries(map.trashed);
+  const leaving = entries.filter(([, entry]) => items.has(entry.item));
+  if (leaving.length === 0) return map;
+  return {
+    trashed: Object.fromEntries(entries.filter(([, entry]) => !items.has(entry.item))),
+    gone:
+      goneAt === null
+        ? map.gone
+        : { ...map.gone, ...Object.fromEntries(leaving.map(([id]) => [id, goneAt])) },
+  };
 }

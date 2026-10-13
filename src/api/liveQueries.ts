@@ -14,6 +14,8 @@ import {
   RECORDS_KEY,
   REPORT_KEY,
   SETTINGS_KEY,
+  TRASH_KEY,
+  TRASHED_OUTPUTS_KEY,
 } from "./queryKeys";
 import type { ResMediaReportV2, ResMediaSettingsV2 } from "./types/media";
 
@@ -27,6 +29,7 @@ export const LIVE_KEYS: readonly (readonly string[])[] = [
   REPORT_KEY,
   SETTINGS_KEY,
   GALLERY_TRASH_KEY,
+  TRASHED_OUTPUTS_KEY,
 ];
 
 const TOPICS = ["records", "media", "library", "trash", "settings", "outputs"] as const;
@@ -118,15 +121,20 @@ export function createLiveQueries(
           client.setQueryData<ResMediaSettingsV2>(SETTINGS_KEY, (old) =>
             old ? { ...old, ...values } : old,
           );
-          // every file's expiry moves with the trash days
+          // every trashed entry and file has its expiry moved by the trash days
+          invalidate(TRASH_KEY);
           invalidate(GALLERY_TRASH_KEY);
+          invalidate(TRASHED_OUTPUTS_KEY);
           break;
         }
         case "outputs":
           // files entered or left the trash: the list is read again; a job looked up by a
           // path is read again when it is next shown, since the file may have left it
           invalidate(GALLERY_TRASH_KEY);
+          invalidate(TRASHED_OUTPUTS_KEY);
           void client.invalidateQueries({ queryKey: OUTPUT_JOBS_KEY, refetchType: "none" });
+          // the report counts the files in the trash
+          invalidate(REPORT_KEY);
           break;
         case "media": {
           const verify = verifyOf(msg.data);

@@ -4,6 +4,7 @@ import { splitEntry, splitRemoval, type Entry, type Removal } from "./stored";
 import type { ItemEntryV2 } from "@/api/types/media";
 import {
   byRemoval,
+  clockStart,
   goingOnServer,
   goingWith,
   legacyEntryItem,
@@ -194,6 +195,17 @@ describe("serverEntryItem", () => {
     const now = 10 * DAY;
     expect(goingOnServer([now - 3 * DAY, now - DAY, now - HOUR], 2, now)).toBe(1);
     expect(goingOnServer([now - 3 * DAY, now - DAY, now - HOUR], 1, now)).toBe(2);
+  });
+
+  it("starts an item's clock where the server's expiry puts it, or at its removal", () => {
+    expect(clockStart(9 * DAY, DAY, 7)).toBe(2 * DAY);
+    expect(clockStart(null, DAY, 7)).toBe(DAY);
+    expect(clockStart(undefined, DAY, 7)).toBe(DAY);
+  });
+
+  it("takes the server's expiry for an entry, and counts one from its removal without it", () => {
+    expect(serverEntryItem(item({ expires_at: 5000 }), 7).expiresAt).toBe(5000);
+    expect(serverEntryItem(item({ expires_at: null }), 7).expiresAt).toBe(2000 + WEEK);
   });
 });
 

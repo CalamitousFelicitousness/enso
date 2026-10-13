@@ -23,6 +23,7 @@ import { defaultEntryName, entryThumbs, MAX_PINNED_ENTRIES } from "@/lib/inputs/
 import { outlineEntry, type OutlineEnv } from "@/lib/inputs/outline";
 import { readStoredInputs, storedInputsOf, type EntryKind, type Inputs } from "@/lib/inputs/stored";
 import {
+  EMPTY_SERVER_TRASH_FAILED,
   entryChangeFailedText,
   entryDeletedText,
   entryTrashedText,
@@ -121,10 +122,10 @@ export function movedText(change: ResEntryChangeV2): string | null {
 }
 
 /** A change the server refused or that failed, said: an entry gone from the
- * server reads the lists again. */
+ * server, or out of the trash a delete needs it in, reads the lists again. */
 function refused(err: unknown, failedTitle: string, goneText = NO_LONGER_IN_LIBRARY): void {
   const code = err instanceof ApiError ? err.code : null;
-  if (code === "gone") {
+  if (code === "gone" || code === "not_trashed") {
     toast.info(goneText);
     void queryClient.invalidateQueries({ queryKey: LIBRARY_KEY });
     return;
@@ -255,7 +256,7 @@ export async function deleteEntry(id: string): Promise<boolean> {
     return true;
   } catch (err) {
     void queryClient.invalidateQueries({ queryKey: LIBRARY_KEY });
-    refused(err, entryChangeFailedText("delete", name));
+    refused(err, entryChangeFailedText("delete", name), NO_LONGER_IN_TRASH);
     return false;
   }
 }
@@ -281,7 +282,7 @@ export async function emptyServerTrash(
     return { deleted, freed };
   } catch (err) {
     void queryClient.invalidateQueries({ queryKey: LIBRARY_KEY });
-    refused(err, "Could not empty the server's trash");
+    refused(err, EMPTY_SERVER_TRASH_FAILED);
     return deleted > 0 ? { deleted, freed } : null;
   }
 }

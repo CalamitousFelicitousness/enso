@@ -24,8 +24,10 @@ export type {
   ResRecordV2,
   ResRestoredV2,
   ResSnapshotV2,
+  ResTrashedOutputsV2,
   ResTrashedV2,
   ResTrashV2,
+  TrashedOutputV2,
   VerifyStateV2,
 } from "@/lib/openapi-generated/types.gen";
 export type { Issue, Refusal } from "../errorDetail";

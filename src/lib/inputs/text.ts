@@ -553,6 +553,7 @@ export const DELETE_NOW = "Delete now";
 export const NO_LONGER_IN_TRASH = "No longer in the trash";
 export const NEWER_REMOVAL = "Removed by a newer version of Enso";
 export const DELETE_FROM_TRASH_FAILED = "Could not delete from the trash";
+export const EMPTY_SERVER_TRASH_FAILED = "Could not empty the server's trash";
 
 /** "Deleted from the trash", or "The trash is emptied" for several. */
 export function deletedFromTrashText(count: number): string {
@@ -563,6 +564,9 @@ export function deletedFromTrashText(count: number): string {
 export function trashEmptyText(days: number): string {
   return `Nothing in the trash. Removed inputs stay here ${keptForText(days)}.`;
 }
+
+/** The empty list under a line that counts the files in the trash. */
+export const NO_INPUTS_IN_TRASH = "No removed inputs or saved entries in the trash.";
 
 /** After deleting from the trash: the space freed, or when it will be. */
 export function reclaimedText(freed: number | null): string {
@@ -578,8 +582,8 @@ export function untrashedText(name: string): string {
   return `"${name}" is back in the library`;
 }
 
-/** "Keep removed inputs for": the settings row and its lines. */
-export const TRASH_DAYS_LABEL = "Keep removed inputs for";
+/** "Keep the trash for": the settings row and its lines. */
+export const TRASH_DAYS_LABEL = "Keep the trash for";
 
 export function trashDaysValue(days: number): string {
   return plural(days, "day", "days");

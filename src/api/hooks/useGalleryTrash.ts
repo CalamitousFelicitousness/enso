@@ -6,13 +6,21 @@ import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { ApiError, api, refusalOf } from "../client";
 import { queryClient } from "../queryClient";
-import { GALLERY_TRASH_KEY, OUTPUT_JOBS_KEY, retryUnlessRefused, storeOffIn } from "../queryKeys";
+import {
+  GALLERY_TRASH_KEY,
+  OUTPUT_JOBS_KEY,
+  retryUnlessRefused,
+  storeOffIn,
+  TRASHED_OUTPUTS_KEY,
+} from "../queryKeys";
+import { outputIdOf } from "../outputs";
 import type { GalleryFile } from "../types/gallery";
 import type {
   ItemTrashedFileV2,
   ResFreedV2,
   ResGalleryTrashV2,
   ResRestoredV2,
+  ResTrashedOutputsV2,
   ResTrashedV2,
 } from "../types/media";
 import { offerUndo } from "@/inputs/undo";
@@ -30,10 +38,18 @@ import {
   restoredAsText,
   restoredWithoutText,
 } from "@/lib/gallery/text";
-import { TRASH_FOLDER, rekeyThumbs } from "@/lib/gallery/trash";
+import {
+  TRASH_FOLDER,
+  outputsLeft,
+  outputsTrashed,
+  rekeyThumbs,
+  trashedState,
+  type OutputFileState,
+} from "@/lib/gallery/trash";
 import { aboutSize, OLDER_SERVER } from "@/lib/media/text";
 import { batchGetThumbs, deleteThumbs, putThumbs } from "@/lib/thumbnailCache";
 import { useGalleryStore } from "@/stores/galleryStore";
+import { useUiStore } from "@/stores/uiStore";
 import { refreshFolder } from "./useGallery";
 
 /** Ids or paths per request: the routes take at most this many. */
@@ -113,6 +129,11 @@ function dropListed(ids: readonly string[]) {
     store.removeFilesFromStore(ids.map((id) => `trash:${id}`));
 }
 
+/** Change the cached map of outputs in the trash, once it has been read. */
+function setOutputs(change: (map: ResTrashedOutputsV2) => ResTrashedOutputsV2) {
+  queryClient.setQueryData<ResTrashedOutputsV2>(TRASHED_OUTPUTS_KEY, (old) => old && change(old));
+}
+
 function reportErrors(
   title: string,
   errors: { error: string; file?: string; name?: string }[],
@@ -157,6 +178,7 @@ export async function trashPaths(paths: readonly string[], hidden = 0): Promise<
         : old,
     );
     void queryClient.invalidateQueries({ queryKey: OUTPUT_JOBS_KEY, refetchType: "none" });
+    setOutputs((map) => outputsTrashed(map, trashed));
   }
   if (errors.length > 0 || error) {
     reportErrors(
@@ -204,6 +226,7 @@ export async function restoreTrashed(
   const errors = answers.flatMap((answer) => answer.errors);
   if (restored.length > 0) {
     dropListed(restored.map((r) => r.id));
+    setOutputs((map) => outputsLeft(map, new Set(restored.map((r) => r.id)), null));
     const paths = restored.map((r) => r.path);
     invalidateFoldersHolding(paths);
     // the folder on screen shows what came back into it now, not at its next poll
@@ -255,6 +278,7 @@ function freed(answers: ResFreedV2[]): { ids: string[]; bytes: number } {
 async function forgetDeleted(ids: string[]) {
   const before = listed();
   dropListed(ids);
+  setOutputs((map) => outputsLeft(map, new Set(ids), Date.now()));
   try {
     await deleteThumbs(ids.flatMap((id) => before.get(id)?.path ?? []));
   } catch {
@@ -293,4 +317,38 @@ export async function emptyGalleryTrash(asOf: number): Promise<boolean> {
     reportErrors(DELETE_NOW_FAILED, [], err);
     return false;
   }
+}
+
+const trashedOutputs = {
+  queryKey: TRASHED_OUTPUTS_KEY,
+  queryFn: () => api.get<ResTrashedOutputsV2>("/sdapi/v2/browser/trash/outputs"),
+  staleTime: Infinity,
+  retry: retryUnlessRefused,
+};
+
+/** What became of the file behind a result's URL; null where it was left. Each
+ * caller is told of its own output only, so a change to one redraws one tile. */
+export function useOutputFileState(url: string | undefined): OutputFileState {
+  const id = url ? outputIdOf(url) : null;
+  const { data } = useQuery({
+    ...trashedOutputs,
+    select: (map: ResTrashedOutputsV2) => trashedState(id, map),
+  });
+  return data ?? null;
+}
+
+/** How many of a batch's pictures have their files in the trash. */
+export function useTrashedCount(urls: readonly string[]): number {
+  const { data } = useQuery({
+    ...trashedOutputs,
+    select: (map: ResTrashedOutputsV2) =>
+      urls.filter((url) => trashedState(outputIdOf(url), map)?.state === "trashed").length,
+  });
+  return data ?? 0;
+}
+
+/** Open the Gallery on its Trash folder. */
+export function showInGalleryTrash(): void {
+  useUiStore.getState().setNavView("gallery");
+  useGalleryStore.getState().setActiveFolder(TRASH_FOLDER);
 }

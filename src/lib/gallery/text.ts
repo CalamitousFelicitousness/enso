@@ -1,7 +1,8 @@
-// The words of the Gallery's trash, in one place: what a folder and the Trash
-// folder say about files that went to the trash or came back.
+// The words of the Gallery's trash, in one place: what a folder, the Trash
+// folder and the strips say about files that went to the trash or came back.
 
 import type { TrashFacts } from "@/api/types/gallery";
+import type { OutputFileState } from "@/lib/gallery/trash";
 import { trashAgeText } from "@/lib/inputs/text";
 import { aboutSize, type RemovedByOthers } from "@/lib/media/text";
 
@@ -16,9 +17,20 @@ export const DELETE_FILES_NOW = "Delete now";
 export const RESTORE = "Restore";
 export const RESTORE_TO = "Restore to...";
 export const EMPTY_GALLERY_TRASH = "Empty the trash";
+export const IN_THE_TRASH = "In the trash";
+export const DELETED_FROM_TRASH = "Deleted from the trash";
+export const RESTORE_FILE = "Restore the file from the trash";
+export const SHOW_IN_GALLERY_TRASH = "Show in the Gallery trash";
+export const SHOW_IN_GALLERY = "Show in the Gallery";
+export const NOT_IN_TRASH = "Not in the trash";
 export const DELETED_LAST = "Deleted last";
 export const DELETED_FIRST = "Deleted first";
 export const FILE_LEFT_FOLDER = "The file is no longer in this folder";
+export const REMOVE_FROM_STRIP = "Remove from the strip";
+export const DELETE_JOB = "Delete job";
+/** How the History card's Delete job acts, after its label. */
+export const DELETE_JOB_NOTE =
+  "from the server's history in every browser; unsaved results go with it";
 export const TRASH_FAILED = "Could not move the files to the trash";
 export const RESTORE_FAILED = "Could not restore the files";
 export const DELETE_NOW_FAILED = "Could not delete the files";
@@ -109,6 +121,11 @@ export function emptyGalleryTrashText(
   return `Delete ${files} in the trash for everyone${whose}?${freed} ${goneText(total)}`;
 }
 
+/** "1 of 4 in the trash": a batch cover. */
+export function inTrashOfText(n: number, of: number): string {
+  return `${n} of ${of} in the trash`;
+}
+
 /** "Was in outputs/text/Qwen-Image-2.1". */
 export function wasInText(folder: string): string {
   return `Was in ${folder}`;
@@ -124,6 +141,13 @@ export function hiddenLeftText(n: number): string {
   return n === 1
     ? "1 file hidden by the search was left"
     : `${count(n)} files hidden by the search were left`;
+}
+
+/** "412 files in the trash on the server · about 1.2 GB", or that there are none. */
+export function filesInTrashLineText(total: number, bytes: number): string {
+  if (total === 0) return "No files in the trash";
+  const files = filesText(total);
+  return `${files} in the trash on the server · ${aboutSize(bytes)}`;
 }
 
 /** '"a.png" deleted', "3 files deleted": Delete now from the trash, and Empty. */
@@ -171,4 +195,37 @@ export function trashLineParts(trash: TrashFacts, now: number): [string, string]
 /** "Was in outputs/text · deleted by alice 3 h ago · 6 days left". */
 export function trashLineText(trash: TrashFacts, now: number): string {
   return trashLineParts(trash, now).join(" · ");
+}
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+const HOUR_MS = 60 * 60 * 1000;
+
+/** "In the trash · 6 days left": a result whose file is in the trash. */
+export function inTrashChipText(expiresAt: number, now: number): string {
+  const left = expiresAt - now;
+  const when =
+    left <= 0
+      ? "goes within 5 minutes"
+      : left >= DAY_MS
+        ? `${plural(Math.floor(left / DAY_MS), "day", "days")} left`
+        : `${plural(Math.max(1, Math.floor(left / HOUR_MS)), "hour", "hours")} left`;
+  return `${IN_THE_TRASH} · ${when}`;
+}
+
+/** What a result says of its file: in the trash, deleted from it, or nothing. */
+export function fileStateText(state: OutputFileState): string | null {
+  if (state === null) return null;
+  return state.state === "trashed" ? IN_THE_TRASH : DELETED_FROM_TRASH;
+}
+
+/** The same on a strip tile, where the deleted state's sentence does not fit. */
+export function fileStateLabel(state: OutputFileState): string | null {
+  if (state === null) return null;
+  return state.state === "trashed" ? IN_THE_TRASH : "Deleted";
+}
+
+/** Why a result's trash actions cannot act; null while its file is in the trash. */
+export function fileTrashReason(state: OutputFileState): string | null {
+  if (state?.state === "trashed") return null;
+  return state?.state === "gone" ? DELETED_FROM_TRASH : NOT_IN_TRASH;
 }

@@ -153,3 +153,55 @@ export function watchMedia(page: Page): MediaTraffic {
 export function fileHash(path: string): string {
   return createHash("sha256").update(readFileSync(path)).digest("hex");
 }
+
+/** The name the server saved a job's first image under. */
+export async function savedName(request: APIRequestContext, job: Job): Promise<string> {
+  const url = job.result?.images[0]?.url ?? "";
+  const answer = await request.get(url);
+  expect(answer.ok(), `GET ${url} answered ${answer.status()}`).toBe(true);
+  const disposition = answer.headers()["content-disposition"] ?? "";
+  // Starlette encodes the name (filename*) only when it needs encoding
+  const encoded = /filename\*=utf-8''([^;]+)/i.exec(disposition)?.[1];
+  const name = encoded ? decodeURIComponent(encoded) : /filename="([^"]+)"/i.exec(disposition)?.[1];
+  expect(name, `a file name in "${disposition}"`).toBeTruthy();
+  return name ?? "";
+}
+
+export interface ListedFile {
+  /** The label of the Gallery folder whose tree holds it. */
+  label: string;
+  path: string;
+  /** Every path in that folder's tree. */
+  tree: string[];
+}
+
+/** Where the Gallery lists a file of this name. */
+export async function findOutput(request: APIRequestContext, name: string): Promise<ListedFile> {
+  const roots = (await (await request.get("/sdapi/v2/browser/folders")).json()) as {
+    path: string;
+    label: string;
+  }[];
+  for (const root of roots) {
+    const answer = await request.get("/sdapi/v2/browser/files", { params: { folder: root.path } });
+    if (!answer.ok()) continue;
+    // a listing entry is the folder and the path under it, each encoded
+    const tree = ((await answer.json()) as string[]).map((entry) => {
+      const [folder = "", relative = ""] = entry.split("##F##");
+      return `${decodeURIComponent(folder).replace(/\/+$/, "")}/${decodeURIComponent(relative)}`;
+    });
+    const path = tree.find((p) => p.split("/").pop() === name);
+    if (path) return { label: root.label, path, tree };
+  }
+  throw new Error(`no Gallery folder holds ${name}`);
+}
+
+/** Delete a file a spec made, from its folder or from the Gallery trash, with
+ * the files saved beside it. */
+export async function deleteOutput(request: APIRequestContext, path: string): Promise<void> {
+  const trash = (await (await request.get("/sdapi/v2/browser/trash")).json()) as {
+    items: { id: string; name: string; folder: string }[];
+  };
+  const ids = trash.items.filter((i) => `${i.folder}/${i.name}` === path).map((i) => i.id);
+  if (ids.length > 0) await request.post("/sdapi/v2/browser/trash/delete", { data: { ids } });
+  await request.post("/sdapi/v2/browser/delete", { data: { files: [path] } });
+}

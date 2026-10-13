@@ -11,6 +11,8 @@ export interface ReductionCounts {
   here: number;
   /** On the server: trashed or saved entries. */
   server: number;
+  /** On the server: files in the Gallery trash. */
+  files: number;
 }
 
 /** A raise is written at once; a reduction is asked first, since the server
@@ -25,7 +27,7 @@ export function commitKind(
   if (next === current) return "none";
   if (next > current) return "write";
   if (setting === "record_cap") return "confirm";
-  return counts.here + counts.server > 0 ? "confirm" : "write";
+  return counts.here + counts.server + counts.files > 0 ? "confirm" : "write";
 }
 
 /** The server keeps a finished job this long; a strip record younger than

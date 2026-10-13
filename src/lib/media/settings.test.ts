@@ -14,18 +14,19 @@ const record = (id: string, hoursAgo: number, patch: Partial<RecordFacts> = {}):
 
 describe("commitKind", () => {
   it("writes a raise at once and does nothing for the same value", () => {
-    expect(commitKind("library_cap", 100, 120, { here: 0, server: 0 })).toBe("write");
-    expect(commitKind("library_cap", 100, 100, { here: 5, server: 5 })).toBe("none");
+    expect(commitKind("library_cap", 100, 120, { here: 0, server: 0, files: 0 })).toBe("write");
+    expect(commitKind("library_cap", 100, 100, { here: 5, server: 5, files: 0 })).toBe("none");
   });
 
   it("asks before a reduction that lets something go, and writes one that lets nothing go", () => {
-    expect(commitKind("trash_days", 7, 3, { here: 2, server: 0 })).toBe("confirm");
-    expect(commitKind("library_cap", 100, 50, { here: 0, server: 4 })).toBe("confirm");
-    expect(commitKind("trash_days", 7, 3, { here: 0, server: 0 })).toBe("write");
+    expect(commitKind("trash_days", 7, 3, { here: 2, server: 0, files: 0 })).toBe("confirm");
+    expect(commitKind("library_cap", 100, 50, { here: 0, server: 4, files: 0 })).toBe("confirm");
+    expect(commitKind("trash_days", 7, 3, { here: 0, server: 0, files: 0 })).toBe("write");
+    expect(commitKind("trash_days", 7, 3, { here: 0, server: 0, files: 1 })).toBe("confirm");
   });
 
   it("always asks before lowering the record cap: other browsers' records are not listed here", () => {
-    expect(commitKind("record_cap", 200, 150, { here: 0, server: 0 })).toBe("confirm");
+    expect(commitKind("record_cap", 200, 150, { here: 0, server: 0, files: 0 })).toBe("confirm");
   });
 });
 

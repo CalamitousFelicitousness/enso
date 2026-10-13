@@ -8,7 +8,7 @@ import { mediaSrc } from "@/api/session";
 import { downloadAllAsZip, downloadMedia, failedWith } from "@/lib/mediaFiles";
 import { useDragSource } from "@/hooks/useDragSource";
 import { useHorizontalWheel } from "@/hooks/useHorizontalWheel";
-import { memo, useCallback, useRef, useState } from "react";
+import { memo, useCallback, useId, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Download, FolderDown, Trash2, Minus, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -27,6 +27,9 @@ import { ResultThumbPreview } from "@/components/generation/ResultThumbPreview";
 import { ResultImage } from "@/components/generation/ResultImage";
 import { ResultThumbActions } from "@/components/generation/ResultThumbActions";
 import { ResultMenu } from "@/components/generation/ResultMenu";
+import { OutputTrashMark } from "@/components/generation/OutputTrash";
+import { useOutputFileState, useTrashedCount } from "@/api/hooks/useGalleryTrash";
+import { inTrashOfText } from "@/lib/gallery/text";
 
 interface CompareCandidate {
   resultId: string;
@@ -352,6 +355,13 @@ const BatchTile = memo(function BatchTile({
   // Mirror the canvas selection: show the picked frame as the cover when this
   // batch owns the current selection, otherwise the first image.
   const coverIndex = isSelected && selectedImageIndex !== null ? selectedImageIndex : 0;
+  const coverState = useOutputFileState(result.images[coverIndex]);
+  const inTrash = useTrashedCount(result.images);
+  const coverId = useId();
+  const countId = useId();
+  const describedBy = [coverState ? coverId : null, inTrash > 0 ? countId : null]
+    .filter(Boolean)
+    .join(" ");
 
   // Shift-click builds a compare pair across batches, so keep the popover open;
   // any other pick selects onto the canvas and dismisses it.
@@ -372,7 +382,12 @@ const BatchTile = memo(function BatchTile({
           <div
             role="button"
             tabIndex={0}
-            title={`Batch of ${count} - click to expand`}
+            title={
+              inTrash > 0
+                ? `Batch of ${count}, ${inTrashOfText(inTrash, count)} - click to expand`
+                : `Batch of ${count} - click to expand`
+            }
+            aria-describedby={describedBy || undefined}
             onKeyDown={(e) => {
               if (e.key === "Enter" || e.key === " ") {
                 e.preventDefault();
@@ -402,11 +417,25 @@ const BatchTile = memo(function BatchTile({
               style={{ width: size, height: size }}
             >
               <ResultImage
+                key={coverState?.state ?? "kept"}
                 image={result.images[coverIndex]}
                 alt="Batch cover"
                 className="h-full w-full object-cover"
                 compact={size < 48}
               />
+              <OutputTrashMark id={coverId} state={coverState} size={size} />
+              {inTrash > 0 && (
+                <span
+                  aria-hidden
+                  className="absolute bottom-0.5 left-0.5 flex items-center gap-0.5 rounded bg-black/70 px-1 text-3xs leading-tight text-white tabular-nums"
+                >
+                  <Trash2 className="size-2.5" aria-hidden />
+                  {inTrash}
+                  <span id={countId} className="sr-only">
+                    {inTrashOfText(inTrash, count)}
+                  </span>
+                </span>
+              )}
               <span className="absolute bottom-0.5 right-0.5 rounded bg-black/70 px-1 text-3xs leading-tight text-white tabular-nums">
                 ×{count}
               </span>
@@ -481,6 +510,8 @@ const ResultThumb = memo(function ResultThumb({
   onCompare,
 }: ResultThumbProps) {
   const src = mediaSrc(item.image);
+  const fileState = useOutputFileState(item.image);
+  const describedBy = useId();
   const dragProps = useDragSource({
     type: "result-image",
     resultId: item.resultId,
@@ -520,6 +551,7 @@ const ResultThumb = memo(function ResultThumb({
           role="button"
           tabIndex={0}
           aria-label="Result"
+          aria-describedby={fileState ? describedBy : undefined}
           onClick={(e) => onClick(e, item.resultId, item.imageIndex)}
           onDoubleClick={() => onDoubleClick(item.resultId, item.imageIndex)}
           onKeyDown={(e) => {
@@ -544,11 +576,13 @@ const ResultThumb = memo(function ResultThumb({
           {...dragProps}
         >
           <ResultImage
+            key={fileState?.state ?? "kept"}
             image={item.image}
             alt="Result"
             className="w-full h-full object-cover"
             compact={size < 48}
           />
+          <OutputTrashMark id={describedBy} state={fileState} size={size} />
 
           {isCompareCandidate && (
             <span className="absolute bottom-0 left-0 right-0 bg-amber-400/80 text-black text-center text-3xs leading-tight">

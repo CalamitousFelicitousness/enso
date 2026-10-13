@@ -89,7 +89,7 @@ export function legacyEntryItem(
   };
 }
 
-/** A trashed entry on the server, which goes `days` after it was trashed. */
+/** A trashed entry on the server; `days` dates its expiry when the server sends none. */
 export function serverEntryItem(
   item: ItemEntryV2 & { trashed_at: number },
   days: number,
@@ -103,7 +103,8 @@ export function serverEntryItem(
     name: item.name,
     thumb: thumb ? { kind: "server", hash: thumb.thumb, lost: thumb.lost } : null,
     removedAt: item.trashed_at,
-    expiresAt: item.trashed_at + days * DAY,
+    // the server counts a restarted collection clock; an older one sends none
+    expiresAt: item.expires_at ?? item.trashed_at + days * DAY,
     by: item.trashed_by ?? null,
     cause: item.trashed_cause === "evicted" ? "evicted" : "removed",
   };
@@ -123,7 +124,18 @@ export function goingWith(
   return items.filter((item) => removalExpiry(item.removedAt, removalMs) <= now).length;
 }
 
-/** How many of the server's trashed entries a retention of `days` lets go. */
-export function goingOnServer(trashedAt: readonly number[], days: number, now: number): number {
-  return trashedAt.filter((at) => at + days * DAY <= now).length;
+/** How many of the server's trashed items, their clocks started at `startedAt`,
+ * a retention of `days` lets go. */
+export function goingOnServer(startedAt: readonly number[], days: number, now: number): number {
+  return startedAt.filter((at) => at + days * DAY <= now).length;
+}
+
+/** When the server's clock for a trashed item started: its expiry, counted
+ * with `days`, taken back by them; its removal when no expiry was sent. */
+export function clockStart(
+  expiresAt: number | null | undefined,
+  trashedAt: number,
+  days: number,
+): number {
+  return expiresAt == null ? trashedAt : expiresAt - days * DAY;
 }

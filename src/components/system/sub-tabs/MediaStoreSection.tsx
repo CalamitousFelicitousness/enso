@@ -19,6 +19,7 @@ import {
   cleanupText,
   diskText,
   filesText,
+  FILES_IN_TRASH_LABEL,
   LOADING,
   lastVerifyText,
   pendingRootText,
@@ -33,6 +34,8 @@ import {
   storeOffText,
   TAKE_SNAPSHOT,
   TERM_LABELS,
+  TRASH_LOST_LABEL,
+  TRASH_STRAYS_LABEL,
   VERIFY_FAILED,
   VERIFY_FILES,
   verifyingText,
@@ -170,7 +173,13 @@ export function MediaStoreSection() {
               />
             );
           })}
+          <Row
+            label={FILES_IN_TRASH_LABEL}
+            value={filesText(term(report.files_in_trash).count, term(report.files_in_trash).bytes)}
+          />
           <CountRow label="Missing" value={report.lost ?? 0} />
+          <CountRow label={TRASH_LOST_LABEL} value={report.trash_lost ?? 0} />
+          <CountRow label={TRASH_STRAYS_LABEL} value={report.trash_strays ?? 0} />
           <CountRow label="Corrupt" value={term(report.corrupt).count} />
           <Row
             label="Snapshots"

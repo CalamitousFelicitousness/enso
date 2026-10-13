@@ -1,12 +1,14 @@
 // The trash: what the inputs lost in this browser, what the server's library
 // let go, and what an older build's library let go here, newest first, each
 // until its time has passed. Restore puts an item back with Undo; Delete now
-// and Empty delete for good: a removal here, an entry for everyone.
+// and Empty delete for good: a removal here, an entry for everyone. Files in
+// the Gallery's trash are counted above the list and handled in the Gallery.
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { ArchiveRestore, ImageOff, Trash2 } from "lucide-react";
 import { blobUrl } from "@/api/blobs";
+import { showInGalleryTrash, trashOffIn, useGalleryTrash } from "@/api/hooks/useGalleryTrash";
 import { useServerTrash } from "@/api/hooks/useMedia";
 import { useSessionStore } from "@/api/session";
 import { ActionSlot } from "@/components/ui/action-slot";
@@ -18,11 +20,13 @@ import { useLegacyEntries } from "@/hooks/useLegacyEntries";
 import { restoreEntry, restoreRemoval } from "@/inputs/recall";
 import { useThumb } from "@/inputs/thumbs";
 import { deleteNow, emptyTrash, loadTrash, measureTrash, useTrash } from "@/inputs/trash";
+import { filesInTrashLineText, READING_TRASH, SHOW_IN_GALLERY } from "@/lib/gallery/text";
 import type { StoredEntry } from "@/lib/inputs/stored";
 import { sweepPolicy } from "@/lib/inputs/sweep";
 import {
   DELETE_NOW,
   NEWER_REMOVAL,
+  NO_INPUTS_IN_TRASH,
   RESTORE_FROM_TRASH,
   TRASH_EMPTY_LABEL,
   trashAgeText,
@@ -89,12 +93,17 @@ function Thumb({ item }: { item: TrashItem }) {
 function TrashRow({ item, now, me }: { item: TrashItem; now: number; me: string | null }) {
   const [confirming, setConfirming] = useState(false);
   const legacy = item.source === "legacy";
+  const [busy, setBusy] = useState(false);
+  const run = (work: () => Promise<unknown>) => {
+    setBusy(true);
+    void work().finally(() => setBusy(false));
+  };
   const restore = () =>
-    void (item.source === "removal" ? restoreRemoval(item.key) : restoreEntry(item.key));
+    run(() => (item.source === "removal" ? restoreRemoval(item.key) : restoreEntry(item.key)));
   // an entry someone else removed is deleted for them too: asked first
   const remove = () => {
     if (item.source === "entry" && item.by && item.by !== me) setConfirming(true);
-    else void deleteNow(item);
+    else run(() => deleteNow(item));
   };
   return (
     <div className="flex h-full items-center gap-2 px-3">
@@ -115,12 +124,14 @@ function TrashRow({ item, now, me }: { item: TrashItem; now: number; me: string 
         label={RESTORE_FROM_TRASH}
         icon={ArchiveRestore}
         reason={legacy ? MOVE_FIRST : null}
+        busy={busy}
         onAct={restore}
       />
       <ActionSlot
         label={item.source === "entry" ? DELETE_FOR_EVERYONE : DELETE_NOW}
         icon={Trash2}
         reason={legacy ? MOVE_FIRST : null}
+        busy={busy}
         onAct={remove}
       />
       <ConfirmDialog
@@ -131,7 +142,7 @@ function TrashRow({ item, now, me }: { item: TrashItem; now: number; me: string 
         destructive
         onConfirm={() => {
           setConfirming(false);
-          void deleteNow(item);
+          run(() => deleteNow(item));
         }}
         onCancel={() => setConfirming(false)}
       />
@@ -167,6 +178,25 @@ function removedByOthers(items: readonly TrashItem[], me: string | null): Remove
   return { count: names.length, name: distinct.size === 1 ? (names[0] ?? null) : null };
 }
 
+/** The Gallery trash's files, counted: they are restored and deleted there. */
+function FilesInTrashLine({ text }: { text: string }) {
+  return (
+    <div className="flex h-7 shrink-0 items-center gap-2 border-b border-border px-3">
+      <span className="min-w-0 flex-1 truncate text-3xs text-muted-foreground" title={text}>
+        {text}
+      </span>
+      <Button
+        variant="ghost"
+        size="sm"
+        className="h-5 px-1.5 text-3xs"
+        onClick={showInGalleryTrash}
+      >
+        {SHOW_IN_GALLERY}
+      </Button>
+    </div>
+  );
+}
+
 export function TrashSection({ query, active }: { query: string; active: boolean }) {
   useTrashSync(active);
   const removals = useTrash((s) => s.removals);
@@ -178,6 +208,10 @@ export function TrashSection({ query, active }: { query: string; active: boolean
   // the storage notice's Free space opens the list with Empty asked for
   const askEmpty = useTrash((s) => s.askEmpty);
   const server = useServerTrash(active);
+  const files = useGalleryTrash(active);
+  const filesText =
+    trashOffIn(files.error) ??
+    (files.data ? filesInTrashLineText(files.data.total, files.data.bytes) : READING_TRASH);
   const legacy = useLegacyEntries(active);
   const me = useSessionStore((s) => s.user);
   // what emptying frees here follows what the trash lists
@@ -219,6 +253,10 @@ export function TrashSection({ query, active }: { query: string; active: boolean
     serverReclaimable,
   );
   const emptiable = removalKeys.length + entryIds.length > 0;
+  // the storage notice's Free space empties this browser's removals: nothing else frees its storage
+  const onlyHere = askEmpty && !confirming;
+  const emptyEntries = onlyHere ? [] : entryIds;
+  const emptyServer = onlyHere ? null : serverReclaimable;
 
   // eslint-disable-next-line react-hooks/incompatible-library -- @tanstack/react-virtual
   const virtualizer = useVirtualizer({
@@ -244,12 +282,15 @@ export function TrashSection({ query, active }: { query: string; active: boolean
           {TRASH_EMPTY_LABEL}
         </Button>
       </div>
+      <FilesInTrashLine text={filesText} />
       {unreadable.map((id) => (
         <UnreadableRow key={id} id={id} />
       ))}
       {loaded && items.length === 0 && (
         <p className="px-4 py-6 text-center text-2xs text-muted-foreground">
-          {trashEmptyText(server.data?.days ?? localDays)}
+          {(files.data?.total ?? 0) > 0
+            ? NO_INPUTS_IN_TRASH
+            : trashEmptyText(server.data?.days ?? localDays)}
         </p>
       )}
       <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto">
@@ -277,20 +318,20 @@ export function TrashSection({ query, active }: { query: string; active: boolean
         </div>
       </div>
       <ConfirmDialog
-        open={(confirming || askEmpty) && emptiable}
+        open={onlyHere ? removalKeys.length > 0 : confirming && emptiable}
         title="Empty the trash?"
         description={emptyBothText(
           removalKeys.length,
-          entryIds.length,
-          removedByOthers(items, me),
+          emptyEntries.length,
+          removedByOthers(onlyHere ? [] : items, me),
           reclaimable,
-          serverReclaimable,
+          emptyServer,
         )}
         confirmLabel="Delete all"
         destructive
         onConfirm={() => {
           closeEmpty();
-          void emptyTrash(removalKeys, entryIds, serverReclaimable);
+          void emptyTrash(removalKeys, emptyEntries, emptyServer);
         }}
         onCancel={closeEmpty}
       />
