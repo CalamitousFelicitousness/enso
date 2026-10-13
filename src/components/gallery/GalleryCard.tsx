@@ -75,6 +75,7 @@ export const GalleryCard = memo(function GalleryCard({
   return (
     <button
       aria-label={filename}
+      data-gallery-file={file.id}
       onClick={onClick}
       onDoubleClick={onDoubleClick}
       onContextMenu={onContextMenu}

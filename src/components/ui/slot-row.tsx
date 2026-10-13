@@ -56,6 +56,7 @@ export function SlotMenuItem({
   busy = false,
   silent = false,
   className,
+  destructive = false,
   onAct,
 }: Partial<SlotWords> & {
   icon: LucideIcon;
@@ -65,11 +66,14 @@ export function SlotMenuItem({
   /** A label above already says the slot's words. */
   silent?: boolean;
   className?: string;
+  /** It removes something: drawn in the destructive color. */
+  destructive?: boolean;
   onAct: () => void;
 }) {
   const refused = reason !== null || busy;
   return (
     <ContextMenuItem
+      variant={destructive && !refused ? "destructive" : "default"}
       aria-disabled={refused || undefined}
       className={cn(className, refused && "opacity-50")}
       onSelect={() => {

@@ -9,6 +9,7 @@ const SKIP_TAGS = new Set(["INPUT", "TEXTAREA", "SELECT"]);
  * Panel, keeps its keys to itself. */
 const SURFACES: Partial<Record<ShortcutScope, string>> = {
   canvas: '[data-key-surface="canvas"]',
+  gallery: '[data-key-surface="gallery"]',
 };
 
 /**

@@ -11,9 +11,9 @@ import { entryTrashTitle, removalTitle } from "./text";
 
 const DAY = 24 * 60 * 60 * 1000;
 
-/** Where an item lives: a removal here, an entry on the server, or an older
- * build's entry here. */
-export type TrashSource = "removal" | "entry" | "legacy";
+/** Where an item lives: a removal here, an entry on the server, an older
+ * build's entry here, or a Gallery file in the server's trash. */
+export type TrashSource = "removal" | "entry" | "legacy" | "file";
 
 /** A picture to show for an item: one this browser stores, or a thumbnail
  * the server holds by hash. */

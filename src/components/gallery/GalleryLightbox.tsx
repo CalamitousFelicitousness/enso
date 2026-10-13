@@ -20,6 +20,8 @@ import {
   GitCompareArrows,
 } from "lucide-react";
 import { useComparisonStore } from "@/stores/comparisonStore";
+import { useMinute } from "@/hooks/useMinute";
+import { trashLineText } from "@/lib/gallery/text";
 
 export function GalleryLightbox() {
   const lightboxIndex = useGalleryStore((s) => s.lightboxIndex);
@@ -40,6 +42,7 @@ export function GalleryLightbox() {
   const [prevIndex, setPrevIndex] = useState(lightboxIndex);
 
   const isOpen = lightboxIndex !== null;
+  const now = useMinute(isOpen);
   const maxIndex = fileCount - 1;
 
   // Full-size image URL
@@ -124,7 +127,14 @@ export function GalleryLightbox() {
         className="flex items-center justify-between px-4 py-2 flex-shrink-0"
         onClick={(e) => e.stopPropagation()}
       >
-        <span className="text-xs text-white/70 truncate max-w-[50%]">{filename}</span>
+        <div className="flex min-w-0 max-w-[50%] flex-col">
+          <span className="text-xs text-white/70 truncate">{filename}</span>
+          {file.trash && (
+            <span className="text-3xs text-white/50 truncate">
+              {trashLineText(file.trash, now)}
+            </span>
+          )}
+        </div>
         <div className="flex items-center gap-1">
           {!isVideo && (
             <>

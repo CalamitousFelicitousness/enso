@@ -196,6 +196,14 @@ export const SHORTCUTS: Record<string, ShortcutDef> = {
     category: "Gallery",
     label: "Delete selected",
   },
+  "gallery-delete-now": {
+    id: "gallery-delete-now",
+    key: "Delete",
+    shift: true,
+    scope: "gallery",
+    category: "Gallery",
+    label: "Delete selected now",
+  },
 
   // Lightbox
   "lightbox-close": {

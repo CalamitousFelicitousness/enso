@@ -24,6 +24,8 @@ export const MY_RECORDS_KEY = ["my-records"] as const;
 /** The job that made a Gallery file, by its path; a prefix of every file's. */
 export const OUTPUT_JOBS_KEY = ["output-job"] as const;
 export const outputJobKey = (path: string) => ["output-job", path] as const;
+/** The Gallery files in the server's trash. */
+export const GALLERY_TRASH_KEY = ["gallery-trash"] as const;
 
 /** Ask again after a failure, but not after a refusal: a 4xx, or a coded answer
  * such as the media store being off. */

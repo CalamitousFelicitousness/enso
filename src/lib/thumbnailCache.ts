@@ -69,6 +69,19 @@ export async function putThumb(entry: CachedThumb): Promise<void> {
   });
 }
 
+/** Write several thumbs in one transaction. */
+export async function putThumbs(entries: CachedThumb[]): Promise<void> {
+  if (entries.length === 0) return;
+  const db = await openDb();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE_NAME, "readwrite");
+    const store = tx.objectStore(STORE_NAME);
+    for (const entry of entries) store.put(entry);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error ?? new Error("IDB transaction failed"));
+  });
+}
+
 export async function deleteFolder(folder: string): Promise<void> {
   const db = await openDb();
   return new Promise((resolve, reject) => {

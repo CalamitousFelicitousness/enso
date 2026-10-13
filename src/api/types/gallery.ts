@@ -1,11 +1,15 @@
 export interface BrowserFolder {
   path: string;
   label: string;
+  /** Why the Gallery keeps this folder's files, when it does: the reference set or a model folder. */
+  kept?: string | null;
 }
 
 export interface BrowserSubdir {
   path: string;
   label: string;
+  /** Why the Gallery keeps this folder's files, when it does. */
+  kept?: string | null;
 }
 
 export interface BrowserThumb {
@@ -17,11 +21,26 @@ export interface BrowserThumb {
   mtime: number;
 }
 
+/** A file of the Trash folder: where it came from and when it goes. */
+export interface TrashFacts {
+  /** The item's id on the server. */
+  id: string;
+  /** The folder it came from, as the Gallery names it. */
+  from: string;
+  trashedAt: number;
+  trashedBy: string | null;
+  expiresAt: number;
+  bytes: number;
+  /** Its file is gone from the trash. */
+  lost: boolean;
+}
+
 export interface GalleryFile {
   folder: string;
   relativePath: string;
   fullPath: string;
   id: string;
+  trash?: TrashFacts;
 }
 
 export interface ParsedGenerationInfo {

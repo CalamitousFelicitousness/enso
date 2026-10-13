@@ -87,6 +87,7 @@ export default defineConfig([
     // Pure modules: values in, values out. They run in the node test
     // environment, so nothing here may reach a store, React or the DOM.
     files: [
+      "src/lib/gallery/**/*.ts",
       "src/lib/inputs/**/*.ts",
       "src/lib/lut.ts",
       "src/lib/jobs/**/*.ts",

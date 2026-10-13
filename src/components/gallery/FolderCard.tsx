@@ -1,3 +1,4 @@
+import type { LucideIcon } from "lucide-react";
 import { Folder, FolderOpen, ChevronRight, ChevronDown, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -9,6 +10,12 @@ interface FolderCardProps {
   expanded?: boolean;
   hasChildren?: boolean;
   loading?: boolean;
+  /** In place of the folder icon. */
+  icon?: LucideIcon;
+  /** How many files it holds, beside the label; left out of its accessible name. */
+  count?: number | null;
+  /** The hover text; the path when not given. */
+  title?: string;
   onSelect: () => void;
   onToggle?: () => void;
 }
@@ -21,10 +28,13 @@ export function FolderCard({
   expanded,
   hasChildren,
   loading,
+  icon,
+  count = null,
+  title,
   onSelect,
   onToggle,
 }: FolderCardProps) {
-  const Icon = active ? FolderOpen : Folder;
+  const Icon = icon ?? (active ? FolderOpen : Folder);
   const displayLabel = label || path.split("/").filter(Boolean).pop() || path;
 
   return (
@@ -58,8 +68,9 @@ export function FolderCard({
       {/* Folder button */}
       <button
         onClick={onSelect}
+        aria-current={active || undefined}
         className="flex items-center gap-1.5 flex-1 min-w-0 py-1.5 pr-2"
-        title={path}
+        title={title ?? path}
       >
         <Icon
           size={13}
@@ -67,6 +78,14 @@ export function FolderCard({
         />
 
         <span className="truncate">{displayLabel}</span>
+        {count !== null && (
+          <span
+            aria-hidden
+            className="ml-auto shrink-0 font-mono tabular-nums text-3xs text-muted-foreground"
+          >
+            {count.toLocaleString("en-US")}
+          </span>
+        )}
       </button>
     </div>
   );

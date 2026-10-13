@@ -5,7 +5,11 @@ import { useGalleryStore } from "@/stores/galleryStore";
 import type { BrowserFolder, BrowserSubdir } from "@/api/types/gallery";
 import { FolderCard } from "./FolderCard";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, FolderOpen } from "lucide-react";
+import { Loader2, FolderOpen, Trash2 } from "lucide-react";
+import { trashOffIn, useGalleryTrash } from "@/api/hooks/useGalleryTrash";
+import { useKeepAliveVisible } from "@/components/ui/keep-alive";
+import { TRASH_LABEL } from "@/lib/gallery/text";
+import { TRASH_FOLDER } from "@/lib/gallery/trash";
 
 interface FolderNode {
   folder: BrowserFolder;
@@ -67,7 +71,7 @@ function mergeDiscoveredSubdirs(
       const subNorm = sub.path.replace(/\/+$/, "");
       if (!existingPaths.has(subNorm)) {
         newChildren.push({
-          folder: { path: sub.path, label: sub.label },
+          folder: { path: sub.path, label: sub.label, kept: sub.kept ?? null },
           children: [],
         });
       }
@@ -82,6 +86,9 @@ export function GalleryPanel() {
   const activeFolder = useGalleryStore((s) => s.activeFolder);
   const setActiveFolder = useGalleryStore((s) => s.setActiveFolder);
   const setFolders = useGalleryStore((s) => s.setFolders);
+  const visible = useKeepAliveVisible();
+  const trash = useGalleryTrash(visible);
+  const trashOff = trashOffIn(trash.error);
   const [userExpanded, setUserExpanded] = useState<Set<string> | null>(null);
 
   // Dynamic subfolder state
@@ -177,8 +184,8 @@ export function GalleryPanel() {
     [expanded, fetchSubdirs],
   );
 
-  const handleSelect = (path: string) => {
-    setActiveFolder(activeFolder === path ? null : path);
+  const handleSelect = (path: string, kept: string | null) => {
+    setActiveFolder(activeFolder === path ? null : path, kept);
   };
 
   return (
@@ -219,6 +226,19 @@ export function GalleryPanel() {
           )}
         </div>
       </ScrollArea>
+
+      {/* The trash, below the folders it takes files from */}
+      <div className="border-t border-border p-2">
+        <FolderCard
+          label={TRASH_LABEL}
+          path={TRASH_FOLDER}
+          active={activeFolder === TRASH_FOLDER}
+          icon={Trash2}
+          count={trashOff ? null : (trash.data?.total ?? null)}
+          title={trashOff ?? TRASH_LABEL}
+          onSelect={() => handleSelect(TRASH_FOLDER, null)}
+        />
+      </div>
     </div>
   );
 }
@@ -242,7 +262,7 @@ function FolderTreeNode({
   loadingSubdirs: Set<string>;
   leafPaths: Set<string>;
   discoveredSubdirs: Map<string, BrowserSubdir[]>;
-  onSelect: (path: string) => void;
+  onSelect: (path: string, kept: string | null) => void;
   onToggle: (path: string) => void;
   onFetchSubdirs: (path: string) => void;
 }) {
@@ -278,7 +298,7 @@ function FolderTreeNode({
         expanded={isExpanded}
         hasChildren={hasChildren}
         loading={isLoading}
-        onSelect={() => onSelect(node.folder.path)}
+        onSelect={() => onSelect(node.folder.path, node.folder.kept ?? null)}
         onToggle={() => onToggle(node.folder.path)}
       />
 

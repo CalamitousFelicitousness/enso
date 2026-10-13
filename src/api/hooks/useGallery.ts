@@ -3,7 +3,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { api, refusalOf } from "../client";
 import { queryClient } from "../queryClient";
-import { OUTPUT_JOBS_KEY } from "../queryKeys";
+import { GALLERY_TRASH_KEY, OUTPUT_JOBS_KEY } from "../queryKeys";
 import { renewForSocket, socketUrl } from "../session";
 import type {
   BrowserFolder,
@@ -22,6 +22,8 @@ import {
   invalidateFolder,
 } from "@/lib/folderCache";
 import { Semaphore } from "@/lib/concurrency";
+import { filesDeletedText } from "@/lib/gallery/text";
+import { isTrashFolder } from "@/lib/gallery/trash";
 
 const thumbSemaphore = new Semaphore(16);
 
@@ -243,7 +245,10 @@ export async function refreshFolder(folder: string, minSpinMs = 0): Promise<void
   if (showSpinner) store.setRefreshing(true);
   const started = performance.now();
   try {
-    await backgroundRefresh(folder, ac.signal);
+    // the Trash folder is the server's list, read again rather than walked
+    await (isTrashFolder(folder)
+      ? queryClient.invalidateQueries({ queryKey: GALLERY_TRASH_KEY })
+      : backgroundRefresh(folder, ac.signal));
   } finally {
     if (activeRefreshes.get(folder) === ac) activeRefreshes.delete(folder);
     if (showSpinner && minSpinMs > 0) {
@@ -450,7 +455,7 @@ export function useBrowserFiles(folder: string | null) {
   const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
-    if (!folder) return;
+    if (!folder || isTrashFolder(folder)) return;
 
     // Abort any previous load/refresh
     abortRef.current?.abort();
@@ -718,7 +723,7 @@ function describeError(err: unknown): string {
 
 /** A file that left a folder takes its job lookup with it, and one that arrived can name another job. */
 function forgetOutputJobs() {
-  void queryClient.invalidateQueries({ queryKey: OUTPUT_JOBS_KEY });
+  void queryClient.invalidateQueries({ queryKey: OUTPUT_JOBS_KEY, refetchType: "none" });
 }
 
 export function useDeleteFiles() {
@@ -730,6 +735,7 @@ export function useDeleteFiles() {
     onSuccess: (data) => {
       reportFileErrors("deleted", data.errors);
       if (data.deleted.length === 0) return;
+      toast(filesDeletedText(data.deleted.length, data.deleted[0].split(/[\\/]/).pop() ?? ""));
       const store = useGalleryStore.getState();
       const deletedSet = new Set(data.deleted);
       const deletedFiles = store.files.filter((f) => deletedSet.has(f.fullPath));

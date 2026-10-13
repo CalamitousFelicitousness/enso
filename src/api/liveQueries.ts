@@ -6,8 +6,10 @@
 
 import type { QueryClient } from "@tanstack/react-query";
 import {
+  GALLERY_TRASH_KEY,
   LIBRARY_KEY,
   MY_RECORDS_KEY,
+  OUTPUT_JOBS_KEY,
   recordKey,
   RECORDS_KEY,
   REPORT_KEY,
@@ -24,9 +26,10 @@ export const LIVE_KEYS: readonly (readonly string[])[] = [
   LIBRARY_KEY,
   REPORT_KEY,
   SETTINGS_KEY,
+  GALLERY_TRASH_KEY,
 ];
 
-const TOPICS = ["records", "media", "library", "trash", "settings"] as const;
+const TOPICS = ["records", "media", "library", "trash", "settings", "outputs"] as const;
 type Topic = (typeof TOPICS)[number];
 
 export interface GlobalEvent {
@@ -115,8 +118,16 @@ export function createLiveQueries(
           client.setQueryData<ResMediaSettingsV2>(SETTINGS_KEY, (old) =>
             old ? { ...old, ...values } : old,
           );
+          // every file's expiry moves with the trash days
+          invalidate(GALLERY_TRASH_KEY);
           break;
         }
+        case "outputs":
+          // files entered or left the trash: the list is read again; a job looked up by a
+          // path is read again when it is next shown, since the file may have left it
+          invalidate(GALLERY_TRASH_KEY);
+          void client.invalidateQueries({ queryKey: OUTPUT_JOBS_KEY, refetchType: "none" });
+          break;
         case "media": {
           const verify = verifyOf(msg.data);
           if (verify) {

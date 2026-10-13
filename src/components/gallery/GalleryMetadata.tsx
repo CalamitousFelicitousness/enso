@@ -14,9 +14,24 @@ import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { GalleryJobRows } from "./GalleryJob";
+import { GalleryActionSlot } from "./GalleryActionSlot";
+import type { TrashFileActions } from "./galleryActions";
+import type { GalleryFile } from "@/api/types/gallery";
+import { useMinute } from "@/hooks/useMinute";
+import { DELETE_FILES_NOW, FILE_LEFT_FOLDER, RESTORE, trashLineParts } from "@/lib/gallery/text";
 import { SectionLeader } from "@/components/ui/section-leader";
 import { Button } from "@/components/ui/button";
-import { Copy, Download, ExternalLink, ImageIcon, Check, Paintbrush, Wand2 } from "lucide-react";
+import {
+  Copy,
+  Download,
+  Eraser,
+  ExternalLink,
+  ImageIcon,
+  Check,
+  Paintbrush,
+  Undo2,
+  Wand2,
+} from "lucide-react";
 
 interface VideoMeta {
   codec: string;
@@ -61,9 +76,10 @@ const PARAM_TO_STORE_KEY: Record<string, string> = {
   "Size-2": "height",
 };
 
-export function GalleryMetadata() {
+export function GalleryMetadata({ trash }: { trash: TrashFileActions | null }) {
   const selectedFile = useGalleryStore((s) => s.selectedFile);
   const selectedThumb = useGalleryStore((s) => s.selectedThumb);
+  const selectionLeft = useGalleryStore((s) => s.selectionLeft);
 
   const isVideo = selectedFile ? isVideoFile(selectedFile.relativePath) : false;
 
@@ -78,9 +94,12 @@ export function GalleryMetadata() {
 
   if (!selectedFile || !selectedThumb) {
     return (
-      <div className="flex flex-col items-center justify-center h-full text-muted-foreground text-xs p-3">
+      <div
+        className="flex flex-col items-center justify-center h-full text-muted-foreground text-xs p-3"
+        data-key-surface="gallery"
+      >
         <ImageIcon size={20} className="opacity-30 mb-2" />
-        <p>Select an image to view details</p>
+        <p>{selectionLeft ? FILE_LEFT_FOLDER : "Select an image to view details"}</p>
       </div>
     );
   }
@@ -137,7 +156,7 @@ export function GalleryMetadata() {
   const hasGenParams = !isVideo && (genInfo.prompt || Object.keys(genInfo.params).length > 0);
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full" data-key-surface="gallery">
       {/* Preview - fills available space, shrinks as sections open */}
       <div className="flex-1 min-h-20 p-3 pb-0">
         <div className="rounded-md overflow-hidden border border-border bg-muted h-full">
@@ -154,6 +173,8 @@ export function GalleryMetadata() {
           )}
         </div>
       </div>
+
+      {selectedFile.trash && trash && <TrashFileLine file={selectedFile} actions={trash} />}
 
       {/* Metadata - scrolls if it exceeds remaining space */}
       <ScrollArea className="min-h-0 shrink">
@@ -507,5 +528,46 @@ function SmallButton({
     >
       {children}
     </button>
+  );
+}
+
+/** A trashed file's lines under the preview: where it was, and who deleted it,
+ * when and how long it stays, with Restore and Delete now for this file. */
+function TrashFileLine({ file, actions }: { file: GalleryFile; actions: TrashFileActions }) {
+  const now = useMinute();
+  if (!file.trash) return null;
+  const [where, when] = trashLineParts(file.trash, now);
+  return (
+    <div className="flex items-center gap-1 px-3 pt-2">
+      <div
+        className="flex min-w-0 flex-1 flex-col text-3xs leading-tight text-muted-foreground"
+        title={`${where} · ${when}`}
+      >
+        <span className="truncate">{where}</span>
+        <span className="truncate">{when}</span>
+      </div>
+      <GalleryActionSlot
+        action={{
+          id: "restore",
+          label: RESTORE,
+          icon: Undo2,
+          reason: null,
+          busy: actions.busy,
+          destructive: false,
+          run: () => actions.restore(file),
+        }}
+      />
+      <GalleryActionSlot
+        action={{
+          id: "delete-now",
+          label: DELETE_FILES_NOW,
+          icon: Eraser,
+          reason: null,
+          busy: actions.busy,
+          destructive: true,
+          run: () => actions.deleteNow(file),
+        }}
+      />
+    </div>
   );
 }

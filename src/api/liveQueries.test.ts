@@ -25,8 +25,11 @@ function harness() {
   const timers: { at: number; run: () => void }[] = [];
   const live = createLiveQueries(
     {
-      invalidateQueries: (filters?: { queryKey?: readonly unknown[] }) => {
-        read.push(JSON.stringify(filters?.queryKey));
+      invalidateQueries: (filters?: { queryKey?: readonly unknown[]; refetchType?: string }) => {
+        // a key only marked stale is read when next shown
+        read.push(
+          `${JSON.stringify(filters?.queryKey)}${filters?.refetchType === "none" ? " stale" : ""}`,
+        );
         return Promise.resolve();
       },
       setQueryData: (key: readonly unknown[], update: (old: unknown) => unknown) => {
@@ -110,7 +113,7 @@ describe("the server's change events", () => {
   });
 
   it("put changed settings over the ones held, keeping their bounds", () => {
-    const { live, data } = harness();
+    const { live, data, read } = harness();
     data.set(key("media-settings"), {
       trash_days: 7,
       library_cap: 100,
@@ -127,6 +130,18 @@ describe("the server's change events", () => {
       reserve_bytes: 1,
       bounds: { trash_days: {} },
     });
+    // the Gallery trash's expiries move with the days
+    expect(read).toEqual([key("gallery-trash")]);
+  });
+
+  it("read the Gallery trash again and mark the job lookups stale when files enter or leave it", () => {
+    const { live, read, advance } = harness();
+    const stale = `${key("output-job")} stale`;
+    live.event({ type: "outputs", data: { ids: ["t1"] } });
+    live.event({ type: "outputs", data: { ids: ["t2"] } });
+    expect(read).toEqual([key("gallery-trash"), stale, stale]);
+    advance(THROTTLE_MS);
+    expect(read).toEqual([key("gallery-trash"), stale, stale, key("gallery-trash")]);
   });
 
   it("read every live key on each open of the socket", () => {
@@ -137,7 +152,7 @@ describe("the server's change events", () => {
   });
 
   it("tells the media store's topics from the socket's other frames", () => {
-    for (const type of ["records", "media", "library", "trash", "settings"]) {
+    for (const type of ["records", "media", "library", "trash", "settings", "outputs"]) {
       expect(isGlobalEvent({ type })).toBe(true);
     }
     for (const type of ["model", "progress", "download", undefined]) {

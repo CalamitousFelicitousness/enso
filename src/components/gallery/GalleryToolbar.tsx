@@ -1,24 +1,41 @@
 import { useCallback, useRef, useState, useEffect, useMemo } from "react";
+import { toast } from "sonner";
 import { useGalleryStore } from "@/stores/galleryStore";
 import { useGalleryRefresh } from "@/api/hooks/useGallery";
+import type { ResGalleryTrashV2 } from "@/api/types/media";
 import { useRegisterCommand } from "@/lib/commandRegistry";
 import type { GallerySortField, GallerySortDir } from "@/api/types/gallery";
+import { useKeepAliveVisible } from "@/components/ui/keep-alive";
+import { folderLabel } from "@/lib/gallery/folders";
+import { shownSelection } from "@/lib/gallery/selection";
+import {
+  DELETED_FIRST,
+  DELETED_LAST,
+  EMPTY_GALLERY_TRASH,
+  READING_TRASH,
+  TRASH_EMPTY,
+  hiddenBySearchText,
+  trashFolderText,
+} from "@/lib/gallery/text";
+import { isTrashFolder } from "@/lib/gallery/trash";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Combobox } from "@/components/ui/combobox";
 import { Slider } from "@/components/ui/slider";
+import { cn } from "@/lib/utils";
+import type { GalleryAction } from "./galleryActions";
+import { GalleryActionSlot } from "./GalleryActionSlot";
 import {
   Search,
   FolderOpen,
   PanelRight,
-  Trash2,
-  FolderInput,
-  Download,
   CheckCheck,
   XSquare,
   LayoutGrid,
   Rows3,
   RefreshCw,
+  Trash2,
+  Eraser,
 } from "lucide-react";
 
 const SORT_OPTIONS: { value: string; label: string }[] = [
@@ -32,21 +49,30 @@ const SORT_OPTIONS: { value: string; label: string }[] = [
   { value: "width-asc", label: "Narrowest" },
 ];
 
+// In the Trash folder the time is when a file went there
+const TRASH_SORT_OPTIONS = SORT_OPTIONS.map((option) =>
+  option.value === "mtime-desc"
+    ? { ...option, label: DELETED_LAST }
+    : option.value === "mtime-asc"
+      ? { ...option, label: DELETED_FIRST }
+      : option,
+);
+
 interface GalleryToolbarProps {
   totalCount: number;
   filteredCount: number;
-  onDeleteRequest?: () => void;
-  onMoveRequest?: () => void;
-  onDownloadRequest?: () => void;
+  actions: GalleryAction[];
+  /** The Trash folder's list and its Empty; null in a folder. */
+  trash: {
+    list: ResGalleryTrashV2 | undefined;
+    /** Why the list is not shown: the store is off, or it could not be read. */
+    unlisted: string | null;
+    busy: boolean;
+    onEmpty: () => void;
+  } | null;
 }
 
-export function GalleryToolbar({
-  totalCount,
-  filteredCount,
-  onDeleteRequest,
-  onMoveRequest,
-  onDownloadRequest,
-}: GalleryToolbarProps) {
+export function GalleryToolbar({ totalCount, filteredCount, actions, trash }: GalleryToolbarProps) {
   const sort = useGalleryStore((s) => s.sort);
   const setSort = useGalleryStore((s) => s.setSort);
   const setSearchQuery = useGalleryStore((s) => s.setSearchQuery);
@@ -58,19 +84,25 @@ export function GalleryToolbar({
   const setLayoutMode = useGalleryStore((s) => s.setLayoutMode);
   const metadataPanelOpen = useGalleryStore((s) => s.metadataPanelOpen);
   const toggleMetadataPanel = useGalleryStore((s) => s.toggleMetadataPanel);
-  const selectionCount = useGalleryStore((s) => s.selectedIds.size);
+  const selectedIds = useGalleryStore((s) => s.selectedIds);
+  const sortedFiles = useGalleryStore((s) => s.sortedFiles);
+  const selectedFile = useGalleryStore((s) => s.selectedFile);
   const selectAll = useGalleryStore((s) => s.selectAll);
   const deselectAll = useGalleryStore((s) => s.deselectAll);
   const { refresh, isRefreshing, canRefresh } = useGalleryRefresh();
+  const visible = useKeepAliveVisible();
 
-  useRegisterCommand({
-    id: "gallery:refresh",
-    label: "Refresh gallery",
-    group: "Gallery",
-    keywords: ["reload", "rescan", "sync", "update"],
-    icon: RefreshCw,
-    run: refresh,
-  });
+  useRegisterCommand(
+    {
+      id: "gallery:refresh",
+      label: "Refresh gallery",
+      group: "Gallery",
+      keywords: ["reload", "rescan", "sync", "update"],
+      icon: RefreshCw,
+      run: refresh,
+    },
+    visible,
+  );
 
   const [localSearch, setLocalSearch] = useState("");
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -97,78 +129,108 @@ export function GalleryToolbar({
     setSort({ field, dir });
   };
 
-  // Build a short display path: use label if available, otherwise derive from path
-  const folderDisplay = useMemo(() => {
-    if (!activeFolder) return null;
-    const match = folders.find((f) => f.path === activeFolder);
-    if (!match) return activeFolder;
-    const label = match.label;
-    const pathParts = activeFolder.replace(/\/+$/, "").split("/");
-    if (label && label !== activeFolder) return label;
-    return pathParts.slice(-2).join("/");
-  }, [activeFolder, folders]);
+  const isTrash = isTrashFolder(activeFolder);
+  const folderDisplay = activeFolder ? folderLabel(activeFolder, folders) : null;
+  const FolderIcon = isTrash ? Trash2 : FolderOpen;
+
+  // What the slots act on: the selection the grid shows, else the clicked file
+  const chosen = useMemo(() => {
+    if (selectedIds.size > 0) {
+      const { hidden } = shownSelection(selectedIds, sortedFiles);
+      const shown = `${(selectedIds.size - hidden).toLocaleString("en-US")} selected`;
+      return { text: hidden > 0 ? `${shown} · ${hiddenBySearchText(hidden)}` : shown, on: true };
+    }
+    const clicked = selectedFile && sortedFiles.some((f) => f.id === selectedFile.id);
+    return clicked
+      ? { text: selectedFile.relativePath.split("/").pop() ?? "", on: false }
+      : { text: "Nothing selected", on: false };
+  }, [selectedIds, sortedFiles, selectedFile]);
+
+  const trashLine = trash
+    ? (trash.unlisted ??
+      (trash.list
+        ? trashFolderText(trash.list.total, trash.list.bytes, trash.list.days)
+        : READING_TRASH))
+    : null;
+  const emptyRefusal = trash
+    ? (trash.unlisted ?? (trash.list ? (trash.list.total > 0 ? null : TRASH_EMPTY) : READING_TRASH))
+    : null;
 
   return (
-    <div className="flex flex-col border-b border-border flex-shrink-0">
+    <div className="flex flex-col border-b border-border flex-shrink-0" data-key-surface="gallery">
       {/* Path breadcrumb */}
       {folderDisplay && (
         <div className="flex items-center gap-1.5 px-3 py-1 border-b border-border/50 bg-muted/30">
-          <FolderOpen size={11} className="text-muted-foreground flex-shrink-0" />
+          <FolderIcon size={11} className="text-muted-foreground flex-shrink-0" />
 
-          <span className="text-3xs text-muted-foreground truncate" title={activeFolder ?? ""}>
+          <span
+            className="text-3xs text-muted-foreground truncate"
+            title={isTrash ? folderDisplay : (activeFolder ?? "")}
+          >
             {folderDisplay}
           </span>
         </div>
       )}
 
-      {/* Selection action bar */}
-      {selectionCount > 0 && (
-        <div className="flex items-center gap-1.5 px-3 py-1 bg-primary/5 border-b border-primary/20">
-          <span className="text-2xs font-medium text-primary font-mono tabular-nums">
-            {selectionCount} selected
+      {/* Selection bar: what the actions take, and the four actions */}
+      <div
+        className={cn(
+          "flex items-center gap-1.5 px-3 py-1 border-b",
+          chosen.on ? "bg-primary/5 border-primary/20" : "border-border/50",
+        )}
+      >
+        <span
+          className={cn(
+            "min-w-0 truncate text-2xs font-mono tabular-nums",
+            chosen.on ? "font-medium text-primary" : "text-muted-foreground",
+          )}
+        >
+          {chosen.text}
+        </span>
+        <Button variant="ghost" size="sm" className="h-5 px-1.5 text-3xs gap-1" onClick={selectAll}>
+          <CheckCheck size={12} /> All
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-5 px-1.5 text-3xs gap-1"
+          disabled={selectedIds.size === 0}
+          onClick={deselectAll}
+        >
+          <XSquare size={12} /> None
+        </Button>
+        <div className="ml-auto flex shrink-0 items-center gap-1">
+          {actions.map((action) => (
+            <GalleryActionSlot key={action.id} action={action} />
+          ))}
+        </div>
+      </div>
+
+      {/* The Trash folder's line: what it holds and how long, with Empty */}
+      {trash && (
+        <div className="flex items-center gap-2 px-3 py-1 border-b border-border/50">
+          <span
+            className="min-w-0 flex-1 truncate text-3xs text-muted-foreground"
+            title={trashLine ?? ""}
+          >
+            {trashLine}
           </span>
           <Button
             variant="ghost"
             size="sm"
-            className="h-5 px-1.5 text-3xs gap-1"
-            onClick={selectAll}
+            className={cn(
+              "h-5 shrink-0 gap-1 px-1.5 text-3xs",
+              emptyRefusal || trash.busy ? "opacity-40" : "text-destructive hover:text-destructive",
+            )}
+            aria-disabled={emptyRefusal || trash.busy ? true : undefined}
+            title={emptyRefusal ? `${EMPTY_GALLERY_TRASH}: ${emptyRefusal}` : EMPTY_GALLERY_TRASH}
+            onClick={() => {
+              if (emptyRefusal) toast.info(emptyRefusal);
+              else if (!trash.busy) trash.onEmpty();
+            }}
           >
-            <CheckCheck size={12} /> All
+            <Eraser size={12} /> {EMPTY_GALLERY_TRASH}
           </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-5 px-1.5 text-3xs gap-1"
-            onClick={deselectAll}
-          >
-            <XSquare size={12} /> None
-          </Button>
-          <div className="ml-auto flex items-center gap-1">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-5 px-1.5 text-3xs gap-1 text-destructive hover:text-destructive"
-              onClick={onDeleteRequest}
-            >
-              <Trash2 size={12} /> Delete
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-5 px-1.5 text-3xs gap-1"
-              onClick={onMoveRequest}
-            >
-              <FolderInput size={12} /> Move
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-5 px-1.5 text-3xs gap-1"
-              onClick={onDownloadRequest}
-            >
-              <Download size={12} /> Download
-            </Button>
-          </div>
         </div>
       )}
 
@@ -202,7 +264,7 @@ export function GalleryToolbar({
         <Combobox
           value={sortValue}
           onValueChange={handleSortChange}
-          options={SORT_OPTIONS}
+          options={isTrash ? TRASH_SORT_OPTIONS : SORT_OPTIONS}
           className="w-28 h-6 text-2xs"
         />
 

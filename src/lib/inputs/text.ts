@@ -13,6 +13,7 @@ import type {
   SentInput,
 } from "./outline";
 import type { AddressChange } from "./renumber";
+import type { TrashSource } from "./trash";
 import type { StoredFrame, StoredRemoval } from "./stored";
 import {
   isComposed,
@@ -512,23 +513,24 @@ const HOUR = 60 * 60 * 1000;
 const DAY = 24 * HOUR;
 
 /** "removed 3 h ago · 6 days left"; an entry on the server says who removed
- * it ("removed by alice", "pushed out by alice's save"). Past its time, what
- * this browser stores goes at the next start and the server's within five
- * minutes, at its next pass. */
+ * it ("removed by alice", "pushed out by alice's save") and a Gallery file
+ * who deleted it. Past its time, what this browser stores goes at the next
+ * start and the server's within five minutes, at its next pass. */
 export function trashAgeText(
   item: {
     removedAt: number;
     expiresAt: number;
-    source: "removal" | "entry" | "legacy";
+    source: TrashSource;
     by: string | null;
     cause: "removed" | "evicted";
   },
   now: number,
 ): string {
   const left = item.expiresAt - now;
+  const done = item.source === "file" ? "deleted" : "removed";
   const when =
     left <= 0
-      ? item.source === "entry"
+      ? item.source === "entry" || item.source === "file"
         ? "goes within 5 minutes"
         : "goes at the next start"
       : left >= DAY
@@ -540,8 +542,8 @@ export function trashAgeText(
         ? `pushed out by ${item.by}'s save`
         : "pushed out"
       : item.by
-        ? `removed by ${item.by}`
-        : "removed";
+        ? `${done} by ${item.by}`
+        : done;
   return `${what} ${ageText(now - item.removedAt)} · ${when}`;
 }
 

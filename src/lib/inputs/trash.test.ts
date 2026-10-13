@@ -229,4 +229,12 @@ describe("trashAgeText", () => {
       "pushed out by alice's save 3 h ago · 21 hours left",
     );
   });
+
+  it("says who deleted a Gallery file, and that it goes at the server's next pass", () => {
+    const file = { ...removed(0, DAY), source: "file" as const, by: "alice" };
+    expect(trashAgeText(file, 3 * HOUR)).toBe("deleted by alice 3 h ago · 21 hours left");
+    expect(trashAgeText({ ...file, by: null }, 2 * DAY)).toBe(
+      "deleted 2 days ago · goes within 5 minutes",
+    );
+  });
 });

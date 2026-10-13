@@ -8,6 +8,7 @@ import type {
   CachedThumb,
 } from "@/api/types/gallery";
 import { getCachedFolder } from "@/lib/folderCache";
+import { pruneSelection, relocate } from "@/lib/gallery/selection";
 
 const SORT_STORAGE_KEY = "enso-gallery-sort";
 const DEFAULT_SORT: GallerySort = { field: "name", dir: "asc" };
@@ -44,6 +45,8 @@ const savePersistedSort = (sort: GallerySort): void => {
 interface GalleryState {
   folders: BrowserFolder[];
   activeFolder: string | null;
+  /** Why the active folder's files cannot be removed or moved, from its card. */
+  activeKept: string | null;
 
   files: GalleryFile[];
   isLoadingFiles: boolean;
@@ -56,6 +59,8 @@ interface GalleryState {
 
   selectedFile: GalleryFile | null;
   selectedThumb: CachedThumb | null;
+  /** The single-clicked file left the folder when it was read again. */
+  selectionLeft: boolean;
   lightboxIndex: number | null;
 
   selectedIds: Set<string>;
@@ -68,7 +73,7 @@ interface GalleryState {
   metadataPanelOpen: boolean;
 
   setFolders: (f: BrowserFolder[]) => void;
-  setActiveFolder: (path: string | null) => void;
+  setActiveFolder: (path: string | null, kept?: string | null) => void;
   setFiles: (files: GalleryFile[]) => void;
   appendFile: (file: GalleryFile) => void;
   setLoadingFiles: (loading: boolean) => void;
@@ -93,9 +98,33 @@ interface GalleryState {
   reset: () => void;
 }
 
+/** What opening a folder clears: the choice and the view of the one before. */
+const OPENED = {
+  selectedFile: null,
+  selectedThumb: null,
+  selectionLeft: false,
+  lightboxIndex: null,
+  selectionAnchor: null,
+  isLoadingFiles: false,
+  isRefreshing: false,
+} as const;
+
+const sameIds = (a: ReadonlySet<string>, b: ReadonlySet<string>) =>
+  a.size === b.size && [...a].every((id) => b.has(id));
+
+/** The lightbox's place in a new sorted list: its file again, else closed. */
+function lightboxIn(
+  index: number | null,
+  before: readonly GalleryFile[],
+  after: readonly GalleryFile[],
+): number | null {
+  return index === null ? null : relocate(index, before, after);
+}
+
 export const useGalleryStore = create<GalleryState>()((set) => ({
   folders: [],
   activeFolder: null,
+  activeKept: null,
   files: [],
   isLoadingFiles: false,
   isRefreshing: false,
@@ -104,6 +133,7 @@ export const useGalleryStore = create<GalleryState>()((set) => ({
   sortedFiles: [],
   selectedFile: null,
   selectedThumb: null,
+  selectionLeft: false,
   lightboxIndex: null,
   selectedIds: new Set<string>(),
   selectionAnchor: null,
@@ -114,53 +144,44 @@ export const useGalleryStore = create<GalleryState>()((set) => ({
   metadataPanelOpen: true,
 
   setFolders: (folders) => set({ folders }),
-  setActiveFolder: (path) => {
+  setActiveFolder: (path, kept = null) => {
     if (path === null) {
       return set({
+        ...OPENED,
+        selectedIds: new Set<string>(),
         activeFolder: null,
+        activeKept: null,
         files: [],
         thumbs: new Map(),
-        selectedFile: null,
-        selectedThumb: null,
-        lightboxIndex: null,
-        selectedIds: new Set<string>(),
-        selectionAnchor: null,
-        isLoadingFiles: false,
-        isRefreshing: false,
         loadProgress: { loaded: 0, total: null },
       });
     }
     const cached = getCachedFolder(path);
-    if (cached) {
-      return set({
-        activeFolder: path,
-        files: cached.files,
-        thumbs: new Map(cached.thumbs),
-        selectedFile: null,
-        selectedThumb: null,
-        lightboxIndex: null,
-        selectedIds: new Set<string>(),
-        selectionAnchor: null,
-        isLoadingFiles: false,
-        isRefreshing: false,
-        loadProgress: { loaded: cached.files.length, total: cached.files.length },
-      });
-    }
     return set({
-      activeFolder: path,
-      files: [],
-      thumbs: new Map(),
-      selectedFile: null,
-      selectedThumb: null,
-      lightboxIndex: null,
+      ...OPENED,
       selectedIds: new Set<string>(),
-      selectionAnchor: null,
-      isLoadingFiles: false,
-      isRefreshing: false,
-      loadProgress: { loaded: 0, total: null },
+      activeFolder: path,
+      activeKept: kept,
+      files: cached ? cached.files : [],
+      thumbs: cached ? new Map(cached.thumbs) : new Map(),
+      loadProgress: cached
+        ? { loaded: cached.files.length, total: cached.files.length }
+        : { loaded: 0, total: null },
     });
   },
-  setFiles: (files) => set({ files }),
+  // A list read again keeps only the choices whose files are still in it
+  setFiles: (files) =>
+    set((s) => {
+      const kept = pruneSelection(s, s.files, files);
+      return {
+        files,
+        selectedIds: sameIds(kept.selectedIds, s.selectedIds) ? s.selectedIds : kept.selectedIds,
+        selectedFile:
+          kept.selectedFile?.id === s.selectedFile?.id ? s.selectedFile : kept.selectedFile,
+        selectedThumb: kept.selectedFile ? s.selectedThumb : null,
+        selectionLeft: s.selectionLeft || kept.left,
+      };
+    }),
   appendFile: (file) =>
     set((s) => ({
       files: [...s.files, file],
@@ -182,8 +203,13 @@ export const useGalleryStore = create<GalleryState>()((set) => ({
       for (const [id, thumb] of entries) m.set(id, thumb);
       return { thumbs: m };
     }),
-  setSortedFiles: (sortedFiles) => set({ sortedFiles }),
-  selectFile: (file, thumb) => set({ selectedFile: file, selectedThumb: thumb ?? null }),
+  setSortedFiles: (sortedFiles) =>
+    set((s) => ({
+      sortedFiles,
+      lightboxIndex: lightboxIn(s.lightboxIndex, s.sortedFiles, sortedFiles),
+    })),
+  selectFile: (file, thumb) =>
+    set({ selectedFile: file, selectedThumb: thumb ?? null, selectionLeft: false }),
   openLightbox: (index) => set({ lightboxIndex: index }),
   closeLightbox: () => set({ lightboxIndex: null }),
   navigateLightbox: (delta, maxIndex) =>
@@ -242,24 +268,21 @@ export const useGalleryStore = create<GalleryState>()((set) => ({
         selectedIds,
         selectedFile,
         selectedThumb,
+        lightboxIndex: lightboxIn(s.lightboxIndex, s.sortedFiles, sortedFiles),
         loadProgress: { loaded: files.length, total: files.length },
       };
     }),
   reset: () =>
     set({
+      ...OPENED,
+      selectedIds: new Set<string>(),
       folders: [],
       activeFolder: null,
+      activeKept: null,
       files: [],
-      isLoadingFiles: false,
-      isRefreshing: false,
       loadProgress: { loaded: 0, total: null },
       thumbs: new Map(),
       sortedFiles: [],
-      selectedFile: null,
-      selectedThumb: null,
-      lightboxIndex: null,
-      selectedIds: new Set<string>(),
-      selectionAnchor: null,
       searchQuery: "",
       thumbSize: 180,
       layoutMode: "grid",

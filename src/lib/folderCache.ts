@@ -57,6 +57,14 @@ export function invalidateFolder(path: string): void {
   cache.delete(path);
 }
 
+/** Forget every cached folder that lists one of these files, at any depth. */
+export function invalidateFoldersHolding(paths: readonly string[]): void {
+  for (const key of [...cache.keys()]) {
+    const prefix = key.replace(/\/+$/, "") + "/";
+    if (paths.some((path) => path.startsWith(prefix))) cache.delete(key);
+  }
+}
+
 /**
  * Gather files and thumbs from all cached child folders whose path starts
  * with `parentPath + "/"`. Returns null if no children are cached.

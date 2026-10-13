@@ -4,6 +4,7 @@ import { useGalleryStore } from "@/stores/galleryStore";
 import { useThumbnailLoader, useBackgroundPreloader } from "@/api/hooks/useGallery";
 import type { GalleryFile } from "@/api/types/gallery";
 import { ConnectedGalleryCard } from "./GalleryCard";
+import type { GalleryAction } from "./galleryActions";
 import { MasonryGrid } from "./MasonryGrid";
 import { GalleryJobItems } from "./GalleryJob";
 import { sendPictureToCanvas } from "@/lib/sendTo";
@@ -11,6 +12,8 @@ import { galleryPicture } from "@/inputs/adopt";
 import { failedWith } from "@/lib/mediaFiles";
 import { isVideoFile } from "@/lib/mediaType";
 import { VIDEO_TO_CANVAS_TEXT } from "@/lib/inputs/text";
+import { isTrashFolder, sortTime } from "@/lib/gallery/trash";
+import { SlotMenuItem } from "@/components/ui/slot-row";
 import {
   ContextMenu,
   ContextMenuTrigger,
@@ -18,31 +21,18 @@ import {
   ContextMenuItem,
   ContextMenuSeparator,
 } from "@/components/ui/context-menu";
-import {
-  Trash2,
-  FolderInput,
-  Download,
-  Maximize2,
-  Copy,
-  Paintbrush,
-  CheckSquare,
-  XSquare,
-  CheckCheck,
-} from "lucide-react";
+import { Maximize2, Copy, Paintbrush, CheckSquare, XSquare, CheckCheck } from "lucide-react";
 
 const GAP = 6;
 
 interface GalleryGridProps {
-  onDeleteRequest?: () => void;
-  onMoveRequest?: () => void;
-  onDownloadRequest?: () => void;
+  actions: GalleryAction[];
+  /** What the Trash folder says while it shows no files. */
+  trashEmpty: string;
 }
 
-export function GalleryGrid({
-  onDeleteRequest,
-  onMoveRequest,
-  onDownloadRequest,
-}: GalleryGridProps) {
+export function GalleryGrid({ actions, trashEmpty }: GalleryGridProps) {
+  const isTrash = useGalleryStore((s) => isTrashFolder(s.activeFolder));
   const files = useGalleryStore((s) => s.files);
   const sort = useGalleryStore((s) => s.sort);
   const searchQuery = useGalleryStore((s) => s.searchQuery);
@@ -157,7 +147,7 @@ export function GalleryGrid({
           cmp = a.relativePath.localeCompare(b.relativePath);
           break;
         case "mtime":
-          cmp = (ta?.mtime ?? 0) - (tb?.mtime ?? 0);
+          cmp = sortTime(a, ta) - sortTime(b, tb);
           break;
         case "size":
           cmp = (ta?.size ?? 0) - (tb?.size ?? 0);
@@ -269,8 +259,8 @@ export function GalleryGrid({
         ref={containerRef}
         className="flex flex-col items-center justify-center h-full text-muted-foreground overflow-auto"
       >
-        <p className="text-sm">No images</p>
-        <p className="text-xs mt-1 opacity-60">Select a folder to browse</p>
+        <p className="text-sm">{isTrash ? trashEmpty : "No images"}</p>
+        {!isTrash && <p className="text-xs mt-1 opacity-60">Select a folder to browse</p>}
       </div>
     );
   }
@@ -294,6 +284,7 @@ export function GalleryGrid({
         <div
           ref={containerRef}
           className="h-full overflow-auto"
+          data-key-surface="gallery"
           onContextMenuCapture={() => setContextFile(null)}
         >
           {layoutMode === "masonry" ? (
@@ -357,17 +348,17 @@ export function GalleryGrid({
           <CheckCheck size={14} /> Select all
         </ContextMenuItem>
         <ContextMenuSeparator />
-        <ContextMenuItem variant="destructive" onClick={onDeleteRequest}>
-          <Trash2 size={14} /> Delete
-          {selectionCount > 1 ? ` (${selectionCount})` : ""}
-        </ContextMenuItem>
-        <ContextMenuItem onClick={onMoveRequest}>
-          <FolderInput size={14} /> Move to...
-        </ContextMenuItem>
-        <ContextMenuItem onClick={onDownloadRequest}>
-          <Download size={14} /> Download
-          {selectionCount > 1 ? ` (${selectionCount})` : ""}
-        </ContextMenuItem>
+        {actions.map((action) => (
+          <SlotMenuItem
+            key={action.id}
+            icon={action.icon}
+            label={`${action.label}${selectionCount > 1 ? ` (${selectionCount})` : ""}`}
+            reason={action.reason}
+            busy={action.busy}
+            destructive={action.destructive}
+            onAct={action.run}
+          />
+        ))}
         <ContextMenuSeparator />
         <ContextMenuItem disabled={!contextFile} onClick={handleOpenLightbox}>
           <Maximize2 size={14} /> Open in lightbox
