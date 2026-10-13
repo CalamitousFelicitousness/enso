@@ -16,6 +16,7 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useKeepAliveVisible } from "@/components/ui/keep-alive";
 import { useMinute } from "@/hooks/useMinute";
 import { useMyRecords } from "@/hooks/useMyRecords";
+import { chooseRetention } from "@/inputs/mediaSync";
 import { failureText } from "@/inputs/quota";
 import { useTrash } from "@/inputs/trash";
 import { sweepPolicy } from "@/lib/inputs/sweep";
@@ -44,15 +45,18 @@ import {
 import { useJobQueueStore } from "@/stores/jobStore";
 import { CommittedSliderRow, SettingRow } from "./SettingRow";
 
-/** Write one setting. The cache takes only the server's answer, which the
- * page's local retention follows; the row shows the value in flight. */
+/** Write one setting. The cache takes only the server's answer; a retention
+ * chosen here is this browser's too, so its copy takes the value first. The
+ * row shows the value in flight. */
 async function writeSetting(setting: SharedSetting, value: number): Promise<void> {
+  const revert = setting === "trash_days" ? await chooseRetention(value) : null;
   try {
     const answer = await api.patch<ResMediaSettingsV2>("/sdapi/v2/media/settings", {
       [setting]: value,
     });
     queryClient.setQueryData(SETTINGS_KEY, answer);
   } catch (err) {
+    await revert?.();
     const frozen = err instanceof ApiError && err.code === "settings_frozen";
     toast.error(SETTING_FAILED, {
       description: frozen ? SETTINGS_FROZEN : failureText(err),

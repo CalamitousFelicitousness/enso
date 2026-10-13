@@ -56,12 +56,24 @@ async function keepOnServer(days: number): Promise<void> {
   }
 }
 
+/** The retention chosen in this page's own row: the browser's copy takes it
+ * before the server answers, so the answer is not asked about as another
+ * browser's change. Answers the revert for a write the server refuses. */
+export async function chooseRetention(days: number): Promise<() => Promise<void>> {
+  const before = await readTrashDays().catch(() => null);
+  await keep(days);
+  return () => (before === null ? Promise.resolve() : keep(before));
+}
+
 /** Follow the server's retention; one that would let this browser's removed
  * inputs go early is asked about first, and until then the copy keeps the
  * browser's own. */
 async function follow(serverDays: number): Promise<void> {
   const local = await readTrashDays().catch(() => null);
-  if (local === null || local === serverDays || !shortensRetention(serverDays, local)) {
+  if (local === null || !shortensRetention(serverDays, local)) {
+    // a notice about an earlier answer no longer applies
+    toast.dismiss(RETENTION_TOAST);
+    asked = false;
     await keep(serverDays);
     return;
   }
