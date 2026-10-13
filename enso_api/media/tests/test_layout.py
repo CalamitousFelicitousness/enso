@@ -2,7 +2,7 @@ import os
 
 import pytest
 
-from enso_api.media.layout import Layout, probe_folder, resolve_root
+from enso_api.media.layout import Layout, configured_path, pending_root, probe_folder, resolve_root
 
 
 def never(_path):
@@ -35,6 +35,23 @@ def test_a_changed_root_reports_the_previous_one(root):
     assert resolve_root("", root, os.path.join(root, "old"), never).previous == os.path.join(root, "old")
     same = os.path.join(root, "data", "enso", "media")
     assert resolve_root("", root, same + "\n", never).previous is None
+
+
+def test_the_option_names_the_folder_the_next_start_uses(root, monkeypatch):
+    monkeypatch.setenv("HOME", root)
+    assert configured_path("", root) == os.path.join(root, "data", "enso", "media")
+    assert configured_path("  ", root) == os.path.join(root, "data", "enso", "media")
+    assert configured_path("store", root) == os.path.join(root, "store")
+    assert configured_path("/elsewhere/media/", root) == "/elsewhere/media"
+    assert configured_path("~/media", root) == os.path.join(root, "media")
+
+
+def test_a_root_awaits_a_restart_only_while_the_option_names_another_folder(root):
+    taken = configured_path("", root)
+    assert pending_root("", root, taken) == ""
+    assert pending_root(os.path.join(root, "data", "enso", "media/"), root, taken) == ""
+    assert pending_root("store", root, taken) == os.path.join(root, "store")
+    assert pending_root("store", root, os.path.join(root, "store")) == ""
 
 
 def test_probe_accepts_a_writable_folder(root):

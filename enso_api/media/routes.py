@@ -303,12 +303,12 @@ async def get_media_report():
     """What the store holds, by what keeps it, with the free space and the last collection and verify."""
     state = boot.state
     if state.store is None:
-        return ResMediaReportV2(enabled=False, reason=state.reason, configured_root=state.configured_root, previous_root=state.previous_root)
+        return ResMediaReportV2(enabled=False, reason=state.reason, configured_root=boot.configured_root(), previous_root=state.previous_root)
     report = await asyncio.to_thread(state.store.report)
     return ResMediaReportV2(
         enabled=True,
         root=state.root,
-        configured_root=state.configured_root,
+        configured_root=boot.configured_root(),
         previous_root=state.previous_root,
         free=report.free,
         total=report.total,

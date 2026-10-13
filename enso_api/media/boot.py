@@ -8,7 +8,7 @@ from enso_api.media.collector import reconcile
 from enso_api.media.deleted import DeletedFiles, Lookups
 from enso_api.media.entries import Entries
 from enso_api.media.errors import MediaOff
-from enso_api.media.layout import OPTION_LABEL, Layout, probe_folder, resolve_root
+from enso_api.media.layout import OPTION_LABEL, Layout, configured_path, pending_root, probe_folder, resolve_root
 from enso_api.media.records import Records
 from enso_api.media.schema import MIGRATIONS
 from enso_api.media.store import MediaStore
@@ -27,7 +27,9 @@ class State:
         self.deleted: DeletedFiles | None = None
         self.worker = None
         self.reason: str | None = None
-        self.configured_root = ""
+        self.data_dir = ""
+        # The folder this start took from the root option, whether or not the store opened there
+        self.taken_root = ""
         self.previous_root: str | None = None
         # The store's folder whenever it is known, open or not, so the Gallery never lists or opens what is inside it
         self.hint: Layout | None = None
@@ -38,6 +40,13 @@ class State:
 
 
 state = State()
+
+
+def configured_root() -> str:
+    """The folder the root option names now when the next start would take another one, else empty."""
+    from modules import shared
+
+    return pending_root(str(getattr(shared.opts, "enso_media_root", "") or ""), state.data_dir, state.taken_root)
 
 
 def require_store() -> MediaStore:
@@ -101,9 +110,11 @@ def init(data_dir: str) -> None:
     enso_data = os.path.join(data_dir, "data", "enso")
     uploads = os.path.join(enso_data, "uploads")
     marker_path = os.path.join(enso_data, "media-root")
-    state.configured_root = str(getattr(shared.opts, "enso_media_root", "") or "")
+    state.data_dir = data_dir
+    configured = str(getattr(shared.opts, "enso_media_root", "") or "")
+    state.taken_root = configured_path(configured, data_dir)
     marker = read_text(marker_path)
-    resolved = resolve_root(state.configured_root, data_dir, marker, probe_folder)
+    resolved = resolve_root(configured, data_dir, marker, probe_folder)
     if resolved.root is None:
         if marker:
             state.hint = Layout(marker)

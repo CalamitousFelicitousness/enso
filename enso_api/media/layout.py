@@ -34,19 +34,30 @@ def default_root(data_dir: str) -> str:
     return os.path.join(data_dir, "data", "enso", "media")
 
 
+def configured_path(configured: str, data_dir: str) -> str:
+    """The folder the option names: empty is the default, a relative value is under the data folder."""
+    configured = configured.strip()
+    if not configured:
+        return os.path.abspath(default_root(data_dir))
+    return os.path.abspath(os.path.join(data_dir, os.path.expanduser(configured)))
+
+
+def pending_root(configured: str, data_dir: str, taken: str) -> str:
+    """The folder the option names when it is not the one this start took from it, else empty."""
+    named = configured_path(configured, data_dir)
+    return "" if named == taken else named
+
+
 def resolve_root(configured: str, data_dir: str, marker: str | None, probe: Callable[[str], str | None]) -> Resolved:
-    """The root from the option: empty is the default, which the caller creates; a relative value is under the data folder.
+    """The root from the option, which the caller creates when it is the default.
 
     A configured folder that is missing or not writable gives the reason and no root; it is never created here.
     """
-    configured = configured.strip()
-    if configured:
-        root = os.path.abspath(os.path.join(data_dir, os.path.expanduser(configured)))
+    root = configured_path(configured, data_dir)
+    if configured.strip():
         failure = probe(root)
         if failure:
             return Resolved(None, f"{root} set by '{OPTION_LABEL}' {failure}", None)
-    else:
-        root = os.path.abspath(default_root(data_dir))
     previous = marker.strip() if marker else None
     return Resolved(root, None, previous if previous and previous != root else None)
 
