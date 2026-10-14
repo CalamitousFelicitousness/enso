@@ -40,6 +40,7 @@ import type { DetailerMode } from "@/api/types/models";
 import { BACKEND_UNIT_TYPE } from "@/api/types/control";
 import { generationParams } from "./generateParams";
 import { planInputs, sendSize } from "./inputPlan";
+import { InputRefusal } from "./refusal";
 
 type ControlUnitWire = NonNullable<ControlRequest["control"]>[number];
 type IpAdapterWire = NonNullable<ControlRequest["ip_adapter"]>[number];
@@ -80,11 +81,6 @@ export interface ControlBuildOptions {
   processors: ProcessorFacts;
   /** The action's uploads. */
   batch: UploadBatch;
-}
-
-/** The canvas holds inputs the loaded model cannot take as they are. */
-export class InputRefusal extends Error {
-  override name = "InputRefusal";
 }
 
 /** A slot whose map the cache holds, which goes out in its picture's place. */

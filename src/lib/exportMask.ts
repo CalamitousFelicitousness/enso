@@ -2,9 +2,8 @@
 //
 // Masks are rendered at frame pixel dimensions (generationStore.width × height).
 // If the generation resolution differs from frame size (scale/megapixel mode),
-// the backend resizes the mask to match. The mask does not go through the WASM
-// MKS2021 resize pipeline - backend-side resize quality may differ slightly at
-// mask boundaries.
+// the backend resizes the mask to match for local jobs; a cloud job's mask is
+// resized in the browser by resizeBlob, which leaves soft edges at boundaries.
 
 import { ensureMaskBitmap } from "@/lib/mask/bitmaps";
 import { MASK_ALPHA_THRESHOLD } from "@/lib/mask/components";

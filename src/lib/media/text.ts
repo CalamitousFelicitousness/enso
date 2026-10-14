@@ -40,6 +40,21 @@ export function aboutSize(bytes: number): string {
   return `about ${(gb / 1024).toFixed(1)} TB`;
 }
 
+/** "1024×768": a pixel size for people. */
+export function sizeText(size: { width: number; height: number }): string {
+  return `${size.width}×${size.height}`;
+}
+
+/** "14.7 MP", "432 MP": a pixel count, one decimal below 100 MP. */
+export function megapixelsText(pixels: number): string {
+  const mp = pixels / 1_000_000;
+  return mp < 100 ? `${mp.toFixed(1)} MP` : `${Math.round(mp)} MP`;
+}
+
+export function canvasTooLargeText(size: { width: number; height: number }, limit: number): string {
+  return `The input goes out at ${sizeText(size)} (${megapixelsText(size.width * size.height)}), more than the ${megapixelsText(limit)} the browser can draw. Lower Width and Height, or use Megapixel.`;
+}
+
 /** Why an upload did not land. */
 export type UploadFailure =
   /** The server cannot take the bytes: `room` is what it can still store, `needed` what they take. */

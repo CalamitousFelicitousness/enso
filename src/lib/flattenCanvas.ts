@@ -8,11 +8,14 @@
 // independently implement the same transforms. Changes to one must update the other.
 
 import type { PlacedPicture, Size } from "@/lib/inputs/types";
-import { resizeBlob, canvasFitsLimit } from "@/lib/resize";
+import { CANVAS_CEILING_PIXELS } from "@/lib/media/limits";
+import { canvasTooLargeText } from "@/lib/media/text";
+import { InputRefusal } from "@/lib/request/refusal";
+import { resizeBlob, canvasFitsLimit, stagedSize } from "@/lib/resize";
 
 // A layer whose drawn size differs from its file by more than this share is
-// resampled to its drawn size with MKS2021 first, so Canvas 2D never scales
-// it by more than this.
+// resampled to its drawn size with the WASM kernel first, so Canvas 2D never
+// scales it by more than this.
 const RESAMPLE_ABOVE = 0.01;
 
 function canvasToPng(canvas: HTMLCanvasElement): Promise<Blob> {
@@ -24,15 +27,31 @@ function canvasToPng(canvas: HTMLCanvasElement): Promise<Blob> {
   });
 }
 
+/** The layer's bitmap: resampled to its drawn size when `drawn` is given,
+ * else its file, shrunk natively first when it is above the canvas limit. */
+async function layerBitmap(file: Blob, natural: Size, drawn: Size | null): Promise<ImageBitmap> {
+  if (drawn)
+    return createImageBitmap(await resizeBlob(file, drawn.width, drawn.height, undefined, natural));
+  const staged = stagedSize(natural, natural);
+  return staged
+    ? createImageBitmap(file, {
+        resizeWidth: staged.width,
+        resizeHeight: staged.height,
+        resizeQuality: "high",
+      })
+    : createImageBitmap(file);
+}
+
 /**
  * Composites the given pictures, bottom to top, within the frame bounds into a
- * single PNG Blob. Null when there is none; throws when one has no bytes.
+ * single PNG Blob. Null when there is none; throws when one has no bytes, and
+ * refuses (`InputRefusal`) an output larger than the browser can draw.
  *
  * Transforms are in frame pixels. With `target`, the composition is drawn at
  * that size instead, each axis stretched by target/frame. A layer drawn at
- * another size than its file is resampled to its drawn size with MKS2021 and
- * then blitted 1:1, at whole pixels when it is not rotated, so neither
- * downscaling nor upscaling goes through Canvas 2D's filter.
+ * another size than its file is resampled to its drawn size with the WASM
+ * kernel and then blitted 1:1, at whole pixels when it is not rotated, so
+ * neither downscaling nor upscaling goes through Canvas 2D's filter.
  */
 export async function flattenCanvas(
   layers: PlacedPicture[],
@@ -46,6 +65,9 @@ export async function flattenCanvas(
   for (const { file } of visible) {
     if (!file) throw new Error("A layer's picture could not be read");
     files.push(file);
+  }
+  if (target.width * target.height > CANVAS_CEILING_PIXELS) {
+    throw new InputRefusal(canvasTooLargeText(target, CANVAS_CEILING_PIXELS));
   }
 
   const kx = target.width / frameWidth;
@@ -66,14 +88,12 @@ export async function flattenCanvas(
     const resampled =
       Math.abs(drawnW / layer.width - 1) > RESAMPLE_ABOVE ||
       Math.abs(drawnH / layer.height - 1) > RESAMPLE_ABOVE;
-    const preResize =
-      resampled &&
-      preW >= 1 &&
-      preH >= 1 &&
-      canvasFitsLimit(layer.width, layer.height) &&
-      canvasFitsLimit(preW, preH);
-    const bitmap = await createImageBitmap(
-      preResize ? await resizeBlob(files[i], preW, preH) : files[i],
+    const preResize = resampled && preW >= 1 && preH >= 1 && canvasFitsLimit(preW, preH);
+    const natural = { width: layer.width, height: layer.height };
+    const bitmap = await layerBitmap(
+      files[i],
+      natural,
+      preResize ? { width: preW, height: preH } : null,
     );
     const flipX = Math.sign(transform.scaleX) || 1;
     const flipY = Math.sign(transform.scaleY) || 1;
@@ -95,10 +115,11 @@ export async function flattenCanvas(
       ctx.setTransform(kx, 0, 0, ky, 0, 0);
       ctx.translate(transform.x, transform.y);
       ctx.rotate((transform.rotation * Math.PI) / 180);
-      // The resampled bitmap covers the layer's drawn size in frame pixels
-      const scaleX = preResize ? (transform.scaleX * layer.width) / preW : transform.scaleX;
-      const scaleY = preResize ? (transform.scaleY * layer.height) / preH : transform.scaleY;
-      ctx.scale(scaleX, scaleY);
+      // The bitmap covers the layer's natural size in frame pixels, whatever size it was decoded at
+      ctx.scale(
+        (transform.scaleX * layer.width) / bitmap.width,
+        (transform.scaleY * layer.height) / bitmap.height,
+      );
       ctx.drawImage(bitmap, 0, 0);
     }
     ctx.restore();

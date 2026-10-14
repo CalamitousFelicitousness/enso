@@ -2,6 +2,9 @@ import { describe, expect, it } from "vitest";
 import {
   aboutSize,
   ageText,
+  canvasTooLargeText,
+  megapixelsText,
+  sizeText,
   batchText,
   lutGoneText,
   lutLineText,
@@ -393,5 +396,23 @@ describe("the words of the media store panel", () => {
     );
     expect(pendingRootText("/mnt/new")).toBe("Set to /mnt/new, applies after a restart");
     expect(previousRootText("/old")).toBe("The store at /old was not moved");
+  });
+});
+
+describe("the words of a picture's size", () => {
+  it("writes a size with the multiplication sign", () => {
+    expect(sizeText({ width: 1024, height: 768 })).toBe("1024×768");
+  });
+
+  it("gives megapixels to one decimal below 100 and whole above", () => {
+    expect(megapixelsText(3840 * 3840)).toBe("14.7 MP");
+    expect(megapixelsText(24000 * 18000)).toBe("432 MP");
+    expect(megapixelsText(99_960_000)).toBe("100.0 MP");
+  });
+
+  it("says why a composite is too large to draw", () => {
+    expect(canvasTooLargeText({ width: 20000, height: 20000 }, 16384 * 16384)).toBe(
+      "The input goes out at 20000×20000 (400 MP), more than the 268 MP the browser can draw. Lower Width and Height, or use Megapixel.",
+    );
   });
 });

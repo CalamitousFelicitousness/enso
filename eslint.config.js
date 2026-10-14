@@ -94,6 +94,7 @@ export default defineConfig([
       "src/lib/media/**/*.ts",
       "src/lib/request/generateParams.ts",
       "src/lib/request/inputPlan.ts",
+      "src/lib/request/refusal.ts",
       "src/lib/request/restoreParams.ts",
       "src/lib/request/wire.ts",
       "src/lib/resultStrip.ts",
