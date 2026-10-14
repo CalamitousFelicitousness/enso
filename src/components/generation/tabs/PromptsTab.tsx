@@ -6,7 +6,10 @@ import { useImg2ImgStore } from "@/stores/img2imgStore";
 import { useCanvasStore } from "@/stores/canvasStore";
 import { useInputStore } from "@/stores/inputStore";
 import { useOutline } from "@/inputs/useOutline";
-import { positionLabel } from "@/lib/inputs/text";
+import { addressLabel, positionLabel } from "@/lib/inputs/text";
+import { resolveSizeSource } from "@/lib/inputs/outline";
+import { fitNote } from "@/lib/request/fitNote";
+import { useModelCapabilities } from "@/hooks/useModelCapabilities";
 import { useFrameSize } from "@/canvas/useFrameSize";
 import {
   parseSizeSourceValue,
@@ -21,7 +24,7 @@ import { useShallow } from "zustand/react/shallow";
 import { usePromptStyles } from "@/api/hooks/useNetworks";
 import { useUpscalerGroups } from "@/api/hooks/useModels";
 import { cn } from "@/lib/utils";
-import { resolveGenerationSize, sizeModesApply } from "@/lib/sizeCompute";
+import { resolveGenerationSize, sizeModesApply, snapSize } from "@/lib/sizeCompute";
 import { megapixelsText, sizeText } from "@/lib/media/text";
 import type { SizeMode } from "@/lib/sizeCompute";
 import type { AspectPreset } from "@/lib/aspect";
@@ -218,6 +221,29 @@ export function PromptsTab() {
   );
 
   const shownSize = isFixed ? { width: frame.width, height: frame.height } : genSize;
+
+  // Far above the model's usual size: the size Fit took from a picture, or a lone Reference's
+  const { usualSize } = useModelCapabilities();
+  const sizeSourcePick = useInputStore((s) => s.sizeSource);
+  const fitSource = autoFitFrame && !locked ? resolveSizeSource(slots, sizeSourcePick) : null;
+  const fitSet =
+    fitSource !== null &&
+    state.width === snapSize(fitSource.width, sizeMultiple) &&
+    state.height === snapSize(fitSource.height, sizeMultiple);
+  const note = fitNote({
+    mode: effectiveSizeMode,
+    setBy: locked
+      ? { by: "reference", source: addressLabel(slots[0].address) }
+      : fitSet
+        ? { by: "fit", source: addressLabel(fitSource.address) }
+        : null,
+    size: locked
+      ? { width: frame.width, height: frame.height }
+      : { width: state.width, height: state.height },
+    native: usualSize,
+  });
+  const megapixelNote =
+    note?.action.kind === "megapixel" ? { text: note.text, ...note.action } : null;
   const lastResultSize = useMemo(() => {
     if (!lastInfo || locked) return null;
     const w = lastInfo.width;
@@ -394,9 +420,23 @@ export function PromptsTab() {
             </div>
           </div>
 
+          {megapixelNote && (
+            <ParamNotice>
+              {megapixelNote.text}{" "}
+              <ParamNoticeAction
+                onClick={() => {
+                  setMegapixelTarget(megapixelNote.target);
+                  setSizeMode("megapixel");
+                }}
+              >
+                {megapixelNote.label}
+              </ParamNoticeAction>
+            </ParamNotice>
+          )}
+
           {lockedFrameId && (
             <ParamNotice>
-              {lockedHint} To choose another size,{" "}
+              {note?.action.kind === "toInitial" ? note.text : lockedHint} To choose another size,{" "}
               <ParamNoticeAction onClick={() => switchRole(lockedFrameId, "initial")}>
                 switch {lockedEntry ? positionLabel(lockedEntry.position) : "the frame"} to Initial
               </ParamNoticeAction>
@@ -460,8 +500,7 @@ export function PromptsTab() {
           {/* Info line: frame size → generation size */}
           {!isFixed && (
             <div className="text-3xs text-muted-foreground text-center">
-              {state.width}&times;{state.height} &rarr; {genSize.width}&times;
-              {genSize.height}{" "}
+              {sizeText(state)} &rarr; {sizeText(genSize)}{" "}
               <span className="opacity-70">({megapixelsText(genSize.width * genSize.height)})</span>
             </div>
           )}
@@ -477,7 +516,7 @@ export function PromptsTab() {
               <span>
                 Last:{" "}
                 <span className="font-mono">
-                  {lastResultSize.w}&times;{lastResultSize.h}
+                  {sizeText({ width: lastResultSize.w, height: lastResultSize.h })}
                 </span>
               </span>
               <button

@@ -21,6 +21,8 @@ export interface ModelCapabilityRecord {
    * when the server did not say, absent in records from before it could. */
   reference_size?: DeclaredSize | null;
   ip_adapter_size?: DeclaredSize | null;
+  /** The model family ("sd", "sdxl", ...); absent in records from before it was kept. */
+  type?: string | null;
 }
 
 /** What a record says the model resizes pictures to; none known without one. */
@@ -43,6 +45,7 @@ export function capabilityRecord(checkpoint: CheckpointInfoV2): ModelCapabilityR
     control_unified: checkpoint.control_unified ?? null,
     reference_size: checkpoint.reference_size ? declaredSize(checkpoint.reference_size) : null,
     ip_adapter_size: checkpoint.ip_adapter_size ? declaredSize(checkpoint.ip_adapter_size) : null,
+    type: checkpoint.type ?? null,
   };
 }
 

@@ -8,6 +8,8 @@ import {
   type ModelCapabilityRecord,
 } from "@/stores/modelCapabilityStore";
 import type { ModelSizes } from "@/lib/inputs/outline";
+import type { PixelSize } from "@/lib/media/dimensions";
+import { usualSize } from "@/lib/request/fitNote";
 import { showImagesTab } from "@/lib/tabVisibility";
 import type { ImagesSubTab } from "@/lib/constants";
 import type { LocalModel, UnifiedModel } from "@/api/types/cloud";
@@ -65,6 +67,8 @@ export interface ModelCapabilities {
   /** What the local pipeline resizes references and IP-Adapter pictures to;
    * null for other models. */
   sizes: ModelSizes | null;
+  /** The size the local model usually makes; null when unknown and for other models. */
+  usualSize: PixelSize | null;
 }
 
 const LOCAL_SUPPORTS: ModelSupports = {
@@ -137,6 +141,7 @@ export function useModelCapabilities(): ModelCapabilities {
         sizeMultiple: loaded?.size_multiple ?? null,
         controlUnified: loaded?.control_unified ?? null,
         sizes: recordSizes(loaded),
+        usualSize: usualSize(recordSizes(loaded).reference, loaded?.type ?? null),
       };
     }
     if (model.source === "local-video") {
@@ -155,6 +160,7 @@ export function useModelCapabilities(): ModelCapabilities {
         sizeMultiple: null,
         controlUnified: null,
         sizes: null,
+        usualSize: null,
       };
     }
     const caps = model.capabilities;
@@ -193,6 +199,7 @@ export function useModelCapabilities(): ModelCapabilities {
       sizeMultiple: null,
       controlUnified: null,
       sizes: null,
+      usualSize: null,
     };
   }, [model, checkpoint, remembered]);
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { fitNote, type FitNoteInput } from "./fitNote";
+import { fitNote, usualSize, type FitNoteInput } from "./fitNote";
 
 const base: FitNoteInput = {
   mode: "fixed",
@@ -33,5 +33,26 @@ describe("fitNote", () => {
     expect(fitNote({ ...base, mode: "scale" })).toBeNull();
     expect(fitNote({ ...base, setBy: null })).toBeNull();
     expect(fitNote({ ...base, native: null })).toBeNull();
+  });
+});
+
+describe("usualSize", () => {
+  const qwen = {
+    kind: "declared" as const,
+    declared: { rule: null, outputArea: 1024 * 1024 },
+  };
+
+  it("takes the output area the declaration documents", () => {
+    expect(usualSize(qwen, "qwen")).toEqual({ width: 1024, height: 1024 });
+  });
+
+  it("falls back to the family's default size, else none", () => {
+    expect(usualSize({ kind: "unreported" }, "sd")).toEqual({ width: 512, height: 512 });
+    expect(usualSize({ kind: "declared", declared: { rule: null } }, "sdxl")).toEqual({
+      width: 1024,
+      height: 1024,
+    });
+    expect(usualSize({ kind: "unknown" }, "qwen")).toBeNull();
+    expect(usualSize({ kind: "unknown" }, null)).toBeNull();
   });
 });

@@ -2,7 +2,9 @@
 // above what the model usually makes, with a way back that moves nothing.
 
 import type { PixelSize } from "@/lib/media/dimensions";
+import type { Declaration } from "@/lib/media/rules";
 import { megapixelsText, sizeText } from "@/lib/media/text";
+import { getModelDefaults } from "@/lib/modelDefaults";
 import type { SizeMode } from "@/lib/sizeCompute";
 
 /** The note shows above this many times the model's usual area. */
@@ -48,4 +50,18 @@ export function fitNote({ mode, setBy, size, native }: FitNoteInput): FitNote | 
       label: `Use Megapixel at ${megapixelsText(nativeArea)}`,
     },
   };
+}
+
+/** The size a model usually makes: the output area its reference declaration
+ * documents, as a square, else its family's default size; null for neither. */
+export function usualSize(reference: Declaration, type: string | null): PixelSize | null {
+  const area = reference.kind === "declared" ? reference.declared.outputArea : undefined;
+  if (area) {
+    const side = Math.round(Math.sqrt(area));
+    return { width: side, height: side };
+  }
+  const defaults = getModelDefaults(type);
+  return defaults?.width && defaults.height
+    ? { width: defaults.width, height: defaults.height }
+    : null;
 }
