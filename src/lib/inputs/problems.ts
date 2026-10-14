@@ -76,5 +76,25 @@ export function fixProblem(frames: Frame[], problem: OutlineProblem): Frame[] {
         frames,
       );
     }
+    case "ruleRefused": {
+      // a set picture is hidden; a composite goes only with its frame
+      const hidden = problem.pictures.reduce(
+        (list, p) =>
+          p.pictureId === null
+            ? list
+            : updateFrame(list, p.frameId, (f) => ({
+                ...f,
+                pictures: f.pictures.map((q) =>
+                  q.id === p.pictureId ? { ...q, visible: false } : q,
+                ),
+              })),
+        frames,
+      );
+      const composites = problem.pictures.filter((p) => p.pictureId === null);
+      return turnOff(
+        hidden,
+        composites.map((p) => p.position),
+      );
+    }
   }
 }

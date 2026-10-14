@@ -81,6 +81,16 @@ export function pipelineCalls(log: string[]): string[] {
   });
 }
 
+/** The input images of a job's pipeline calls, as WxH: the sizes in the
+ * `'image'` list of each "Base" line. */
+export function pipelineImages(log: string[]): string[] {
+  return log.flatMap((line) => {
+    if (!/INFO\s+Base: pipeline=/.test(line)) return [];
+    const list = /'image': \[([^\]]*)\]/.exec(line)?.[1] ?? "";
+    return [...list.matchAll(/size=(\d+)x(\d+)/g)].map((m) => `${m[1]}x${m[2]}`);
+  });
+}
+
 export interface Upload {
   /** Null when the browser kept no answer body. */
   hash: string | null;

@@ -1,3 +1,4 @@
+import { sizeText } from "@/lib/media/text";
 import { useMemo } from "react";
 import { useInputStore } from "@/stores/inputStore";
 import { useUiStore } from "@/stores/uiStore";
@@ -35,7 +36,7 @@ export function useSizeSourceOptions(): SizeSourceOption[] {
   const rows = useInputStore((s) =>
     outlineOf(s.frames)
       .sent.map((input) => {
-        const label = `${addressLabel(input.address)} · ${roleLabel(input.role)} · ${input.width}×${input.height}`;
+        const label = `${addressLabel(input.address)} · ${roleLabel(input.role)} · ${sizeText(input)}`;
         return `${pickValue(sizeSourcePick(input))}\t${label}`;
       })
       .join("\n"),

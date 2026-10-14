@@ -11,6 +11,7 @@ import {
   type Outline,
   type OutlineEnv,
   type ProcessingEnv,
+  type SizeEnv,
 } from "@/lib/inputs/outline";
 import { MAP_SCHEMA, readMap, type ReadMap, type StoredMap } from "@/lib/inputs/stored";
 import { MAPS } from "@/lib/inputs/storeLayout";
@@ -84,15 +85,25 @@ export function mapFacts(
 
 /** The outline as a request sends it, once the cache has answered for every
  * map it names, so a stored map is sent rather than made again. Its keys name
- * the pictures placed in `frame` and drawn at `target`. */
+ * the pictures placed in `frame` and drawn at `target`, and with `sizes` a
+ * set member at the size the model uses. */
 export async function outlineWithMaps(
   frames: Frame[],
   processors: ProcessorFacts,
-  options: { cloud: boolean; controlUnified: boolean; frame: Size; target: Size },
+  options: {
+    cloud: boolean;
+    controlUnified: boolean;
+    frame: Size;
+    target: Size;
+    requestSetsSize?: boolean | null;
+    sizes?: SizeEnv | null;
+  },
 ): Promise<Outline> {
-  const { cloud, controlUnified, frame, target } = options;
-  const env = () => ({
+  const { cloud, controlUnified, frame, target, requestSetsSize = null, sizes = null } = options;
+  const env = (): OutlineEnv => ({
     controlUnified,
+    requestSetsSize,
+    sizes,
     processing: mapFacts(processors, useMapStore.getState(), cloud, frame, target),
   });
   const named = computeOutline(frames, env());

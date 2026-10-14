@@ -215,6 +215,8 @@ export function onStripText(count: number): string {
   return count === 1 ? "Its result is on the strip" : "Their results are on the strip";
 }
 
+export const NEWER_RECORD = "This job was recorded by a newer version of Enso";
+
 export const HISTORY_UNREAD = "The stored results could not be read";
 export const HISTORY_UNREAD_DETAIL = "Every job is still in History";
 

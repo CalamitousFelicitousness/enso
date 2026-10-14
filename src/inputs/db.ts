@@ -638,7 +638,11 @@ async function deleteAndFree(
       if (blob instanceof Blob) freed += blob.size;
       tx.objectStore(BLOBS).delete(key);
     }
-    for (const cid of new Set(plan.remove.map(blobCid))) tx.objectStore(HASHES).delete(cid);
+    for (const cid of new Set(plan.remove.map(blobCid))) {
+      tx.objectStore(HASHES).delete(cid);
+      // the rows of the fitted copies made from it
+      tx.objectStore(HASHES).delete(IDBKeyRange.bound(`${cid}/`, `${cid}/￿`));
+    }
     tx.objectStore(META).delete(RECLAIM);
     tx.commit();
   } catch (err) {

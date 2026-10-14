@@ -18,7 +18,9 @@ const envKey = (env: OutlineEnv) => {
     ? `${p.revision}/${p.stamp}/${p.cloud ? 1 : 0}/${p.frame.width}x${p.frame.height}/${p.target.width}x${p.target.height}`
     : "";
   const limit = env.inputLimit ? `${env.inputLimit.pixels}${env.inputLimit.by}` : "";
-  return `${env.controlUnified ? 1 : 0}/${env.maxInputImages ?? ""}/${env.requestSetsSize ?? ""}/${processing}/${limit}`;
+  const sizes = env.sizes ? JSON.stringify(env.sizes) : "";
+  const cloud = env.cloud ? JSON.stringify(env.cloud) : "";
+  return `${env.controlUnified ? 1 : 0}/${env.maxInputImages ?? ""}/${env.requestSetsSize ?? ""}/${processing}/${limit}/${sizes}/${cloud}`;
 };
 
 /** The outline of a frame list. Parts that did not change keep their

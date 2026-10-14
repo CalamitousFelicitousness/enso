@@ -1,3 +1,4 @@
+import { sizeText } from "@/lib/media/text";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useGalleryStore } from "@/stores/galleryStore";
 import { useShortcut } from "@/hooks/useShortcut";
@@ -235,7 +236,7 @@ export function GalleryLightbox() {
       >
         <span className="text-3xs text-white/40 font-mono tabular-nums">
           {lightboxIndex + 1} / {fileCount}
-          {thumb && ` | ${thumb.width}x${thumb.height}`}
+          {thumb && ` | ${sizeText(thumb)}`}
         </span>
       </div>
     </div>

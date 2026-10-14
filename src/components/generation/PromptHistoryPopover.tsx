@@ -1,3 +1,4 @@
+import { sizeText } from "@/lib/media/text";
 import { type ReactNode } from "react";
 import { useGenerationStore } from "@/stores/generationStore";
 import { usePromptHistoryStore, type PromptHistoryEntry } from "@/stores/promptHistoryStore";
@@ -49,9 +50,7 @@ export function PromptHistoryPopover({ onClose }: PromptHistoryPopoverProps) {
   }
 
   const Row = (h: PromptHistoryEntry) => {
-    const meta = [h.model, `${h.width}×${h.height}`, `${h.steps} steps`]
-      .filter(Boolean)
-      .join(" · ");
+    const meta = [h.model, sizeText(h), `${h.steps} steps`].filter(Boolean).join(" · ");
     return (
       <div
         key={h.id}

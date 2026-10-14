@@ -32,6 +32,7 @@ import { frameColor } from "@/canvas/frameColors";
 import { useInputStore } from "@/stores/inputStore";
 import type { OutlineEntry, SizeSourcePick } from "@/lib/inputs/outline";
 import {
+  addressLabel,
   controlTypeLabel,
   DUPLICATE_FRAME,
   linkedLabel,
@@ -41,9 +42,11 @@ import {
   roleLabel,
   SAVE_TO_LIBRARY,
   sentLabel,
+  sentSizeTitle,
+  sentSizeValue,
 } from "@/lib/inputs/text";
 import { useLibrarySaving } from "@/inputs/library";
-import { SAVING } from "@/lib/media/text";
+import { SAVING, sizeText as pixelSizeText } from "@/lib/media/text";
 import { composedPictures } from "@/lib/inputs/types";
 import type { FramePosition } from "@/lib/inputs/layout";
 import { ReferenceSortableOverlay } from "@/canvas/ReferenceSortableOverlay";
@@ -324,17 +327,35 @@ export function FrameDock({
           {role === "ipAdapter" && (
             <InfoLine label="Masks" value={String(storeFrame.ipAdapter.masks.length)} />
           )}
+          {entry.slots.map((slot) =>
+            slot.sentSize ? (
+              <InfoLine
+                key={slot.pictureId}
+                label={
+                  slot.address
+                    ? addressLabel(slot.address)
+                    : (storeFrame?.pictures.find((p) => p.id === slot.pictureId)?.name ?? "")
+                }
+                value={sentSizeValue(slot.sentSize)}
+                title={sentSizeTitle(slot.sentSize)}
+              />
+            ) : null,
+          )}
         </>
       ) : (
         <>
           <InfoLine label="Layers" value={String(layerCount)} />
           {role === "initial" && <InfoLine label="Mask strokes" value={String(maskLineCount)} />}
           {role === "control" && <InfoLine label="Model" value={storeFrame.control.model} />}
-          <InfoLine
-            label="Dimensions"
-            value={filled ? `${genSize.width}×${genSize.height}` : "-"}
-          />
+          <InfoLine label="Dimensions" value={filled ? pixelSizeText(genSize) : "-"} />
           {role === "initial" && <InfoLine label="Sends" value={sentLabel(entry.sent) ?? "-"} />}
+          {entry.sent[0]?.sentSize && (
+            <InfoLine
+              label="Sent at"
+              value={sentSizeValue(entry.sent[0].sentSize)}
+              title={sentSizeTitle(entry.sent[0].sentSize)}
+            />
+          )}
         </>
       )}
       {entry.notSent && <InfoLine label="State" value={notSentLabel(entry.notSent)} />}

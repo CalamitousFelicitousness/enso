@@ -1,5 +1,6 @@
 export type {
   CudaMemoryV2 as CudaMemory,
+  DeclaredSizeV2,
   GpuMetrics,
   ItemLoadedModel as LoadedModel,
   MemoryPeakUsage,

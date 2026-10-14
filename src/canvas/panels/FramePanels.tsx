@@ -2,6 +2,7 @@
 // context for frame reorder, the add buttons under each column, and the
 // Output dock.
 
+import { sizeText } from "@/lib/media/text";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import { DndContext, PointerSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
@@ -96,7 +97,7 @@ export function FramePanels({
     hiresResizeY,
     sizeMultiple,
   );
-  const outputSizeText = `${outputSize.width}×${outputSize.height}`;
+  const outputSizeText = sizeText(outputSize);
 
   return (
     <DndContext sensors={sensors} onDragEnd={handleDragEnd}>

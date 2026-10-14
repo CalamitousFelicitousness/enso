@@ -5,6 +5,15 @@
 // exactly `sent`, `controls` and `ipAdapters`.
 
 import type { EffectiveLimit } from "@/lib/media/limits";
+import type { Declaration } from "@/lib/media/rules";
+import {
+  fitTo,
+  ruleRefusal,
+  type Fit,
+  type RuleRefusal,
+  type SizeLimits,
+  type SizeRule,
+} from "@/lib/media/sizeRule";
 import { compositeSpec, completeParams, fileSpec, mapKey, type PictureSpec } from "./freshness";
 import { unreadableText } from "./text";
 import {
@@ -63,7 +72,27 @@ export interface SentInput {
   /** The map sent in the picture's place, when the frame has a processor
    * and the outline was given the processing facts. */
   map: MapSlot | null;
+  /** The size the picture goes out at, smaller than its own: a set member
+   * under the model's rule, when the outline was given the size facts. */
+  fit: Fit | null;
+  /** What the picture goes out at, for a set member; null otherwise and for
+   * a picture that cannot be sent. */
+  sentSize: SentSize | null;
 }
+
+/** The size a picture goes out at, and why. */
+export type SentSize =
+  /** Resized from `from` to the size the model uses. */
+  | { kind: "fitted"; size: Size; from: Size }
+  /** At its own size: the model declares none (`noRule`), this server does
+   * not report sizes, Crop needs the whole picture, or the model uses it at
+   * that size (`fits`). */
+  | { kind: "whole"; size: Size; why: "noRule" | "unreported" | "crop" | "fits" }
+  /** What the model uses is known once it is loaded. */
+  | { kind: "unknown"; size: Size }
+  /** To a provider: at most the longest side it takes, from `from`, which
+   * its file size limit can lower further. */
+  | { kind: "atMost"; size: Size; from: Size };
 
 /** "off": switched off. "empty": on, with nothing to send. "notSent": on and
  * holding content, which no control model takes for the reason in `notSent`. */
@@ -77,6 +106,8 @@ export interface OutlineSlot {
   pictureId: string;
   /** Null while the picture is not sent, always for a control picture. */
   address: Address | null;
+  /** What a sent Reference or IP-Adapter picture goes out at. */
+  sentSize: SentSize | null;
 }
 
 export type ProblemCode = OutlineProblem["code"];
@@ -122,6 +153,9 @@ export interface IpAdapterSend {
   pictureIds: string[];
   settings: IpAdapterSettings;
   unreadable: boolean;
+  /** Each picture's size as it goes out, aligned with `pictureIds`. */
+  fits: (Fit | null)[];
+  sentSizes: (SentSize | null)[];
 }
 
 /** Something the request cannot carry as the frames stand. Each one has words
@@ -146,7 +180,21 @@ export type OutlineProblem =
   /** Frames whose map is not current on a model that runs elsewhere and cannot process. */
   | { code: "cloudMaps"; positions: number[] }
   /** Frames sending a picture larger than the browser or the server takes. */
-  | { code: "tooLarge"; positions: number[]; pictures: TooLargePicture[]; limit: EffectiveLimit };
+  | { code: "tooLarge"; positions: number[]; pictures: TooLargePicture[]; limit: EffectiveLimit }
+  /** Pictures the model refuses at the size they go out at. */
+  | { code: "ruleRefused"; positions: number[]; pictures: RefusedPicture[]; limits: SizeLimits };
+
+export interface RefusedPicture {
+  position: number;
+  frameId: string;
+  /** Null for an Initial frame's composite. */
+  pictureId: string | null;
+  /** Null for an IP-Adapter picture, which the prompt does not number. */
+  address: Address | null;
+  name: string;
+  size: Size;
+  refusal: RuleRefusal;
+}
 
 export interface TooLargePicture {
   position: number;
@@ -205,9 +253,77 @@ export interface OutlineEnv {
   processing?: ProcessingEnv | null;
   /** The largest picture the browser and the server take; absent or null takes any. */
   inputLimit?: EffectiveLimit | null;
+  /** What the model resizes input pictures to; without it nothing is fitted
+   * and no sent size is given. */
+  sizes?: SizeEnv | null;
+  /** A provider's longest side, for a cloud model: every sent picture is
+   * encoded for it, so each says the most it goes out at. */
+  cloud?: { rule: SizeRule | null; target: Size } | null;
 }
 
-type Unnumbered = Omit<SentInput, "address" | "map"> & { kind: MediaKind };
+export interface SizeEnv {
+  /** What a set's members are resized to: references and Initial composites. */
+  reference: Declaration;
+  /** What IP-Adapter pictures are resized to. */
+  ipAdapter: Declaration;
+  /** The size the request generates at, which a set's Initial composite is
+   * drawn at before its rule applies. */
+  target: Size;
+}
+
+/** What a model resizes input pictures to, apart from the request's size. */
+export type ModelSizes = Omit<SizeEnv, "target">;
+
+type Unnumbered = Omit<SentInput, "address" | "map" | "fit" | "sentSize"> & { kind: MediaKind };
+
+type Sizing = Pick<SentInput, "fit" | "sentSize">;
+
+const NOT_SIZED: Sizing = { fit: null, sentSize: null };
+
+/** What a picture of `size` goes out at under a declaration. */
+function sizedBy(declaration: Declaration, size: Size, crop: boolean): Sizing {
+  const whole = (why: "noRule" | "unreported" | "crop" | "fits"): Sizing => ({
+    fit: null,
+    sentSize: { kind: "whole", size, why },
+  });
+  if (crop) return whole("crop");
+  if (declaration.kind === "unknown") return { fit: null, sentSize: { kind: "unknown", size } };
+  if (declaration.kind === "unreported") return whole("unreported");
+  const { rule } = declaration.declared;
+  if (!rule) return whole("noRule");
+  const fit = fitTo(rule, size);
+  if (!fit) return whole("fits");
+  return {
+    fit,
+    sentSize: { kind: "fitted", size: { width: fit.width, height: fit.height }, from: size },
+  };
+}
+
+/** How a set's Initial composite is drawn for its fit: at a stretch fit's
+ * size, else at the output size and, for a cover fit, cropped and resized
+ * after, as the model would. */
+export function compositeDraw(fit: Fit | null, target: Size): { drawnAt: Size; fit: Fit | null } {
+  if (fit?.mode === "stretch")
+    return { drawnAt: { width: fit.width, height: fit.height }, fit: null };
+  return { drawnAt: target, fit };
+}
+
+/** The most a picture goes out at to a provider: a reference from its own
+ * size, a composite from the request's. The encoder makes the copy. */
+function encodedFor(
+  cloud: { rule: SizeRule | null; target: Size },
+  frame: Frame,
+  input: SentInput,
+): Sizing {
+  const picture = frame.pictures.find((p) => p.id === input.pictureId);
+  const from = picture ? { width: picture.width, height: picture.height } : cloud.target;
+  const fit = cloud.rule ? fitTo(cloud.rule, from) : null;
+  const size = fit ? { width: fit.width, height: fit.height } : from;
+  return { fit: null, sentSize: { kind: "atMost", size, from } };
+}
+
+const overLimit = (p: Size, limit: EffectiveLimit | null | undefined) =>
+  limit != null && p.width * p.height > limit.pixels;
 
 function frameSends(frame: Frame): Unnumbered[] {
   if (!frame.enabled) return [];
@@ -362,6 +478,63 @@ function tooLarge(frames: Frame[], limit: EffectiveLimit): OutlineProblem | null
   };
 }
 
+/** The pictures the model refuses at the size they go out at: set members
+ * under the reference declaration's limits, IP-Adapter pictures under the
+ * adapter's unless Crop leaves the picture to the server. */
+function ruleRefused(
+  entries: Settled[],
+  ipAdapters: IpAdapterSend[],
+  frameOf: ReadonlyMap<string, Frame>,
+  sizes: SizeEnv,
+): OutlineProblem | null {
+  const refused: RefusedPicture[] = [];
+  // set inside check, which narrowing from the initial null would not see
+  let limits = null as SizeLimits | null;
+  const check = (
+    declaration: Declaration,
+    sent: SentSize | null,
+    picture: Omit<RefusedPicture, "size" | "refusal">,
+  ) => {
+    if (declaration.kind !== "declared" || !sent) return;
+    const refusal = ruleRefusal(declaration.declared, sent.size);
+    if (!refusal) return;
+    limits ??= declaration.declared.limits ?? {};
+    refused.push({ ...picture, size: sent.size, refusal });
+  };
+  const nameOf = (frameId: string, pictureId: string | null) =>
+    frameOf.get(frameId)?.pictures.find((p) => p.id === pictureId)?.name ?? "";
+  for (const entry of entries) {
+    for (const input of entry.sent) {
+      check(sizes.reference, input.sentSize, {
+        position: entry.position,
+        frameId: input.frameId,
+        pictureId: input.pictureId,
+        address: input.address,
+        name: nameOf(input.frameId, input.pictureId),
+      });
+    }
+  }
+  for (const send of ipAdapters) {
+    if (send.settings.crop) continue;
+    send.pictureIds.forEach((pictureId, i) => {
+      check(sizes.ipAdapter, send.sentSizes[i] ?? null, {
+        position: send.position,
+        frameId: send.frameId,
+        pictureId,
+        address: null,
+        name: nameOf(send.frameId, pictureId),
+      });
+    });
+  }
+  if (refused.length === 0 || !limits) return null;
+  return {
+    code: "ruleRefused",
+    positions: ascending(refused.map((p) => p.position)),
+    pictures: refused,
+    limits,
+  };
+}
+
 /** The positions a problem names. */
 export function problemPositions(problem: OutlineProblem): number[] {
   return problem.code === "mixedControlTypes"
@@ -391,7 +564,7 @@ export function computeOutline(frames: Frame[], env: OutlineEnv = {}): Outline {
       status,
       notSent,
       sent: [] as SentInput[],
-      slots: shown.map((p) => ({ pictureId: p.id, address: null })),
+      slots: shown.map((p): OutlineSlot => ({ pictureId: p.id, address: null, sentSize: null })),
     });
     if (!frame.enabled) return settle("off");
     if (frame.role === "control") {
@@ -417,17 +590,32 @@ export function computeOutline(frames: Frame[], env: OutlineEnv = {}): Outline {
       const pictures = slotPictures(frame);
       if (pictures.length === 0) return settle("empty");
       if (frame.ipAdapter.adapter === "None") return settle("notSent", "noModel");
+      const declared = env.sizes?.ipAdapter;
+      const sized = pictures.map((p) =>
+        !declared || p.file === null || overLimit(p, env.inputLimit)
+          ? NOT_SIZED
+          : sizedBy(declared, { width: p.width, height: p.height }, frame.ipAdapter.crop),
+      );
       ipAdapters.push({
         frameId: frame.id,
         position,
         pictureIds: pictures.map((p) => p.id),
         settings: frame.ipAdapter,
         unreadable: [...pictures, ...frame.ipAdapter.masks].some((p) => p.file === null),
+        fits: sized.map((s) => s.fit),
+        sentSizes: sized.map((s) => s.sentSize),
       });
-      return settle("sent");
+      const sent = settle("sent");
+      return {
+        ...sent,
+        slots: sent.slots.map((slot) => {
+          const i = pictures.findIndex((p) => p.id === slot.pictureId);
+          return i === -1 ? slot : { ...slot, sentSize: sized[i].sentSize };
+        }),
+      };
     }
     const sent = frameSends(frame).map(({ kind, ...rest }): SentInput => {
-      return { ...rest, address: { kind, n: next[kind]++ }, map: null };
+      return { ...rest, address: { kind, n: next[kind]++ }, map: null, ...NOT_SIZED };
     });
     return {
       ...settle(sent.length > 0 ? "sent" : "empty"),
@@ -435,6 +623,7 @@ export function computeOutline(frames: Frame[], env: OutlineEnv = {}): Outline {
       slots: shown.map((p) => ({
         pictureId: p.id,
         address: sent.find((s) => s.pictureId === p.id)?.address ?? null,
+        sentSize: null,
       })),
     };
   });
@@ -443,27 +632,64 @@ export function computeOutline(frames: Frame[], env: OutlineEnv = {}): Outline {
     plain.length > 1 ||
     (plain.length === 1 && plain[0].role === "reference" && env.requestSetsSize === true);
 
+  // What each set member goes out at: a reference under the model's rule
+  // from its own size, an Initial composite from the generation size
+  const frameOf = new Map(frames.map((f) => [f.id, f]));
+  const sizes = env.sizes ?? null;
+  const cloud = env.cloud ?? null;
+  const sizeInput = (input: SentInput): SentInput => {
+    const frame = frameOf.get(input.frameId);
+    if (cloud && !input.unreadable && frame)
+      return { ...input, ...encodedFor(cloud, frame, input) };
+    if (!sizes || !set || input.unreadable || !frame) return input;
+    if (input.pictureId === null) {
+      if (composedPictures(frame).some((p) => overLimit(p, env.inputLimit))) return input;
+      return { ...input, ...sizedBy(sizes.reference, sizes.target, false) };
+    }
+    const picture = frame.pictures.find((p) => p.id === input.pictureId);
+    if (!picture || overLimit(picture, env.inputLimit)) return input;
+    return {
+      ...input,
+      ...sizedBy(sizes.reference, { width: picture.width, height: picture.height }, false),
+    };
+  };
+  const sized = settled.map((e) => {
+    if (e.sent.length === 0) return e;
+    const sent = e.sent.map(sizeInput);
+    const slots = e.slots.map((slot) => ({
+      ...slot,
+      sentSize: sent.find((s) => s.pictureId === slot.pictureId)?.sentSize ?? null,
+    }));
+    return { ...e, sent, slots };
+  });
+
   // The maps, once it is known how the pictures travel: a plain img2img
   // init goes out at frame size and the server resizes it; a set, a
   // separate init beside control pictures, and every control picture are
-  // resized to the generation size first.
+  // resized to the generation size first, a set member to its fitted size.
   const processing = env.processing ?? null;
-  const frameOf = new Map(frames.map((f) => [f.id, f]));
   const withMap = (input: SentInput): SentInput => {
     const frame = frameOf.get(input.frameId);
     const processor = frame && activeProcessor(frame);
     if (!processing || !frame || !processor) return input;
     if (input.pictureId !== null) {
       const picture = frame.pictures.find((p) => p.id === input.pictureId);
-      return picture ? { ...input, map: mapSlot(fileSpec(picture), processor, processing) } : input;
+      if (!picture) return input;
+      return { ...input, map: mapSlot(fileSpec(picture, input.fit), processor, processing) };
     }
-    const out = set || controls.length > 0 ? processing.target : processing.frame;
-    const spec = compositeSpec(composedPictures(frame), processing.frame, out);
+    const layers = composedPictures(frame);
+    if (set) {
+      const { drawnAt, fit } = compositeDraw(input.fit, processing.target);
+      const spec = compositeSpec(layers, processing.frame, drawnAt, fit);
+      return { ...input, map: mapSlot(spec, processor, processing) };
+    }
+    const out = controls.length > 0 ? processing.target : processing.frame;
+    const spec = compositeSpec(layers, processing.frame, out);
     return { ...input, map: mapSlot(spec, processor, processing) };
   };
   const mapped = processing
-    ? settled.map((e) => (e.sent.length > 0 ? { ...e, sent: e.sent.map(withMap) } : e))
-    : settled;
+    ? sized.map((e) => (e.sent.length > 0 ? { ...e, sent: e.sent.map(withMap) } : e))
+    : sized;
   if (processing) {
     for (const send of controls) {
       const frame = frameOf.get(send.frameId);
@@ -478,6 +704,8 @@ export function computeOutline(frames: Frame[], env: OutlineEnv = {}): Outline {
   const problems = findProblems(mapped, sent, controls, ipAdapters, set, env);
   const oversize = env.inputLimit ? tooLarge(frames, env.inputLimit) : null;
   if (oversize) problems.push(oversize);
+  const refused = sizes ? ruleRefused(mapped, ipAdapters, frameOf, sizes) : null;
+  if (refused) problems.push(refused);
   const controlMaps = new Map(controls.map((c) => [c.frameId, c.map]));
   const entries = mapped.map((entry): OutlineEntry => {
     const own = controlMaps.get(entry.frameId);

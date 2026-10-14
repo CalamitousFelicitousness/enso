@@ -3,6 +3,7 @@
 // Blob in a record each time the record is put.
 
 import type { JobDomain } from "@/lib/jobs/domains";
+import type { Fit } from "@/lib/media/sizeRule";
 import { refsIn } from "@/lib/jobs/replay";
 import type { ImportNote } from "./legacy";
 import { loose, type Loose } from "./loose";
@@ -837,8 +838,23 @@ export interface ProviderEncoding {
  * frame's mask drawn at a size, an IP-Adapter region mask, or a map. A
  * composite or a map sent to a cloud model is also encoded for it. */
 export type Source =
-  | { kind: "composite"; frameId: string; drawnAt: Size; encode: ProviderEncoding | null }
-  | { kind: "file"; frameId: string; pictureId: string }
+  | {
+      kind: "composite";
+      frameId: string;
+      drawnAt: Size;
+      encode: ProviderEncoding | null;
+      /** Cropped and resized to after drawing; absent when not. */
+      fit?: Fit;
+    }
+  | {
+      kind: "file";
+      frameId: string;
+      pictureId: string;
+      /** The size it went out at, when smaller than its own; absent otherwise. */
+      fit?: Fit;
+      /** The provider encoding it went out in; absent otherwise. */
+      encode?: ProviderEncoding;
+    }
   | { kind: "mask"; frameId: string; drawnAt: Size }
   | { kind: "ipMask"; frameId: string; maskId: string }
   | { kind: "map"; key: string; drawnAt: Size | null; encode: ProviderEncoding | null };
@@ -853,6 +869,10 @@ export interface StoredInputs {
 }
 
 export const JOB_SCHEMA = 1;
+
+/** The server record's schema this build writes and reads: 2 adds a
+ * source's fit and a file source's encode. */
+export const RECORD_SCHEMA = 2;
 
 /** What this browser keeps of a job it sent, under the server's job id. */
 export interface StoredJob {
@@ -965,7 +985,19 @@ function encoding(value: unknown, path: string): ProviderEncoding | null {
   });
 }
 
-type SourceField = "kind" | "frameId" | "pictureId" | "maskId" | "drawnAt" | "encode" | "key";
+type SourceField =
+  "kind" | "frameId" | "pictureId" | "maskId" | "drawnAt" | "encode" | "key" | "fit";
+
+const FIT_MODES: readonly Fit["mode"][] = ["stretch", "cover"];
+
+function fitOf(value: unknown, path: string): Fit {
+  const f = fields<Fit>(value, path);
+  return exact(f, path, {
+    width: num(f.width, `${path}.width`),
+    height: num(f.height, `${path}.height`),
+    mode: oneOf(f.mode, FIT_MODES, `${path}.mode`),
+  });
+}
 
 function source(value: unknown, path: string): Source {
   const s = fields<Record<SourceField, unknown>>(value, path);
@@ -979,11 +1011,20 @@ function source(value: unknown, path: string): Source {
         frameId: frameId(),
         drawnAt: size(s.drawnAt, `${path}.drawnAt`),
         encode: encoding(s.encode, `${path}.encode`),
+        ...(s.fit === undefined ? {} : { fit: fitOf(s.fit, `${path}.fit`) }),
       };
       break;
-    case "file":
-      read = { kind, frameId: frameId(), pictureId: text(s.pictureId, `${path}.pictureId`) };
+    case "file": {
+      const encode = s.encode === undefined ? null : encoding(s.encode, `${path}.encode`);
+      read = {
+        kind,
+        frameId: frameId(),
+        pictureId: text(s.pictureId, `${path}.pictureId`),
+        ...(s.fit === undefined ? {} : { fit: fitOf(s.fit, `${path}.fit`) }),
+        ...(encode ? { encode } : {}),
+      };
       break;
+    }
     case "mask":
       read = { kind, frameId: frameId(), drawnAt: size(s.drawnAt, `${path}.drawnAt`) };
       break;
@@ -1090,6 +1131,8 @@ export function joinInputs(
  * as a stored record's is. Fields the server adds beside them are not read. */
 export function readServerRecord(value: unknown): StoredJob {
   const r = fields<Record<string, unknown>>(value, "record");
+  const schema = r["record_schema"] ?? 1;
+  if (typeof schema === "number" && schema > RECORD_SCHEMA) throw new NewerDocument(schema);
   const refs = fields<Record<string, unknown>>(r["refs"], "record.refs");
   const request = fields<Record<string, JsonValue>>(r["request"], "record.request");
   return {

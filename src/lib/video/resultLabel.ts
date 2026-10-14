@@ -1,3 +1,4 @@
+import { sizeText } from "@/lib/media/text";
 import type { VideoResult } from "@/api/types/video";
 
 export const DOMAIN_LABELS: Record<VideoResult["domain"], string> = {
@@ -19,7 +20,7 @@ export function resultMeta(result: VideoResult): string[] {
   if (model) out.push(model);
   if (result.frames) out.push(`${result.frames}f`);
   if (result.fps) out.push(`${result.fps} fps`);
-  out.push(`${result.width}x${result.height}`);
+  out.push(sizeText(result));
   return out;
 }
 

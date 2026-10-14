@@ -16,6 +16,7 @@ import { useCloudCaption, useCloudVqa } from "@/api/hooks/useCloudText";
 import { useCloudDefaults } from "@/hooks/useCloudDefaults";
 import { useUploadAction } from "@/hooks/useUploadAction";
 import { useUploadView } from "@/hooks/useActionProgress";
+import { captionPicture } from "@/inputs/fit";
 import { sendOne } from "@/inputs/uploads";
 import { ACTIONS } from "@/lib/media/progress";
 import { stopUploadText } from "@/lib/media/text";
@@ -217,7 +218,10 @@ export function CaptionPanel() {
         return;
       }
 
-      const ref = await runUpload(({ batch }) => sendOne(batch, image, { name: image.name }));
+      const ref = await runUpload(async ({ batch, signal }) => {
+        const sized = await captionPicture(image, image.name, signal);
+        return sendOne(batch, sized.blob, { name: sized.name });
+      });
       if (ref === null) return;
 
       if (method === "vlm") {

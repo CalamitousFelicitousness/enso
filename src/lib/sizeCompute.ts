@@ -135,8 +135,3 @@ export function containFit(
   const scale = Math.min(boxW / w, boxH / h);
   return { width: Math.round(w * scale), height: Math.round(h * scale) };
 }
-
-export function formatMegapixels(w: number, h: number): string {
-  const mp = (w * h) / 1_000_000;
-  return `~${mp.toFixed(1)} MP`;
-}

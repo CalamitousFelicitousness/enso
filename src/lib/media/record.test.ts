@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Source, StoredInputs } from "@/lib/inputs/stored";
+import { RECORD_SCHEMA } from "@/lib/inputs/stored";
 import { assembleRecord, type RecordParts } from "./record";
 
 const composite: Source = {
@@ -68,5 +69,10 @@ describe("assembleRecord", () => {
     expect(record.inputs).toBeNull();
     expect(record.refs).toEqual({});
     expect(record.unavailable).toEqual([]);
+  });
+
+  it("writes the schema that carries a file source's fit", () => {
+    expect(assembleRecord(parts()).record_schema).toBe(RECORD_SCHEMA);
+    expect(RECORD_SCHEMA).toBe(2);
   });
 });

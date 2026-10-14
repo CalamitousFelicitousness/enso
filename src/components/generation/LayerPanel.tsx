@@ -1,3 +1,4 @@
+import { sizeText } from "@/lib/media/text";
 import { useCallback, useRef } from "react";
 import { useInputStore } from "@/stores/inputStore";
 import { useGenerationStore } from "@/stores/generationStore";
@@ -18,7 +19,7 @@ function LayerDims({ layer }: { layer: Picture }) {
   const canvasH = Math.round(Math.abs(layer.height * scaleY));
   const isTransformed = canvasW !== layer.width || canvasH !== layer.height;
   return (
-    <p className="text-4xs text-muted-foreground" title={`Native: ${layer.width}×${layer.height}`}>
+    <p className="text-4xs text-muted-foreground" title={`Native: ${sizeText(layer)}`}>
       {isTransformed ? (
         <>
           {canvasW}&times;{canvasH}{" "}

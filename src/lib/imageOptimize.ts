@@ -1,4 +1,7 @@
 import type { InputLimits, ImageFormat } from "@/api/types/cloud";
+import type { ImageKind, PixelSize } from "@/lib/media/dimensions";
+import { fitTo, type Fit, type SizeRule } from "@/lib/media/sizeRule";
+import { sizeText } from "@/lib/media/text";
 import { resizeBlob } from "@/lib/resize";
 
 export interface OptimizeResult {
@@ -70,12 +73,82 @@ async function filterSupportedFormats(formats: ImageFormat[]): Promise<ImageForm
   return hasWebP ? formats : formats.filter((f) => f !== "webp");
 }
 
+/** What a picture's header says, its size as this browser draws it. */
+export interface ShownHeader {
+  kind: ImageKind;
+  orientation: number;
+  size: PixelSize;
+}
+
+/** What the encoder reaches outside itself; the tests pass their own. */
+export interface OptimizeTools {
+  /** Null when the header gives no size. */
+  header: (blob: Blob) => Promise<ShownHeader | null>;
+  /** A picture of `size` redrawn at `fit`, as a PNG. */
+  fit: (blob: Blob, size: PixelSize, fit: Fit) => Promise<Blob>;
+  /** The format and quality search over one decoded picture. */
+  search: (
+    picture: Blob,
+    limits: InputLimits,
+    providerLabel: string,
+    warnings: string[],
+  ) => Promise<OptimizeResult>;
+}
+
+const KIND_FORMAT: Partial<Record<ImageKind, ImageFormat>> = {
+  png: "png",
+  jpeg: "jpeg",
+  webp: "webp",
+};
+
+/** A provider's longest side as a size rule; null when it takes any. */
+export function cloudRule(limits: InputLimits): SizeRule | null {
+  return limits.maxLongestSide
+    ? { kind: "longest", side: limits.maxLongestSide, multiple: 8 }
+    : null;
+}
+
+/** A picture as a provider takes it. Read from its header first: a file in a
+ * format the provider takes, within its bytes and longest side and with no
+ * orientation to apply, goes as it is without a decode; any other is
+ * decoded once, at the longest side when it is larger, then encoded. */
 export async function optimizeImageForProvider(
   source: Blob,
   limits: InputLimits,
   providerLabel: string,
+  tools: OptimizeTools,
 ): Promise<OptimizeResult> {
-  const warnings: string[] = [];
+  const header = await tools.header(source);
+  const rule = cloudRule(limits);
+  const fit = header && rule ? fitTo(rule, header.size) : null;
+  const format = header ? KIND_FORMAT[header.kind] : undefined;
+  if (
+    header &&
+    !fit &&
+    header.orientation === 1 &&
+    format &&
+    limits.formats.includes(format) &&
+    source.size <= computeBudget(limits)
+  ) {
+    return { blob: source, format, quality: null, dimensions: header.size, warnings: [] };
+  }
+  if (!header || !fit) return tools.search(source, limits, providerLabel, []);
+  const warnings = [
+    `Resized from ${sizeText(header.size)} to ${sizeText(fit)} (provider max ${limits.maxLongestSide}px)`,
+  ];
+  return tools.search(await tools.fit(source, header.size, fit), limits, providerLabel, warnings);
+}
+
+/** The format and quality search: PNG when the budget is large, else the
+ * provider's lossy formats from the best quality down, else a smaller size.
+ * A picture larger than the longest side, whose header did not say so, is
+ * resized first. */
+export async function searchEncodings(
+  source: Blob,
+  limits: InputLimits,
+  providerLabel: string,
+  warnings: string[],
+): Promise<OptimizeResult> {
   const budget = computeBudget(limits);
   const formats = await filterSupportedFormats(limits.formats);
 
@@ -93,7 +166,7 @@ export async function optimizeImageForProvider(
     const newW = Math.round((width * scale) / 8) * 8 || 8;
     const newH = Math.round((height * scale) / 8) * 8 || 8;
     warnings.push(
-      `Resized from ${width}×${height} to ${newW}×${newH} (provider max ${limits.maxLongestSide}px)`,
+      `Resized from ${sizeText({ width, height })} to ${sizeText({ width: newW, height: newH })} (provider max ${limits.maxLongestSide}px)`,
     );
     const resized = await resizeBlob((await canvasToFormat(canvas, "png")) as Blob, newW, newH);
     const bm2 = await createImageBitmap(resized);
@@ -109,19 +182,6 @@ export async function optimizeImageForProvider(
     const blob = await canvasToFormat(canvas, "png");
     if (blob && blob.size <= budget) {
       return { blob, format: "png", quality: null, dimensions: { width, height }, warnings };
-    }
-  }
-
-  if (source.size <= budget && source.size === (await canvasToFormat(canvas, "png"))?.size) {
-    const sourceFormat = detectFormat(source);
-    if (sourceFormat && formats.includes(sourceFormat)) {
-      return {
-        blob: source,
-        format: sourceFormat,
-        quality: null,
-        dimensions: { width, height },
-        warnings,
-      };
     }
   }
 
@@ -142,7 +202,7 @@ export async function optimizeImageForProvider(
   );
   if (downscaled) {
     warnings.push(
-      `Reduced from ${width}×${height} to ${downscaled.dimensions.width}×${downscaled.dimensions.height} to fit ${providerLabel} size limit`,
+      `Reduced from ${sizeText({ width, height })} to ${sizeText(downscaled.dimensions)} to fit ${providerLabel} size limit`,
     );
     return { ...downscaled, warnings };
   }
@@ -220,12 +280,5 @@ async function dimensionReduction(
   if (blob && blob.size <= budget) {
     return { blob, format, quality: 0.8, dimensions: { width: newW, height: newH } };
   }
-  return null;
-}
-
-function detectFormat(blob: Blob): ImageFormat | null {
-  if (blob.type === "image/png") return "png";
-  if (blob.type === "image/jpeg") return "jpeg";
-  if (blob.type === "image/webp") return "webp";
   return null;
 }

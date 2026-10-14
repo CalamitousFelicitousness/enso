@@ -3,18 +3,22 @@
 // parameter, and the runner's revision. Freshness is derived from the key,
 // never remembered, so a picture moved and moved back is current again.
 
+import type { Fit } from "@/lib/media/sizeRule";
 import type { JsonValue, Picture, PlacedPicture, ProcessorSpec, Size, Transform } from "./types";
 
 /** The picture a processor runs on, as content. A file is its bytes; a
  * composite is its layers as placed, the frame they are placed in, and the
- * size it is sent at when the browser resizes it first. */
+ * size it is sent at when the browser resizes it first; a file sent fitted
+ * names its fit, absent otherwise, so keys from before stand. */
 export type PictureSpec =
-  | { kind: "file"; cid: string }
+  | { kind: "file"; cid: string; out?: Fit }
   | {
       kind: "composite";
       width: number;
       height: number;
       out: Size | null;
+      /** Cropped and resized to after drawing; absent when not. */
+      fit?: Fit;
       layers: { cid: string; transform: Transform; opacity: number }[];
     };
 
@@ -41,17 +45,29 @@ function quantised(t: Transform): Transform {
   };
 }
 
-export function fileSpec(picture: Pick<Picture, "cid">): PictureSpec {
-  return { kind: "file", cid: picture.cid };
+export function fileSpec(picture: Pick<Picture, "cid">, out: Fit | null = null): PictureSpec {
+  return out
+    ? {
+        kind: "file",
+        cid: picture.cid,
+        out: { width: out.width, height: out.height, mode: out.mode },
+      }
+    : { kind: "file", cid: picture.cid };
 }
 
-export function compositeSpec(layers: PlacedPicture[], frame: Size, out: Size | null): PictureSpec {
+export function compositeSpec(
+  layers: PlacedPicture[],
+  frame: Size,
+  out: Size | null,
+  fit: Fit | null = null,
+): PictureSpec {
   const same = out !== null && out.width === frame.width && out.height === frame.height;
   return {
     kind: "composite",
     width: frame.width,
     height: frame.height,
-    out: same ? null : out,
+    out: same || out === null ? null : { width: out.width, height: out.height },
+    ...(fit ? { fit: { width: fit.width, height: fit.height, mode: fit.mode } } : {}),
     layers: layers.map((p) => ({
       cid: p.cid,
       transform: quantised(p.transform),

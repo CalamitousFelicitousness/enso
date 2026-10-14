@@ -21,15 +21,19 @@ import { createUploader, type Uploader } from "@/inputs/materialise";
 import type { UploadBatch } from "@/inputs/uploads";
 import type { ProcessorFacts } from "@/lib/processorUtils";
 import {
+  compositeDraw,
   computeOutline,
   type ControlSend,
   type IpAdapterSend,
   type MapSlot,
+  type ModelSizes,
+  type Outline,
   type SentInput,
 } from "@/lib/inputs/outline";
 import type { Inputs } from "@/lib/inputs/stored";
 import {
   CONTROL_PICTURE_SERVER_TEXT,
+  SIZES_CHANGED_TEXT,
   problemText,
   unreadableControlText,
   unreadableText,
@@ -77,6 +81,9 @@ export interface ControlBuildOptions {
   /** The loaded checkpoint carries its control model, so a ControlNet frame
    * needs none (`control_unified` on /sdapi/v2/checkpoint); null when unknown. */
   controlUnified: boolean | null;
+  /** What the canvas showed the model resizing pictures to, from the model
+   * it knew before any load for this job, and what the loaded model says. */
+  sizes: { shown: ModelSizes; loaded: ModelSizes };
   /** The server's processors, which every map key names. */
   processors: ProcessorFacts;
   /** The action's uploads. */
@@ -102,15 +109,15 @@ function inputProcess(sent: SentInput[]): InputProcessWire[] | undefined {
   return entries.some((e) => e !== null) ? entries : undefined;
 }
 
-/** A Reference picture as it is, or its map. */
+/** A Reference picture at the size it goes out at, or its map. */
 async function referenceRef(up: Uploader, input: SentInput): Promise<string> {
   if (isCurrent(input.map)) return (await up.map(input.map.key)).ref;
-  return up.file(input.frameId, input.pictureId ?? "");
+  return (await up.file(input.frameId, input.pictureId ?? "", input.fit)).ref;
 }
 
 /** Several pictures as one condition set, in the order sent: Initial frames
- * drawn at the output size, references raw, a current map in its picture's
- * place. */
+ * drawn at the output size and references as they are, each at the size the
+ * model uses when it is smaller, a current map in its picture's place. */
 async function uploadConditionSet(
   up: Uploader,
   sent: SentInput[],
@@ -120,10 +127,18 @@ async function uploadConditionSet(
   for (const input of sent) {
     if (input.role === "reference") refs.push(await referenceRef(up, input));
     else if (isCurrent(input.map)) refs.push((await up.map(input.map.key)).ref);
-    else refs.push((await up.composite(input.frameId, target)).ref);
+    else {
+      const { drawnAt, fit } = compositeDraw(input.fit, target);
+      refs.push((await up.composite(input.frameId, drawnAt, null, fit)).ref);
+    }
   }
   return refs;
 }
+
+/** What goes out smaller than the pictures: each set member's and adapter
+ * picture's fit. */
+const fitsOf = (outline: Outline) =>
+  JSON.stringify([outline.sent.map((s) => s.fit), outline.ipAdapters.map((a) => a.fits)]);
 
 /** A Control frame as a control unit: its source frame's composition at the
  * generation size as the unit's own picture, or its current map; with a
@@ -161,10 +176,14 @@ async function controlUnit(
   };
 }
 
-/** An IP-Adapter frame as an adapter unit: its pictures raw, in order, with
- * the region masks it holds. */
+/** An IP-Adapter frame as an adapter unit: its pictures in order, each at the
+ * size the image encoder uses when it is smaller, with the region masks it holds. */
 async function ipAdapterUnit(up: Uploader, send: IpAdapterSend): Promise<IpAdapterWire> {
-  const images = await Promise.all(send.pictureIds.map((id) => up.file(send.frameId, id)));
+  const images = await Promise.all(
+    send.pictureIds.map(
+      async (id, i) => (await up.file(send.frameId, id, send.fits[i] ?? null)).ref,
+    ),
+  );
   const masks = await Promise.all(send.settings.masks.map((m) => up.ipMask(send.frameId, m.id)));
   return {
     adapter: send.settings.adapter,
@@ -186,6 +205,7 @@ export async function buildControlRequest({
   detailerMode,
   controlSeparateInit,
   controlUnified,
+  sizes,
   processors,
   batch,
 }: ControlBuildOptions): Promise<BuildResult> {
@@ -238,12 +258,24 @@ export async function buildControlRequest({
   const frame: Size = { width: gen.width, height: gen.height };
   // Set members, a separate init and control pictures are drawn at the size the model generates at
   const target = sendSize(plan, frame, sizeMultiple);
-  const { sent, controls, ipAdapters } = await outlineWithMaps(frames, processors, {
+  const outline = await outlineWithMaps(frames, processors, {
     cloud: false,
     controlUnified: unified,
     frame,
     target,
+    requestSetsSize,
+    sizes: { ...sizes.loaded, target },
   });
+  // A model loaded for this job resizes pictures otherwise than the canvas showed
+  const shown = computeOutline(frames, {
+    controlUnified: unified,
+    requestSetsSize,
+    sizes: { ...sizes.shown, target },
+  });
+  if (fitsOf(shown) !== fitsOf(outline)) throw new InputRefusal(SIZES_CHANGED_TEXT);
+  const refused = outline.problems.find((p) => p.code === "ruleRefused");
+  if (refused) throw new InputRefusal(problemText(refused));
+  const { sent, controls, ipAdapters } = outline;
   const up = createUploader({ frames, size: frame }, batch);
   // The LUT goes with each job by its hash, its bytes only when the server lacks them
   const lut = stageLutOn(batch, "images");

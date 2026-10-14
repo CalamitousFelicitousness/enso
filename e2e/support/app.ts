@@ -1,3 +1,4 @@
+import { basename } from "node:path";
 import { fileURLToPath } from "node:url";
 import { expect, type Browser, type Locator, type Page, type Response } from "@playwright/test";
 import { finishedJob, type Job } from "./backend";
@@ -174,9 +175,12 @@ export class Enso {
       await this.leftPanel.getByRole("button", { name: "Add picture" }).click();
       await (await chooser).setFiles(file);
     }
-    await expect(this.leftPanel.getByRole("button", { name: "Remove portrait.jpg" })).toHaveCount(
-      files.length,
-    );
+    for (const name of new Set(files.map((file) => basename(file)))) {
+      const count = files.filter((file) => basename(file) === name).length;
+      await expect(this.leftPanel.getByRole("button", { name: `Remove ${name}` })).toHaveCount(
+        count,
+      );
+    }
   }
 
   /** Add a ControlNet frame through the Input tab and give it the file. */

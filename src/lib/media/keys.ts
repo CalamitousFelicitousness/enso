@@ -5,21 +5,24 @@
 import { canonicalJson } from "@/lib/inputs/freshness";
 import type { ProviderEncoding } from "@/lib/inputs/stored";
 import type { PlacedPicture, Size } from "@/lib/inputs/types";
+import type { Fit } from "./sizeRule";
 
 /** A composite's bytes: each layer's cid, natural size, opacity, visibility
  * and raw transform in order (the flatten rounds raw transforms, so the
- * quantised map spec is too coarse), the frame size, the size it is drawn at
- * and the provider encoding. */
+ * quantised map spec is too coarse), the frame size, the size it is drawn at,
+ * the provider encoding and the fit it is cropped to after. */
 export function compositeKey(
   layers: readonly PlacedPicture[],
   frame: Size,
   drawnAt: Size,
   encode: ProviderEncoding | null,
+  fit: Fit | null = null,
 ): string {
   return `composite|${canonicalJson({
     frame: [frame.width, frame.height],
     drawnAt: [drawnAt.width, drawnAt.height],
     encode,
+    ...(fit ? { fit: [fit.mode, fit.width, fit.height] } : {}),
     layers: layers.map((layer) => [
       layer.cid,
       layer.width,
@@ -42,4 +45,18 @@ export function mapSendKey(
   encode: ProviderEncoding | null,
 ): string {
   return `map|${canonicalJson({ key, drawnAt: drawnAt && [drawnAt.width, drawnAt.height], encode })}`;
+}
+
+const encodingOf = (encode: ProviderEncoding | null) =>
+  encode ? `${encode.provider}:${encode.model}` : "png";
+
+/** A picture's file as sent fitted, in a provider encoding or a PNG. */
+export function fileKey(cid: string, fit: Fit, encode: ProviderEncoding | null): string {
+  return `file|${cid}|${fit.mode}|${fit.width}x${fit.height}|${encodingOf(encode)}`;
+}
+
+/** The hashes row a fitted copy's hash is kept under across reloads: its cid,
+ * then what made it after a slash, so the sweep keeps and drops it with the cid. */
+export function fileRow(cid: string, fit: Fit, encode: ProviderEncoding | null): string {
+  return `${cid}/${fit.mode}|${fit.width}x${fit.height}|${encodingOf(encode)}`;
 }

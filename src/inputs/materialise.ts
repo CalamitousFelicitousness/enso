@@ -11,14 +11,16 @@ import { getInputLimits } from "@/lib/cloudLimits";
 import { exportMask } from "@/lib/exportMask";
 import { flattenCanvas } from "@/lib/flattenCanvas";
 import { canonicalJson } from "@/lib/inputs/freshness";
-import { optimizeImageForProvider } from "@/lib/imageOptimize";
+import { optimizeImageForProvider, searchEncodings, type OptimizeTools } from "@/lib/imageOptimize";
 import type { ProviderEncoding, Source } from "@/lib/inputs/stored";
 import { composedPictures, type Frame, type MaskContent, type Size } from "@/lib/inputs/types";
 import { ReplayError } from "@/lib/jobs/replay";
 import type { ReplayMissing } from "@/lib/jobs/text";
-import { compositeKey, mapSendKey } from "@/lib/media/keys";
+import { compositeKey, fileKey, fileRow, mapSendKey } from "@/lib/media/keys";
+import type { Fit } from "@/lib/media/sizeRule";
 import { resizeBlob } from "@/lib/resize";
-import { headerSize } from "./admit";
+import { headerSize, sendsAsItself, shownHeader } from "./admit";
+import { fitBlob, pngName } from "./fit";
 import { currentMap, touchMap } from "./maps";
 import { derivedFor, type Bytes, type StageOptions, type UploadBatch } from "./uploads";
 
@@ -79,11 +81,21 @@ export interface MakeTools {
   currentMap: (key: string) => { cid: string; blob: Blob; width: number; height: number } | null;
   touchMap: (key: string) => void;
   sizeOf: (blob: Blob) => Promise<Size>;
+  /** A picture of `size` redrawn at `fit`. */
+  fit: (blob: Blob, size: Size, fit: Fit) => Promise<Blob>;
+  /** The file reaches the model as shown when sent as itself. */
+  asItself: (blob: Blob) => Promise<boolean>;
 }
+
+const ENCODE_TOOLS: OptimizeTools = {
+  header: shownHeader,
+  fit: (blob, size, fit) => fitBlob(blob, size, fit),
+  search: searchEncodings,
+};
 
 async function optimise(blob: Blob, encode: ProviderEncoding): Promise<Made> {
   const limits = getInputLimits(encode.provider, encode.model);
-  const optimized = await optimizeImageForProvider(blob, limits, encode.provider);
+  const optimized = await optimizeImageForProvider(blob, limits, encode.provider, ENCODE_TOOLS);
   return {
     blob: optimized.blob,
     name: `cloud-input.${optimized.format}`,
@@ -108,7 +120,22 @@ const MAKE_TOOLS: MakeTools = {
   currentMap,
   touchMap,
   sizeOf,
+  fit: (blob, size, fit) => fitBlob(blob, size, fit),
+  asItself: sendsAsItself,
 };
+
+/** The size a picture's file goes out redrawn at: the source's fit, else its
+ * own size when the file as itself would not reach the model as shown, else
+ * none and the file goes as it is. */
+async function fileFit(
+  source: Extract<Source, { kind: "file" }>,
+  picture: { file: Blob | null; width: number; height: number },
+  tools: MakeTools,
+): Promise<Fit | null> {
+  if (source.fit) return source.fit;
+  if (!picture.file || (await tools.asItself(picture.file))) return null;
+  return { width: picture.width, height: picture.height, mode: "stretch" };
+}
 
 function frameOf(inputs: SourceFrames, frameId: string, missing: ReplayMissing): Frame {
   const frame = inputs.frames.find((f) => f.id === frameId);
@@ -136,6 +163,11 @@ async function encoded(made: Made, encode: ProviderEncoding | null, tools: MakeT
   return encode ? tools.optimise(made.blob, encode) : made;
 }
 
+/** Derived bytes as a Blob of their own: an encode or resize that answers its
+ * input would otherwise be staged as the original. */
+const own = (made: Made, from: Blob): Made =>
+  made.blob === from ? { ...made, blob: made.blob.slice(0, made.blob.size, made.blob.type) } : made;
+
 /** The bytes of a source, made from the frames; null for a mask with nothing
  * painted. Throws ReplayError when the bytes a source needs are not there. */
 export async function materialise(
@@ -156,18 +188,34 @@ export async function materialise(
         source.drawnAt,
       );
       if (!flat) throw new Error("A frame holds no picture to send");
-      return encoded({ blob: flat, name: "input.png", size: source.drawnAt }, source.encode, tools);
+      const { fit } = source;
+      const made = fit
+        ? {
+            blob: await tools.fit(flat, source.drawnAt, fit),
+            name: "input.png",
+            size: { width: fit.width, height: fit.height },
+          }
+        : { blob: flat, name: "input.png", size: source.drawnAt };
+      return encoded(made, source.encode, tools);
     }
     case "file": {
       const picture = frameOf(inputs, source.frameId, "picture").pictures.find(
         (p) => p.id === source.pictureId,
       );
       if (!picture?.file) throw new ReplayError("picture");
-      return {
-        blob: picture.file,
-        name: picture.name,
-        size: { width: picture.width, height: picture.height },
+      const size = { width: picture.width, height: picture.height };
+      const fit = await fileFit(source, picture, tools);
+      if (!fit) {
+        const made = { blob: picture.file, name: picture.name, size };
+        return own(await encoded(made, source.encode ?? null, tools), picture.file);
+      }
+      const blob = await tools.fit(picture.file, size, fit);
+      const made = {
+        blob,
+        name: pngName(picture.name),
+        size: { width: fit.width, height: fit.height },
       };
+      return encoded(made, source.encode ?? null, tools);
     }
     case "mask": {
       const { mask } = frameOf(inputs, source.frameId, "mask");
@@ -199,7 +247,8 @@ export async function materialise(
       const blob = source.drawnAt
         ? await tools.resize(map.blob, source.drawnAt.width, source.drawnAt.height)
         : map.blob;
-      return encoded({ blob, name: "map.png", size }, source.encode, tools);
+      const made = await encoded({ blob, name: "map.png", size }, source.encode, tools);
+      return source.drawnAt || source.encode ? own(made, map.blob) : made;
     }
   }
 }
@@ -223,9 +272,16 @@ export interface Uploader {
   readonly ledger: Ledger;
   /** Any source; null for a mask with nothing painted. */
   upload(source: Source): Promise<Upload | null>;
-  /** A composed frame's pictures drawn at `drawnAt`, encoded for a provider when given one. */
-  composite(frameId: string, drawnAt: Size, encode?: ProviderEncoding | null): Promise<Upload>;
-  file(frameId: string, pictureId: string): Promise<string>;
+  /** A composed frame's pictures drawn at `drawnAt`, then cropped and resized
+   * to `fit` when given one, encoded for a provider when given one. */
+  composite(
+    frameId: string,
+    drawnAt: Size,
+    encode?: ProviderEncoding | null,
+    fit?: Fit | null,
+  ): Promise<Upload>;
+  /** A picture's file, redrawn at `fit` when given one. */
+  file(frameId: string, pictureId: string, fit?: Fit | null): Promise<Upload>;
   /** The frame's mask at `drawnAt`; null when nothing is painted. */
   mask(frameId: string, drawnAt: Size): Promise<string | null>;
   ipMask(frameId: string, maskId: string): Promise<string>;
@@ -282,16 +338,32 @@ export function createUploader(
     switch (source.kind) {
       case "composite": {
         const layers = composedPictures(frameOf(inputs, source.frameId, "picture"));
-        return derived(source, compositeKey(layers, inputs.size, source.drawnAt, source.encode));
+        const key = compositeKey(layers, inputs.size, source.drawnAt, source.encode, source.fit);
+        return derived(source, key);
       }
       case "file": {
         const picture = frameOf(inputs, source.frameId, "picture").pictures.find(
           (p) => p.id === source.pictureId,
         );
         if (!picture) throw new ReplayError("picture");
-        // bytes this browser lost go from the server's copy when it holds one
-        const ref = stage(picture.file, source, { name: picture.name, cid: picture.cid });
-        return { ref, size: { width: picture.width, height: picture.height } };
+        const fit = await fileFit(source, picture, tools);
+        const encode = source.encode ?? null;
+        if (!fit && !encode) {
+          // bytes this browser lost go from the server's copy when it holds one
+          const ref = stage(picture.file, source, { name: picture.name, cid: picture.cid });
+          return { ref, size: { width: picture.width, height: picture.height } };
+        }
+        const drawn: Fit = fit ?? { width: picture.width, height: picture.height, mode: "stretch" };
+        const key = fileKey(picture.cid, drawn, encode);
+        // an encoding can shrink it further, so only a plain redraw knows its size before it is made
+        if (encode) return derived(source, key);
+        const size = { width: drawn.width, height: drawn.height };
+        const bytes = async () => (await materialise(source, inputs, held, tools))?.blob ?? null;
+        const row = fileRow(picture.cid, drawn, null);
+        return {
+          ref: stage(bytes, source, { name: pngName(picture.name), key, row, dims: size }),
+          size,
+        };
       }
       case "mask": {
         const { mask } = frameOf(inputs, source.frameId, "mask");
@@ -340,9 +412,10 @@ export function createUploader(
   return {
     ledger,
     upload,
-    composite: (frameId, drawnAt, encode = null) =>
-      required({ kind: "composite", frameId, drawnAt, encode }),
-    file: async (frameId, pictureId) => (await required({ kind: "file", frameId, pictureId })).ref,
+    composite: (frameId, drawnAt, encode = null, fit = null) =>
+      required({ kind: "composite", frameId, drawnAt, encode, ...(fit ? { fit } : {}) }),
+    file: (frameId, pictureId, fit = null) =>
+      required({ kind: "file", frameId, pictureId, ...(fit ? { fit } : {}) }),
     mask: async (frameId, drawnAt) =>
       (await upload({ kind: "mask", frameId, drawnAt }))?.ref ?? null,
     ipMask: async (frameId, maskId) => (await required({ kind: "ipMask", frameId, maskId })).ref,

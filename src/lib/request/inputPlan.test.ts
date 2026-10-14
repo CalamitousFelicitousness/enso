@@ -19,6 +19,8 @@ function slot(
     masked,
     unreadable: false,
     map: null,
+    fit: null,
+    sentSize: null,
   };
 }
 

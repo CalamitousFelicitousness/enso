@@ -21,7 +21,8 @@ import { useShallow } from "zustand/react/shallow";
 import { usePromptStyles } from "@/api/hooks/useNetworks";
 import { useUpscalerGroups } from "@/api/hooks/useModels";
 import { cn } from "@/lib/utils";
-import { resolveGenerationSize, formatMegapixels, sizeModesApply } from "@/lib/sizeCompute";
+import { resolveGenerationSize, sizeModesApply } from "@/lib/sizeCompute";
+import { megapixelsText, sizeText } from "@/lib/media/text";
 import type { SizeMode } from "@/lib/sizeCompute";
 import type { AspectPreset } from "@/lib/aspect";
 import type { ParamDescriptor } from "@/api/types/cloud";
@@ -195,8 +196,8 @@ export function PromptsTab() {
   const lockedFrameId = locked ? slots[0].frameId : null;
   const lockedEntry = outline.entries.find((e) => e.frameId === lockedFrameId);
   const lockedHint = frame.pending
-    ? `The selected model is not loaded yet, so the output takes the size of Image 1: ${frame.width}×${frame.height}.`
-    : `This model generates at the size of its input image: ${frame.width}×${frame.height}.`;
+    ? `The selected model is not loaded yet, so the output takes the size of Image 1: ${sizeText(frame)}.`
+    : `This model generates at the size of its input image: ${sizeText(frame)}.`;
 
   const showSizeModes = sizeModesApply(autoFitFrame, slots, frame.referenceSets);
   const effectiveSizeMode: SizeMode = showSizeModes ? sizeMode : "fixed";
@@ -461,9 +462,7 @@ export function PromptsTab() {
             <div className="text-3xs text-muted-foreground text-center">
               {state.width}&times;{state.height} &rarr; {genSize.width}&times;
               {genSize.height}{" "}
-              <span className="opacity-70">
-                ({formatMegapixels(genSize.width, genSize.height)})
-              </span>
+              <span className="opacity-70">({megapixelsText(genSize.width * genSize.height)})</span>
             </div>
           )}
 

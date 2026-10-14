@@ -4,7 +4,7 @@
 // unavailable; a map that did not is left out, since the job can make it again.
 
 import type { ReqRecordV2 } from "@/api/types/media";
-import type { Source, StoredInputs, StoredJob } from "@/lib/inputs/stored";
+import { RECORD_SCHEMA, type Source, type StoredInputs, type StoredJob } from "@/lib/inputs/stored";
 import { refsIn } from "@/lib/jobs/replay";
 
 export interface RecordParts {
@@ -47,6 +47,7 @@ export function assembleRecord(parts: RecordParts): ReqRecordV2 {
     }
   }
   return {
+    record_schema: RECORD_SCHEMA,
     client: parts.client,
     checkpoint: parts.checkpoint ? { ...parts.checkpoint } : null,
     refs,

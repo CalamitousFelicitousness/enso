@@ -2,6 +2,7 @@
 // accessible names all read them from here.
 
 import { aboutSize, ageText, limitText, megapixelsText, sizeText } from "@/lib/media/text";
+import type { SizeLimits } from "@/lib/media/sizeRule";
 import type {
   Address,
   MapSlot,
@@ -10,7 +11,9 @@ import type {
   Outline,
   OutlineEntry,
   OutlineProblem,
+  RefusedPicture,
   SentInput,
+  SentSize,
 } from "./outline";
 import type { AddressChange } from "./renumber";
 import type { TrashSource } from "./trash";
@@ -280,6 +283,91 @@ export function problemText(problem: OutlineProblem): string {
       return `This model runs elsewhere and cannot process pictures: ${positionsLabel(problem.positions)} must be processed first.`;
     case "tooLarge":
       return tooLargeText(problem);
+    case "ruleRefused":
+      return ruleRefusedText(problem);
+  }
+}
+
+/** "8:1", "4.5:1". */
+const aspectText = (aspect: number) => `${Math.round(aspect * 10) / 10}:1`;
+
+/** "at least 64 px on each side and at most 8:1". */
+function takesText(limits: SizeLimits): string {
+  const parts = [
+    limits.minSide !== undefined ? `at least ${limits.minSide} px on each side` : null,
+    limits.maxAspect !== undefined ? `at most ${aspectText(limits.maxAspect)}` : null,
+  ].filter((part) => part !== null);
+  return parts.join(" and ");
+}
+
+/** A refused picture by its number, else its name (an IP-Adapter picture). */
+const refusedLabel = (p: RefusedPicture) => (p.address ? addressLabel(p.address) : p.name);
+
+function ruleRefusedText(problem: Extract<OutlineProblem, { code: "ruleRefused" }>): string {
+  const takes = `This model takes pictures ${takesText(problem.limits)}`;
+  const [only] = problem.pictures;
+  if (problem.pictures.length === 1 && only) {
+    return `${takes}; ${refusedLabel(only)} is ${sizeText(only.size)}.`;
+  }
+  return `${takes}; ${problem.pictures.map(refusedLabel).join(", ")} are not.`;
+}
+
+/** A sent set member's size, after its number in the row: "1024×768 (from
+ * 6000×4500)", "4000×3000, full size", or the size alone while unknown. */
+export function sentSizeLine(sent: SentSize): string {
+  switch (sent.kind) {
+    case "fitted":
+      return `${sizeText(sent.size)} (from ${sizeText(sent.from)})`;
+    case "whole":
+      return `${sizeText(sent.size)}, full size`;
+    case "unknown":
+      return sizeText(sent.size);
+    case "atMost":
+      return sameSize(sent.size, sent.from)
+        ? `at most ${sizeText(sent.size)}`
+        : `at most ${sizeText(sent.size)} (from ${sizeText(sent.from)})`;
+  }
+}
+
+const sameSize = (a: Size, b: Size) => a.width === b.width && a.height === b.height;
+
+const WHOLE_REASON: Record<Extract<SentSize, { kind: "whole" }>["why"], string> = {
+  noRule:
+    "Sent at full size: the server does not say what size this model uses, so the model resizes it itself",
+  unreported: "Sent at full size: this sdnext does not report the sizes models use",
+  crop: "Sent at full size: Crop looks for the face in the whole picture",
+  fits: "Sent at full size: it is no larger than the size this model uses",
+};
+
+/** Why a set member goes out at its size, for the row's title. */
+export function sentSizeTitle(sent: SentSize): string {
+  switch (sent.kind) {
+    case "fitted":
+      return `Sent at ${sizeText(sent.size)}, resized from ${sizeText(sent.from)} to the size this model uses`;
+    case "whole":
+      return WHOLE_REASON[sent.why];
+    case "unknown":
+      return "The size it goes out at is known once the model is loaded";
+    case "atMost":
+      return sameSize(sent.size, sent.from)
+        ? `Sent at most at ${sizeText(sent.size)}; the provider's file size limit can lower it`
+        : `Sent at most at ${sizeText(sent.size)}, resized from ${sizeText(sent.from)} to the longest side the provider takes; its file size limit can lower it further`;
+  }
+}
+
+/** A set member's size in the dock's Info list: "1024×768 of 6000×4500", "4000×3000 full". */
+export function sentSizeValue(sent: SentSize): string {
+  switch (sent.kind) {
+    case "fitted":
+      return `${sizeText(sent.size)} of ${sizeText(sent.from)}`;
+    case "whole":
+      return `${sizeText(sent.size)} full`;
+    case "unknown":
+      return sizeText(sent.size);
+    case "atMost":
+      return sameSize(sent.size, sent.from)
+        ? `at most ${sizeText(sent.size)}`
+        : `at most ${sizeText(sent.size)} of ${sizeText(sent.from)}`;
   }
 }
 
@@ -318,6 +406,13 @@ export function fixLabel(problem: OutlineProblem): string {
       return "Process now";
     case "tooLarge":
       return "Remove the pictures that are too large";
+    case "ruleRefused": {
+      const [only] = problem.pictures;
+      if (problem.pictures.length > 1 || !only) return "Leave out the pictures it refuses";
+      return only.pictureId === null
+        ? `Turn off ${positionLabel(only.position)}`
+        : `Hide ${refusedLabel(only)}`;
+    }
   }
 }
 
@@ -335,6 +430,9 @@ export const SIZE_SOURCE_FIRST_LABEL = "Use Image 1";
 /** The server predates the sdnext change that lets a control unit keep its own picture beside an Initial picture. */
 export const CONTROL_PICTURE_SERVER_TEXT =
   "Control pictures beside an Initial picture need a newer sdnext (the control fix of 2026-10-05). Update the server, or turn the control units off.";
+
+export const SIZES_CHANGED_TEXT =
+  "The loaded model uses references at a different size from the one shown, and the Input tab now shows it. Generate again to send that.";
 
 /** "Reference", "ControlNet": what a frame does, by its control type when it is a Control frame. */
 export function frameRoleLabel(frame: Pick<Frame, "role" | "control">): string {
@@ -382,7 +480,7 @@ export function evictedText(names: string[], days: number): string {
 
 /** 'Inputs replaced with "Portrait" at 1024×1024'. */
 export function replacedWithText(name: string, size: Size): string {
-  return `Inputs replaced with "${name}" at ${size.width}×${size.height}`;
+  return `Inputs replaced with "${name}" at ${sizeText(size)}`;
 }
 
 /** 'One picture of "Portrait" could not be read', or a count. */
@@ -440,7 +538,7 @@ export interface EntryShape {
 /** "Frame · Reference · 3 pictures", "Set · 4 inputs · 1024×1024": what an entry holds. */
 export function entryLine(shape: EntryShape): string {
   if (shape.kind === "set") {
-    return `Set · ${plural(shape.frames, "input", "inputs")} · ${shape.size.width}×${shape.size.height}`;
+    return `Set · ${plural(shape.frames, "input", "inputs")} · ${sizeText(shape.size)}`;
   }
   return `Frame · ${shape.roleLabel ?? ""} · ${plural(shape.pictures, "picture", "pictures")}`;
 }

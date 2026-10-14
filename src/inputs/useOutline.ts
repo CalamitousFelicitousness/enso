@@ -1,6 +1,8 @@
 import { useEffect, useMemo } from "react";
 import { usePreprocessors } from "@/api/hooks/useControl";
 import type { Outline, OutlineEnv, ProcessingEnv } from "@/lib/inputs/outline";
+import { getInputLimits } from "@/lib/cloudLimits";
+import { cloudRule } from "@/lib/imageOptimize";
 import { processorFacts } from "@/lib/processorUtils";
 import { useInputStore } from "@/stores/inputStore";
 import { useGenerationStore } from "@/stores/generationStore";
@@ -32,11 +34,12 @@ export function useProcessingEnv(): ProcessingEnv | null {
 
 /** The active model's facts the outline reads: what it carries, how many
  * images it takes, whether the request sets its size, where each map stands,
- * and the largest picture taken. */
+ * the largest picture taken and what it resizes pictures to. */
 export function useOutlineEnv(): OutlineEnv {
-  const { controlUnified, maxInputImages, requestSetsSize } = useModelCapabilities();
+  const { controlUnified, maxInputImages, requestSetsSize, sizes, model } = useModelCapabilities();
   const processing = useProcessingEnv();
   const inputLimit = useEffectiveLimit();
+  const target = useGenerationSize();
   return useMemo(
     () => ({
       controlUnified: controlUnified === true,
@@ -44,8 +47,13 @@ export function useOutlineEnv(): OutlineEnv {
       requestSetsSize,
       processing,
       inputLimit,
+      sizes: sizes && { ...sizes, target },
+      cloud:
+        model?.source === "cloud"
+          ? { rule: cloudRule(getInputLimits(model.provider, model.id)), target }
+          : null,
     }),
-    [controlUnified, maxInputImages, requestSetsSize, processing, inputLimit],
+    [controlUnified, maxInputImages, requestSetsSize, processing, inputLimit, sizes, model, target],
   );
 }
 

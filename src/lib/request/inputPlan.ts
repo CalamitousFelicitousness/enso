@@ -1,3 +1,4 @@
+import { sizeText } from "@/lib/media/text";
 import type { SentInput } from "@/lib/inputs/outline";
 import {
   effectiveSizeMode,
@@ -116,7 +117,7 @@ export function planInputs(ctx: InputPlanContext): InputPlanResult {
     if (!shownFromImage) {
       return {
         ok: false,
-        refusal: `The loaded model generates at the size of its input image, ${size.width}×${size.height}, and Size now shows that. Generate again to use it.`,
+        refusal: `The loaded model generates at the size of its input image, ${sizeText(size)}, and Size now shows that. Generate again to use it.`,
       };
     }
     return { ok: true, plan: { transport: "reference", size } };

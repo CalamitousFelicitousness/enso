@@ -10,6 +10,7 @@ import { readSnapshot, joinSnapshot, type ReadSnapshot } from "@/lib/inputs/stor
 import { SNAPSHOTS } from "@/lib/inputs/storeLayout";
 import {
   joinInputs,
+  NewerDocument,
   readServerRecord,
   type Inputs,
   type JoinLoss,
@@ -19,12 +20,14 @@ import {
 } from "@/lib/inputs/stored";
 import type { JobDomain } from "@/lib/jobs/domains";
 import { refsIn, replayNeeds, substituteRefs, UPLOAD_PREFIX } from "@/lib/jobs/replay";
+import { NEWER_RECORD } from "@/lib/jobs/text";
 import { hashOf, isHash } from "@/lib/media/hash";
 import { currentJobRequest } from "@/lib/retiredJobFields";
 import { generationHistoryDb } from "@/stores/generationStore";
 import { allKeys, deleteRecords, readDocument, readHashes } from "./db";
 import { bytesFor, type FetchOptions } from "./fetch";
 import { legacyJob, markLegacyRouted } from "./legacyRecords";
+import { pngName } from "./fit";
 import { emptyLedger, materialise, type HeldMaps, type SourceFrames } from "./materialise";
 import type { Submission } from "./submit";
 import type { UploadBatch } from "./uploads";
@@ -71,13 +74,23 @@ function namesOf(inputs: StoredInputs | null): Map<string, string> {
   return names;
 }
 
+/** A server record, with words for one a newer build wrote. */
+function serverRecord(answer: unknown): StoredJob {
+  try {
+    return readServerRecord(answer);
+  } catch (err) {
+    if (err instanceof NewerDocument) throw new Error(NEWER_RECORD, { cause: err });
+    throw err;
+  }
+}
+
 /** A job's record from the server, else from an older build in this browser;
  * null when neither keeps one. */
 export async function loadRecord(id: string): Promise<RecordLoad | null> {
   const answer = await readRecord(id);
   if (answer) {
     return {
-      record: readServerRecord(answer),
+      record: serverRecord(answer),
       hashes: answer.hashes,
       // the server names them by id; the record's sources are keyed by ref
       missingRefs: answer.missing_ref_ids.map((id) => `${UPLOAD_PREFIX}${id}`),
@@ -115,7 +128,8 @@ function sourceName(
     case "file": {
       const frame = inputs?.frames.find((f) => f.id === source.frameId);
       const cid = frame?.pictures.find((p) => p.id === source.pictureId)?.cid;
-      return (cid && names.get(cid)) ?? "picture";
+      const name = (cid && names.get(cid)) ?? "picture";
+      return source.fit ? pngName(name) : name;
     }
     case "ipMask": {
       const frame = inputs?.frames.find((f) => f.id === source.frameId);

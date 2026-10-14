@@ -1,3 +1,4 @@
+import { sizeText } from "@/lib/media/text";
 import type { GenerationState } from "@/stores/generationStore";
 
 type PartialGenParams = Partial<
@@ -23,7 +24,8 @@ export function getModelDefaults(type: string | null | undefined): PartialGenPar
 
 export function formatSuggestion(defaults: PartialGenParams): string {
   const parts: string[] = [];
-  if (defaults.width && defaults.height) parts.push(`${defaults.width}x${defaults.height}`);
+  if (defaults.width && defaults.height)
+    parts.push(sizeText({ width: defaults.width, height: defaults.height }));
   if (defaults.sampler) parts.push(defaults.sampler);
   if (defaults.steps) parts.push(`${defaults.steps} steps`);
   if (defaults.cfgScale !== undefined) parts.push(`CFG ${defaults.cfgScale}`);

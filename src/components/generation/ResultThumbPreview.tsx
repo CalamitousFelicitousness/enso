@@ -1,3 +1,4 @@
+import { sizeText } from "@/lib/media/text";
 import { useMemo } from "react";
 import { createPortal } from "react-dom";
 import type { GenerationResult } from "@/stores/generationStore";
@@ -21,7 +22,8 @@ function infoMeta(result: GenerationResult, imageIndex: number): Record<string, 
   if (seed >= 0) meta["Seed"] = String(seed);
   if (typeof steps === "number" || typeof steps === "string") meta["Steps"] = String(steps);
   if (typeof sampler === "string") meta["Sampler"] = sampler;
-  if (typeof w === "number" && typeof h === "number") meta["Size"] = `${w}x${h}`;
+  if (typeof w === "number" && typeof h === "number")
+    meta["Size"] = sizeText({ width: w, height: h });
   return meta;
 }
 

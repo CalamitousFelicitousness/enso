@@ -35,6 +35,8 @@ export interface StageOptions {
   cid?: string;
   /** What derived bytes were made from: their hash is remembered for the page's life. */
   key?: string;
+  /** The hashes row derived bytes' hash is kept under across reloads. */
+  row?: string;
   /** The hash a server record pairs these bytes with. */
   hash?: string;
   /** The size derived bytes were made at, remembered with their hash. */
@@ -76,6 +78,7 @@ interface Item {
   name: string;
   cid: string | undefined;
   key: string | undefined;
+  row: string | undefined;
   hash: string | undefined;
   dims: Size | undefined;
   transient: boolean;
@@ -158,6 +161,7 @@ export class UploadBatch {
       if (same.bytes === null) same.bytes = bytes;
       same.cid ??= options.cid;
       same.key ??= options.key;
+      same.row ??= options.row;
       same.hash ??= options.hash;
       same.dims ??= options.dims;
       same.source ??= options.source;
@@ -171,6 +175,7 @@ export class UploadBatch {
       name: options.name,
       cid: options.cid,
       key: options.key,
+      row: options.row,
       hash: options.hash,
       dims: options.dims,
       transient: options.transient ?? this.transient,
@@ -262,7 +267,7 @@ export class UploadBatch {
    * hashes row of its cid, the hash of what made it, or of its Blob. A row of
    * another size than the bytes staged names other bytes, and is not used. */
   private remembered(item: Item, rows: ReadonlyMap<string, Hashed>): Hashed | undefined {
-    const stored = item.cid ? rows.get(item.cid) : undefined;
+    const stored = rows.get(item.cid ?? item.row ?? "");
     const row =
       stored && item.bytes instanceof Blob && stored.size !== item.bytes.size ? undefined : stored;
     const size = item.bytes instanceof Blob ? item.bytes.size : row?.size;
@@ -278,7 +283,9 @@ export class UploadBatch {
     if (this.items.length === 0) return outcomes;
     this.check();
     this.report({ phase: "claiming", sent: 0, total: 0, done: 0, files: 0 });
-    const cids = [...new Set(this.items.flatMap((item) => (item.cid ? [item.cid] : [])))];
+    const cids = [
+      ...new Set(this.items.flatMap((item) => [item.cid, item.row].filter((k) => k !== undefined))),
+    ];
     const rows = await this.tools.readHashes(cids).catch((err: unknown) => {
       console.warn(`[uploads] ${this.label}: the remembered hashes could not be read`, err);
       return new Map<string, Hashed>();
@@ -460,7 +467,8 @@ export class UploadBatch {
         name: item.name,
       });
     }
-    if (item.cid && rows.get(item.cid)?.hash !== hashed.hash) newRows.set(item.cid, hashed);
+    const row = item.cid ?? item.row;
+    if (row && rows.get(row)?.hash !== hashed.hash) newRows.set(row, hashed);
   }
 }
 

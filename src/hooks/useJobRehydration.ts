@@ -65,7 +65,10 @@ const isLive = (status: JobStatus) => status === "pending" || status === "runnin
 /** Track a queued or running job from its record. */
 async function track(job: Job): Promise<void> {
   if (useJobQueueStore.getState().jobs.has(job.id)) return;
-  const load = await loadRecord(job.id);
+  const load = await loadRecord(job.id).catch((err: unknown) => {
+    console.warn(`[jobs] the record of ${job.id} could not be read`, err);
+    return null;
+  });
   if (load) useJobQueueStore.getState().rehydrateJob(tracked(job, load.record, false));
 }
 

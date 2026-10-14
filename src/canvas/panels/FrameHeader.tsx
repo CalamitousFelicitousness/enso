@@ -55,9 +55,17 @@ export function DockTab({ active, label, icon: Icon, accent, onClick }: DockTabP
 }
 
 /** One line of a dock's Info tab. */
-export function InfoLine({ label, value }: { label: string; value: string }) {
+export function InfoLine({
+  label,
+  value,
+  title,
+}: {
+  label: string;
+  value: string;
+  title?: string;
+}) {
   return (
-    <div className="flex items-center justify-between gap-2">
+    <div className="flex items-center justify-between gap-2" title={title}>
       <span className="text-muted-foreground">{label}</span>
       <span className="font-mono tabular-nums text-foreground">{value}</span>
     </div>

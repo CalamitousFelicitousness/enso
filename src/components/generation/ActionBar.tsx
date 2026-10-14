@@ -39,7 +39,12 @@ import {
 } from "@/lib/jobs/text";
 import { DEFAULT_SIZE_MULTIPLE, referenceSetsSize } from "@/lib/sizeCompute";
 import { useModelSelectionStore } from "@/stores/modelSelectionStore";
-import { useModelCapabilityStore, type ModelCapabilityRecord } from "@/stores/modelCapabilityStore";
+import {
+  capabilityRecord,
+  recordSizes,
+  useModelCapabilityStore,
+  type ModelCapabilityRecord,
+} from "@/stores/modelCapabilityStore";
 import { usePromptHistoryStore } from "@/stores/promptHistoryStore";
 import { useSubmitToQueue } from "@/hooks/useSubmitToQueue";
 import { UserAbortError } from "@/lib/abort";
@@ -190,6 +195,7 @@ export const ActionBar = memo(function ActionBar() {
       let strengthSupported = true;
       let controlSeparateInit: boolean | null = null;
       let controlUnified: boolean | null = null;
+      let sizes = { shown: recordSizes(null), loaded: recordSizes(null) };
       let checkpoint: Submission["checkpoint"] =
         activeModel?.source === "cloud"
           ? { title: `${activeModel.provider}/${activeModel.id}`, name: activeModel.name }
@@ -212,6 +218,7 @@ export const ActionBar = memo(function ActionBar() {
           true,
           (shown ? loaded.request_sets_size : remembered?.request_sets_size) ?? null,
         );
+        const shownSizes = recordSizes(shown ? capabilityRecord(loaded) : remembered);
         if (!loaded.loaded || loaded.title !== activeModel.title) {
           toast.info("Loading model", { description: activeModel.title });
           await loadModel.mutateAsync(activeModel.title);
@@ -225,6 +232,7 @@ export const ActionBar = memo(function ActionBar() {
         detailerMode = loaded.detailer_mode ?? null;
         strengthSupported = loaded.strength_applicable ?? true;
         controlUnified = loaded.control_unified ?? null;
+        sizes = { shown: shownSizes, loaded: recordSizes(capabilityRecord(loaded)) };
         // Whether this sdnext leaves a control unit its own picture beside an Initial picture
         const info = await queryClient.fetchQuery({
           queryKey: ["server-info"],
@@ -291,6 +299,7 @@ export const ActionBar = memo(function ActionBar() {
         detailerMode,
         controlSeparateInit,
         controlUnified,
+        sizes,
         processors,
         batch,
       }).catch((err: unknown) => {

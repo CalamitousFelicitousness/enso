@@ -1,6 +1,9 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { CheckpointGuidanceV2, CheckpointInfoV2, DetailerMode } from "@/api/types/models";
+import type { ModelSizes } from "@/lib/inputs/outline";
+import { declarationOf, declaredSize } from "@/lib/media/rules";
+import type { DeclaredSize } from "@/lib/media/sizeRule";
 
 const LIMIT = 64;
 
@@ -14,6 +17,18 @@ export interface ModelCapabilityRecord {
   detailer_mode: DetailerMode | null;
   strength_applicable: boolean | null;
   control_unified: boolean | null;
+  /** What the pipeline resizes references and IP-Adapter pictures to; null
+   * when the server did not say, absent in records from before it could. */
+  reference_size?: DeclaredSize | null;
+  ip_adapter_size?: DeclaredSize | null;
+}
+
+/** What a record says the model resizes pictures to; none known without one. */
+export function recordSizes(record: ModelCapabilityRecord | null | undefined): ModelSizes {
+  return {
+    reference: declarationOf(record ? record.reference_size : undefined),
+    ipAdapter: declarationOf(record ? record.ip_adapter_size : undefined),
+  };
 }
 
 export function capabilityRecord(checkpoint: CheckpointInfoV2): ModelCapabilityRecord {
@@ -26,6 +41,8 @@ export function capabilityRecord(checkpoint: CheckpointInfoV2): ModelCapabilityR
     detailer_mode: checkpoint.detailer_mode ?? null,
     strength_applicable: checkpoint.strength_applicable ?? null,
     control_unified: checkpoint.control_unified ?? null,
+    reference_size: checkpoint.reference_size ? declaredSize(checkpoint.reference_size) : null,
+    ip_adapter_size: checkpoint.ip_adapter_size ? declaredSize(checkpoint.ip_adapter_size) : null,
   };
 }
 

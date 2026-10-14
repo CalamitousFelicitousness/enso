@@ -14,7 +14,13 @@ import { removePicture } from "@/inputs/edits";
 import { INPUTS_FULL_HINT } from "@/inputs/capacity";
 import { useInputsAtCapacity } from "@/canvas/useInputsAtCapacity";
 import type { OutlineEntry } from "@/lib/inputs/outline";
-import { addressLabel, mapStateWord, tooLargeLineText } from "@/lib/inputs/text";
+import {
+  addressLabel,
+  mapStateWord,
+  sentSizeLine,
+  sentSizeTitle,
+  tooLargeLineText,
+} from "@/lib/inputs/text";
 import { isComposed, type Frame, type Picture } from "@/lib/inputs/types";
 import { cn } from "@/lib/utils";
 
@@ -55,11 +61,16 @@ function SetPictures({ frame, entry }: { frame: Frame; entry: OutlineEntry }) {
         const slot = entry.slots.find((s) => s.pictureId === picture.id);
         const map = entry.sent.find((s) => s.pictureId === picture.id)?.map ?? null;
         const mapWord = map ? mapStateWord(map.state) : "";
+        const sized = slot?.sentSize ?? null;
         const where = !picture.visible
           ? "hidden, not sent"
-          : slot?.address
-            ? `${addressLabel(slot.address)}${mapWord ? ` · ${mapWord}` : ""}`
-            : "";
+          : [
+              slot?.address ? addressLabel(slot.address) : "",
+              mapWord,
+              sized ? sentSizeLine(sized) : "",
+            ]
+              .filter(Boolean)
+              .join(" · ");
         return (
           <div
             key={picture.id}
@@ -70,7 +81,10 @@ function SetPictures({ frame, entry }: { frame: Frame; entry: OutlineEntry }) {
               <p className="text-3xs truncate" title={picture.name}>
                 {picture.name}
               </p>
-              <p className="text-4xs text-muted-foreground">
+              <p
+                className="text-4xs text-muted-foreground truncate"
+                title={picture.visible && sized ? sentSizeTitle(sized) : undefined}
+              >
                 {!picture.file
                   ? "could not be read"
                   : picture.width * picture.height > limit.pixels

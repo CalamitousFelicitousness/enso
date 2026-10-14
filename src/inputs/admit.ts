@@ -20,9 +20,11 @@ import {
   type Destination,
   type EffectiveLimit,
   type MediaLimits,
+  sendsAsShown,
   type Refusal,
 } from "@/lib/media/limits";
 import { refusalText } from "@/lib/media/text";
+import type { ShownHeader } from "@/lib/imageOptimize";
 import { browserMedia } from "./probe";
 
 /** The server's input limit as this page last heard it: the settings when
@@ -69,11 +71,26 @@ export async function admit(file: Blob, where: Destination): Promise<Admission> 
   return admission(file.type, header, limits, where);
 }
 
-/** A file's size as this browser draws it, from its header; null when the header does not give it. */
-export async function headerSize(file: Blob): Promise<PixelSize | null> {
+/** A file's kind, orientation tag and size as this browser draws it, from its
+ * header; null when the header does not give the size. */
+export async function shownHeader(file: Blob): Promise<ShownHeader | null> {
   const [header, browser] = await Promise.all([imageHeader(reader(file)), browserMedia()]);
   if (header.kind === "unknown" || header.size === null) return null;
-  return browser.ignoresOrientation.has(header.kind) ? header.size : header.oriented;
+  const size = browser.ignoresOrientation.has(header.kind) ? header.size : header.oriented;
+  return { kind: header.kind, orientation: header.orientation, size };
+}
+
+/** A file's size as this browser draws it, from its header; null when the header does not give it. */
+export async function headerSize(file: Blob): Promise<PixelSize | null> {
+  return (await shownHeader(file))?.size ?? null;
+}
+
+/** Whether a file reaches the model as this browser shows it when sent as
+ * itself: the server reads its kind and treats its orientation tag alike. */
+export async function sendsAsItself(file: Blob): Promise<boolean> {
+  const [header, limits] = await Promise.all([imageHeader(reader(file)), mediaLimits()]);
+  if (header.kind === "unknown" || header.size === null) return true;
+  return sendsAsShown(header, limits);
 }
 
 /** A decoded size over the limit, which a header that lied lets through. */

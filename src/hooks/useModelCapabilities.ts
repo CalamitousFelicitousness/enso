@@ -3,9 +3,11 @@ import { useModelSelectionStore } from "@/stores/modelSelectionStore";
 import { useCurrentCheckpoint } from "@/api/hooks/useModels";
 import {
   capabilityRecord,
+  recordSizes,
   useModelCapabilityStore,
   type ModelCapabilityRecord,
 } from "@/stores/modelCapabilityStore";
+import type { ModelSizes } from "@/lib/inputs/outline";
 import { showImagesTab } from "@/lib/tabVisibility";
 import type { ImagesSubTab } from "@/lib/constants";
 import type { LocalModel, UnifiedModel } from "@/api/types/cloud";
@@ -60,6 +62,9 @@ export interface ModelCapabilities {
   /** The loaded local checkpoint carries its control model, so a ControlNet
    * frame needs none; null while unknown and for other models. */
   controlUnified: boolean | null;
+  /** What the local pipeline resizes references and IP-Adapter pictures to;
+   * null for other models. */
+  sizes: ModelSizes | null;
 }
 
 const LOCAL_SUPPORTS: ModelSupports = {
@@ -131,6 +136,7 @@ export function useModelCapabilities(): ModelCapabilities {
         guidance: loaded?.guidance ?? null,
         sizeMultiple: loaded?.size_multiple ?? null,
         controlUnified: loaded?.control_unified ?? null,
+        sizes: recordSizes(loaded),
       };
     }
     if (model.source === "local-video") {
@@ -148,6 +154,7 @@ export function useModelCapabilities(): ModelCapabilities {
         guidance: null,
         sizeMultiple: null,
         controlUnified: null,
+        sizes: null,
       };
     }
     const caps = model.capabilities;
@@ -185,6 +192,7 @@ export function useModelCapabilities(): ModelCapabilities {
       guidance: null,
       sizeMultiple: null,
       controlUnified: null,
+      sizes: null,
     };
   }, [model, checkpoint, remembered]);
 }

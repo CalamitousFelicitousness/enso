@@ -9,6 +9,7 @@ import { useCaptionSettingsStore } from "@/stores/captionSettingsStore";
 import { sendPromptToGeneration } from "@/lib/sendTo";
 import { useUploadAction } from "@/hooks/useUploadAction";
 import { useUploadView } from "@/hooks/useActionProgress";
+import { captionPicture } from "@/inputs/fit";
 import { sendOne } from "@/inputs/uploads";
 import { ACTIONS } from "@/lib/media/progress";
 import { UPLOAD_FAILED } from "@/lib/media/text";
@@ -72,7 +73,10 @@ export function QuickInterrogateDialog({ open, onOpenChange, file }: QuickInterr
       try {
         // closing the dialog is its only stop, so a cancel says nothing
         const ref = await runUpload(
-          ({ batch }) => sendOne(batch, imageFile, { name: imageFile.name }),
+          async ({ batch, signal }) => {
+            const sized = await captionPicture(imageFile, imageFile.name, signal);
+            return sendOne(batch, sized.blob, { name: sized.name });
+          },
           { quiet: true },
         );
         if (!current()) return;

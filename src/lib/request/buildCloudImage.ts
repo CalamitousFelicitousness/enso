@@ -34,9 +34,9 @@ export async function buildCloudImageRequest(
 
   const frame: Size = { width: gen.width, height: gen.height };
 
-  // One image per sent picture, in the order sent. An Initial frame gives one
-  // composite encoded for the provider; a reference uploads raw (no provider
-  // encoding); a processed picture goes as its map. The first Initial frame
+  // One image per sent picture, in the order sent, each encoded for the
+  // provider: an Initial frame as one composite, a reference as its file, a
+  // processed picture as its map. The first Initial frame
   // determines strength + mask. Mixed Initial+Reference works: paint Image 1,
   // point at Image 2 as reference.
   const base = computeOutline(frames);
@@ -104,10 +104,17 @@ export async function buildCloudImageRequest(
   for (const source of sent) {
     const map = source.map?.state === "current" ? source.map : null;
     if (source.role === "reference") {
-      // Raw upload, no encoding - sdnext's adapter dispatches per-provider
-      imageRefs.push(
-        map ? (await up.map(map.key)).ref : await up.file(source.frameId, source.pictureId ?? ""),
-      );
+      // The file, or its map, encoded for the provider when it is not taken as it is
+      const upload = map
+        ? await up.map(map.key, null, encoding)
+        : await up.upload({
+            kind: "file",
+            frameId: source.frameId,
+            pictureId: source.pictureId ?? "",
+            encode: encoding,
+          });
+      if (!upload) throw new Error("A picture could not be made to send");
+      imageRefs.push(upload.ref);
       continue;
     }
     // This Initial frame's pictures, or their map, at the target size and

@@ -18,6 +18,7 @@ import {
   readJob,
   readMap,
   readRemoval,
+  readServerRecord,
   readSnapshot,
   readStoredFrames,
   readWorking,
@@ -594,5 +595,52 @@ describe("library entries", () => {
     const { entry: back, lost } = joinEntry(record, new Map());
     expect(back.inputs.frames[0].pictures[0].file).toBeNull();
     expect(lost.pictures.length).toBeGreaterThan(0);
+  });
+});
+
+describe("server records", () => {
+  const record = (patch: Record<string, unknown> = {}) => ({
+    job_id: "0123456789abcdef",
+    domain: "generate",
+    created_at: 1000,
+    checkpoint: null,
+    request: { type: "generate", inputs: ["upload:1"] },
+    refs: { "upload:1": { kind: "file", frameId: "refs", pictureId: "a" } },
+    inputs: null,
+    map_keys: [],
+    maps: {},
+    routed: false,
+    ...patch,
+  });
+
+  it("reads a file source sent fitted and in a provider encoding", () => {
+    const fitted = {
+      kind: "file",
+      frameId: "refs",
+      pictureId: "a",
+      fit: { width: 1024, height: 768, mode: "stretch" },
+      encode: { provider: "openai", model: "gpt-image-1" },
+    };
+    const read = readServerRecord(record({ record_schema: 2, refs: { "upload:1": fitted } }));
+    expect(read.refs["upload:1"]).toEqual(fitted);
+  });
+
+  it("reads a record from before the schema field as before", () => {
+    const read = readServerRecord(record());
+    expect(read.refs["upload:1"]).toEqual({ kind: "file", frameId: "refs", pictureId: "a" });
+  });
+
+  it("refuses a record a newer build wrote", () => {
+    expect(() => readServerRecord(record({ record_schema: 3 }))).toThrow(NewerDocument);
+  });
+
+  it("refuses a fit with a mode it does not know", () => {
+    const odd = {
+      kind: "file",
+      frameId: "refs",
+      pictureId: "a",
+      fit: { width: 1, height: 1, mode: "squash" },
+    };
+    expect(() => readServerRecord(record({ refs: { "upload:1": odd } }))).toThrow();
   });
 });

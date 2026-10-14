@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { layer } from "@/lib/inputs/frames.fixture";
 import type { PlacedPicture } from "@/lib/inputs/types";
-import { compositeKey, mapSendKey } from "./keys";
+import { blobCid } from "@/lib/inputs/sweep";
+import { compositeKey, fileKey, fileRow, mapSendKey } from "./keys";
 
 const FRAME = { width: 1024, height: 1024 };
 const placed = (patch: Parameters<typeof layer>[1] = {}) => layer("a", patch) as PlacedPicture;
@@ -43,5 +44,26 @@ describe("mapSendKey", () => {
     expect(mapSendKey("canny|k", { width: 64, height: 64 }, null)).not.toBe(plain);
     expect(mapSendKey("canny|k", null, { provider: "p", model: "m" })).not.toBe(plain);
     expect(mapSendKey("canny|k", null, null)).toBe(plain);
+  });
+});
+
+describe("fileKey", () => {
+  it("names the cid, the fit and the encoding, the cid first", () => {
+    expect(fileKey("cid-a", { width: 1024, height: 768, mode: "stretch" }, null)).toBe(
+      "file|cid-a|stretch|1024x768|png",
+    );
+    expect(
+      fileKey(
+        "cid-a",
+        { width: 512, height: 512, mode: "cover" },
+        { provider: "openai", model: "gpt-image-1" },
+      ),
+    ).toBe("file|cid-a|cover|512x512|openai:gpt-image-1");
+  });
+
+  it("keeps the copy's hash row under its cid for the sweep", () => {
+    const row = fileRow("cid-a", { width: 1024, height: 768, mode: "stretch" }, null);
+    expect(row).toBe("cid-a/stretch|1024x768|png");
+    expect(blobCid(row)).toBe("cid-a");
   });
 });

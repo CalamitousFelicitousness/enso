@@ -60,12 +60,15 @@ export function slotOwners(outline: Outline): SlotOwner[] {
 }
 
 /** The picture a slot's processor runs on, as the request sends it: a file
- * as it is, a composite drawn from its layers at the size it goes out at. */
-function sourceRef(up: Uploader, owner: SlotOwner): Promise<string> {
+ * as it is or at its fitted size, a composite drawn from its layers at the
+ * size it goes out at. */
+async function sourceRef(up: Uploader, owner: SlotOwner): Promise<string> {
   const { spec } = owner.slot;
-  if (spec.kind === "file") return up.file(owner.frameId, owner.pictureId ?? "");
+  if (spec.kind === "file") {
+    return (await up.file(owner.frameId, owner.pictureId ?? "", spec.out ?? null)).ref;
+  }
   const drawnAt = spec.out ?? { width: spec.width, height: spec.height };
-  return up.composite(owner.sourceFrameId, drawnAt).then((done) => done.ref);
+  return (await up.composite(owner.sourceFrameId, drawnAt, null, spec.fit ?? null)).ref;
 }
 
 /** Make the maps the given frames need, in one queued job: those the cache
