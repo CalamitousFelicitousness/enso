@@ -10,6 +10,9 @@
  * the `POST /sdapi/v2/jobs` request body).
  * 3. Prepend the project header banner to each emitted file.
  * 4. Write-if-changed per file (mirrors `codegen-paramMap.ts` behaviour).
+ *    `@hey-api` clears and rewrites its output folder, so it writes into a
+ *    staging folder; an unchanged file keeps its mtime, which is what lets
+ *    `tsc -b` skip the app's typecheck.
  *
  * Inputs/outputs match the existing `paramMap.generated.ts` convention:
  * output directory is gitignored, ESLint/Prettier-excluded, regenerated
@@ -21,6 +24,7 @@
  */
 
 import fs from "fs";
+import os from "os";
 import path from "path";
 import { createClient } from "@hey-api/openapi-ts";
 
@@ -149,18 +153,6 @@ function writeIfChanged(filePath: string, content: string): boolean {
   return true;
 }
 
-function prependHeader(filePath: string): boolean {
-  let body: string;
-  try {
-    body = fs.readFileSync(filePath, "utf-8");
-  } catch {
-    return false;
-  }
-  if (body.startsWith(HEADER)) return false;
-  fs.writeFileSync(filePath, HEADER + "\n" + body, "utf-8");
-  return true;
-}
-
 export async function runCodegen(): Promise<void> {
   if (!fs.existsSync(SNAPSHOT_PATH)) {
     throw new Error(
@@ -168,16 +160,29 @@ export async function runCodegen(): Promise<void> {
     );
   }
 
-  await createClient({
-    input: SNAPSHOT_PATH,
-    output: { path: OUTPUT_DIR },
-    plugins: ["@hey-api/typescript"],
-    logs: { level: "silent" },
-  });
-
-  // @hey-api writes types.gen.ts + index.ts. Prepend header banners.
-  prependHeader(path.join(OUTPUT_DIR, "types.gen.ts"));
-  prependHeader(path.join(OUTPUT_DIR, "index.ts"));
+  const staging = fs.mkdtempSync(path.join(os.tmpdir(), "enso-openapi-"));
+  const written = new Set(["aliases.ts"]);
+  try {
+    await createClient({
+      input: SNAPSHOT_PATH,
+      output: { path: staging },
+      plugins: ["@hey-api/typescript"],
+      logs: { level: "silent" },
+    });
+    for (const entry of fs.readdirSync(staging, { withFileTypes: true })) {
+      if (!entry.isFile()) continue;
+      const body = fs.readFileSync(path.join(staging, entry.name), "utf-8");
+      writeIfChanged(path.join(OUTPUT_DIR, entry.name), HEADER + "\n" + body);
+      written.add(entry.name);
+    }
+  } finally {
+    fs.rmSync(staging, { recursive: true, force: true });
+  }
+  fs.mkdirSync(OUTPUT_DIR, { recursive: true });
+  for (const name of fs.readdirSync(OUTPUT_DIR)) {
+    if (!written.has(name))
+      fs.rmSync(path.join(OUTPUT_DIR, name), { recursive: true, force: true });
+  }
 
   const snapshot = JSON.parse(fs.readFileSync(SNAPSHOT_PATH, "utf-8")) as JsonObject;
   const unions = discoverInlineUnions(snapshot);
