@@ -12,6 +12,7 @@ from collections.abc import Callable, Iterable, Iterator
 from dataclasses import dataclass
 from typing import NamedTuple
 
+from enso_api.inputs import IGNORES_ORIENTATION, Dimensions, InputTooLarge, size_of_path
 from enso_api.media import settings as policy
 from enso_api.media.ingest import BATCH, Finished, Inflight, Sink
 from enso_api.media.layout import HASH_RE, LEGACY_RE, Layout
@@ -59,10 +60,13 @@ class BlobRow:
     unnamed_since: int | None
     transient: bool
     lost_at: int | None
+    width: int | None = None
+    """A picture's size from its header; None until read, 0 for a file that is not a picture or could not be read."""
+    height: int | None = None
 
     @classmethod
     def from_row(cls, row) -> "BlobRow":
-        return cls(row["hash"], row["ext"], row["size"], row["type"], row["created_at"], row["touched_at"], row["unnamed_since"], bool(row["transient"]), row["lost_at"])
+        return cls(row["hash"], row["ext"], row["size"], row["type"], row["created_at"], row["touched_at"], row["unnamed_since"], bool(row["transient"]), row["lost_at"], row["width"], row["height"])
 
 
 class Claim(NamedTuple):
@@ -91,6 +95,23 @@ class MediaReport:
     last_verify: dict | None
     files_in_trash: Term
     trash_lost: int
+
+
+def sized(path: str, limit: int | None = None) -> tuple[int, int]:
+    """A file's picture size, (0, 0) when it is not a picture that can be read."""
+    try:
+        found = size_of_path(path, limit)
+    except OSError:
+        return 0, 0
+    return (found.width, found.height) if found else (0, 0)
+
+
+def limited(path: str, limit: int) -> tuple[int, int]:
+    """The file's size, InputTooLarge above `limit` pixels."""
+    width, height = sized(path, limit)
+    if width * height > limit:
+        raise InputTooLarge(width, height, limit)
+    return width, height
 
 
 class SnapshotExists(Exception):
@@ -128,13 +149,15 @@ class MediaStore:
         except OSError:
             return False
 
-    def place(self, finished: Finished, part_path: str, transient: bool) -> tuple[BlobRow, bool]:
-        """Take a finished part in, renamed into place; the row and whether it is new.
+    def place(self, finished: Finished, part_path: str, transient: bool, size: tuple[int, int] | None = None) -> tuple[BlobRow, bool]:
+        """Take a finished part in, renamed into place; the row and whether it is new. `size` is the part's picture size,
+        read here when not given.
 
         A held file is replaced too: a claim checks only its size, so a re-upload is what heals one whose bytes went bad.
         The rename, the folder's fsync and the row are one critical section under the write lock.
         """
         now = self.now()
+        width, height = size if size is not None else sized(part_path, self.settings().max_input_pixels)
         with self.db.write() as w:
             found = w.conn.execute("SELECT * FROM blobs WHERE hash = ?", (finished.digest,)).fetchone()
             existing = BlobRow.from_row(found) if found else None
@@ -147,7 +170,10 @@ class MediaStore:
                     log.debug(f"Media store: kept the held copy of {finished.digest}: {e}")
                     with contextlib.suppress(OSError):
                         os.remove(part_path)
-                w.conn.execute("UPDATE blobs SET touched_at = ?, transient = transient AND ? WHERE hash = ?", (now, int(transient), finished.digest))
+                w.conn.execute(
+                    "UPDATE blobs SET touched_at = ?, transient = transient AND ?, width = COALESCE(width, ?), height = COALESCE(height, ?) WHERE hash = ?",
+                    (now, int(transient), width, height, finished.digest),
+                )
             else:
                 if existing is not None:
                     ext, kind = existing.ext, existing.type
@@ -161,9 +187,10 @@ class MediaStore:
                 os.replace(part_path, self.layout.blob_path(finished.digest, ext))
                 fsync_dir(fan)
                 w.conn.execute(
-                    "INSERT INTO blobs (hash, ext, size, type, created_at, touched_at, unnamed_since, transient) VALUES (?, ?, ?, ?, ?, ?, ?, ?) "
-                    "ON CONFLICT(hash) DO UPDATE SET size = excluded.size, touched_at = excluded.touched_at, lost_at = NULL, transient = blobs.transient AND excluded.transient",
-                    (finished.digest, ext, finished.size, kind, now, now, now, int(transient)),
+                    "INSERT INTO blobs (hash, ext, size, type, created_at, touched_at, unnamed_since, transient, width, height) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) "
+                    "ON CONFLICT(hash) DO UPDATE SET size = excluded.size, touched_at = excluded.touched_at, lost_at = NULL, transient = blobs.transient AND excluded.transient, "
+                    "width = excluded.width, height = excluded.height",
+                    (finished.digest, ext, finished.size, kind, now, now, now, int(transient), width, height),
                 )
             row = BlobRow.from_row(w.conn.execute("SELECT * FROM blobs WHERE hash = ?", (finished.digest,)).fetchone())
         return row, existing is None
@@ -177,7 +204,8 @@ class MediaStore:
             sink = Sink(part)
             for data in chunks_in:
                 sink.write(data)
-            return self.place(sink.close(), part, transient)
+            finished = sink.close()
+            return self.place(finished, part, transient, sized(part, self.settings().max_input_pixels))
         except BaseException:
             if sink is not None:
                 sink.abort()
@@ -283,13 +311,51 @@ class MediaStore:
         return self.path_of(digest) if digest else None
 
     def resolve_to_image(self, ref_id: str):
-        """sdnext's upload-store contract: a PIL image, or None."""
+        """sdnext's upload-store contract: a PIL image, or None. A picture over the input limit raises InputTooLarge before
+        it is opened; one tagged with an orientation is turned as the browser showed it."""
         path = self.resolve_to_path(ref_id)
         if path is None:
             return None
-        from PIL import Image
+        from PIL import Image, ImageOps
 
-        return Image.open(path)
+        found = self.dimensions(path)
+        image = Image.open(path)
+        if found is not None and found.orientation != 1 and found.kind not in IGNORES_ORIENTATION:
+            ImageOps.exif_transpose(image, in_place=True)
+        return image
+
+    def dimensions(self, path: str) -> Dimensions | None:
+        """A stored file's header, InputTooLarge above the input limit."""
+        limit = self.settings().max_input_pixels
+        found = size_of_path(path, limit)
+        if found is not None and found.pixels > limit:
+            raise InputTooLarge(found.width, found.height, limit)
+        return found
+
+    def size_of_ref(self, ref_id: str) -> tuple[int, int] | None:
+        """The picture size a ref names, read from the file when its row has none; None for a ref not held or not a picture."""
+        digest = self.resolve_ref(ref_id)
+        found = self.get(digest) if digest else None
+        if found is None:
+            return None
+        if found.width is None:
+            width, height = sized(self.path(found), self.settings().max_input_pixels)
+            with self.db.write() as w:
+                w.conn.execute("UPDATE blobs SET width = ?, height = ? WHERE hash = ? AND width IS NULL", (width, height, found.hash))
+        else:
+            width, height = found.width, found.height or 0
+        return (width, height) if width > 0 else None
+
+    def fill_sizes(self, batch: int = 200) -> int:
+        """Read the picture size of up to `batch` rows that have none; how many were read."""
+        with self.db.read() as conn:
+            rows = [BlobRow.from_row(row) for row in conn.execute("SELECT * FROM blobs WHERE width IS NULL AND lost_at IS NULL ORDER BY created_at LIMIT ?", (batch,))]
+        limit = self.settings().max_input_pixels
+        sizes = [(*(sized(self.path(row), limit) if row.type.startswith("image/") else (0, 0)), row.hash) for row in rows]
+        if sizes:
+            with self.db.write() as w:
+                w.conn.executemany("UPDATE blobs SET width = ?, height = ? WHERE hash = ? AND width IS NULL", sizes)
+        return len(sizes)
 
     def holds(self, ref_id: str) -> bool:
         return self.resolve_to_path(ref_id) is not None

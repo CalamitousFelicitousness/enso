@@ -1,4 +1,4 @@
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -482,6 +482,69 @@ class CheckpointGuidanceV2(BaseModel):
     pag_applicable: bool = Field(description="sdnext applies PAG to this model family: SD 1.5 and SDXL, text-to-image")
 
 
+class RuleAreaV2(BaseModel):
+    """sqrt(area * w/h), the height from the unrounded width, each side to the multiple."""
+
+    kind: Literal["area"]
+    area: int
+    multiple: int
+    round: Literal["nearest", "floor", "ceil"]
+
+
+class RuleCapV2(BaseModel):
+    """Scaled down to the area only when above it, each side truncated."""
+
+    kind: Literal["cap"]
+    area: int
+
+
+class RuleBucketsV2(BaseModel):
+    """The listed size whose aspect is nearest, from sides floored to aspect_multiple; ties to the first listed."""
+
+    kind: Literal["buckets"]
+    sizes: list[list[int]]
+    """[w, h] each."""
+    fit: Literal["stretch", "cover"]
+    ratio: Literal["w/h", "h/w"]
+    aspect_multiple: int
+
+
+class RuleShortestV2(BaseModel):
+    kind: Literal["shortest"]
+    side: int
+
+
+class RuleExactV2(BaseModel):
+    kind: Literal["exact"]
+    width: int
+    height: int
+
+
+class RuleFloorV2(BaseModel):
+    """Each side floored to the multiple by a crop, any size."""
+
+    kind: Literal["floor"]
+    multiple: int
+
+
+SizeRuleV2 = Annotated[RuleAreaV2 | RuleCapV2 | RuleBucketsV2 | RuleShortestV2 | RuleExactV2 | RuleFloorV2, Field(discriminator="kind")]
+
+
+class SizeLimitsV2(BaseModel):
+    min_side: int | None = None
+    max_aspect: float | None = None
+
+
+class DeclaredSizeV2(BaseModel):
+    """What a consumer resamples a picture to, as SD.Next declares it; rule null when it declares none."""
+
+    rule: SizeRuleV2 | None = None
+    limits: SizeLimitsV2 | None = None
+    """What the consumer refuses, checked on the picture that goes out."""
+    output_area: int | None = None
+    """The pipeline's documented output area, where it has one."""
+
+
 class ResCheckpointV2(BaseModel):
     loaded: bool = Field(title="Loaded")
     type: str | None = Field(default=None, title="Type")
@@ -498,6 +561,8 @@ class ResCheckpointV2(BaseModel):
     control_unified: bool | None = Field(default=None, title="Control Unified", description="The loaded pipeline carries its control model, so one control unit runs without a model of its own")
     guidance: CheckpointGuidanceV2 | None = Field(default=None, title="Guidance")
     size_multiple: int | None = Field(default=None, title="Size Multiple", description="Width and height keep their requested value at multiples of this; the server rounds other sizes")
+    reference_size: DeclaredSizeV2 | None = Field(default=None, title="Reference Size", description="What the pipeline resamples each condition image to; null when this SD.Next does not say")
+    ip_adapter_size: DeclaredSizeV2 | None = Field(default=None, title="IP-Adapter Size", description="What the image encoder resamples each adapter picture to without Crop; null when this SD.Next does not say")
 
 
 class ReqSetCheckpointV2(BaseModel):
@@ -686,6 +751,17 @@ class ServerCapabilities(BaseModel):
     websocket: bool = True
     control_separate_init: bool = False
     media_store: bool = False
+    size_rules: bool = False
+    """This SD.Next declares the sizes its consumers resample pictures to."""
+
+
+class ServerLimitsV2(BaseModel):
+    input_pixels: int
+    """The largest picture the server takes, in pixels."""
+    formats: list[str]
+    """The picture kinds the server decodes, as the browser's header reader names them."""
+    caption: DeclaredSizeV2 | None = None
+    """The largest size any captioner resamples to; null when this SD.Next does not say."""
 
 
 class MediaStoreStateV2(BaseModel):
@@ -715,6 +791,7 @@ class ResServerInfoV2(BaseModel):
     model: ServerModelInfo = Field(default_factory=ServerModelInfo)
     extension: ExtensionVersionV2 = Field(default_factory=ExtensionVersionV2)
     media_store: MediaStoreStateV2 = Field(default_factory=MediaStoreStateV2)
+    limits: ServerLimitsV2 | None = None
 
 
 # --- Session models (v2) ---

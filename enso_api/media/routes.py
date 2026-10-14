@@ -10,6 +10,7 @@ from fastapi import APIRouter, Depends, Path, Request, Response
 
 from enso_api import events
 from enso_api.errors import refuse
+from enso_api.inputs import InputTooLarge
 from enso_api.media import boot
 from enso_api.media.ingest import Disconnected, ShortBody, Sink, Stalled, free_space, pump
 from enso_api.media.models import (
@@ -31,7 +32,7 @@ from enso_api.media.models import (
 )
 from enso_api.media.settings import BOUNDS, Settings
 from enso_api.media.sniff import OCTET
-from enso_api.media.store import BlobRow, MediaStore, SnapshotExists
+from enso_api.media.store import BlobRow, MediaStore, SnapshotExists, limited
 from enso_api.routes import media_file
 from enso_api.session import media_auth
 
@@ -92,8 +93,14 @@ def refuse_space(store: MediaStore, declared: int, reserve_bytes: int, free: int
     refuse(507, "insufficient_storage", f"Not enough free space: {size_text(space.free)} free, {size_text(space.needed)} needed with the reserve", free=space.free, needed=space.needed)
 
 
+def refuse_too_large(e: InputTooLarge) -> None:
+    refuse(422, "too_large", str(e), width=e.width, height=e.height, pixels=e.width * e.height, limit=e.limit)
+
+
 def refuse_failure(e: Exception, store: MediaStore, declared: int, reserve_bytes: int) -> None:
     """The refusal for an upload that failed on the way in; nothing for an error this does not know."""
+    if isinstance(e, InputTooLarge):
+        refuse_too_large(e)
     if isinstance(e, Stalled):
         refuse(408, "upload_stalled", f"No bytes arrived for {STALL_SECONDS:.0f} s")
     if isinstance(e, Disconnected):
@@ -131,7 +138,8 @@ async def receive(request: Request, store: MediaStore, declared: int, transient:
         sink = await asyncio.to_thread(Sink, part)
         await pump(request.stream(), sink, declared, STALL_SECONDS)
         finished = await asyncio.to_thread(sink.close)
-        return await asyncio.to_thread(store.place, finished, part, transient)
+        size = await asyncio.to_thread(limited, part, settings.max_input_pixels)
+        return await asyncio.to_thread(store.place, finished, part, transient, size)
     except Exception as e:
         if sink is not None:
             await asyncio.to_thread(sink.abort)
@@ -199,7 +207,12 @@ async def post_adopt(request: ReqAdoptOutputV2 | ReqAdoptPathV2):
     def run() -> tuple[BlobRow, bool, str]:
         path = adopted_path(request)
         size = os.path.getsize(path)
-        reserve_bytes = store.settings().reserve_bytes
+        settings = store.settings()
+        reserve_bytes = settings.reserve_bytes
+        try:
+            limited(path, settings.max_input_pixels)
+        except InputTooLarge as e:
+            refuse_too_large(e)
         if not store.inflight.space_for(size, free_space(store.layout.root), reserve_bytes).ok:
             refuse_space(store, size, reserve_bytes)
         try:

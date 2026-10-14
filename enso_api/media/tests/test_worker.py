@@ -106,3 +106,15 @@ def test_the_first_media_event_carries_an_idle_verify(monkeypatch):
     monkeypatch.setattr(events, "versions", {})
     publish_media()
     assert events.current()["media"].data == {"verify": {"running": False, "checked": 0, "total": 0}}
+
+
+def test_picture_sizes_are_filled_a_batch_at_a_time_until_none_is_left(workers):
+    left = [3]
+
+    def fill_sizes():
+        done = min(left[0], 1)
+        left[0] -= done
+        return done
+
+    workers(fill_sizes=fill_sizes)
+    assert wait_for(lambda: left[0] == 0)

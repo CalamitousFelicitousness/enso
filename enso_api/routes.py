@@ -84,9 +84,13 @@ async def submit_job(request: JobRequest):
         log.warning(f"submit_job: type {job_type!r} accepted by JobRequest but absent from EXECUTORS")
         raise HTTPException(status_code=500, detail=f"Job type {job_type!r} has no registered executor")
     priority = payload.pop("priority", 0)
+    from enso_api.errors import refuse_issues
     from enso_api.job_queue import UploadsMissing
-    from enso_api.upload import missing_upload_issues
+    from enso_api.upload import missing_upload_issues, oversize_issues
 
+    oversize = await asyncio.to_thread(oversize_issues, payload, ("body", job_type))
+    if oversize:
+        refuse_issues(oversize, "Jobs")
     try:
         job = await asyncio.to_thread(job_queue.submit, job_type=job_type, params=payload, priority=priority)
     except UploadsMissing as e:

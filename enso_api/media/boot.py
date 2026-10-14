@@ -183,5 +183,6 @@ def start() -> None:
         collect=lambda: collector.run_pass(store, job_queue.live_jobs, state.deleted),
         verify=lambda cancel, progress: verify.run(store, store.layout, cancel, progress),
         on_progress=publish_media,
+        fill_sizes=store.fill_sizes,
     )
     state.worker.start()

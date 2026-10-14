@@ -210,6 +210,16 @@ def missing_sdnext_names() -> list[str]:
     return missing
 
 
+def decode_image(value):
+    """sdnext's decoder behind the server's input limit: a picture above it fails the job before it is decoded."""
+    from modules.api import helpers
+
+    from enso_api.upload import check_input_size
+
+    check_input_size(value)
+    return helpers.decode_base64_to_image(value)
+
+
 class GenerationFailed(Exception):
     """A generation ended without its output; sdnext has already logged the cause."""
 
@@ -382,7 +392,6 @@ def collect_images(job_id: str, output_images: list, saved_paths: list, save_ima
 
 def execute_generate(params: dict, job_id: str) -> dict:
     from modules import processing_helpers, shared
-    from modules.api import helpers
     from modules.control import run as control_run_module
     from modules.control.unit import Unit
 
@@ -393,9 +402,9 @@ def execute_generate(params: dict, job_id: str) -> dict:
     control_units.validate(params, sdnext_features.control_separate_init())
 
     # Decode base64 images
-    inputs = [helpers.decode_base64_to_image(x) for x in params.get("inputs", [])] if params.get("inputs") else None
-    inits = [helpers.decode_base64_to_image(x) for x in params.get("inits", [])] if params.get("inits") else None
-    mask = helpers.decode_base64_to_image(params["mask"]) if params.get("mask") else None
+    inputs = [decode_image(x) for x in params.get("inputs", [])] if params.get("inputs") else None
+    inits = [decode_image(x) for x in params.get("inits", [])] if params.get("inits") else None
+    mask = decode_image(params["mask"]) if params.get("mask") else None
 
     # Pictures Enso processes before the job: input images by position, control units by key.
     # An init sent as the same picture as its input (input_type 2) takes the input's map too.
@@ -440,7 +449,7 @@ def execute_generate(params: dict, job_id: str) -> dict:
             unit.process.override = None
         override_b64 = u.get("override") or u.get("image")
         if override_b64:
-            unit.override = helpers.decode_base64_to_image(override_b64)
+            unit.override = decode_image(override_b64)
         units.append(unit)
         if u.get("key") and u.get("process") not in (None, "", "None"):
             source = unit.override if unit.override is not None else (inputs[0] if inputs else None)
@@ -450,8 +459,8 @@ def execute_generate(params: dict, job_id: str) -> dict:
     ip_adapter_args = {}
     ip_adapter_list = [ipa for ipa in params.get("ip_adapter") or [] if isinstance(ipa, dict) and ipa.get("images")]
     if ip_adapter_list:
-        images = [[helpers.decode_base64_to_image(x) for x in ipa["images"]] for ipa in ip_adapter_list]
-        masks = [[helpers.decode_base64_to_image(x) for x in ipa["masks"]] if ipa.get("masks") else None for ipa in ip_adapter_list]
+        images = [[decode_image(x) for x in ipa["images"]] for ipa in ip_adapter_list]
+        masks = [[decode_image(x) for x in ipa["masks"]] if ipa.get("masks") else None for ipa in ip_adapter_list]
         ip_adapter_args = {
             "ip_adapter_names": [ipa.get("adapter", "") for ipa in ip_adapter_list],
             "ip_adapter_scales": [ipa.get("scale", 1.0) for ipa in ip_adapter_list],
@@ -647,7 +656,6 @@ def execute_process(params: dict, job_id: str) -> dict:
     from modules import images as img_module
     from modules import postprocessing, scripts_manager, shared
     from modules import video as video_module
-    from modules.api import helpers
     from modules.paths import resolve_output_path
 
     from enso_api.postprocess import build_script_args, log_control_drift, resolve_path_ref
@@ -663,9 +671,9 @@ def execute_process(params: dict, job_id: str) -> dict:
     output_dir = params.get("output_dir", "") if mode == "folder" else ""
     video_in = ""
     if mode == "image":
-        image = helpers.decode_base64_to_image((params.get("images") or [""])[0])
+        image = decode_image((params.get("images") or [""])[0])
     elif mode == "batch":
-        image_folder = [helpers.decode_base64_to_image(ref) for ref in params.get("images") or []]
+        image_folder = [decode_image(ref) for ref in params.get("images") or []]
     elif mode == "video":
         video_in = resolve_path_ref(params.get("video"))
         if not video_in or not os.path.isfile(video_in):
@@ -765,10 +773,9 @@ def execute_process(params: dict, job_id: str) -> dict:
 
 def execute_caption(params: dict, job_id: str) -> dict:  # pylint: disable=unused-argument
     from modules import shared
-    from modules.api import helpers
 
     backend = params.get("backend", "vlm")
-    image = helpers.decode_base64_to_image(params.get("image", ""))
+    image = decode_image(params.get("image", ""))
     model = params.get("model")
 
     jobid = shared.state.begin("API-V2-CAP", api=True)
@@ -803,13 +810,12 @@ def execute_caption(params: dict, job_id: str) -> dict:  # pylint: disable=unuse
 
 def execute_enhance(params: dict, job_id: str) -> dict:  # pylint: disable=unused-argument
     from modules import processing_helpers, shared
-    from modules.api import helpers
 
     prompt = params.get("prompt", "")
     model = params.get("model")
     enhance_type = params.get("enhance_type", "text")
     seed = processing_helpers.get_fixed_seed(params.get("seed", -1))
-    image = helpers.decode_base64_to_image(params["image"]) if params.get("image") else None
+    image = decode_image(params["image"]) if params.get("image") else None
 
     jobid = shared.state.begin("API-V2-ENH", api=True)
     try:
@@ -861,13 +867,12 @@ def execute_detail(params: dict, job_id: str) -> dict:
     entirely.
     """
     from modules import processing, processing_helpers, shared
-    from modules.api import helpers
     from modules.processing_class import StableDiffusionProcessingImg2Img
 
     inputs = params.get("inputs") or []
     if not inputs:
         raise ValueError("execute_detail: 'inputs' must contain at least one image ref")
-    image = helpers.decode_base64_to_image(inputs[0])
+    image = decode_image(inputs[0])
     if image is None:
         raise ValueError("execute_detail: failed to resolve input image ref")
 
@@ -940,9 +945,8 @@ def execute_detail(params: dict, job_id: str) -> dict:
 
 def execute_detect(params: dict, job_id: str) -> dict:  # pylint: disable=unused-argument
     from modules import shared
-    from modules.api import helpers
 
-    image = helpers.decode_base64_to_image(params.get("image", ""))
+    image = decode_image(params.get("image", ""))
     model = params.get("model")
 
     jobid = shared.state.begin("API-V2-DET", api=True)
@@ -970,11 +974,10 @@ def execute_detect(params: dict, job_id: str) -> dict:  # pylint: disable=unused
 def execute_preprocess(params: dict, job_id: str) -> dict:
     """Maps without a generation: the same runner and maps event as the generate pre-step, no picture replaced."""
     from modules import shared
-    from modules.api import helpers
 
     from enso_api import preprocess
 
-    slots = [{"key": item["key"], "process": item["process"], "params": item.get("params") or {}, "source": helpers.decode_base64_to_image(item["image"]), "apply": lambda image: None} for item in params.get("items") or []]
+    slots = [{"key": item["key"], "process": item["process"], "params": item.get("params") or {}, "source": decode_image(item["image"]), "apply": lambda image: None} for item in params.get("items") or []]
     jobid = shared.state.begin("API-V2-PRE", api=True)
     try:
         maps, failed = run_processors(job_id, slots)
@@ -1011,7 +1014,6 @@ def require_saved(job_id: str, refs: list, wanted: bool) -> None:
 
 def execute_video(params: dict, job_id: str) -> dict:
     from modules import processing, scripts_manager, shared, ui
-    from modules.api import helpers
     from modules.api import script as api_script
     from modules.video_models import video_run
 
@@ -1024,8 +1026,8 @@ def execute_video(params: dict, job_id: str) -> dict:
     sampler = params.get("sampler", 0)
     sampler_name = processing.get_sampler_name(sampler) if isinstance(sampler, int) else str(sampler)
 
-    init_image = helpers.decode_base64_to_image(params["init_image"]) if params.get("init_image") else None
-    last_image = helpers.decode_base64_to_image(params["last_image"]) if params.get("last_image") else None
+    init_image = decode_image(params["init_image"]) if params.get("init_image") else None
+    last_image = decode_image(params["last_image"]) if params.get("last_image") else None
 
     # Staged references pass as file paths: the core classifies paths by
     # extension (image/video/audio) and EXIF-transposes images via load_image,
@@ -1034,11 +1036,13 @@ def execute_video(params: dict, job_id: str) -> dict:
     def reference_entry(ref: str):
         if isinstance(ref, str) and ref.startswith("upload:"):
             from enso_api.media.boot import require_store
+            from enso_api.upload import check_input_size
 
+            check_input_size(ref)
             path = require_store().resolve_to_path(ref.removeprefix("upload:"))
             if path is not None:
                 return path
-        return helpers.decode_base64_to_image(ref)
+        return decode_image(ref)
 
     references = [reference_entry(x) for x in (params.get("references") or [])]
 
@@ -1155,12 +1159,11 @@ def execute_video(params: dict, job_id: str) -> dict:
 
 def execute_framepack(params: dict, job_id: str) -> dict:
     from modules import shared
-    from modules.api import helpers
     from modules.framepack import framepack_wrappers
 
     refuse_codec_options(params)
-    init_image = helpers.decode_base64_to_image(params["init_image"]) if params.get("init_image") else None
-    end_image = helpers.decode_base64_to_image(params["end_image"]) if params.get("end_image") else None
+    init_image = decode_image(params["init_image"]) if params.get("init_image") else None
+    end_image = decode_image(params["end_image"]) if params.get("end_image") else None
 
     prompt = params.get("prompt", "")
     negative = params.get("negative", "")
@@ -1242,7 +1245,6 @@ def execute_framepack(params: dict, job_id: str) -> dict:
 
 def execute_ltx(params: dict, job_id: str) -> dict:
     from modules import shared
-    from modules.api import helpers
     from modules.ltx import ltx_process
 
     refuse_codec_options(params)
@@ -1257,8 +1259,8 @@ def execute_ltx(params: dict, job_id: str) -> dict:
     sampler_index = params.get("sampler", 0)
     seed = params.get("seed", -1)
 
-    condition_image = helpers.decode_base64_to_image(params["condition_image"]) if params.get("condition_image") else None
-    condition_last = helpers.decode_base64_to_image(params["condition_last"]) if params.get("condition_last") else None
+    condition_image = decode_image(params["condition_image"]) if params.get("condition_image") else None
+    condition_last = decode_image(params["condition_last"]) if params.get("condition_last") else None
 
     jobid = shared.state.begin("API-V2-LTX", api=True)
     try:

@@ -875,6 +875,75 @@
         "title": "CudaMemoryV2",
         "type": "object"
       },
+      "DeclaredSizeV2": {
+        "description": "What a consumer resamples a picture to, as SD.Next declares it; rule null when it declares none.",
+        "properties": {
+          "limits": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SizeLimitsV2"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "output_area": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Output Area"
+          },
+          "rule": {
+            "anyOf": [
+              {
+                "discriminator": {
+                  "mapping": {
+                    "area": "#/components/schemas/RuleAreaV2",
+                    "buckets": "#/components/schemas/RuleBucketsV2",
+                    "cap": "#/components/schemas/RuleCapV2",
+                    "exact": "#/components/schemas/RuleExactV2",
+                    "floor": "#/components/schemas/RuleFloorV2",
+                    "shortest": "#/components/schemas/RuleShortestV2"
+                  },
+                  "propertyName": "kind"
+                },
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/RuleAreaV2"
+                  },
+                  {
+                    "$ref": "#/components/schemas/RuleCapV2"
+                  },
+                  {
+                    "$ref": "#/components/schemas/RuleBucketsV2"
+                  },
+                  {
+                    "$ref": "#/components/schemas/RuleShortestV2"
+                  },
+                  {
+                    "$ref": "#/components/schemas/RuleExactV2"
+                  },
+                  {
+                    "$ref": "#/components/schemas/RuleFloorV2"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rule"
+          }
+        },
+        "title": "DeclaredSizeV2",
+        "type": "object"
+      },
       "DetailParams": {
         "additionalProperties": false,
         "description": "Detailer-only pass (skip encode/base/hires).\n\nEquivalent to SD.Next's denoise=0 + detailer workflow: the input image\npasses through unchanged to the detailer, which detects regions and\ninpaints them. Use ``GenerateParams`` for full diffusion runs that\nhappen to enable the detailer; this type exists to skip diffusion\nentirely.",
@@ -8914,6 +8983,12 @@
             "title": "Library Cap",
             "type": "integer"
           },
+          "max_input_pixels": {
+            "maximum": 1000000000,
+            "minimum": 16000000,
+            "title": "Max Input Pixels",
+            "type": "integer"
+          },
           "record_cap": {
             "maximum": 2000,
             "minimum": 50,
@@ -9744,6 +9819,12 @@
             "title": "Maps",
             "type": "object"
           },
+          "record_schema": {
+            "default": 1,
+            "minimum": 1,
+            "title": "Record Schema",
+            "type": "integer"
+          },
           "refs": {
             "additionalProperties": true,
             "title": "Refs",
@@ -9830,6 +9911,12 @@
             },
             "title": "Maps",
             "type": "object"
+          },
+          "record_schema": {
+            "default": 1,
+            "minimum": 1,
+            "title": "Record Schema",
+            "type": "integer"
           },
           "refs": {
             "additionalProperties": true,
@@ -10633,6 +10720,18 @@
             ],
             "title": "Hash"
           },
+          "ip_adapter_size": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DeclaredSizeV2"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "What the image encoder resamples each adapter picture to without Crop; null when this SD.Next does not say",
+            "title": "IP-Adapter Size"
+          },
           "loaded": {
             "title": "Loaded",
             "type": "boolean"
@@ -10659,6 +10758,18 @@
               }
             ],
             "title": "Name"
+          },
+          "reference_size": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DeclaredSizeV2"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "What the pipeline resamples each condition image to; null when this SD.Next does not say",
+            "title": "Reference Size"
           },
           "request_sets_size": {
             "anyOf": [
@@ -11449,6 +11560,10 @@
             "title": "Library Cap",
             "type": "integer"
           },
+          "max_input_pixels": {
+            "title": "Max Input Pixels",
+            "type": "integer"
+          },
           "record_cap": {
             "title": "Record Cap",
             "type": "integer"
@@ -11467,6 +11582,7 @@
           "library_cap",
           "record_cap",
           "reserve_bytes",
+          "max_input_pixels",
           "bounds"
         ],
         "title": "ResMediaSettingsV2",
@@ -11854,6 +11970,11 @@
             "title": "Missing Refs",
             "type": "integer"
           },
+          "record_schema": {
+            "default": 1,
+            "title": "Record Schema",
+            "type": "integer"
+          },
           "refs": {
             "additionalProperties": true,
             "title": "Refs",
@@ -12005,6 +12126,16 @@
           },
           "extension": {
             "$ref": "#/components/schemas/ExtensionVersionV2"
+          },
+          "limits": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ServerLimitsV2"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "media_store": {
             "$ref": "#/components/schemas/MediaStoreStateV2"
@@ -12532,6 +12663,173 @@
         "title": "RestoredFileV2",
         "type": "object"
       },
+      "RuleAreaV2": {
+        "description": "sqrt(area * w/h), the height from the unrounded width, each side to the multiple.",
+        "properties": {
+          "area": {
+            "title": "Area",
+            "type": "integer"
+          },
+          "kind": {
+            "const": "area",
+            "title": "Kind",
+            "type": "string"
+          },
+          "multiple": {
+            "title": "Multiple",
+            "type": "integer"
+          },
+          "round": {
+            "enum": [
+              "nearest",
+              "floor",
+              "ceil"
+            ],
+            "title": "Round",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "area",
+          "multiple",
+          "round"
+        ],
+        "title": "RuleAreaV2",
+        "type": "object"
+      },
+      "RuleBucketsV2": {
+        "description": "The listed size whose aspect is nearest, from sides floored to aspect_multiple; ties to the first listed.",
+        "properties": {
+          "aspect_multiple": {
+            "title": "Aspect Multiple",
+            "type": "integer"
+          },
+          "fit": {
+            "enum": [
+              "stretch",
+              "cover"
+            ],
+            "title": "Fit",
+            "type": "string"
+          },
+          "kind": {
+            "const": "buckets",
+            "title": "Kind",
+            "type": "string"
+          },
+          "ratio": {
+            "enum": [
+              "w/h",
+              "h/w"
+            ],
+            "title": "Ratio",
+            "type": "string"
+          },
+          "sizes": {
+            "items": {
+              "items": {
+                "type": "integer"
+              },
+              "type": "array"
+            },
+            "title": "Sizes",
+            "type": "array"
+          }
+        },
+        "required": [
+          "kind",
+          "sizes",
+          "fit",
+          "ratio",
+          "aspect_multiple"
+        ],
+        "title": "RuleBucketsV2",
+        "type": "object"
+      },
+      "RuleCapV2": {
+        "description": "Scaled down to the area only when above it, each side truncated.",
+        "properties": {
+          "area": {
+            "title": "Area",
+            "type": "integer"
+          },
+          "kind": {
+            "const": "cap",
+            "title": "Kind",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "area"
+        ],
+        "title": "RuleCapV2",
+        "type": "object"
+      },
+      "RuleExactV2": {
+        "properties": {
+          "height": {
+            "title": "Height",
+            "type": "integer"
+          },
+          "kind": {
+            "const": "exact",
+            "title": "Kind",
+            "type": "string"
+          },
+          "width": {
+            "title": "Width",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "kind",
+          "width",
+          "height"
+        ],
+        "title": "RuleExactV2",
+        "type": "object"
+      },
+      "RuleFloorV2": {
+        "description": "Each side floored to the multiple by a crop, any size.",
+        "properties": {
+          "kind": {
+            "const": "floor",
+            "title": "Kind",
+            "type": "string"
+          },
+          "multiple": {
+            "title": "Multiple",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "kind",
+          "multiple"
+        ],
+        "title": "RuleFloorV2",
+        "type": "object"
+      },
+      "RuleShortestV2": {
+        "properties": {
+          "kind": {
+            "const": "shortest",
+            "title": "Kind",
+            "type": "string"
+          },
+          "side": {
+            "title": "Side",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "kind",
+          "side"
+        ],
+        "title": "RuleShortestV2",
+        "type": "object"
+      },
       "ServerCapabilities": {
         "properties": {
           "control": {
@@ -12554,6 +12852,11 @@
             "title": "Media Store",
             "type": "boolean"
           },
+          "size_rules": {
+            "default": false,
+            "title": "Size Rules",
+            "type": "boolean"
+          },
           "txt2img": {
             "default": true,
             "title": "Txt2Img",
@@ -12571,6 +12874,37 @@
           }
         },
         "title": "ServerCapabilities",
+        "type": "object"
+      },
+      "ServerLimitsV2": {
+        "properties": {
+          "caption": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DeclaredSizeV2"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "formats": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Formats",
+            "type": "array"
+          },
+          "input_pixels": {
+            "title": "Input Pixels",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "input_pixels",
+          "formats"
+        ],
+        "title": "ServerLimitsV2",
         "type": "object"
       },
       "ServerModelInfo": {
@@ -12622,6 +12956,34 @@
           "default"
         ],
         "title": "SettingBoundV2",
+        "type": "object"
+      },
+      "SizeLimitsV2": {
+        "properties": {
+          "max_aspect": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Aspect"
+          },
+          "min_side": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min Side"
+          }
+        },
+        "title": "SizeLimitsV2",
         "type": "object"
       },
       "SpaceV2": {

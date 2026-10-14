@@ -150,7 +150,9 @@ def resolve_path_ref(ref: str | None) -> str:
     """An upload ref becomes the stored file's path; anything else is returned as given."""
     if isinstance(ref, str) and ref.startswith("upload:"):
         from enso_api.media.boot import require_store
+        from enso_api.upload import check_input_size
 
+        check_input_size(ref)
         return require_store().resolve_to_path(ref.removeprefix("upload:")) or ""
     return ref or ""
 

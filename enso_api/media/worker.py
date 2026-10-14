@@ -46,6 +46,7 @@ class MediaWorker(threading.Thread):
         verify: Callable[[threading.Event, Progress], object],
         on_progress: Callable[[VerifyState], None] | None = None,
         interval: float = PASS_SECONDS,
+        fill_sizes: Callable[[], int] | None = None,
     ):
         super().__init__(daemon=True, name="enso-media")
         self.reconcile = reconcile
@@ -53,6 +54,7 @@ class MediaWorker(threading.Thread):
         self.verify = verify
         self.on_progress = on_progress
         self.interval = interval
+        self.fill_sizes = fill_sizes
         self.wake_event = threading.Event()
         self.cancel = threading.Event()
         self.lock = threading.Lock()
@@ -67,6 +69,7 @@ class MediaWorker(threading.Thread):
                 self.step("verify", self.run_verify)
                 self.step("reconciliation", lambda: self.reconcile(True))
             self.step("collection", self.collect)
+            self.step("picture sizes", self.fill)
             self.wake_event.wait(self.interval)
             self.wake_event.clear()
 
@@ -82,6 +85,14 @@ class MediaWorker(threading.Thread):
             fn()
         except Exception as e:
             log.error(f"Media store: {name} failed: {type(e).__name__}: {e}", exc_info=True)
+
+    def fill(self) -> None:
+        """Read the picture sizes of rows stored before sizes were recorded, a batch at a time until none is left or a
+        verify is asked for."""
+        if self.fill_sizes is None:
+            return
+        while not self.stopping.is_set() and not self.requested and self.fill_sizes() > 0:
+            pass
 
     def take_request(self) -> bool:
         with self.lock:

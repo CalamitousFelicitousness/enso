@@ -82,7 +82,7 @@ def test_migration_3_upgrades_a_version_2_file_and_a_trashed_file_takes_its_outp
     with first.write() as w:
         w.conn.execute("INSERT INTO entries (id, kind, name, saved_at, used_at, trashed_at, frames, pictures, width, height, schema, document) VALUES ('e', 'frame', 'e', 0, 0, 5, 1, 1, 8, 8, 1, '{}')")
     first.close()
-    second = Database(path, MIGRATIONS, label="Media store")
+    second = Database(path, MIGRATIONS[:3], label="Media store")
     assert second.version == 3
     with second.write() as w:
         assert w.conn.execute("SELECT clock_at FROM entries").fetchone()[0] is None

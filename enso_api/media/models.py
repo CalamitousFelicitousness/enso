@@ -64,6 +64,8 @@ class ResMediaSettingsV2(BaseModel):
     library_cap: int
     record_cap: int
     reserve_bytes: int
+    max_input_pixels: int
+    """The largest picture, in pixels, the server takes in an upload or a request."""
     bounds: dict[str, SettingBoundV2]
 
 
@@ -78,6 +80,7 @@ class ReqMediaSettingsV2(StrictBaseModel):
     library_cap: int = bounded("library_cap")
     record_cap: int = bounded("record_cap")
     reserve_bytes: int = bounded("reserve_bytes")
+    max_input_pixels: int = bounded("max_input_pixels")
 
 
 class MediaTermV2(BaseModel):
@@ -171,6 +174,8 @@ class ReqRecordV2(StrictBaseModel):
     """Cid to hash for every picture, mask object and map the record names."""
     unavailable: list[str] = Field(default_factory=list)
     """Cids whose bytes the client could not read; named nowhere."""
+    record_schema: int = Field(default=1, ge=1)
+    """The shape of `inputs` and `refs`; a reader refuses a record newer than it knows."""
 
 
 class ReqSubmitV2(StrictBaseModel):
@@ -220,6 +225,7 @@ class ResRecordV2(ItemRecordV2):
     maps: dict[str, str]
     hashes: dict[str, str]
     unavailable_cids: list[str]
+    record_schema: int = 1
     lost_cids: list[str]
     missing_ref_ids: list[str]
 

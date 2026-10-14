@@ -77,6 +77,10 @@ async def post_prompt_enhance_v2(req: ReqPromptEnhanceV2):
         from modules import processing_helpers
         from modules.api.helpers import decode_base64_to_image
 
+        from enso_api.upload import refuse_oversize
+
+        if req.image:
+            refuse_oversize(req.image, "Prompt enhance")
         seed = req.seed or -1
         seed = processing_helpers.get_fixed_seed(seed)
         prompt = ""

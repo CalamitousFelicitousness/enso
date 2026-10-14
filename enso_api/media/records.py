@@ -32,6 +32,7 @@ class RecordIn:
     maps: dict[str, str]
     hashes: dict[str, str]
     unavailable: list[str]
+    record_schema: int = 1
 
 
 @dataclass(frozen=True)
@@ -92,6 +93,7 @@ class Records:
             "maps": record.maps,
             "hashes": checked.hashes,
             "unavailable": list(checked.unavailable),
+            "record_schema": record.record_schema,
         }
         conn.execute(
             "INSERT INTO records (job_id, client, user, domain, created_at, routed, document, has_inputs, unheld_refs, unavailable, ref_hashes, submit_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
@@ -237,6 +239,7 @@ class Records:
             "maps": document["maps"],
             "hashes": document["hashes"],
             "unavailable_cids": document["unavailable"],
+            "record_schema": document.get("record_schema", 1),
             "lost_cids": sorted(cid for cid, digest in document["hashes"].items() if digest in lost),
             "missing_ref_ids": sorted(ref for ref, digest in resolved.items() if digest is None or digest not in held),
         }

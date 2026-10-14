@@ -365,9 +365,12 @@ async def post_preprocess_v2(req: ReqPreprocessV2):
         from modules.api.helpers import decode_base64_to_image, encode_pil_to_base64
         from modules.control import processors
 
+        from enso_api.upload import refuse_oversize
+
         processors_list = list(processors.config)
         if req.model not in processors_list:
             raise HTTPException(status_code=400, detail=f"Processor model not found: id={req.model}")
+        refuse_oversize(req.image, "Preprocess")
         image = decode_base64_to_image(req.image)
         proc = process_module.processor
         if proc is None or proc.processor_id != req.model:
@@ -595,7 +598,7 @@ def checkpoint_detailer_mode(model) -> str | None:
 def build_checkpoint_info() -> ResCheckpointV2:
     from modules.control.run import is_unified_model
 
-    from enso_api import condition_images
+    from enso_api import condition_images, size_rules
 
     if not shared.sd_loaded or shared.sd_model is None:
         return ResCheckpointV2(loaded=False)
@@ -610,6 +613,8 @@ def build_checkpoint_info() -> ResCheckpointV2:
         guidance=checkpoint_guidance(shared.sd_model),
         size_multiple=checkpoint_size_multiple(shared.sd_model),
         control_unified=is_unified_model(),
+        reference_size=size_rules.reference_size(shared.sd_model),
+        ip_adapter_size=size_rules.ip_adapter_size(shared.sd_model),
     )
     if hasattr(shared.sd_model, "sd_model_checkpoint"):
         info.checkpoint = shared.sd_model.sd_model_checkpoint
@@ -898,7 +903,21 @@ async def post_png_info_v2(req: ReqPngInfoV2):
         from modules import images, infotext, script_callbacks
         from modules.api.helpers import decode_base64_to_image
 
-        image = decode_base64_to_image(req.image.strip())
+        from enso_api.documents import REF_PREFIX
+        from enso_api.upload import refuse_oversize
+
+        source = req.image.strip()
+        refuse_oversize(source, "PNG info")
+        if source.startswith(REF_PREFIX):
+            # Opened as stored: turning it by its orientation tag rewrites the EXIF that holds a JPEG's parameters
+            from PIL import Image
+
+            from enso_api.media.boot import require_store
+
+            path = require_store().resolve_to_path(source[len(REF_PREFIX) :])
+            image = Image.open(path) if path else None
+        else:
+            image = decode_base64_to_image(source)
         if image is None:
             return ResPngInfoV2(ok=False, info="")
         geninfo, items = images.read_info_from_image(image)

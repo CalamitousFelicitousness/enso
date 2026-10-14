@@ -204,3 +204,14 @@ def test_a_durable_write_raises_synchronous_for_its_commit_only(db):
     pragmas = [s for s in statements if s.startswith("PRAGMA synchronous")]
     assert pragmas == ["PRAGMA synchronous=FULL", "PRAGMA synchronous=NORMAL"]
     assert statements.index("PRAGMA synchronous=FULL") < statements.index("BEGIN IMMEDIATE") < statements.index("PRAGMA synchronous=NORMAL")
+
+
+def test_the_record_schema_is_kept_and_an_older_document_reads_as_1(records, store):
+    picture = blobs(store, 1)[0]
+    queue = Queue()
+    rec = record({"p": picture})
+    submit(records, queue, {"type": "generate"}, RecordIn(**{**rec.__dict__, "record_schema": 2}))
+    assert records.get("j1")["record_schema"] == 2
+    with store.db.write() as w:
+        w.conn.execute("UPDATE records SET document = json_remove(document, '$.record_schema')")
+    assert records.get("j1")["record_schema"] == 1

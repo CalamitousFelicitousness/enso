@@ -18,6 +18,8 @@ BOUNDS = {
     "library_cap": Bound(10, 1000, 100),
     "record_cap": Bound(50, 2000, 200),
     "reserve_bytes": Bound(256 << 20, 1 << 40, 2 << 30),
+    # Pillow's decompression-bomb line, rounded down to a whole megapixel
+    "max_input_pixels": Bound(16_000_000, 1_000_000_000, 89_000_000),
 }
 
 
@@ -27,6 +29,7 @@ class Settings:
     library_cap: int = BOUNDS["library_cap"].default
     record_cap: int = BOUNDS["record_cap"].default
     reserve_bytes: int = BOUNDS["reserve_bytes"].default
+    max_input_pixels: int = BOUNDS["max_input_pixels"].default
 
     @property
     def trash_ms(self) -> int:

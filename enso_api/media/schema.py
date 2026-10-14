@@ -151,4 +151,11 @@ CREATE TABLE gone_outputs (
 ALTER TABLE entries ADD COLUMN clock_at INTEGER;
 """
 
-MIGRATIONS = [(1, SCHEMA_V1), (2, SCHEMA_V2), (3, SCHEMA_V3)]
+# A picture's size from its header: NULL until read, 0 for a file that is not a picture or whose size could not be read
+SCHEMA_V4 = """
+ALTER TABLE blobs ADD COLUMN width INTEGER;
+ALTER TABLE blobs ADD COLUMN height INTEGER;
+CREATE INDEX blobs_unsized ON blobs(created_at) WHERE width IS NULL;
+"""
+
+MIGRATIONS = [(1, SCHEMA_V1), (2, SCHEMA_V2), (3, SCHEMA_V3), (4, SCHEMA_V4)]

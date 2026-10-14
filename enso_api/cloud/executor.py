@@ -38,7 +38,9 @@ def resolve_ref(ref):
         return ref
     if isinstance(ref, str) and ref.startswith("upload:"):
         from enso_api.media.boot import require_store
+        from enso_api.upload import check_input_size
 
+        check_input_size(ref)
         path = require_store().resolve_to_path(ref.split(":", 1)[1])
         if path is None:
             raise ValueError(f"Upload reference not held: {ref}")

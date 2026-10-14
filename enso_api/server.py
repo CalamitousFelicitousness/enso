@@ -21,10 +21,12 @@ from enso_api.models import (
     ResServerInfoV2,
     ResSystemInfoV2,
     ServerCapabilities,
+    ServerLimitsV2,
     ServerModelInfo,
     VersionInfoV2,
 )
 from enso_api.sdnext_features import control_separate_init
+from enso_api.size_rules import caption_size, has_size_rules, server_formats
 
 router = APIRouter(prefix="/sdapi/v2", tags=["Server"])
 
@@ -73,9 +75,11 @@ async def get_server_info_v2():
     model_name = getattr(shared.opts, "sd_model_checkpoint", None)
     model_type = type(model_data.sd_model).__name__ if model_data.sd_model is not None else None
     from enso_api.media import boot as media_boot
+    from enso_api.upload import input_limit
 
     media = media_boot.state
-    capabilities = ServerCapabilities(video=detect_video_capability(), control_separate_init=control_separate_init(), media_store=media.store is not None)
+    capabilities = ServerCapabilities(video=detect_video_capability(), control_separate_init=control_separate_init(), media_store=media.store is not None, size_rules=has_size_rules())
+    limits = ServerLimitsV2(input_pixels=input_limit()[0], formats=server_formats(), caption=caption_size())
     return ResServerInfoV2(
         version=VersionInfoV2(**{k: str(v) for k, v in ver.items() if k in set(VersionInfoV2.model_fields)}),
         backend=shared.backend.name if hasattr(shared.backend, "name") else str(shared.backend),
@@ -84,6 +88,7 @@ async def get_server_info_v2():
         model=ServerModelInfo(name=model_name, type=model_type),
         extension=extension_version(),
         media_store=MediaStoreStateV2(enabled=media.store is not None, reason=media.reason, root=media.root),
+        limits=limits,
     )
 
 

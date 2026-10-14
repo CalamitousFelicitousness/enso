@@ -132,6 +132,7 @@ def record_in(body) -> RecordIn:
         maps=body.maps,
         hashes=body.hashes,
         unavailable=body.unavailable,
+        record_schema=body.record_schema,
     )
 
 
@@ -159,6 +160,11 @@ async def post_submit(body: ReqSubmitV2, request: Request, response: Response):
     if job_type not in EXECUTORS:
         refuse(500, "no_executor", f"Job type {job_type!r} has no registered executor", label="Jobs")
     priority = payload.pop("priority", 0)
+    from enso_api.upload import oversize_issues
+
+    oversize = await asyncio.to_thread(oversize_issues, payload, ("body", "job"))
+    if oversize:
+        refuse_issues(oversize, "Jobs")
     job_id = JobStore.new_id()
     record = record_in(body.record)
     user = user_of(request)
