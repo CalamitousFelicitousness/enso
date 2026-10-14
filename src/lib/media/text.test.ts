@@ -3,7 +3,10 @@ import {
   aboutSize,
   ageText,
   canvasTooLargeText,
+  limitText,
   megapixelsText,
+  readingText,
+  refusalText,
   sizeText,
   batchText,
   lutGoneText,
@@ -406,13 +409,83 @@ describe("the words of a picture's size", () => {
 
   it("gives megapixels to one decimal below 100 and whole above", () => {
     expect(megapixelsText(3840 * 3840)).toBe("14.7 MP");
+    expect(megapixelsText(1024 * 1024)).toBe("1.0 MP");
     expect(megapixelsText(24000 * 18000)).toBe("432 MP");
-    expect(megapixelsText(99_960_000)).toBe("100.0 MP");
+    expect(megapixelsText(99_960_000)).toBe("100 MP");
+  });
+
+  it("gives a limit whole unless it is not", () => {
+    expect(limitText(89_000_000)).toBe("89 MP");
+    expect(limitText(12_500_000)).toBe("12.5 MP");
+    expect(limitText(16384 * 16384)).toBe("268 MP");
   });
 
   it("says why a composite is too large to draw", () => {
     expect(canvasTooLargeText({ width: 20000, height: 20000 }, 16384 * 16384)).toBe(
       "The input goes out at 20000×20000 (400 MP), more than the 268 MP the browser can draw. Lower Width and Height, or use Megapixel.",
+    );
+  });
+});
+
+describe("the words of a refused picture", () => {
+  const enso = { pixels: 16384 * 16384, by: "enso" } as const;
+  const server = { pixels: 32_000_000, by: "server" } as const;
+
+  it("names one file and gives its size against the limit", () => {
+    expect(
+      refusalText({ reason: "tooLarge", size: { width: 24000, height: 18000 }, limit: enso }, [
+        "cat.png",
+      ]),
+    ).toEqual({
+      title: "cat.png was not added",
+      description: "It is 24000×18000 (432 MP); Enso takes pictures up to 268 MP.",
+    });
+    expect(
+      refusalText({ reason: "tooLarge", size: { width: 8000, height: 6000 }, limit: server }, [
+        "cat.png",
+      ]).description,
+    ).toBe(
+      "It is 8000×6000 (48.0 MP); the server takes pictures up to 32 MP (Settings > Behavior > Largest input picture).",
+    );
+  });
+
+  it("lists several files in one toast", () => {
+    expect(
+      refusalText({ reason: "tooLarge", size: { width: 24000, height: 18000 }, limit: enso }, [
+        "cat.png",
+        "dog.png",
+        "owl.png",
+      ]),
+    ).toEqual({
+      title: "3 pictures were not added",
+      description: "cat.png, dog.png and 1 more are larger than the 268 MP Enso takes.",
+    });
+  });
+
+  it("lists every format Enso reads for a file it cannot", () => {
+    expect(refusalText({ reason: "notImage" }, ["cat.svg"])).toEqual({
+      title: "cat.svg is not an image Enso can read",
+      description: "Enso reads PNG, JPEG, WebP, GIF, BMP, TIFF, AVIF, HEIC, JPEG 2000 and JPEG XL.",
+    });
+    expect(refusalText({ reason: "notImage" }, ["a.svg", "b.ico"]).title).toBe(
+      "2 files are not images Enso can read",
+    );
+  });
+
+  it("says a large picture is being read", () => {
+    expect(readingText("cat.png", 98_000_000)).toBe("Reading cat.png (98.0 MP)");
+  });
+
+  it("says which side cannot read the format, and when the size is missing", () => {
+    expect(refusalText({ reason: "browserCannotShow", kind: "heic" }, ["cat.heic"])).toEqual({
+      title: "cat.heic was not added",
+      description: "This browser cannot show HEIC pictures.",
+    });
+    expect(
+      refusalText({ reason: "serverCannotRead", kind: "jxl" }, ["a.jxl", "b.jxl"]).description,
+    ).toBe("The server cannot read JPEG XL pictures: a.jxl and b.jxl.");
+    expect(refusalText({ reason: "noSize" }, ["cat.jpg"]).description).toBe(
+      "Enso could not find its size in the file.",
     );
   });
 });

@@ -93,6 +93,7 @@ export default defineConfig([
       "src/lib/jobs/**/*.ts",
       "src/lib/media/**/*.ts",
       "src/lib/request/generateParams.ts",
+      "src/lib/request/fitNote.ts",
       "src/lib/request/inputPlan.ts",
       "src/lib/request/refusal.ts",
       "src/lib/request/restoreParams.ts",

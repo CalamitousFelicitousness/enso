@@ -4,6 +4,8 @@
 import type { LastVerifyV2 } from "@/api/types/media";
 import type { LutPlace, LutState } from "@/lib/lut";
 import { formatBytes } from "@/lib/utils";
+import { KIND_NAMES } from "./dimensions";
+import type { EffectiveLimit, Refusal } from "./limits";
 import type { SkipReason } from "./migration";
 
 const plural = (n: number, one: string, many: string) => (n === 1 ? `1 ${one}` : `${n} ${many}`);
@@ -47,12 +49,80 @@ export function sizeText(size: { width: number; height: number }): string {
 
 /** "14.7 MP", "432 MP": a pixel count, one decimal below 100 MP. */
 export function megapixelsText(pixels: number): string {
-  const mp = pixels / 1_000_000;
-  return mp < 100 ? `${mp.toFixed(1)} MP` : `${Math.round(mp)} MP`;
+  const tenths = Math.round(pixels / 100_000);
+  return tenths < 1000 ? `${(tenths / 10).toFixed(1)} MP` : `${Math.round(pixels / 1_000_000)} MP`;
+}
+
+/** "89 MP", "12.5 MP": a limit, whole unless it is not. */
+export function limitText(pixels: number): string {
+  return megapixelsText(pixels).replace(".0 MP", " MP");
 }
 
 export function canvasTooLargeText(size: { width: number; height: number }, limit: number): string {
-  return `The input goes out at ${sizeText(size)} (${megapixelsText(size.width * size.height)}), more than the ${megapixelsText(limit)} the browser can draw. Lower Width and Height, or use Megapixel.`;
+  return `The input goes out at ${sizeText(size)} (${megapixelsText(size.width * size.height)}), more than the ${limitText(limit)} the browser can draw. Lower Width and Height, or use Megapixel.`;
+}
+
+const KINDS = Object.values(KIND_NAMES);
+const FORMATS = `Enso reads ${KINDS.slice(0, -1).join(", ")} and ${KINDS.at(-1)}.`;
+
+export interface ToastText {
+  title: string;
+  description: string;
+}
+
+function takes(limit: EffectiveLimit): string {
+  return limit.by === "enso" ? "Enso takes" : "the server takes";
+}
+
+const LIMIT_SETTING = " (Settings > Behavior > Largest input picture)";
+
+/** "Reading cat.png (112 MP)": a large picture on its way in. */
+export function readingText(name: string, pixels: number): string {
+  return `Reading ${name} (${megapixelsText(pixels)})`;
+}
+
+/** One toast for the files of a drop refused for the same reason. */
+export function refusalText(refusal: Refusal, names: readonly string[]): ToastText {
+  const [only] = names;
+  const one = names.length === 1;
+  const notAdded = one ? `${only} was not added` : `${names.length} pictures were not added`;
+  const which = one ? "" : `: ${listed(names)}`;
+  switch (refusal.reason) {
+    case "notImage":
+      return one
+        ? { title: `${only} is not an image Enso can read`, description: FORMATS }
+        : {
+            title: `${names.length} files are not images Enso can read`,
+            description: `${listed(names)}. ${FORMATS}`,
+          };
+    case "noSize":
+      return {
+        title: notAdded,
+        description: one
+          ? "Enso could not find its size in the file."
+          : `Enso could not find their sizes in the files${which}.`,
+      };
+    case "browserCannotShow":
+      return {
+        title: notAdded,
+        description: `This browser cannot show ${KIND_NAMES[refusal.kind]} pictures${which}.`,
+      };
+    case "serverCannotRead":
+      return {
+        title: notAdded,
+        description: `The server cannot read ${KIND_NAMES[refusal.kind]} pictures${which}.`,
+      };
+    case "tooLarge": {
+      const { size, limit } = refusal;
+      const setting = limit.by === "server" ? LIMIT_SETTING : "";
+      return {
+        title: notAdded,
+        description: one
+          ? `It is ${sizeText(size)} (${megapixelsText(size.width * size.height)}); ${takes(limit)} pictures up to ${limitText(limit.pixels)}${setting}.`
+          : `${listed(names)} are larger than the ${limitText(limit.pixels)} ${takes(limit)}${setting}.`,
+      };
+    }
+  }
 }
 
 /** Why an upload did not land. */
