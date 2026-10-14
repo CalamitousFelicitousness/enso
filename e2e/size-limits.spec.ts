@@ -48,7 +48,7 @@ async function largePortrait(page: Page): Promise<string> {
   return path;
 }
 
-/** A PNG of a signature and an IHDR claiming the size, with no pixels. */
+/** A PNG of a signature, an IHDR claiming the size and an IEND, with no pixels. */
 function headerOnlyPng(width: number, height: number): string {
   const ihdr = Buffer.alloc(13);
   ihdr.writeUInt32BE(width, 0);
@@ -61,7 +61,8 @@ function headerOnlyPng(width: number, height: number): string {
   length.writeUInt32BE(13);
   const signature = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
   const path = join(folder, "huge.png");
-  writeFileSync(path, Buffer.concat([signature, length, type, ihdr, crc]));
+  const iend = Buffer.from([0, 0, 0, 0, 0x49, 0x45, 0x4e, 0x44, 0xae, 0x42, 0x60, 0x82]);
+  writeFileSync(path, Buffer.concat([signature, length, type, ihdr, crc, iend]));
   return path;
 }
 
