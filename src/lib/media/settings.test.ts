@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { commitKind, retirable, shortensRetention, type RecordFacts } from "./settings";
+import {
+  commitKind,
+  INPUT_LIMIT_STEPS,
+  inputLimitStep,
+  retirable,
+  shortensRetention,
+  type RecordFacts,
+} from "./settings";
 
 const HOUR = 60 * 60 * 1000;
 const NOW = 1000 * HOUR;
@@ -57,5 +64,22 @@ describe("shortensRetention", () => {
     expect(shortensRetention(7, 30)).toBe(true);
     expect(shortensRetention(30, 7)).toBe(false);
     expect(shortensRetention(7, 7)).toBe(false);
+  });
+});
+
+describe("the input limit's slider", () => {
+  it("sits at the largest step at or below the limit", () => {
+    expect(INPUT_LIMIT_STEPS[inputLimitStep(89_000_000)]).toBe(89_000_000);
+    expect(INPUT_LIMIT_STEPS[inputLimitStep(100_000_000)]).toBe(89_000_000);
+    expect(inputLimitStep(1_000_000_000)).toBe(INPUT_LIMIT_STEPS.length - 1);
+  });
+
+  it("sits at the first step below the lowest", () => {
+    expect(inputLimitStep(1_000_000)).toBe(0);
+  });
+
+  it("holds the server's bounds at its ends", () => {
+    expect(INPUT_LIMIT_STEPS[0]).toBe(16_000_000);
+    expect(INPUT_LIMIT_STEPS.at(-1)).toBe(1_000_000_000);
   });
 });

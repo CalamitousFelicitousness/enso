@@ -3,6 +3,8 @@ import {
   aboutSize,
   ageText,
   canvasTooLargeText,
+  inputLimitLineText,
+  inputLimitText,
   limitText,
   megapixelsText,
   readingText,
@@ -487,5 +489,24 @@ describe("the words of a refused picture", () => {
     expect(refusalText({ reason: "noSize" }, ["cat.jpg"]).description).toBe(
       "Enso could not find its size in the file.",
     );
+  });
+});
+
+describe("the words of the input limit", () => {
+  it("says what is refused at or below the browser's ceiling", () => {
+    expect(inputLimitText(89_000_000)).toBe(
+      "Larger pictures are refused when added, uploaded or sent in a request. Nothing stored is deleted.",
+    );
+  });
+
+  it("says the browser refuses first above it", () => {
+    expect(inputLimitText(768_000_000)).toBe(
+      "Larger uploads and requests are refused. Enso already refuses pictures above 500 MP when they are added.",
+    );
+  });
+
+  it("gives the server's limit and the browser's in the System line", () => {
+    expect(inputLimitLineText(89_000_000)).toBe("89 MP on the server · 500 MP in the browser");
+    expect(inputLimitLineText(null)).toBe("500 MP in the browser");
   });
 });

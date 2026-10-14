@@ -10,6 +10,7 @@ import {
 import { PngInfoDialog } from "@/components/generation/PngInfoDialog";
 import { QuickInterrogateDialog } from "@/components/generation/QuickInterrogateDialog";
 import { sendImageToCanvas } from "@/lib/sendTo";
+import { admit, announceRefusals } from "@/inputs/admit";
 import { useRegisterCommand } from "@/lib/commandRegistry";
 import { toast } from "sonner";
 
@@ -25,11 +26,15 @@ export function ImageToolsMenu() {
     if (!file) return;
     e.target.value = "";
     if (fileActionRef.current === "interrogate") {
+      const admission = await admit(file, "interrogate");
+      if (!admission.ok) {
+        announceRefusals([{ name: file.name, refusal: admission.refusal }]);
+        return;
+      }
       setInterrogateFile(file);
       setInterrogateOpen(true);
     } else {
-      await sendImageToCanvas(file);
-      toast.success("Image sent to canvas");
+      if (await sendImageToCanvas(file)) toast.success("Image sent to canvas");
     }
   }, []);
 

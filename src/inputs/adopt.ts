@@ -5,7 +5,10 @@
 import { adopt, type AdoptOrigin } from "@/api/blobs";
 import { browserFilePath } from "@/api/browserFile";
 import { outputIdOf } from "@/api/outputs";
-import { mediaFile } from "@/lib/mediaFiles";
+import { mediaFile, mediaHead } from "@/lib/mediaFiles";
+
+/** Enough of a file for its header, read before the rest is fetched. */
+const HEAD_BYTES = 256 * 1024;
 
 /** A picture the server holds, and what it holds it as. */
 export interface ServerPicture {
@@ -33,6 +36,11 @@ export function galleryPicture(path: string): ServerPicture {
 /** The picture's bytes, never from the HTTP cache: a URL can come to name other bytes. */
 export function serverFile(picture: ServerPicture): Promise<File> {
   return mediaFile(picture.url, picture.name, { cache: "no-store" });
+}
+
+/** The picture's first bytes, and whether they are the whole file. */
+export function serverHead(picture: ServerPicture): Promise<{ file: File; whole: boolean }> {
+  return mediaHead(picture.url, picture.name, HEAD_BYTES, { cache: "no-store" });
 }
 
 /** The hash the store keeps a file under once taken in, when the server's

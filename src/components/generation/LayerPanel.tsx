@@ -3,7 +3,9 @@ import { useInputStore } from "@/stores/inputStore";
 import { useGenerationStore } from "@/stores/generationStore";
 import { addFilesToInputs } from "@/inputs/route";
 import { removePicture } from "@/inputs/edits";
+import { useEffectiveLimit } from "@/inputs/admit";
 import { useThumb } from "@/inputs/thumbs";
+import { tooLargeLineText } from "@/lib/inputs/text";
 import type { MaskObject, Picture } from "@/lib/inputs/types";
 import { Eye, EyeOff, X, Plus, Frame, Lock, Unlock } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -68,6 +70,7 @@ export function LayerPanel({ frameId }: LayerPanelProps = {}) {
     const wanted = frameId ?? s.selectedFrameId;
     return s.frames.find((f) => f.id === wanted) ?? s.frames[0] ?? null;
   });
+  const limit = useEffectiveLimit();
   const activeItem = useInputStore((s) => s.activeItem);
   const setActiveItem = useInputStore((s) => s.setActiveItem);
   const setPictureVisible = useInputStore((s) => s.setPictureVisible);
@@ -144,10 +147,12 @@ export function LayerPanel({ frameId }: LayerPanelProps = {}) {
               <p className="text-3xs truncate" title={layer.name}>
                 {truncName}
               </p>
-              {layer.file ? (
-                <LayerDims layer={layer} />
-              ) : (
+              {!layer.file ? (
                 <p className="text-4xs text-destructive">could not be read</p>
+              ) : layer.width * layer.height > limit.pixels ? (
+                <p className="text-4xs text-destructive">{tooLargeLineText(layer)}</p>
+              ) : (
+                <LayerDims layer={layer} />
               )}
             </div>
             {/* Fit frame to image */}

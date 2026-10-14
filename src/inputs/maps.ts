@@ -17,6 +17,7 @@ import { MAPS } from "@/lib/inputs/storeLayout";
 import type { Frame, Size } from "@/lib/inputs/types";
 import type { ProcessorFacts } from "@/lib/processorUtils";
 import { useJobQueueStore, type TrackedJob } from "@/stores/jobStore";
+import { headerSize } from "./admit";
 import { imageSize } from "./media";
 import { readDocument, writeRecord } from "./db";
 import { isQuotaError, reportFull } from "./quota";
@@ -193,7 +194,7 @@ export function currentMap(key: string): MapEntry | null {
  * already, as a library entry's are, keeps its cid, so only its record is
  * written. Answers the map's cid. */
 export async function installMap(key: string, blob: Blob, cid?: string): Promise<string> {
-  const { width, height } = await imageSize(blob);
+  const { width, height } = (await headerSize(blob)) ?? (await imageSize(blob));
   const now = Date.now();
   const entry: MapEntry = {
     key,

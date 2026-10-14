@@ -13,6 +13,7 @@ import {
   type LegacyImport,
 } from "@/lib/inputs/legacy";
 import { REFERENCE_HEIGHT } from "@/lib/inputs/layout";
+import { setSizes } from "@/lib/inputs/reducers";
 import { controlFingerprint, controlToFrames, readLegacyControl } from "@/lib/inputs/legacyControl";
 import { loose } from "@/lib/inputs/loose";
 import {
@@ -23,6 +24,7 @@ import {
   type WorkingDocument,
 } from "@/lib/inputs/stored";
 import { DOCUMENTS } from "@/lib/inputs/storeLayout";
+import type { Size } from "@/lib/inputs/types";
 import { useGenerationStore } from "@/stores/generationStore";
 import {
   DocumentConflict,
@@ -35,6 +37,7 @@ import {
   writeDocument,
 } from "./db";
 import { bytesFor } from "./fetch";
+import { headerSize } from "./admit";
 import { decodeLegacyUnits } from "./legacyControl";
 
 /** What reading the stored inputs turned up besides the document. */
@@ -274,6 +277,24 @@ async function importLegacy(
   }
 }
 
+/** Pictures an older build stored without a size take it from their header. */
+async function fillSizes(doc: WorkingDocument): Promise<WorkingDocument> {
+  const unsized = doc.frames
+    .flatMap((f) => [...f.pictures, ...f.ipAdapter.masks])
+    .flatMap((p) =>
+      p.file && (p.width === 0 || p.height === 0) ? [{ id: p.id, file: p.file }] : [],
+    );
+  if (unsized.length === 0) return doc;
+  const sizes = new Map<string, Size>();
+  await Promise.all(
+    unsized.map(async ({ id, file }) => {
+      const size = await headerSize(file).catch(() => null);
+      if (size) sizes.set(id, size);
+    }),
+  );
+  return sizes.size === 0 ? doc : { ...doc, frames: doc.frames.map((f) => setSizes(f, sizes)) };
+}
+
 const NO_LOSS: JoinLoss = { pictures: [], maskObjects: 0 };
 
 const HEAL_TIMEOUT_MS = 15_000;
@@ -314,6 +335,7 @@ const backend: KeyValueBackend = {
     revision = stored ? stored.document.record.revision : await latestRevision(DOCUMENTS, KEY);
     const before = own?.doc ?? EMPTY_WORKING;
     let imported = await importLegacy(before);
+    imported = { ...imported, doc: await fillSizes(imported.doc) };
     const lost = own?.lost ?? NO_LOSS;
     const upgraded = stored?.document.notes ?? [];
     // An import is stored before the store may write, so a reload cannot find

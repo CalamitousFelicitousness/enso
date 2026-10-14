@@ -4,6 +4,7 @@
 // the Input tab read their labels from here, and the request builder sends
 // exactly `sent`, `controls` and `ipAdapters`.
 
+import type { EffectiveLimit } from "@/lib/media/limits";
 import { compositeSpec, completeParams, fileSpec, mapKey, type PictureSpec } from "./freshness";
 import { unreadableText } from "./text";
 import {
@@ -143,7 +144,17 @@ export type OutlineProblem =
   /** Control and IP-Adapter frames sending while the images go out as a set. */
   | { code: "controlWithSet"; positions: number[]; images: number }
   /** Frames whose map is not current on a model that runs elsewhere and cannot process. */
-  | { code: "cloudMaps"; positions: number[] };
+  | { code: "cloudMaps"; positions: number[] }
+  /** Frames sending a picture larger than the browser or the server takes. */
+  | { code: "tooLarge"; positions: number[]; pictures: TooLargePicture[]; limit: EffectiveLimit };
+
+export interface TooLargePicture {
+  position: number;
+  frameId: string;
+  pictureId: string;
+  name: string;
+  size: Size;
+}
 
 export interface Outline {
   entries: OutlineEntry[];
@@ -192,6 +203,8 @@ export interface OutlineEnv {
   /** The request sets the output size, also from a single input image. */
   requestSetsSize?: boolean | null;
   processing?: ProcessingEnv | null;
+  /** The largest picture the browser and the server take; absent or null takes any. */
+  inputLimit?: EffectiveLimit | null;
 }
 
 type Unnumbered = Omit<SentInput, "address" | "map"> & { kind: MediaKind };
@@ -323,6 +336,32 @@ function findProblems(
   return problems;
 }
 
+/** The pictures of enabled frames over the limit: a composed frame's layers, a
+ * set's shown pictures and an IP-Adapter frame's masks. */
+function tooLarge(frames: Frame[], limit: EffectiveLimit): OutlineProblem | null {
+  const pictures = frames.flatMap((frame, index) => {
+    if (!frame.enabled) return [];
+    const shown = isComposed(frame.role) ? composedPictures(frame) : slotPictures(frame);
+    const masks = frame.role === "ipAdapter" ? frame.ipAdapter.masks : [];
+    return [...shown, ...masks]
+      .filter((p) => p.file !== null && p.width * p.height > limit.pixels)
+      .map((p) => ({
+        position: index + 1,
+        frameId: frame.id,
+        pictureId: p.id,
+        name: p.name,
+        size: { width: p.width, height: p.height },
+      }));
+  });
+  if (pictures.length === 0) return null;
+  return {
+    code: "tooLarge",
+    positions: ascending(pictures.map((p) => p.position)),
+    pictures,
+    limit,
+  };
+}
+
 /** The positions a problem names. */
 export function problemPositions(problem: OutlineProblem): number[] {
   return problem.code === "mixedControlTypes"
@@ -437,6 +476,8 @@ export function computeOutline(frames: Frame[], env: OutlineEnv = {}): Outline {
   }
   const sent = mapped.flatMap((e) => e.sent);
   const problems = findProblems(mapped, sent, controls, ipAdapters, set, env);
+  const oversize = env.inputLimit ? tooLarge(frames, env.inputLimit) : null;
+  if (oversize) problems.push(oversize);
   const controlMaps = new Map(controls.map((c) => [c.frameId, c.map]));
   const entries = mapped.map((entry): OutlineEntry => {
     const own = controlMaps.get(entry.frameId);

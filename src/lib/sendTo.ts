@@ -1,17 +1,22 @@
 import { toast } from "sonner";
 import { useVideoStore } from "@/stores/videoStore";
-import { useVideoCanvasStore } from "@/stores/videoCanvasStore";
+import { useVideoCanvasStore, type VideoSlotId } from "@/stores/videoCanvasStore";
 import { useProcessStore } from "@/stores/processStore";
 import { useGenerationStore } from "@/stores/generationStore";
 import { useUiStore } from "@/stores/uiStore";
 import type { VideoSubTab } from "@/lib/constants";
 import { useModelSelectionStore } from "@/stores/modelSelectionStore";
-import { loadImageFile } from "@/lib/image";
-import { addFilesToInputs, addServerPictures } from "@/inputs/route";
+import {
+  addFilesToInputs,
+  addServerPictures,
+  fetchAdmitted,
+  preparePictures,
+} from "@/inputs/route";
 import { galleryPicture, resultPicture, type ServerPicture } from "@/inputs/adopt";
-import { mediaBlob, mediaFile } from "@/lib/mediaFiles";
+import { mediaFile } from "@/lib/mediaFiles";
 import { engineToKind } from "@/lib/videoModel";
 import type { ImagePayload } from "@/lib/drag";
+import type { Destination } from "@/lib/media/limits";
 import type { LocalVideoModel } from "@/api/types/cloud";
 import type { VideoWireParams } from "@/api/types/wireParams";
 import { VIDEO_PARAMS, WIRE_TO_STORE, coerce, type VideoJobType } from "@/lib/video/paramRegistry";
@@ -78,37 +83,53 @@ function showVideoTab(tab: VideoSubTab) {
   ui.setPanelSelection("videoSubTab", tab);
 }
 
-export async function sendFrameToVideoInit(blob: Blob) {
-  const loaded = await loadImageFile(blobToFile(blob, "init-frame.png"));
-  useVideoCanvasStore
-    .getState()
-    .setFrame("init", loaded.file, loaded.objectUrl, loaded.naturalWidth, loaded.naturalHeight);
-  showVideoTab("inputs");
+/** An image into a Video slot, through the door; answers its id, or null for
+ * a picture refused or unreadable, which is said. */
+export async function placeVideoPicture(slot: VideoSlotId, file: File): Promise<string | null> {
+  const [picture] = await preparePictures([file], "video");
+  if (!picture) return null;
+  const url = URL.createObjectURL(picture.file);
+  const store = useVideoCanvasStore.getState();
+  return slot === "references"
+    ? store.addReference(picture.file, url, picture.width, picture.height, { kind: "image" })
+    : store.setFrame(slot, picture.file, url, picture.width, picture.height);
 }
 
-export async function sendFrameToVideoLast(blob: Blob) {
-  const loaded = await loadImageFile(blobToFile(blob, "last-frame.png"));
-  useVideoCanvasStore
-    .getState()
-    .setFrame("last", loaded.file, loaded.objectUrl, loaded.naturalWidth, loaded.naturalHeight);
+/** Answers whether the frame entered the slot. */
+export async function sendFrameToVideoInit(blob: Blob): Promise<boolean> {
+  if (!(await placeVideoPicture("init", blobToFile(blob, "init-frame.png")))) return false;
   showVideoTab("inputs");
+  return true;
 }
 
-export function sendFrameToUpscale(blob: Blob) {
-  useProcessStore.getState().setImage(blobToFile(blob, "frame.png"));
+/** Answers whether the frame entered the slot. */
+export async function sendFrameToVideoLast(blob: Blob): Promise<boolean> {
+  if (!(await placeVideoPicture("last", blobToFile(blob, "last-frame.png")))) return false;
+  showVideoTab("inputs");
+  return true;
+}
+
+/** Answers whether Process took the frame. */
+export async function sendFrameToUpscale(blob: Blob): Promise<boolean> {
+  if (!(await useProcessStore.getState().setImage(blobToFile(blob, "frame.png")))) return false;
   useUiStore.getState().setNavView("process");
+  return true;
 }
 
-export async function sendImageToCanvas(file: File) {
-  await addFilesToInputs([file]);
+/** Answers whether the picture entered a frame. */
+export async function sendImageToCanvas(file: File): Promise<boolean> {
+  const [added] = await addFilesToInputs([file]);
+  if (!added) return false;
   useUiStore.getState().setNavView("images");
+  return true;
 }
 
 /** Send a picture the server holds to the canvas, which takes it into the
- * store once it has entered a frame. */
-export async function sendPictureToCanvas(picture: ServerPicture) {
-  await addServerPictures([picture]);
+ * store once it has entered a frame. Answers whether it entered. */
+export async function sendPictureToCanvas(picture: ServerPicture): Promise<boolean> {
+  if (!(await addServerPictures([picture]))) return false;
   useUiStore.getState().setNavView("images");
+  return true;
 }
 
 export function sendPromptToGeneration(prompt: string, negative?: string) {
@@ -198,7 +219,8 @@ export async function sendResultToUpscale(
   result: { images: string[] },
   imageIndex: number,
 ): Promise<void> {
-  sendFrameToUpscale(await mediaBlob(result.images[imageIndex]));
+  const [file] = await fetchAdmitted([resultPicture(result.images[imageIndex])], "process");
+  if (file) await sendFrameToUpscale(file);
 }
 
 /** The picture a drag from a result or the gallery carries. Throws with the
@@ -220,6 +242,17 @@ export function payloadToPicture(payload: ImagePayload): ServerPicture {
 export async function payloadToFile(payload: ImagePayload): Promise<File> {
   const picture = payloadToPicture(payload);
   return mediaFile(picture.url, picture.name);
+}
+
+/** The picture a drag carries, its head admitted to `where` before the rest
+ * is fetched; null when refused, which is said. Rejects with the reason when
+ * it can no longer be had. */
+export async function payloadToAdmitted(
+  payload: ImagePayload,
+  where: Destination,
+): Promise<File | null> {
+  const [file] = await fetchAdmitted([payloadToPicture(payload)], where);
+  return file;
 }
 
 /** Say why a dropped picture could not be taken. */

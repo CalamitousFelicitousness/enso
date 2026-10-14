@@ -17,42 +17,29 @@ const LAST_FRAME = 999999;
 async function withFrame(
   result: VideoResult,
   time: number,
-  place: (blob: Blob) => void,
+  place: (blob: Blob) => Promise<boolean>,
   message: string,
 ) {
+  let frame: Blob;
   try {
-    place(await extractFrameFromVideo(mediaSrc(result.videoUrl), time));
-    toast.success(message);
+    frame = await extractFrameFromVideo(mediaSrc(result.videoUrl), time);
   } catch {
     toast.error("Failed to extract frame");
+    return;
   }
+  if (await place(frame)) toast.success(message);
 }
 
 export function sendFirstFrameToInit(result: VideoResult) {
-  return withFrame(
-    result,
-    0,
-    (blob) => void sendFrameToVideoInit(blob),
-    "First frame sent to Init Image",
-  );
+  return withFrame(result, 0, sendFrameToVideoInit, "First frame sent to Init Image");
 }
 
 export function sendLastFrameToInit(result: VideoResult) {
-  return withFrame(
-    result,
-    LAST_FRAME,
-    (blob) => void sendFrameToVideoInit(blob),
-    "Last frame sent to Init Image",
-  );
+  return withFrame(result, LAST_FRAME, sendFrameToVideoInit, "Last frame sent to Init Image");
 }
 
 export function sendLastFrameToLast(result: VideoResult) {
-  return withFrame(
-    result,
-    LAST_FRAME,
-    (blob) => void sendFrameToVideoLast(blob),
-    "Last frame sent to Last Image",
-  );
+  return withFrame(result, LAST_FRAME, sendFrameToVideoLast, "Last frame sent to Last Image");
 }
 
 export function sendFrameToUpscaleFrom(result: VideoResult) {
@@ -63,9 +50,10 @@ export function extendFrom(result: VideoResult) {
   return withFrame(
     result,
     LAST_FRAME,
-    (blob) => {
-      void sendFrameToVideoInit(blob);
+    async (blob) => {
+      if (!(await sendFrameToVideoInit(blob))) return false;
       restoreVideoSettings(result.params, result.domain);
+      return true;
     },
     "Ready to extend video",
   );
@@ -76,9 +64,8 @@ export function restoreResultSettings(result: VideoResult) {
   toast.success("Video settings restored");
 }
 
-export function sendCapturedFrameToInit(blob: Blob) {
-  void sendFrameToVideoInit(blob);
-  toast.success("Captured frame sent to Init Image");
+export async function sendCapturedFrameToInit(blob: Blob) {
+  if (await sendFrameToVideoInit(blob)) toast.success("Captured frame sent to Init Image");
 }
 
 export function downloadResult(result: VideoResult) {

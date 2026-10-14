@@ -24,13 +24,13 @@ import { FrameHeader } from "@/canvas/panels/FrameHeader";
 import { VideoPlayer } from "@/components/video/VideoPlayer";
 import { VideoCompare } from "@/components/video/VideoCompare";
 import { VideoResultActions } from "@/components/video/VideoResultActions";
-import { dropFailed, payloadToPicture } from "@/lib/sendTo";
+import { dropFailed, payloadToPicture, placeVideoPicture } from "@/lib/sendTo";
 import { adoptFile, serverFile } from "@/inputs/adopt";
+import { fetchAdmitted } from "@/inputs/route";
 import { useVideoHashStore } from "@/stores/videoHashStore";
 import type { ImagePayload } from "@/lib/drag";
 import { Button } from "@/components/ui/button";
 import { ParamSlider } from "@/components/generation/ParamSlider";
-import { loadImageFile } from "@/lib/image";
 import { isStillResult } from "@/lib/video/results";
 import {
   classifyReferenceFile,
@@ -54,7 +54,6 @@ export function VideoCanvasView() {
   const initFrame = useVideoCanvasStore((s) => s.initFrame);
   const lastFrame = useVideoCanvasStore((s) => s.lastFrame);
   const references = useVideoCanvasStore((s) => s.references);
-  const setFrame = useVideoCanvasStore((s) => s.setFrame);
   const clearFrame = useVideoCanvasStore((s) => s.clearFrame);
   const addReference = useVideoCanvasStore((s) => s.addReference);
   const removeReference = useVideoCanvasStore((s) => s.removeReference);
@@ -115,14 +114,7 @@ export function VideoCanvasView() {
           });
           return null;
         }
-        const loaded = await loadImageFile(file);
-        return setFrame(
-          which,
-          loaded.file,
-          loaded.objectUrl,
-          loaded.naturalWidth,
-          loaded.naturalHeight,
-        );
+        return placeVideoPicture(which, file);
       }
 
       const kind = classifyReferenceFile(file.name);
@@ -152,16 +144,7 @@ export function VideoCanvasView() {
 
       let objectUrl: string | null = null;
       try {
-        if (kind === "image") {
-          const loaded = await loadImageFile(file);
-          return addReference(
-            loaded.file,
-            loaded.objectUrl,
-            loaded.naturalWidth,
-            loaded.naturalHeight,
-            { kind },
-          );
-        }
+        if (kind === "image") return await placeVideoPicture("references", file);
         objectUrl = URL.createObjectURL(file);
         if (kind === "video") {
           const probe = await probeVideoFile(objectUrl);
@@ -189,7 +172,7 @@ export function VideoCanvasView() {
         return null;
       }
     },
-    [setFrame, addReference, refCaps, maxReferences],
+    [addReference, refCaps, maxReferences],
   );
 
   const handleInputChange = useCallback(
@@ -236,7 +219,12 @@ export function VideoCanvasView() {
       const target = hitTestTarget(point);
       void (async () => {
         const picture = payloadToPicture(payload);
-        const file = await serverFile(picture);
+        // a video or audio reference carries no picture size; it is taken whole
+        const [file] =
+          classifyReferenceFile(picture.name) === "image"
+            ? await fetchAdmitted([picture], "video")
+            : [await serverFile(picture)];
+        if (!file) return;
         const id = await handleFileSelected(target, file);
         if (!id || !picture.origin) return;
         const hash = await adoptFile(picture.origin, file.size);

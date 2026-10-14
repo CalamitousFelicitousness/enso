@@ -12,6 +12,8 @@ import type {
   ProcessSeedvrParams,
   ProcessUpscaleParams,
 } from "@/api/types/v2";
+import { admit, announceRefusals } from "@/inputs/admit";
+import { refusalTileText } from "@/lib/media/text";
 
 /** One section per sdnext postprocessing script; params mirror the wire model. */
 export interface ProcessSectionParams {
@@ -222,6 +224,8 @@ interface ProcessState {
   previewUrls: string[];
   /** Files a run found it could no longer read; marked, and left out of the next run. */
   unreadable: ReadonlySet<File>;
+  /** Files the door refused, with the reason for their tile; left out of every run. */
+  refused: ReadonlyMap<File, string>;
   videoFile: File | null;
   videoPreviewUrl: string | null;
   inputDir: string;
@@ -240,10 +244,12 @@ interface ProcessState {
   setMode: (mode: ProcessMode) => void;
   setFiles: (files: File[]) => void;
   markUnreadable: (files: File[]) => void;
+  markRefused: (refused: [File, string][]) => void;
   addFiles: (files: File[]) => void;
   removeFile: (index: number) => void;
-  /** Replaces the inputs with one image; other views send images here. */
-  setImage: (file: File | null) => void;
+  /** Replaces the inputs with one image; other views send images here.
+   * Answers whether the image was taken. */
+  setImage: (file: File | null) => Promise<boolean>;
   setVideoFile: (file: File | null) => void;
   setInputDir: (dir: string) => void;
   setOutputDir: (dir: string) => void;
@@ -286,6 +292,20 @@ function revokeAll(urls: string[]) {
   for (const url of urls) URL.revokeObjectURL(url);
 }
 
+/** Hold added files to the door: a refused one stays listed with its reason and is never sent. */
+async function admitFiles(files: File[]): Promise<void> {
+  const admissions = await Promise.all(files.map((file) => admit(file, "process")));
+  const refused = files.flatMap((file, i) => {
+    const admission = admissions[i];
+    return admission.ok ? [] : [{ file, refusal: admission.refusal }];
+  });
+  if (refused.length === 0) return;
+  announceRefusals(refused.map(({ file, refusal }) => ({ name: file.name, refusal })));
+  useProcessStore
+    .getState()
+    .markRefused(refused.map(({ file, refusal }) => [file, refusalTileText(refusal)]));
+}
+
 const NO_RESULTS = {
   results: [] as ProcessResultImage[],
   resultVideo: null,
@@ -302,6 +322,7 @@ export const useProcessStore = create<ProcessState>()(
       files: [],
       previewUrls: [],
       unreadable: new Set<File>(),
+      refused: new Map<File, string>(),
       videoFile: null,
       videoPreviewUrl: null,
       inputDir: "",
@@ -319,8 +340,10 @@ export const useProcessStore = create<ProcessState>()(
           files,
           previewUrls: files.map((f) => URL.createObjectURL(f)),
           unreadable: new Set<File>(),
+          refused: new Map<File, string>(),
           ...NO_RESULTS,
         });
+        void admitFiles(files);
       },
 
       addFiles: (files) => {
@@ -331,6 +354,7 @@ export const useProcessStore = create<ProcessState>()(
           previewUrls: [...previewUrls, ...files.map((f) => URL.createObjectURL(f))],
           ...NO_RESULTS,
         });
+        void admitFiles(files);
       },
 
       removeFile: (index) => {
@@ -338,20 +362,38 @@ export const useProcessStore = create<ProcessState>()(
         const url = previewUrls[index];
         if (url) URL.revokeObjectURL(url);
         const removed = files[index];
+        const { refused } = get();
         set({
           files: files.filter((_, i) => i !== index),
           previewUrls: previewUrls.filter((_, i) => i !== index),
           unreadable: removed ? new Set([...unreadable].filter((f) => f !== removed)) : unreadable,
+          refused: new Map([...refused].filter(([f]) => f !== removed)),
           ...NO_RESULTS,
         });
       },
 
       markUnreadable: (files) => set((s) => ({ unreadable: new Set([...s.unreadable, ...files]) })),
 
-      setImage: (file) => {
+      markRefused: (refused) =>
+        set((s) => ({
+          refused: new Map([...s.refused, ...refused.filter(([f]) => s.files.includes(f))]),
+        })),
+
+      setImage: async (file) => {
+        if (!file) {
+          get().setFiles([]);
+          return false;
+        }
+        // a refused picture leaves the one already here
+        const admission = await admit(file, "process");
+        if (!admission.ok) {
+          announceRefusals([{ name: file.name, refusal: admission.refusal }]);
+          return false;
+        }
         const { mode } = get();
-        get().setFiles(file ? [file] : []);
-        if (file && mode !== "image" && mode !== "batch") set({ mode: "image" });
+        get().setFiles([file]);
+        if (mode !== "image" && mode !== "batch") set({ mode: "image" });
+        return true;
       },
 
       setVideoFile: (file) => {

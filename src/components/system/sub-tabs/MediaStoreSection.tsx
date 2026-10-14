@@ -7,6 +7,7 @@ import { DatabaseBackup, Loader2, ShieldCheck, X } from "lucide-react";
 import { toast } from "sonner";
 import { ApiError, api, refusalOf } from "@/api/client";
 import { useMediaReport } from "@/api/hooks/useMedia";
+import { useServerInfo } from "@/api/hooks/useServer";
 import { queryClient } from "@/api/queryClient";
 import { REPORT_KEY } from "@/api/queryKeys";
 import type { ResMediaReportV2, ResSnapshotV2, VerifyStateV2 } from "@/api/types/media";
@@ -20,6 +21,8 @@ import {
   diskText,
   filesText,
   FILES_IN_TRASH_LABEL,
+  INPUT_LIMIT_LABEL,
+  inputLimitLineText,
   LOADING,
   lastVerifyText,
   pendingRootText,
@@ -120,6 +123,7 @@ export function MediaStoreSection() {
   const { data: report, isError, isPending, refetch } = useMediaReport(visible);
   const now = useMinute(visible);
   const [snapshotting, setSnapshotting] = useState(false);
+  const inputLimit = useServerInfo().data?.limits?.input_pixels ?? null;
 
   if (isError && !report) {
     return (
@@ -190,6 +194,7 @@ export function MediaStoreSection() {
       ) : (
         <p className="text-xs text-destructive">{storeOffText(report.reason ?? null)}</p>
       )}
+      <Row label={INPUT_LIMIT_LABEL} value={inputLimitLineText(inputLimit)} />
       {pending && <p className="text-2xs text-muted-foreground">{pendingRootText(configured)}</p>}
       {report.previous_root && (
         <p className="text-2xs text-muted-foreground">{previousRootText(report.previous_root)}</p>

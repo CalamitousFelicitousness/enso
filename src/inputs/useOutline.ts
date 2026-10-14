@@ -6,6 +6,7 @@ import { useInputStore } from "@/stores/inputStore";
 import { useGenerationStore } from "@/stores/generationStore";
 import { useGenerationSize } from "@/canvas/useGenerationSize";
 import { useModelCapabilities } from "@/hooks/useModelCapabilities";
+import { useEffectiveLimit } from "./admit";
 import { lookupMaps, mapFacts, useMapStore } from "./maps";
 import { outlineOf } from "./outlineOf";
 
@@ -30,19 +31,21 @@ export function useProcessingEnv(): ProcessingEnv | null {
 }
 
 /** The active model's facts the outline reads: what it carries, how many
- * images it takes, whether the request sets its size, and where each map
- * stands. */
+ * images it takes, whether the request sets its size, where each map stands,
+ * and the largest picture taken. */
 export function useOutlineEnv(): OutlineEnv {
   const { controlUnified, maxInputImages, requestSetsSize } = useModelCapabilities();
   const processing = useProcessingEnv();
+  const inputLimit = useEffectiveLimit();
   return useMemo(
     () => ({
       controlUnified: controlUnified === true,
       maxInputImages,
       requestSetsSize,
       processing,
+      inputLimit,
     }),
-    [controlUnified, maxInputImages, requestSetsSize, processing],
+    [controlUnified, maxInputImages, requestSetsSize, processing, inputLimit],
   );
 }
 

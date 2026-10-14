@@ -43,6 +43,7 @@ import {
   slotWords,
 } from "@/lib/jobs/text";
 import { toast } from "sonner";
+import { admit, announceRefusals } from "@/inputs/admit";
 
 const PARAM_GROUPS: { label: string; keys: string[] }[] = [
   {
@@ -288,6 +289,12 @@ export function PngInfoDialog({ open, onOpenChange }: PngInfoDialogProps) {
 
   const processFile = useCallback(
     async (file: File) => {
+      // a refused picture leaves the one already here
+      const admission = await admit(file, "pngInfo");
+      if (!admission.ok) {
+        announceRefusals([{ name: file.name, refusal: admission.refusal }]);
+        return;
+      }
       const pick = ++pickRef.current;
       const current = () => pickRef.current === pick;
       // this pick's run stops the previous one's upload, quietly; its parse goes first
@@ -462,22 +469,17 @@ export function PngInfoDialog({ open, onOpenChange }: PngInfoDialogProps) {
 
   const handleSendToCanvas = useCallback(async () => {
     if (!fileRef) return;
-    await sendImageToCanvas(fileRef);
-    toast.success("Image sent to canvas");
+    if (await sendImageToCanvas(fileRef)) toast.success("Image sent to canvas");
   }, [fileRef]);
 
   const handleSendToVideo = useCallback(async () => {
     if (!fileRef) return;
-    const blob = new Blob([await fileRef.arrayBuffer()], {
-      type: fileRef.type,
-    });
-    await sendFrameToVideoInit(blob);
-    toast.success("Image sent to video init");
+    if (await sendFrameToVideoInit(fileRef)) toast.success("Image sent to video init");
   }, [fileRef]);
 
   const handleSendImageAndPrompt = async () => {
     if (!fileRef) return;
-    await sendImageToCanvas(fileRef);
+    if (!(await sendImageToCanvas(fileRef))) return;
     if (prompt) sendPromptToGeneration(prompt, negativePrompt || undefined);
     toast.success("Image and prompt sent");
   };

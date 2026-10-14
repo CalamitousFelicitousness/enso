@@ -13,11 +13,13 @@ import {
   recordKey,
   RECORDS_KEY,
   REPORT_KEY,
+  SERVER_INFO_KEY,
   SETTINGS_KEY,
   TRASH_KEY,
   TRASHED_OUTPUTS_KEY,
 } from "./queryKeys";
 import type { ResMediaReportV2, ResMediaSettingsV2 } from "./types/media";
+import type { ServerInfo } from "./types/server";
 
 export const THROTTLE_MS = 500;
 
@@ -61,8 +63,20 @@ function verifyOf(data: unknown): Verify | null {
 
 type SettingValues = Pick<
   ResMediaSettingsV2,
-  "trash_days" | "library_cap" | "record_cap" | "reserve_bytes"
+  "trash_days" | "library_cap" | "record_cap" | "reserve_bytes" | "max_input_pixels"
 >;
+
+/** The server's input limit into server-info too, which the door reads when
+ * the settings were never read. */
+export function noteInputLimit(
+  client: Pick<QueryClient, "setQueryData">,
+  pixels: number | undefined,
+): void {
+  if (pixels === undefined) return;
+  client.setQueryData<ServerInfo>(SERVER_INFO_KEY, (old) =>
+    old?.limits ? { ...old, limits: { ...old.limits, input_pixels: pixels } } : old,
+  );
+}
 
 export interface LiveQueries {
   event(msg: GlobalEvent): void;
@@ -121,6 +135,7 @@ export function createLiveQueries(
           client.setQueryData<ResMediaSettingsV2>(SETTINGS_KEY, (old) =>
             old ? { ...old, ...values } : old,
           );
+          noteInputLimit(client, values.max_input_pixels);
           // every trashed entry and file has its expiry moved by the trash days
           invalidate(TRASH_KEY);
           invalidate(GALLERY_TRASH_KEY);

@@ -485,6 +485,29 @@ describe("problems", () => {
     );
   });
 
+  it("reports pictures over the input limit, and only where they are sent", () => {
+    const big = { width: 24000, height: 18000 };
+    const frames = [
+      frame("man", "initial", layer("m", big)),
+      frame("pets", "reference", picture("dog"), picture("cat", big)),
+      { ...frame("off", "reference", picture("huge", big)), enabled: false },
+    ];
+    const enso = { pixels: 500_000_000, by: "enso" } as const;
+    expect(codes(computeOutline(frames, { inputLimit: enso }))).toEqual([]);
+    const server = { pixels: 32_000_000, by: "server" } as const;
+    const outline = computeOutline(frames, { inputLimit: server });
+    const problem = outline.problems.find((p) => p.code === "tooLarge");
+    expect(problem).toMatchObject({ positions: [1, 2], limit: server });
+    expect(problem && problemText(problem)).toBe(
+      "Pictures in Inputs 1-2 are larger than the 32 MP the server takes. Replace or remove them.",
+    );
+    const one = computeOutline([frames[1]], { inputLimit: server }).problems[0];
+    expect(problemText(one)).toBe(
+      "The picture in Input 1 is 24000×18000 (432 MP), more than the 32 MP the server takes. Replace or remove it.",
+    );
+    expect(fixLabel(one)).toBe("Remove the pictures that are too large");
+  });
+
   it("names the positions of every problem", () => {
     const outline = computeOutline([
       unit("edges", "controlnet", layer("e")),

@@ -10,17 +10,11 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { ParamSlider } from "@/components/generation/ParamSlider";
 import { ImageUpload } from "@/components/generation/ImageUpload";
-import { useInputStore, type NewPicture } from "@/stores/inputStore";
-import { imageSize } from "@/inputs/media";
+import { useInputStore } from "@/stores/inputStore";
+import { preparePictures } from "@/inputs/route";
 import { useThumb } from "@/inputs/thumbs";
 import type { Frame, Picture } from "@/lib/inputs/types";
 import { Row } from "../Row";
-
-async function toNewPicture(file: File): Promise<NewPicture> {
-  const snapshot = new File([await file.arrayBuffer()], file.name, { type: file.type });
-  const { width, height } = await imageSize(snapshot);
-  return { file: snapshot, name: file.name, width, height };
-}
 
 function Thumb({ picture, onRemove }: { picture: Picture; onRemove: () => void }) {
   const url = useThumb(picture.file && { ...picture, file: picture.file });
@@ -81,8 +75,12 @@ export function IpAdapterSection({ frame }: { frame: Frame }) {
         </div>
         <ImageUpload
           image={null}
+          where="ipMask"
           onImageChange={(file) => {
-            if (file) void toNewPicture(file).then((p) => addIpMask(frame.id, p));
+            if (!file) return;
+            void preparePictures([file], "ipMask").then(([mask]) => {
+              if (mask) addIpMask(frame.id, mask);
+            });
           }}
           label="Add mask"
           compact

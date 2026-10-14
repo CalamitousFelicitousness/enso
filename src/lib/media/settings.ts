@@ -79,3 +79,15 @@ export function retirable(
 export function shortensRetention(server: number, local: number): boolean {
   return server < local;
 }
+
+/** The input limit's slider positions: a thousand megapixel positions on a
+ * short track could not be dragged to. */
+export const INPUT_LIMIT_STEPS: readonly number[] = [
+  16, 24, 32, 48, 64, 89, 128, 192, 256, 384, 512, 768, 1000,
+].map((mp) => mp * 1_000_000);
+
+/** The position a limit sits at: the largest step at or below it. */
+export function inputLimitStep(pixels: number): number {
+  const below = INPUT_LIMIT_STEPS.filter((step) => step <= pixels).length;
+  return Math.max(0, below - 1);
+}

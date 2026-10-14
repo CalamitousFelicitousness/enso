@@ -6,6 +6,7 @@ import type {
   TaggerResponse,
   VqaResponse,
 } from "@/api/types/caption";
+import { admit, announceRefusals } from "@/inputs/admit";
 
 export type CaptionResult =
   | (OpenClipResponse & { type: "openclip" })
@@ -23,7 +24,8 @@ interface CaptionState {
   // Cloud method has two sub-modes: describe (caption) and ask (vqa).
   cloudMode: "caption" | "vqa";
 
-  setImage: (file: File | null) => void;
+  /** Answers whether the image was taken; a refused one leaves the image here. */
+  setImage: (file: File | null) => Promise<boolean>;
   setResult: (result: CaptionResult) => void;
   setProcessing: (v: boolean) => void;
   setMethod: (m: CaptionMethod) => void;
@@ -39,7 +41,14 @@ export const useCaptionStore = create<CaptionState>()((set, get) => ({
   method: "vlm",
   cloudMode: "caption",
 
-  setImage: (file) => {
+  setImage: async (file) => {
+    if (file) {
+      const admission = await admit(file, "caption");
+      if (!admission.ok) {
+        announceRefusals([{ name: file.name, refusal: admission.refusal }]);
+        return false;
+      }
+    }
     const prev = get().imagePreviewUrl;
     if (prev) URL.revokeObjectURL(prev);
     set({
@@ -47,6 +56,7 @@ export const useCaptionStore = create<CaptionState>()((set, get) => ({
       imagePreviewUrl: file ? URL.createObjectURL(file) : null,
       result: null,
     });
+    return true;
   },
 
   setResult: (result) => set({ result }),

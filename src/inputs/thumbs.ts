@@ -5,6 +5,7 @@
 import { useEffect, useState } from "react";
 import { thumbSize } from "@/lib/inputs/geometry";
 import type { Size } from "@/lib/inputs/types";
+import { decodedTooLarge } from "./admit";
 import { putBlob, readBlob } from "./db";
 import { decodedImage, useBlobUrl } from "./media";
 
@@ -63,6 +64,8 @@ const unstorable = new Set<string>();
 async function make(source: ThumbSource): Promise<Blob> {
   const stored = await readBlob(thumbKey(source.cid)).catch(() => null);
   if (stored) return stored;
+  // making one decodes the picture, which a picture over the limit never is
+  if (decodedTooLarge(source)) throw new Error("the picture is over the input limit");
   const picture = source.file ?? (await readBlob(source.cid));
   if (!picture) throw new Error("the picture's bytes are gone");
   const thumb = await inTurn(() => render(picture, source));

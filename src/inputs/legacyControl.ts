@@ -1,16 +1,19 @@
 // Control units as older builds stored them, with their base64 pictures
 // decoded, on their way to becoming frames.
 
+import { headerSize } from "./admit";
 import { imageSize } from "./media";
 import { base64ToBlob } from "@/lib/utils";
 import type { LegacyBytes, LegacyControlUnit, RawControlUnit } from "@/lib/inputs/legacyControl";
 
-/** The picture's bytes with its size, or null for base64 that is not an image. */
+/** The picture's bytes with its size, or null for base64 that is not an
+ * image. The size comes from the header, so a picture too large to decode
+ * still enters, marked. */
 export async function legacyBytes(base64: string | null): Promise<LegacyBytes | null> {
   if (!base64) return null;
   try {
     const blob = base64ToBlob(base64);
-    return { blob, ...(await imageSize(blob)) };
+    return { blob, ...((await headerSize(blob)) ?? (await imageSize(blob))) };
   } catch {
     return null;
   }

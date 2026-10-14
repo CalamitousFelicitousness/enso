@@ -13,9 +13,11 @@ import { CornerBrackets } from "@/canvas/layers/CornerBrackets";
 import { frameColor, PROCESSED_COLOR, UNREADABLE_COLOR } from "@/canvas/frameColors";
 import { useCanvasStore } from "@/stores/canvasStore";
 import { useInputStore } from "@/stores/inputStore";
+import { useEffectiveLimit } from "@/inputs/admit";
 import { useBlobImage } from "@/inputs/media";
 import { useMapStore, type MapEntry } from "@/inputs/maps";
 import type { MapSlot } from "@/lib/inputs/outline";
+import { TOO_LARGE_TO_SHOW, tooLargeToShowText } from "@/lib/inputs/text";
 import { isPlaced, type Frame, type Picture, type PlacedPicture } from "@/lib/inputs/types";
 import {
   useLayerInteraction,
@@ -263,7 +265,7 @@ const MapNode = memo(function MapNode({
   width: number;
   height: number;
 }) {
-  const image = useBlobImage(map.blob);
+  const image = useBlobImage(map.blob, map);
   if (!image) return null;
   return <KonvaImage image={image} x={0} y={0} width={width} height={height} listening={false} />;
 });
@@ -287,7 +289,9 @@ const PictureNode = memo(function PictureNode({
   setNodeRef,
   interaction,
 }: PictureNodeProps) {
-  const image = useBlobImage(picture.file);
+  const image = useBlobImage(picture.file, picture);
+  const limit = useEffectiveLimit();
+  const tooLarge = picture.width * picture.height > limit.pixels;
   const nodeRef = useCallback(
     (node: Konva.Image | null) => setNodeRef(frameId, picture.id, node),
     [frameId, picture.id, setNodeRef],
@@ -303,8 +307,8 @@ const PictureNode = memo(function PictureNode({
     rotation: transform.rotation,
   };
 
-  if (!picture.file) {
-    // Bytes that could not be read: hold the layer's place and say so
+  if (!picture.file || tooLarge) {
+    // Bytes that could not be read, or a picture never decoded: hold the layer's place and say so
     return (
       <Group {...placement} listening={false}>
         <Rect
@@ -321,7 +325,11 @@ const PictureNode = memo(function PictureNode({
           height={picture.height}
           align="center"
           verticalAlign="middle"
-          text={`${picture.name}\ncould not be read`}
+          text={
+            picture.file
+              ? tooLargeToShowText(picture.name, picture)
+              : `${picture.name}\ncould not be read`
+          }
           fontFamily="IBM Plex Sans"
           fontSize={Math.max(14, picture.height / 24)}
           fill={UNREADABLE_COLOR}
@@ -454,7 +462,10 @@ interface SetCellProps {
  * overlay above it says why. */
 const SetCell = memo(function SetCell({ cell, picture, color }: SetCellProps) {
   const map = useMap(cell.map);
-  const image = useBlobImage(map?.blob ?? picture.file);
+  const image = useBlobImage(map?.blob ?? picture.file, map ?? picture);
+  const limit = useEffectiveLimit();
+  const tooLarge = picture.width * picture.height > limit.pixels;
+  const marked = !picture.file || tooLarge;
   // Contain-fit inside the cell using the picture's natural aspect.
   let imgX = cell.x;
   let imgY = cell.y;
@@ -473,7 +484,7 @@ const SetCell = memo(function SetCell({ cell, picture, color }: SetCellProps) {
       imgX = cell.x + (cell.displayW - imgW) / 2;
     }
   }
-  const cellColor = !picture.file ? UNREADABLE_COLOR : map ? PROCESSED_COLOR : color;
+  const cellColor = marked ? UNREADABLE_COLOR : map ? PROCESSED_COLOR : color;
   return (
     <Group>
       {image && (
@@ -487,7 +498,7 @@ const SetCell = memo(function SetCell({ cell, picture, color }: SetCellProps) {
           listening={false}
         />
       )}
-      {!picture.file && (
+      {marked && (
         <Text
           x={cell.x}
           y={cell.y}
@@ -495,7 +506,7 @@ const SetCell = memo(function SetCell({ cell, picture, color }: SetCellProps) {
           height={cell.displayH}
           align="center"
           verticalAlign="middle"
-          text="could not be read"
+          text={picture.file ? TOO_LARGE_TO_SHOW : "could not be read"}
           fontFamily="IBM Plex Sans"
           fontSize={11}
           fill={UNREADABLE_COLOR}
@@ -510,7 +521,7 @@ const SetCell = memo(function SetCell({ cell, picture, color }: SetCellProps) {
         stroke={cellColor}
         strokeWidth={1}
         opacity={0.6}
-        {...(!picture.file && { dash: [6, 4] })}
+        {...(marked && { dash: [6, 4] })}
         listening={false}
       />
       {/* The number a prompt uses for this picture, in the cell's top-left. */}

@@ -17,7 +17,8 @@ const envKey = (env: OutlineEnv) => {
   const processing = p
     ? `${p.revision}/${p.stamp}/${p.cloud ? 1 : 0}/${p.frame.width}x${p.frame.height}/${p.target.width}x${p.target.height}`
     : "";
-  return `${env.controlUnified ? 1 : 0}/${env.maxInputImages ?? ""}/${env.requestSetsSize ?? ""}/${processing}`;
+  const limit = env.inputLimit ? `${env.inputLimit.pixels}${env.inputLimit.by}` : "";
+  return `${env.controlUnified ? 1 : 0}/${env.maxInputImages ?? ""}/${env.requestSetsSize ?? ""}/${processing}/${limit}`;
 };
 
 /** The outline of a frame list. Parts that did not change keep their

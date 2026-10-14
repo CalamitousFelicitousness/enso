@@ -17,6 +17,8 @@ export const entryKey = (id: string) => ["library", "entry", id] as const;
 export const LEGACY_ENTRIES_KEY = ["library", "legacy"] as const;
 /** The settings the server keeps for every browser. */
 export const SETTINGS_KEY = ["media-settings"] as const;
+/** The server's description of itself, its input limit among it. */
+export const SERVER_INFO_KEY = ["server-info"] as const;
 /** The media store's report: its root, space and verify state. */
 export const REPORT_KEY = ["media-report"] as const;
 /** This browser's job records, for the record cap's counts. */

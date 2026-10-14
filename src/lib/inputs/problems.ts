@@ -64,5 +64,17 @@ export function fixProblem(frames: Frame[], problem: OutlineProblem): Frame[] {
       );
     case "cloudMaps":
       return frames;
+    case "tooLarge": {
+      const gone = new Set(problem.pictures.map((p) => p.pictureId));
+      return problem.positions.reduce(
+        (list, position) =>
+          updateFrame(list, frames[position - 1]?.id ?? "", (f) => ({
+            ...f,
+            pictures: f.pictures.filter((p) => !gone.has(p.id)),
+            ipAdapter: { ...f.ipAdapter, masks: f.ipAdapter.masks.filter((p) => !gone.has(p.id)) },
+          })),
+        frames,
+      );
+    }
   }
 }

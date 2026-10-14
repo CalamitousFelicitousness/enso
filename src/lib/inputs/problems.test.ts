@@ -59,6 +59,15 @@ describe("fixProblem", () => {
     expect(computeOutline(after).problems).toEqual([]);
   });
 
+  it("removes the pictures over the input limit and leaves the rest", () => {
+    const big = { width: 24000, height: 18000 };
+    const env = { inputLimit: { pixels: 32_000_000, by: "server" as const } };
+    const frames = [frame("pets", "reference", picture("dog"), picture("cat", big))];
+    const after = fixed(frames, env);
+    expect(after[0].pictures.map((p) => p.id)).toEqual(["dog"]);
+    expect(computeOutline(after, env).problems).toEqual([]);
+  });
+
   it("clears the mask beside a set and turns off the control frames", () => {
     const masked: Frame = {
       ...frame("man", "initial", layer("m")),

@@ -134,6 +134,19 @@ describe("the server's change events", () => {
     expect(read).toEqual([key("library", "trash"), key("gallery-trash"), key("trashed-outputs")]);
   });
 
+  it("put a changed input limit into server-info too, for a door that never read the settings", () => {
+    const { live, data } = harness();
+    data.set(key("server-info"), {
+      platform: "linux",
+      limits: { input_pixels: 89_000_000, formats: ["png"], caption: null },
+    });
+    live.event({ type: "settings", data: { max_input_pixels: 32_000_000 } });
+    expect(data.get(key("server-info"))).toEqual({
+      platform: "linux",
+      limits: { input_pixels: 32_000_000, formats: ["png"], caption: null },
+    });
+  });
+
   it("read the Gallery trash, the trashed outputs and the report again, and mark the job lookups stale, when files enter or leave the trash", () => {
     const { live, read, advance } = harness();
     const stale = `${key("output-job")} stale`;

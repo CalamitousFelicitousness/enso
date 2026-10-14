@@ -7,13 +7,14 @@ import { SectionLeader } from "@/components/ui/section-leader";
 import { Button } from "@/components/ui/button";
 import { LayerPanel } from "@/components/generation/LayerPanel";
 import { useInputStore } from "@/stores/inputStore";
+import { useEffectiveLimit } from "@/inputs/admit";
 import { useThumb } from "@/inputs/thumbs";
 import { addFilesToInputs } from "@/inputs/route";
 import { removePicture } from "@/inputs/edits";
 import { INPUTS_FULL_HINT } from "@/inputs/capacity";
 import { useInputsAtCapacity } from "@/canvas/useInputsAtCapacity";
 import type { OutlineEntry } from "@/lib/inputs/outline";
-import { addressLabel, mapStateWord } from "@/lib/inputs/text";
+import { addressLabel, mapStateWord, tooLargeLineText } from "@/lib/inputs/text";
 import { isComposed, type Frame, type Picture } from "@/lib/inputs/types";
 import { cn } from "@/lib/utils";
 
@@ -28,6 +29,7 @@ function Thumbnail({ picture }: { picture: Picture }) {
 }
 
 function SetPictures({ frame, entry }: { frame: Frame; entry: OutlineEntry }) {
+  const limit = useEffectiveLimit();
   const setPictureVisible = useInputStore((s) => s.setPictureVisible);
   const showHiddenBySwitch = useInputStore((s) => s.showHiddenBySwitch);
   const atCapacity = useInputsAtCapacity();
@@ -69,7 +71,11 @@ function SetPictures({ frame, entry }: { frame: Frame; entry: OutlineEntry }) {
                 {picture.name}
               </p>
               <p className="text-4xs text-muted-foreground">
-                {picture.file ? where : "could not be read"}
+                {!picture.file
+                  ? "could not be read"
+                  : picture.width * picture.height > limit.pixels
+                    ? tooLargeLineText(picture)
+                    : where}
               </p>
             </div>
             <Button

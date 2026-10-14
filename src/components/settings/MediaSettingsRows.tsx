@@ -1,7 +1,8 @@
 // The settings the server keeps for every browser: how long the trash keeps
-// what goes to it, how many saved entries and job records stay, and where
-// the store is. A raise is written at once; a reduction that lets something
-// go is asked first with the counts, since it deletes for every browser.
+// what goes to it, how many saved entries and job records stay, the largest
+// picture it takes, and where the store is. A raise is written at once; a
+// reduction that lets something go is asked first with the counts, since it
+// deletes for every browser.
 
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -9,6 +10,7 @@ import { ApiError, api } from "@/api/client";
 import { useLibrary, useMediaReport, useMediaSettings, useServerTrash } from "@/api/hooks/useMedia";
 import { useServerInfo } from "@/api/hooks/useServer";
 import { useGalleryTrash } from "@/api/hooks/useGalleryTrash";
+import { noteInputLimit } from "@/api/liveQueries";
 import { queryClient } from "@/api/queryClient";
 import { SETTINGS_KEY, storeOffIn } from "@/api/queryKeys";
 import type { ResMediaSettingsV2 } from "@/api/types/media";
@@ -25,13 +27,18 @@ import { clockStart, goingOnServer, goingWith } from "@/lib/inputs/trash";
 import { isTerminal } from "@/lib/jobs/domains";
 import {
   commitKind,
+  INPUT_LIMIT_STEPS,
+  inputLimitStep,
   retirable,
   type ReductionCounts,
   type SharedSetting,
 } from "@/lib/media/settings";
 import {
+  INPUT_LIMIT_LABEL,
+  inputLimitText,
   LIBRARY_CAP_LABEL,
   libraryCapText,
+  limitText,
   LOADING,
   RECORD_CAP_LABEL,
   recordCapText,
@@ -48,13 +55,16 @@ import { CommittedSliderRow, SettingRow } from "./SettingRow";
 /** Write one setting. The cache takes only the server's answer; a retention
  * chosen here is this browser's too, so its copy takes the value first. The
  * row shows the value in flight. */
-async function writeSetting(setting: SharedSetting, value: number): Promise<void> {
+type WrittenSetting = SharedSetting | "max_input_pixels";
+
+async function writeSetting(setting: WrittenSetting, value: number): Promise<void> {
   const revert = setting === "trash_days" ? await chooseRetention(value) : null;
   try {
     const answer = await api.patch<ResMediaSettingsV2>("/sdapi/v2/media/settings", {
       [setting]: value,
     });
     queryClient.setQueryData(SETTINGS_KEY, answer);
+    noteInputLimit(queryClient, answer.max_input_pixels);
   } catch (err) {
     await revert?.();
     const frozen = err instanceof ApiError && err.code === "settings_frozen";
@@ -99,10 +109,10 @@ export function MediaSettingsRows() {
   // one pending reduction: a later commit takes its place
   const [pending, setPending] = useState<Pending | null>(null);
   // values sent and not yet answered, shown in their rows
-  const [sending, setSending] = useState<ReadonlyMap<SharedSetting, number>>(
-    () => new Map<SharedSetting, number>(),
+  const [sending, setSending] = useState<ReadonlyMap<WrittenSetting, number>>(
+    () => new Map<WrittenSetting, number>(),
   );
-  const send = (setting: SharedSetting, value: number) => {
+  const send = (setting: WrittenSetting, value: number) => {
     setSending((m) => new Map(m).set(setting, value));
     void writeSetting(setting, value).finally(() =>
       setSending((m) => {
@@ -197,6 +207,27 @@ export function MediaSettingsRows() {
     );
   };
 
+  // the slider moves over steps; a value set elsewhere shows as it is at its step
+  const limitRow = () => {
+    const pixels = sending.get("max_input_pixels") ?? data?.max_input_pixels ?? 0;
+    const at = inputLimitStep(pixels);
+    const pixelsAt = (step: number) => (step === at ? pixels : (INPUT_LIMIT_STEPS[step] ?? pixels));
+    return (
+      <CommittedSliderRow
+        label={INPUT_LIMIT_LABEL}
+        value={at}
+        min={0}
+        max={INPUT_LIMIT_STEPS.length - 1}
+        format={data ? (step) => limitText(pixelsAt(step)) : NO_VALUE}
+        describe={(step) => off ?? (data ? inputLimitText(pixelsAt(step)) : LOADING)}
+        onCommit={(step) => {
+          if (data && step !== at) send("max_input_pixels", pixelsAt(step));
+        }}
+        disabled={!data}
+      />
+    );
+  };
+
   const store = info?.media_store;
   const where = !info
     ? LOADING
@@ -216,6 +247,7 @@ export function MediaSettingsRows() {
       {row("trash_days")}
       {row("library_cap")}
       {row("record_cap")}
+      {limitRow()}
       <SettingRow label={STORE_ROW_LABEL} description={where}>
         {null}
       </SettingRow>

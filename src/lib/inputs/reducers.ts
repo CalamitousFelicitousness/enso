@@ -279,6 +279,19 @@ export function patchPicture(frame: Frame, pictureId: string, patch: PicturePatc
   return updatePictures(frame, (p) => (p.id === pictureId ? { ...p, ...patch } : p));
 }
 
+/** Give each picture and adapter mask named in `sizes` that size. */
+export function setSizes(frame: Frame, sizes: ReadonlyMap<string, Size>): Frame {
+  const sized = (p: Picture) => {
+    const size = sizes.get(p.id);
+    return size ? { ...p, width: size.width, height: size.height } : p;
+  };
+  const next = updatePictures(frame, sized);
+  const masks = frame.ipAdapter.masks.map(sized);
+  return masks.every((m, i) => m === frame.ipAdapter.masks[i])
+    ? next
+    : { ...next, ipAdapter: { ...next.ipAdapter, masks } };
+}
+
 /** Place a picture by hand, which ends the frame's fit policy. Only a picture
  * that already has a placement can be moved. */
 export function setPictureTransform(frame: Frame, pictureId: string, transform: Transform): Frame {

@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react";
 import { Layer, Group, Rect, Text, Image as KonvaImage } from "react-konva";
 import { useVideoCanvasStore, type VideoFrameImage } from "@/stores/videoCanvasStore";
+import { useEffectiveLimit } from "@/inputs/admit";
+import { useBlobImage } from "@/inputs/media";
+import { TOO_LARGE_TO_SHOW } from "@/lib/inputs/text";
 import type { ReferenceChildPosition } from "@/lib/inputs/layout";
 
 const ACTIVE_COLOR = "#a78bfa";
@@ -19,8 +22,12 @@ interface VideoReferencesLayerProps {
 function ReferenceChild({ frame, pos }: { frame: VideoFrameImage; pos: ReferenceChildPosition }) {
   // Videos draw their captured poster frame; audio has no visual and gets a
   // glyph cell instead.
-  const src =
-    frame.kind === "audio" ? null : frame.kind === "video" ? frame.posterUrl : frame.objectUrl;
+  const still = frame.kind === "image";
+  const picture = useBlobImage(
+    still ? frame.file : null,
+    still ? { width: frame.naturalWidth, height: frame.naturalHeight } : null,
+  );
+  const src = frame.kind === "video" ? frame.posterUrl : null;
   const [loaded, setLoaded] = useState<{ src: string; img: HTMLImageElement } | null>(null);
   useEffect(() => {
     if (!src) return;
@@ -28,7 +35,9 @@ function ReferenceChild({ frame, pos }: { frame: VideoFrameImage; pos: Reference
     img.onload = () => setLoaded({ src, img });
     img.src = src;
   }, [src]);
-  const image = loaded && loaded.src === src ? loaded.img : null;
+  const image = still ? picture : loaded && loaded.src === src ? loaded.img : null;
+  const limit = useEffectiveLimit();
+  const tooLarge = still && frame.naturalWidth * frame.naturalHeight > limit.pixels;
 
   const scale =
     frame.naturalWidth > 0 && frame.naturalHeight > 0
@@ -51,6 +60,19 @@ function ReferenceChild({ frame, pos }: { frame: VideoFrameImage; pos: Reference
           y={(pos.displayH - drawH) / 2}
           width={drawW}
           height={drawH}
+          listening={false}
+        />
+      )}
+      {tooLarge && (
+        <Text
+          x={0}
+          y={pos.displayH / 2 - 6}
+          width={pos.displayW}
+          align="center"
+          text={TOO_LARGE_TO_SHOW}
+          fontFamily="IBM Plex Sans"
+          fontSize={10}
+          fill="#ccc"
           listening={false}
         />
       )}

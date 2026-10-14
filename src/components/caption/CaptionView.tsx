@@ -11,7 +11,7 @@ import { useCaptionStore } from "@/stores/captionStore";
 import { useGenerationStore } from "@/stores/generationStore";
 import { useDropTarget } from "@/hooks/useDropTarget";
 import { useWindowPaste } from "@/hooks/useWindowPaste";
-import { dropFailed, payloadToFile } from "@/lib/sendTo";
+import { dropFailed, payloadToAdmitted } from "@/lib/sendTo";
 import type { ImagePayload } from "@/lib/drag";
 import { useKeepAliveVisible } from "@/components/ui/keep-alive";
 
@@ -26,25 +26,25 @@ export function CaptionView() {
   const { isOver, ...dropHandlers } = useDropTarget({
     onDropImage: useCallback(
       (payload: ImagePayload) => {
-        payloadToFile(payload)
-          .then((f: File) => setImage(f))
+        payloadToAdmitted(payload, "caption")
+          .then((f) => f && setImage(f))
           .catch(dropFailed);
       },
       [setImage],
     ),
-    onFileDrop: useCallback((file: File) => setImage(file), [setImage]),
+    onFileDrop: useCallback((file: File) => void setImage(file), [setImage]),
   });
 
   const handleFileInput = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0] ?? null;
-      if (file) setImage(file);
+      if (file) void setImage(file);
       e.target.value = "";
     },
     [setImage],
   );
 
-  useWindowPaste((files) => setImage(files[0]), useKeepAliveVisible());
+  useWindowPaste((files) => void setImage(files[0]), useKeepAliveVisible());
 
   const answerText =
     result?.type === "vqa"
@@ -122,7 +122,7 @@ export function CaptionView() {
                   variant="destructive"
                   size="icon-sm"
                   className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity"
-                  onClick={() => setImage(null)}
+                  onClick={() => void setImage(null)}
                 >
                   <X size={14} />
                 </Button>

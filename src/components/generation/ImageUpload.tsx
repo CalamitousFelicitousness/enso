@@ -1,13 +1,17 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Upload, X } from "lucide-react";
 import { useDropTarget } from "@/hooks/useDropTarget";
-import { dropFailed, payloadToFile } from "@/lib/sendTo";
+import { dropFailed, payloadToAdmitted } from "@/lib/sendTo";
 import type { ImagePayload } from "@/lib/drag";
+import type { Destination } from "@/lib/media/limits";
+import { admit, announceRefusals } from "@/inputs/admit";
 import { Button } from "@/components/ui/button";
 
 interface ImageUploadProps {
   image: File | null;
   onImageChange: (file: File | null) => void;
+  /** Where the picture goes, for the door it passes first. */
+  where: Destination;
   label?: string;
   compact?: boolean;
 }
@@ -15,6 +19,7 @@ interface ImageUploadProps {
 export function ImageUpload({
   image,
   onImageChange,
+  where,
   label = "Drop image",
   compact = false,
 }: ImageUploadProps) {
@@ -31,7 +36,14 @@ export function ImageUpload({
   }, []); // eslint-disable-line react-hooks/exhaustive-deps -- cleanup only on unmount
 
   const handleFile = useCallback(
-    (file: File | null) => {
+    async (file: File | null) => {
+      if (file) {
+        const admission = await admit(file, where);
+        if (!admission.ok) {
+          announceRefusals([{ name: file.name, refusal: admission.refusal }]);
+          return;
+        }
+      }
       if (preview) URL.revokeObjectURL(preview);
       if (file) {
         setPreview(URL.createObjectURL(file));
@@ -40,23 +52,25 @@ export function ImageUpload({
       }
       onImageChange(file);
     },
-    [onImageChange, preview],
+    [onImageChange, preview, where],
   );
 
   const { isOver: dragOver, ...dropHandlers } = useDropTarget({
     onDropImage: useCallback(
       (payload: ImagePayload) => {
-        payloadToFile(payload).then(handleFile).catch(dropFailed);
+        payloadToAdmitted(payload, where)
+          .then((f) => f && handleFile(f))
+          .catch(dropFailed);
       },
-      [handleFile],
+      [handleFile, where],
     ),
-    onFileDrop: handleFile,
+    onFileDrop: (file: File) => void handleFile(file),
   });
 
   const onInputChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0] ?? null;
-      handleFile(file);
+      void handleFile(file);
       e.target.value = "";
     },
     [handleFile],
@@ -73,7 +87,7 @@ export function ImageUpload({
           variant="destructive"
           size="icon-sm"
           className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity h-5 w-5"
-          onClick={() => handleFile(null)}
+          onClick={() => void handleFile(null)}
         >
           <X size={10} />
         </Button>

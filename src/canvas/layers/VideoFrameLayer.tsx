@@ -1,6 +1,9 @@
-import { useEffect, useState, useCallback } from "react";
+import { useCallback } from "react";
 import { Layer, Group, Rect, Text, Image as KonvaImage } from "react-konva";
 import { useVideoCanvasStore } from "@/stores/videoCanvasStore";
+import { useEffectiveLimit } from "@/inputs/admit";
+import { useBlobImage } from "@/inputs/media";
+import { tooLargeToShowText } from "@/lib/inputs/text";
 
 const ACTIVE_COLOR = "#4ade80";
 const INACTIVE_COLOR = "#6b7280";
@@ -21,19 +24,10 @@ export function VideoFrameLayer({
   onPickImage,
 }: VideoFrameLayerProps) {
   const frame = useVideoCanvasStore((s) => (which === "init" ? s.initFrame : s.lastFrame));
-  const [image, setImage] = useState<HTMLImageElement | null>(null);
-
-  const objectUrl = frame?.objectUrl;
-
-  useEffect(() => {
-    if (!objectUrl) return;
-    const img = new window.Image();
-    img.onload = () => setImage(img);
-    img.src = objectUrl;
-  }, [objectUrl]);
-
-  // Clear stale image synchronously when frame removed
-  if (!objectUrl && image) setImage(null);
+  const size = frame ? { width: frame.naturalWidth, height: frame.naturalHeight } : null;
+  const image = useBlobImage(frame?.file ?? null, size);
+  const limit = useEffectiveLimit();
+  const tooLarge = size !== null && size.width * size.height > limit.pixels;
 
   const hasImage = !!frame && !!image;
 
@@ -73,7 +67,11 @@ export function VideoFrameLayer({
             y={height / 2 - 8}
             width={width}
             align="center"
-            text="Drop image or click"
+            text={
+              frame && size && tooLarge
+                ? tooLargeToShowText(frame.file.name, size)
+                : "Drop image or click"
+            }
             fontFamily="IBM Plex Sans"
             fontSize={14}
             fill="#666"

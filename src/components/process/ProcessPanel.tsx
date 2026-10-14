@@ -209,8 +209,8 @@ export function ProcessPanel() {
       const file = s.files[0] ?? refuse("Add an image first");
       inputs = { images: [stage(file)] };
     } else if (s.mode === "batch") {
-      // files a run could not read stay out until they are added again
-      const files = s.files.filter((f) => !s.unreadable.has(f));
+      // files a run could not read stay out until they are added again, refused ones always
+      const files = s.files.filter((f) => !s.unreadable.has(f) && !s.refused.has(f));
       if (files.length === 0) refuse("Add images first");
       inputs = { images: files.map(stage) };
     } else if (s.mode === "folder") {

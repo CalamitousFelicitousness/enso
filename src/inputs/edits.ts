@@ -38,7 +38,7 @@ import {
 import { currentMap, touchMap } from "./maps";
 import { revealFrame } from "./reveal";
 import { keepingSize } from "./sizeSync";
-import { addFilesToInputs } from "./route";
+import { preparePictures } from "./route";
 import { forgetRemoval, recordRemoval } from "./trash";
 import { isQuotaError, reportFull } from "./quota";
 import { offerUndo } from "./undo";
@@ -427,8 +427,11 @@ export async function replaceWithMaps(env: OutlineEnv, frameId: string): Promise
 }
 
 /** One file in the place of a composed frame's pictures, fitted inside the
- * frame; the mask stays. The frame as it was goes to the trash behind Undo. */
+ * frame; the mask stays. The frame as it was goes to the trash behind Undo; a
+ * file refused or unreadable leaves it as it was. */
 export async function replacePicture(frameId: string, file: File): Promise<void> {
+  const [replacement] = await preparePictures([file]);
+  if (!replacement) return;
   const store = useInputStore.getState();
   const frame = store.frames.find((f) => f.id === frameId);
   if (!frame) return;
@@ -436,7 +439,8 @@ export async function replacePicture(frameId: string, file: File): Promise<void>
   const before = sentNow();
   const size = sizeNow();
   for (const picture of frame.pictures) store.removePicture(frameId, picture.id);
-  await addFilesToInputs([file], frameId);
+  store.selectFrame(frameId);
+  store.addPicture(frameId, replacement);
   const removal: Removal = {
     removedAt: Date.now(),
     cause: "replaced",

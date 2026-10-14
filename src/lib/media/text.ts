@@ -5,7 +5,7 @@ import type { LastVerifyV2 } from "@/api/types/media";
 import type { LutPlace, LutState } from "@/lib/lut";
 import { formatBytes } from "@/lib/utils";
 import { KIND_NAMES } from "./dimensions";
-import type { EffectiveLimit, Refusal } from "./limits";
+import { DECODE_CEILING_PIXELS, type EffectiveLimit, type Refusal } from "./limits";
 import type { SkipReason } from "./migration";
 
 const plural = (n: number, one: string, many: string) => (n === 1 ? `1 ${one}` : `${n} ${many}`);
@@ -79,6 +79,22 @@ const LIMIT_SETTING = " (Settings > Behavior > Largest input picture)";
 /** "Reading cat.png (112 MP)": a large picture on its way in. */
 export function readingText(name: string, pixels: number): string {
   return `Reading ${name} (${megapixelsText(pixels)})`;
+}
+
+/** "Too large (432 MP)": a refused file's tile in a list of files. */
+export function refusalTileText(refusal: Refusal): string {
+  switch (refusal.reason) {
+    case "notImage":
+      return "Not a picture Enso can read";
+    case "noSize":
+      return "Its size is not in the file";
+    case "browserCannotShow":
+      return `This browser cannot show ${KIND_NAMES[refusal.kind]}`;
+    case "serverCannotRead":
+      return `The server cannot read ${KIND_NAMES[refusal.kind]}`;
+    case "tooLarge":
+      return `Too large (${megapixelsText(refusal.size.width * refusal.size.height)})`;
+  }
 }
 
 /** One toast for the files of a drop refused for the same reason. */
@@ -433,6 +449,21 @@ export const RECORD_CAP_LABEL = "Job records kept per browser";
 export const STORE_ROW_LABEL = "Media store";
 export const SETTING_FAILED = "Could not change the setting";
 export const SETTINGS_FROZEN = "Settings are frozen on this server";
+export const INPUT_LIMIT_LABEL = "Largest input picture";
+
+/** The input limit row's line: what is refused past the value, and that the
+ * browser refuses first past its own ceiling. */
+export function inputLimitText(pixels: number): string {
+  return pixels <= DECODE_CEILING_PIXELS
+    ? "Larger pictures are refused when added, uploaded or sent in a request. Nothing stored is deleted."
+    : `Larger uploads and requests are refused. Enso already refuses pictures above ${limitText(DECODE_CEILING_PIXELS)} when they are added.`;
+}
+
+/** The System panel's line: the server's limit, then this browser's ceiling. */
+export function inputLimitLineText(server: number | null): string {
+  const browser = `${limitText(DECODE_CEILING_PIXELS)} in the browser`;
+  return server === null ? browser : `${limitText(server)} on the server · ${browser}`;
+}
 
 /** The retention row's line: what a shorter time lets go, in this browser and
  * on the server. */

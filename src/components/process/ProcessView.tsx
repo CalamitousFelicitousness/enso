@@ -15,7 +15,7 @@ import { useComparisonStore } from "@/stores/comparisonStore";
 import { useJobQueueStore, selectProcessActive } from "@/stores/jobStore";
 import { useDropTarget } from "@/hooks/useDropTarget";
 import { useWindowPaste } from "@/hooks/useWindowPaste";
-import { dropFailed, payloadToFile } from "@/lib/sendTo";
+import { dropFailed, payloadToAdmitted, payloadToFile } from "@/lib/sendTo";
 import type { ImagePayload } from "@/lib/drag";
 import { Button } from "@/components/ui/button";
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
@@ -82,6 +82,7 @@ export function ProcessView() {
   const previewUrls = useProcessStore((s) => s.previewUrls);
   const files = useProcessStore((s) => s.files);
   const unreadable = useProcessStore((s) => s.unreadable);
+  const refused = useProcessStore((s) => s.refused);
   const videoPreviewUrl = useProcessStore((s) => s.videoPreviewUrl);
   const inputDir = useProcessStore((s) => s.inputDir);
   const outputDir = useProcessStore((s) => s.outputDir);
@@ -115,11 +116,12 @@ export function ProcessView() {
   const { isOver, ...dropHandlers } = useDropTarget({
     onDropImage: useCallback(
       (payload: ImagePayload) => {
-        payloadToFile(payload)
-          .then((f: File) => takeFiles([f]))
-          .catch(dropFailed);
+        // a video carries no picture size; Process takes it whole
+        const file =
+          mode === "video" ? payloadToFile(payload) : payloadToAdmitted(payload, "process");
+        file.then((f) => f && takeFiles([f])).catch(dropFailed);
       },
-      [takeFiles],
+      [mode, takeFiles],
     ),
     onFilesDrop: takeFiles,
     acceptFile: mode === "video" ? isVideoFile : isImageFile,
@@ -241,26 +243,31 @@ export function ProcessView() {
             <div className="h-full overflow-y-auto p-3">
               <div className="grid grid-cols-[repeat(auto-fill,minmax(96px,1fr))] gap-2">
                 {previewUrls.map((url, i) => {
+                  const reason = files[i] !== undefined ? refused.get(files[i]) : undefined;
                   const lost = files[i] !== undefined && unreadable.has(files[i]);
+                  const note = reason ?? (lost ? UNREADABLE_FILE : undefined);
                   return (
                     <div
                       key={url}
-                      title={lost ? UNREADABLE_FILE : undefined}
+                      title={note}
                       className={cn(
                         "relative aspect-square rounded overflow-hidden bg-muted/30 group/tile",
-                        lost
+                        note
                           ? "ring-2 ring-destructive"
                           : i === selectedResult && results.length > 0 && "ring-2 ring-primary",
                       )}
                     >
-                      <img
-                        src={url}
-                        alt=""
-                        className={cn("w-full h-full object-cover", lost && "opacity-40")}
-                      />
-                      {lost && (
+                      {/* a refused file is never decoded */}
+                      {!reason && (
+                        <img
+                          src={url}
+                          alt=""
+                          className={cn("w-full h-full object-cover", lost && "opacity-40")}
+                        />
+                      )}
+                      {note && (
                         <span className="absolute inset-x-0 bottom-0 bg-background/80 px-1 text-center text-4xs text-destructive">
-                          {UNREADABLE_FILE}
+                          {note}
                         </span>
                       )}
                       <button

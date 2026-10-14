@@ -18,6 +18,7 @@ import { ReplayError } from "@/lib/jobs/replay";
 import type { ReplayMissing } from "@/lib/jobs/text";
 import { compositeKey, mapSendKey } from "@/lib/media/keys";
 import { resizeBlob } from "@/lib/resize";
+import { headerSize } from "./admit";
 import { currentMap, touchMap } from "./maps";
 import { derivedFor, type Bytes, type StageOptions, type UploadBatch } from "./uploads";
 
@@ -91,6 +92,8 @@ async function optimise(blob: Blob, encode: ProviderEncoding): Promise<Made> {
 }
 
 async function sizeOf(blob: Blob): Promise<Size> {
+  const known = await headerSize(blob);
+  if (known) return known;
   const bitmap = await createImageBitmap(blob);
   const size = { width: bitmap.width, height: bitmap.height };
   bitmap.close();

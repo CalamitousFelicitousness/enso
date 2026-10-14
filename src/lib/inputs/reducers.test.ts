@@ -25,6 +25,7 @@ import {
   setPictureTransform,
   setPictureVisible,
   setProcessor,
+  setSizes,
   settleSelection,
   showHiddenBySwitch,
   switchRole,
@@ -209,6 +210,25 @@ describe("picture edits", () => {
     const f = frame("f", "reference", picture("a"), picture("b"), picture("c"));
     expect(shape(movePicture(f, 0, 2))).toEqual(["b", "c", "a"]);
     expect(movePicture(f, 1, 1)).toBe(f);
+  });
+
+  it("gives the pictures and adapter masks it names their sizes", () => {
+    const f: Frame = {
+      ...frame("f", "ipAdapter", picture("a", { width: 0, height: 0 }), picture("b")),
+      ipAdapter: { ...frame("f", "ipAdapter").ipAdapter, masks: [picture("m", { width: 0 })] },
+    };
+    const sizes = new Map([
+      ["a", { width: 640, height: 480 }],
+      ["m", { width: 32, height: 32 }],
+    ]);
+    const out = setSizes(f, sizes);
+    expect(out.pictures.map((p) => [p.width, p.height])).toEqual([
+      [640, 480],
+      [64, 64],
+    ]);
+    expect(out.ipAdapter.masks[0]).toMatchObject({ width: 32, height: 32 });
+    expect(out.pictures[1]).toBe(f.pictures[1]);
+    expect(setSizes(f, new Map())).toBe(f);
   });
 });
 

@@ -1,7 +1,7 @@
 // The words for inputs, in one place: the canvas, the Input tab, toasts and
 // accessible names all read them from here.
 
-import { aboutSize, ageText } from "@/lib/media/text";
+import { aboutSize, ageText, limitText, megapixelsText, sizeText } from "@/lib/media/text";
 import type {
   Address,
   MapSlot,
@@ -245,6 +245,18 @@ export function unreadableControlText(
 const imagesSent = (images: number) =>
   images > 1 ? "several input images" : "a Reference image sent at the size you set";
 
+/** A picture over the input limit, where it would be drawn. */
+export const TOO_LARGE_TO_SHOW = "too large to show";
+
+/** "too large to show (432 MP)": a list row's line for such a picture. */
+export function tooLargeLineText(size: Size): string {
+  return `${TOO_LARGE_TO_SHOW} (${megapixelsText(size.width * size.height)})`;
+}
+
+export function tooLargeToShowText(name: string, size: Size): string {
+  return `${name}\n${TOO_LARGE_TO_SHOW} (${sizeText(size)})`;
+}
+
 /** Why the request cannot carry the frames as they stand. */
 export function problemText(problem: OutlineProblem): string {
   switch (problem.code) {
@@ -266,7 +278,20 @@ export function problemText(problem: OutlineProblem): string {
       return `${positionsLabel(problem.positions)} cannot be sent with ${imagesSent(problem.images)}.`;
     case "cloudMaps":
       return `This model runs elsewhere and cannot process pictures: ${positionsLabel(problem.positions)} must be processed first.`;
+    case "tooLarge":
+      return tooLargeText(problem);
   }
+}
+
+function tooLargeText(problem: Extract<OutlineProblem, { code: "tooLarge" }>): string {
+  const { limit } = problem;
+  const most = `the ${limitText(limit.pixels)} ${limit.by === "enso" ? "Enso can show" : "the server takes"}`;
+  const [only] = problem.pictures;
+  if (problem.pictures.length === 1 && only) {
+    const { size } = only;
+    return `The picture in ${positionLabel(only.position)} is ${sizeText(size)} (${megapixelsText(size.width * size.height)}), more than ${most}. Replace or remove it.`;
+  }
+  return `Pictures in ${positionsLabel(problem.positions)} are larger than ${most}. Replace or remove them.`;
 }
 
 /** What the fix for a problem does, as a button label. */
@@ -291,6 +316,8 @@ export function fixLabel(problem: OutlineProblem): string {
       return "Clear the mask";
     case "cloudMaps":
       return "Process now";
+    case "tooLarge":
+      return "Remove the pictures that are too large";
   }
 }
 

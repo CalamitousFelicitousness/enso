@@ -880,7 +880,7 @@ function ImageLightbox({
                     void (async () => {
                       try {
                         const file = await mediaFile(fullUrl, "image.png");
-                        await sendImageToCanvas(file);
+                        if (!(await sendImageToCanvas(file))) return;
                         onCloseAll();
                         toast.success("Sent to Canvas");
                       } catch {
@@ -897,10 +897,7 @@ function ImageLightbox({
                     void (async () => {
                       try {
                         const file = await mediaFile(fullUrl, "image.png");
-                        const blob = new Blob([await file.arrayBuffer()], {
-                          type: file.type,
-                        });
-                        await sendFrameToVideoInit(blob);
+                        if (!(await sendFrameToVideoInit(file))) return;
                         onCloseAll();
                         toast.success("Sent to Video Init");
                       } catch {
@@ -946,7 +943,7 @@ function ImageLightbox({
                         void (async () => {
                           try {
                             const file = await mediaFile(fullUrl, "image.png");
-                            await sendImageToCanvas(file);
+                            if (!(await sendImageToCanvas(file))) return;
                             sendPromptToGeneration(
                               meta["prompt"] as string,
                               hasNegative ? (meta["negativePrompt"] as string) : undefined,

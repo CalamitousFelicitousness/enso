@@ -1,6 +1,14 @@
-import { describe, expect, it } from "vitest";
-import { DEFAULT_SECTIONS, type ProcessSections } from "@/stores/processStore";
+import { beforeAll, describe, expect, it, vi } from "vitest";
+import type { ProcessSections } from "@/stores/processStore";
 import { activeSections, buildProcessPayload, type ProcessSettings } from "./processRequest";
+
+let DEFAULT_SECTIONS: ProcessSections;
+
+beforeAll(async () => {
+  // the store's setters admit pictures through the door, whose API client reads the page's origin
+  vi.stubGlobal("window", { location: { origin: "http://localhost:5174" } });
+  ({ DEFAULT_SECTIONS } = await import("@/stores/processStore"));
+});
 
 function settings(overrides: Partial<ProcessSettings> = {}): ProcessSettings {
   return {

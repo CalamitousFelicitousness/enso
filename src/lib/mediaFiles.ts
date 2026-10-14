@@ -43,6 +43,23 @@ export async function mediaFile(
   return new File([blob], filename, { type: blob.type });
 }
 
+/** The first `bytes` of a stored image, and whether they are all of it: raw
+ * base64, data: and blob: URLs are read whole, as is a file whose server
+ * ignores the range. */
+export async function mediaHead(
+  image: string,
+  filename: string,
+  bytes: number,
+  init?: RequestInit,
+): Promise<{ file: File; whole: boolean }> {
+  if (isRawBase64(image) || /^(data|blob):/.test(image)) {
+    return { file: await mediaFile(image, filename, init), whole: true };
+  }
+  const response = await fetchOk(image, { ...init, headers: { Range: `bytes=0-${bytes - 1}` } });
+  const blob = await response.blob();
+  return { file: new File([blob], filename, { type: blob.type }), whole: response.status !== 206 };
+}
+
 /** The filename a Content-Disposition header names, if any. */
 export function dispositionName(header: string | null): string | null {
   if (!header) return null;

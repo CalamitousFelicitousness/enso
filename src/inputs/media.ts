@@ -3,6 +3,9 @@
 // go on unmount.
 
 import { useEffect, useState } from "react";
+import type { PixelSize } from "@/lib/media/dimensions";
+import { DISPLAY_PIXELS } from "@/lib/media/limits";
+import { useEffectiveLimit } from "./admit";
 
 interface Entry {
   url: string;
@@ -10,6 +13,8 @@ interface Entry {
   image: Promise<HTMLImageElement> | null;
   /** The image once it has decoded. */
   decoded: HTMLImageElement | null;
+  /** A picture above the display budget, decoded at the budget. */
+  bitmap: Promise<ImageBitmap> | null;
   release: ReturnType<typeof setTimeout> | null;
 }
 
@@ -22,7 +27,14 @@ const RELEASE_MS = 1000;
 function acquire(blob: Blob): Entry {
   let entry = entries.get(blob);
   if (!entry) {
-    entry = { url: URL.createObjectURL(blob), users: 0, image: null, decoded: null, release: null };
+    entry = {
+      url: URL.createObjectURL(blob),
+      users: 0,
+      image: null,
+      decoded: null,
+      bitmap: null,
+      release: null,
+    };
     entries.set(blob, entry);
   }
   if (entry.release) {
@@ -40,6 +52,10 @@ function release(blob: Blob): void {
   if (entry.users > 0) return;
   entry.release = setTimeout(() => {
     URL.revokeObjectURL(entry.url);
+    void entry.bitmap?.then(
+      (bitmap) => bitmap.close(),
+      () => {},
+    );
     entries.delete(blob);
   }, RELEASE_MS);
 }
@@ -57,14 +73,33 @@ function decode(entry: Entry): Promise<HTMLImageElement> {
   return entry.image;
 }
 
-/** The blob as a decoded image element, for Konva. Null until decoded, and
- * for a blob that does not decode. */
-export function useBlobImage(blob: Blob | null): HTMLImageElement | null {
-  const [loaded, setLoaded] = useState<{ blob: Blob; image: HTMLImageElement } | null>(null);
+function displayBitmap(blob: Blob, entry: Entry, size: PixelSize): Promise<ImageBitmap> {
+  const scale = Math.sqrt(DISPLAY_PIXELS / (size.width * size.height));
+  entry.bitmap ??= createImageBitmap(blob, {
+    resizeWidth: Math.max(1, Math.round(size.width * scale)),
+    resizeHeight: Math.max(1, Math.round(size.height * scale)),
+    resizeQuality: "high",
+  });
+  return entry.bitmap;
+}
+
+type Shown = HTMLImageElement | ImageBitmap;
+
+function show(blob: Blob, entry: Entry, size: PixelSize | null): Promise<Shown> {
+  return size && size.width * size.height > DISPLAY_PIXELS
+    ? displayBitmap(blob, entry, size)
+    : decode(entry);
+}
+
+function useShown(blob: Blob | null, size: PixelSize | null): Shown | null {
+  const [loaded, setLoaded] = useState<{ blob: Blob; image: Shown } | null>(null);
+  const width = size?.width ?? 0;
+  const height = size?.height ?? 0;
   useEffect(() => {
     if (!blob) return;
     let current = true;
-    decode(acquire(blob)).then(
+    const known = width > 0 && height > 0 ? { width, height } : null;
+    show(blob, acquire(blob), known).then(
       (image) => {
         if (current) setLoaded({ blob, image });
       },
@@ -74,13 +109,24 @@ export function useBlobImage(blob: Blob | null): HTMLImageElement | null {
       current = false;
       release(blob);
     };
-  }, [blob]);
+  }, [blob, width, height]);
   return loaded?.blob === blob ? loaded.image : null;
 }
 
-/** A URL for the blob once it has decoded, for an <img>. */
+/** The blob as something Konva draws: the decoded image, or for a picture
+ * above the display budget a bitmap decoded at it. Null until decoded, for a
+ * blob that does not decode, and for a picture over the input limit, which is
+ * never decoded. */
+export function useBlobImage(blob: Blob | null, size: PixelSize | null = null): Shown | null {
+  const limit = useEffectiveLimit();
+  const tooLarge = size !== null && size.width * size.height > limit.pixels;
+  return useShown(tooLarge ? null : blob, size);
+}
+
+/** A URL for a small blob once it has decoded, for an <img>. */
 export function useBlobUrl(blob: Blob | null): string | null {
-  return useBlobImage(blob)?.src ?? null;
+  const image = useShown(blob, null);
+  return image instanceof HTMLImageElement ? image.src : null;
 }
 
 /** The blob as an image something here has already decoded, else null. */
