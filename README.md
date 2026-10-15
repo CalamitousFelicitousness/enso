@@ -36,7 +36,7 @@
 
 **SD.Next Enso** is a React-based frontend and V2 API for [SD.Next](https://github.com/vladmandic/sdnext), packaged as an extension. It replaces the default Gradio UI with an infinite canvas workspace, an async job queue API, and real-time WebSocket progress - while keeping full compatibility with all SD.Next backends and models.
 
-It runs as a standard SD.Next extension: drop it into `extensions-builtin/` and it registers its API routes and mounts the frontend automatically.
+It runs as a standard SD.Next extension: starting SD.Next with `--enso` clones it into `extensions/enso`, where it registers its API routes and mounts the frontend automatically.
 
 ### What's Included
 
@@ -136,27 +136,26 @@ It runs as a standard SD.Next extension: drop it into `extensions-builtin/` and 
 No Node.js or pnpm required: `install.py` downloads a prebuilt frontend matching the checked-out commit from GitHub releases. [Node.js](https://nodejs.org/) 20.19+/22.12+ and [pnpm](https://pnpm.io/) are only needed for development or building from modified source.
 
 ```bash
-# Clone into SD.Next extensions directory
-cd /path/to/sdnext/extensions-builtin
-git clone https://github.com/CalamitousFelicitousness/enso.git sdnext-enso
-
-# Start SD.Next with the --enso flag
+# Start SD.Next with the --enso flag: it clones the extension into
+# extensions/enso on first run and fetches the prebuilt frontend
 cd /path/to/sdnext
 ./webui.sh --enso
 ```
 
-The `--enso` flag triggers the built-in `install.py`, which fetches the prebuilt frontend for the current commit. When no matching build is published (a modified checkout, or a push whose CI build is still running), it falls back to a local `pnpm install` + `pnpm run build` if pnpm is available, and otherwise keeps serving the previous build.
+The `--enso` flag clones this repository into `extensions/enso` when that folder is missing, then runs the built-in `install.py`, which fetches the prebuilt frontend for the current commit. When no matching build is published (a modified checkout, or a push whose CI build is still running), it falls back to a local `pnpm install` + `pnpm run build` if pnpm is available, and otherwise keeps serving the previous build.
 
 Builds are fetched from the checkout's own `origin`, so a fork serves the frontend its own Actions run publishes; enable Actions on the fork and push, and no local toolchain is needed there either.
 
 **Updating an existing checkout:** run SD.Next with `--update --enso` (or `git pull` in the extension folder); the matching prebuilt frontend is fetched automatically. pnpm is no longer required for regular use.
+
+A manual clone belongs in the same place, `extensions/enso`. A second copy anywhere else, such as an older checkout under `extensions-builtin/`, makes SD.Next warn about a duplicate extension.
 
 The UI will be available at `http://localhost:7860/enso/`
 
 ### Development
 
 ```bash
-cd /path/to/sdnext/extensions-builtin/sdnext-enso
+cd /path/to/sdnext/extensions/enso
 
 # Start dev server (HMR, proxies API to SD.Next backend)
 pnpm run dev
