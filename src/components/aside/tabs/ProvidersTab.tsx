@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { useCloudProviders } from "@/api/hooks/useCloudModels";
+import { useCloudAvailable, useCloudProviders } from "@/api/hooks/useCloudModels";
+import { NO_CLOUD_MODULE } from "@/lib/cloud/text";
 import { ProviderCard } from "@/components/providers/ProviderCard";
 import { ProviderForm } from "@/components/providers/ProviderForm";
 import { Button } from "@/components/ui/button";
@@ -16,6 +17,7 @@ const PRESET_OPTIONS: { preset: ProviderPreset; label: string; description: stri
 ];
 
 export function ProvidersTab() {
+  const cloud = useCloudAvailable();
   const { data: providers, isLoading } = useCloudProviders();
   const [showForm, setShowForm] = useState(false);
   const [formPreset, setFormPreset] = useState<ProviderPreset | null>(null);
@@ -30,7 +32,10 @@ export function ProvidersTab() {
     setFormPreset(null);
   }
 
-  if (isLoading) {
+  if (cloud === false) {
+    return <div className="p-4 text-xs text-muted-foreground">{NO_CLOUD_MODULE}</div>;
+  }
+  if (cloud === undefined || isLoading) {
     return <div className="p-4 text-xs text-muted-foreground">Loading providers...</div>;
   }
 

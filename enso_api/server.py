@@ -4,7 +4,7 @@ import re
 import subprocess
 import time
 
-from fastapi import APIRouter
+from fastapi import APIRouter, FastAPI, Request
 
 from enso_api.models import (
     CudaMemoryV2,
@@ -38,6 +38,14 @@ def detect_video_capability() -> bool:
     return True
 
 
+CLOUD_PROVIDERS_ROUTE = "/sdapi/v1/cloud/providers"
+
+
+def has_cloud_routes(app: FastAPI) -> bool:
+    """Whether this SD.Next registers the cloud provider routes the client polls."""
+    return any(getattr(route, "path", None) == CLOUD_PROVIDERS_ROUTE for route in app.routes)
+
+
 @functools.cache
 def extension_commit() -> str | None:
     try:
@@ -65,7 +73,7 @@ def extension_version() -> ExtensionVersionV2:
 
 
 @router.get("/server-info", response_model=ResServerInfoV2)
-async def get_server_info_v2():
+async def get_server_info_v2(request: Request):
     """Return server version, backend, platform, capabilities, and loaded model."""
     import installer
     from modules import devices, shared
@@ -78,7 +86,7 @@ async def get_server_info_v2():
     from enso_api.upload import input_limit
 
     media = media_boot.state
-    capabilities = ServerCapabilities(video=detect_video_capability(), control_separate_init=control_separate_init(), media_store=media.store is not None, size_rules=has_size_rules())
+    capabilities = ServerCapabilities(video=detect_video_capability(), control_separate_init=control_separate_init(), media_store=media.store is not None, size_rules=has_size_rules(), cloud=has_cloud_routes(request.app))
     limits = ServerLimitsV2(input_pixels=input_limit()[0], formats=server_formats(), caption=caption_size())
     return ResServerInfoV2(
         version=VersionInfoV2(**{k: str(v) for k, v in ver.items() if k in set(VersionInfoV2.model_fields)}),

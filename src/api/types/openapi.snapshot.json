@@ -12832,6 +12832,11 @@
       },
       "ServerCapabilities": {
         "properties": {
+          "cloud": {
+            "default": false,
+            "title": "Cloud",
+            "type": "boolean"
+          },
           "control": {
             "default": true,
             "title": "Control",

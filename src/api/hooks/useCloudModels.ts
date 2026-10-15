@@ -1,12 +1,20 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../client";
 import type { CloudModel, Provider, ProviderPreset } from "../types/cloud";
+import { useServerInfo } from "./useServer";
 
 // Cloud provider/model surface is owned by sdnext core at /sdapi/v1/cloud/*.
 // The V1 wraps list responses as { providers: [...] } / { models: [...], total };
 // these hooks unwrap to bare arrays for ergonomic consumption.
 
+/** Whether this SD.Next registers the cloud routes; undefined until server-info answers. */
+export function useCloudAvailable(): boolean | undefined {
+  const { data } = useServerInfo();
+  return data ? data.capabilities?.cloud === true : undefined;
+}
+
 export function useCloudProviders() {
+  const cloud = useCloudAvailable();
   return useQuery({
     queryKey: ["cloud-providers"],
     queryFn: async () => {
@@ -14,6 +22,7 @@ export function useCloudProviders() {
       return resp.providers ?? [];
     },
     staleTime: 60_000,
+    enabled: cloud === true,
   });
 }
 

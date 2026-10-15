@@ -753,6 +753,8 @@ class ServerCapabilities(BaseModel):
     media_store: bool = False
     size_rules: bool = False
     """This SD.Next declares the sizes its consumers resample pictures to."""
+    cloud: bool = False
+    """This SD.Next registers the cloud provider routes under /sdapi/v1/cloud/."""
 
 
 class ServerLimitsV2(BaseModel):
