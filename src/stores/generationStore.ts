@@ -1,13 +1,14 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { createIdbListDb } from "@/lib/idbListDb";
-import type { MaskStroke } from "@/lib/inputs/types";
+import type { MaskStroke, Size } from "@/lib/inputs/types";
 import type { DetailerOverrides, DetailerModelEntry, JobWarning } from "@/api/types/v2";
 import type { WireParams } from "@/api/types/wireParams";
 import { DEFAULT_HIRES_UPSCALER } from "@/lib/hires";
 import { isUploadRef } from "@/lib/jobs/replay";
 import {
   clampStripLimit,
+  imageSize,
   migrateGeneration,
   splitAtLimit,
   STRIP_LIMIT_DEFAULT,
@@ -22,6 +23,8 @@ export interface GenerationResult {
   /** The server's job type; absent on results of older builds, which were generations. */
   type?: string | undefined;
   images: string[];
+  /** Each image's size in pixels; a result an older build stored learns them as its pictures are decoded. */
+  sizes?: Size[] | undefined;
   parameters: WireParams;
   info: string;
   timestamp: number;
@@ -227,6 +230,8 @@ export interface GenerationState {
   addResult: (result: GenerationResult, options?: { select?: boolean }) => Promise<void>;
   clearResults: () => void;
   selectImage: (resultId: string, imageIndex: number) => void;
+  /** The decoded size of an image whose result was stored without sizes. */
+  noteImageSize: (resultId: string, imageIndex: number, size: Size) => void;
   clearSelection: () => void;
   /** Keep this many results; the ones past it leave the strip and are
    * returned, still stored, so they can be put back. */
@@ -421,6 +426,15 @@ export const useGenerationStore = create<GenerationState>()(
 
       selectImage: (resultId, imageIndex) =>
         set({ selectedResultId: resultId, selectedImageIndex: imageIndex }),
+
+      noteImageSize: (resultId, imageIndex, size) =>
+        set((s) => ({
+          results: s.results.map((r) =>
+            r.id === resultId && !imageSize(r, imageIndex)
+              ? { ...r, sizes: Object.assign([...(r.sizes ?? [])], { [imageIndex]: size }) }
+              : r,
+          ),
+        })),
 
       clearSelection: () => set({ selectedResultId: null, selectedImageIndex: null }),
 

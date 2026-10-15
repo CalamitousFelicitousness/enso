@@ -248,4 +248,17 @@ export const NO_RESULT_YET = "No result to restore yet";
 export const LAST_NOT_REPLAYABLE = "The last job cannot be run again";
 export const RESTORE_LAST_TITLE =
   "Restore last settings (Shift+click compares with the current settings)";
-export const DOUBLE_CLICK_HINT = "Double-click restores settings";
+export const DOUBLE_CLICK_HINT = "Double-click opens Restore";
+export const RESTORE_DIALOG = "Restore...";
+export const RESTORE_DIALOG_TITLE = "Restore result";
+export const RESTORE_RESULT_TITLE = "Restore this result's settings and inputs...";
+export const SAME_SETTINGS = "Same as the current settings";
+export const INPUTS_FROM_RECORD = "The input frames the job was sent with";
+
+/** The settings row of the Restore dialog: how many values differ. */
+export function settingsDifferText(count: number): string {
+  if (count === 0) return SAME_SETTINGS;
+  return count === 1
+    ? "1 setting differs from the current ones"
+    : `${count} settings differ from the current ones`;
+}

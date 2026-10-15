@@ -1,16 +1,23 @@
-import { ImagePlus, ArrowUpCircle, GitCompareArrows, Download } from "lucide-react";
+import { ImagePlus, ArrowUpCircle, ArchiveRestore, GitCompareArrows, Download } from "lucide-react";
 import type { GenerationResult } from "@/stores/generationStore";
+import { RESTORE_DIALOG } from "@/lib/jobs/text";
 import { download, sendToCanvas, sendToUpscale } from "./resultActions";
 
 interface ResultThumbActionsProps {
   result: GenerationResult;
   imageIndex: number;
+  onRestore: () => void;
   onCompare: () => void;
 }
 
-/** The picture's actions over the bottom of a thumbnail. Restores live in the
- * thumbnail's menu, where each says why it cannot act. */
-export function ResultThumbActions({ result, imageIndex, onCompare }: ResultThumbActionsProps) {
+/** The picture's actions over the bottom of a thumbnail. The direct restores
+ * live in the thumbnail's menu, where each says why it cannot act. */
+export function ResultThumbActions({
+  result,
+  imageIndex,
+  onRestore,
+  onCompare,
+}: ResultThumbActionsProps) {
   return (
     // eslint-disable-next-line jsx-a11y/click-events-have-key-events,jsx-a11y/no-static-element-interactions -- bubble-firewall inside result thumbnail; the action <button>s inside own their own keyboard handling
     <div
@@ -18,6 +25,9 @@ export function ResultThumbActions({ result, imageIndex, onCompare }: ResultThum
       onClick={(e) => e.stopPropagation()}
       onDoubleClick={(e) => e.stopPropagation()}
     >
+      <ActionBtn onClick={onRestore} title={RESTORE_DIALOG}>
+        <ArchiveRestore size={10} />
+      </ActionBtn>
       <ActionBtn onClick={() => sendToCanvas(result, imageIndex)} title="Send to canvas">
         <ImagePlus size={10} />
       </ActionBtn>

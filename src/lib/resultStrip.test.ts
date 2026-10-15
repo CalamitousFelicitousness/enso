@@ -5,6 +5,7 @@ import {
   splitAtLimit,
   STRIP_LIMIT_DEFAULT,
   withResult,
+  imageSize,
 } from "./resultStrip";
 
 describe("strip limit", () => {
@@ -27,5 +28,14 @@ describe("strip limit", () => {
     expect(splitAtLimit(results, 10).removed).toEqual([]);
     // a result routed twice takes its place once, at the front
     expect(withResult(results, { id: "c" }).map((r) => r.id)).toEqual(["c", "a", "b", "d"]);
+  });
+});
+
+describe("imageSize", () => {
+  it("reads the image's recorded size, and null where a result carries none", () => {
+    const size = { width: 704, height: 1280 };
+    expect(imageSize({ sizes: [size] }, 0)).toBe(size);
+    expect(imageSize({ sizes: [size] }, 1)).toBeNull();
+    expect(imageSize({}, 0)).toBeNull();
   });
 });

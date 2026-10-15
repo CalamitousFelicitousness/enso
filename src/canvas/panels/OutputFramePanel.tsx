@@ -2,6 +2,7 @@
 
 import { useCallback, useMemo, useState } from "react";
 import {
+  ArchiveRestore,
   ArrowLeftFromLine,
   Download,
   ImageOff,
@@ -13,6 +14,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { useGenerationStore } from "@/stores/generationStore";
 import { useCanvasStore } from "@/stores/canvasStore";
+import { useRestoreDialogStore } from "@/stores/restoreDialogStore";
+import { RESTORE_RESULT_TITLE } from "@/lib/jobs/text";
 import { addServerPictures } from "@/inputs/route";
 import { resultPicture } from "@/inputs/adopt";
 import { generateImageFilename } from "@/lib/utils";
@@ -83,6 +86,7 @@ export function OutputFramePanel({
   const results = useGenerationStore((s) => s.results);
   const panelCollapsedOverrides = useCanvasStore((s) => s.panelCollapsedOverrides);
   const togglePanelCollapsed = useCanvasStore((s) => s.togglePanelCollapsed);
+  const openRestore = useRestoreDialogStore((s) => s.open);
   const [activeTab, setActiveTab] = useState<"info" | "params">("info");
 
   const selectedResult = useMemo(
@@ -137,6 +141,20 @@ export function OutputFramePanel({
   const actions = (
     <>
       <JobWarnings warnings={selectedResult?.warnings} />
+      <Button
+        variant="ghost"
+        size="icon-xs"
+        onClick={() => {
+          if (selectedResultId && selectedImageIndex !== null) {
+            openRestore(selectedResultId, selectedImageIndex);
+          }
+        }}
+        disabled={!hasSelectedImage}
+        title={RESTORE_RESULT_TITLE}
+        className="text-muted-foreground hover:bg-white/5 disabled:opacity-30"
+      >
+        <ArchiveRestore size={14} />
+      </Button>
       <Button
         variant="ghost"
         size="icon-xs"

@@ -19,6 +19,7 @@ export function OutputLayer({ offsetX, placeholderWidth, placeholderHeight }: Ou
   const results = useGenerationStore((s) => s.results);
   const selectedResultId = useGenerationStore((s) => s.selectedResultId);
   const selectedImageIndex = useGenerationStore((s) => s.selectedImageIndex);
+  const noteImageSize = useGenerationStore((s) => s.noteImageSize);
   const [image, setImage] = useState<HTMLImageElement | null>(null);
 
   // Determine which image to show: live preview during generation, or selected result
@@ -33,18 +34,27 @@ export function OutputLayer({ offsetX, placeholderWidth, placeholderHeight }: Ou
     }
   }
 
+  // The result the picture belongs to, for a size its record does not carry
+  const shownResultId = previewImage ? null : selectedResultId;
   useEffect(() => {
     if (!displaySrc) return;
     let current = true;
     loadMediaImage(displaySrc)
       .then((img) => {
-        if (current) setImage(img);
+        if (!current) return;
+        setImage(img);
+        if (shownResultId) {
+          noteImageSize(shownResultId, selectedImageIndex ?? 0, {
+            width: img.naturalWidth,
+            height: img.naturalHeight,
+          });
+        }
       })
       .catch((err: unknown) => console.warn("[output] the image could not be loaded", err));
     return () => {
       current = false;
     };
-  }, [displaySrc]);
+  }, [displaySrc, shownResultId, selectedImageIndex, noteImageSize]);
 
   // Clear stale image when there's nothing to display
   if (!displaySrc && image) setImage(null);
@@ -53,13 +63,14 @@ export function OutputLayer({ offsetX, placeholderWidth, placeholderHeight }: Ou
   const hasImage = !!displaySrc && !!image;
   const isPreview = !!previewImage;
 
-  // Fit image inside the frame when aspect ratios differ (e.g. detailer preview
-  // at 1024x1024 on a 16:9 output frame). Frame never changes shape.
+  // Fit the picture inside the frame when their aspects differ: a detailer
+  // preview at 1024x1024 on a 16:9 frame, or a result whose size the frame
+  // has not taken yet. The frame keeps its shape.
   let imgX = offsetX;
   let imgY = 0;
   let imgW = placeholderWidth;
   let imgH = placeholderHeight;
-  if (isPreview && hasImage && image) {
+  if (hasImage && image) {
     const natW = image.naturalWidth;
     const natH = image.naturalHeight;
     const frameAR = placeholderWidth / placeholderHeight;

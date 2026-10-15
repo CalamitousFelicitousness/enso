@@ -12,15 +12,21 @@ import { useModelSelectionStore } from "@/stores/modelSelectionStore";
 import { useInputsAtCapacity } from "@/canvas/useInputsAtCapacity";
 import { useGenerationSize } from "@/canvas/useGenerationSize";
 import { computeCanvasLayout, type FrameLayout } from "@/lib/inputs/layout";
+import type { Size } from "@/lib/inputs/types";
+import { imageSize } from "@/lib/resultStrip";
+import { outputFrameSize } from "@/lib/sizeCompute";
+import { selectViewedJob, useJobQueueStore } from "@/stores/jobStore";
 
 export interface CanvasLayout extends FrameLayout {
   /** Generation size (may differ from frame size when scale/megapixel is active) */
   genSize: { width: number; height: number };
-  /** Output frame dimensions. Equals the frame when Auto is off; when Auto is
-   * on for a cloud model, predicts the server-chosen aspect from the last
-   * result's echoed dims, falling back to the model's size_constraint default. */
+  /** Output frame dimensions: the selected picture's own size, else the frame
+   * (with Auto on for a cloud model, the server-chosen aspect predicted from
+   * the last result's echoed dims, else the model's size_constraint default). */
   outputFrameW: number;
   outputFrameH: number;
+  /** The selected picture, while the output frame takes its size. */
+  outputPicture: Size | null;
   /** The input frames hold as many images as the active model takes. */
   inputsAtCapacity: boolean;
 }
@@ -29,6 +35,11 @@ export function useCanvasLayout(): CanvasLayout {
   const { width: frameW, height: frameH } = useFrameSize();
   const genSize = useGenerationSize();
   const lastResult = useGenerationStore((s) => s.results[0]);
+  const picture = useGenerationStore((s) => {
+    const selected = s.results.find((r) => r.id === s.selectedResultId);
+    return selected ? imageSize(selected, s.selectedImageIndex ?? 0) : null;
+  });
+  const jobViewed = useJobQueueStore((s) => selectViewedJob(s) !== undefined);
   const outline = useOutline();
   const labelScale = useUiStore((s) => s.canvasLabelScale);
   const autoSize = useImg2ImgStore((s) => s.autoSize);
@@ -60,22 +71,34 @@ export function useCanvasLayout(): CanvasLayout {
         }
       }
     }
-    const outputFrameH = frameH;
-    const outputFrameW = predictedOutputAspect != null ? frameH * predictedOutputAspect : frameW;
+    const predicted = {
+      width: predictedOutputAspect != null ? frameH * predictedOutputAspect : frameW,
+      height: frameH,
+    };
+    const output = outputFrameSize(predicted, picture, jobViewed);
 
     const layout = computeCanvasLayout({
       entries: outline.entries,
       frame: { width: frameW, height: frameH },
-      output: { width: outputFrameW, height: outputFrameH },
+      output,
       labelScale,
       inputsAtCapacity,
     });
-    return { ...layout, genSize, outputFrameW, outputFrameH, inputsAtCapacity };
+    return {
+      ...layout,
+      genSize,
+      outputFrameW: output.width,
+      outputFrameH: output.height,
+      outputPicture: output === picture ? picture : null,
+      inputsAtCapacity,
+    };
   }, [
     frameW,
     frameH,
     genSize,
     lastResult,
+    picture,
+    jobViewed,
     outline,
     labelScale,
     autoSize,

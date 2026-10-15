@@ -18,6 +18,7 @@ import { useModelSync } from "@/hooks/useModelSync";
 import { useSizeMultipleSync } from "@/hooks/useSizeMultipleSync";
 import { useMediaSync } from "@/inputs/mediaSync";
 import { ShortcutOverlay } from "@/components/ShortcutOverlay";
+import { RestoreDialogHost } from "@/components/generation/RestoreDialogHost";
 import { CommandPalette } from "@/components/CommandPalette";
 import { ComparisonDialog } from "@/components/comparison/ComparisonDialog";
 import { TutorialOverlay } from "@/components/TutorialOverlay";
@@ -92,6 +93,7 @@ export function AppShell() {
         </div>
 
         <BottomStatusBar />
+        <RestoreDialogHost />
       </div>
 
       <ShortcutOverlay />

@@ -188,7 +188,7 @@ export const parameterHelp = new Map<string, string>([
   ["offload mode", "Memory offloading strategy"],
   [
     "output",
-    "Show/hide selection of output media: generation resuls and live previews during generation process",
+    "Show/hide selection of output media: generation results and live previews during generation process",
   ],
   [
     "pag scale",

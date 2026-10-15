@@ -135,3 +135,13 @@ export function containFit(
   const scale = Math.min(boxW / w, boxH / h);
   return { width: Math.round(w * scale), height: Math.round(h * scale) };
 }
+
+/** The size the Output frame takes: the job's output while one is queued or
+ * running, else the picture shown. */
+export function outputFrameSize(
+  settings: { width: number; height: number },
+  picture: { width: number; height: number } | null,
+  jobViewed: boolean,
+): { width: number; height: number } {
+  return !jobViewed && picture ? picture : settings;
+}

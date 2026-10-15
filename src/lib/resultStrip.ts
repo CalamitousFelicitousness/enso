@@ -1,5 +1,13 @@
 // How many results the Images strip keeps, and the arithmetic of keeping them.
 
+import type { Size } from "./inputs/types";
+
+/** A result image's size in pixels, or null where the result does not carry it. */
+export function imageSize(result: { sizes?: Size[] | undefined }, index: number): Size | null {
+  const size: Size | undefined = result.sizes?.[index];
+  return size ?? null;
+}
+
 export const STRIP_LIMIT_MIN = 1;
 export const STRIP_LIMIT_MAX = 100;
 export const STRIP_LIMIT_DEFAULT = 16;

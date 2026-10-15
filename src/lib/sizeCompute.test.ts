@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   effectiveSizeMode,
   imageOutputSize,
+  outputFrameSize,
   referenceSetsSize,
   resolveGenerationSize,
   resolveOutputSize,
@@ -102,5 +103,19 @@ describe("resolveOutputSize", () => {
       width: 1008,
       height: 1008,
     });
+  });
+});
+
+describe("outputFrameSize", () => {
+  const settings = { width: 1024, height: 1024 };
+  const picture = { width: 704, height: 1280 };
+
+  it("takes the selected picture's size", () => {
+    expect(outputFrameSize(settings, picture, false)).toBe(picture);
+  });
+
+  it("takes the settings while a job is queued or running, and with nothing selected", () => {
+    expect(outputFrameSize(settings, picture, true)).toBe(settings);
+    expect(outputFrameSize(settings, null, false)).toBe(settings);
   });
 });

@@ -29,6 +29,7 @@ import { resultActions, type ResultAction, type Slot } from "@/lib/jobs/cardActi
 import {
   reasonText,
   RESTORE_BOTH,
+  RESTORE_DIALOG,
   RESTORE_INPUTS,
   RESTORE_SETTINGS,
   RUN_AGAIN,
@@ -46,8 +47,8 @@ import { download, sendToCanvas, sendToUpscale } from "./resultActions";
 interface ResultMenuProps {
   result: GenerationResult;
   imageIndex: number;
-  /** Open the settings comparison for the result. */
-  onCompareSettings: (result: GenerationResult) => void;
+  /** Open the Restore dialog on this image. */
+  onRestore: (resultId: string, imageIndex: number) => void;
   /** Pick this image as the first of a picture comparison. */
   onCompareWith: (resultId: string, imageIndex: number) => void;
   children: ReactNode;
@@ -84,7 +85,7 @@ function Item({
 export function ResultMenu({
   result,
   imageIndex,
-  onCompareSettings,
+  onRestore,
   onCompareWith,
   children,
 }: ResultMenuProps) {
@@ -105,6 +106,11 @@ export function ResultMenu({
     <ContextMenu>
       <ContextMenuTrigger asChild>{children}</ContextMenuTrigger>
       <ContextMenuContent className="w-60">
+        <Item
+          icon={GitCompare}
+          label={RESTORE_DIALOG}
+          onSelect={() => onRestore(result.id, imageIndex)}
+        />
         <Item
           icon={History}
           label={RESTORE_SETTINGS}
@@ -158,11 +164,6 @@ export function ResultMenu({
         />
         <Item icon={Download} label="Download" onSelect={() => download(result, imageIndex)} />
         <ContextMenuSeparator />
-        <Item
-          icon={GitCompare}
-          label="Compare and restore..."
-          onSelect={() => onCompareSettings(result)}
-        />
         <Item
           icon={GitCompareArrows}
           label="Compare with..."

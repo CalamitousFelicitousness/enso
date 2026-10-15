@@ -2,7 +2,7 @@ import { useGenerationStore } from "@/stores/generationStore";
 import type { GenerationResult } from "@/stores/generationStore";
 import { useComparisonStore } from "@/stores/comparisonStore";
 import { useUiStore } from "@/stores/uiStore";
-import { restoreSettings, resultTarget } from "@/lib/request/restore";
+import { useRestoreDialogStore } from "@/stores/restoreDialogStore";
 import { cn, generateImageFilename } from "@/lib/utils";
 import { mediaSrc } from "@/api/session";
 import { downloadAllAsZip, downloadMedia, failedWith } from "@/lib/mediaFiles";
@@ -22,7 +22,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { GenerationDiffDialog } from "@/components/generation/GenerationDiffDialog";
 import { ResultThumbPreview } from "@/components/generation/ResultThumbPreview";
 import { ResultImage } from "@/components/generation/ResultImage";
 import { ResultThumbActions } from "@/components/generation/ResultThumbActions";
@@ -47,7 +46,7 @@ export const ResultGallery = memo(function ResultGallery() {
 
   const [confirmAction, setConfirmAction] = useState<"downloadAll" | "clear" | null>(null);
   const [downloading, setDownloading] = useState(false);
-  const [diffResult, setDiffResult] = useState<GenerationResult | null>(null);
+  const openRestore = useRestoreDialogStore((s) => s.open);
   const [compareCandidate, setCompareCandidate] = useState<CompareCandidate | null>(null);
   const [comparePickMode, setComparePickMode] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -112,12 +111,6 @@ export const ResultGallery = memo(function ResultGallery() {
     },
     [selectImage, compareCandidate, comparePickMode],
   );
-
-  // The settings of the image picked, a batch's included
-  const handleDoubleClick = useCallback((resultId: string, imageIndex: number) => {
-    const result = useGenerationStore.getState().results.find((r) => r.id === resultId);
-    if (result) restoreSettings(resultTarget(result, imageIndex));
-  }, []);
 
   const handleCompareFromThumb = useCallback((resultId: string, imageIndex: number) => {
     setCompareCandidate({ resultId, imageIndex });
@@ -229,8 +222,8 @@ export const ResultGallery = memo(function ResultGallery() {
               compareCandidate={compareCandidate}
               comparePickMode={comparePickMode}
               onClick={handleClick}
-              onDoubleClick={handleDoubleClick}
-              onCompareSettings={setDiffResult}
+              onDoubleClick={openRestore}
+              onRestore={openRestore}
               onCompare={handleCompareFromThumb}
             />
           ) : (
@@ -250,8 +243,8 @@ export const ResultGallery = memo(function ResultGallery() {
               }
               comparePickMode={comparePickMode}
               onClick={handleClick}
-              onDoubleClick={handleDoubleClick}
-              onCompareSettings={setDiffResult}
+              onDoubleClick={openRestore}
+              onRestore={openRestore}
               onCompare={handleCompareFromThumb}
             />
           ),
@@ -305,14 +298,6 @@ export const ResultGallery = memo(function ResultGallery() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      <GenerationDiffDialog
-        open={diffResult !== null}
-        onOpenChange={(open) => {
-          if (!open) setDiffResult(null);
-        }}
-        result={diffResult}
-      />
     </div>
   );
 });
@@ -330,7 +315,7 @@ interface BatchTileProps {
   comparePickMode: boolean;
   onClick: (e: React.MouseEvent, resultId: string, imageIndex: number) => void;
   onDoubleClick: (resultId: string, imageIndex: number) => void;
-  onCompareSettings: (result: GenerationResult) => void;
+  onRestore: (resultId: string, imageIndex: number) => void;
   onCompare: (resultId: string, imageIndex: number) => void;
 }
 
@@ -343,7 +328,7 @@ const BatchTile = memo(function BatchTile({
   comparePickMode,
   onClick,
   onDoubleClick,
-  onCompareSettings,
+  onRestore,
   onCompare,
 }: BatchTileProps) {
   const [open, setOpen] = useState(false);
@@ -375,7 +360,7 @@ const BatchTile = memo(function BatchTile({
       <ResultMenu
         result={result}
         imageIndex={coverIndex}
-        onCompareSettings={onCompareSettings}
+        onRestore={onRestore}
         onCompareWith={onCompare}
       >
         <PopoverTrigger asChild>
@@ -469,7 +454,7 @@ const BatchTile = memo(function BatchTile({
               comparePickMode={comparePickMode}
               onClick={onPick}
               onDoubleClick={onDoubleClick}
-              onCompareSettings={onCompareSettings}
+              onRestore={onRestore}
               onCompare={onCompare}
             />
           ))}
@@ -493,7 +478,7 @@ interface ResultThumbProps {
   comparePickMode: boolean;
   onClick: (e: React.MouseEvent, resultId: string, imageIndex: number) => void;
   onDoubleClick: (resultId: string, imageIndex: number) => void;
-  onCompareSettings: (result: GenerationResult) => void;
+  onRestore: (resultId: string, imageIndex: number) => void;
   onCompare: (resultId: string, imageIndex: number) => void;
 }
 
@@ -506,7 +491,7 @@ const ResultThumb = memo(function ResultThumb({
   comparePickMode,
   onClick,
   onDoubleClick,
-  onCompareSettings,
+  onRestore,
   onCompare,
 }: ResultThumbProps) {
   const src = mediaSrc(item.image);
@@ -543,7 +528,7 @@ const ResultThumb = memo(function ResultThumb({
       <ResultMenu
         result={result}
         imageIndex={item.imageIndex}
-        onCompareSettings={onCompareSettings}
+        onRestore={onRestore}
         onCompareWith={onCompare}
       >
         <div
@@ -592,10 +577,11 @@ const ResultThumb = memo(function ResultThumb({
           {/* The picture's actions on hover, only where the thumbnail holds
             them whole: the row is sized in rem, which the UI scale sets */}
           {!isCompareCandidate && (
-            <div className="hidden opacity-0 transition-opacity group-hover:opacity-100 @min-[5.75rem]:block">
+            <div className="hidden opacity-0 transition-opacity group-hover:opacity-100 @min-[7rem]:block">
               <ResultThumbActions
                 result={result}
                 imageIndex={item.imageIndex}
+                onRestore={() => onRestore(item.resultId, item.imageIndex)}
                 onCompare={() => onCompare(item.resultId, item.imageIndex)}
               />
             </div>

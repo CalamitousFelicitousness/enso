@@ -1,4 +1,4 @@
-import { useMemo, useCallback } from "react";
+import { useCallback, useId, useMemo, useState } from "react";
 import { ArrowRight } from "lucide-react";
 import { toDisplayString } from "@/lib/utils";
 import {
@@ -11,10 +11,26 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Switch } from "@/components/ui/switch";
 import { useGenerationStore, type GenerationResult } from "@/stores/generationStore";
-import { applyParams } from "@/lib/request/restore";
+import {
+  applyParams,
+  restoreInputs,
+  restoreSettings,
+  restoreSettingsAndInputs,
+  resultTarget,
+} from "@/lib/request/restore";
 import { extractParams, resultSettings } from "@/lib/request/restoreParams";
 import type { GenerationState } from "@/stores/generationStore";
+import { useJobFact } from "@/hooks/useJobFact";
+import { hasLegacyInputs } from "@/inputs/legacyResult";
+import { resultActions } from "@/lib/jobs/cardActions";
+import {
+  INPUTS_FROM_RECORD,
+  RESTORE_DIALOG_TITLE,
+  settingsDifferText,
+  slotWords,
+} from "@/lib/jobs/text";
 
 interface GenerationDiffDialogProps {
   open: boolean;
@@ -323,7 +339,74 @@ export function GenerationDiffDialog({
   result,
   imageIndex = 0,
 }: GenerationDiffDialogProps) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-xl">
+        <DialogHeader>
+          <DialogTitle>{RESTORE_DIALOG_TITLE}</DialogTitle>
+          <DialogDescription className="sr-only">
+            What restoring the result's settings and inputs would change
+          </DialogDescription>
+        </DialogHeader>
+        {/* keyed so the picks start over for each result and each opening */}
+        <RestoreBody
+          key={`${open}:${result?.id ?? ""}:${imageIndex}`}
+          result={result}
+          imageIndex={imageIndex}
+          onClose={() => onOpenChange(false)}
+        />
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/** A row of the dialog's picks: what a restore takes, with why it cannot. */
+function PickRow({
+  label,
+  words,
+  checked,
+  disabled,
+  onCheckedChange,
+}: {
+  label: string;
+  words: string;
+  checked: boolean;
+  disabled: boolean;
+  onCheckedChange: (checked: boolean) => void;
+}) {
+  const id = useId();
+  return (
+    <label htmlFor={id} className="grid grid-cols-[auto_1fr] items-center gap-x-3 px-2 py-1">
+      <Switch
+        id={id}
+        className="row-span-2"
+        size="sm"
+        checked={checked}
+        disabled={disabled}
+        onCheckedChange={onCheckedChange}
+      />
+      <span className="text-2xs">{label}</span>
+      <span className="col-start-2 text-3xs leading-tight text-muted-foreground">{words}</span>
+    </label>
+  );
+}
+
+function RestoreBody({
+  result,
+  imageIndex,
+  onClose,
+}: {
+  result: GenerationResult | null;
+  imageIndex: number;
+  onClose: () => void;
+}) {
   const storeState = useGenerationStore();
+  const facts = useJobFact(result?.jobId);
+  // a pick left null takes the default: on where the restore can act
+  const [picks, setPicks] = useState<{ settings: boolean | null; inputs: boolean | null }>({
+    settings: null,
+    inputs: null,
+  });
 
   const resultParams = useMemo(() => {
     const settings = result ? resultSettings(result, imageIndex) : null;
@@ -356,31 +439,56 @@ export function GenerationDiffDialog({
 
   const totalChanged = groupedRows.reduce((sum, g) => sum + g.changedCount, 0);
 
-  const handleApplyAll = useCallback(() => {
-    const updates: Record<string, unknown> = {};
-    for (const group of groupedRows) {
-      for (const row of group.rows) {
-        if (row.changed) Object.assign(updates, row.apply);
-      }
-    }
-    applyParams(updates, `${totalChanged} setting${totalChanged !== 1 ? "s" : ""} applied`);
-    onOpenChange(false);
-  }, [groupedRows, totalChanged, onOpenChange]);
+  const slots = result
+    ? resultActions(
+        {
+          jobId: result.jobId ?? null,
+          type: result.type ?? null,
+          legacyInputs: hasLegacyInputs(result),
+        },
+        facts,
+      )
+    : null;
+  const settingsWords = slots ? slotWords(slots.restoreSettings) : null;
+  const inputsWords = slots ? slotWords(slots.restoreInputs) : null;
+  const settingsAvailable = settingsWords?.reason === null && totalChanged > 0;
+  const inputsAvailable = inputsWords?.reason === null;
+  const settingsOn = settingsAvailable && (picks.settings ?? true);
+  const inputsOn = inputsAvailable && (picks.inputs ?? true);
+
+  const handleRestore = useCallback(() => {
+    if (!result) return;
+    const target = resultTarget(result, imageIndex);
+    if (settingsOn && inputsOn) void restoreSettingsAndInputs(target);
+    else if (settingsOn) restoreSettings(target);
+    else if (inputsOn) void restoreInputs(target);
+    onClose();
+  }, [result, imageIndex, settingsOn, inputsOn, onClose]);
 
   const handleApplyOne = useCallback((row: DiffRow) => {
     applyParams(row.apply, `${labelOf(row.key)} applied`);
   }, []);
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-xl">
-        <DialogHeader>
-          <DialogTitle>Compare Settings ({totalChanged} changed)</DialogTitle>
-          <DialogDescription className="sr-only">
-            Side-by-side comparison of generation parameters
-          </DialogDescription>
-        </DialogHeader>
-        <ScrollArea className="max-h-[60vh]">
+    <>
+      <div className="flex flex-col border-b border-border/50 pb-1">
+        <PickRow
+          label="Settings"
+          words={settingsWords?.reason ?? settingsDifferText(totalChanged)}
+          checked={settingsOn}
+          disabled={!settingsAvailable}
+          onCheckedChange={(settings) => setPicks((p) => ({ ...p, settings }))}
+        />
+        <PickRow
+          label="Inputs"
+          words={inputsWords?.reason ?? inputsWords?.note ?? INPUTS_FROM_RECORD}
+          checked={inputsOn}
+          disabled={!inputsAvailable}
+          onCheckedChange={(inputs) => setPicks((p) => ({ ...p, inputs }))}
+        />
+      </div>
+      {groupedRows.length > 0 && (
+        <ScrollArea className="max-h-[50vh]">
           <table className="w-full text-2xs">
             <thead>
               <tr className="border-b text-left text-muted-foreground">
@@ -403,16 +511,16 @@ export function GenerationDiffDialog({
             </tbody>
           </table>
         </ScrollArea>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Close
-          </Button>
-          <Button onClick={handleApplyAll} disabled={totalChanged === 0}>
-            Apply All ({totalChanged})
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+      )}
+      <DialogFooter>
+        <Button variant="outline" onClick={onClose}>
+          Close
+        </Button>
+        <Button onClick={handleRestore} disabled={!settingsOn && !inputsOn}>
+          Restore
+        </Button>
+      </DialogFooter>
+    </>
   );
 }
 

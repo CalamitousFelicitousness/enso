@@ -89,14 +89,9 @@ export function FramePanels({
   const canRemove = outline.entries.length > 1;
   const frameIds = layout.frames.map((f) => f.frameId);
   const { genSize, displayW } = layout;
-  const outputSize = resolveOutputSize(
-    genSize,
-    hiresEnabled,
-    hiresScale,
-    hiresResizeX,
-    hiresResizeY,
-    sizeMultiple,
-  );
+  const outputSize =
+    layout.outputPicture ??
+    resolveOutputSize(genSize, hiresEnabled, hiresScale, hiresResizeX, hiresResizeY, sizeMultiple);
   const outputSizeText = sizeText(outputSize);
 
   return (

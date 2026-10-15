@@ -62,6 +62,7 @@ export async function routeResult(
             jobId: id,
             type: job.request?.type ?? "generate",
             images: result.images.map((img) => img.url),
+            sizes: result.images.map((img) => ({ width: img.width, height: img.height })),
             // Server returns snake_case JSON; the structural assignment to
             // WireParams here crosses the wire-contract boundary.
             parameters: result.params,
