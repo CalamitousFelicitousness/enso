@@ -83,7 +83,7 @@ export const GalleryCard = memo(function GalleryCard({
       onMouseLeave={handleMouseLeave}
       {...dragProps}
       className={cn(
-        "group relative rounded-md overflow-hidden bg-muted border transition-all cursor-pointer",
+        "group relative rounded-md overflow-hidden bg-muted border transition-[border-color,box-shadow] cursor-pointer",
         selected
           ? "border-primary ring-1 ring-primary/30"
           : isSelected

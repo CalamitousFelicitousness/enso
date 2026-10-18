@@ -12,6 +12,7 @@ import { galleryPicture } from "@/inputs/adopt";
 import { failedWith } from "@/lib/mediaFiles";
 import { isVideoFile } from "@/lib/mediaType";
 import { VIDEO_TO_CANVAS_TEXT } from "@/lib/inputs/text";
+import { gridColumns } from "@/lib/gallery/grid";
 import { isTrashFolder, sortTime } from "@/lib/gallery/trash";
 import { SlotMenuItem } from "@/components/ui/slot-row";
 import {
@@ -46,9 +47,10 @@ export function GalleryGrid({ actions, trashEmpty }: GalleryGridProps) {
   // The card the menu was opened on; null when it was opened beside the cards
   const [contextFile, setContextFile] = useState<GalleryFile | null>(null);
 
-  // ResizeObserver for responsive columns
-  useEffect(() => {
-    const el = containerRef.current;
+  // Follows whichever element holds the ref: the empty states and the grid are
+  // different elements. A hidden view reports a width of 0
+  const observeWidth = useCallback((el: HTMLDivElement | null) => {
+    containerRef.current = el;
     if (!el) return;
     const observer = new ResizeObserver((entries) => {
       const w = entries[0]?.contentRect.width;
@@ -56,7 +58,10 @@ export function GalleryGrid({ actions, trashEmpty }: GalleryGridProps) {
     });
     observer.observe(el);
     setContainerWidth(el.clientWidth || 800);
-    return () => observer.disconnect();
+    return () => {
+      observer.disconnect();
+      containerRef.current = null;
+    };
   }, []);
 
   // Keep a non-reactive ref to thumbs for sort comparisons so that
@@ -166,16 +171,20 @@ export function GalleryGrid({ actions, trashEmpty }: GalleryGridProps) {
     setSortedFiles(sorted);
   }, [sorted, setSortedFiles]);
 
-  const cols = Math.max(1, Math.floor((containerWidth + GAP) / (thumbSize + GAP)));
+  // As many columns as the width holds at the chosen size, the cards grown to fill it
+  const { cols, size } = gridColumns(containerWidth, thumbSize, GAP);
+  const cardSize = Math.floor(size);
   const rowCount = Math.ceil(sorted.length / cols);
 
   // eslint-disable-next-line react-hooks/incompatible-library -- @tanstack/react-virtual
   const virtualizer = useVirtualizer({
     count: rowCount,
     getScrollElement: () => containerRef.current,
-    estimateSize: () => thumbSize + GAP,
+    estimateSize: () => cardSize + GAP,
     overscan: 3,
   });
+  // The virtualizer reads a row's estimate once; a new card size needs a new read
+  useEffect(() => virtualizer.measure(), [virtualizer, cardSize]);
 
   // Compute visible file IDs for thumbnail loading - memoize on the actual
   // row range (two numbers) rather than the virtualizer array reference,
@@ -256,7 +265,7 @@ export function GalleryGrid({ actions, trashEmpty }: GalleryGridProps) {
   if (files.length === 0) {
     return (
       <div
-        ref={containerRef}
+        ref={observeWidth}
         className="flex flex-col items-center justify-center h-full text-muted-foreground overflow-auto"
       >
         <p className="text-sm">{isTrash ? trashEmpty : "No images"}</p>
@@ -268,7 +277,7 @@ export function GalleryGrid({ actions, trashEmpty }: GalleryGridProps) {
   if (sorted.length === 0) {
     return (
       <div
-        ref={containerRef}
+        ref={observeWidth}
         className="flex flex-col items-center justify-center h-full text-muted-foreground overflow-auto"
       >
         <p className="text-sm">No matches</p>
@@ -282,8 +291,8 @@ export function GalleryGrid({ actions, trashEmpty }: GalleryGridProps) {
       <ContextMenuTrigger asChild>
         {/* Cleared before a card's own handler names its file, so a menu opened beside the cards names none */}
         <div
-          ref={containerRef}
-          className="h-full overflow-auto"
+          ref={observeWidth}
+          className="h-full overflow-auto [scrollbar-gutter:stable]"
           data-key-surface="gallery"
           onContextMenuCapture={() => setContextFile(null)}
         >
@@ -320,7 +329,7 @@ export function GalleryGrid({ actions, trashEmpty }: GalleryGridProps) {
                           key={file.id}
                           file={file}
                           index={idx}
-                          size={thumbSize}
+                          size={cardSize}
                           onClick={handleClick}
                           onDoubleClick={handleDoubleClick}
                           onContextMenu={handleContextMenu}

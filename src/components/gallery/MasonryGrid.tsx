@@ -2,6 +2,7 @@ import { useMemo, useRef, useEffect } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useGalleryStore } from "@/stores/galleryStore";
 import type { GalleryFile, CachedThumb } from "@/api/types/gallery";
+import { gridColumns } from "@/lib/gallery/grid";
 import { ConnectedGalleryCard } from "./GalleryCard";
 
 const GAP = 6;
@@ -49,10 +50,10 @@ export function MasonryGrid({
     [],
   );
 
+  const { cols, size: colWidth } = gridColumns(containerWidth, thumbSize, GAP, 2);
+
   // Compute masonry layout: bin-pack items into columns
   const { rows, totalHeight } = useMemo(() => {
-    const cols = Math.max(2, Math.floor((containerWidth + GAP) / (thumbSize + GAP)));
-    const colWidth = (containerWidth - (cols + 1) * GAP) / cols;
     const colHeights: number[] = new Array<number>(cols).fill(GAP);
     const currentThumbs = thumbsRef.current;
     const items: MasonryItem[] = [];
@@ -97,8 +98,8 @@ export function MasonryGrid({
     }
 
     const total = Math.max(...colHeights);
-    return { rows: masonryRows, totalHeight: total, cols, colWidth };
-  }, [sorted, containerWidth, thumbSize]);
+    return { rows: masonryRows, totalHeight: total };
+  }, [sorted, cols, colWidth, thumbSize]);
 
   // eslint-disable-next-line react-hooks/incompatible-library -- @tanstack/react-virtual
   const virtualizer = useVirtualizer({
@@ -107,9 +108,8 @@ export function MasonryGrid({
     estimateSize: (i) => rows[i]?.height ?? thumbSize,
     overscan: 3,
   });
-
-  const cols = Math.max(2, Math.floor((containerWidth + GAP) / (thumbSize + GAP)));
-  const colWidth = (containerWidth - (cols + 1) * GAP) / cols;
+  // The virtualizer reads a row's estimate once; a new layout needs a new read
+  useEffect(() => virtualizer.measure(), [virtualizer, rows]);
 
   return (
     <div className="relative w-full" style={{ height: totalHeight }}>
