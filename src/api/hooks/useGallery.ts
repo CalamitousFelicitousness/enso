@@ -24,6 +24,7 @@ import {
 import { Semaphore } from "@/lib/concurrency";
 import { filesDeletedText } from "@/lib/gallery/text";
 import { isTrashFolder } from "@/lib/gallery/trash";
+import { saveBlob } from "@/lib/mediaFiles";
 
 const thumbSemaphore = new Semaphore(16);
 
@@ -771,15 +772,7 @@ export function useMoveFiles() {
 
 export function useDownloadFiles() {
   const downloadFn = useCallback(async (files: string[]) => {
-    const blob = await api.postBinary("/sdapi/v2/browser/download", { files });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "gallery.zip";
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    saveBlob(await api.postBinary("/sdapi/v2/browser/download", { files }), "gallery.zip");
   }, []);
 
   return useMutation({

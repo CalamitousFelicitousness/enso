@@ -74,7 +74,8 @@ export function dispositionName(header: string | null): string | null {
   return /filename="?([^";]+)"?/i.exec(header)?.[1] ?? null;
 }
 
-function save(blob: Blob, filename: string): void {
+/** Hand the browser a blob to save under the name. */
+export function saveBlob(blob: Blob, filename: string): void {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
@@ -88,12 +89,12 @@ function save(blob: Blob, filename: string): void {
 /** Save a stored file under the given name, else the one the server gives it. */
 export async function downloadMedia(image: string, filename?: string): Promise<void> {
   if (isRawBase64(image)) {
-    save(base64ToBlob(image), filename ?? "image.png");
+    saveBlob(base64ToBlob(image), filename ?? "image.png");
     return;
   }
   const response = await fetchOk(image);
   const name = filename ?? dispositionName(response.headers.get("content-disposition"));
-  save(await response.blob(), name ?? "download");
+  saveBlob(await response.blob(), name ?? "download");
 }
 
 /** Open a stored file in a new tab as a local copy, so a token in its URL never reaches the tab's address
@@ -133,7 +134,7 @@ export async function downloadAllAsZip(
     }
   }
   const content = await zip.generateAsync({ type: "blob" });
-  save(content, `enso_${new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19)}.zip`);
+  saveBlob(content, `enso_${new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19)}.zip`);
 }
 
 /** A rejection handler that says what failed and why. */

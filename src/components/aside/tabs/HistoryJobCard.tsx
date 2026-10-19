@@ -10,7 +10,7 @@ import { loadsModel } from "@/lib/jobs/requests";
 import { RESTORE_BOTH, RESTORE_SETTINGS, RUN_AGAIN, slotWords } from "@/lib/jobs/text";
 import { DELETE_JOB, DELETE_JOB_NOTE } from "@/lib/gallery/text";
 import { ageText } from "@/lib/media/text";
-import { jobTarget, restoreSettings, restoreSettingsAndInputs } from "@/lib/request/restore";
+import { jobTarget, restoreFrom } from "@/lib/request/restore";
 import { MediaImg } from "@/components/ui/media";
 import { Badge } from "@/components/ui/badge";
 import { JobWarnings } from "@/components/generation/JobWarnings";
@@ -57,9 +57,7 @@ export function HistoryJobCard({ job }: HistoryJobCardProps) {
 
   const restore = (both: boolean) => {
     setRestoring(true);
-    void jobTarget(job)
-      .then((target) => (both ? restoreSettingsAndInputs(target) : restoreSettings(target)))
-      .finally(() => setRestoring(false));
+    void restoreFrom(jobTarget(job), both ? "both" : "settings").finally(() => setRestoring(false));
   };
   const act: Record<HistoryAction, () => void> = {
     restoreSettings: () => restore(false),

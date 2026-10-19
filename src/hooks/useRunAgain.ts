@@ -1,14 +1,18 @@
 // Run a job again from its record: every upload is staged under the hash it
 // went out with, so the server's copies go as they are and only what it lacks
 // is made again from the record's frames. The request goes out as it was
-// sent: an image job on whatever model is loaded, a video job loading its own
-// when it runs. Its uploads can be cancelled from its toast; its post cannot.
+// sent: an image job after a load of its own model when this server has the
+// file, else on the loaded one; a video job loads its own when it runs. Its
+// uploads can be cancelled from its toast; its post cannot.
 
 import { useCallback, useSyncExternalStore } from "react";
 import { toast } from "sonner";
 import { api } from "@/api/client";
 import { queryClient } from "@/api/queryClient";
 import type { CheckpointInfoV2 } from "@/api/types/models";
+import { modelListQuery } from "@/api/hooks/useModels";
+import { queueModelLoad } from "@/api/models";
+import { checkpointState, recordedModel } from "@/lib/recipes/models";
 import type { Job } from "@/api/types/v2";
 import { readBlobs } from "@/inputs/db";
 import { loadRecord, replaySubmission, type RecordLoad } from "@/inputs/jobs";
@@ -44,22 +48,36 @@ function subscribe(listener: () => void): () => void {
   return () => listeners.delete(listener);
 }
 
-/** Say so when the loaded model is not the one the job ran on. */
-async function noteModel(checkpoint: { title: string; name: string }): Promise<void> {
+/** When another model is loaded: queue a load of the job's own ahead of it if
+ * this server has that file, else say the job runs on the loaded model.
+ * Returns the model loaded first. */
+async function modelFirst(checkpoint: { title: string; name: string }): Promise<string | null> {
+  let loaded: CheckpointInfoV2;
   try {
-    const loaded = await queryClient.fetchQuery({
+    loaded = await queryClient.fetchQuery({
       queryKey: ["checkpoint"],
       queryFn: () => api.get<CheckpointInfoV2>("/sdapi/v2/checkpoint"),
       staleTime: 30_000,
     });
-    if (loaded.loaded && loaded.title && loaded.title !== checkpoint.title) {
-      toast.info(OTHER_MODEL, {
-        description: otherModelText(checkpoint.name, loaded.name ?? loaded.title),
-      });
-    }
   } catch {
     // the server says no more than the job will
+    return null;
   }
+  if (!loaded.loaded || !loaded.title || loaded.title === checkpoint.title) return null;
+  try {
+    const installed = await queryClient.fetchQuery(modelListQuery);
+    const { state, match } = checkpointState(recordedModel(checkpoint), installed);
+    if (state === "installed" && match && match.title !== loaded.title) {
+      await queueModelLoad(match.title);
+      return match.model_name;
+    }
+  } catch {
+    // without the list or the load, the job runs on the loaded model as the note says
+  }
+  toast.info(OTHER_MODEL, {
+    description: otherModelText(checkpoint.name, loaded.name ?? loaded.title),
+  });
+  return null;
 }
 
 /** What the server lost that cannot be made again: a source reads a picture
@@ -101,9 +119,10 @@ export async function runAgain(jobId: string): Promise<Job | null> {
       return null;
     }
     const type = record.request["type"];
-    if (record.checkpoint && typeof type === "string" && LOCAL.has(type)) {
-      await noteModel(record.checkpoint);
-    }
+    const first =
+      record.checkpoint && typeof type === "string" && LOCAL.has(type)
+        ? await modelFirst(record.checkpoint)
+        : null;
     const batch = new UploadBatch("Run again", {
       signal: abort.signal,
       onProgress: (p) => {
@@ -116,7 +135,11 @@ export async function runAgain(jobId: string): Promise<Job | null> {
       },
     });
     const job = await submitJob(replaySubmission(load, batch));
-    const loads = typeof type === "string" ? loadsModel(type, record.request) : null;
+    const loads = first
+      ? { model: first }
+      : typeof type === "string"
+        ? loadsModel(type, record.request)
+        : null;
     toast.success(runAgainQueuedText(loads), { id, cancel: undefined });
     return job;
   } catch (err) {

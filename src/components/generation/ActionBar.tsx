@@ -8,21 +8,15 @@ import {
 import { useInputStore } from "@/stores/inputStore";
 import { activeProcessor, isPlaced } from "@/lib/inputs/types";
 import { firstInitialEntry } from "@/lib/inputs/outline";
-import { submissionOf, type Submission } from "@/inputs/submit";
+import { buildImagesSubmission } from "@/inputs/buildImages";
 import type { UploadBatch } from "@/inputs/uploads";
 import { useActionProgress, useUploadView } from "@/hooks/useActionProgress";
 import { ACTIONS } from "@/lib/media/progress";
 import { applyFix } from "@/inputs/processing";
 import { outlineOf } from "@/inputs/outlineOf";
 import { useOutlineWithEnv } from "@/inputs/useOutline";
-import { processorFacts } from "@/lib/processorUtils";
-import { preprocessorsQuery } from "@/api/hooks/useControl";
 import { detailProcessedText, fixLabel, problemText } from "@/lib/inputs/text";
-import { buildControlRequest } from "@/lib/request/buildGenerate";
-import { InputRefusal } from "@/lib/request/refusal";
-import { buildCloudImageRequest } from "@/lib/request/buildCloudImage";
-import { buildDetailRequest } from "@/lib/request/buildDetail";
-import { restoreSettings, restoreSettingsAndInputs, resultTarget } from "@/lib/request/restore";
+import { restoreFrom, resultTarget } from "@/lib/request/restore";
 import { useRunAgain } from "@/hooks/useRunAgain";
 import { useJobFact } from "@/hooks/useJobFact";
 import { BEING_SENT, NO_SKIP, SENDING, STOP_GENERATION, STOP_UPLOAD } from "@/lib/media/text";
@@ -37,25 +31,12 @@ import {
   RESTORE_LAST_TITLE,
   RUN_LAST_AGAIN,
 } from "@/lib/jobs/text";
-import { DEFAULT_SIZE_MULTIPLE, referenceSetsSize } from "@/lib/sizeCompute";
-import { useModelSelectionStore } from "@/stores/modelSelectionStore";
-import {
-  capabilityRecord,
-  recordSizes,
-  useModelCapabilityStore,
-  type ModelCapabilityRecord,
-} from "@/stores/modelCapabilityStore";
 import { usePromptHistoryStore } from "@/stores/promptHistoryStore";
 import { useSubmitToQueue } from "@/hooks/useSubmitToQueue";
-import { UserAbortError } from "@/lib/abort";
 import { sendToJob } from "@/hooks/useJobTracker";
 import { useDeleteJob } from "@/api/hooks/useJobs";
 import { useLoadModel } from "@/api/hooks/useModels";
 import { useModelCapabilities } from "@/hooks/useModelCapabilities";
-import { api } from "@/api/client";
-import type { CheckpointInfoV2, DetailerMode } from "@/api/types/models";
-import type { ServerInfo } from "@/api/types/server";
-import { useQueryClient } from "@tanstack/react-query";
 import {
   ArchiveRestore,
   ChevronDown,
@@ -82,7 +63,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { BatchDialog } from "@/components/generation/BatchDialog";
 import { XyzGridDialog } from "@/components/generation/XyzGridDialog";
-import { GenerationDiffDialog } from "@/components/generation/GenerationDiffDialog";
+import { useRestoreDialogStore } from "@/stores/restoreDialogStore";
 
 const IMAGES_ACTION = ACTIONS.images;
 
@@ -165,162 +146,18 @@ export const ActionBar = memo(function ActionBar() {
 
   const [batchOpen, setBatchOpen] = useState(false);
   const [xyzOpen, setXyzOpen] = useState(false);
-  const [diffOpen, setDiffOpen] = useState(false);
+  const openRestore = useRestoreDialogStore((s) => s.openResult);
   const cancelJob = useDeleteJob();
   const loadModel = useLoadModel();
-  const queryClient = useQueryClient();
 
   const buildSubmission = useCallback(
-    async (batch: UploadBatch): Promise<Submission> => {
-      const { activeModel } = useModelSelectionStore.getState();
-
-      // Active model belongs to the Video panel - refuse to build an image
-      // request from it. UserAbortError tells useSubmitToQueue to skip the
-      // "Failed to submit job" toast since we already surfaced guidance.
-      if (activeModel?.source === "local-video") {
-        toast.warning("Switch to Video view to use this model");
-        throw new UserAbortError("local-video model active on Images view");
-      }
-
-      // Selecting a local model only updates the store (manual-load semantics),
-      // so the backend may still have a different checkpoint loaded. Load the
-      // selected one before queueing or the job runs on the wrong model. Going
-      // through the shared ["checkpoint"] query and load mutation refreshes the
-      // dropdown's loaded-model label and dedupes a single load across the
-      // batch/xyz paths, which call buildRequest once.
-      let maxInputImages: number | null = null;
-      let requestSetsSize: boolean | null = null;
-      let sizeMultiple = DEFAULT_SIZE_MULTIPLE;
-      let detailerMode: DetailerMode | null = null;
-      let strengthSupported = true;
-      let controlSeparateInit: boolean | null = null;
-      let controlUnified: boolean | null = null;
-      let sizes = { shown: recordSizes(null), loaded: recordSizes(null) };
-      let checkpoint: Submission["checkpoint"] =
-        activeModel?.source === "cloud"
-          ? { title: `${activeModel.provider}/${activeModel.id}`, name: activeModel.name }
-          : null;
-      // The canvas sized a lone Reference from the model it knew before this load
-      let referenceSets = activeModel?.source !== "cloud";
-      if (activeModel?.source === "local") {
-        const fetchCheckpoint = (staleTime: number) =>
-          queryClient.fetchQuery({
-            queryKey: ["checkpoint"],
-            queryFn: () => api.get<CheckpointInfoV2>("/sdapi/v2/checkpoint"),
-            staleTime,
-          });
-        let loaded = await fetchCheckpoint(30_000);
-        const shown = loaded.loaded && loaded.title === activeModel.title;
-        // For a pick not loaded yet, the canvas went by what the model reported when last loaded
-        const remembered: ModelCapabilityRecord | undefined =
-          useModelCapabilityStore.getState().byTitle[activeModel.title];
-        referenceSets = referenceSetsSize(
-          true,
-          (shown ? loaded.request_sets_size : remembered?.request_sets_size) ?? null,
-        );
-        const shownSizes = recordSizes(shown ? capabilityRecord(loaded) : remembered);
-        if (!loaded.loaded || loaded.title !== activeModel.title) {
-          toast.info("Loading model", { description: activeModel.title });
-          await loadModel.mutateAsync(activeModel.title);
-          // The input limit and size multiple belong to the model just loaded
-          loaded = await fetchCheckpoint(0);
-        }
-        checkpoint = { title: loaded.title ?? activeModel.title, name: activeModel.model_name };
-        maxInputImages = loaded.max_input_images ?? null;
-        requestSetsSize = loaded.request_sets_size ?? null;
-        sizeMultiple = loaded.size_multiple ?? DEFAULT_SIZE_MULTIPLE;
-        detailerMode = loaded.detailer_mode ?? null;
-        strengthSupported = loaded.strength_applicable ?? true;
-        controlUnified = loaded.control_unified ?? null;
-        sizes = { shown: shownSizes, loaded: recordSizes(capabilityRecord(loaded)) };
-        // Whether this sdnext leaves a control unit its own picture beside an Initial picture
-        const info = await queryClient.fetchQuery({
-          queryKey: ["server-info"],
-          queryFn: () => api.get<ServerInfo>("/sdapi/v2/server-info"),
-          staleTime: 30_000,
-        });
-        controlSeparateInit = info.capabilities?.control_separate_init ?? null;
-      }
-
-      // Record the prompt being generated into the prompt-history popover.
-      const submitted = useGenerationStore.getState();
-      usePromptHistoryStore.getState().addEntry({
-        prompt: submitted.prompt,
-        negative: submitted.negativePrompt,
-        model: activeModel
-          ? activeModel.source === "local"
-            ? activeModel.model_name
-            : activeModel.name
-          : "",
-        width: submitted.width,
-        height: submitted.height,
-        steps: submitted.steps,
-      });
-
-      // Every map key names the server's processors: the list is fetched, not
-      // taken from a canvas that may not have it yet
-      const processors = processorFacts(await queryClient.fetchQuery(preprocessorsQuery));
-
-      if (activeModel?.source === "cloud") {
-        const { request, inputs, uploader } = await buildCloudImageRequest(processors, batch);
-        clearSelection();
-        return submissionOf({
-          domain: "generate",
-          request,
-          batch,
-          uploader,
-          inputs,
-          mapKeys: [],
-          checkpoint,
-        });
-      }
-
-      const gen = useGenerationStore.getState();
-      if (gen.detailerEnabled && gen.detailerOnly) {
-        const { request, inputs, uploader } = await buildDetailRequest(batch);
-        clearSelection();
-        return submissionOf({
-          domain: "generate",
-          request,
-          batch,
-          uploader,
-          inputs,
-          mapKeys: [],
-          checkpoint,
-        });
-      }
-
-      const { request, mapKeys, inputs, uploader } = await buildControlRequest({
-        maxInputImages,
-        requestSetsSize,
-        sizeMultiple,
-        referenceSets,
-        strengthSupported,
-        detailerMode,
-        controlSeparateInit,
-        controlUnified,
-        sizes,
-        processors,
-        batch,
-      }).catch((err: unknown) => {
-        if (err instanceof InputRefusal) {
-          toast.warning("Can't generate with these input images", { description: err.message });
-          throw new UserAbortError(err.message);
-        }
-        throw err;
-      });
-      clearSelection();
-      return submissionOf({
-        domain: "generate",
-        request: { type: "generate", ...request },
-        batch,
-        uploader,
-        inputs,
-        mapKeys,
-        checkpoint,
-      });
-    },
-    [clearSelection, loadModel, queryClient],
+    (batch: UploadBatch) =>
+      buildImagesSubmission(batch, {
+        loadModel: (title) => loadModel.mutateAsync(title),
+        recordPrompt: (draft) => usePromptHistoryStore.getState().addEntry(draft),
+        clearSelection,
+      }),
+    [clearSelection, loadModel],
   );
 
   const {
@@ -381,9 +218,7 @@ export const ActionBar = memo(function ActionBar() {
         toast.info(NO_RESULT_YET);
         return;
       }
-      const target = resultTarget(lastResult, 0);
-      if (inputs) void restoreSettingsAndInputs(target);
-      else restoreSettings(target);
+      void restoreFrom(resultTarget(lastResult, 0), inputs ? "both" : "settings");
     },
     [lastResult],
   );
@@ -415,10 +250,10 @@ export const ActionBar = memo(function ActionBar() {
         toast.info(NO_RESULT_YET);
         return;
       }
-      if (e.shiftKey) setDiffOpen(true);
+      if (e.shiftKey) openRestore(lastResult.id, 0);
       else restoreLast(false);
     },
-    [lastResult, restoreLast],
+    [lastResult, openRestore, restoreLast],
   );
 
   // Scoped to the Images view: this panel stays mounted under KeepAlive after
@@ -494,8 +329,7 @@ export const ActionBar = memo(function ActionBar() {
     keywords: ["diff", "compare", "history", "params"],
     icon: History,
     run: () => {
-      if (!lastResult) return;
-      setDiffOpen(true);
+      if (lastResult) openRestore(lastResult.id, 0);
     },
   });
   useRegisterCommand({
@@ -600,26 +434,19 @@ export const ActionBar = memo(function ActionBar() {
 
       {/* Restore last settings */}
       {!isGenerating && (
-        <>
-          <Button
-            type="button"
-            data-param="restore"
-            onClick={handleHistoryClick}
-            aria-label={RESTORE_LAST}
-            aria-disabled={lastResult ? undefined : true}
-            className={lastResult ? undefined : "opacity-50"}
-            variant="secondary"
-            size="icon-sm"
-            title={lastResult ? RESTORE_LAST_TITLE : NO_RESULT_YET}
-          >
-            <History size={14} />
-          </Button>
-          <GenerationDiffDialog
-            open={diffOpen}
-            onOpenChange={setDiffOpen}
-            result={lastResult ?? null}
-          />
-        </>
+        <Button
+          type="button"
+          data-param="restore"
+          onClick={handleHistoryClick}
+          aria-label={RESTORE_LAST}
+          aria-disabled={lastResult ? undefined : true}
+          className={lastResult ? undefined : "opacity-50"}
+          variant="secondary"
+          size="icon-sm"
+          title={lastResult ? RESTORE_LAST_TITLE : NO_RESULT_YET}
+        >
+          <History size={14} />
+        </Button>
       )}
 
       {/* Skip: always in its slot, unavailable while no generation runs */}

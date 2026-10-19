@@ -1,4 +1,6 @@
 import { useCallback, useState } from "react";
+import { toast } from "sonner";
+import { nothingUsedText } from "@/lib/recipes/text";
 import {
   ENTRY_MIME,
   IMAGE_MIME,
@@ -19,6 +21,10 @@ interface UseDropTargetOptions {
   /** What the target takes. Drops only: pasted files often have no usable
    * name, so the paste path stays on MIME. */
   acceptFile?: (file: File) => boolean;
+  /** What the target takes, for the words when a drop holds none of it. */
+  kinds?: string;
+  /** A drop of files the target does not take; without it the drop is said in a toast. */
+  onRefused?: (files: File[], e: React.DragEvent) => void;
 }
 
 const isImageFile = (file: File) => file.type.startsWith("image/");
@@ -32,6 +38,8 @@ export function useDropTarget({
   onFileDrop,
   onFilesDrop,
   acceptFile,
+  kinds = "pictures",
+  onRefused,
 }: UseDropTargetOptions) {
   const [isOver, setIsOver] = useState(false);
   const takesFiles = onFilesDrop !== undefined || onFileDrop !== undefined;
@@ -85,12 +93,17 @@ export function useDropTarget({
         onDropImage?.(image, e);
         return;
       }
-      const files = Array.from(e.dataTransfer.files ?? []).filter(acceptFile ?? isImageFile);
-      if (files.length === 0) return;
+      const dropped = Array.from(e.dataTransfer.files ?? []);
+      const files = dropped.filter(acceptFile ?? isImageFile);
+      if (files.length === 0) {
+        if (onRefused) onRefused(dropped, e);
+        else toast.info(nothingUsedText("drop", kinds));
+        return;
+      }
       if (onFilesDrop) onFilesDrop(files, e);
       else if (files[0]) onFileDrop?.(files[0], e);
     },
-    [takes, onDropEntry, onDropImage, onFilesDrop, onFileDrop, acceptFile],
+    [takes, onDropEntry, onDropImage, onFilesDrop, onFileDrop, acceptFile, kinds, onRefused],
   );
 
   return { onDragOver, onDragEnter, onDragLeave, onDrop, isOver };

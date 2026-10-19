@@ -6,8 +6,9 @@ import type { JobDomain } from "@/lib/jobs/domains";
 import type { Fit } from "@/lib/media/sizeRule";
 import { refsIn } from "@/lib/jobs/replay";
 import type { ImportNote } from "./legacy";
-import { loose, type Loose } from "./loose";
+import type { Loose } from "./loose";
 import type { SizeSourcePick } from "./outline";
+import { readers } from "./read";
 import {
   cidsOf,
   type ActiveItem,
@@ -145,57 +146,9 @@ export class NewerDocument extends Error {
   }
 }
 
-function fail(path: string): never {
+const { fields, exact, list, text, flag, num, oneOf, orNull, json } = readers((path) => {
   throw new UnreadableDocument(`stored inputs: unexpected value at ${path}`);
-}
-
-function fields<T>(value: unknown, path: string): Loose<T> {
-  return loose<T>(value) ?? fail(path);
-}
-
-/** `read` with every key of `raw` accounted for. */
-function exact<T extends object>(raw: Loose<T>, path: string, read: T): T {
-  for (const key of Object.keys(raw)) {
-    if (!Object.hasOwn(read, key)) fail(`${path}.${key}`);
-  }
-  return read;
-}
-
-function list(value: unknown, path: string): unknown[] {
-  return Array.isArray(value) ? value : fail(path);
-}
-
-function text(value: unknown, path: string): string {
-  return typeof value === "string" ? value : fail(path);
-}
-
-function flag(value: unknown, path: string): boolean {
-  return typeof value === "boolean" ? value : fail(path);
-}
-
-function num(value: unknown, path: string): number {
-  return typeof value === "number" && Number.isFinite(value) ? value : fail(path);
-}
-
-function oneOf<T extends string>(value: unknown, options: readonly T[], path: string): T {
-  return options.find((option) => option === value) ?? fail(path);
-}
-
-function orNull<T>(raw: unknown, read: (raw: unknown) => T): T | null {
-  return raw === null ? null : read(raw);
-}
-
-function json(value: unknown, path: string): JsonValue {
-  if (value === null || typeof value === "string" || typeof value === "boolean") return value;
-  if (typeof value === "number") return num(value, path);
-  if (Array.isArray(value)) return value.map((v, i) => json(v, `${path}[${i}]`));
-  if (typeof value === "object") {
-    return Object.fromEntries(
-      Object.entries(value).map(([key, v]) => [key, json(v, `${path}.${key}`)]),
-    );
-  }
-  return fail(path);
-}
+});
 
 const ROLES: readonly FrameRole[] = ["initial", "reference", "control", "ipAdapter"];
 const MEDIA: readonly MediaKind[] = ["image", "video", "audio"];
@@ -997,6 +950,11 @@ function fitOf(value: unknown, path: string): Fit {
     height: num(f.height, `${path}.height`),
     mode: oneOf(f.mode, FIT_MODES, `${path}.mode`),
   });
+}
+
+/** A record's ref source, read strictly; throws `UnreadableDocument`. */
+export function readSource(value: unknown, path: string): Source {
+  return source(value, path);
 }
 
 function source(value: unknown, path: string): Source {

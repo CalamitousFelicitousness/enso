@@ -25,6 +25,8 @@ interface CanvasSurfaceProps {
   onDropFiles?: (files: File[], point: SurfacePoint) => void;
   /** What a drop takes. Defaults to images by MIME. */
   acceptFile?: (file: File) => boolean;
+  /** What a drop takes, in words, for a drop that holds none of it. */
+  acceptKinds?: string;
   onDropImage?: (payload: ImagePayload, point: SurfacePoint) => void;
   /** A library entry; without this the surface refuses entries. */
   onDropEntry?: (payload: EntryPayload, point: SurfacePoint) => void;
@@ -47,6 +49,7 @@ export function CanvasSurface({
   onDropEntry,
   onPasteFiles,
   acceptFile,
+  acceptKinds,
   className,
 }: CanvasSurfaceProps) {
   const overlayRef = useRef<HTMLDivElement>(null);
@@ -84,6 +87,7 @@ export function CanvasSurface({
       [onDropFiles, pointFrom],
     ),
     ...(acceptFile ? { acceptFile } : {}),
+    ...(acceptKinds ? { kinds: acceptKinds } : {}),
   });
 
   const visible = useKeepAliveVisible();

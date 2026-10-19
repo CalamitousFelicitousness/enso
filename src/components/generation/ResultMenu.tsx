@@ -35,12 +35,8 @@ import {
   RUN_AGAIN,
   slotWords,
 } from "@/lib/jobs/text";
-import {
-  restoreInputs,
-  restoreSettings,
-  restoreSettingsAndInputs,
-  resultTarget,
-} from "@/lib/request/restore";
+import { restoreFrom, resultTarget } from "@/lib/request/restore";
+import { SAVE_INPUTS_TO_LIBRARY } from "@/lib/inputs/text";
 import type { GenerationResult } from "@/stores/generationStore";
 import { download, sendToCanvas, sendToUpscale } from "./resultActions";
 
@@ -115,19 +111,19 @@ export function ResultMenu({
           icon={History}
           label={RESTORE_SETTINGS}
           slot={reasons.restoreSettings}
-          onSelect={() => restoreSettings(target())}
+          onSelect={() => void restoreFrom(target(), "settings")}
         />
         <Item
           icon={ImageDown}
           label={RESTORE_INPUTS}
           slot={reasons.restoreInputs}
-          onSelect={() => void restoreInputs(target())}
+          onSelect={() => void restoreFrom(target(), "inputs")}
         />
         <Item
           icon={ArchiveRestore}
           label={RESTORE_BOTH}
           slot={reasons.restoreBoth}
-          onSelect={() => void restoreSettingsAndInputs(target())}
+          onSelect={() => void restoreFrom(target(), "both")}
         />
         <Item
           icon={Repeat2}
@@ -140,11 +136,11 @@ export function ResultMenu({
         />
         <Item
           icon={BookmarkPlus}
-          label="Save inputs to the library"
+          label={SAVE_INPUTS_TO_LIBRARY}
           slot={reasons.saveInputs}
           onSelect={() =>
             void target()
-              .inputs({})
+              .then((t) => t.inputs({}))
               .then((loaded) => {
                 if (loaded) void saveInputsAsSet(loaded.inputs, loaded.maps);
                 else toast.info(reasonText("noRecord"));

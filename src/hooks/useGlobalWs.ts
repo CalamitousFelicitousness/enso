@@ -19,10 +19,20 @@ const RECONNECT_INVALIDATE_KEYS = [
   "frontend-build",
 ];
 
+/** Lists a finished download may add to; sdnext registers the file before it leaves the active list. */
+const DOWNLOAD_INVALIDATE_KEYS = [
+  "civitai-check-local",
+  "extra-networks",
+  "models",
+  "vaes",
+  "options-info",
+];
+
 export function useGlobalWs() {
   useEffect(() => {
     ensureWs();
     let wasConnected = false;
+    let downloading = new Set<string>();
     const live = createLiveQueries(queryClient);
 
     const offOpen = ws.on("open", () => {
@@ -65,7 +75,15 @@ export function useGlobalWs() {
         void queryClient.invalidateQueries({ queryKey: ["control-models"] });
         void queryClient.invalidateQueries({ queryKey: ["control-modes"] });
       } else if (msg.type === "download" && Array.isArray(msg.data)) {
-        useDownloadStore.getState().updateFromWs(msg.data as DownloadProgress[]);
+        const items = msg.data as DownloadProgress[];
+        useDownloadStore.getState().updateFromWs(items);
+        const now = new Set(items.map((item) => item.id));
+        if ([...downloading].some((id) => !now.has(id))) {
+          for (const key of DOWNLOAD_INVALIDATE_KEYS) {
+            void queryClient.invalidateQueries({ queryKey: [key] });
+          }
+        }
+        downloading = now;
       } else if (isGlobalEvent(msg)) {
         live.event(msg);
       }

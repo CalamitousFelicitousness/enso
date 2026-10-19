@@ -12,10 +12,11 @@ import {
   dictTagsFacet,
 } from "./facets";
 import type { DictTag } from "@/api/types/dict";
+import { NAME_PART, PARTIAL_TAG } from "@/lib/recipes/networks";
 import { useUiStore } from "@/stores/uiStore";
 
 function loraSource(ctx: CompletionContext): CompletionResult | null {
-  const match = ctx.matchBefore(/<(?:lora|lyco):[\w\s/.+-]*/i);
+  const match = ctx.matchBefore(PARTIAL_TAG);
   if (!match) return null;
   const colonIdx = match.text.indexOf(":");
   const loras = ctx.state.facet(loraNamesFacet);
@@ -28,7 +29,7 @@ function loraSource(ctx: CompletionContext): CompletionResult | null {
       type: "lora",
       apply: `${l.name}:1>`,
     })),
-    validFor: /^[\w\s/.+-]*$/,
+    validFor: NAME_PART,
   };
 }
 

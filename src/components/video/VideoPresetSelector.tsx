@@ -164,7 +164,7 @@ export function VideoPresetSelector({ domain }: VideoPresetSelectorProps) {
         onClick={handleImportClick}
         title="Import presets from file"
       >
-        <Download size={14} />
+        <Upload size={14} />
       </Button>
       <Button
         variant="ghost"
@@ -172,7 +172,7 @@ export function VideoPresetSelector({ domain }: VideoPresetSelectorProps) {
         onClick={handleExport}
         title="Export presets to clipboard"
       >
-        <Upload size={14} />
+        <Download size={14} />
       </Button>
 
       <input

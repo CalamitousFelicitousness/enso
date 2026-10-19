@@ -86,7 +86,7 @@ export function OutputFramePanel({
   const results = useGenerationStore((s) => s.results);
   const panelCollapsedOverrides = useCanvasStore((s) => s.panelCollapsedOverrides);
   const togglePanelCollapsed = useCanvasStore((s) => s.togglePanelCollapsed);
-  const openRestore = useRestoreDialogStore((s) => s.open);
+  const openRestore = useRestoreDialogStore((s) => s.openResult);
   const [activeTab, setActiveTab] = useState<"info" | "params">("info");
 
   const selectedResult = useMemo(

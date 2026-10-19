@@ -147,6 +147,10 @@ export function lostPicturesText(count: number): string {
     : `${count} pictures of this result could not be read`;
 }
 
+/** What a restore calls a result or a job whose prompt is empty. */
+export const RESULT_NAME = "Result";
+export const JOB_NAME = "Job";
+
 export const RUN_AGAIN_QUEUED = "Job queued again";
 
 /** A job queued again, and the model it loads first when it loads its own. */
@@ -250,7 +254,22 @@ export const RESTORE_LAST_TITLE =
   "Restore last settings (Shift+click compares with the current settings)";
 export const DOUBLE_CLICK_HINT = "Double-click opens Restore";
 export const RESTORE_DIALOG = "Restore...";
-export const RESTORE_DIALOG_TITLE = "Restore result";
+/** The Restore dialog per source: its title, the compared column, the
+ * screen-reader description and the line while it reads. */
+export const RESTORE_DIALOG_WORDS = {
+  result: {
+    title: "Restore result",
+    column: "Result",
+    description: "What restoring the result's settings and inputs would change",
+  },
+  job: {
+    title: "Restore job",
+    column: "Job",
+    description: "What restoring the job's settings and inputs would change",
+  },
+} as const;
+export const READING_JOB = "Reading the job";
+export const READ_FAILED = "Could not read it";
 export const RESTORE_RESULT_TITLE = "Restore this result's settings and inputs...";
 export const SAME_SETTINGS = "Same as the current settings";
 export const INPUTS_FROM_RECORD = "The input frames the job was sent with";

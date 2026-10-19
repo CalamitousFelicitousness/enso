@@ -1,5 +1,4 @@
-import { useState, useRef, useEffect } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
 import { ChevronDown, ChevronRight, X } from "lucide-react";
 import { useDownloadStore } from "@/stores/downloadStore";
 import { useCivitDownloadCancel, useCivitDownloadStatus } from "@/api/hooks/useCivitai";
@@ -27,7 +26,6 @@ export function CivitDownloadQueue() {
   const wsItems = useDownloadStore((s) => s.items);
   const { data: statusData } = useCivitDownloadStatus();
   const cancelDownload = useCivitDownloadCancel();
-  const qc = useQueryClient();
 
   // Merge WS real-time items with REST status for completed/queued
   const activeItems = wsItems.length > 0 ? wsItems : (statusData?.active ?? []);
@@ -38,34 +36,6 @@ export function CivitDownloadQueue() {
   // is already length-capped; copy before reversing to avoid mutating the
   // query cache.
   const completedNewestFirst = [...completedItems].reverse();
-
-  // Refetch ticks and model lists when downloads newly complete; sdnext appends
-  // to completed only after registering the file with its loader. The backend
-  // holds completed in a bounded deque, so its length stops growing once
-  // saturated; track ids. Seed silently so mount does not refetch seen items.
-  const seenCompleted = useRef<Set<string> | null>(null);
-  useEffect(() => {
-    const done = (statusData?.completed ?? []).filter((d) => d.status === "completed");
-    if (seenCompleted.current === null) {
-      seenCompleted.current = new Set(done.map((d) => d.id));
-      return;
-    }
-    let fresh = false;
-    for (const d of done) {
-      if (!seenCompleted.current.has(d.id)) {
-        seenCompleted.current.add(d.id);
-        fresh = true;
-      }
-    }
-    if (fresh) {
-      void qc.invalidateQueries({ queryKey: ["civitai-check-local"] });
-      void qc.invalidateQueries({ queryKey: ["extra-networks"] });
-      void qc.invalidateQueries({ queryKey: ["models"] });
-      void qc.invalidateQueries({ queryKey: ["vaes"] });
-      // sd_unet and sd_vae dropdown choices are served from options-info.
-      void qc.invalidateQueries({ queryKey: ["options-info"] });
-    }
-  }, [statusData, qc]);
 
   if (totalCount === 0) return null;
 

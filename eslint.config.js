@@ -92,6 +92,7 @@ export default defineConfig([
       "src/lib/lut.ts",
       "src/lib/jobs/**/*.ts",
       "src/lib/media/**/*.ts",
+      "src/lib/recipes/**/*.ts",
       "src/lib/request/generateParams.ts",
       "src/lib/request/fitNote.ts",
       "src/lib/request/inputPlan.ts",

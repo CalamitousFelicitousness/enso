@@ -46,7 +46,7 @@ export const ResultGallery = memo(function ResultGallery() {
 
   const [confirmAction, setConfirmAction] = useState<"downloadAll" | "clear" | null>(null);
   const [downloading, setDownloading] = useState(false);
-  const openRestore = useRestoreDialogStore((s) => s.open);
+  const openRestore = useRestoreDialogStore((s) => s.openResult);
   const [compareCandidate, setCompareCandidate] = useState<CompareCandidate | null>(null);
   const [comparePickMode, setComparePickMode] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);

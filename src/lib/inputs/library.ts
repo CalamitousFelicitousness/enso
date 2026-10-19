@@ -42,7 +42,7 @@ export function overCap(entries: Iterable<EntryFacts>): string[] {
 }
 
 /** "2026-10-08 14:05" in the time zone given. */
-function stamp(now: number, timeZone: string): string {
+export function stamp(now: number, timeZone: string): string {
   const parts = Object.fromEntries(
     new Intl.DateTimeFormat("en-US", {
       timeZone,

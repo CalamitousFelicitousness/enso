@@ -22,10 +22,10 @@ import { mediaUrl } from "@/api/session";
 import {
   ContextMenu,
   ContextMenuContent,
-  ContextMenuItem,
   ContextMenuSeparator,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
+import { SlotMenuItem } from "@/components/ui/slot-row";
 import { ActionSlot } from "@/components/ui/action-slot";
 import { useDragSource } from "@/hooks/useDragSource";
 import { useNearViewport } from "@/hooks/useNearViewport";
@@ -53,28 +53,6 @@ const RECALL: Record<RecallMode, { label: string; icon: LucideIcon }> = {
   add: { label: ADD_TO_INPUTS, icon: ArrowDownToLine },
   replace: { label: REPLACE_INPUTS, icon: Replace },
 };
-
-function MenuItem({
-  icon: Icon,
-  label,
-  reason = null,
-  onSelect,
-}: {
-  icon: LucideIcon;
-  label: string;
-  reason?: string | null;
-  onSelect: () => void;
-}) {
-  return (
-    <ContextMenuItem className="text-2xs" disabled={reason !== null} onSelect={onSelect}>
-      <Icon size={14} />
-      <span className="flex min-w-0 flex-col">
-        <span>{label}</span>
-        {reason && <span className="text-3xs leading-tight text-muted-foreground">{reason}</span>}
-      </span>
-    </ContextMenuItem>
-  );
-}
 
 interface EntryCardProps {
   entry: EntryModel;
@@ -269,18 +247,29 @@ export function EntryCard({ entry, tabIndex, onFocusCard }: EntryCardProps) {
         </div>
       </ContextMenuTrigger>
       <ContextMenuContent className="w-48">
-        <MenuItem {...RECALL[primary]} reason={recallReason} onSelect={() => recall(primary)} />
-        <MenuItem {...RECALL[other]} reason={recallReason} onSelect={() => recall(other)} />
+        <SlotMenuItem {...RECALL[primary]} reason={recallReason} onAct={() => recall(primary)} />
+        <SlotMenuItem {...RECALL[other]} reason={recallReason} onAct={() => recall(other)} />
         <ContextMenuSeparator />
-        <MenuItem
+        <SlotMenuItem
           icon={entry.pinned ? PinOff : Pin}
           label={pinLabel}
           reason={changeReason}
-          onSelect={togglePin}
+          onAct={togglePin}
         />
-        <MenuItem icon={Pencil} label={RENAME_ENTRY} reason={changeReason} onSelect={startRename} />
+        <SlotMenuItem
+          icon={Pencil}
+          label={RENAME_ENTRY}
+          reason={changeReason}
+          onAct={startRename}
+        />
         <ContextMenuSeparator />
-        <MenuItem icon={Trash2} label={REMOVE_ENTRY} reason={removeReason} onSelect={remove} />
+        <SlotMenuItem
+          icon={Trash2}
+          label={REMOVE_ENTRY}
+          reason={removeReason}
+          destructive
+          onAct={remove}
+        />
       </ContextMenuContent>
     </ContextMenu>
   );

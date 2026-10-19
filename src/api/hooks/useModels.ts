@@ -7,20 +7,24 @@ import type {
   SdModelsResponse,
   SamplerV2,
   CheckpointInfoV2,
+  SetCheckpointResponse,
 } from "../types/models";
 import type { ComboboxGroup } from "@/components/ui/combobox";
 
 const MODEL_MUTATION_KEY = ["model-operation"];
 
+/** The local checkpoints, for the hook and for code outside React. */
+export const modelListQuery = {
+  queryKey: ["models"],
+  queryFn: async () => {
+    const resp = await api.get<SdModelsResponse>("/sdapi/v2/sd-models");
+    return resp.items ?? [];
+  },
+  staleTime: 60_000,
+};
+
 export function useModelList() {
-  return useQuery({
-    queryKey: ["models"],
-    queryFn: async () => {
-      const resp = await api.get<SdModelsResponse>("/sdapi/v2/sd-models");
-      return resp.items ?? [];
-    },
-    staleTime: 60_000,
-  });
+  return useQuery(modelListQuery);
 }
 
 export function useVaeList() {
@@ -106,7 +110,7 @@ export function useLoadModel() {
   return useMutation({
     mutationKey: MODEL_MUTATION_KEY,
     mutationFn: (checkpoint: string) =>
-      api.post("/sdapi/v2/checkpoint", { sd_model_checkpoint: checkpoint }),
+      api.post<SetCheckpointResponse>("/sdapi/v2/checkpoint", { sd_model_checkpoint: checkpoint }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["options"] });
       void queryClient.invalidateQueries({ queryKey: ["checkpoint"] });

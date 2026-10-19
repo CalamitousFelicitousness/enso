@@ -125,6 +125,7 @@ export function ProcessView() {
     ),
     onFilesDrop: takeFiles,
     acceptFile: mode === "video" ? isVideoFile : isImageFile,
+    kinds: mode === "video" ? "videos" : "pictures",
   });
 
   const handleFileInput = useCallback(

@@ -15,7 +15,7 @@ import {
 import { isTerminal, isVideoDomain } from "@/lib/jobs/domains";
 import { loadsModel } from "@/lib/jobs/requests";
 import { failedWith } from "@/lib/mediaFiles";
-import { recordTarget, restoreInImages } from "@/lib/request/restore";
+import { recordTarget, restoreFrom } from "@/lib/request/restore";
 import { useJobQueueStore } from "@/stores/jobStore";
 import { useJobFact } from "./useJobFact";
 import { useRunAgain } from "./useRunAgain";
@@ -55,9 +55,9 @@ export function useJobActions(lookup: OutputJobLookup): JobActions {
   const { runAgain, isRunning } = useRunAgain();
   const restore = (kind: "inputs" | "both") => () => {
     if (!jobId) return;
-    recordTarget(jobId)
-      .then((target) => restoreInImages(target, kind))
-      .catch(failedWith("Could not restore the job's inputs"));
+    restoreFrom(recordTarget(jobId), kind, true).catch(
+      failedWith("Could not restore the job's inputs"),
+    );
   };
   return {
     facts,

@@ -292,6 +292,7 @@ export function VideoCanvasView() {
       onDropImage={handleDropImage}
       onPasteFiles={handlePasteFiles}
       acceptFile={acceptDroppedFile}
+      acceptKinds="pictures, videos and audio"
       below={results.length > 0 ? <VideoCompareStrip /> : null}
       overlay={
         <>

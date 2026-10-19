@@ -18,7 +18,10 @@ import {
   problemText,
   roleLabel,
   SAVE_FRAME,
+  SAVE_FRAME_HINT,
   SAVE_SET,
+  SHOW_ON_CANVAS,
+  SHOW_ON_CANVAS_HINT,
 } from "@/lib/inputs/text";
 import { SAVING } from "@/lib/media/text";
 import { AddFrameMenu } from "./input/AddFrameMenu";
@@ -130,7 +133,7 @@ export function InputTab() {
                 disabled={saving}
                 aria-busy={saving || undefined}
                 onClick={() => void saveFrames(env, [selected.frameId])}
-                title={saving ? SAVING : "Save this frame to the library"}
+                title={saving ? SAVING : SAVE_FRAME_HINT}
               >
                 <SaveIcon busy={saving} />
                 {SAVE_FRAME}
@@ -140,10 +143,10 @@ export function InputTab() {
                 size="sm"
                 className="h-5 px-1.5 text-3xs text-muted-foreground"
                 onClick={() => revealFrame(selected.frameId)}
-                title="Bring this frame into view on the canvas"
+                title={SHOW_ON_CANVAS_HINT}
               >
                 <Locate size={11} />
-                Show on canvas
+                {SHOW_ON_CANVAS}
               </Button>
             </span>
           </div>

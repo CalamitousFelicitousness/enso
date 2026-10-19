@@ -7,6 +7,7 @@ import {
   EditorView,
 } from "@codemirror/view";
 import { RangeSetBuilder } from "@codemirror/state";
+import { networkTags } from "@/lib/recipes/networks";
 import { TOKEN_PATTERN, embeddingNamesFacet } from "./facets";
 
 const DRAG_MIME = "application/x-cm-chip";
@@ -299,24 +300,21 @@ export const loraWidgetPlugin = ViewPlugin.fromClass(
       const chips: ChipMatch[] = [];
 
       // LoRA / LyCo chips
-      for (const match of text.matchAll(new RegExp(TOKEN_PATTERN, "g"))) {
-        if (match[1] === undefined) continue;
-        const tagType = match[1].toLowerCase();
-
-        if (tagType === "lora" || tagType === "lyco") {
-          const from = match.index;
-          const to = from + match[0].length;
-          const args = match[2];
-          const lastColon = args.lastIndexOf(":");
-          const name = lastColon > 0 ? args.slice(0, lastColon) : args;
-          const weight = lastColon > 0 ? args.slice(lastColon + 1) : "1";
-          const displayName = name.split("/").pop() || name;
-          chips.push({
-            from,
-            to,
-            widget: new LoraChipWidget(displayName, weight, match[0], from, to, () => this.view),
-          });
-        }
+      for (const tag of networkTags(text)) {
+        const raw = text.slice(tag.from, tag.to);
+        const displayName = tag.name.split("/").pop() || tag.name;
+        chips.push({
+          from: tag.from,
+          to: tag.to,
+          widget: new LoraChipWidget(
+            displayName,
+            tag.weights.at(-1) ?? "1",
+            raw,
+            tag.from,
+            tag.to,
+            () => this.view,
+          ),
+        });
       }
 
       // Wildcard chips: __name__

@@ -11,6 +11,7 @@ export type {
   ItemVaeV2 as VaeV2,
   ResCheckpointV2 as CheckpointInfoV2,
   ResExtraNetworksV2 as ExtraNetworksResponse,
+  ResSetCheckpointV2 as SetCheckpointResponse,
   ResModelsV2 as SdModelsResponse,
 } from "@/lib/openapi-generated/types.gen";
 

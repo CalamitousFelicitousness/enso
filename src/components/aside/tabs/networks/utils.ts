@@ -1,4 +1,5 @@
 import type { ExtraNetworkV2 } from "@/api/types/models";
+import { networkTags, type NetworkTag } from "@/lib/recipes/networks";
 import type { ActiveLora, NetworkItem } from "./types";
 
 export function isExtraNetwork(item: NetworkItem): item is ExtraNetworkV2 {
@@ -40,28 +41,36 @@ export function itemHasTag(item: ExtraNetworkV2, tag: string): boolean {
 
 /* ─── LoRA prompt utilities ────────────────────────────────── */
 
-const LORA_RE = /<lora:([^:>]+):([\d.]+)>/g;
+function loraTags(prompt: string): NetworkTag[] {
+  return networkTags(prompt).filter((tag) => tag.kind === "lora");
+}
+
+/** The prompt with each `<lora:name...>` tag, and the whitespace before it when
+ * `withSpace`, replaced; last first so earlier spans hold. */
+function replaceLoRA(prompt: string, name: string, insert: string, withSpace = false): string {
+  let out = prompt;
+  for (const tag of loraTags(prompt).reverse()) {
+    if (tag.name !== name) continue;
+    let from = tag.from;
+    while (withSpace && from > 0 && /\s/.test(out[from - 1])) from--;
+    out = out.slice(0, from) + insert + out.slice(tag.to);
+  }
+  return out;
+}
 
 export function parseActiveLoRAs(prompt: string): ActiveLora[] {
-  const results: ActiveLora[] = [];
-  let match: RegExpExecArray | null;
-  LORA_RE.lastIndex = 0;
-  while ((match = LORA_RE.exec(prompt)) !== null) {
-    results.push({ name: match[1], weight: parseFloat(match[2]) });
-  }
-  return results;
+  return loraTags(prompt).map((tag) => {
+    const weight = Number.parseFloat(tag.weights[0] ?? "1");
+    return { name: tag.name, weight: Number.isFinite(weight) ? weight : 1 };
+  });
 }
 
 export function setLoRAWeight(prompt: string, name: string, weight: number): string {
-  const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const re = new RegExp(`<lora:${escaped}:[\\d.]+>`, "g");
-  return prompt.replace(re, `<lora:${name}:${weight}>`);
+  return replaceLoRA(prompt, name, `<lora:${name}:${weight}>`);
 }
 
 export function removeLoRA(prompt: string, name: string): string {
-  const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const re = new RegExp(`\\s*<lora:${escaped}:[\\d.]+>`, "g");
-  return prompt.replace(re, "").trim();
+  return replaceLoRA(prompt, name, "", true).trim();
 }
 
 export function addLoRA(prompt: string, name: string, weight: number = 1): string {

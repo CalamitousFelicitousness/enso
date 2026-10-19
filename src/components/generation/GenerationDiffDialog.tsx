@@ -1,4 +1,4 @@
-import { useCallback, useId, useMemo, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useState } from "react";
 import { ArrowRight } from "lucide-react";
 import { toDisplayString } from "@/lib/utils";
 import {
@@ -12,22 +12,34 @@ import {
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Switch } from "@/components/ui/switch";
-import { useGenerationStore, type GenerationResult } from "@/stores/generationStore";
+import { useGenerationStore } from "@/stores/generationStore";
 import {
   applyParams,
+  pickOf,
+  recordTarget,
   restoreInputs,
   restoreSettings,
   restoreSettingsAndInputs,
   resultTarget,
+  type ModelPick,
+  type RestoreTarget,
 } from "@/lib/request/restore";
-import { extractParams, resultSettings } from "@/lib/request/restoreParams";
+import { extractParams } from "@/lib/request/restoreParams";
+import { useModelList } from "@/api/hooks/useModels";
+import { checkpointState, type ModelState } from "@/lib/recipes/models";
+import { modelStateLongText, RESTORE_MODEL } from "@/lib/recipes/text";
+import { RETRY } from "@/lib/media/text";
+import type { RestoreSource } from "@/stores/restoreDialogStore";
 import type { GenerationState } from "@/stores/generationStore";
 import { useJobFact } from "@/hooks/useJobFact";
 import { hasLegacyInputs } from "@/inputs/legacyResult";
 import { resultActions } from "@/lib/jobs/cardActions";
 import {
   INPUTS_FROM_RECORD,
-  RESTORE_DIALOG_TITLE,
+  READ_FAILED,
+  READING_JOB,
+  reasonText,
+  RESTORE_DIALOG_WORDS,
   settingsDifferText,
   slotWords,
 } from "@/lib/jobs/text";
@@ -35,9 +47,7 @@ import {
 interface GenerationDiffDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  result: GenerationResult | null;
-  /** The image of the result whose seed is compared. */
-  imageIndex?: number;
+  source: RestoreSource | null;
 }
 
 /** What each compared setting is called where it is set. */
@@ -333,28 +343,28 @@ function formatValue(v: unknown): string {
   return toDisplayString(v);
 }
 
-export function GenerationDiffDialog({
-  open,
-  onOpenChange,
-  result,
-  imageIndex = 0,
-}: GenerationDiffDialogProps) {
+export function GenerationDiffDialog({ open, onOpenChange, source }: GenerationDiffDialogProps) {
+  const words = RESTORE_DIALOG_WORDS[source?.kind ?? "result"];
+  const sourceKey = !source
+    ? ""
+    : source.kind === "result"
+      ? `${source.resultId}:${source.imageIndex}`
+      : source.jobId;
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-xl">
         <DialogHeader>
-          <DialogTitle>{RESTORE_DIALOG_TITLE}</DialogTitle>
-          <DialogDescription className="sr-only">
-            What restoring the result's settings and inputs would change
-          </DialogDescription>
+          <DialogTitle>{words.title}</DialogTitle>
+          <DialogDescription className="sr-only">{words.description}</DialogDescription>
         </DialogHeader>
-        {/* keyed so the picks start over for each result and each opening */}
-        <RestoreBody
-          key={`${open}:${result?.id ?? ""}:${imageIndex}`}
-          result={result}
-          imageIndex={imageIndex}
-          onClose={() => onOpenChange(false)}
-        />
+        {/* keyed so the picks start over for each source and each opening */}
+        {source && (
+          <RestoreBody
+            key={`${open}:${sourceKey}`}
+            source={source}
+            onClose={() => onOpenChange(false)}
+          />
+        )}
       </DialogContent>
     </Dialog>
   );
@@ -391,27 +401,94 @@ function PickRow({
   );
 }
 
-function RestoreBody({
-  result,
-  imageIndex,
-  onClose,
+/** The model row: a switch named by its label and described by the model and
+ * its state, kept outside a label so a button can sit beside it. */
+function ModelRow({
+  name,
+  state,
+  checked,
+  onCheckedChange,
 }: {
-  result: GenerationResult | null;
-  imageIndex: number;
-  onClose: () => void;
+  name: string;
+  state: ModelState;
+  checked: boolean;
+  onCheckedChange: (checked: boolean) => void;
 }) {
-  const storeState = useGenerationStore();
-  const facts = useJobFact(result?.jobId);
-  // a pick left null takes the default: on where the restore can act
-  const [picks, setPicks] = useState<{ settings: boolean | null; inputs: boolean | null }>({
-    settings: null,
-    inputs: null,
-  });
+  const id = useId();
+  return (
+    <div className="grid grid-cols-[auto_1fr] items-center gap-x-3 px-2 py-1">
+      <Switch
+        className="row-span-2"
+        size="sm"
+        aria-labelledby={`${id}-label`}
+        aria-describedby={`${id}-words`}
+        checked={checked}
+        disabled={state === "missing"}
+        onCheckedChange={onCheckedChange}
+      />
+      <span id={`${id}-label`} className="text-2xs">
+        {RESTORE_MODEL}
+      </span>
+      <span id={`${id}-words`} className="col-start-2 text-3xs leading-tight text-muted-foreground">
+        {name} · {modelStateLongText(state)}
+      </span>
+    </div>
+  );
+}
 
-  const resultParams = useMemo(() => {
-    const settings = result ? resultSettings(result, imageIndex) : null;
-    return settings?.ok ? extractParams(settings.source).params : {};
-  }, [result, imageIndex]);
+type Resolved =
+  { state: "reading" } | { state: "failed" } | { state: "ready"; target: RestoreTarget };
+
+/** The source's target, read once per opening; Retry reads it again. A
+ * result is read by its id, so the strip updating it does not read it twice. */
+function useTarget(source: RestoreSource) {
+  const [attempt, setAttempt] = useState(0);
+  const [answer, setAnswer] = useState<{ attempt: number; resolved: Resolved } | null>(null);
+  useEffect(() => {
+    let live = true;
+    const current =
+      source.kind === "result"
+        ? useGenerationStore.getState().results.find((r) => r.id === source.resultId)
+        : undefined;
+    const reading =
+      source.kind === "job"
+        ? recordTarget(source.jobId)
+        : current
+          ? resultTarget(current, source.imageIndex)
+          : Promise.reject(new Error("the result is no longer on the strip"));
+    reading.then(
+      (target) => live && setAnswer({ attempt, resolved: { state: "ready", target } }),
+      () => live && setAnswer({ attempt, resolved: { state: "failed" } }),
+    );
+    return () => {
+      live = false;
+    };
+  }, [source, attempt]);
+  const resolved: Resolved = answer?.attempt === attempt ? answer.resolved : { state: "reading" };
+  return { resolved, retry: () => setAttempt((n) => n + 1) };
+}
+
+function RestoreBody({ source, onClose }: { source: RestoreSource; onClose: () => void }) {
+  const storeState = useGenerationStore();
+  const result = useGenerationStore((s) =>
+    source.kind === "result" ? (s.results.find((r) => r.id === source.resultId) ?? null) : null,
+  );
+  const jobId = source.kind === "job" ? source.jobId : result?.jobId;
+  const facts = useJobFact(jobId);
+  const { resolved, retry } = useTarget(source);
+  const target = resolved.state === "ready" ? resolved.target : null;
+  const { data: installed } = useModelList();
+  // a pick left null takes the default: on where the restore can act
+  const [picks, setPicks] = useState<{
+    settings: boolean | null;
+    inputs: boolean | null;
+    model: boolean | null;
+  }>({ settings: null, inputs: null, model: null });
+
+  const resultParams = useMemo(
+    () => (target?.settings.ok ? extractParams(target.settings.source).params : {}),
+    [target],
+  );
 
   const groupedRows = useMemo(() => {
     const current = storeState as unknown as Record<string, unknown>;
@@ -439,49 +516,85 @@ function RestoreBody({
 
   const totalChanged = groupedRows.reduce((sum, g) => sum + g.changedCount, 0);
 
-  const slots = result
-    ? resultActions(
-        {
-          jobId: result.jobId ?? null,
-          type: result.type ?? null,
-          legacyInputs: hasLegacyInputs(result),
-        },
-        facts,
-      )
-    : null;
-  const settingsWords = slots ? slotWords(slots.restoreSettings) : null;
-  const inputsWords = slots ? slotWords(slots.restoreInputs) : null;
-  const settingsAvailable = settingsWords?.reason === null && totalChanged > 0;
-  const inputsAvailable = inputsWords?.reason === null;
+  const slots = resultActions(
+    {
+      jobId: jobId ?? null,
+      type: result?.type ?? null,
+      legacyInputs: result ? hasLegacyInputs(result) : false,
+    },
+    facts,
+  );
+  const settingsReason =
+    target && !target.settings.ok
+      ? reasonText(target.settings.reason)
+      : slotWords(slots.restoreSettings).reason;
+  const inputsWords = slotWords(slots.restoreInputs);
+  const ready = target !== null;
+  const settingsAvailable = ready && settingsReason === null && totalChanged > 0;
+  const inputsAvailable = ready && inputsWords.reason === null;
   const settingsOn = settingsAvailable && (picks.settings ?? true);
   const inputsOn = inputsAvailable && (picks.inputs ?? true);
 
+  const model = target?.model ?? null;
+  const modelFact = model && installed ? checkpointState(model, installed) : null;
+  const modelOn =
+    settingsOn &&
+    modelFact !== null &&
+    modelFact.state !== "missing" &&
+    (picks.model ?? modelFact.state === "installed");
+
   const handleRestore = useCallback(() => {
-    if (!result) return;
-    const target = resultTarget(result, imageIndex);
-    if (settingsOn && inputsOn) void restoreSettingsAndInputs(target);
-    else if (settingsOn) restoreSettings(target);
+    if (!target) return;
+    const pick: ModelPick | null = !settingsOn
+      ? null
+      : modelOn && modelFact?.match
+        ? pickOf(modelFact.match)
+        : modelFact?.state === "missing" && model
+          ? { kind: "missing", name: model.name }
+          : null;
+    if (settingsOn && inputsOn) void restoreSettingsAndInputs(target, pick);
+    else if (settingsOn) restoreSettings(target, pick);
     else if (inputsOn) void restoreInputs(target);
     onClose();
-  }, [result, imageIndex, settingsOn, inputsOn, onClose]);
+  }, [target, settingsOn, inputsOn, modelOn, modelFact, model, onClose]);
 
   const handleApplyOne = useCallback((row: DiffRow) => {
     applyParams(row.apply, `${labelOf(row.key)} applied`);
   }, []);
 
+  const words = RESTORE_DIALOG_WORDS[source.kind];
   return (
     <>
+      <p className="-mt-2 truncate text-2xs text-muted-foreground" title={target?.name}>
+        {resolved.state === "reading" ? READING_JOB : (target?.name ?? "")}
+      </p>
+      {resolved.state === "failed" && (
+        <div className="flex items-center gap-2 text-2xs text-destructive" role="alert">
+          {READ_FAILED}
+          <Button variant="outline" size="xs" onClick={retry}>
+            {RETRY}
+          </Button>
+        </div>
+      )}
       <div className="flex flex-col border-b border-border/50 pb-1">
+        {model && modelFact && (
+          <ModelRow
+            name={model.name}
+            state={modelFact.state}
+            checked={modelOn}
+            onCheckedChange={(on) => setPicks((p) => ({ ...p, model: on }))}
+          />
+        )}
         <PickRow
           label="Settings"
-          words={settingsWords?.reason ?? settingsDifferText(totalChanged)}
+          words={settingsReason ?? settingsDifferText(totalChanged)}
           checked={settingsOn}
           disabled={!settingsAvailable}
           onCheckedChange={(settings) => setPicks((p) => ({ ...p, settings }))}
         />
         <PickRow
           label="Inputs"
-          words={inputsWords?.reason ?? inputsWords?.note ?? INPUTS_FROM_RECORD}
+          words={inputsWords.reason ?? inputsWords.note ?? INPUTS_FROM_RECORD}
           checked={inputsOn}
           disabled={!inputsAvailable}
           onCheckedChange={(inputs) => setPicks((p) => ({ ...p, inputs }))}
@@ -494,7 +607,7 @@ function RestoreBody({
               <tr className="border-b text-left text-muted-foreground">
                 <th className="py-1 px-2 font-medium">Parameter</th>
                 <th className="py-1 px-2 font-medium">Current</th>
-                <th className="py-1 px-2 font-medium">Result</th>
+                <th className="py-1 px-2 font-medium">{words.column}</th>
                 <th className="py-1 px-2 w-8" />
               </tr>
             </thead>
