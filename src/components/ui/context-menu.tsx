@@ -10,10 +10,31 @@ function ContextMenu({ ...props }: React.ComponentProps<typeof ContextMenuPrimit
   return <ContextMenuPrimitive.Root data-slot="context-menu" {...props} />;
 }
 
+// Set while the right-click that opened a menu is still down, as Linux and macOS
+// open it on the press: Radix chooses the item under a release with no press of its own.
+let opening = false;
+
 function ContextMenuTrigger({
+  onContextMenu,
   ...props
 }: React.ComponentProps<typeof ContextMenuPrimitive.Trigger>) {
-  return <ContextMenuPrimitive.Trigger data-slot="context-menu-trigger" {...props} />;
+  return (
+    <ContextMenuPrimitive.Trigger
+      data-slot="context-menu-trigger"
+      onContextMenu={(e) => {
+        opening = (e.buttons & 2) !== 0;
+        onContextMenu?.(e);
+      }}
+      {...props}
+    />
+  );
+}
+
+/** The release of the right-click that opened the menu chooses nothing. */
+function swallowOpeningRelease(e: React.PointerEvent) {
+  if (e.button !== 2 || !opening) return;
+  opening = false;
+  e.stopPropagation();
 }
 
 function ContextMenuContent({
@@ -24,6 +45,7 @@ function ContextMenuContent({
     <ContextMenuPrimitive.Portal>
       <ContextMenuPrimitive.Content
         data-slot="context-menu-content"
+        onPointerUpCapture={swallowOpeningRelease}
         className={cn(
           "dark:bg-popover/80 bg-popover/70 backdrop-blur-xl text-popover-foreground ring-1 dark:ring-white/[0.05] ring-black/[0.05] data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 z-50 max-h-(--radix-context-menu-content-available-height) min-w-[8rem] origin-(--radix-context-menu-content-transform-origin) overflow-x-hidden overflow-y-auto rounded-md border border-border/50 p-1 shadow-lg shadow-black/30",
           className,
