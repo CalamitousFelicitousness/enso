@@ -58,6 +58,13 @@ class EntryIn:
     hashes: dict[str, str]
     unavailable: list[str]
     thumbs: list[dict]  # cid, hash, thumb, width, height
+    recipe: dict | None = None
+    recipe_head: dict | None = None
+    # Hashes the recipe part names beyond the document, checked by the caller's rules, with where each sits
+    recipe_names: frozenset[str] = frozenset()
+    recipe_locations: dict[str, list] = field(default_factory=dict)
+    # The id of the file an import came from; an untrashed entry with this id or origin answers instead
+    origin: str | None = None
 
 
 @dataclass(frozen=True)
@@ -84,6 +91,7 @@ class Changed:
     created: bool = False
     unpinned: bool = False
     trash_moved: bool = False
+    matched_origin: bool = False
 
 
 @dataclass
@@ -145,10 +153,19 @@ def lost_among(conn: sqlite3.Connection, hashes: Iterable[str]) -> set[str]:
     return lost
 
 
+def head_item(head: dict | None, lost: set[str]) -> dict | None:
+    if head is None:
+        return None
+    preview = head.get("preview")
+    return {**head, "preview": {**preview, "lost": preview["thumb"] in lost} if preview else None}
+
+
 def items(conn: sqlite3.Connection, rows: list[sqlite3.Row], trash_ms: int) -> list[dict]:
     """List items; a trashed entry's expiry runs from its trash, or from a restarted collection clock when later."""
     thumbs = {row["id"]: json.loads(row["thumbs"]) for row in rows}
-    lost = lost_among(conn, (t["thumb"] for listed in thumbs.values() for t in listed))
+    heads = {row["id"]: json.loads(row["recipe_head"]) if row["recipe_head"] else None for row in rows}
+    previews = (head["preview"]["thumb"] for head in heads.values() if head and head.get("preview"))
+    lost = lost_among(conn, [*(t["thumb"] for listed in thumbs.values() for t in listed), *previews])
     return [
         {
             "id": row["id"],
@@ -171,9 +188,16 @@ def items(conn: sqlite3.Connection, rows: list[sqlite3.Row], trash_ms: int) -> l
             "inputs_schema": row["schema"],
             "bytes": row["bytes"],
             "thumbs": [{**thumb, "lost": thumb["thumb"] in lost} for thumb in thumbs[row["id"]]],
+            "recipe": head_item(heads[row["id"]], lost),
         }
         for row in rows
     ]
+
+
+def matching_origin(conn: sqlite3.Connection, origin: str) -> str | None:
+    """The untrashed entry a file with this id came from or went to, if any."""
+    found = conn.execute("SELECT id FROM entries WHERE trashed_at IS NULL AND (id = ? OR origin = ?) ORDER BY saved_at LIMIT 1", (origin, origin)).fetchone()
+    return found[0] if found else None
 
 
 class Entries:
@@ -188,7 +212,8 @@ class Entries:
         return items(conn, rows, self.settings().trash_ms)[0] if rows else None
 
     def save(self, body: EntryIn, user: str | None, migrating: bool) -> Changed:
-        """Store an entry; an id already stored answers the row as it is."""
+        """Store an entry; an id already stored answers the row as it is, and so does an untrashed entry with the
+        origin's id or origin."""
         with self.db.read() as conn:
             existing = self.item(conn, body.id)
         if existing is not None:
@@ -198,18 +223,25 @@ class Entries:
         checked = check_entry(body.inputs, body.maps, body.hashes, body.unavailable, body.thumbs)
         if checked.issues:
             raise refused_issues(list(checked.issues))
+        names = checked.names | body.recipe_names
+        locations = {digest: [*checked.locations.get(digest, []), *body.recipe_locations.get(digest, [])] for digest in names}
         now = self.now()
         saved_at, used_at, trashed_at = (body.saved_at, body.used_at, body.trashed_at) if migrating else (now, now, None)
         document = json.dumps({"inputs": body.inputs, "maps": body.maps, "hashes": checked.hashes, "unavailable": list(checked.unavailable)})
         thumbs = json.dumps([{key: thumb[key] for key in ("cid", "hash", "thumb", "width", "height")} for thumb in body.thumbs])
+        recipe = json.dumps(body.recipe) if body.recipe is not None else None
+        recipe_head = json.dumps(body.recipe_head) if body.recipe_head is not None else None
         cap = self.settings().library_cap
         with self.db.write(durable=True) as w:
             existing = self.item(w.conn, body.id)
             if existing is not None:
                 return Changed(existing)
-            missing = checked.names - self.held(checked.names)
+            matched = matching_origin(w.conn, body.origin) if body.origin else None
+            if matched is not None:
+                return Changed(self.item(w.conn, matched), matched_origin=True)
+            missing = names - self.held(names)
             if missing:
-                raise refused_issues(missing_issues(missing, checked.locations))
+                raise refused_issues(missing_issues(missing, locations))
             pinned, unpinned = body.pinned, False
             if pinned and trashed_at is None and pinned_count(w.conn, body.id) >= MAX_PINNED:
                 if not migrating:
@@ -220,8 +252,8 @@ class Entries:
                 if count >= cap:
                     raise Refused(409, "library_full", f"The library holds {count} of {cap} entries", cap=cap, count=count)
             w.conn.execute(
-                "INSERT INTO entries (id, kind, name, user, saved_at, used_at, pinned, trashed_at, trashed_by, trashed_cause, frames, pictures, role, control, width, height, schema, document, thumbs)"
-                " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                "INSERT INTO entries (id, kind, name, user, saved_at, used_at, pinned, trashed_at, trashed_by, trashed_cause, frames, pictures, role, control, width, height, schema, document, thumbs,"
+                " recipe, recipe_head, origin) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (
                     body.id,
                     body.kind,
@@ -242,9 +274,12 @@ class Entries:
                     body.inputs_schema,
                     document,
                     thumbs,
+                    recipe,
+                    recipe_head,
+                    body.origin,
                 ),
             )
-            w.conn.executemany("INSERT INTO entry_blobs (entry_id, hash) VALUES (?, ?)", [(body.id, h) for h in sorted(checked.names)])
+            w.conn.executemany("INSERT INTO entry_blobs (entry_id, hash) VALUES (?, ?)", [(body.id, h) for h in sorted(names)])
             pushed = [] if migrating else evict_in(w.conn, cap, body.id, now, user)
             entry = self.item(w.conn, body.id)
         return Changed(entry, pushed, created=True, unpinned=unpinned)
@@ -310,9 +345,25 @@ class Entries:
             entry = self.item(conn, entry_id)
             if entry is None:
                 return None
-            document = json.loads(conn.execute("SELECT document FROM entries WHERE id = ?", (entry_id,)).fetchone()[0])
+            row = conn.execute("SELECT document, recipe FROM entries WHERE id = ?", (entry_id,)).fetchone()
+            document = json.loads(row[0])
             lost = lost_among(conn, document["hashes"].values())
-        return {**entry, **document, "lost": sorted(cid for cid, digest in document["hashes"].items() if digest in lost)}
+        recipe = json.loads(row[1]) if row[1] else None
+        return {**entry, **document, "recipe": recipe, "lost": sorted(cid for cid, digest in document["hashes"].items() if digest in lost)}
+
+    def matched(self, origin: str) -> dict | None:
+        """The untrashed entry a file with this id came from or went to, as a list item."""
+        with self.db.read() as conn:
+            found = matching_origin(conn, origin)
+            return self.item(conn, found) if found is not None else None
+
+    def origin_of(self, entry_id: str) -> str | None:
+        """The id an export of this entry carries: the file it was imported from, else its own."""
+        with self.db.read() as conn:
+            found = conn.execute("SELECT origin FROM entries WHERE id = ?", (entry_id,)).fetchone()
+        if found is None:
+            raise Gone(entry_id)
+        return found[0] or entry_id
 
     def counts(self) -> tuple[int, int]:
         """Pinned entries, and untrashed unpinned ones."""

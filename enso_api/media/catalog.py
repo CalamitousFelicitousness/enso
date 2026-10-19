@@ -18,6 +18,7 @@ from enso_api.media.collector import free_now
 from enso_api.media.deleted import NOT_IN_TRASH, DeletedFiles
 from enso_api.media.entries import MAX_PINNED, Entries, EntryIn, EntryPatch, Gone, Refused
 from enso_api.media.models import (
+    EntryBodyV2,
     FileErrorV2,
     IdErrorV2,
     ItemEntryV2,
@@ -53,6 +54,8 @@ from enso_api.media.records import RecordIn, Records
 from enso_api.media.store import MediaStore
 from enso_api.media.worker import publish_media
 from enso_api.models import JobResponse
+from enso_api.recipes.entry import build_entry
+from enso_api.recipes.identity import local_recipe
 from enso_api.session import authenticate
 
 log = logging.getLogger("sd")
@@ -97,29 +100,12 @@ async def run(fn: Callable[[], T], label: str, gone: str) -> T:
         refuse(507, "insufficient_storage", "The server's disk is full", label=label)
 
 
-def entry_in(body: ReqEntryV2) -> EntryIn:
-    summary = body.summary
-    return EntryIn(
-        id=body.id,
-        kind=body.kind,
-        name=body.name,
-        saved_at=body.saved_at,
-        used_at=body.used_at,
-        pinned=body.pinned,
-        trashed_at=body.trashed_at,
-        frames=summary.frames,
-        pictures=summary.pictures,
-        role=summary.role,
-        control=summary.control,
-        width=summary.width,
-        height=summary.height,
-        inputs_schema=summary.inputs_schema,
-        inputs=body.inputs,
-        maps=body.maps,
-        hashes=body.hashes,
-        unavailable=body.unavailable,
-        thumbs=[thumb.model_dump() for thumb in body.thumbs],
-    )
+def entry_in(body: EntryBodyV2, entry_id: str, recipe: dict | None = None, origin: str | None = None) -> EntryIn:
+    """The entry a body describes, refused with FastAPI's issue list when the rules refuse it."""
+    entry, found = build_entry(body, entry_id, recipe, origin)
+    if entry is None:
+        refuse_issues(found, "Media store")
+    return entry
 
 
 def record_in(body) -> RecordIn:
@@ -235,7 +221,9 @@ async def post_library(body: ReqEntryV2, request: Request, response: Response):
     and thumbnail it names must be uploaded first."""
     _, entries, _ = catalog_or_503()
     user = user_of(request)
-    changed = await run(lambda: entries.save(entry_in(body), user, body.migrating), "Media store", ENTRY_GONE)
+    recipe = await asyncio.to_thread(local_recipe, body.recipe.model_dump()) if body.recipe is not None else None
+    entry = entry_in(body, body.id, recipe)
+    changed = await run(lambda: entries.save(entry, user, body.migrating), "Media store", ENTRY_GONE)
     pushed = [entry["id"] for entry in changed.pushed_out]
     if changed.created:
         announce_entries([body.id, *pushed], pushed)

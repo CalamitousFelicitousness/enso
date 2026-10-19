@@ -158,4 +158,20 @@ ALTER TABLE blobs ADD COLUMN height INTEGER;
 CREATE INDEX blobs_unsized ON blobs(created_at) WHERE width IS NULL;
 """
 
-MIGRATIONS = [(1, SCHEMA_V1), (2, SCHEMA_V2), (3, SCHEMA_V3), (4, SCHEMA_V4)]
+# Recipes: the typed part beside the document, what a list item shows of it, and the file an import came from.
+# model_hashes holds the SHA-256 of a model file the store hashed itself, valid while the file's mtime and size hold.
+SCHEMA_V5 = """
+ALTER TABLE entries ADD COLUMN recipe TEXT;
+ALTER TABLE entries ADD COLUMN recipe_head TEXT;
+ALTER TABLE entries ADD COLUMN origin TEXT;
+CREATE INDEX entries_origin ON entries(origin) WHERE origin IS NOT NULL;
+CREATE TABLE model_hashes (
+  path TEXT PRIMARY KEY,
+  mtime INTEGER NOT NULL,
+  size INTEGER NOT NULL,
+  sha256 TEXT NOT NULL,
+  computed_at INTEGER NOT NULL
+);
+"""
+
+MIGRATIONS = [(1, SCHEMA_V1), (2, SCHEMA_V2), (3, SCHEMA_V3), (4, SCHEMA_V4), (5, SCHEMA_V5)]

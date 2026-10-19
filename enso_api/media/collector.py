@@ -30,6 +30,7 @@ GRACE_MS = 7 * DAY_MS
 TRANSIENT_GRACE_MS = HOUR_MS
 URGENT_TOUCH_MS = HOUR_MS
 PART_AGE_MS = HOUR_MS
+EXPORT_AGE_MS = HOUR_MS
 PASS_SECONDS = 300
 PASS_MS = PASS_SECONDS * 1000
 FUTURE_SLACK_MS = 5 * 60 * 1000
@@ -424,6 +425,20 @@ def reconcile(store: MediaStore, layout: Layout, walk: bool) -> Reconciled:
     return result
 
 
+def sweep_exports(layout: Layout, now: int, registered: set[str]) -> int:
+    """Remove packed recipe files and their parts older than an hour, except a part still being written; the count."""
+    removed = 0
+    with contextlib.suppress(OSError), os.scandir(layout.exports) as entries:
+        for entry in entries:
+            if entry.path in registered or not entry.name.endswith((".enso", ".enso.part")):
+                continue
+            with contextlib.suppress(OSError):
+                if entry.stat(follow_symlinks=False).st_mtime_ns // 1_000_000 < now - EXPORT_AGE_MS:
+                    os.remove(entry.path)
+                    removed += 1
+    return removed
+
+
 def run_pass(store: MediaStore, live_jobs: LiveJobs, deleted: DeletedFiles | None = None) -> Applied:
     """One collection pass: the unnamed and lost rows checked against their files, then survey, plan and apply; then the
     Gallery trash's files checked against their folders, its expiry, its folders no row holds, and the free-space
@@ -431,6 +446,9 @@ def run_pass(store: MediaStore, live_jobs: LiveJobs, deleted: DeletedFiles | Non
     reconcile(store, store.layout, walk=False)
     p = plan(survey(store, store.layout, store.inflight, live_jobs))
     applied = apply(store, p, live_jobs)
+    exports = sweep_exports(store.layout, p.now, store.inflight.parts())
+    if exports:
+        log.debug(f"Media store: exports removed={exports}")
     if deleted is not None:
         changed = deleted.check()
         if not p.rebase:

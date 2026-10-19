@@ -251,20 +251,86 @@ class EntryThumbInV2(StrictBaseModel):
     height: int = Field(ge=0)
 
 
-class ReqEntryV2(StrictBaseModel):
-    id: str = Field(min_length=1, max_length=64)
-    kind: Literal["frame", "set"]
+class ModelIdV2(StrictBaseModel):
+    """A model as the server that saved the recipe knew it."""
+
+    title: str = Field(max_length=300)
+    """sdnext's title, with "[shorthash]" when it had one."""
+    name: str = Field(max_length=300)
+    """The file's name without its folder."""
+    path: str = Field(default="", max_length=300)
+    """The name with the folder under the models folder."""
+    sha256: Hash | None = None
+    """The file's SHA-256, written by the server that hashed it."""
+    shorthash: str | None = Field(default=None, pattern=r"^[0-9a-f]{10}$")
+    snapshot: str | None = Field(default=None, max_length=64)
+    """A diffusers model's Hugging Face snapshot."""
+    class_name: str | None = Field(default=None, max_length=100)
+    type: str | None = Field(default=None, max_length=40)
+
+
+class NetworkIdV2(StrictBaseModel):
+    """A LoRA the prompt names."""
+
+    kind: Literal["lora", "lyco"]
+    name: str = Field(min_length=1, max_length=300)
+    sha256: Hash | None = None
+    short: str | None = Field(default=None, max_length=64)
+    """The hash sdnext showed for it, of a kind sdnext does not say."""
+
+
+class LutIdV2(StrictBaseModel):
+    name: str = Field(min_length=1, max_length=300)
+    """The file's name; the bytes are the request's grading_lut_file."""
+
+
+class PreviewV2(StrictBaseModel):
+    """The thumbnail of the output a recipe was saved from."""
+
+    thumb: Hash
+    width: int = Field(ge=0)
+    height: int = Field(ge=0)
+
+
+class RecipeV2(StrictBaseModel):
+    """A job request kept instead of run, with what Restore and Run need beside it."""
+
+    recipe_schema: int = Field(ge=1)
+    request: dict[str, Any]
+    """The job request as /submit takes it, its pictures as upload refs."""
+    refs: dict[str, Any] = Field(default_factory=dict)
+    """Where each upload ref came from, as a job record keeps it."""
+    map_keys: list[str] = Field(default_factory=list, max_length=100)
+    settings: dict[str, Any] = Field(default_factory=dict)
+    """The generation settings as they were set, for Restore."""
+    checkpoint: ModelIdV2 | None = None
+    networks: list[NetworkIdV2] = Field(default_factory=list, max_length=100)
+    lut: LutIdV2 | None = None
+    preview: PreviewV2 | None = None
+
+
+class EntryBodyV2(StrictBaseModel):
+    """What an entry is, as a save and an export carry it."""
+
+    kind: Literal["frame", "set", "recipe"]
     name: str = Field(min_length=1, max_length=200)
-    saved_at: int = Field(default=0, ge=0)
-    used_at: int = Field(default=0, ge=0)
-    pinned: bool = False
-    trashed_at: int | None = None
     summary: EntrySummaryV2
-    inputs: dict[str, Any]
+    inputs: dict[str, Any] | None
+    """Null only for a recipe without input pictures."""
     maps: dict[str, str] = Field(default_factory=dict)
     hashes: dict[str, Hash] = Field(default_factory=dict)
     unavailable: list[str] = Field(default_factory=list)
     thumbs: list[EntryThumbInV2] = Field(default_factory=list)
+    recipe: RecipeV2 | None = None
+    """Required for a recipe, refused for the other kinds."""
+
+
+class ReqEntryV2(EntryBodyV2):
+    id: str = Field(min_length=1, max_length=64)
+    saved_at: int = Field(default=0, ge=0)
+    used_at: int = Field(default=0, ge=0)
+    pinned: bool = False
+    trashed_at: int | None = None
     migrating: bool = False
     """Moved from a browser: its times are kept, and the cap and the pins refuse rather than push anything out."""
 
@@ -301,10 +367,14 @@ class ItemEntryV2(BaseModel):
     inputs_schema: int
     bytes: int
     thumbs: list[ItemThumbV2]
+    recipe: dict[str, Any] | None = None
+    """A recipe's head: recipe_schema, type, checkpoint, networks, lut, and preview with its lost flag."""
 
 
 class ResEntryV2(ItemEntryV2):
-    inputs: dict[str, Any]
+    inputs: dict[str, Any] | None
+    recipe: dict[str, Any] | None = None
+    """A recipe's whole part, in RecipeV2's shape."""
     maps: dict[str, str]
     hashes: dict[str, str]
     unavailable: list[str]

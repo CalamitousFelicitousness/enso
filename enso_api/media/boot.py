@@ -174,8 +174,10 @@ def start() -> None:
     from enso_api.job_queue import job_queue
     from enso_api.media import collector, verify
     from enso_api.media.worker import MediaWorker, publish_media
+    from enso_api.recipes import identity
 
     store = state.store
+    model_hashes = identity.ModelHashes(store.db, store.now)
     if state.deleted is not None:
         state.deleted.reconcile()
     state.worker = MediaWorker(
@@ -184,5 +186,6 @@ def start() -> None:
         verify=lambda cancel, progress: verify.run(store, store.layout, cancel, progress),
         on_progress=publish_media,
         fill_sizes=store.fill_sizes,
+        identify=lambda stopping: identity.identify_next(identity.identify_queue, model_hashes, store.db, identity.sdnext_hasher, stopping),
     )
     state.worker.start()

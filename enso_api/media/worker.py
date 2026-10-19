@@ -47,6 +47,7 @@ class MediaWorker(threading.Thread):
         on_progress: Callable[[VerifyState], None] | None = None,
         interval: float = PASS_SECONDS,
         fill_sizes: Callable[[], int] | None = None,
+        identify: Callable[[Callable[[], bool]], int] | None = None,
     ):
         super().__init__(daemon=True, name="enso-media")
         self.reconcile = reconcile
@@ -55,6 +56,7 @@ class MediaWorker(threading.Thread):
         self.on_progress = on_progress
         self.interval = interval
         self.fill_sizes = fill_sizes
+        self.identify = identify
         self.wake_event = threading.Event()
         self.cancel = threading.Event()
         self.lock = threading.Lock()
@@ -70,6 +72,7 @@ class MediaWorker(threading.Thread):
                 self.step("reconciliation", lambda: self.reconcile(True))
             self.step("collection", self.collect)
             self.step("picture sizes", self.fill)
+            self.step("model identity", self.run_identify)
             self.wake_event.wait(self.interval)
             self.wake_event.clear()
 
@@ -93,6 +96,11 @@ class MediaWorker(threading.Thread):
             return
         while not self.stopping.is_set() and not self.requested and self.fill_sizes() > 0:
             pass
+
+    def run_identify(self) -> None:
+        """Hash the model files recipes name, one at a time, until none is left or a verify is asked for."""
+        if self.identify is not None:
+            self.identify(lambda: self.stopping.is_set() or self.requested)
 
     def take_request(self) -> bool:
         with self.lock:

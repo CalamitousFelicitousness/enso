@@ -413,6 +413,7 @@ class ItemExtraNetworkV2(BaseModel):
     fullname: str | None = Field(default=None, title="Full name", description="Fully qualified name")
     filename: str | None = Field(default=None, title="Filename", description="Path to file")
     hash: str | None = Field(default=None, title="Hash", description="Short hash")
+    sha256: str | None = Field(default=None, title="SHA256", description="A LoRA file's full SHA-256, when sdnext or the media store hashed it")
     preview: str | None = Field(default=None, title="Preview", description="Preview thumbnail URL")
     version: str | None = Field(default=None, title="Version", description="Base model version")
     tags: list[str] = Field(default_factory=list, title="Tags", description="Tag list")

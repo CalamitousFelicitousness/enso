@@ -14,6 +14,7 @@ HASH_RE = re.compile(r"[0-9a-f]{64}")
 LEGACY_RE = re.compile(r"[0-9a-f]{16}")
 # The id of a Gallery file in the trash, which names its folder there
 TRASH_ID_RE = re.compile(r"[0-9a-f]{16}")
+EXPORT_ID_RE = re.compile(r"[0-9a-f]{32}")
 OPTION_LABEL = "Media store folder"
 
 
@@ -88,11 +89,19 @@ class Layout:
         # Trash folders on their way out, renamed here first so a crash never brings a deleted file back
         self.gone = os.path.join(root, ".gone")
         self.real_trash = os.path.join(self.real_root, "trash")
+        # Recipe files packed for a download, kept an hour
+        self.exports = os.path.join(root, "exports")
         self.lock_fd: int | None = None
 
     def make(self) -> None:
-        for path in (self.root, self.blobs, self.tmp, self.snapshots, self.corrupt, self.trash, self.gone):
+        for path in (self.root, self.blobs, self.tmp, self.snapshots, self.corrupt, self.trash, self.gone, self.exports):
             os.makedirs(path, exist_ok=True)
+
+    def export_path(self, export_id: str) -> str:
+        """A packed recipe file; refuses anything but 32 lowercase hex, so no id becomes a path."""
+        if not isinstance(export_id, str) or not EXPORT_ID_RE.fullmatch(export_id):
+            raise ValueError(f"not an export id: {export_id!r}")
+        return os.path.join(self.exports, f"{export_id}.enso")
 
     @staticmethod
     def fan(digest: str) -> str:

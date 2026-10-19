@@ -231,7 +231,10 @@ async def get_extra_networks_v2(
     offset: int = Query(default=0, ge=0),
     limit: int | None = Query(default=None, ge=1, description="Max items to return (omit for all)"),
 ):
-    """List extra networks with optional filtering and pagination."""
+    """List extra networks with optional filtering and pagination; a LoRA carries its file's sha256 when known."""
+    from enso_api.recipes.identity import lora_digest, stored_digests
+
+    stored = await asyncio.to_thread(stored_digests)
     matched = []
     lower_search = search.lower() if search else None
     for pg in shared.extra_networks:
@@ -261,6 +264,7 @@ async def get_extra_networks_v2(
                     fullname=fullname,
                     filename=item.get("filename", None),
                     hash=item.get("shorthash", None) or item.get("hash"),
+                    sha256=lora_digest(filename, name, stored) if pg.name in ("lora", "lyco") and filename else None,
                     preview=item.get("preview", None),
                     version=resolve_version(item, pg.name),
                     tags=tags,
@@ -403,9 +407,13 @@ async def get_sd_models_v2(
     offset: int = Query(default=0, ge=0),
     limit: int | None = Query(default=None, ge=1, description="Max items to return (omit for all)"),
 ):
-    """List registered checkpoint models with search and type filtering."""
+    """List registered checkpoint models with search and type filtering. A file's sha256 is sdnext's when it hashed
+    it, else the one the media store computed for a recipe."""
     from modules import sd_checkpoint
 
+    from enso_api.recipes.identity import stored_digests
+
+    stored = await asyncio.to_thread(stored_digests)
     lower_search = search.lower() if search else None
     # build a name→item lookup from the extra_networks cache (already has size/mtime/version)
     model_items = {}
@@ -431,7 +439,7 @@ async def get_sd_models_v2(
                 filename=v.filename,
                 type=v.type,
                 hash=v.shorthash,
-                sha256=v.sha256,
+                sha256=v.sha256 or (stored(v.filename) if v.type != "diffusers" else None),
                 size=size,
                 mtime=mtime,
                 version=version,

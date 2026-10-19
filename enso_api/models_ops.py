@@ -213,10 +213,12 @@ def post_civitai_download(req: ReqCivitaiDownloadV2):
 
     if not is_confined_to(folder, [paths.models_path]):
         return {"status": "Error: path outside models directory"}
+    # The name is a file in the confined folder, never a path out of it
+    name = os.path.basename(req.name.replace("\\", "/")).strip(" .")
     item = download_manager.enqueue(
         url=req.url,
         folder=folder,
-        filename=req.name or "Unknown",
+        filename=name or "Unknown",
         model_type=req.model_type,
         token=req.token,
     )

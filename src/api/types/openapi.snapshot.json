@@ -2031,6 +2031,24 @@
         "title": "EntryThumbInV2",
         "type": "object"
       },
+      "ExistingEntryV2": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "ExistingEntryV2",
+        "type": "object"
+      },
       "ExtensionVersionV2": {
         "properties": {
           "commit": {
@@ -3887,6 +3905,24 @@
         "title": "ImageRef",
         "type": "object"
       },
+      "ImportedBlobsV2": {
+        "properties": {
+          "added": {
+            "title": "Added",
+            "type": "integer"
+          },
+          "held": {
+            "title": "Held",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "added",
+          "held"
+        ],
+        "title": "ImportedBlobsV2",
+        "type": "object"
+      },
       "InputProcessParams": {
         "additionalProperties": false,
         "description": "A processor to run on one input image before generation; the key names its map in the maps event and the result.",
@@ -4134,6 +4170,18 @@
           "pinned": {
             "title": "Pinned",
             "type": "boolean"
+          },
+          "recipe": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recipe"
           },
           "role": {
             "anyOf": [
@@ -4667,6 +4715,18 @@
             ],
             "description": "Preview thumbnail URL",
             "title": "Preview"
+          },
+          "sha256": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "A LoRA file's full SHA-256, when sdnext or the media store hashed it",
+            "title": "SHA256"
           },
           "size": {
             "anyOf": [
@@ -6505,6 +6565,22 @@
         "title": "LtxParams",
         "type": "object"
       },
+      "LutIdV2": {
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "maxLength": 300,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "LutIdV2",
+        "type": "object"
+      },
       "MediaEventDataV2": {
         "properties": {
           "verify": {
@@ -6745,6 +6821,94 @@
           }
         },
         "title": "MetadataSweepParams",
+        "type": "object"
+      },
+      "ModelIdV2": {
+        "additionalProperties": false,
+        "description": "A model as the server that saved the recipe knew it.",
+        "properties": {
+          "class_name": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Class Name"
+          },
+          "name": {
+            "maxLength": 300,
+            "title": "Name",
+            "type": "string"
+          },
+          "path": {
+            "default": "",
+            "maxLength": 300,
+            "title": "Path",
+            "type": "string"
+          },
+          "sha256": {
+            "anyOf": [
+              {
+                "pattern": "^[0-9a-f]{64}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sha256"
+          },
+          "shorthash": {
+            "anyOf": [
+              {
+                "pattern": "^[0-9a-f]{10}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Shorthash"
+          },
+          "snapshot": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Snapshot"
+          },
+          "title": {
+            "maxLength": 300,
+            "title": "Title",
+            "type": "string"
+          },
+          "type": {
+            "anyOf": [
+              {
+                "maxLength": 40,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Type"
+          }
+        },
+        "required": [
+          "title",
+          "name"
+        ],
+        "title": "ModelIdV2",
         "type": "object"
       },
       "ModelLoadParams": {
@@ -7182,6 +7346,56 @@
         "title": "MovedFileV2",
         "type": "object"
       },
+      "NetworkIdV2": {
+        "additionalProperties": false,
+        "description": "A LoRA the prompt names.",
+        "properties": {
+          "kind": {
+            "enum": [
+              "lora",
+              "lyco"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 300,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "sha256": {
+            "anyOf": [
+              {
+                "pattern": "^[0-9a-f]{64}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sha256"
+          },
+          "short": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Short"
+          }
+        },
+        "required": [
+          "kind",
+          "name"
+        ],
+        "title": "NetworkIdV2",
+        "type": "object"
+      },
       "OptionComponentArgsV2": {
         "properties": {
           "choices": {
@@ -7360,6 +7574,34 @@
           }
         },
         "title": "PreprocessParams",
+        "type": "object"
+      },
+      "PreviewV2": {
+        "additionalProperties": false,
+        "description": "The thumbnail of the output a recipe was saved from.",
+        "properties": {
+          "height": {
+            "minimum": 0,
+            "title": "Height",
+            "type": "integer"
+          },
+          "thumb": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Thumb",
+            "type": "string"
+          },
+          "width": {
+            "minimum": 0,
+            "title": "Width",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "thumb",
+          "width",
+          "height"
+        ],
+        "title": "PreviewV2",
         "type": "object"
       },
       "ProcessCreateVideoParams": {
@@ -8300,6 +8542,84 @@
         "title": "RamMemoryV2",
         "type": "object"
       },
+      "RecipeV2": {
+        "additionalProperties": false,
+        "description": "A job request kept instead of run, with what Restore and Run need beside it.",
+        "properties": {
+          "checkpoint": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ModelIdV2"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "lut": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LutIdV2"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "map_keys": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 100,
+            "title": "Map Keys",
+            "type": "array"
+          },
+          "networks": {
+            "items": {
+              "$ref": "#/components/schemas/NetworkIdV2"
+            },
+            "maxItems": 100,
+            "title": "Networks",
+            "type": "array"
+          },
+          "preview": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PreviewV2"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "recipe_schema": {
+            "minimum": 1,
+            "title": "Recipe Schema",
+            "type": "integer"
+          },
+          "refs": {
+            "additionalProperties": true,
+            "title": "Refs",
+            "type": "object"
+          },
+          "request": {
+            "additionalProperties": true,
+            "title": "Request",
+            "type": "object"
+          },
+          "settings": {
+            "additionalProperties": true,
+            "title": "Settings",
+            "type": "object"
+          }
+        },
+        "required": [
+          "recipe_schema",
+          "request"
+        ],
+        "title": "RecipeV2",
+        "type": "object"
+      },
       "RembgParams": {
         "additionalProperties": false,
         "description": "Background removal.",
@@ -8700,14 +9020,22 @@
             "type": "string"
           },
           "inputs": {
-            "additionalProperties": true,
-            "title": "Inputs",
-            "type": "object"
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Inputs"
           },
           "kind": {
             "enum": [
               "frame",
-              "set"
+              "set",
+              "recipe"
             ],
             "title": "Kind",
             "type": "string"
@@ -8734,6 +9062,16 @@
             "default": false,
             "title": "Pinned",
             "type": "boolean"
+          },
+          "recipe": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RecipeV2"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "saved_at": {
             "default": 0,
@@ -8777,13 +9115,112 @@
           }
         },
         "required": [
-          "id",
+          "kind",
+          "name",
+          "summary",
+          "inputs",
+          "id"
+        ],
+        "title": "ReqEntryV2",
+        "type": "object"
+      },
+      "ReqExportBodyV2": {
+        "additionalProperties": false,
+        "description": "An entry not saved, as the current inputs and settings would be; every blob it names is held.",
+        "properties": {
+          "hashes": {
+            "additionalProperties": {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            "title": "Hashes",
+            "type": "object"
+          },
+          "inputs": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Inputs"
+          },
+          "kind": {
+            "enum": [
+              "frame",
+              "set",
+              "recipe"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "maps": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Maps",
+            "type": "object"
+          },
+          "name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "recipe": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RecipeV2"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "summary": {
+            "$ref": "#/components/schemas/EntrySummaryV2"
+          },
+          "thumbs": {
+            "items": {
+              "$ref": "#/components/schemas/EntryThumbInV2"
+            },
+            "title": "Thumbs",
+            "type": "array"
+          },
+          "unavailable": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Unavailable",
+            "type": "array"
+          }
+        },
+        "required": [
           "kind",
           "name",
           "summary",
           "inputs"
         ],
-        "title": "ReqEntryV2",
+        "title": "ReqExportBodyV2",
+        "type": "object"
+      },
+      "ReqExportEntryV2": {
+        "additionalProperties": false,
+        "properties": {
+          "entry_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Entry Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "entry_id"
+        ],
+        "title": "ReqExportEntryV2",
         "type": "object"
       },
       "ReqFramePackLoadV2": {
@@ -10972,9 +11409,16 @@
             "type": "string"
           },
           "inputs": {
-            "additionalProperties": true,
-            "title": "Inputs",
-            "type": "object"
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Inputs"
           },
           "inputs_schema": {
             "title": "Inputs Schema",
@@ -11009,6 +11453,18 @@
           "pinned": {
             "title": "Pinned",
             "type": "boolean"
+          },
+          "recipe": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recipe"
           },
           "role": {
             "anyOf": [
@@ -11113,6 +11569,34 @@
           "lost"
         ],
         "title": "ResEntryV2",
+        "type": "object"
+      },
+      "ResExportV2": {
+        "properties": {
+          "blobs": {
+            "title": "Blobs",
+            "type": "integer"
+          },
+          "bytes": {
+            "title": "Bytes",
+            "type": "integer"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "bytes",
+          "blobs"
+        ],
+        "title": "ResExportV2",
         "type": "object"
       },
       "ResExtraNetworkDetails": {
@@ -11316,6 +11800,50 @@
           "limit"
         ],
         "title": "ResHistoryV2",
+        "type": "object"
+      },
+      "ResImportV2": {
+        "properties": {
+          "blobs": {
+            "$ref": "#/components/schemas/ImportedBlobsV2"
+          },
+          "created": {
+            "title": "Created",
+            "type": "boolean"
+          },
+          "entry": {
+            "$ref": "#/components/schemas/ItemEntryV2"
+          },
+          "existing": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ExistingEntryV2"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "pushed_out": {
+            "items": {
+              "$ref": "#/components/schemas/PushedOutV2"
+            },
+            "title": "Pushed Out",
+            "type": "array"
+          },
+          "unavailable": {
+            "title": "Unavailable",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "entry",
+          "created",
+          "pushed_out",
+          "blobs",
+          "unavailable"
+        ],
+        "title": "ResImportV2",
         "type": "object"
       },
       "ResJobStatsV2": {
@@ -18973,6 +19501,114 @@
         ]
       }
     },
+    "/sdapi/v2/export": {
+      "post": {
+        "description": "Pack an entry, or the current inputs and settings, into a recipe file; GET /export/{id} serves it for an hour.\nEvery picture it names must be held.",
+        "operationId": "post_export_sdapi_v2_export_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/ReqExportEntryV2"
+                  },
+                  {
+                    "$ref": "#/components/schemas/ReqExportBodyV2"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResExportV2"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Post Export",
+        "tags": [
+          "Library"
+        ]
+      }
+    },
+    "/sdapi/v2/export/{export_id}": {
+      "get": {
+        "description": "A packed recipe file, for an hour after it was packed.",
+        "operationId": "get_export_sdapi_v2_export__export_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "export_id",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{32}$",
+              "title": "Export Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "name",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Export",
+        "tags": [
+          "Library"
+        ]
+      }
+    },
     "/sdapi/v2/extensions": {
       "get": {
         "description": "List installed extensions with their remote URLs, branches, versions, and enabled status.",
@@ -19001,7 +19637,7 @@
     },
     "/sdapi/v2/extra-networks": {
       "get": {
-        "description": "List extra networks with optional filtering and pagination.",
+        "description": "List extra networks with optional filtering and pagination; a LoRA carries its file's sha256 when known.",
         "operationId": "get_extra_networks_v2_sdapi_v2_extra_networks_get",
         "parameters": [
           {
@@ -19673,6 +20309,49 @@
         "summary": "Post Hf Settings",
         "tags": [
           "HuggingFace"
+        ]
+      }
+    },
+    "/sdapi/v2/import": {
+      "post": {
+        "description": "Import a recipe file into the library. Every picture in it is hashed as it lands and must be the one its name\ngives; nothing is kept from a file that is refused.",
+        "operationId": "post_import_sdapi_v2_import_post",
+        "requestBody": {
+          "content": {
+            "application/octet-stream": {
+              "schema": {
+                "format": "binary",
+                "type": "string"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResImportV2"
+                }
+              }
+            },
+            "description": "The library already holds this entry"
+          },
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResImportV2"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Post Import",
+        "tags": [
+          "Library"
         ]
       }
     },
@@ -22514,7 +23193,7 @@
     },
     "/sdapi/v2/sd-models": {
       "get": {
-        "description": "List registered checkpoint models with search and type filtering.",
+        "description": "List registered checkpoint models with search and type filtering. A file's sha256 is sdnext's when it hashed\nit, else the one the media store computed for a recipe.",
         "operationId": "get_sd_models_v2_sdapi_v2_sd_models_get",
         "parameters": [
           {

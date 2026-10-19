@@ -18,6 +18,8 @@ def register_api(app, dependencies=None):
     from enso_api.media.catalog import router as catalog_router
     from enso_api.media.routes import router as media_store_router
     from enso_api.media.routes import serve_router as media_serve_router
+    from enso_api.recipes.routes import router as recipes_router
+    from enso_api.recipes.routes import serve_router as recipes_serve_router
     from enso_api.routes import media_router, router
     from enso_api.session import public_router as session_public_router
     from enso_api.session import router as session_router
@@ -88,10 +90,12 @@ def register_api(app, dependencies=None):
     app.include_router(session_public_router)
     app.include_router(media_store_router, dependencies=deps)
     app.include_router(catalog_router, dependencies=deps)
+    app.include_router(recipes_router, dependencies=deps)
     # Media routers carry their own auth: the session cookie, else what sdnext's auth admits
     app.include_router(media_router)
     app.include_router(upload_media_router)
     app.include_router(media_serve_router)
+    app.include_router(recipes_serve_router)
     app.add_api_websocket_route("/sdapi/v2/jobs/{job_id}/ws", ws_job_endpoint)
 
     from enso_api.endpoints import router as endpoints_router
@@ -178,6 +182,8 @@ def register_api(app, dependencies=None):
                 "/sdapi/v2/library/trash": -1,
                 "/sdapi/v2/library/trash/empty": -1,
                 "/sdapi/v2/records": -1,
+                "/sdapi/v2/export": -1,
+                "/sdapi/v2/import": -1,
                 "/sdapi/v2/browser/delete": -1,
                 "/sdapi/v2/browser/move": -1,
                 "/sdapi/v2/browser/trash": -1,
@@ -233,6 +239,10 @@ def register_api(app, dependencies=None):
             "/sdapi/v2/library/trash": 0,
             "/sdapi/v2/library/trash/empty": 0,
             "/sdapi/v2/records": 0,
+            # A recipe file is packed or read once per click; the packed file is its own window per id
+            "/sdapi/v2/export": 0,
+            "/sdapi/v2/import": 0,
+            "/sdapi/v2/export/{export_id}": 0,
             # A Gallery action is one request however many files it names
             "/sdapi/v2/browser/delete": 0,
             "/sdapi/v2/browser/move": 0,
