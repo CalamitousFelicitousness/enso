@@ -4,7 +4,6 @@ import { useGalleryStore } from "@/stores/galleryStore";
 import { useShortcut } from "@/hooks/useShortcut";
 import { useShortcutScope } from "@/hooks/useShortcutScope";
 import { useKeepAliveVisible } from "@/components/ui/keep-alive";
-import { useDragSource } from "@/hooks/useDragSource";
 import { useImageZoomPan } from "@/hooks/useImageZoomPan";
 import { isVideoFile } from "@/lib/mediaType";
 import { browserFilePath } from "@/api/browserFile";
@@ -60,12 +59,6 @@ export function GalleryLightbox() {
     if (!file) return null;
     return browserFilePath(file.fullPath);
   }, [file]);
-
-  const lightboxDrag = useDragSource(
-    file
-      ? { type: "gallery-image", fileId: file.id, filePath: file.fullPath, src: thumb?.data }
-      : null,
-  );
 
   // Reset transform on navigation (adjust state during render pattern)
   if (prevIndex !== lightboxIndex) {
@@ -220,7 +213,7 @@ export function GalleryLightbox() {
               alt={filename}
               className="max-w-full max-h-full object-contain transition-transform duration-100"
               style={{ transform: zoom.style.transform }}
-              {...lightboxDrag}
+              draggable={false}
             />
           )}
         </div>
