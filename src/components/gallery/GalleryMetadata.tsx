@@ -150,6 +150,12 @@ export function GalleryMetadata({ trash }: { trash: TrashFileActions | null }) {
     applyParams(updates, "Settings applied from the image");
   };
 
+  const openFullSize = () => {
+    const s = useGalleryStore.getState();
+    const idx = s.sortedFiles.findIndex((f) => f.id === selectedFile.id);
+    if (idx >= 0) s.openLightbox(idx);
+  };
+
   const handleSendToCanvas = () => sendPictureToCanvas(galleryPicture(selectedFile.fullPath));
 
   const handleSendPromptOnly = () => {
@@ -172,7 +178,14 @@ export function GalleryMetadata({ trash }: { trash: TrashFileActions | null }) {
               className="w-full h-full object-contain"
             />
           ) : (
-            <MediaImg image={fullUrl} alt={filename} className="w-full h-full object-contain" />
+            <button
+              type="button"
+              onClick={openFullSize}
+              title="Open full size"
+              className="block w-full h-full cursor-zoom-in outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+            >
+              <MediaImg image={fullUrl} alt={filename} className="w-full h-full object-contain" />
+            </button>
           )}
         </div>
       </div>
