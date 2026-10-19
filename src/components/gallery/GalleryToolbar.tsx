@@ -312,7 +312,7 @@ export function GalleryToolbar({ totalCount, filteredCount, actions, trash }: Ga
           size="icon-xs"
           data-state={metadataPanelOpen ? "on" : "off"}
           onClick={toggleMetadataPanel}
-          title="Toggle metadata panel (I)"
+          title="Toggle preview panel (I)"
         >
           <PanelRight size={14} />
         </Button>

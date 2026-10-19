@@ -172,7 +172,7 @@ export const SHORTCUTS: Record<string, ShortcutDef> = {
     key: "i",
     scope: "gallery",
     category: "Gallery",
-    label: "Toggle metadata panel",
+    label: "Toggle preview panel",
   },
   "gallery-select-all": {
     id: "gallery-select-all",

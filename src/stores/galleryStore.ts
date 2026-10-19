@@ -42,6 +42,24 @@ const savePersistedSort = (sort: GallerySort): void => {
   }
 };
 
+const PICTURE_ONLY_STORAGE_KEY = "enso-gallery-picture-only";
+
+const loadPictureOnly = (): boolean => {
+  try {
+    return localStorage.getItem(PICTURE_ONLY_STORAGE_KEY) === "1";
+  } catch {
+    return false;
+  }
+};
+
+const savePictureOnly = (on: boolean): void => {
+  try {
+    localStorage.setItem(PICTURE_ONLY_STORAGE_KEY, on ? "1" : "0");
+  } catch {
+    // ignore quota/privacy errors
+  }
+};
+
 interface GalleryState {
   folders: BrowserFolder[];
   activeFolder: string | null;
@@ -71,6 +89,8 @@ interface GalleryState {
   thumbSize: number;
   layoutMode: "grid" | "masonry";
   metadataPanelOpen: boolean;
+  /** The preview panel shows the picture alone, its details hidden. */
+  pictureOnly: boolean;
 
   setFolders: (f: BrowserFolder[]) => void;
   setActiveFolder: (path: string | null, kept?: string | null) => void;
@@ -91,6 +111,7 @@ interface GalleryState {
   setThumbSize: (size: number) => void;
   setLayoutMode: (mode: "grid" | "masonry") => void;
   toggleMetadataPanel: () => void;
+  togglePictureOnly: () => void;
   toggleSelect: (fileId: string, index: number, shift: boolean, ctrl: boolean) => void;
   selectAll: () => void;
   deselectAll: () => void;
@@ -142,6 +163,7 @@ export const useGalleryStore = create<GalleryState>()((set) => ({
   thumbSize: 180,
   layoutMode: "grid",
   metadataPanelOpen: true,
+  pictureOnly: loadPictureOnly(),
 
   setFolders: (folders) => set({ folders }),
   setActiveFolder: (path, kept = null) => {
@@ -227,6 +249,11 @@ export const useGalleryStore = create<GalleryState>()((set) => ({
   setThumbSize: (size) => set({ thumbSize: Math.max(120, Math.min(320, size)) }),
   setLayoutMode: (layoutMode) => set({ layoutMode }),
   toggleMetadataPanel: () => set((s) => ({ metadataPanelOpen: !s.metadataPanelOpen })),
+  togglePictureOnly: () =>
+    set((s) => {
+      savePictureOnly(!s.pictureOnly);
+      return { pictureOnly: !s.pictureOnly };
+    }),
   toggleSelect: (fileId, index, shift, ctrl) =>
     set((s) => {
       if (shift && s.selectionAnchor !== null) {

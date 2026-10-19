@@ -28,6 +28,7 @@ import {
   ExternalLink,
   ImageIcon,
   Check,
+  ChevronDown,
   Paintbrush,
   Undo2,
   Wand2,
@@ -80,6 +81,8 @@ export function GalleryMetadata({ trash }: { trash: TrashFileActions | null }) {
   const selectedFile = useGalleryStore((s) => s.selectedFile);
   const selectedThumb = useGalleryStore((s) => s.selectedThumb);
   const selectionLeft = useGalleryStore((s) => s.selectionLeft);
+  const pictureOnly = useGalleryStore((s) => s.pictureOnly);
+  const togglePictureOnly = useGalleryStore((s) => s.togglePictureOnly);
 
   const isVideo = selectedFile ? isVideoFile(selectedFile.relativePath) : false;
 
@@ -176,148 +179,172 @@ export function GalleryMetadata({ trash }: { trash: TrashFileActions | null }) {
 
       {selectedFile.trash && trash && <TrashFileLine file={selectedFile} actions={trash} />}
 
-      {/* Metadata - scrolls if it exceeds remaining space */}
-      <ScrollArea className="min-h-0 shrink">
-        <div className="p-3 space-y-3">
-          {/* File info */}
-          <SectionLeader title="File" collapsible defaultCollapsed>
-            <div className="space-y-1">
-              <MetaRow label="Name" value={filename} copyable />
-              <MetaRow label="Size" value={formatSize(selectedThumb.size)} />
-              <MetaRow
-                label="Dimensions"
-                value={`${selectedThumb.width} x ${selectedThumb.height}`}
-                copyable
-              />
-              <MetaRow label="Modified" value={formatDate(selectedThumb.mtime)} />
-              <MetaRow label="Path" value={selectedFile.relativePath} copyable />
-            </div>
-          </SectionLeader>
+      <button
+        type="button"
+        onClick={togglePictureOnly}
+        aria-expanded={!pictureOnly}
+        title={
+          pictureOnly
+            ? "Show the details below the picture"
+            : "Hide the details so the picture fills the panel"
+        }
+        className="group mx-3 my-1.5 flex shrink-0 items-center gap-1.5 self-start rounded-sm py-1 text-left outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+      >
+        <ChevronDown
+          className={cn(
+            "h-3 w-3 text-muted-foreground/40 transition-transform duration-200 group-hover:text-muted-foreground/70",
+            pictureOnly && "-rotate-90",
+          )}
+        />
+        <span className="text-2xs font-medium uppercase tracking-[0.06em] text-muted-foreground transition-colors group-hover:text-foreground">
+          Details
+        </span>
+      </button>
 
-          {/* Video metadata */}
-          {videoMeta && (
-            <SectionLeader title="Video" collapsible defaultCollapsed>
+      {/* Metadata - scrolls if it exceeds remaining space */}
+      {!pictureOnly && (
+        <ScrollArea className="min-h-0 shrink">
+          <div className="px-3 pb-3 space-y-3">
+            {/* File info */}
+            <SectionLeader title="File" collapsible defaultCollapsed>
               <div className="space-y-1">
-                {videoMeta.duration && <MetaRow label="Duration" value={videoMeta.duration} />}
-                {videoMeta.fps && <MetaRow label="FPS" value={videoMeta.fps} />}
-                {videoMeta.frames && <MetaRow label="Frames" value={videoMeta.frames} />}
-                {videoMeta.codec && <MetaRow label="Codec" value={videoMeta.codec} />}
+                <MetaRow label="Name" value={filename} copyable />
+                <MetaRow label="Size" value={formatSize(selectedThumb.size)} />
+                <MetaRow
+                  label="Dimensions"
+                  value={`${selectedThumb.width} x ${selectedThumb.height}`}
+                  copyable
+                />
+                <MetaRow label="Modified" value={formatDate(selectedThumb.mtime)} />
+                <MetaRow label="Path" value={selectedFile.relativePath} copyable />
               </div>
             </SectionLeader>
-          )}
 
-          {/* Prompt (positive + negative) */}
-          {!isVideo && genInfo.prompt && (
-            <SectionLeader
-              title="Prompt"
-              collapsible
-              action={
-                <div className="flex gap-0.5">
-                  <SmallButton onClick={() => copyToClipboard(genInfo.prompt)} title="Copy">
-                    <Copy size={10} />
-                  </SmallButton>
-                  <SmallButton onClick={copyPromptToGeneration} title="Use">
-                    Use
-                  </SmallButton>
+            {/* Video metadata */}
+            {videoMeta && (
+              <SectionLeader title="Video" collapsible defaultCollapsed>
+                <div className="space-y-1">
+                  {videoMeta.duration && <MetaRow label="Duration" value={videoMeta.duration} />}
+                  {videoMeta.fps && <MetaRow label="FPS" value={videoMeta.fps} />}
+                  {videoMeta.frames && <MetaRow label="Frames" value={videoMeta.frames} />}
+                  {videoMeta.codec && <MetaRow label="Codec" value={videoMeta.codec} />}
                 </div>
-              }
-            >
-              <p className="text-2xs text-foreground leading-relaxed break-words">
-                {genInfo.prompt}
-              </p>
-              {genInfo.negativePrompt && (
-                <SectionLeader
-                  title="Negative"
-                  level={2}
-                  action={
-                    <div className="flex gap-0.5">
-                      <SmallButton
-                        onClick={() => copyToClipboard(genInfo.negativePrompt)}
-                        title="Copy"
-                      >
-                        <Copy size={10} />
-                      </SmallButton>
-                      <SmallButton onClick={copyNegativeToGeneration} title="Use">
-                        Use
-                      </SmallButton>
-                    </div>
+              </SectionLeader>
+            )}
+
+            {/* Prompt (positive + negative) */}
+            {!isVideo && genInfo.prompt && (
+              <SectionLeader
+                title="Prompt"
+                collapsible
+                action={
+                  <div className="flex gap-0.5">
+                    <SmallButton onClick={() => copyToClipboard(genInfo.prompt)} title="Copy">
+                      <Copy size={10} />
+                    </SmallButton>
+                    <SmallButton onClick={copyPromptToGeneration} title="Use">
+                      Use
+                    </SmallButton>
+                  </div>
+                }
+              >
+                <p className="text-2xs text-foreground leading-relaxed break-words">
+                  {genInfo.prompt}
+                </p>
+                {genInfo.negativePrompt && (
+                  <SectionLeader
+                    title="Negative"
+                    level={2}
+                    action={
+                      <div className="flex gap-0.5">
+                        <SmallButton
+                          onClick={() => copyToClipboard(genInfo.negativePrompt)}
+                          title="Copy"
+                        >
+                          <Copy size={10} />
+                        </SmallButton>
+                        <SmallButton onClick={copyNegativeToGeneration} title="Use">
+                          Use
+                        </SmallButton>
+                      </div>
+                    }
+                  >
+                    <p className="text-2xs text-foreground/70 leading-relaxed break-words">
+                      {genInfo.negativePrompt}
+                    </p>
+                  </SectionLeader>
+                )}
+              </SectionLeader>
+            )}
+
+            {!isVideo && Object.keys(genInfo.params).length > 0 && (
+              <SectionLeader
+                title="Parameters"
+                collapsible
+                defaultCollapsed
+                action={<CopyEntriesButton entries={Object.entries(genInfo.params)} />}
+              >
+                <ParamGroups params={genInfo.params} />
+              </SectionLeader>
+            )}
+
+            <Separator />
+
+            {/* Actions */}
+            <div className="space-y-1.5">
+              <GalleryJobRows path={selectedFile.fullPath} />
+              <Separator />
+              {hasGenParams && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full h-6 text-2xs justify-start gap-2"
+                  onClick={useAllSettings}
+                >
+                  <Wand2 size={12} /> Use the picture's settings
+                </Button>
+              )}
+              {!isVideo && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full h-6 text-2xs justify-start gap-2"
+                  onClick={() =>
+                    void handleSendToCanvas().catch(
+                      failedWith("Could not send the image to the canvas"),
+                    )
                   }
                 >
-                  <p className="text-2xs text-foreground/70 leading-relaxed break-words">
-                    {genInfo.negativePrompt}
-                  </p>
-                </SectionLeader>
+                  <Paintbrush size={12} /> Send to canvas
+                </Button>
               )}
-            </SectionLeader>
-          )}
-
-          {!isVideo && Object.keys(genInfo.params).length > 0 && (
-            <SectionLeader
-              title="Parameters"
-              collapsible
-              defaultCollapsed
-              action={<CopyEntriesButton entries={Object.entries(genInfo.params)} />}
-            >
-              <ParamGroups params={genInfo.params} />
-            </SectionLeader>
-          )}
-
-          <Separator />
-
-          {/* Actions */}
-          <div className="space-y-1.5">
-            <GalleryJobRows path={selectedFile.fullPath} />
-            <Separator />
-            {hasGenParams && (
-              <Button
-                variant="outline"
-                size="sm"
-                className="w-full h-6 text-2xs justify-start gap-2"
-                onClick={useAllSettings}
-              >
-                <Wand2 size={12} /> Use the picture's settings
-              </Button>
-            )}
-            {!isVideo && (
+              {hasGenParams && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full h-6 text-2xs justify-start gap-2"
+                  onClick={handleSendPromptOnly}
+                >
+                  <ImageIcon size={12} /> Send prompt to generation
+                </Button>
+              )}
+              <OpenFullSize path={fullUrl} />
               <Button
                 variant="outline"
                 size="sm"
                 className="w-full h-6 text-2xs justify-start gap-2"
                 onClick={() =>
-                  void handleSendToCanvas().catch(
-                    failedWith("Could not send the image to the canvas"),
+                  void downloadMedia(fullUrl, filename).catch(
+                    failedWith("Could not download the file"),
                   )
                 }
               >
-                <Paintbrush size={12} /> Send to canvas
+                <Download size={12} /> Download
               </Button>
-            )}
-            {hasGenParams && (
-              <Button
-                variant="outline"
-                size="sm"
-                className="w-full h-6 text-2xs justify-start gap-2"
-                onClick={handleSendPromptOnly}
-              >
-                <ImageIcon size={12} /> Send prompt to generation
-              </Button>
-            )}
-            <OpenFullSize path={fullUrl} />
-            <Button
-              variant="outline"
-              size="sm"
-              className="w-full h-6 text-2xs justify-start gap-2"
-              onClick={() =>
-                void downloadMedia(fullUrl, filename).catch(
-                  failedWith("Could not download the file"),
-                )
-              }
-            >
-              <Download size={12} /> Download
-            </Button>
+            </div>
           </div>
-        </div>
-      </ScrollArea>
+        </ScrollArea>
+      )}
     </div>
   );
 }

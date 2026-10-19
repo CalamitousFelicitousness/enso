@@ -54,6 +54,7 @@ import {
   Undo2,
   FolderOutput,
   Eraser,
+  Maximize2,
 } from "lucide-react";
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
 import { GalleryToolbar } from "./GalleryToolbar";
@@ -493,12 +494,23 @@ export function GalleryView() {
   useRegisterCommand(
     {
       id: "gallery:toggle-metadata",
-      label: "Toggle metadata panel",
+      label: "Toggle preview panel",
       group: "Gallery",
-      keywords: ["info", "details", "exif", "panel"],
+      keywords: ["info", "details", "exif", "panel", "metadata"],
       icon: Eye,
       shortcutId: "gallery-toggle-info",
       run: () => useGalleryStore.getState().toggleMetadataPanel(),
+    },
+    visible,
+  );
+  useRegisterCommand(
+    {
+      id: "gallery:toggle-picture-only",
+      label: "Toggle picture details",
+      group: "Gallery",
+      keywords: ["picture only", "large", "bigger", "fill", "hide details", "preview"],
+      icon: Maximize2,
+      run: () => useGalleryStore.getState().togglePictureOnly(),
     },
     visible,
   );
@@ -538,7 +550,7 @@ export function GalleryView() {
 
       <GalleryProgress />
       <ResizablePanelGroup orientation="horizontal" className="flex-1 min-h-0">
-        <ResizablePanel defaultSize="70%" minSize="30%">
+        <ResizablePanel defaultSize="70%" minSize="25%">
           <GalleryGrid
             actions={actions}
             trashEmpty={unlisted ?? (trashList ? TRASH_EMPTY : READING_TRASH)}
@@ -547,7 +559,7 @@ export function GalleryView() {
         {metadataPanelOpen && (
           <>
             <ResizableHandle />
-            <ResizablePanel defaultSize="30%" minSize={200} maxSize="50%">
+            <ResizablePanel defaultSize="30%" minSize={200} maxSize="75%">
               <GalleryMetadata trash={fileActions} />
             </ResizablePanel>
           </>

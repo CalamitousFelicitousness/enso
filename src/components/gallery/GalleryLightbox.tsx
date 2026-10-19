@@ -1,5 +1,5 @@
 import { sizeText } from "@/lib/media/text";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useGalleryStore } from "@/stores/galleryStore";
 import { useShortcut } from "@/hooks/useShortcut";
 import { useShortcutScope } from "@/hooks/useShortcutScope";
@@ -24,6 +24,14 @@ import { useComparisonStore } from "@/stores/comparisonStore";
 import { useMinute } from "@/hooks/useMinute";
 import { trashLineText } from "@/lib/gallery/text";
 
+/** Pointer travel in px below which a press and release count as a click. */
+const CLICK_SLOP = 4;
+
+/** Lets a click on the bar's own background reach the backdrop, which closes. */
+function stopUnlessBackground(e: React.MouseEvent) {
+  if (e.target !== e.currentTarget) e.stopPropagation();
+}
+
 export function GalleryLightbox() {
   const lightboxIndex = useGalleryStore((s) => s.lightboxIndex);
   const file = useGalleryStore((s) =>
@@ -40,6 +48,7 @@ export function GalleryLightbox() {
   const selectFile = useGalleryStore((s) => s.selectFile);
 
   const zoom = useImageZoomPan();
+  const pressAt = useRef<{ x: number; y: number } | null>(null);
   const [prevIndex, setPrevIndex] = useState(lightboxIndex);
 
   const isOpen = lightboxIndex !== null;
@@ -126,7 +135,7 @@ export function GalleryLightbox() {
       {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events,jsx-a11y/no-static-element-interactions -- bubble-firewall inside lightbox; closes via Escape (lightbox-close shortcut) */}
       <div
         className="flex items-center justify-between px-4 py-2 flex-shrink-0"
-        onClick={(e) => e.stopPropagation()}
+        onClick={stopUnlessBackground}
       >
         <div className="flex min-w-0 max-w-[50%] flex-col">
           <span className="text-xs text-white/70 truncate">{filename}</span>
@@ -185,12 +194,25 @@ export function GalleryLightbox() {
           onWheel={zoom.handlers.onWheel}
           onMouseDown={(e) => {
             e.stopPropagation();
+            pressAt.current = { x: e.clientX, y: e.clientY };
             zoom.handlers.onMouseDown(e);
           }}
           onMouseMove={zoom.handlers.onMouseMove}
           onMouseUp={zoom.handlers.onMouseUp}
           onMouseLeave={zoom.handlers.onMouseLeave}
-          onClick={(e) => e.stopPropagation()}
+          onClick={(e) => {
+            e.stopPropagation();
+            const press = pressAt.current;
+            pressAt.current = null;
+            // A click beside the picture closes; the release at the end of a pan does not
+            if (
+              e.target === e.currentTarget &&
+              press &&
+              Math.hypot(e.clientX - press.x, e.clientY - press.y) < CLICK_SLOP
+            ) {
+              closeLightbox();
+            }
+          }}
         >
           {fullUrl && (
             <MediaImg
@@ -232,7 +254,7 @@ export function GalleryLightbox() {
       {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events,jsx-a11y/no-static-element-interactions -- bubble-firewall inside lightbox; closes via Escape (lightbox-close shortcut) */}
       <div
         className="flex items-center justify-center px-4 py-1.5 flex-shrink-0"
-        onClick={(e) => e.stopPropagation()}
+        onClick={stopUnlessBackground}
       >
         <span className="text-3xs text-white/40 font-mono tabular-nums">
           {lightboxIndex + 1} / {fileCount}
