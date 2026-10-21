@@ -63,6 +63,11 @@ describe("checkpointState", () => {
     ).toBe("unchecked");
   });
 
+  it("finds a file of that name in any folder", () => {
+    const listed = local({ model_name: "SDXL 1.0/juggernaut", hash: null, sha256: null });
+    expect(checkpointState(id(), [listed])).toEqual({ state: "unchecked", match: listed });
+  });
+
   it("is missing with nothing of that name", () => {
     expect(checkpointState(id(), [local({ model_name: "other", hash: null, sha256: B })])).toEqual({
       state: "missing",

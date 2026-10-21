@@ -63,7 +63,8 @@ export function checkpointState<T extends LocalCheckpoint>(
       downloaded(id.sha256, m.filename, downloads),
   );
   if (same) return { state: "installed", match: same };
-  const named = installed.find((m) => m.model_name === id.name);
+  // the list's model_name is sdnext's path under the models folder; the recipe's name is its basename
+  const named = installed.find((m) => basename(m.model_name) === id.name);
   if (!named) return { state: "missing", match: null };
   return {
     state: isDigest(id.sha256) && isDigest(named.sha256) ? "otherFile" : "unchecked",
