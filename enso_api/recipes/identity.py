@@ -259,6 +259,13 @@ def sdnext_hasher(filename: str) -> str:
     return hashes.calculate_sha256(filename, quiet=True)
 
 
+def sdnext_hashing() -> bool:
+    """Whether sdnext may hash model files; calculate_sha256 does not check --no-hashing itself."""
+    from modules import shared
+
+    return not shared.cmd_opts.no_hashing
+
+
 identify_queue = IdentifyQueue()
 
 
@@ -295,6 +302,6 @@ def local_recipe(recipe: dict) -> dict:
         # A rename inside sdnext leaves the digests out, never the save
         log.warning(f"Media store: model identity not read: {type(e).__name__}: {e}")
         return {**recipe, "checkpoint": {**recipe["checkpoint"], "sha256": None} if recipe.get("checkpoint") else None, "networks": [{**n, "sha256": None} for n in recipe.get("networks", [])]}
-    if wanted and identify_queue.add(wanted) and boot.state.worker is not None:
+    if wanted and sdnext_hashing() and identify_queue.add(wanted) and boot.state.worker is not None:
         boot.state.worker.wake()
     return resolved
