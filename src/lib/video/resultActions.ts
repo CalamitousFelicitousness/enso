@@ -64,8 +64,12 @@ export function restoreResultSettings(result: VideoResult) {
   toast.success("Video settings restored");
 }
 
-export async function sendCapturedFrameToInit(blob: Blob) {
-  if (await sendFrameToVideoInit(blob)) toast.success("Captured frame sent to Init Image");
+export function sendCapturedFrameToInit(blob: Blob) {
+  sendFrameToVideoInit(blob)
+    .then((sent) => {
+      if (sent) toast.success("Captured frame sent to Init Image");
+    })
+    .catch(failedWith("Could not send the frame to Init Image"));
 }
 
 export function downloadResult(result: VideoResult) {
