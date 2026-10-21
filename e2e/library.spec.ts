@@ -64,7 +64,7 @@ test("a saved frame comes back after a reload, and a removed one from the trash"
 
   await app.reopen();
   await app.openRightTab("Library");
-  const search = page.getByRole("textbox", { name: "Search saved inputs" });
+  const search = page.getByRole("textbox", { name: "Search the library" });
   await search.fill(name);
   const card = page.getByRole("button", {
     name: new RegExp(`^"${name}", ControlNet frame, 1 picture`),

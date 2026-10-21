@@ -14,7 +14,6 @@ export const EXPORT_HINT = "Export as a file";
 export const IMPORT_FILE = "Import a file";
 export const FIND_ON_CIVITAI = "Find on CivitAI";
 export const ALL_MODELS_FOUND = "Every model was found";
-export const OPENS_RESTORE = "Opens Restore";
 export const NO_LORA_IDENTITY = "This LoRA's file was not identified when the recipe was made";
 export const NOT_ON_CIVITAI = "Not found on CivitAI, or CivitAI did not answer";
 export const DOWNLOAD_QUEUED = "Queued";
@@ -25,6 +24,7 @@ export const RESTORE_RECIPE_TITLE = "Restore recipe";
 export const RECIPE_COLUMN = "Recipe";
 export const READING_RECIPE = "Reading the recipe";
 export const RECIPE_ONLY_GENERATE = "Only an image generation can be saved as a recipe";
+export const RECIPE_NO_INPUTS = "This recipe was saved with no input pictures";
 
 export function packingText(name: string): string {
   return `Packing "${name}"`;
@@ -101,6 +101,14 @@ export function loadingForText(model: string, name: string): string {
   return `Loading ${model} for "${name}"`;
 }
 
+export function modelLoadFailedText(model: string, reason: string): string {
+  return `Could not load ${model}: ${reason}`;
+}
+
+export function modelCheckFailedText(model: string, reason: string): string {
+  return `Could not check whether this server has ${model}: ${reason}`;
+}
+
 /** Run's note when the recipe's model is not the one it runs on. */
 export function runsOnLoadedText(model: string, state: Exclude<ModelState, "installed">): string {
   const why = {
@@ -127,3 +135,10 @@ export function notPickedText(model: string): string {
 export function nothingUsedText(source: "drop" | "paste", kinds: string): string {
   return `Nothing in the ${source} could be used here (${kinds})`;
 }
+
+export const RUN_RECIPE = "Run";
+export const RUN_RECIPE_FAILED = "Could not run the recipe";
+export const READ_RECIPE_FAILED = "Could not read the recipe";
+export const NO_MODEL_IDENTITY = "This model's file was not identified when the recipe was made";
+export const FIND_DESCRIPTION = "Models this server lacks, looked up on CivitAI one at a time";
+export const DOWNLOAD_MODEL = "Download";

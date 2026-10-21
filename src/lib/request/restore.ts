@@ -26,7 +26,16 @@ import { useModelSelectionStore } from "@/stores/modelSelectionStore";
 import { checkpointState, recordedModel } from "@/lib/recipes/models";
 import { promptOpening } from "@/lib/recipes/names";
 import type { ModelId } from "@/lib/recipes/recipe";
-import { modelPickedText, notPickedText, pickedText } from "@/lib/recipes/text";
+import {
+  modelPickedText,
+  notPickedText,
+  pickedText,
+  skippedSettingsText,
+} from "@/lib/recipes/text";
+import { newId } from "@/lib/id";
+import { cloneFrames } from "@/lib/inputs/reducers";
+import type { Inputs } from "@/lib/inputs/stored";
+import type { ActionReason } from "@/lib/jobs/cardActions";
 import { JOB_NAME, reasonText, RESULT_NAME } from "@/lib/jobs/text";
 import {
   lostPicturesText,
@@ -40,20 +49,34 @@ import {
   extractParams,
   resultSettings,
   settingsSourceOf,
+  type ExtractedSettings,
   type SettingsAnswer,
-  type SettingsSource,
 } from "./restoreParams";
+
+/** A target's settings as the store takes them, or why it has none; `skipped`
+ * counts the stored settings this build does not know. */
+export type TargetSettings =
+  { ok: true; extracted: ExtractedSettings; skipped: number } | { ok: false; reason: ActionReason };
+
+/** A job's settings read from its request and the server's info. */
+export function extractedFrom(answer: SettingsAnswer): TargetSettings {
+  return answer.ok
+    ? { ok: true, extracted: extractParams(answer.source), skipped: 0 }
+    : { ok: false, reason: answer.reason };
+}
 
 /** What a restore reads: the settings, the inputs once asked for (their bytes
  * may come from the server), and the model they ran with. */
 export interface RestoreTarget {
   /** What the source is called, under the dialog's title. */
   name: string;
-  settings: SettingsAnswer;
+  settings: TargetSettings;
   inputs: (fetch: FetchOptions) => Promise<LoadedInputs | null>;
   model: ModelId | null;
   /** How the inputs land: in place of the frames as a restore, or as a recall. */
   place: "restore" | "recall";
+  /** Why the inputs cannot be restored, when the target knows it without a record. */
+  inputsReason?: ActionReason | null;
 }
 
 async function recordModel(jobId: string | undefined): Promise<ModelId | null> {
@@ -73,7 +96,7 @@ export async function resultTarget(
 ): Promise<RestoreTarget> {
   return {
     name: promptName(result.parameters.prompt, RESULT_NAME),
-    settings: resultSettings(result, imageIndex),
+    settings: extractedFrom(resultSettings(result, imageIndex)),
     inputs: async (fetch) => {
       const stored = await loadJobInputs(result, fetch);
       if (stored || !hasLegacyInputs(result)) return stored;
@@ -92,10 +115,12 @@ export async function recordTarget(jobId: string): Promise<RestoreTarget> {
   return {
     name: promptName(load?.record.request["prompt"], JOB_NAME),
     settings: load
-      ? settingsSourceOf(
-          load.record,
-          { type: typeof type === "string" ? type : "", status: "completed", result: null },
-          0,
+      ? extractedFrom(
+          settingsSourceOf(
+            load.record,
+            { type: typeof type === "string" ? type : "", status: "completed", result: null },
+            0,
+          ),
         )
       : { ok: false, reason: "noRecord" },
     inputs: (fetch) => loadJobInputs({ jobId }, fetch),
@@ -109,7 +134,7 @@ export async function jobTarget(job: Job): Promise<RestoreTarget> {
   const load = await loadRecord(job.id);
   return {
     name: promptName(load?.record.request["prompt"] ?? job.result?.params["prompt"], JOB_NAME),
-    settings: settingsSourceOf(load?.record ?? null, job, 0),
+    settings: extractedFrom(settingsSourceOf(load?.record ?? null, job, 0)),
     inputs: (fetch) => loadJobInputs({ jobId: job.id }, fetch),
     model: load?.record.checkpoint ? recordedModel(load.record.checkpoint) : null,
     place: "restore",
@@ -154,6 +179,18 @@ function pickNote(pick: ModelPick | null): string | null {
   return pick.kind === "pick" ? modelPickedText(pick.model.model_name) : notPickedText(pick.name);
 }
 
+function skippedNote(target: RestoreTarget): string | null {
+  return target.settings.ok && target.settings.skipped > 0
+    ? skippedSettingsText(target.settings.skipped)
+    : null;
+}
+
+/** Recalled frames under ids of their own, the links outside them dropped. */
+function recalled(inputs: Inputs): Inputs {
+  const clone = cloneFrames(inputs.frames, inputs.sizeSource, newId, "drop");
+  return { frames: clone.frames, size: inputs.size, sizeSource: clone.sizeSource };
+}
+
 function joinNotes(...notes: (string | null)[]): string | null {
   const said = notes.filter((n) => n !== null);
   return said.length > 0 ? said.join(". ") : null;
@@ -175,12 +212,12 @@ export function applyParams(params: Partial<GenerationState>, title: string): vo
   offerUndo(title, null, setSettings(params));
 }
 
-/** Apply a job's settings and return what puts back every value they changed. */
-export function applySettings(source: SettingsSource): {
+/** Apply read settings and return what puts back every value they changed. */
+export function applySettings(extracted: ExtractedSettings): {
   revert: () => void;
   notes: RestoreNote[];
 } {
-  const { params, img2img, notes } = extractParams(source);
+  const { params, img2img, notes } = extracted;
   const masks = useImg2ImgStore.getState();
   const masksBefore = {
     maskApplyOverlay: masks.maskApplyOverlay,
@@ -212,11 +249,15 @@ export function restoreSettings(target: RestoreTarget, pick: ModelPick | null = 
     toast.info(reasonText(target.settings.reason));
     return;
   }
-  const { revert, notes } = applySettings(target.settings.source);
+  const { revert, notes } = applySettings(target.settings.extracted);
   const unpick = applyPick(pick);
   offerUndo(
     pick?.kind === "pick" ? pickedText(pick.model.model_name) : restoredText("settings"),
-    joinNotes(restoreNotesText(notes), pick?.kind === "missing" ? pickNote(pick) : null),
+    joinNotes(
+      restoreNotesText(notes),
+      skippedNote(target),
+      pick?.kind === "missing" ? pickNote(pick) : null,
+    ),
     () => {
       unpick();
       revert();
@@ -252,7 +293,7 @@ async function restoreWithInputs(
       toast.info(reasonText(target.settings.reason));
       return;
     }
-    applied = applySettings(target.settings.source);
+    applied = applySettings(target.settings.extracted);
   }
   // the model goes with the settings
   const unpick = applied ? applyPick(pick) : () => {};
@@ -313,7 +354,7 @@ async function restoreWithInputs(
     if (applied) {
       offer.update(
         restoredText("settings", elsewhere),
-        joinNotes(restoreNotesText([...notes, "inputsGone"]), modelNote),
+        joinNotes(restoreNotesText([...notes, "inputsGone"]), skippedNote(target), modelNote),
       );
     } else {
       offer.withdraw();
@@ -323,8 +364,14 @@ async function restoreWithInputs(
   }
   await inputsReady();
   if (!live()) return;
-  putBack = restoreFrames(loaded.inputs, previousSize);
-  offer.update(restoredText(kind, elsewhere), joinNotes(restoreNotesText(notes), modelNote));
+  putBack = restoreFrames(
+    target.place === "recall" ? recalled(loaded.inputs) : loaded.inputs,
+    previousSize,
+  );
+  offer.update(
+    restoredText(kind, elsewhere),
+    joinNotes(restoreNotesText(notes), applied ? skippedNote(target) : null, modelNote),
+  );
   const lost = loaded.lost.pictures.length;
   if (lost > 0) toast.warning(lostPicturesText(lost));
 }

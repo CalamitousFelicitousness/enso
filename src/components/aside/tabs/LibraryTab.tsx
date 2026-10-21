@@ -98,8 +98,8 @@ export function LibraryTab() {
           <Input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder={list === "trash" ? "Search the trash" : "Search saved inputs"}
-            aria-label={list === "trash" ? "Search the trash" : "Search saved inputs"}
+            placeholder={list === "trash" ? "Search the trash" : "Search the library"}
+            aria-label={list === "trash" ? "Search the trash" : "Search the library"}
             className="h-7 pl-6 text-2xs"
           />
         </div>

@@ -109,6 +109,14 @@ export function forgetThumbs(cids: Iterable<string>): void {
   for (const cid of cids) slots.delete(cid);
 }
 
+/** A thumbnail of bytes no cid names, such as an output's, with the picture's size. */
+export async function thumbOf(picture: Blob): Promise<{ blob: Blob } & Size> {
+  const bitmap = await createImageBitmap(picture);
+  const natural = { width: bitmap.width, height: bitmap.height };
+  bitmap.close();
+  return { blob: await inTurn(() => render(picture, natural)), ...natural };
+}
+
 /** The picture's thumbnail, read back or made and stored. */
 export function thumbBlob(source: ThumbSource): Promise<Blob> {
   const { thumb } = acquire(source);

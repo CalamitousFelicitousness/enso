@@ -19,12 +19,13 @@ import {
   type StoredJob,
 } from "@/lib/inputs/stored";
 import type { JobDomain } from "@/lib/jobs/domains";
-import { refsIn, replayNeeds, substituteRefs, UPLOAD_PREFIX } from "@/lib/jobs/replay";
+import { refsIn, replayGone, replayNeeds, substituteRefs, UPLOAD_PREFIX } from "@/lib/jobs/replay";
+import type { ReplayMissing } from "@/lib/jobs/text";
 import { NEWER_RECORD } from "@/lib/jobs/text";
 import { hashOf, isHash } from "@/lib/media/hash";
 import { currentJobRequest } from "@/lib/retiredJobFields";
 import { generationHistoryDb } from "@/stores/generationStore";
-import { allKeys, deleteRecords, readDocument, readHashes } from "./db";
+import { allKeys, deleteRecords, readBlobs, readDocument, readHashes } from "./db";
 import { bytesFor, type FetchOptions } from "./fetch";
 import { legacyJob, markLegacyRouted } from "./legacyRecords";
 import { pngName } from "./fit";
@@ -110,6 +111,15 @@ export async function loadRecord(id: string): Promise<RecordLoad | null> {
     unheld: new Set(),
     legacy: true,
   };
+}
+
+/** What the server lost that cannot be made again: a source reads a picture
+ * neither the server nor this browser holds, or there is no source. */
+export async function goneForGood(load: RecordLoad): Promise<ReplayMissing | null> {
+  const unheld = [...load.unheld];
+  const here =
+    unheld.length > 0 ? await readBlobs(unheld).catch(() => new Map<string, Blob>()) : new Map();
+  return replayGone(load.record, load.missingRefs, (cid) => load.unheld.has(cid) && !here.has(cid));
 }
 
 /** What a source is called when its bytes cannot be sent. */

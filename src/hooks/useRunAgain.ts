@@ -7,19 +7,14 @@
 
 import { useCallback, useSyncExternalStore } from "react";
 import { toast } from "sonner";
-import { api } from "@/api/client";
-import { queryClient } from "@/api/queryClient";
-import type { CheckpointInfoV2 } from "@/api/types/models";
-import { modelListQuery } from "@/api/hooks/useModels";
-import { queueModelLoad } from "@/api/models";
-import { checkpointState, recordedModel } from "@/lib/recipes/models";
+import { recordedModel } from "@/lib/recipes/models";
+import { modelFirst } from "@/inputs/modelFirst";
 import type { Job } from "@/api/types/v2";
-import { readBlobs } from "@/inputs/db";
-import { loadRecord, replaySubmission, type RecordLoad } from "@/inputs/jobs";
+import { goneForGood, loadRecord, replaySubmission } from "@/inputs/jobs";
 import { submitJob } from "@/inputs/submit";
 import { UploadBatch } from "@/inputs/uploads";
 import { UserAbortError } from "@/lib/abort";
-import { replayGone, replayProblem } from "@/lib/jobs/replay";
+import { replayProblem } from "@/lib/jobs/replay";
 import { loadsModel } from "@/lib/jobs/requests";
 import {
   OTHER_MODEL,
@@ -28,7 +23,6 @@ import {
   replayMissingText,
   RUN_AGAIN_FAILED,
   runAgainQueuedText,
-  type ReplayMissing,
 } from "@/lib/jobs/text";
 import { batchText, CANCEL, UPLOAD_CANCELLED } from "@/lib/media/text";
 
@@ -50,43 +44,14 @@ function subscribe(listener: () => void): () => void {
 
 /** When another model is loaded: queue a load of the job's own ahead of it if
  * this server has that file, else say the job runs on the loaded model.
- * Returns the model loaded first. */
-async function modelFirst(checkpoint: { title: string; name: string }): Promise<string | null> {
-  let loaded: CheckpointInfoV2;
-  try {
-    loaded = await queryClient.fetchQuery({
-      queryKey: ["checkpoint"],
-      queryFn: () => api.get<CheckpointInfoV2>("/sdapi/v2/checkpoint"),
-      staleTime: 30_000,
-    });
-  } catch {
-    // the server says no more than the job will
-    return null;
+ * Returns the model loaded first; throws when the load is refused. */
+async function jobModelFirst(checkpoint: { title: string; name: string }): Promise<string | null> {
+  const first = await modelFirst(recordedModel(checkpoint));
+  if (first.kind === "loads") return first.model;
+  if (first.kind === "other") {
+    toast.info(OTHER_MODEL, { description: otherModelText(checkpoint.name, first.loaded) });
   }
-  if (!loaded.loaded || !loaded.title || loaded.title === checkpoint.title) return null;
-  try {
-    const installed = await queryClient.fetchQuery(modelListQuery);
-    const { state, match } = checkpointState(recordedModel(checkpoint), installed);
-    if (state === "installed" && match && match.title !== loaded.title) {
-      await queueModelLoad(match.title);
-      return match.model_name;
-    }
-  } catch {
-    // without the list or the load, the job runs on the loaded model as the note says
-  }
-  toast.info(OTHER_MODEL, {
-    description: otherModelText(checkpoint.name, loaded.name ?? loaded.title),
-  });
   return null;
-}
-
-/** What the server lost that cannot be made again: a source reads a picture
- * neither the server nor this browser holds, or there is no source. */
-async function goneForGood(load: RecordLoad): Promise<ReplayMissing | null> {
-  const unheld = [...load.unheld];
-  const here =
-    unheld.length > 0 ? await readBlobs(unheld).catch(() => new Map<string, Blob>()) : new Map();
-  return replayGone(load.record, load.missingRefs, (cid) => load.unheld.has(cid) && !here.has(cid));
 }
 
 /** Send a recorded job again. Null when it was not sent; the reason is told. */
@@ -121,7 +86,7 @@ export async function runAgain(jobId: string): Promise<Job | null> {
     const type = record.request["type"];
     const first =
       record.checkpoint && typeof type === "string" && LOCAL.has(type)
-        ? await modelFirst(record.checkpoint)
+        ? await jobModelFirst(record.checkpoint)
         : null;
     const batch = new UploadBatch("Run again", {
       signal: abort.signal,

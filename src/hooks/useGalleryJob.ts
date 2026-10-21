@@ -3,7 +3,10 @@ import type { OutputJobLookup } from "@/lib/jobs/cardActions";
 import { useJobActions, type JobActions } from "./useJobActions";
 
 /** The job that made a Gallery file, and what can be done with it. */
-export function useGalleryJob(path: string | null): JobActions & { lookup: OutputJobLookup } {
+export function useGalleryJob(
+  path: string | null,
+  seed: number | null = null,
+): JobActions & { lookup: OutputJobLookup } {
   const query = useOutputJob(path);
   const lookup: OutputJobLookup = query.isPending
     ? { state: "loading" }
@@ -12,5 +15,5 @@ export function useGalleryJob(path: string | null): JobActions & { lookup: Outpu
       : query.data.job_id
         ? { state: "found", id: query.data.job_id }
         : { state: "none" };
-  return { ...useJobActions(lookup), lookup };
+  return { ...useJobActions(lookup, path ? { path, seed } : null), lookup };
 }

@@ -4,6 +4,7 @@
 import type { ItemEntryV2, ReqEntryV2 } from "@/api/types/media";
 import { DOCUMENT_SCHEMA, type EntryKind, type StoredInputs } from "@/lib/inputs/stored";
 import { roleLabelOf, type EntryShape } from "@/lib/inputs/text";
+import { RECIPE_SCHEMA } from "@/lib/recipes/recipe";
 
 /** The longest name the server keeps, in characters. */
 export const NAME_MAX = 200;
@@ -13,8 +14,23 @@ export function clampName(name: string): string {
   return [...name.trim()].slice(0, NAME_MAX).join("");
 }
 
-/** What the server lists of an entry without reading its frames. */
-export function entrySummary(kind: EntryKind, inputs: StoredInputs): ReqEntryV2["summary"] {
+/** What the server lists of an entry without reading its frames; a recipe
+ * without input pictures has none to count. */
+export function entrySummary(
+  kind: EntryKind | "recipe",
+  inputs: StoredInputs | null,
+): ReqEntryV2["summary"] {
+  if (!inputs) {
+    return {
+      frames: 0,
+      pictures: 0,
+      role: null,
+      control: null,
+      width: 0,
+      height: 0,
+      inputs_schema: DOCUMENT_SCHEMA,
+    };
+  }
   const first = inputs.frames[0];
   const frame = kind === "frame" && first ? first : null;
   return {
@@ -97,25 +113,28 @@ export function assembleEntry(parts: EntryParts): ReqEntryV2 {
 }
 
 /** How many of an entry's pictures its card does not show: a frame's past
- * the thumbnails, a set's frames past four. */
+ * the thumbnails, a set's or a recipe's frames past four. */
 export function entryMore(
   item: Pick<ItemEntryV2, "kind" | "frames" | "pictures" | "thumbs">,
 ): number {
-  return item.kind === "set"
+  return item.kind === "set" || item.kind === "recipe"
     ? Math.max(0, item.frames - 4)
     : Math.max(0, item.pictures - item.thumbs.length);
 }
 
-/** An entry a newer build saved, whose frames this build cannot read. */
-export function isNewerEntry(item: Pick<ItemEntryV2, "inputs_schema">): boolean {
-  return item.inputs_schema > DOCUMENT_SCHEMA;
+/** An entry a newer build saved, whose frames or recipe this build cannot read. */
+export function isNewerEntry(item: Pick<ItemEntryV2, "inputs_schema" | "recipe">): boolean {
+  const recipe = item.recipe?.["recipe_schema"];
+  return (
+    item.inputs_schema > DOCUMENT_SCHEMA || (typeof recipe === "number" && recipe > RECIPE_SCHEMA)
+  );
 }
 
 /** What a server entry holds, as its card and the trash say it. */
 export function shapeOfItem(
   item: Pick<ItemEntryV2, "kind" | "frames" | "pictures" | "role" | "control" | "width" | "height">,
 ): EntryShape {
-  const kind = item.kind === "set" ? "set" : "frame";
+  const kind = item.kind === "set" || item.kind === "recipe" ? item.kind : "frame";
   return {
     kind,
     frames: item.frames,

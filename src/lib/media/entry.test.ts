@@ -165,3 +165,32 @@ describe("clampName", () => {
     expect([...clampName("🙂".repeat(NAME_MAX + 1))]).toHaveLength(NAME_MAX);
   });
 });
+
+describe("recipe entries", () => {
+  it("summarise a recipe without inputs as nothing to count", () => {
+    expect(entrySummary("recipe", null)).toEqual({
+      frames: 0,
+      pictures: 0,
+      role: null,
+      control: null,
+      width: 0,
+      height: 0,
+      inputs_schema: DOCUMENT_SCHEMA,
+    });
+  });
+
+  it("count a recipe's frames as a set's and list it as a newer one by its own schema", () => {
+    expect(entryMore({ kind: "recipe", frames: 6, pictures: 9, thumbs: [] })).toBe(2);
+    expect(isNewerEntry({ inputs_schema: DOCUMENT_SCHEMA, recipe: { recipe_schema: 2 } })).toBe(
+      true,
+    );
+    expect(isNewerEntry({ inputs_schema: DOCUMENT_SCHEMA, recipe: { recipe_schema: 1 } })).toBe(
+      false,
+    );
+  });
+
+  it("shape as a recipe", () => {
+    const item = { frames: 0, pictures: 0, role: null, control: null, width: 0, height: 0 };
+    expect(shapeOfItem({ ...item, kind: "recipe" }).kind).toBe("recipe");
+  });
+});

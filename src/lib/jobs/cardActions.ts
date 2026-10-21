@@ -50,7 +50,9 @@ export type ActionReason =
   | "last"
   | "notQueued"
   | "noResult"
-  | "otherView";
+  | "otherView"
+  | "recipeOnlyGenerate"
+  | "recipeNoInputs";
 
 /** How a slot that can act will act, when that is worth saying: some of its
  * pictures are made again, or the job loads its own model first. */
@@ -122,7 +124,23 @@ export function restoreInputsSlot<A extends string>(
   return { action, reason: facts.hasInputs ? null : "noInputs" };
 }
 
-export type HistoryAction = "restoreSettings" | "restoreBoth" | "runAgain" | "delete";
+/** Save a job as a recipe: a finished image generation's record, its uploads still
+ * held or made again from its frames. */
+export function recipeSlot<A extends string>(
+  action: A,
+  type: string | null,
+  facts: FactsState,
+  status: JobStatus = "completed",
+): Slot<A> {
+  if (type !== null && type !== "generate") return { action, reason: "recipeOnlyGenerate" };
+  if (!isTerminal(status)) return { action, reason: "unfinished" };
+  if (typeof facts === "string") return { action, reason: STATE_REASON[facts] };
+  if (facts.domain !== "generate") return { action, reason: "recipeOnlyGenerate" };
+  return { action, reason: replayProblem(facts) === "gone" ? "gone" : null };
+}
+
+export type HistoryAction =
+  "restoreSettings" | "restoreBoth" | "runAgain" | "saveRecipe" | "delete";
 
 /** Job types a History card runs again from: every type with a record but
  * Process now, which runs again through Process now. */
@@ -171,6 +189,7 @@ export function historySlots(job: HistoryJob, facts: FactsState): Slot<HistoryAc
     { action: "restoreSettings", reason: settings },
     { action: "restoreBoth", reason: settings ?? inputs },
     runAgain,
+    recipeSlot<HistoryAction>("saveRecipe", job.type, facts, job.status),
     remove,
   ];
 }
@@ -214,7 +233,7 @@ export function queueSlots(
 }
 
 export type ResultAction =
-  "restoreSettings" | "restoreInputs" | "restoreBoth" | "runAgain" | "saveInputs";
+  "restoreSettings" | "restoreInputs" | "restoreBoth" | "runAgain" | "saveInputs" | "saveRecipe";
 
 export interface ResultFacts {
   /** The job the result came from; null for a result of an older build. */
@@ -245,6 +264,10 @@ export function resultActions(
     restoreSettings: { action: "restoreSettings", reason: settings },
     restoreInputs: { action: "restoreInputs", reason: inputs },
     saveInputs: { action: "saveInputs", reason: inputs },
+    saveRecipe:
+      result.jobId === null
+        ? { action: "saveRecipe", reason: "olderResult" }
+        : recipeSlot<ResultAction>("saveRecipe", result.type, facts),
     restoreBoth: { action: "restoreBoth", reason: settings ?? inputs },
     runAgain,
   };
@@ -257,7 +280,7 @@ export function sharedReason<A extends string>(slots: readonly Slot<A>[]): Actio
   return first !== null && slots.every((slot) => slot.reason === first) ? first : null;
 }
 
-export type GalleryAction = "restoreInputs" | "restoreBoth" | "runAgain";
+export type GalleryAction = "restoreInputs" | "restoreBoth" | "runAgain" | "saveRecipe";
 
 /** What the server said of the job that made a file. */
 export type OutputJobLookup =
@@ -284,7 +307,7 @@ export function gallerySlots(job: GalleryJob, facts: FactsState): Slot<GalleryAc
   const prelude =
     lookup.state !== "found" ? LOOKUP_REASON[lookup.state] : job.running ? "unfinished" : null;
   if (prelude) {
-    return (["restoreInputs", "restoreBoth", "runAgain"] as const).map((action) => ({
+    return (["restoreInputs", "restoreBoth", "runAgain", "saveRecipe"] as const).map((action) => ({
       action,
       reason: prelude,
     }));
@@ -294,5 +317,6 @@ export function gallerySlots(job: GalleryJob, facts: FactsState): Slot<GalleryAc
     inputs,
     { ...inputs, action: "restoreBoth" },
     runAgainSlot<GalleryAction>("runAgain", "completed", facts, job.loads ?? null),
+    recipeSlot<GalleryAction>("saveRecipe", "generate", facts),
   ];
 }

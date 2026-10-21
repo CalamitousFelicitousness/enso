@@ -135,7 +135,7 @@ test("another browser recalls a saved entry and keeps one copy of its picture", 
       (r) => new URL(r.url()).pathname === `/sdapi/v2/blobs/${hash}` && r.ok(),
     );
     await other.openRightTab("Library");
-    await other.page.getByRole("textbox", { name: "Search saved inputs" }).fill(name);
+    await other.page.getByRole("textbox", { name: "Search the library" }).fill(name);
     await other.page
       .getByRole("button", { name: new RegExp(`^"${name}", ControlNet frame, 1 picture`) })
       .click();

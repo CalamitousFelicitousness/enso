@@ -19,7 +19,15 @@ import { detailProcessedText, fixLabel, problemText } from "@/lib/inputs/text";
 import { restoreFrom, resultTarget } from "@/lib/request/restore";
 import { useRunAgain } from "@/hooks/useRunAgain";
 import { useJobFact } from "@/hooks/useJobFact";
-import { BEING_SENT, NO_SKIP, SENDING, STOP_GENERATION, STOP_UPLOAD } from "@/lib/media/text";
+import {
+  BEING_SENT,
+  NO_SKIP,
+  SENDING,
+  STOP_GENERATION,
+  STOP_UPLOAD,
+  WAIT_FOR_UPLOAD,
+} from "@/lib/media/text";
+import { useSubmitProgress } from "@/inputs/progress";
 import { hasLegacyInputs } from "@/inputs/legacyResult";
 import { resultActions } from "@/lib/jobs/cardActions";
 import {
@@ -176,6 +184,11 @@ export const ActionBar = memo(function ActionBar() {
   // the fix, and opens the Input tab
   const generate = useCallback(() => {
     if (isSubmitting || detailOnlyBlockReason) return;
+    // a recipe's save uploads under its own action; Generate waits for it
+    if (useSubmitProgress.getState().byAction[ACTIONS.recipe]) {
+      toast.info(WAIT_FOR_UPLOAD);
+      return;
+    }
     const problem = problems[0];
     if (problem) {
       toast.warning("Can't generate with these inputs", {

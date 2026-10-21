@@ -41,6 +41,12 @@ interface VideoMeta {
   fps: string;
 }
 
+/** The seed the picture's infotext names, when it is a number. */
+function seedOf(params: Record<string, string>): number | null {
+  const seed = Number(params["Seed"]);
+  return Number.isInteger(seed) && seed >= 0 ? seed : null;
+}
+
 function parseVideoExif(exif: string): VideoMeta | null {
   if (!exif) return null;
   const result: VideoMeta = { codec: "", frames: "", duration: "", fps: "" };
@@ -305,7 +311,7 @@ export function GalleryMetadata({ trash }: { trash: TrashFileActions | null }) {
 
             {/* Actions */}
             <div className="space-y-1.5">
-              <GalleryJobRows path={selectedFile.fullPath} />
+              <GalleryJobRows path={selectedFile.fullPath} seed={seedOf(genInfo.params)} />
               <Separator />
               {hasGenParams && (
                 <Button

@@ -14,6 +14,7 @@ export const ACTIONS = {
   caption: "caption",
   interrogate: "interrogate",
   pngInfo: "png-info",
+  recipe: "recipe",
 } as const;
 
 /** The Enhance of one prompt surface. */

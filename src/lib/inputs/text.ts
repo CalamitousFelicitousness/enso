@@ -527,7 +527,7 @@ export function entryDeletedText(name: string): string {
 
 /** What a saved entry holds, as its card and the trash describe it. */
 export interface EntryShape {
-  kind: "frame" | "set";
+  kind: "frame" | "set" | "recipe";
   frames: number;
   pictures: number;
   /** A frame entry's role ("Reference", "ControlNet"); null for a set. */
@@ -535,8 +535,11 @@ export interface EntryShape {
   size: Size;
 }
 
-/** "Frame · Reference · 3 pictures", "Set · 4 inputs · 1024×1024": what an entry holds. */
-export function entryLine(shape: EntryShape): string {
+/** "Frame · Reference · 3 pictures", "Set · 4 inputs · 1024×1024", "Recipe ·
+ * Not found · Juggernaut XL v11": what an entry holds; a recipe's models line
+ * is the caller's, since the model lists decide it. */
+export function entryLine(shape: EntryShape, models = ""): string {
+  if (shape.kind === "recipe") return models ? `Recipe · ${models}` : "Recipe";
   if (shape.kind === "set") {
     return `Set · ${plural(shape.frames, "input", "inputs")} · ${sizeText(shape.size)}`;
   }
@@ -559,29 +562,41 @@ export const SHOW_ON_CANVAS_HINT = "Bring this frame into view on the canvas";
 export const DUPLICATE_FRAME = "Duplicate";
 export const NOTHING_TO_DUPLICATE = "Nothing to duplicate";
 export const LIBRARY_EMPTY =
-  "Nothing saved yet. Save a frame from the bar above it, or the inputs from the Input tab.";
-export const LIBRARY_NO_MATCH = "No saved inputs match the search";
+  "Nothing saved yet. Save a frame from the bar above it, or the inputs or a recipe from the Input tab.";
+export const LIBRARY_NO_MATCH = "No saved inputs or recipes match the search";
 export const NEWER_ENTRY = "Saved by a newer version of Enso";
 
-/** What clicking a card does, short: a frame is added, a set takes the inputs' place. */
-export function entryVerb(kind: "frame" | "set"): string {
-  return kind === "set" ? "Replaces inputs" : "Adds to inputs";
+const VERB: Record<EntryShape["kind"], [short: string, hint: string]> = {
+  frame: ["Adds to inputs", "Clicking the card adds this frame after the inputs"],
+  set: ["Replaces inputs", "Clicking the card puts this set in the place of the inputs"],
+  recipe: ["Opens Restore", "Clicking the card opens Restore for this recipe"],
+};
+
+/** What clicking a card does, short: a frame is added, a set takes the
+ * inputs' place, a recipe opens Restore. */
+export function entryVerb(kind: EntryShape["kind"]): string {
+  return VERB[kind][0];
 }
 
 /** What clicking a card does, in full. */
-export function entryVerbHint(kind: "frame" | "set"): string {
-  return kind === "set"
-    ? "Clicking the card puts this set in the place of the inputs"
-    : "Clicking the card adds this frame after the inputs";
+export function entryVerbHint(kind: EntryShape["kind"]): string {
+  return VERB[kind][1];
 }
 
 /** A card's accessible name: '"Portrait", set of 4 inputs, pinned; Enter replaces the inputs'. */
 export function entryName(name: string, shape: EntryShape, pinned: boolean): string {
   const what =
-    shape.kind === "set"
-      ? `set of ${plural(shape.frames, "input", "inputs")}`
-      : `${shape.roleLabel ?? "empty"} frame, ${plural(shape.pictures, "picture", "pictures")}`;
-  const verb = shape.kind === "set" ? "Enter replaces the inputs" : "Enter adds it to the inputs";
+    shape.kind === "recipe"
+      ? "recipe"
+      : shape.kind === "set"
+        ? `set of ${plural(shape.frames, "input", "inputs")}`
+        : `${shape.roleLabel ?? "empty"} frame, ${plural(shape.pictures, "picture", "pictures")}`;
+  const verb =
+    shape.kind === "recipe"
+      ? "Enter opens Restore"
+      : shape.kind === "set"
+        ? "Enter replaces the inputs"
+        : "Enter adds it to the inputs";
   return `"${name}", ${what}${pinned ? ", pinned" : ""}; ${verb}`;
 }
 
@@ -632,9 +647,11 @@ export function removalTitle({ cause, from, content }: StoredRemoval): string {
 /** A library entry as the trash names it: '"Portrait", from the library (set, 3 inputs)'. */
 export function entryTrashTitle(name: string, shape: EntryShape): string {
   const what =
-    shape.kind === "set"
-      ? `set, ${plural(shape.frames, "input", "inputs")}`
-      : `${shape.roleLabel ?? "empty"} frame`;
+    shape.kind === "recipe"
+      ? "recipe"
+      : shape.kind === "set"
+        ? `set, ${plural(shape.frames, "input", "inputs")}`
+        : `${shape.roleLabel ?? "empty"} frame`;
   return `"${name}", from the library (${what})`;
 }
 

@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { NewerRecipe, readRecipe, readSettings, RECIPE_SCHEMA, UnreadableRecipe } from "./recipe";
+import {
+  NewerRecipe,
+  readRecipe,
+  readRecipeHead,
+  readSettings,
+  RECIPE_SCHEMA,
+  UnreadableRecipe,
+} from "./recipe";
 
 const A = "a".repeat(64);
 const B = "b".repeat(64);
@@ -119,5 +126,41 @@ describe("readSettings", () => {
       { ...defaults, overrideSettings: {} },
     );
     expect(read).toEqual({ settings: {}, skipped: 4 });
+  });
+});
+
+describe("readRecipeHead", () => {
+  const head = (overrides: Record<string, unknown> = {}) => {
+    const { checkpoint, networks, lut, preview } = part();
+    return {
+      recipe_schema: RECIPE_SCHEMA,
+      type: "generate",
+      checkpoint,
+      networks,
+      lut,
+      preview: { ...preview, lost: false },
+      ...overrides,
+    };
+  };
+
+  it("reads what a card shows, the preview's lost flag included", () => {
+    const read = readRecipeHead(head({ preview: { thumb: B, width: 4, height: 4, lost: true } }));
+    expect(read?.checkpoint?.name).toBe("juggernaut");
+    expect(read?.networks.map((n) => n.name)).toEqual(["fur"]);
+    expect(read?.preview).toEqual({ thumb: B, width: 4, height: 4, lost: true });
+  });
+
+  it("keeps a newer schema's number and reads nothing else of it", () => {
+    expect(readRecipeHead(head({ recipe_schema: RECIPE_SCHEMA + 1, checkpoint: 7 }))).toEqual({
+      schema: RECIPE_SCHEMA + 1,
+      checkpoint: null,
+      networks: [],
+      preview: null,
+    });
+  });
+
+  it("answers null for a head this build cannot read", () => {
+    expect(readRecipeHead(null)).toBeNull();
+    expect(readRecipeHead(head({ checkpoint: { name: "x" } }))).toBeNull();
   });
 });

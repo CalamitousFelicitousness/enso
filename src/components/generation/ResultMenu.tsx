@@ -9,6 +9,7 @@ import {
   ImageDown,
   ImagePlus,
   Repeat2,
+  ScrollText,
   type LucideIcon,
 } from "lucide-react";
 import type { ReactNode } from "react";
@@ -25,6 +26,8 @@ import { useRunAgain } from "@/hooks/useRunAgain";
 import { useJobFact } from "@/hooks/useJobFact";
 import { hasLegacyInputs } from "@/inputs/legacyResult";
 import { saveInputsAsSet } from "@/inputs/library";
+import { saveRecipe } from "@/inputs/recipes";
+import { SAVE_RECIPE } from "@/lib/recipes/text";
 import { resultActions, type ResultAction, type Slot } from "@/lib/jobs/cardActions";
 import {
   reasonText,
@@ -146,6 +149,12 @@ export function ResultMenu({
                 else toast.info(reasonText("noRecord"));
               })
           }
+        />
+        <Item
+          icon={ScrollText}
+          label={SAVE_RECIPE}
+          slot={reasons.saveRecipe}
+          onSelect={() => void saveRecipe({ kind: "result", result, imageIndex })}
         />
         <ContextMenuSeparator />
         <Item

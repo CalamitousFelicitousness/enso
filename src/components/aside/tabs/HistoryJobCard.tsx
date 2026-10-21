@@ -1,8 +1,17 @@
 import { useState } from "react";
-import { ArchiveRestore, History, Repeat2, Trash2, type LucideIcon } from "lucide-react";
+import {
+  ArchiveRestore,
+  History,
+  Repeat2,
+  ScrollText,
+  Trash2,
+  type LucideIcon,
+} from "lucide-react";
 import type { Job } from "@/api/types/v2";
 import { useDeleteJob } from "@/api/hooks/useJobs";
 import { useRunAgain } from "@/hooks/useRunAgain";
+import { saveRecipe } from "@/inputs/recipes";
+import { SAVE_RECIPE } from "@/lib/recipes/text";
 import { useJobFact } from "@/hooks/useJobFact";
 import { historySlots, type HistoryAction } from "@/lib/jobs/cardActions";
 import { jobKind } from "@/lib/jobs/domains";
@@ -21,6 +30,7 @@ const SLOTS: Record<HistoryAction, { label: string; icon: LucideIcon; note?: str
   restoreSettings: { label: RESTORE_SETTINGS, icon: History },
   restoreBoth: { label: RESTORE_BOTH, icon: ArchiveRestore },
   runAgain: { label: RUN_AGAIN, icon: Repeat2 },
+  saveRecipe: { label: SAVE_RECIPE, icon: ScrollText },
   delete: { label: DELETE_JOB, icon: Trash2, note: DELETE_JOB_NOTE },
 };
 
@@ -63,6 +73,7 @@ export function HistoryJobCard({ job }: HistoryJobCardProps) {
     restoreSettings: () => restore(false),
     restoreBoth: () => restore(true),
     runAgain: () => void runAgain(job.id),
+    saveRecipe: () => void saveRecipe({ kind: "job", job }),
     delete: () => deleteJob.mutate(job.id),
   };
   const slots = historySlots(

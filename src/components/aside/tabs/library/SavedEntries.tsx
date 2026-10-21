@@ -1,4 +1,4 @@
-// The saved frames and sets as a grid of cards, pinned first, then by use, so
+// The saved frames, sets and recipes as a grid of cards, pinned first, then by use, so
 // the next to leave the library is last; below them the entries an older
 // build kept in this browser, until they are moved. One Tab stop per grid;
 // arrows move between cards, by row as well as across.
@@ -12,9 +12,16 @@ import { useMigration } from "@/inputs/migrate";
 import { listOrder } from "@/lib/inputs/library";
 import { LIBRARY_EMPTY, LIBRARY_NO_MATCH, libraryCountText } from "@/lib/inputs/text";
 import { NOT_MOVED_HEADING } from "@/lib/media/text";
+import { readRecipeHead } from "@/lib/recipes/recipe";
+import type { ItemEntryV2 } from "@/api/types/media";
 import { EntryCard } from "./EntryCard";
 import { modelOfItem, modelOfStored, type EntryModel } from "./entryModel";
 import { StayedList } from "./StayedList";
+
+/** A recipe's model, which the search matches beside the name. */
+function modelNameOf(item: ItemEntryV2): string {
+  return item.recipe ? (readRecipeHead(item.recipe)?.checkpoint?.name ?? "") : "";
+}
 
 /** Cards rendered at once; more follow as the list scrolls. */
 const BATCH = 20;
@@ -111,7 +118,7 @@ export function SavedEntries({ query, active }: { query: string; active: boolean
 
   const saved = library.data?.entries;
   const shown = useMemo(
-    () => (saved ?? []).filter((e) => matches(e.name)).map(modelOfItem),
+    () => (saved ?? []).filter((e) => matches(e.name) || matches(modelNameOf(e))).map(modelOfItem),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- matches reads needle
     [saved, needle],
   );
@@ -139,7 +146,7 @@ export function SavedEntries({ query, active }: { query: string; active: boolean
               {LIBRARY_NO_MATCH}
             </p>
           )}
-          {shown.length > 0 && <EntryGrid entries={shown} label="Saved inputs" />}
+          {shown.length > 0 && <EntryGrid entries={shown} label="Saved items" />}
           {(legacyShown.length > 0 || stayed > 0) && (
             <section className="flex flex-col gap-2" aria-label={NOT_MOVED_HEADING}>
               <h4 className="text-2xs font-medium tracking-wider text-muted-foreground uppercase">

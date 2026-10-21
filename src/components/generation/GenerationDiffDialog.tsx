@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useId, useMemo, useState } from "react";
 import { ArrowRight } from "lucide-react";
-import { toDisplayString } from "@/lib/utils";
+import { cn, toDisplayString } from "@/lib/utils";
 import {
   Dialog,
   DialogContent,
@@ -24,10 +24,18 @@ import {
   type ModelPick,
   type RestoreTarget,
 } from "@/lib/request/restore";
-import { extractParams } from "@/lib/request/restoreParams";
 import { useModelList } from "@/api/hooks/useModels";
 import { checkpointState, type ModelState } from "@/lib/recipes/models";
-import { modelStateLongText, RESTORE_MODEL } from "@/lib/recipes/text";
+import { entryTarget } from "@/inputs/recipes";
+import { FindModelDialog } from "@/components/aside/tabs/library/FindModelDialog";
+import { useModelHashStore } from "@/stores/modelHashStore";
+import {
+  FIND_ON_CIVITAI,
+  modelStateLongText,
+  READING_RECIPE,
+  RESTORE_MODEL,
+  skippedSettingsText,
+} from "@/lib/recipes/text";
 import { RETRY } from "@/lib/media/text";
 import type { RestoreSource } from "@/stores/restoreDialogStore";
 import type { GenerationState } from "@/stores/generationStore";
@@ -349,7 +357,9 @@ export function GenerationDiffDialog({ open, onOpenChange, source }: GenerationD
     ? ""
     : source.kind === "result"
       ? `${source.resultId}:${source.imageIndex}`
-      : source.jobId;
+      : source.kind === "job"
+        ? source.jobId
+        : `entry:${source.id}`;
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-xl">
@@ -408,15 +418,18 @@ function ModelRow({
   state,
   checked,
   onCheckedChange,
+  onFind,
 }: {
   name: string;
   state: ModelState;
   checked: boolean;
   onCheckedChange: (checked: boolean) => void;
+  onFind: () => void;
 }) {
   const id = useId();
+  const findable = state === "missing" || state === "otherFile";
   return (
-    <div className="grid grid-cols-[auto_1fr] items-center gap-x-3 px-2 py-1">
+    <div className="grid grid-cols-[auto_1fr_auto] items-center gap-x-3 px-2 py-1">
       <Switch
         className="row-span-2"
         size="sm"
@@ -429,11 +442,27 @@ function ModelRow({
       <span id={`${id}-label`} className="text-2xs">
         {RESTORE_MODEL}
       </span>
+      <Button
+        variant="outline"
+        size="xs"
+        className={cn("row-span-2", !findable && "invisible")}
+        tabIndex={findable ? undefined : -1}
+        onClick={onFind}
+      >
+        {FIND_ON_CIVITAI}
+      </Button>
       <span id={`${id}-words`} className="col-start-2 text-3xs leading-tight text-muted-foreground">
         {name} · {modelStateLongText(state)}
       </span>
     </div>
   );
+}
+
+/** The Settings row's words: how many differ, and what this build could not read. */
+function settingsWords(changed: number, target: RestoreTarget | null): string {
+  const skipped = target?.settings.ok ? target.settings.skipped : 0;
+  const differ = settingsDifferText(changed);
+  return skipped > 0 ? `${differ}. ${skippedSettingsText(skipped)}` : differ;
 }
 
 type Resolved =
@@ -451,11 +480,13 @@ function useTarget(source: RestoreSource) {
         ? useGenerationStore.getState().results.find((r) => r.id === source.resultId)
         : undefined;
     const reading =
-      source.kind === "job"
-        ? recordTarget(source.jobId)
-        : current
-          ? resultTarget(current, source.imageIndex)
-          : Promise.reject(new Error("the result is no longer on the strip"));
+      source.kind === "entry"
+        ? entryTarget(source.id)
+        : source.kind === "job"
+          ? recordTarget(source.jobId)
+          : current
+            ? resultTarget(current, source.imageIndex)
+            : Promise.reject(new Error("the result is no longer on the strip"));
     reading.then(
       (target) => live && setAnswer({ attempt, resolved: { state: "ready", target } }),
       () => live && setAnswer({ attempt, resolved: { state: "failed" } }),
@@ -478,6 +509,7 @@ function RestoreBody({ source, onClose }: { source: RestoreSource; onClose: () =
   const { resolved, retry } = useTarget(source);
   const target = resolved.state === "ready" ? resolved.target : null;
   const { data: installed } = useModelList();
+  const [finding, setFinding] = useState(false);
   // a pick left null takes the default: on where the restore can act
   const [picks, setPicks] = useState<{
     settings: boolean | null;
@@ -486,7 +518,7 @@ function RestoreBody({ source, onClose }: { source: RestoreSource; onClose: () =
   }>({ settings: null, inputs: null, model: null });
 
   const resultParams = useMemo(
-    () => (target?.settings.ok ? extractParams(target.settings.source).params : {}),
+    () => (target?.settings.ok ? target.settings.extracted.params : {}),
     [target],
   );
 
@@ -528,7 +560,10 @@ function RestoreBody({ source, onClose }: { source: RestoreSource; onClose: () =
     target && !target.settings.ok
       ? reasonText(target.settings.reason)
       : slotWords(slots.restoreSettings).reason;
-  const inputsWords = slotWords(slots.restoreInputs);
+  const inputsWords =
+    target?.inputsReason !== undefined
+      ? { reason: target.inputsReason && reasonText(target.inputsReason), note: null }
+      : slotWords(slots.restoreInputs);
   const ready = target !== null;
   const settingsAvailable = ready && settingsReason === null && totalChanged > 0;
   const inputsAvailable = ready && inputsWords.reason === null;
@@ -536,7 +571,8 @@ function RestoreBody({ source, onClose }: { source: RestoreSource; onClose: () =
   const inputsOn = inputsAvailable && (picks.inputs ?? true);
 
   const model = target?.model ?? null;
-  const modelFact = model && installed ? checkpointState(model, installed) : null;
+  const downloads = useModelHashStore((s) => s.downloads);
+  const modelFact = model && installed ? checkpointState(model, installed, downloads) : null;
   const modelOn =
     settingsOn &&
     modelFact !== null &&
@@ -566,7 +602,11 @@ function RestoreBody({ source, onClose }: { source: RestoreSource; onClose: () =
   return (
     <>
       <p className="-mt-2 truncate text-2xs text-muted-foreground" title={target?.name}>
-        {resolved.state === "reading" ? READING_JOB : (target?.name ?? "")}
+        {resolved.state === "reading"
+          ? source.kind === "entry"
+            ? READING_RECIPE
+            : READING_JOB
+          : (target?.name ?? "")}
       </p>
       {resolved.state === "failed" && (
         <div className="flex items-center gap-2 text-2xs text-destructive" role="alert">
@@ -583,11 +623,12 @@ function RestoreBody({ source, onClose }: { source: RestoreSource; onClose: () =
             state={modelFact.state}
             checked={modelOn}
             onCheckedChange={(on) => setPicks((p) => ({ ...p, model: on }))}
+            onFind={() => setFinding(true)}
           />
         )}
         <PickRow
           label="Settings"
-          words={settingsReason ?? settingsDifferText(totalChanged)}
+          words={settingsReason ?? settingsWords(totalChanged, target)}
           checked={settingsOn}
           disabled={!settingsAvailable}
           onCheckedChange={(settings) => setPicks((p) => ({ ...p, settings }))}
@@ -624,6 +665,22 @@ function RestoreBody({ source, onClose }: { source: RestoreSource; onClose: () =
             </tbody>
           </table>
         </ScrollArea>
+      )}
+      {model && modelFact && (
+        <FindModelDialog
+          open={finding}
+          onOpenChange={setFinding}
+          items={[
+            {
+              key: "checkpoint",
+              kind: "checkpoint",
+              name: model.name,
+              state: modelFact.state,
+              sha256: model.sha256,
+              shorthash: model.shorthash,
+            },
+          ]}
+        />
       )}
       <DialogFooter>
         <Button variant="outline" onClick={onClose}>

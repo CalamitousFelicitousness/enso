@@ -203,6 +203,49 @@ export function readRecipe(value: unknown): Recipe {
   });
 }
 
+/** What a library list shows of a recipe, as the server derives it. */
+export interface RecipeHead {
+  schema: number;
+  checkpoint: ModelId | null;
+  networks: NetworkId[];
+  preview: { thumb: string; width: number; height: number; lost: boolean } | null;
+}
+
+/** A list item's recipe head, the part a card shows; null for a head this
+ * build cannot read, which lists as saved by a newer version when its schema
+ * says so. */
+export function readRecipeHead(value: unknown): RecipeHead | null {
+  try {
+    const h = read.fields<Record<string, unknown>>(value, "head");
+    const schema = read.num(h["recipe_schema"], "head.recipe_schema");
+    if (schema > RECIPE_SCHEMA) return { schema, checkpoint: null, networks: [], preview: null };
+    const p = h["preview"];
+    const preview =
+      p === undefined || p === null
+        ? null
+        : (() => {
+            const f = read.fields<Record<string, unknown>>(p, "head.preview");
+            return {
+              thumb: read.text(f["thumb"], "head.preview.thumb"),
+              width: read.num(f["width"], "head.preview.width"),
+              height: read.num(f["height"], "head.preview.height"),
+              lost: f["lost"] === true,
+            };
+          })();
+    return {
+      schema,
+      checkpoint: read.orNull(h["checkpoint"] ?? null, (raw) => modelId(raw, "head.checkpoint")),
+      networks: read
+        .list(h["networks"] ?? [], "head.networks")
+        .map((n, i) => networkId(n, `head.networks[${i}]`)),
+      preview,
+    };
+  } catch (err) {
+    if (err instanceof UnreadableRecipe) return null;
+    throw err;
+  }
+}
+
 /** A settings snapshot as this build's store can take it: keys the defaults
  * know, with the default's kind of value. The snapshot grows every release,
  * so the rest is dropped and counted, never refused. */

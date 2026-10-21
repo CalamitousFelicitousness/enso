@@ -1,5 +1,13 @@
 import { useState } from "react";
-import { ArchiveRestore, Check, Copy, ImageDown, Repeat2, type LucideIcon } from "lucide-react";
+import {
+  ArchiveRestore,
+  Check,
+  Copy,
+  ImageDown,
+  Repeat2,
+  ScrollText,
+  type LucideIcon,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ContextMenuLabel } from "@/components/ui/context-menu";
 import { SlotButton, SlotMenuItem } from "@/components/ui/slot-row";
@@ -15,18 +23,20 @@ import {
   RUN_AGAIN,
   slotWords,
 } from "@/lib/jobs/text";
+import { SAVE_RECIPE } from "@/lib/recipes/text";
 import { cn } from "@/lib/utils";
 
 const ROWS: Record<GalleryAction, { label: string; icon: LucideIcon }> = {
   restoreInputs: { label: RESTORE_INPUTS, icon: ImageDown },
   restoreBoth: { label: RESTORE_BOTH, icon: ArchiveRestore },
   runAgain: { label: RUN_AGAIN, icon: Repeat2 },
+  saveRecipe: { label: SAVE_RECIPE, icon: ScrollText },
 };
 
-/** The job's line, and the reason its three slots share when they share one,
+/** The job's line, and the reason its slots share when they share one,
  * which the slots then leave to it. */
-function useJobLine(path: string) {
-  const job = useGalleryJob(path);
+function useJobLine(path: string, seed: number | null) {
+  const job = useGalleryJob(path, seed);
   const now = useMinute();
   const record = typeof job.facts === "string" ? null : job.facts;
   const shared = sharedReason(job.slots);
@@ -64,10 +74,11 @@ function CopyJobId({ id }: { id: string | null }) {
   );
 }
 
-/** The job that made the selected file: a line naming it and its three
- * actions, always in place, so the column keeps its height for any file. */
-export function GalleryJobRows({ path }: { path: string }) {
-  const { job, line, detail, silent } = useJobLine(path);
+/** The job that made the selected file: a line naming it and its
+ * actions, always in place, so the column keeps its height for any file. The
+ * seed is the one the picture's metadata names, kept when a recipe is saved. */
+export function GalleryJobRows({ path, seed = null }: { path: string; seed?: number | null }) {
+  const { job, line, detail, silent } = useJobLine(path, seed);
   return (
     <div className="space-y-1">
       <div className="flex items-start gap-1">
@@ -94,9 +105,9 @@ export function GalleryJobRows({ path }: { path: string }) {
   );
 }
 
-/** The same three actions in a file's menu, under the job's line. */
+/** The same actions in a file's menu, under the job's line. */
 export function GalleryJobItems({ path }: { path: string }) {
-  const { job, line, detail, silent } = useJobLine(path);
+  const { job, line, detail, silent } = useJobLine(path, null);
   return (
     <>
       <ContextMenuLabel className="text-3xs font-normal text-muted-foreground">

@@ -2,7 +2,7 @@
 // four in a grid, with a count of the rest. A server entry's come from the
 // server by hash; an older build's entry's from this browser.
 
-import { ImageOff } from "lucide-react";
+import { ImageOff, type LucideIcon } from "lucide-react";
 import { blobUrl } from "@/api/blobs";
 import { MediaImg } from "@/components/ui/media";
 import { useThumb } from "@/inputs/thumbs";
@@ -83,9 +83,17 @@ interface EntryThumbsProps {
   active: boolean;
   /** Shown in place of the pictures, for an entry this build cannot read. */
   note?: string | null;
+  /** Drawn when there are no pictures: a recipe saved with no output or inputs. */
+  empty?: LucideIcon | null;
 }
 
-export function EntryThumbs({ cells, more, active, note = null }: EntryThumbsProps) {
+export function EntryThumbs({
+  cells,
+  more,
+  active,
+  note = null,
+  empty: Empty = null,
+}: EntryThumbsProps) {
   return (
     <div
       className={cn(
@@ -100,7 +108,11 @@ export function EntryThumbs({ cells, more, active, note = null }: EntryThumbsPro
         </span>
       ) : (
         <>
-          {cells.length === 0 && <span className="bg-muted/40" />}
+          {cells.length === 0 && (
+            <span className="grid place-items-center bg-muted/40">
+              {Empty && <Empty size={20} className="text-muted-foreground/60" aria-hidden />}
+            </span>
+          )}
           {cells.map((cell, i) => (
             <Cell
               key={cell.key}

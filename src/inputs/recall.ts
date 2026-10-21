@@ -19,6 +19,7 @@ import {
   type ReadEntry,
 } from "@/lib/inputs/stored";
 import { LIBRARY } from "@/lib/inputs/storeLayout";
+import { reasonText } from "@/lib/jobs/text";
 import {
   lostEntryPicturesText,
   lostRestoredPicturesText,
@@ -55,7 +56,7 @@ const sameSize = (a: Size, b: Size) => a.width === b.width && a.height === b.hei
 
 /** Make an entry's maps current again under the cid they are stored under,
  * unless the cache holds them already. */
-async function installEntryMaps(
+export async function installEntryMaps(
   maps: Readonly<Record<string, string>>,
   blobs: ReadonlyMap<string, Blob>,
 ): Promise<void> {
@@ -118,6 +119,10 @@ export async function recallEntry(id: string, mode: RecallMode): Promise<boolean
     }
     if (entry.trashed_at != null) {
       toast.info(inTrashText(entry.name));
+      return false;
+    }
+    if (entry.inputs === null) {
+      toast.info(reasonText("recipeNoInputs"));
       return false;
     }
     let stored: ReturnType<typeof readStoredInputs>;

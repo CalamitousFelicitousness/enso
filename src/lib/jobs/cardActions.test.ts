@@ -4,6 +4,7 @@ import {
   gallerySlots,
   historySlots,
   queueSlots,
+  recipeSlot,
   restoreInputsSlot,
   resultActions,
   runAgainSlot,
@@ -32,7 +33,7 @@ const done = (type: string, state: FactsState, status: JobStatus = "completed") 
   shape(historySlots({ type, status, hasParams: true }, state));
 
 describe("historySlots", () => {
-  it("gives a generation four fixed slots whatever its state", () => {
+  it("gives a generation five fixed slots whatever its state", () => {
     const statuses: JobStatus[] = ["pending", "running", "completed", "failed", "cancelled"];
     for (const status of statuses) {
       for (const state of [facts(), "loading", "none", "error"] as FactsState[]) {
@@ -41,6 +42,7 @@ describe("historySlots", () => {
           "restoreSettings",
           "restoreBoth",
           "runAgain",
+          "saveRecipe",
           "delete",
         ]);
       }
@@ -52,6 +54,7 @@ describe("historySlots", () => {
       "restoreSettings:ok",
       "restoreBoth:ok",
       "runAgain:ok",
+      "saveRecipe:ok",
       "delete:ok",
     ]);
     expect(done("generate", facts({ mine: false }))).toEqual(done("generate", facts()));
@@ -70,12 +73,14 @@ describe("historySlots", () => {
       "restoreSettings:ok",
       "restoreBoth:loading",
       "runAgain:loading",
+      "saveRecipe:loading",
       "delete:ok",
     ]);
     expect(done("generate", "none")).toEqual([
       "restoreSettings:ok",
       "restoreBoth:noRecord",
       "runAgain:noRecord",
+      "saveRecipe:noRecord",
       "delete:ok",
     ]);
     expect(done("generate", "error").slice(1, 3)).toEqual([
@@ -189,6 +194,7 @@ describe("resultActions", () => {
       restoreSettings: "restoreSettings:ok",
       restoreInputs: "restoreInputs:ok",
       saveInputs: "saveInputs:ok",
+      saveRecipe: "saveRecipe:ok",
       restoreBoth: "restoreBoth:ok",
       runAgain: "runAgain:ok",
     });
@@ -261,6 +267,7 @@ describe("gallerySlots", () => {
       "restoreInputs:loading",
       "restoreBoth:loading",
       "runAgain:loading",
+      "saveRecipe:loading",
     ]);
   });
 
@@ -269,11 +276,13 @@ describe("gallerySlots", () => {
       "restoreInputs:noJobFound",
       "restoreBoth:noJobFound",
       "runAgain:noJobFound",
+      "saveRecipe:noJobFound",
     ]);
     expect(slots({ lookup: { state: "failed" } })).toEqual([
       "restoreInputs:lookupFailed",
       "restoreBoth:lookupFailed",
       "runAgain:lookupFailed",
+      "saveRecipe:lookupFailed",
     ]);
   });
 
@@ -282,18 +291,30 @@ describe("gallerySlots", () => {
       "restoreInputs:unfinished",
       "restoreBoth:unfinished",
       "runAgain:unfinished",
+      "saveRecipe:unfinished",
     ]);
   });
 
   it("follows the record as every other view does", () => {
-    expect(slots({})).toEqual(["restoreInputs:ok", "restoreBoth:ok", "runAgain:ok"]);
+    expect(slots({})).toEqual([
+      "restoreInputs:ok",
+      "restoreBoth:ok",
+      "runAgain:ok",
+      "saveRecipe:ok",
+    ]);
     expect(
       slots({ loads: { model: "Wan" } }, facts({ domain: "video", hasInputs: false })),
-    ).toEqual(["restoreInputs:notGenerate", "restoreBoth:notGenerate", "runAgain:note-loadsModel"]);
+    ).toEqual([
+      "restoreInputs:notGenerate",
+      "restoreBoth:notGenerate",
+      "runAgain:note-loadsModel",
+      "saveRecipe:recipeOnlyGenerate",
+    ]);
     expect(slots({}, "off")).toEqual([
       "restoreInputs:storeOff",
       "restoreBoth:storeOff",
       "runAgain:storeOff",
+      "saveRecipe:storeOff",
     ]);
   });
 });
@@ -305,5 +326,26 @@ describe("sharedReason", () => {
     expect(sharedReason([slot("noJobFound"), slot("noRecord")])).toBeNull();
     expect(sharedReason([slot(null), slot(null)])).toBeNull();
     expect(sharedReason([])).toBeNull();
+  });
+});
+
+describe("recipeSlot", () => {
+  const slot = (type: string | null, state: FactsState, status: JobStatus = "completed") =>
+    shape([recipeSlot("saveRecipe", type, state, status)])[0];
+
+  it("saves a finished image generation from its record", () => {
+    expect(slot("generate", facts())).toBe("saveRecipe:ok");
+    expect(slot(null, facts())).toBe("saveRecipe:ok");
+    expect(slot("generate", facts({ missingRefs: 1 }))).toBe("saveRecipe:ok");
+  });
+
+  it("refuses other job types, unfinished jobs and records it cannot read", () => {
+    expect(slot("video", facts())).toBe("saveRecipe:recipeOnlyGenerate");
+    expect(slot(null, facts({ domain: "upscale" }))).toBe("saveRecipe:recipeOnlyGenerate");
+    expect(slot("generate", facts(), "running")).toBe("saveRecipe:unfinished");
+    expect(slot("generate", "none")).toBe("saveRecipe:noRecord");
+    expect(slot("generate", "off")).toBe("saveRecipe:storeOff");
+    expect(slot("generate", "older")).toBe("saveRecipe:olderServer");
+    expect(slot("generate", facts({ missingRefs: 1, hasInputs: false }))).toBe("saveRecipe:gone");
   });
 });

@@ -82,7 +82,7 @@ function nameOf(id: string): string {
 
 /** Put the server's answer about an entry into the lists the page holds;
  * the entries it pushed out are read again with the trash. */
-function applyEntry(entry: ItemEntryV2, pushedOut: readonly string[] = []): void {
+export function applyEntry(entry: ItemEntryV2, pushedOut: readonly string[] = []): void {
   const gone = new Set(pushedOut);
   queryClient.setQueryData<ResLibraryV2>(LIBRARY_KEY, (old) => {
     if (!old) return old;
@@ -123,7 +123,7 @@ export function movedText(change: ResEntryChangeV2): string | null {
 
 /** A change the server refused or that failed, said: an entry gone from the
  * server, or out of the trash a delete needs it in, reads the lists again. */
-function refused(err: unknown, failedTitle: string, goneText = NO_LONGER_IN_LIBRARY): void {
+export function refused(err: unknown, failedTitle: string, goneText = NO_LONGER_IN_LIBRARY): void {
   const code = err instanceof ApiError ? err.code : null;
   if (code === "gone" || code === "not_trashed") {
     toast.info(goneText);

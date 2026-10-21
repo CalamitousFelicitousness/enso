@@ -4,6 +4,7 @@ import {
   importedText,
   importingText,
   modelLineText,
+  modelLoadFailedText,
   networksMissingText,
   runsOnLoadedText,
   settingsLeftOutText,
@@ -45,6 +46,9 @@ describe("recipe words", () => {
     expect(networksMissingText(1)).toBe("1 LoRA was not found");
     expect(runsOnLoadedText("Juggernaut XL v11", "unchecked")).toBe(
       "Juggernaut XL v11 is installed by name but was not checked; runs on the loaded model",
+    );
+    expect(modelLoadFailedText("Juggernaut XL v11", "API Error 400: busy")).toBe(
+      "Could not load Juggernaut XL v11: API Error 400: busy",
     );
   });
 });

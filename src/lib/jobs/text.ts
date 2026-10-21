@@ -5,6 +5,12 @@ import { ageText, OLDER_SERVER } from "@/lib/media/text";
 import type { ActionNote, ActionReason, OutputJobLookup } from "./cardActions";
 import type { JobDomain } from "./domains";
 import type { LoadsModel } from "./requests";
+import {
+  RECIPE_COLUMN,
+  RECIPE_NO_INPUTS,
+  RECIPE_ONLY_GENERATE,
+  RESTORE_RECIPE_TITLE,
+} from "@/lib/recipes/text";
 
 const REASON: Record<ActionReason, string> = {
   processNow: "Processing runs again through Process now",
@@ -25,6 +31,8 @@ const REASON: Record<ActionReason, string> = {
   notQueued: "Only a queued job can be moved",
   noResult: "This job has no result",
   otherView: "Results of this kind are kept in the Gallery",
+  recipeOnlyGenerate: RECIPE_ONLY_GENERATE,
+  recipeNoInputs: RECIPE_NO_INPUTS,
 };
 
 export function reasonText(reason: ActionReason): string {
@@ -266,6 +274,11 @@ export const RESTORE_DIALOG_WORDS = {
     title: "Restore job",
     column: "Job",
     description: "What restoring the job's settings and inputs would change",
+  },
+  entry: {
+    title: RESTORE_RECIPE_TITLE,
+    column: RECIPE_COLUMN,
+    description: "What restoring the recipe's settings and inputs would change",
   },
 } as const;
 export const READING_JOB = "Reading the job";

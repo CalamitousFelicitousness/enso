@@ -29,6 +29,18 @@ export function useExtraNetworks(
   });
 }
 
+/** Every LoRA the server lists, which a recipe's networks are found among. */
+export const loraListQuery = {
+  queryKey: ["extra-networks", "lora", "all"],
+  queryFn: async () =>
+    (await api.get<ExtraNetworksResponse>("/sdapi/v2/extra-networks", { page: "lora" })).items,
+  staleTime: 5 * 60_000,
+};
+
+export function useLoraList(enabled = true) {
+  return useQuery({ ...loraListQuery, enabled });
+}
+
 export function usePromptStyles() {
   return useQuery({
     queryKey: ["prompt-styles"],

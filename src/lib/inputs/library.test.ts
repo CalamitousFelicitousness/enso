@@ -163,6 +163,21 @@ describe("what a card says an entry holds", () => {
     );
   });
 
+  it("names a recipe by its models line, and says Enter opens Restore", () => {
+    const recipe = {
+      kind: "recipe",
+      frames: 0,
+      pictures: 0,
+      roleLabel: null,
+      size: { width: 0, height: 0 },
+    } as const;
+    expect(entryLine(recipe)).toBe("Recipe");
+    expect(entryLine(recipe, "Not found · Juggernaut XL v11")).toBe(
+      "Recipe · Not found · Juggernaut XL v11",
+    );
+    expect(entryName("Portrait", recipe, false)).toBe('"Portrait", recipe; Enter opens Restore');
+  });
+
   it("labels a role the server names, and keeps a name it does not know", () => {
     expect(roleLabelOf("control", "controlnet")).toBe("ControlNet");
     expect(roleLabelOf("control", null)).toBe("Control");
