@@ -15,6 +15,7 @@
     "typecheck": "tsc -b",
     "lint": "pnpm run lint:js && pnpm run lint:py",
     "lint:js": "eslint . --cache --cache-location node_modules/.cache/eslint/",
+    "lint:js:full": "eslint .",
     "lint:fix": "eslint . --fix --cache --cache-location node_modules/.cache/eslint/",
     "lint:py": "venv/bin/ruff check && venv/bin/pylint .",
     "lint:py:fix": "venv/bin/ruff check --fix",
@@ -29,7 +30,7 @@
     "test": "vitest run",
     "test:py": "venv/bin/pytest",
     "test:e2e": "playwright test",
-    "check": "pnpm run typecheck && pnpm run lint && pnpm run format:check && pnpm run format:py:check && pnpm run test && pnpm run test:py"
+    "check": "pnpm run typecheck && pnpm run lint:js:full && pnpm run lint:py && pnpm run format:check && pnpm run format:py:check && pnpm run test && pnpm run test:py"
   },
   "dependencies": {
     "@codemirror/autocomplete": "^6.20.3",
