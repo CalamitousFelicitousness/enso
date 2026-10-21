@@ -23,9 +23,9 @@ interface CanvasSurfaceProps {
   /** Chrome below the canvas, outside its clip. */
   below?: ReactNode;
   onDropFiles?: (files: File[], point: SurfacePoint) => void;
-  /** What a drop takes. Defaults to images by MIME. */
+  /** What a drop or a paste takes. Defaults to images by MIME. */
   acceptFile?: (file: File) => boolean;
-  /** What a drop takes, in words, for a drop that holds none of it. */
+  /** What a drop or a paste takes, in words, for one that holds none of it. */
   acceptKinds?: string;
   onDropImage?: (payload: ImagePayload, point: SurfacePoint) => void;
   /** A library entry; without this the surface refuses entries. */
@@ -91,7 +91,10 @@ export function CanvasSurface({
   });
 
   const visible = useKeepAliveVisible();
-  useWindowPaste((files) => onPasteFiles?.(files), visible && onPasteFiles !== undefined);
+  useWindowPaste((files) => onPasteFiles?.(files), visible && onPasteFiles !== undefined, {
+    accept: acceptFile,
+    kinds: acceptKinds,
+  });
 
   // A gesture moves the stage imperatively and only commits on release, so the
   // chrome rides the same delta until the store catches up.

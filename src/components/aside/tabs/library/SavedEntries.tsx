@@ -8,6 +8,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useLibrary } from "@/api/hooks/useMedia";
 import { useProgressiveRender } from "@/hooks/useProgressiveRender";
 import { useLegacyEntries } from "@/hooks/useLegacyEntries";
+import { useLibraryReveal } from "@/inputs/library";
 import { useMigration } from "@/inputs/migrate";
 import { listOrder } from "@/lib/inputs/library";
 import { LIBRARY_EMPTY, LIBRARY_NO_MATCH, libraryCountText } from "@/lib/inputs/text";
@@ -33,6 +34,12 @@ const STEP: Record<string, (columns: number) => number> = {
   ArrowDown: (columns) => columns,
 };
 
+/** Focus a card. A notice's action, left, gives focus back once to where it came from. */
+function focusCard(card: HTMLElement): void {
+  card.focus();
+  if (document.activeElement !== card) card.focus();
+}
+
 /** Cards in a grid with one Tab stop, rendered as the list scrolls. */
 function EntryGrid({ entries, label }: { entries: EntryModel[]; label: string }) {
   const gridRef = useRef<HTMLDivElement>(null);
@@ -55,8 +62,25 @@ function EntryGrid({ entries, label }: { entries: EntryModel[]; label: string })
     );
     if (!card) return;
     pendingFocus.current = null;
-    card.focus();
+    focusCard(card);
   }, [visibleItems]);
+
+  // Show in library: the card is rendered, then focused by the effect above
+  const revealing = useLibraryReveal((s) => s.id);
+  useEffect(() => {
+    if (revealing === null) return;
+    const index = entries.findIndex((e) => e.id === revealing);
+    if (index < 0) return;
+    useLibraryReveal.setState({ id: null });
+    pendingFocus.current = revealing;
+    reveal(index);
+    const card = gridRef.current?.querySelector<HTMLElement>(
+      `[data-entry-id="${revealing}"] [data-entry-main]`,
+    );
+    if (!card) return;
+    pendingFocus.current = null;
+    focusCard(card);
+  }, [revealing, entries, reveal]);
 
   const onKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
     const target = e.target as HTMLElement;

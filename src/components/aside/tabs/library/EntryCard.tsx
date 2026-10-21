@@ -10,6 +10,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   ArchiveRestore,
   ArrowDownToLine,
+  Download,
   GitCompare,
   History,
   ImageDown,
@@ -38,7 +39,7 @@ import { ActionSlot } from "@/components/ui/action-slot";
 import { useDragSource } from "@/hooks/useDragSource";
 import { useNearViewport } from "@/hooks/useNearViewport";
 import { renameEntry, setPinned, trashEntry } from "@/inputs/library";
-import { entryTarget, runRecipe, useRecipeRuns } from "@/inputs/recipes";
+import { entryTarget, exportEntry, runRecipe, useRecipeRuns } from "@/inputs/recipes";
 import { recallEntry, recallLegacyEntry, type RecallMode } from "@/inputs/recall";
 import {
   ADD_TO_INPUTS,
@@ -64,6 +65,8 @@ import { MOVE_FIRST } from "@/lib/media/text";
 import { failedWith } from "@/lib/mediaFiles";
 import {
   ALL_MODELS_FOUND,
+  EXPORT_ENTRY,
+  EXPORT_HINT,
   FIND_ON_CIVITAI,
   READ_RECIPE_FAILED,
   RUN_RECIPE,
@@ -151,6 +154,10 @@ export function EntryCard({ entry, tabIndex, onFocusCard }: EntryCardProps) {
   const find = () => {
     if (models.missing.length === 0) toast.info(ALL_MODELS_FOUND);
     else setFinding(true);
+  };
+  const exportFile = () => {
+    if (removeReason) toast.info(removeReason);
+    else void exportEntry(entry.id, entry.name);
   };
   const togglePin = () => void setPinned(entry.id, !entry.pinned);
   const remove = () => {
@@ -300,6 +307,13 @@ export function EntryCard({ entry, tabIndex, onFocusCard }: EntryCardProps) {
                 />
               )}
               <ActionSlot
+                label={EXPORT_HINT}
+                icon={Download}
+                reason={removeReason}
+                tabIndex={-1}
+                onAct={exportFile}
+              />
+              <ActionSlot
                 label={pinLabel}
                 icon={entry.pinned ? PinOff : Pin}
                 reason={changeReason}
@@ -375,6 +389,12 @@ export function EntryCard({ entry, tabIndex, onFocusCard }: EntryCardProps) {
             label={pinLabel}
             reason={changeReason}
             onAct={togglePin}
+          />
+          <SlotMenuItem
+            icon={Download}
+            label={EXPORT_ENTRY}
+            reason={removeReason}
+            onAct={exportFile}
           />
           <SlotMenuItem
             icon={Pencil}

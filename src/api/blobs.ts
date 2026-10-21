@@ -56,17 +56,38 @@ export interface IngestOptions {
  * signal stops it. */
 export function ingest(blob: Blob, options: IngestOptions = {}): Promise<ResBlobV2> {
   const { name, transient, onProgress, signal } = options;
+  const query = new URLSearchParams();
+  if (name) query.set("name", name);
+  if (transient) query.set("transient", "true");
+  const search = query.toString();
+  return postRaw<ResBlobV2>(`/sdapi/v2/blobs${search ? `?${search}` : ""}`, blob, {
+    onProgress,
+    signal,
+  }).catch((err: unknown) => {
+    throw err instanceof ApiError
+      ? new UploadRefused(failureOf(err, blob.size), { cause: err })
+      : err;
+  });
+}
+
+export interface RawOptions {
+  /** The bytes sent so far. */
+  onProgress?: ((sent: number) => void) | undefined;
+  signal?: AbortSignal | undefined;
+}
+
+/** POST bytes as a raw body. Rejects with ApiError for a refusal,
+ * UploadRefused when the server cannot be reached, or UserAbortError when
+ * the signal stops it. */
+export function postRaw<T>(path: string, blob: Blob, options: RawOptions = {}): Promise<T> {
+  const { onProgress, signal } = options;
   return new Promise((resolve, reject) => {
     if (signal?.aborted) {
       reject(new UserAbortError("Upload cancelled"));
       return;
     }
-    const query = new URLSearchParams();
-    if (name) query.set("name", name);
-    if (transient) query.set("transient", "true");
-    const search = query.toString();
     const xhr = new XMLHttpRequest();
-    xhr.open("POST", `${api.getBaseUrl()}/sdapi/v2/blobs${search ? `?${search}` : ""}`);
+    xhr.open("POST", `${api.getBaseUrl()}${path}`);
     const authorization = api.getAuthorization();
     if (authorization) xhr.setRequestHeader("Authorization", authorization);
     xhr.setRequestHeader("Content-Type", "application/octet-stream");
@@ -78,11 +99,10 @@ export function ingest(blob: Blob, options: IngestOptions = {}): Promise<ResBlob
       settled();
       const body = parsed(xhr.responseText);
       if (xhr.status >= 200 && xhr.status < 300) {
-        resolve(body as ResBlobV2);
+        resolve(body as T);
         return;
       }
-      const err = new ApiError(xhr.status, xhr.statusText, body);
-      reject(new UploadRefused(failureOf(err, blob.size), { cause: err }));
+      reject(new ApiError(xhr.status, xhr.statusText, body));
     };
     xhr.onerror = () => {
       settled();

@@ -1,7 +1,7 @@
 // Server media read as bytes: downloads, and pictures sent on to the canvas or another view.
 
 import { toast } from "sonner";
-import { fetchMedia } from "@/api/session";
+import { fetchMedia, mediaUrl } from "@/api/session";
 import { base64ToBlob, generateImageFilename } from "@/lib/utils";
 
 /** Why a file could not be read, worded for a toast's description. */
@@ -77,13 +77,23 @@ export function dispositionName(header: string | null): string | null {
 /** Hand the browser a blob to save under the name. */
 export function saveBlob(blob: Blob, filename: string): void {
   const url = URL.createObjectURL(blob);
+  clickDownload(url, filename);
+  URL.revokeObjectURL(url);
+}
+
+/** Download a file the server serves as an attachment: the browser's
+ * download manager streams it to disk, nothing is held in the page. */
+export function downloadUrl(path: string, filename: string): void {
+  clickDownload(mediaUrl(path), filename);
+}
+
+function clickDownload(href: string, filename: string): void {
   const a = document.createElement("a");
-  a.href = url;
+  a.href = href;
   a.download = filename;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
-  URL.revokeObjectURL(url);
 }
 
 /** Save a stored file under the given name, else the one the server gives it. */

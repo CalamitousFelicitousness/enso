@@ -15,6 +15,9 @@ import { useKeepAliveVisible } from "@/components/ui/keep-alive";
 import { dropFailed, payloadToPicture } from "@/lib/sendTo";
 import type { EntryPayload, ImagePayload } from "@/lib/drag";
 import { recallEntry } from "@/inputs/recall";
+import { importAmong } from "@/inputs/recipes";
+import { isPictureOrRecipe } from "@/lib/recipes/recipe";
+import { PICTURES_AND_RECIPES } from "@/lib/recipes/text";
 import { CanvasStage } from "@/canvas/CanvasStage";
 import { CanvasToolbar } from "@/canvas/CanvasToolbar";
 import { FramePanels } from "@/canvas/panels/FramePanels";
@@ -68,7 +71,8 @@ export const CanvasView = memo(function CanvasView() {
 
   const handleDropFiles = useCallback(
     (files: File[], point: SurfacePoint) => {
-      void addFilesToInputs(files, hitTestFrame(point));
+      const pictures = importAmong(files);
+      if (pictures.length > 0) void addFilesToInputs(pictures, hitTestFrame(point));
     },
     [hitTestFrame],
   );
@@ -213,7 +217,8 @@ export const CanvasView = memo(function CanvasView() {
   }, []);
 
   const handlePasteFiles = useCallback((files: File[]) => {
-    void addFilesToInputs(files);
+    const pictures = importAmong(files);
+    if (pictures.length > 0) void addFilesToInputs(pictures);
   }, []);
 
   return (
@@ -223,6 +228,8 @@ export const CanvasView = memo(function CanvasView() {
       onDropImage={handleDropImage}
       onDropEntry={handleDropEntry}
       onPasteFiles={handlePasteFiles}
+      acceptFile={isPictureOrRecipe}
+      acceptKinds={PICTURES_AND_RECIPES}
       overlay={
         <FramePanels
           layout={layout}

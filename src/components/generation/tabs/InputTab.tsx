@@ -1,15 +1,20 @@
 // The Input tab: the outline of the input document, what keeps the request
 // from being built, and the inspector of the selected frame.
 
-import { BookmarkPlus, Loader2, Locate, ScrollText } from "lucide-react";
+import { BookmarkPlus, Download, Loader2, Locate, ScrollText } from "lucide-react";
 import { useInputStore } from "@/stores/inputStore";
 import { useModelCapabilities } from "@/hooks/useModelCapabilities";
 import { Button } from "@/components/ui/button";
 import { SectionDivider } from "@/components/ui/section-leader";
 import { useOutlineWithEnv } from "@/inputs/useOutline";
 import { saveFrames, useLibrarySaving } from "@/inputs/library";
-import { saveRecipe } from "@/inputs/recipes";
-import { SAVE_RECIPE, SAVE_RECIPE_HINT } from "@/lib/recipes/text";
+import { exportCurrent, saveRecipe } from "@/inputs/recipes";
+import {
+  EXPORT_CURRENT,
+  EXPORT_CURRENT_HINT,
+  SAVE_RECIPE,
+  SAVE_RECIPE_HINT,
+} from "@/lib/recipes/text";
 import { applyFix } from "@/inputs/processing";
 import { revealFrame } from "@/inputs/reveal";
 import { outlineEntry, type Outline } from "@/lib/inputs/outline";
@@ -98,6 +103,16 @@ export function InputTab() {
             aria-label={SAVE_RECIPE}
           >
             {saving ? <Loader2 size={11} className="animate-spin" /> : <ScrollText size={11} />}
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            className="text-muted-foreground"
+            onClick={() => void exportCurrent()}
+            title={EXPORT_CURRENT_HINT}
+            aria-label={EXPORT_CURRENT}
+          >
+            <Download size={11} />
           </Button>
         </span>
         <span className="font-mono text-2xs tabular-nums text-foreground">

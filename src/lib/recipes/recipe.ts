@@ -16,6 +16,11 @@ export function isRecipeFile(file: { name: string }): boolean {
   return file.name.toLowerCase().endsWith(RECIPE_EXT);
 }
 
+/** What the canvas takes: a picture, or a recipe file it imports. */
+export function isPictureOrRecipe(file: { name: string; type: string }): boolean {
+  return file.type.startsWith("image/") || isRecipeFile(file);
+}
+
 /** A model as the server that saved the recipe knew it. */
 export interface ModelId {
   title: string;

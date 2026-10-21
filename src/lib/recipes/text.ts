@@ -1,6 +1,6 @@
 // The words of recipes: saving, the model states, Restore and Run, export and import.
 
-import { aboutSize } from "@/lib/media/text";
+import { aboutSize, limitText } from "@/lib/media/text";
 import type { ModelState } from "./models";
 import type { LeftOut } from "./portable";
 
@@ -12,6 +12,9 @@ export const SAVE_RECIPE_HINT = "Prompt, settings, model and input pictures, kep
 export const EXPORT_ENTRY = "Export";
 export const EXPORT_HINT = "Export as a file";
 export const IMPORT_FILE = "Import a file";
+export const EXPORT_CURRENT = "Export as a recipe file";
+export const EXPORT_CURRENT_HINT =
+  "Prompt, settings, model and input pictures as a file, without keeping it in the library";
 export const FIND_ON_CIVITAI = "Find on CivitAI";
 export const ALL_MODELS_FOUND = "Every model was found";
 export const NO_LORA_IDENTITY = "This LoRA's file was not identified when the recipe was made";
@@ -89,6 +92,46 @@ export function settingsLeftOutText(leftOut: readonly LeftOut[]): string {
 
 export function newerRecipeText(version: number, reads: number): string {
   return `This file was made by a newer version of Enso (recipe format ${version}; this one reads ${reads})`;
+}
+
+export const RECIPE_FILES = ".enso files";
+export const PICTURES_AND_RECIPES = "pictures and .enso files";
+export const EXPORT_CANCELLED = "Export cancelled";
+export const IMPORT_CANCELLED = "Import cancelled";
+export const IMPORT_FAILED = "Could not import the file";
+export const RECIPE_BUSY = "Wait for the recipe being saved, exported or imported";
+
+export function importFileFailedText(fileName: string): string {
+  return `Could not import "${fileName}"`;
+}
+
+export function exportFailedText(name: string): string {
+  return `Could not export "${name}"`;
+}
+
+/** Why the server refused a recipe file, from the refusal's code and fields. */
+export function importFailedText(code: string, fields: Readonly<Record<string, unknown>>): string {
+  switch (code) {
+    case "not_recipe":
+      return "The file is not an Enso recipe";
+    case "newer_recipe": {
+      const { version, reads } = fields;
+      return typeof version === "number" && typeof reads === "number"
+        ? newerRecipeText(version, reads)
+        : "This file was made by a newer version of Enso";
+    }
+    case "too_large": {
+      const { member, limit } = fields;
+      const what = typeof member === "string" ? member : "A picture in the file";
+      return typeof limit === "number"
+        ? `${what} is larger than this server takes (${limitText(limit)})`
+        : `${what} is larger than this server takes`;
+    }
+    case "not_portable":
+      return "A setting in the file names a file on the server";
+    default:
+      return "The file is damaged";
+  }
 }
 
 export function skippedSettingsText(n: number): string {

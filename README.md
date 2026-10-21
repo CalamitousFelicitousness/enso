@@ -41,7 +41,7 @@ It runs as a standard SD.Next extension: starting SD.Next with `--enso` clones i
 ### What's Included
 
 - **React frontend** - Infinite canvas, generation controls, gallery browser, model management, system dashboard
-- **V2 API** (`enso_api/`) - Async job queue with SQLite persistence, file upload staging, WebSocket progress push
+- **V2 API** (`enso_api/`) - Async job queue with SQLite persistence, a content-addressed media store, WebSocket progress push
 - **Extension entry point** (`scripts/enso.py`) - Hooks into SD.Next via `script_callbacks.on_app_started`
 
 ---
@@ -79,7 +79,7 @@ It runs as a standard SD.Next extension: starting SD.Next with `--enso` clones i
 - Denoising strength control
 - Resolution matching
 - Batch transformations
-- Upload staging with TTL
+- Pictures uploaded once, kept by content hash
 
 </td>
 <td width="33%" valign="top">
@@ -100,9 +100,16 @@ It runs as a standard SD.Next extension: starting SD.Next with `--enso` clones i
 
 - **Async job queue** - Submit jobs, poll status, or stream via WebSocket
 - **SQLite persistence** - Jobs survive server restarts
-- **File upload staging** - Upload images once, reference by ID across requests
+- **Media store** - Pictures uploaded once and kept by their SHA-256, named by hash in every request
 - **Global WebSocket** - Real-time progress push, interrupt/skip commands
 - **Per-job WebSocket** - Stream individual job progress and results
+
+### Library and Recipes
+
+- Save frames, sets of inputs and recipes (prompt, settings, model and input pictures) to a library on the server, shared by every browser
+- Restore a recipe through one dialog, or run it as it is with its model loaded first
+- Export any entry as an `.enso` file and import it on another server; models are matched by hash, with Find on CivitAI for the ones it lacks
+- See [docs/library.md](docs/library.md)
 
 ### Model Management
 
@@ -186,7 +193,9 @@ enso/
 │   ├── job_queue.py          # Async job queue + worker
 │   ├── job_store.py          # SQLite job persistence
 │   ├── executors.py          # Job dispatch to SD.Next processing
-│   ├── upload.py             # File upload staging
+│   ├── media/                # Media store, library, trash, job records
+│   ├── recipes/              # Recipe files: export, import, model identity
+│   ├── upload.py             # Upload ref checks, older multipart route
 │   ├── ws.py                 # Per-job WebSocket
 │   ├── global_ws.py          # Global WebSocket (progress, interrupt)
 │   ├── gallery.py            # Gallery browser endpoints

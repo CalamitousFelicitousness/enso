@@ -1,14 +1,23 @@
 // Palette entries for the input frames: one per role, which goes to the
 // first frame of that role or adds one, processing, and saving to the library
-// as a set, a frame or a recipe.
+// as a set, a frame or a recipe, or exporting one as a file.
 
-import { BookmarkPlus, Crosshair, Image, Images, ScrollText, Sparkles, Wand2 } from "lucide-react";
+import {
+  BookmarkPlus,
+  Crosshair,
+  Download,
+  Image,
+  Images,
+  ScrollText,
+  Sparkles,
+  Wand2,
+} from "lucide-react";
 import { useRegisterCommand } from "@/lib/commandRegistry";
 import { useInputStore } from "@/stores/inputStore";
 import { useUiStore } from "@/stores/uiStore";
 import { addFrame } from "@/inputs/edits";
 import { saveFrames } from "@/inputs/library";
-import { saveRecipe } from "@/inputs/recipes";
+import { exportCurrent, saveRecipe } from "@/inputs/recipes";
 import { processNow } from "@/inputs/processing";
 import { revealFrame } from "@/inputs/reveal";
 
@@ -55,6 +64,17 @@ export function useInputCommands(enabled: boolean): void {
       keywords: ["recipe", "library", "save", "keep", "prompt", "settings", "model", "share"],
       icon: ScrollText,
       run: () => void saveRecipe({ kind: "current" }),
+    },
+    enabled,
+  );
+  useRegisterCommand(
+    {
+      id: "recipes:export",
+      label: "Export as a recipe file",
+      group: "Inputs",
+      keywords: ["recipe", "export", "file", "download", "share", "enso", "backup"],
+      icon: Download,
+      run: () => void exportCurrent(),
     },
     enabled,
   );

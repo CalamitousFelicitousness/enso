@@ -6,21 +6,26 @@
 
 import { toast } from "sonner";
 import { create } from "zustand";
-import { api, ApiError } from "@/api/client";
-import { claim } from "@/api/blobs";
+import { api, ApiError, refusalOf } from "@/api/client";
+import { claim, failureOf } from "@/api/blobs";
 import { modelListQuery } from "@/api/hooks/useModels";
 import { loraListQuery } from "@/api/hooks/useNetworks";
 import { queryClient } from "@/api/queryClient";
-import { LIBRARY_KEY } from "@/api/queryKeys";
+import { LIBRARY_KEY, storeOffIn } from "@/api/queryKeys";
+import { exportUrl, postExport, postImport } from "@/api/recipes";
 import type {
   ItemEntryV2,
   ReqEntryV2,
+  ReqExportBodyV2,
   ResEntryChangeV2,
   ResEntryV2,
+  ResExportV2,
+  ResImportV2,
   ResLibraryV2,
 } from "@/api/types/media";
 import type { Job } from "@/api/types/v2";
 import { UserAbortError } from "@/lib/abort";
+import { UploadRefused } from "@/lib/media/refused";
 import { newId } from "@/lib/id";
 import { entryThumbs } from "@/lib/inputs/library";
 import {
@@ -43,19 +48,39 @@ import {
   inTrashText,
   UPLOAD_CANCELLED,
   UPLOAD_STOPPED,
+  uploadFailureText,
   WAIT_FOR_UPLOAD,
 } from "@/lib/media/text";
 import { recipeLoad, requestHashes } from "@/lib/recipes/load";
 import { recipeStates, recordedModel } from "@/lib/recipes/models";
 import { defaultRecipeName } from "@/lib/recipes/names";
 import { networksIn } from "@/lib/recipes/networks";
-import { portableRequest } from "@/lib/recipes/portable";
-import { readRecipe, readSettings, RECIPE_SCHEMA, type Recipe } from "@/lib/recipes/recipe";
+import { portableRequest, type LeftOut } from "@/lib/recipes/portable";
+import {
+  isRecipeFile,
+  RECIPE_EXT,
+  readRecipe,
+  readSettings,
+  RECIPE_SCHEMA,
+  type Recipe,
+} from "@/lib/recipes/recipe";
 import { settingsOf, snapshotSettings } from "@/lib/recipes/settings";
 import {
+  alreadyImportedText,
+  EXPORT_CANCELLED,
+  exportedText,
+  exportFailedText,
+  IMPORT_CANCELLED,
+  IMPORT_FAILED,
+  importedText,
+  importFailedText,
+  importFileFailedText,
+  importingText,
   loadingForText,
   modelLineText,
+  packingText,
   READ_RECIPE_FAILED,
+  RECIPE_BUSY,
   RECIPE_ONLY_GENERATE,
   RECIPE_QUEUED,
   RUN_RECIPE_FAILED,
@@ -64,11 +89,12 @@ import {
 } from "@/lib/recipes/text";
 import { jobTarget, recordTarget, resultTarget, type RestoreTarget } from "@/lib/request/restore";
 import type { RecipeV2 } from "@/lib/openapi-generated/types.gen";
-import { mediaFile } from "@/lib/mediaFiles";
+import { downloadUrl, mediaFile } from "@/lib/mediaFiles";
 import { defaultParams, useGenerationStore, type GenerationResult } from "@/stores/generationStore";
 import { useModelHashStore } from "@/stores/modelHashStore";
 import { useModelSelectionStore } from "@/stores/modelSelectionStore";
-import { runAction } from "./action";
+import { useRestoreDialogStore } from "@/stores/restoreDialogStore";
+import { runAction, type RunContext } from "./action";
 import { buildImagesSubmission } from "./buildImages";
 import { bytesFor, type FetchOptions } from "./fetch";
 import {
@@ -82,6 +108,7 @@ import {
   applyEntry,
   movedText,
   refused,
+  showEntry,
   showLibrary,
   touchEntry,
   useLibrarySaving,
@@ -290,13 +317,83 @@ function followProgress(toastId: string): () => void {
   });
 }
 
+/** A recipe's entry as a save and an export carry it, every byte it names uploaded. */
+interface Built {
+  body: ReqExportBodyV2;
+  leftOut: LeftOut[];
+}
+
+async function buildEntry(from: RecipeFrom, ctx: RunContext): Promise<Built> {
+  const made =
+    from.kind === "current" ? await fromCurrent(ctx.batch) : await fromRecord(from, ctx.batch);
+  const { submission } = made;
+  const thumbs = await stageThumbs(submission.inputs, ctx.batch);
+  const preview = made.preview ? await thumbOf(made.preview).catch(() => null) : null;
+  const previewRef = preview ? ctx.batch.stage(preview.blob, { name: "preview.webp" }).ref : null;
+  const prepared = await prepare(submission);
+  const { record, outcomes } = prepared;
+  const sent = { ...(prepared.request as unknown as Record<string, JsonValue>) };
+  if (made.seed !== null) sent["seed"] = made.seed;
+  const portable = portableRequest(sent);
+  if (portable.unknown.length > 0) {
+    console.warn("[recipes] left out fields neither list knows", portable.unknown);
+  }
+  const request: Record<string, JsonValue> = { ...portable.request, type: "generate" };
+  const previewHash = previewRef ? hashOf(outcomes, previewRef) : null;
+  const recipe: RecipeV2 = {
+    recipe_schema: RECIPE_SCHEMA,
+    request,
+    refs: record?.refs ?? {},
+    map_keys: record?.map_keys ?? [],
+    settings: made.settings,
+    checkpoint: submission.checkpoint ? recordedModel(submission.checkpoint) : null,
+    networks: networksIn(promptOf(request, "prompt"), promptOf(request, "negative_prompt")).map(
+      (n) => ({ ...n, sha256: null, short: null }),
+    ),
+    lut: isUploadRef(request["grading_lut_file"]) ? { name: made.lutName ?? "Color LUT" } : null,
+    preview:
+      preview && previewHash
+        ? { thumb: previewHash, width: preview.width, height: preview.height }
+        : null,
+  };
+  const inputs = (record?.inputs ?? null) as StoredInputs | null;
+  return {
+    body: {
+      kind: "recipe",
+      name: defaultRecipeName(
+        promptOf(request, "prompt"),
+        Date.now(),
+        Intl.DateTimeFormat().resolvedOptions().timeZone,
+        takenNames(),
+      ),
+      summary: entrySummary("recipe", inputs),
+      inputs: record?.inputs ?? null,
+      maps: record?.maps ?? {},
+      hashes: record?.hashes ?? {},
+      unavailable: record?.unavailable ?? [],
+      thumbs: [...thumbs].flatMap(([cid, t]) => {
+        const thumb = hashOf(outcomes, t.ref);
+        const hash = record?.hashes?.[cid];
+        return thumb && hash ? [{ cid, hash, thumb, width: t.width, height: t.height }] : [];
+      }),
+      recipe,
+    },
+    leftOut: portable.leftOut,
+  };
+}
+
+/** A save, an export or an import already under way; another waits for it. */
+function recipeBusy(): boolean {
+  const { byAction } = useSubmitProgress.getState();
+  if (!byAction[ACTIONS.images] && !byAction[ACTIONS.recipe]) return false;
+  toast.info(byAction[ACTIONS.recipe] ? RECIPE_BUSY : WAIT_FOR_UPLOAD);
+  return true;
+}
+
 /** Save a recipe to the library. Null when nothing was saved; the user has
  * been told why. Refused while Generate uploads, and Generate waits for it. */
 export async function saveRecipe(from: RecipeFrom): Promise<ItemEntryV2 | null> {
-  if (useSubmitProgress.getState().byAction[ACTIONS.images]) {
-    toast.info(WAIT_FOR_UPLOAD);
-    return null;
-  }
+  if (recipeBusy()) return null;
   const toastId = `recipe-save-${newId()}`;
   const unfollow = followProgress(toastId);
   useLibrarySaving.setState((s) => ({ saving: s.saving + 1 }));
@@ -304,67 +401,8 @@ export async function saveRecipe(from: RecipeFrom): Promise<ItemEntryV2 | null> 
     return await runAction(
       ACTIONS.recipe,
       async (ctx) => {
-        const made =
-          from.kind === "current"
-            ? await fromCurrent(ctx.batch)
-            : await fromRecord(from, ctx.batch);
-        const { submission } = made;
-        const thumbs = await stageThumbs(submission.inputs, ctx.batch);
-        const preview = made.preview ? await thumbOf(made.preview).catch(() => null) : null;
-        const previewRef = preview
-          ? ctx.batch.stage(preview.blob, { name: "preview.webp" }).ref
-          : null;
-        const prepared = await prepare(submission);
-        const { record, outcomes } = prepared;
-        const sent = { ...(prepared.request as unknown as Record<string, JsonValue>) };
-        if (made.seed !== null) sent["seed"] = made.seed;
-        const portable = portableRequest(sent);
-        if (portable.unknown.length > 0) {
-          console.warn("[recipes] left out fields neither list knows", portable.unknown);
-        }
-        const request: Record<string, JsonValue> = { ...portable.request, type: "generate" };
-        const previewHash = previewRef ? hashOf(outcomes, previewRef) : null;
-        const recipe: RecipeV2 = {
-          recipe_schema: RECIPE_SCHEMA,
-          request,
-          refs: record?.refs ?? {},
-          map_keys: record?.map_keys ?? [],
-          settings: made.settings,
-          checkpoint: submission.checkpoint ? recordedModel(submission.checkpoint) : null,
-          networks: networksIn(
-            promptOf(request, "prompt"),
-            promptOf(request, "negative_prompt"),
-          ).map((n) => ({ ...n, sha256: null, short: null })),
-          lut: isUploadRef(request["grading_lut_file"])
-            ? { name: made.lutName ?? "Color LUT" }
-            : null,
-          preview:
-            preview && previewHash
-              ? { thumb: previewHash, width: preview.width, height: preview.height }
-              : null,
-        };
-        const inputs = (record?.inputs ?? null) as StoredInputs | null;
-        const body: ReqEntryV2 = {
-          id: newId(),
-          kind: "recipe",
-          name: defaultRecipeName(
-            promptOf(request, "prompt"),
-            Date.now(),
-            Intl.DateTimeFormat().resolvedOptions().timeZone,
-            takenNames(),
-          ),
-          summary: entrySummary("recipe", inputs),
-          inputs: record?.inputs ?? null,
-          maps: record?.maps ?? {},
-          hashes: record?.hashes ?? {},
-          unavailable: record?.unavailable ?? [],
-          thumbs: [...thumbs].flatMap(([cid, t]) => {
-            const thumb = hashOf(outcomes, t.ref);
-            const hash = record?.hashes?.[cid];
-            return thumb && hash ? [{ cid, hash, thumb, width: t.width, height: t.height }] : [];
-          }),
-          recipe,
-        };
+        const built = await buildEntry(from, ctx);
+        const body: ReqEntryV2 = { ...built.body, id: newId() };
         ctx.commit();
         let answer: ResEntryChangeV2;
         try {
@@ -382,7 +420,7 @@ export async function saveRecipe(from: RecipeFrom): Promise<ItemEntryV2 | null> 
         const notes = [
           movedText(answer),
           await modelsNote(answer.entry.recipe),
-          portable.leftOut.length > 0 ? settingsLeftOutText(portable.leftOut) : null,
+          built.leftOut.length > 0 ? settingsLeftOutText(built.leftOut) : null,
         ].filter((n) => n !== null);
         toast.success(savedText(answer.entry.name), {
           id: toastId,
@@ -403,6 +441,213 @@ export async function saveRecipe(from: RecipeFrom): Promise<ItemEntryV2 | null> 
     unfollow();
     useLibrarySaving.setState((s) => ({ saving: s.saving - 1 }));
   }
+}
+
+/** What an export or an import is doing, for the Library's status line. */
+export const useRecipeTransfer = create<{ text: string | null }>()(() => ({ text: null }));
+
+/** Stop the export or import under way. */
+export function stopRecipeTransfer(): void {
+  cancelAction(ACTIONS.recipe);
+}
+
+/** The notice and the Library's status line say the same, with Stop. */
+function transferring(toastId: string, text: string): void {
+  useRecipeTransfer.setState({ text });
+  toast.loading(text, { id: toastId, cancel: { label: CANCEL, onClick: stopRecipeTransfer } });
+}
+
+function described(err: unknown): string {
+  return (
+    storeOffIn(err) ?? refusalOf(err)?.message ?? (err instanceof Error ? err.message : String(err))
+  );
+}
+
+/** The hashes an export found missing from the store. */
+function exportMisses(err: unknown): Set<string> | null {
+  if (!(err instanceof ApiError) || err.code !== "upload_missing") return null;
+  const hashes = err.detail?.["hashes"];
+  if (!Array.isArray(hashes)) return null;
+  return new Set(hashes.filter((h): h is string => typeof h === "string"));
+}
+
+/** Pack under the recipe action and download the file it makes. */
+async function exportWith(
+  name: string,
+  pack: (ctx: RunContext, toastId: string) => Promise<ResExportV2>,
+): Promise<boolean> {
+  if (recipeBusy()) return false;
+  const toastId = `recipe-export-${newId()}`;
+  transferring(toastId, packingText(name));
+  try {
+    const packed = await runAction(ACTIONS.recipe, (ctx) => pack(ctx, toastId), {
+      transient: false,
+      cancelled: EXPORT_CANCELLED,
+      failed: exportFailedText(name),
+    });
+    if (!packed) {
+      toast.dismiss(toastId);
+      return false;
+    }
+    downloadUrl(exportUrl(packed), packed.name);
+    toast.success(exportedText(name, packed.blobs, packed.bytes), {
+      id: toastId,
+      cancel: undefined,
+    });
+    return true;
+  } catch (err) {
+    console.error("[recipes] could not export", err);
+    toast.error(exportFailedText(name), {
+      id: toastId,
+      cancel: undefined,
+      description: described(err),
+    });
+    return false;
+  } finally {
+    useRecipeTransfer.setState({ text: null });
+  }
+}
+
+/** Export a library entry as a file. */
+export function exportEntry(id: string, name: string): Promise<boolean> {
+  return exportWith(name, (ctx) => postExport({ entry_id: id }, ctx.signal));
+}
+
+/** Export the inputs and settings as they stand as a recipe file, without
+ * keeping it in the library. */
+export function exportCurrent(): Promise<boolean> {
+  const name = defaultRecipeName(
+    useGenerationStore.getState().prompt,
+    Date.now(),
+    Intl.DateTimeFormat().resolvedOptions().timeZone,
+    new Set(),
+  );
+  return exportWith(name, async (ctx, toastId) => {
+    const unfollow = followProgress(toastId);
+    let built: Built;
+    try {
+      built = await buildEntry({ kind: "current" }, ctx);
+    } finally {
+      unfollow();
+    }
+    transferring(toastId, packingText(name));
+    const body = { ...built.body, name };
+    try {
+      return await postExport(body, ctx.signal);
+    } catch (err) {
+      const misses = exportMisses(err);
+      if (!misses) throw err;
+      await ctx.batch.again({}, misses).run();
+      return await postExport(body, ctx.signal);
+    }
+  });
+}
+
+/** Why the server refused a file, worded. */
+function importRefusalText(err: unknown, size: number): string {
+  if (err instanceof ApiError && err.status === 422 && err.detail) {
+    return importFailedText(err.detail.code, err.detail);
+  }
+  if (err instanceof ApiError) return uploadFailureText(failureOf(err, size));
+  return described(err);
+}
+
+/** Import recipe files into the library, one at a time. A refused file is
+ * said and the rest go on; one notice at the end names what came in, with
+ * Show. With `restore`, a lone recipe opens in Restore. */
+export async function importRecipeFiles(
+  files: readonly File[],
+  { restore = false }: { restore?: boolean } = {},
+): Promise<ResImportV2[]> {
+  if (files.length === 0 || recipeBusy()) return [];
+  const toastId = `recipe-import-${newId()}`;
+  const answers: ResImportV2[] = [];
+  try {
+    await runAction(
+      ACTIONS.recipe,
+      async (ctx) => {
+        for (const file of files) {
+          let said = importingText(file.name, 0, file.size);
+          transferring(toastId, said);
+          try {
+            const answer = await postImport(file, {
+              signal: ctx.signal,
+              onProgress: (sent) => {
+                const text = importingText(file.name, sent, file.size);
+                if (text === said) return;
+                said = text;
+                transferring(toastId, text);
+              },
+            });
+            if (answer.created) {
+              applyEntry(
+                answer.entry,
+                answer.pushed_out.map((p) => p.id),
+              );
+            }
+            answers.push(answer);
+          } catch (err) {
+            if (err instanceof UserAbortError || err instanceof UploadRefused) throw err;
+            console.error("[recipes] could not import", file.name, err);
+            toast.error(importFileFailedText(file.name), {
+              description: importRefusalText(err, file.size),
+            });
+          }
+        }
+      },
+      { transient: false, cancelled: IMPORT_CANCELLED, failed: IMPORT_FAILED },
+    );
+  } finally {
+    useRecipeTransfer.setState({ text: null });
+  }
+  if (answers.length === 0) {
+    toast.dismiss(toastId);
+    return answers;
+  }
+  const created = answers.filter((a) => a.created);
+  const held = answers.filter((a) => !a.created).map((a) => a.existing?.name ?? a.entry.name);
+  const last = answers[answers.length - 1];
+  const title =
+    created.length > 0
+      ? importedText(created.map((a) => a.entry.name))
+      : alreadyImportedText(held[0] ?? last.entry.name);
+  const pushedOut = created.flatMap((a) => a.pushed_out);
+  const notes = [
+    created.length > 0 && held.length > 0 ? held.map(alreadyImportedText).join(". ") : null,
+    created.length === 1 ? await modelsNote(created[0].entry.recipe) : null,
+    pushedOut.length > 0
+      ? movedText({ entry: last.entry, created: true, pushed_out: pushedOut, unpinned: false })
+      : null,
+  ].filter((n) => n !== null);
+  const shown = last.existing?.id ?? last.entry.id;
+  toast.success(title, {
+    id: toastId,
+    cancel: undefined,
+    description: notes.length > 0 ? notes.join(". ") : undefined,
+    action: { label: SHOW_IN_LIBRARY, onClick: () => showEntry(shown) },
+  });
+  if (restore && answers.length === 1 && last.entry.kind === "recipe") {
+    useRestoreDialogStore.getState().openEntry(shown);
+  }
+  return answers;
+}
+
+/** Ask for recipe files and import them. */
+export function pickRecipeFiles(): void {
+  const input = document.createElement("input");
+  input.type = "file";
+  input.accept = RECIPE_EXT;
+  input.multiple = true;
+  input.onchange = () => void importRecipeFiles(Array.from(input.files ?? []));
+  input.click();
+}
+
+/** Import the recipe files among dropped or pasted files, a lone recipe
+ * opening in Restore; the rest are returned for the caller to place. */
+export function importAmong(files: readonly File[]): File[] {
+  const recipes = files.filter(isRecipeFile);
+  if (recipes.length > 0) void importRecipeFiles(recipes, { restore: true });
+  return files.filter((f) => !isRecipeFile(f));
 }
 
 /** An entry from the server with its recipe read; throws with words for a

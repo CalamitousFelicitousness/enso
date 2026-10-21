@@ -59,6 +59,15 @@ export function showLibrary(list: LibrarySubTab = "saved"): void {
   useUiStore.getState().openRightSubTab({ rightTab: "library", subTab: list });
 }
 
+/** The card the Saved list reveals and focuses once it renders it. */
+export const useLibraryReveal = create<{ id: string | null }>()(() => ({ id: null }));
+
+/** Open the Library's Saved list, its search cleared, on one entry's card. */
+export function showEntry(id: string): void {
+  useLibraryReveal.setState({ id });
+  showLibrary("saved");
+}
+
 /** How long the trash keeps what goes to it, as the server last said. */
 function trashDays(): number {
   return (

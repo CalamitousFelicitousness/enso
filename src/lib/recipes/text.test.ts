@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   exportedText,
   importedText,
+  importFailedText,
   importingText,
   modelLineText,
   modelLoadFailedText,
@@ -36,6 +37,20 @@ describe("recipe words", () => {
     );
     expect(importedText(["Portrait"])).toBe('Imported "Portrait"');
     expect(importedText(["a", "b", "c"])).toBe("Imported 3 recipes");
+  });
+
+  it("say why a file was refused", () => {
+    expect(importFailedText("not_recipe", {})).toBe("The file is not an Enso recipe");
+    expect(importFailedText("newer_recipe", { version: 2, reads: 1 })).toBe(
+      "This file was made by a newer version of Enso (recipe format 2; this one reads 1)",
+    );
+    expect(
+      importFailedText("too_large", { member: "Input 2, portrait.png", limit: 120_000_000 }),
+    ).toBe("Input 2, portrait.png is larger than this server takes (120 MP)");
+    expect(importFailedText("not_portable", {})).toBe(
+      "A setting in the file names a file on the server",
+    );
+    expect(importFailedText("hash_mismatch", { member: "x" })).toBe("The file is damaged");
   });
 
   it("say what was left out and skipped", () => {
