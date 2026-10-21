@@ -15183,6 +15183,26 @@
         "title": "WsGlobalMedia",
         "type": "object"
       },
+      "WsGlobalModels": {
+        "additionalProperties": false,
+        "description": "The media store hashed model files: the model lists carry their digests. The ids are checkpoint paths and LoRA names.",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/ChangedIdsV2"
+          },
+          "type": {
+            "const": "models",
+            "default": "models",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "title": "WsGlobalModels",
+        "type": "object"
+      },
       "WsGlobalOutputs": {
         "additionalProperties": false,
         "description": "Gallery files entered or left the trash, from any client: the trash lists and what the strips show of their outputs change. The ids are trash items.",
@@ -24045,6 +24065,7 @@
                     "mapping": {
                       "library": "#/components/schemas/WsGlobalLibrary",
                       "media": "#/components/schemas/WsGlobalMedia",
+                      "models": "#/components/schemas/WsGlobalModels",
                       "outputs": "#/components/schemas/WsGlobalOutputs",
                       "records": "#/components/schemas/WsGlobalRecords",
                       "settings": "#/components/schemas/WsGlobalSettings",
@@ -24070,6 +24091,9 @@
                     },
                     {
                       "$ref": "#/components/schemas/WsGlobalOutputs"
+                    },
+                    {
+                      "$ref": "#/components/schemas/WsGlobalModels"
                     }
                   ],
                   "title": "Response Get Global Ws Event Schema Sdapi V2 Ws Events Get"

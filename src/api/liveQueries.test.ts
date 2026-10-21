@@ -112,6 +112,12 @@ describe("the server's change events", () => {
     expect(read).toEqual([key("library"), key("library")]);
   });
 
+  it("read the model lists again when the server hashed a model file", () => {
+    const { live, read } = harness();
+    live.event({ type: "models", data: { ids: ["SDXL/juggernaut"] } });
+    expect(read).toEqual([key("models"), key("extra-networks")]);
+  });
+
   it("put changed settings over the ones held, keeping their bounds", () => {
     const { live, data, read } = harness();
     data.set(key("media-settings"), {
@@ -180,7 +186,7 @@ describe("the server's change events", () => {
   });
 
   it("tells the media store's topics from the socket's other frames", () => {
-    for (const type of ["records", "media", "library", "trash", "settings", "outputs"]) {
+    for (const type of ["records", "media", "library", "trash", "settings", "outputs", "models"]) {
       expect(isGlobalEvent({ type })).toBe(true);
     }
     for (const type of ["model", "progress", "download", undefined]) {

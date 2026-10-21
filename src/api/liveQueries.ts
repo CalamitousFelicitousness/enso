@@ -6,8 +6,10 @@
 
 import type { QueryClient } from "@tanstack/react-query";
 import {
+  EXTRA_NETWORKS_KEY,
   GALLERY_TRASH_KEY,
   LIBRARY_KEY,
+  MODELS_KEY,
   MY_RECORDS_KEY,
   OUTPUT_JOBS_KEY,
   recordKey,
@@ -34,7 +36,7 @@ export const LIVE_KEYS: readonly (readonly string[])[] = [
   TRASHED_OUTPUTS_KEY,
 ];
 
-const TOPICS = ["records", "media", "library", "trash", "settings", "outputs"] as const;
+const TOPICS = ["records", "media", "library", "trash", "settings", "outputs", "models"] as const;
 type Topic = (typeof TOPICS)[number];
 
 export interface GlobalEvent {
@@ -128,6 +130,11 @@ export function createLiveQueries(
         case "library":
         case "trash":
           invalidate(LIBRARY_KEY);
+          break;
+        case "models":
+          // the server hashed model files: the lists carry their digests, which recipe cards match
+          invalidate(MODELS_KEY);
+          invalidate(EXTRA_NETWORKS_KEY);
           break;
         case "settings": {
           const values = msg.data as SettingValues | undefined;

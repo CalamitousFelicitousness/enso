@@ -221,6 +221,7 @@ def identify_next(queue: IdentifyQueue, hashes: ModelHashes, db: Database, hashe
             if file_stat(item.filename) != stat:
                 continue
             hashes.put(item.filename, stat, digest)
+            events.changed("models", [item.key])
             done += 1
         with contextlib.suppress(sqlite3.Error):
             changed = fill_entries(db, item, digest)

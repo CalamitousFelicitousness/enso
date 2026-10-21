@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { useMutation, useMutationState, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../client";
+import { MODELS_KEY } from "../queryKeys";
 import type {
   VaeV2,
   UpscalerV2,
@@ -15,7 +16,7 @@ const MODEL_MUTATION_KEY = ["model-operation"];
 
 /** The local checkpoints, for the hook and for code outside React. */
 export const modelListQuery = {
-  queryKey: ["models"],
+  queryKey: MODELS_KEY,
   queryFn: async () => {
     const resp = await api.get<SdModelsResponse>("/sdapi/v2/sd-models");
     return resp.items ?? [];

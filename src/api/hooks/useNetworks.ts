@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "../client";
+import { EXTRA_NETWORKS_KEY } from "../queryKeys";
 import type { PromptStyleV2, NetworkDetail, ExtraNetworksResponse } from "../types/models";
 
 interface RefreshNetworksResponse {
@@ -31,7 +32,7 @@ export function useExtraNetworks(
 
 /** Every LoRA the server lists, which a recipe's networks are found among. */
 export const loraListQuery = {
-  queryKey: ["extra-networks", "lora", "all"],
+  queryKey: [...EXTRA_NETWORKS_KEY, "lora", "all"],
   queryFn: async () =>
     (await api.get<ExtraNetworksResponse>("/sdapi/v2/extra-networks", { page: "lora" })).items,
   staleTime: 5 * 60_000,

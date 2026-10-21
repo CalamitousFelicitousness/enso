@@ -154,7 +154,14 @@ class WsGlobalOutputs(StrictBaseModel):
     data: ChangedIdsV2
 
 
-WsGlobalEvent = Annotated[WsGlobalMedia | WsGlobalSettings | WsGlobalLibrary | WsGlobalTrash | WsGlobalRecords | WsGlobalOutputs, Field(discriminator="type")]
+class WsGlobalModels(StrictBaseModel):
+    """The media store hashed model files: the model lists carry their digests. The ids are checkpoint paths and LoRA names."""
+
+    type: Literal["models"] = "models"
+    data: ChangedIdsV2
+
+
+WsGlobalEvent = Annotated[WsGlobalMedia | WsGlobalSettings | WsGlobalLibrary | WsGlobalTrash | WsGlobalRecords | WsGlobalOutputs | WsGlobalModels, Field(discriminator="type")]
 """Events on the global socket that come from the event counters (enso_api.events), one per topic that moved."""
 
 

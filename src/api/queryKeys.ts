@@ -30,6 +30,10 @@ export const outputJobKey = (path: string) => ["output-job", path] as const;
 export const GALLERY_TRASH_KEY = ["gallery-trash"] as const;
 /** Which outputs have their files in the trash, or had them deleted from it lately. */
 export const TRASHED_OUTPUTS_KEY = ["trashed-outputs"] as const;
+/** The local checkpoints, with each file's digest once known. */
+export const MODELS_KEY = ["models"] as const;
+/** Every extra network list; a prefix of the LoRA list recipes read. */
+export const EXTRA_NETWORKS_KEY = ["extra-networks"] as const;
 
 /** Ask again after a failure, but not after a refusal: a 4xx, or a coded answer
  * such as the media store being off. */
