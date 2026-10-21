@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   DEFAULT_HIRES_UPSCALER,
+  asSentHires,
   PIXEL_HIRES_UPSCALER,
   effectiveHires,
   isLatentUpscaler,
@@ -51,5 +52,24 @@ describe("effectiveHires", () => {
     const stored = { upscaler: "Resize Lanczos", force: true, denoising: 0 };
     expect(effectiveHires(stored, editModel).denoising).toBeGreaterThan(0);
     expect(effectiveHires(stored, { pixelInput: false, strength: true }).denoising).toBe(0);
+  });
+});
+
+describe("asSentHires", () => {
+  it("reads the stored fields as sent, leaving the rest", () => {
+    const stored = { hiresUpscaler: "Latent", hiresForce: false, hiresDenoising: 0.5, steps: 20 };
+    expect(asSentHires(stored, latentModel)).toEqual({
+      ...stored,
+      hiresUpscaler: DEFAULT_HIRES_UPSCALER,
+    });
+    expect(asSentHires(stored, editModel)).toMatchObject({
+      hiresUpscaler: PIXEL_HIRES_UPSCALER,
+      hiresForce: true,
+    });
+  });
+
+  it("leaves values without the hires fields as they are", () => {
+    const partial = { hiresUpscaler: "Latent" };
+    expect(asSentHires(partial, latentModel)).toBe(partial);
   });
 });

@@ -13,6 +13,9 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Switch } from "@/components/ui/switch";
 import { useGenerationStore } from "@/stores/generationStore";
+import { useModelCapabilities } from "@/hooks/useModelCapabilities";
+import { useStrengthSupported } from "@/hooks/useStrengthSupported";
+import { asSentHires } from "@/lib/hires";
 import {
   applyParams,
   pickOf,
@@ -522,9 +525,15 @@ function RestoreBody({ source, onClose }: { source: RestoreSource; onClose: () =
     [target],
   );
 
+  const pixelInput = useModelCapabilities().requestSetsSize === true;
+  const strengthSupported = useStrengthSupported();
+
   const groupedRows = useMemo(() => {
-    const current = storeState as unknown as Record<string, unknown>;
     const mapped = resultParams as Record<string, unknown>;
+    // compared as the builder sends them, so a hires value it rewrites is no change
+    const support = { pixelInput, strength: strengthSupported };
+    const current = asSentHires(storeState as unknown as Record<string, unknown>, support);
+    const sent = asSentHires(mapped, support);
 
     return DIFF_GROUPS.map((group) => {
       const rows: DiffRow[] = group.keys
@@ -532,19 +541,19 @@ function RestoreBody({ source, onClose }: { source: RestoreSource; onClose: () =
         .map((k) => {
           const keys = [k, ...(LINKED[k] ?? [])];
           const cur = Object.fromEntries(keys.map((key) => [key, current[key]]));
-          const res = Object.fromEntries(keys.map((key) => [key, mapped[key]]));
+          const res = Object.fromEntries(keys.map((key) => [key, sent[key]]));
           return {
             key: k,
             current: shown(k, cur),
             result: shown(k, res),
-            apply: res,
+            apply: Object.fromEntries(keys.map((key) => [key, mapped[key]])),
             changed: JSON.stringify(cur) !== JSON.stringify(res),
           };
         });
       const changedCount = rows.filter((r) => r.changed).length;
       return { ...group, rows, changedCount };
     }).filter((g) => g.changedCount > 0);
-  }, [storeState, resultParams]);
+  }, [storeState, resultParams, pixelInput, strengthSupported]);
 
   const totalChanged = groupedRows.reduce((sum, g) => sum + g.changedCount, 0);
 

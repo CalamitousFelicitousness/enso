@@ -121,7 +121,10 @@ export function extractParams(source: SettingsSource): ExtractedSettings {
     hiresDenoising: num(p.hr_denoising_strength, 0.5),
     hiresSampler: str(p.hr_sampler_name, ""),
     hiresForce: bool(p.hr_force, false),
-    hiresResizeMode: num(p.hr_resize_mode, 2),
+    // without a fixed size the builder sends mode 1 whatever fit is kept for one
+    ...(num(p.hr_resize_x, 0) > 0 || num(p.hr_resize_y, 0) > 0
+      ? { hiresResizeMode: num(p.hr_resize_mode, 2) }
+      : {}),
     hiresResizeX: num(p.hr_resize_x, 0),
     hiresResizeY: num(p.hr_resize_y, 0),
     hiresResizeContext: str(p.hr_resize_context, "None"),

@@ -32,6 +32,15 @@ describe("extractParams", () => {
     ).toBe(12);
   });
 
+  it("reads the hires size mode only for a fixed hires size", () => {
+    const read = (parameters: Record<string, number>) =>
+      extractParams({ parameters, info: null, imageIndex: 0 }).params;
+    expect(read({ hr_resize_mode: 1, hr_resize_x: 0, hr_resize_y: 0 })).not.toHaveProperty(
+      "hiresResizeMode",
+    );
+    expect(read({ hr_resize_mode: 3, hr_resize_x: 1536, hr_resize_y: 0 }).hiresResizeMode).toBe(3);
+  });
+
   it("says when no seed was recorded", () => {
     const { params, notes } = extractParams({
       parameters: { seed: -1 },

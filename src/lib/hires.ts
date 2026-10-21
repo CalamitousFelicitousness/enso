@@ -37,3 +37,22 @@ export function effectiveHires(stored: HiresSettings, support: HiresSupport): Hi
     support.strength || stored.denoising > 0 ? stored.denoising : DEFAULT_HIRES_DENOISING;
   return { upscaler, force: support.pixelInput || stored.force, denoising };
 }
+
+/** Settings with their hires fields as effectiveHires sends them; values
+ * without all three fields are returned as they are. */
+export function asSentHires(
+  values: Record<string, unknown>,
+  support: HiresSupport,
+): Record<string, unknown> {
+  const { hiresUpscaler: upscaler, hiresForce: force, hiresDenoising: denoising } = values;
+  if (typeof upscaler !== "string" || typeof force !== "boolean" || typeof denoising !== "number") {
+    return values;
+  }
+  const sent = effectiveHires({ upscaler, force, denoising }, support);
+  return {
+    ...values,
+    hiresUpscaler: sent.upscaler,
+    hiresForce: sent.force,
+    hiresDenoising: sent.denoising,
+  };
+}
