@@ -24,7 +24,6 @@ from enso_api.session import media_auth
 log = logging.getLogger("sd")
 
 LABEL = "Recipes"
-POLL_SECONDS = 0.5
 
 router = APIRouter(prefix="/sdapi/v2", tags=["Library"], route_class=BoundedRoute)
 # The packed file is fetched by a download, which carries the session cookie instead of an Authorization header
@@ -37,13 +36,12 @@ def enso_version() -> str:
     return extension_commit() or "unknown"
 
 
-async def watch(request: Request, gone: threading.Event, done: threading.Event) -> None:
-    """Set `gone` when the client leaves before `done`."""
-    while not done.is_set():
-        if await request.is_disconnected():
-            gone.set()
-            return
-        await asyncio.sleep(POLL_SECONDS)
+async def watch(request: Request, gone: threading.Event) -> None:
+    """Set `gone` when the client leaves. Request.is_disconnected never sees it through sdnext's http middleware, whose
+    receive it polls in a cancelled scope; awaiting the next message does."""
+    while (await request.receive())["type"] != "http.disconnect":
+        pass
+    gone.set()
 
 
 async def transfer_run(fn, store, declared: int):
@@ -70,12 +68,11 @@ async def post_export(body: ReqExportEntryV2 | ReqExportBodyV2, request: Request
         if entry is None:
             refuse_issues(issues, LABEL)
         manifest_id = uuid.uuid4().hex
-    gone, done = threading.Event(), threading.Event()
-    watcher = asyncio.create_task(watch(request, gone, done))
+    gone = threading.Event()
+    watcher = asyncio.create_task(watch(request, gone))
     try:
         packed = await transfer_run(lambda: transfer.pack_entry(store, entry, manifest_id, enso_version(), gone.is_set), store, 0)
     finally:
-        done.set()
         watcher.cancel()
     log.info(f"{LABEL}: exported kind={entry['kind']} blobs={packed.blobs} size={packed.bytes} id={packed.id}")
     return ResExportV2(id=packed.id, name=packed.name, bytes=packed.bytes, blobs=packed.blobs)
