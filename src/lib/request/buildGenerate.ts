@@ -342,7 +342,6 @@ export async function buildControlRequest({
       request.inpaint_full_res_padding = img2img.inpaintFullResPadding;
       request.inpainting_mask_invert = img2img.inpaintingMaskInvert ? 1 : 0;
       request.mask_apply_overlay = img2img.maskApplyOverlay;
-      request.inpainting_mask_weight = img2img.inpaintingMaskWeight;
     }
   }
 

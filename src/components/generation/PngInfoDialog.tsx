@@ -86,7 +86,6 @@ const PARAM_GROUPS: { label: string; keys: string[] }[] = [
     label: "Refiner",
     keys: ["Refiner start", "Refiner steps", "Refiner prompt", "Refiner negative"],
   },
-  { label: "Variation", keys: ["Variation seed", "Variation strength"] },
   { label: "Guidance", keys: ["CFG true", "CFG adaptive", "Image CFG scale"] },
   {
     label: "Scheduler",

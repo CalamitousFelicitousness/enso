@@ -1,5 +1,5 @@
 from enso_api.job_models import GenerateParams
-from enso_api.recipes.portable import portable_issues, ref_values, rules, settings_issues
+from enso_api.recipes.portable import portable_issues, ref_values, rules, settings_issues, without_retired
 
 REF = "upload:" + "a" * 64
 
@@ -12,6 +12,11 @@ def test_every_generate_field_is_kept_or_dropped_once():
     keep, drop = set(rules()["keep"]), set(rules()["drop"])
     assert not keep & drop
     assert keep | drop == set(GenerateParams.model_fields)
+
+
+def test_a_retired_field_is_no_generate_field():
+    assert not set(rules()["retired"]) & set(GenerateParams.model_fields)
+    assert without_retired({"type": "generate", "seed": 3, "subseed": 7}) == {"type": "generate", "seed": 3}
 
 
 def test_kept_fields_and_upload_refs_pass():

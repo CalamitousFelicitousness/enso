@@ -25,7 +25,7 @@ import { useMinute } from "@/hooks/useMinute";
 import { DELETED_FROM_TRASH, inTrashChipText, RESTORE, RESTORE_FILE } from "@/lib/gallery/text";
 import { downloadMedia, failedWith } from "@/lib/mediaFiles";
 import type { GenerationInfo } from "@/api/types/generation";
-import { pickedSeeds } from "@/lib/request/restoreParams";
+import { pickedSeed } from "@/lib/request/restoreParams";
 import { JobWarnings } from "@/components/generation/JobWarnings";
 import { OUTPUT_COLOR } from "@/canvas/frameColors";
 import { DockTab, FrameHeader } from "./FrameHeader";
@@ -116,7 +116,7 @@ export function OutputFramePanel({
   // the seed of the image shown, as the server recorded it for that image
   const seed = useMemo(() => {
     if (!selectedResult || !genInfo) return null;
-    const picked = pickedSeeds(selectedResult.parameters, genInfo, selectedImageIndex ?? 0).seed;
+    const picked = pickedSeed(selectedResult.parameters, genInfo, selectedImageIndex ?? 0);
     return picked >= 0 ? picked : null;
   }, [selectedResult, genInfo, selectedImageIndex]);
 

@@ -3,6 +3,7 @@
 from enso_api.documents import issue
 from enso_api.media.entries import EntryIn
 from enso_api.media.models import EntryBodyV2
+from enso_api.recipes.portable import without_retired
 from enso_api.recipes.recipe import RecipeCheck, check_recipe, head_of
 
 
@@ -26,6 +27,8 @@ def build_entry(body: EntryBodyV2, entry_id: str, recipe: dict | None = None, or
     found = kind_issues(body)
     if recipe is None and body.recipe is not None:
         recipe = body.recipe.model_dump()
+    if recipe is not None:
+        recipe = {**recipe, "request": without_retired(recipe["request"])}
     check = check_recipe(recipe) if recipe is not None else RecipeCheck(frozenset())
     found.extend(check.issues)
     if found:

@@ -114,11 +114,9 @@ class GuidanceMixin(StrictBaseModel):
 
 
 class SeedMixin(StrictBaseModel):
-    """Seed and subseed."""
+    """Seed."""
 
     seed: int = -1
-    subseed: int = -1
-    subseed_strength: float = 0.0
     sequential_seed: ServerBool = None
 
 
@@ -587,7 +585,6 @@ class Img2ImgMixin(StrictBaseModel):
     inpainting_mask_invert: int = 0
     mask_apply_overlay: ServerBool = None
     include_mask: ServerBool = None
-    inpainting_mask_weight: ServerFloat = None
     resize_mode_before: int = 0
     resize_name_before: str = "None"
     denoising_strength: float = 0.3

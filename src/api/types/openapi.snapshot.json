@@ -3027,18 +3027,6 @@
             "title": "Inpainting Mask Invert",
             "type": "integer"
           },
-          "inpainting_mask_weight": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Unset uses the server's setting.",
-            "title": "Inpainting Mask Weight"
-          },
           "input_process": {
             "description": "One entry per input image, or empty: the processor Enso runs on it before the job, null for none",
             "items": {
@@ -3560,16 +3548,6 @@
             },
             "title": "Styles",
             "type": "array"
-          },
-          "subseed": {
-            "default": -1,
-            "title": "Subseed",
-            "type": "integer"
-          },
-          "subseed_strength": {
-            "default": 0,
-            "title": "Subseed Strength",
-            "type": "number"
           },
           "teacache_enabled": {
             "anyOf": [
@@ -16078,18 +16056,6 @@
             "title": "Inpainting Mask Invert",
             "type": "integer"
           },
-          "inpainting_mask_weight": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Unset uses the server's setting.",
-            "title": "Inpainting Mask Weight"
-          },
           "input_process": {
             "description": "One entry per input image, or empty: the processor Enso runs on it before the job, null for none",
             "items": {
@@ -16621,16 +16587,6 @@
             },
             "title": "Styles",
             "type": "array"
-          },
-          "subseed": {
-            "default": -1,
-            "title": "Subseed",
-            "type": "integer"
-          },
-          "subseed_strength": {
-            "default": 0,
-            "title": "Subseed Strength",
-            "type": "number"
           },
           "teacache_enabled": {
             "anyOf": [

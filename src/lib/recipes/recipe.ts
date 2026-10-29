@@ -7,6 +7,7 @@ import { readers } from "@/lib/inputs/read";
 import { readSource, UnreadableDocument, type Source } from "@/lib/inputs/stored";
 import type { JsonValue } from "@/lib/inputs/types";
 import { networksIn, type NetworkKind } from "./networks";
+import { withoutRetired } from "./portable";
 import portable from "./portable.json";
 
 export const RECIPE_SCHEMA = 1;
@@ -145,7 +146,7 @@ export function readRecipe(value: unknown): Recipe {
   if (schema > RECIPE_SCHEMA) throw new NewerRecipe(schema);
   if (schema !== RECIPE_SCHEMA) read.fail("recipe.recipe_schema");
 
-  const request = record(r.request, "recipe.request");
+  const request = withoutRetired(record(r.request, "recipe.request"));
   if (request["type"] !== "generate") read.fail("recipe.request.type");
   const named = new Set(refsIn(request));
   const refs: Record<string, Source> = {};

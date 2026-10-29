@@ -19,13 +19,11 @@ export function MaskParams() {
   const inpaintFullResPadding = useImg2ImgStore((s) => s.inpaintFullResPadding);
   const inpaintingMaskInvert = useImg2ImgStore((s) => s.inpaintingMaskInvert);
   const maskApplyOverlay = useImg2ImgStore((s) => s.maskApplyOverlay);
-  const inpaintingMaskWeight = useImg2ImgStore((s) => s.inpaintingMaskWeight);
   const setMaskBlur = useImg2ImgStore((s) => s.setMaskBlur);
   const setInpaintFullRes = useImg2ImgStore((s) => s.setInpaintFullRes);
   const setInpaintFullResPadding = useImg2ImgStore((s) => s.setInpaintFullResPadding);
   const setInpaintingMaskInvert = useImg2ImgStore((s) => s.setInpaintingMaskInvert);
   const setMaskApplyOverlay = useImg2ImgStore((s) => s.setMaskApplyOverlay);
-  const setInpaintingMaskWeight = useImg2ImgStore((s) => s.setInpaintingMaskWeight);
 
   const handleFullResToggle = useCallback(
     (checked: boolean) => setInpaintFullRes(checked),
@@ -79,15 +77,6 @@ export function MaskParams() {
         <ParamLabel className="text-2xs text-muted-foreground">Mask overlay</ParamLabel>
         <Switch checked={maskApplyOverlay} onCheckedChange={handleOverlayToggle} />
       </div>
-
-      <ParamSlider
-        label="Mask strength"
-        value={inpaintingMaskWeight}
-        onChange={setInpaintingMaskWeight}
-        min={0}
-        max={1}
-        step={0.01}
-      />
     </SectionLeader>
   );
 }

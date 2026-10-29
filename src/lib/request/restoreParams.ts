@@ -26,7 +26,7 @@ export interface SettingsSource {
 export interface ExtractedSettings {
   params: Partial<GenerationState>;
   /** The inpainting fields the Initial frame's settings keep. */
-  img2img: { maskApplyOverlay?: boolean; inpaintingMaskWeight?: number };
+  img2img: { maskApplyOverlay?: boolean };
   /** What could not be restored, for the notice. */
   notes: RestoreNote[];
 }
@@ -54,18 +54,10 @@ export function parseInfo(text: string | undefined): GenerationInfo | null {
   }
 }
 
-/** The seed and variation seed of the picked image: as the server recorded
- * them for it, else for the job, else as sent. */
-export function pickedSeeds(
-  p: WireParams,
-  info: GenerationInfo | null,
-  imageIndex: number,
-): { seed: number; subseed: number } {
-  return {
-    seed: picked(info?.all_seeds, imageIndex) ?? maybeNum(info?.seed) ?? num(p.seed, -1),
-    subseed:
-      picked(info?.all_subseeds, imageIndex) ?? maybeNum(info?.subseed) ?? num(p.subseed, -1),
-  };
+/** The seed of the picked image: as the server recorded it for it, else for
+ * the job, else as sent. */
+export function pickedSeed(p: WireParams, info: GenerationInfo | null, imageIndex: number): number {
+  return picked(info?.all_seeds, imageIndex) ?? maybeNum(info?.seed) ?? num(p.seed, -1);
 }
 
 /** Generation settings from a job's request, without applying them. */
@@ -73,7 +65,7 @@ export function extractParams(source: SettingsSource): ExtractedSettings {
   const { parameters: p, info, imageIndex } = source;
   const overrides: WireOverrides = p.extra ?? p.override_settings ?? {};
   const notes: RestoreNote[] = [];
-  const { seed, subseed } = pickedSeeds(p, info, imageIndex);
+  const seed = pickedSeed(p, info, imageIndex);
   if (seed < 0) notes.push("seedNotRecorded");
   // A LUT goes out by the hash the server keeps its bytes under; the request
   // does not carry its file's name. A ref of the staging store from before
@@ -110,8 +102,6 @@ export function extractParams(source: SettingsSource): ExtractedSettings {
     denoisingStrength: num(p.denoising_strength, 0.5),
 
     seed,
-    subseed,
-    subseedStrength: num(p.subseed_strength, 0),
 
     // Hires
     hiresEnabled: bool(p.enable_hr, false),
@@ -259,9 +249,6 @@ export function extractParams(source: SettingsSource): ExtractedSettings {
 
   const img2img: ExtractedSettings["img2img"] = {};
   if (typeof p.mask_apply_overlay === "boolean") img2img.maskApplyOverlay = p.mask_apply_overlay;
-  if (typeof p.inpainting_mask_weight === "number") {
-    img2img.inpaintingMaskWeight = p.inpainting_mask_weight;
-  }
   return { params, img2img, notes };
 }
 

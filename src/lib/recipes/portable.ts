@@ -1,13 +1,21 @@
 // What a recipe's request keeps, by the one list the server also reads
-// (portable.json): kept fields travel, dropped fields stay behind, and a field
-// naming pictures holds an upload ref by hash or nothing.
+// (portable.json): kept fields travel, dropped fields stay behind, retired
+// fields no job takes now, and a field naming pictures holds an upload ref by
+// hash or nothing.
 
 import type { JsonValue } from "@/lib/inputs/types";
 import portable from "./portable.json";
 
 const KEEP = new Set(portable.keep);
 const DROP = new Set(portable.drop);
+const RETIRED = new Set(portable.retired);
 const HASH_REF = /^upload:[0-9a-f]{64}$/;
+
+/** A request without the retired fields older recipes carry. */
+export function withoutRetired(request: Record<string, JsonValue>): Record<string, JsonValue> {
+  if (!Object.keys(request).some((key) => RETIRED.has(key))) return request;
+  return Object.fromEntries(Object.entries(request).filter(([key]) => !RETIRED.has(key)));
+}
 
 /** A field a user set that the recipe leaves behind, for the save's notice. */
 export type LeftOut = "grading_lut_file" | "extra";
@@ -54,7 +62,7 @@ export function portableRequest(request: Record<string, JsonValue>): PortableReq
     else if (key === "extra") {
       if (typeof value === "object" && value !== null && Object.keys(value).length > 0)
         leftOut.push("extra");
-    } else if (!DROP.has(key)) unknown.push(key);
+    } else if (!DROP.has(key) && !RETIRED.has(key)) unknown.push(key);
   }
   // A LUT the server holds as a file goes by its path, which another server does not have
   const lut = kept["grading_lut_file"];

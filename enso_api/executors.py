@@ -308,14 +308,14 @@ def masked_image_short_side(params: dict, inputs: list | None, inits: list | Non
     return min((inits or [mask])[0].size)
 
 
-def image_seeds(img) -> tuple[int | None, int | None]:
-    """The seed and variation seed sdnext wrote into an output image's infotext."""
+def image_seed(img) -> int | None:
+    """The seed sdnext wrote into an output image's infotext."""
     from modules import infotext
 
     text = img.info.get("parameters") if isinstance(getattr(img, "info", None), dict) else None
     parsed = infotext.parse(text) if isinstance(text, str) else {}
-    seed, subseed = parsed.get("Seed"), parsed.get("Variation seed")
-    return (seed if isinstance(seed, int) else None, subseed if isinstance(subseed, int) else None)
+    seed = parsed.get("Seed")
+    return seed if isinstance(seed, int) else None
 
 
 def image_ref(job_id: str, index: int, img, path, save_images: bool, outdir, params: dict) -> dict | None:
@@ -335,7 +335,7 @@ def image_ref(job_id: str, index: int, img, path, save_images: bool, outdir, par
 
         try:
             img_info = img.info.get("parameters") if isinstance(getattr(img, "info", None), dict) else None
-            seed = image_seeds(img)[0]
+            seed = image_seed(img)
             path_info = img_module.save_image(img, outdir(), "", seed=params.get("seed", -1) if seed is None else seed, prompt=params.get("prompt", ""), info=img_info)
             if path_info and len(path_info) > 0:
                 fpath = str(path_info[0] if isinstance(path_info, (list, tuple)) else path_info)
@@ -371,22 +371,17 @@ def collect_images(job_id: str, output_images: list, saved_paths: list, save_ima
     `outdir` names the folder an image the pipeline did not save is saved to."""
     refs: list[dict] = []
     seeds: list[int | None] = []
-    subseeds: list[int | None] = []
     for i, img in enumerate(output_images):
         ref = image_ref(job_id, i, img, saved_paths[i] if i < len(saved_paths) else None, save_images, outdir, params)
         if ref is None:
             continue
         refs.append(ref)
-        seed, subseed = image_seeds(img)
-        seeds.append(seed)
-        subseeds.append(subseed)
+        seeds.append(image_seed(img))
     info: dict = {}
     if refs:
-        info = {"all_seeds": seeds, "all_subseeds": subseeds}
+        info = {"all_seeds": seeds}
         if seeds[0] is not None:
             info["seed"] = seeds[0]
-        if subseeds[0] is not None:
-            info["subseed"] = subseeds[0]
     return refs, info
 
 

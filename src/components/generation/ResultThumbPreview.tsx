@@ -4,7 +4,7 @@ import { createPortal } from "react-dom";
 import type { GenerationResult } from "@/stores/generationStore";
 import { ResultImage } from "@/components/generation/ResultImage";
 import { DOUBLE_CLICK_HINT } from "@/lib/jobs/text";
-import { parseInfo, pickedSeeds } from "@/lib/request/restoreParams";
+import { parseInfo, pickedSeed } from "@/lib/request/restoreParams";
 
 interface ResultThumbPreviewProps {
   result: GenerationResult;
@@ -17,7 +17,7 @@ function infoMeta(result: GenerationResult, imageIndex: number): Record<string, 
   const info = parseInfo(result.info);
   if (!info) return {};
   const meta: Record<string, string> = {};
-  const { seed } = pickedSeeds(result.parameters, info, imageIndex);
+  const seed = pickedSeed(result.parameters, info, imageIndex);
   const { steps, sampler_name: sampler, width: w, height: h } = info;
   if (seed >= 0) meta["Seed"] = String(seed);
   if (typeof steps === "number" || typeof steps === "string") meta["Steps"] = String(steps);

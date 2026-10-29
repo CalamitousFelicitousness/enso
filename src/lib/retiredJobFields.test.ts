@@ -40,6 +40,9 @@ describe("currentJobRequest", () => {
       return_mask_composite: false,
       send_images: true,
       override_settings: { sd_vae: "None" },
+      subseed: 7,
+      subseed_strength: 0.3,
+      inpainting_mask_weight: 1,
     });
     expect(currentJobRequest(stored)).toEqual(request("generate", {}));
   });

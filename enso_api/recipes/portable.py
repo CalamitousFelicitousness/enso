@@ -1,5 +1,5 @@
-"""What a recipe's request may carry: the fields it keeps, the fields it drops, and the fields that name pictures,
-which hold an upload ref or nothing.
+"""What a recipe's request may carry: the fields it keeps, the fields it drops, the fields that name pictures,
+which hold an upload ref or nothing, and the retired fields older recipes carry, which no job takes now.
 
 One list for the browser and the server, src/lib/recipes/portable.json, read from the extension's own checkout.
 """
@@ -39,6 +39,12 @@ def ref_values(request: dict, field: str) -> list[tuple[Loc, object]]:
                 step.append(((*path, key), inner))
         found = step
     return found
+
+
+def without_retired(request: dict) -> dict:
+    """The request without the retired fields."""
+    retired = set(rules()["retired"])
+    return {key: value for key, value in request.items() if key not in retired}
 
 
 def portable_issues(request: dict, loc: Loc) -> list[dict]:

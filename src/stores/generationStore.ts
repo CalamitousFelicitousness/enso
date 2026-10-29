@@ -92,8 +92,6 @@ export interface GenerationState {
   pagScale: number;
   pagAdaptive: number;
   seed: number;
-  subseed: number;
-  subseedStrength: number;
   denoisingStrength: number;
 
   // Sampler / Scheduler
@@ -258,8 +256,6 @@ export const defaultParams = {
   pagScale: 0,
   pagAdaptive: 0.5,
   seed: -1,
-  subseed: -1,
-  subseedStrength: 0,
   denoisingStrength: 0.5,
   sigmaMethod: "default",
   timestepSpacing: "default",

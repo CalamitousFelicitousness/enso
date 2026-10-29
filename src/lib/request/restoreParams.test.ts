@@ -7,17 +7,11 @@ const info = (patch: Partial<GenerationInfo>) => patch as GenerationInfo;
 describe("extractParams", () => {
   it("takes the seed of the picked image of a batch", () => {
     const { params, notes } = extractParams({
-      parameters: { seed: -1, subseed: -1, batch_size: 4 },
-      info: info({
-        seed: 100,
-        subseed: 7,
-        all_seeds: [100, 101, 102, 103],
-        all_subseeds: [7, 8, 9, 10],
-      }),
+      parameters: { seed: -1, batch_size: 4 },
+      info: info({ seed: 100, all_seeds: [100, 101, 102, 103] }),
       imageIndex: 2,
     });
     expect(params.seed).toBe(102);
-    expect(params.subseed).toBe(9);
     expect(params.batchSize).toBe(4);
     expect(notes).toEqual([]);
   });
@@ -80,11 +74,11 @@ describe("extractParams", () => {
 
   it("returns the inpainting fields the request carries", () => {
     const { img2img } = extractParams({
-      parameters: { mask_apply_overlay: false, inpainting_mask_weight: 0.4 },
+      parameters: { mask_apply_overlay: false },
       info: null,
       imageIndex: 0,
     });
-    expect(img2img).toEqual({ maskApplyOverlay: false, inpaintingMaskWeight: 0.4 });
+    expect(img2img).toEqual({ maskApplyOverlay: false });
     expect(extractParams({ parameters: {}, info: null, imageIndex: 0 }).img2img).toEqual({});
   });
 });

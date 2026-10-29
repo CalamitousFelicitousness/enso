@@ -51,8 +51,6 @@ export function generationParams(gen: GenerationState, ctx: GenerateParamsContex
     cfg_true: gen.pagScale > 0 ? gen.pagScale : -1,
     cfg_adaptive: gen.pagAdaptive,
     seed: gen.seed,
-    subseed: gen.subseed,
-    subseed_strength: gen.subseedStrength,
     batch_size: gen.batchSize,
     batch_count: gen.batchCount,
     denoising_strength: gen.denoisingStrength,

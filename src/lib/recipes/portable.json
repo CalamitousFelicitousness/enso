@@ -84,7 +84,6 @@
     "inpaint_full_res",
     "inpaint_full_res_padding",
     "inpainting_mask_invert",
-    "inpainting_mask_weight",
     "input_process",
     "input_type",
     "inputs",
@@ -128,8 +127,6 @@
     "skip_processing",
     "steps",
     "styles",
-    "subseed",
-    "subseed_strength",
     "teacache_enabled",
     "teacache_thresh",
     "tiling",
@@ -173,5 +170,6 @@
     "control[].override",
     "grading_lut_file"
   ],
-  "settingsDrop": ["overrideSettings"]
+  "settingsDrop": ["overrideSettings"],
+  "retired": ["inpainting_mask_weight", "subseed", "subseed_strength"]
 }

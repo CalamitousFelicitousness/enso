@@ -77,6 +77,12 @@ def test_the_origin_is_what_an_export_carries(entries):
     assert entries.origin_of("r2") == "file-9"
 
 
+def test_a_recipe_from_before_a_field_retired_is_stored_without_it(entries):
+    request = {**recipe_part()["request"], "subseed": 7, "subseed_strength": 0.3, "inpainting_mask_weight": 1.0}
+    saved(entries, "r1", recipe_part(request=request))
+    assert entries.get("r1")["recipe"]["request"] == recipe_part()["request"]
+
+
 def test_the_recipe_is_stored_as_written(entries, db):
     saved(entries, "r1", recipe_part())
     with db.read() as conn:

@@ -45,8 +45,6 @@ export function SamplerTab() {
       dynamic: s.dynamic,
       rescale: s.rescale,
       seed: s.seed,
-      subseed: s.subseed,
-      subseedStrength: s.subseedStrength,
       denoisingStrength: s.denoisingStrength,
     })),
   );
@@ -112,12 +110,6 @@ export function SamplerTab() {
       seedReuse: () => {
         if (lastInfo?.seed != null) setParam("seed", lastInfo.seed);
       },
-      subseed: (v: number) => setParam("subseed", v),
-      subseedRandom: () => setParam("subseed", -1),
-      subseedReuse: () => {
-        if (lastInfo?.subseed != null) setParam("subseed", lastInfo.subseed);
-      },
-      subseedStrength: (v: number) => setParam("subseedStrength", v),
       denoisingStrength: (v: number) => setParam("denoisingStrength", v),
     }),
     [setParam, lastInfo],
@@ -353,96 +345,42 @@ export function SamplerTab() {
       <SectionDivider />
 
       <SectionLeader title="Seed" collapsible>
-        <ParamGrid>
-          <ParamRow
-            label="Seed"
-            tooltip="Initial seed and variation"
-            keywords={["random", "reproducible", "deterministic"]}
-          >
-            <div className="flex items-center gap-1">
-              <NumberInput
-                value={state.seed}
-                onChange={set.seed}
-                fallback={-1}
-                className="min-w-0 flex-1 h-6 text-2xs px-2 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-              />
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="secondary"
-                    size="icon-xs"
-                    className="text-muted-foreground shrink-0"
-                    title="Seed options"
-                  >
-                    <Dices className="size-3.5" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={set.seedRandom}>
-                    <Dices className="size-3.5" />
-                    <span>Random</span>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={set.seedReuse} disabled={lastInfo?.seed == null}>
-                    <RotateCcw className="size-3.5" />
-                    <span>
-                      {lastInfo?.seed != null ? `Reuse (${lastInfo.seed})` : "Reuse last"}
-                    </span>
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-          </ParamRow>
-
-          <ParamRow
-            label="Variation"
-            tooltip="Second seed to be mixed with primary seed"
-            keywords={["subseed", "variation", "var"]}
-          >
-            <div className="flex items-center gap-1">
-              <NumberInput
-                value={state.subseed}
-                onChange={set.subseed}
-                fallback={-1}
-                className="min-w-0 flex-1 h-6 text-2xs px-2 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-              />
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="secondary"
-                    size="icon-xs"
-                    className="text-muted-foreground shrink-0"
-                    title="Variation options"
-                  >
-                    <Dices className="size-3.5" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={set.subseedRandom}>
-                    <Dices className="size-3.5" />
-                    <span>Random</span>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={set.subseedReuse} disabled={lastInfo?.subseed == null}>
-                    <RotateCcw className="size-3.5" />
-                    <span>
-                      {lastInfo?.subseed != null ? `Reuse (${lastInfo.subseed})` : "Reuse last"}
-                    </span>
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-          </ParamRow>
-        </ParamGrid>
-
-        <ParamSlider
-          label="Var. str."
-          tooltip="How strong of a variation to produce. At 0, there will be no effect. At 1, you will get the complete picture with variation seed (except for ancestral samplers, where you will just get something)"
-          keywords={["subseed", "variation strength"]}
-          value={state.subseedStrength}
-          onChange={set.subseedStrength}
-          min={0}
-          max={1}
-          step={0.01}
-        />
+        <ParamRow
+          label="Seed"
+          tooltip="Initial seed; -1 picks a random one"
+          keywords={["random", "reproducible", "deterministic"]}
+        >
+          <div className="flex items-center gap-1">
+            <NumberInput
+              value={state.seed}
+              onChange={set.seed}
+              fallback={-1}
+              className="min-w-0 flex-1 h-6 text-2xs px-2 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+            />
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="secondary"
+                  size="icon-xs"
+                  className="text-muted-foreground shrink-0"
+                  title="Seed options"
+                >
+                  <Dices className="size-3.5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={set.seedRandom}>
+                  <Dices className="size-3.5" />
+                  <span>Random</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={set.seedReuse} disabled={lastInfo?.seed == null}>
+                  <RotateCcw className="size-3.5" />
+                  <span>{lastInfo?.seed != null ? `Reuse (${lastInfo.seed})` : "Reuse last"}</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </ParamRow>
       </SectionLeader>
     </div>
   );

@@ -219,24 +219,14 @@ export function applySettings(extracted: ExtractedSettings): {
 } {
   const { params, img2img, notes } = extracted;
   const masks = useImg2ImgStore.getState();
-  const masksBefore = {
-    maskApplyOverlay: masks.maskApplyOverlay,
-    inpaintingMaskWeight: masks.inpaintingMaskWeight,
-  };
+  const overlayBefore = masks.maskApplyOverlay;
   const revertParams = setSettings(params);
   if (img2img.maskApplyOverlay !== undefined) masks.setMaskApplyOverlay(img2img.maskApplyOverlay);
-  if (img2img.inpaintingMaskWeight !== undefined) {
-    masks.setInpaintingMaskWeight(img2img.inpaintingMaskWeight);
-  }
   return {
     revert: () => {
       revertParams();
-      const current = useImg2ImgStore.getState();
       if (img2img.maskApplyOverlay !== undefined) {
-        current.setMaskApplyOverlay(masksBefore.maskApplyOverlay);
-      }
-      if (img2img.inpaintingMaskWeight !== undefined) {
-        current.setInpaintingMaskWeight(masksBefore.inpaintingMaskWeight);
+        useImg2ImgStore.getState().setMaskApplyOverlay(overlayBefore);
       }
     },
     notes,

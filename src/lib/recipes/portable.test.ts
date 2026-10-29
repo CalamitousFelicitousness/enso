@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import snapshot from "@/api/types/openapi.snapshot.json";
 import portable from "./portable.json";
-import { portableRequest, refValues } from "./portable";
+import { portableRequest, refValues, withoutRetired } from "./portable";
 
 const REF = `upload:${"a".repeat(64)}`;
 
@@ -12,6 +12,22 @@ describe("portable.json", () => {
     const drop = new Set(portable.drop);
     expect([...keep].filter((key) => drop.has(key))).toEqual([]);
     expect([...keep, ...drop].sort()).toEqual([...fields].sort());
+  });
+
+  it("retires only fields no generate job takes", () => {
+    const fields = new Set(Object.keys(snapshot.components.schemas.GenerateParams.properties));
+    expect(portable.retired.filter((key) => fields.has(key))).toEqual([]);
+  });
+});
+
+describe("withoutRetired", () => {
+  it("drops the retired fields and returns a current request as is", () => {
+    expect(withoutRetired({ type: "generate", seed: 3, subseed: 7 })).toEqual({
+      type: "generate",
+      seed: 3,
+    });
+    const current = { type: "generate", seed: 3 };
+    expect(withoutRetired(current)).toBe(current);
   });
 });
 

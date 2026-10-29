@@ -25,7 +25,6 @@ interface Img2ImgState {
   inpaintFullResPadding: number;
   inpaintingMaskInvert: boolean;
   maskApplyOverlay: boolean;
-  inpaintingMaskWeight: number;
 
   // Actions
   setResizeMode: (mode: number) => void;
@@ -39,7 +38,6 @@ interface Img2ImgState {
   setInpaintFullResPadding: (v: number) => void;
   setInpaintingMaskInvert: (v: boolean) => void;
   setMaskApplyOverlay: (v: boolean) => void;
-  setInpaintingMaskWeight: (v: number) => void;
   reset: () => void;
 }
 
@@ -55,7 +53,6 @@ const defaultState = {
   inpaintFullResPadding: 32,
   inpaintingMaskInvert: false,
   maskApplyOverlay: true,
-  inpaintingMaskWeight: 1.0,
 };
 
 export const useImg2ImgStore = create<Img2ImgState>()(
@@ -74,7 +71,6 @@ export const useImg2ImgStore = create<Img2ImgState>()(
       setInpaintFullResPadding: (v) => _set({ inpaintFullResPadding: v }),
       setInpaintingMaskInvert: (v) => _set({ inpaintingMaskInvert: v }),
       setMaskApplyOverlay: (v) => _set({ maskApplyOverlay: v }),
-      setInpaintingMaskWeight: (v) => _set({ inpaintingMaskWeight: v }),
 
       reset: () => _set(defaultState),
     }),
@@ -93,7 +89,6 @@ export const useImg2ImgStore = create<Img2ImgState>()(
         inpaintFullResPadding,
         inpaintingMaskInvert,
         maskApplyOverlay,
-        inpaintingMaskWeight,
       }) => ({
         resizeMode,
         sizeMode,
@@ -106,7 +101,6 @@ export const useImg2ImgStore = create<Img2ImgState>()(
         inpaintFullResPadding,
         inpaintingMaskInvert,
         maskApplyOverlay,
-        inpaintingMaskWeight,
       }),
     },
   ),

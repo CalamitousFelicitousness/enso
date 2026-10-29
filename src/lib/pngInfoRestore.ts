@@ -25,8 +25,6 @@ const KEY_MAP: Record<string, string> = {
   "Image CFG scale": "imageCfgScale",
   "CFG true": "pagScale",
   "CFG adaptive": "pagAdaptive",
-  "Variation seed": "subseed",
-  "Variation strength": "subseedStrength",
   Tiling: "tiling",
 
   // Hires
@@ -80,8 +78,6 @@ const NUM_KEYS = new Set([
   "imageCfgScale",
   "pagScale",
   "pagAdaptive",
-  "subseed",
-  "subseedStrength",
   "hiresScale",
   "hiresSteps",
   "hiresDenoising",

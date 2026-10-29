@@ -15,7 +15,7 @@ const GENERATE: Retired = {
     pag_scale: "cfg_true",
     pag_adaptive: "cfg_adaptive",
   },
-  // none of these reached a pipeline
+  // none of these reached a pipeline, the last three since sdnext removed them
   dropped: new Set([
     "init_control",
     "save_mask",
@@ -24,6 +24,9 @@ const GENERATE: Retired = {
     "return_mask_composite",
     "send_images",
     "override_settings",
+    "subseed",
+    "subseed_strength",
+    "inpainting_mask_weight",
   ]),
 };
 

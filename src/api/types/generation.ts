@@ -46,7 +46,6 @@ export interface GenerationInfo {
   prompt: string;
   negative_prompt: string;
   seed: number;
-  subseed: number;
   width: number;
   height: number;
   sampler_name: string;
@@ -58,6 +57,5 @@ export interface GenerationInfo {
   job_timestamp: string;
   /** Per image, in the order of the result's images; absent from results of older servers. */
   all_seeds?: number[];
-  all_subseeds?: number[];
   [key: string]: unknown;
 }
