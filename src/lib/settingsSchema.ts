@@ -41,12 +41,11 @@ export const settingsSchema: SettingSectionDef[] = [
     title: "Model Loading",
     settings: [
       { key: "sd_model_checkpoint", label: "Checkpoint", component: "select" },
-      { key: "sd_model_refiner", label: "Refiner", component: "select", defaultValue: "None" },
+      { key: "sd_model_refiner", label: "Refiner", component: "select" },
       {
         key: "sd_checkpoint_autoload",
         label: "Auto-load model",
         component: "switch",
-        defaultValue: true,
       },
       { key: "diffusers_pipeline", label: "Pipeline", component: "select" },
     ],
@@ -59,7 +58,6 @@ export const settingsSchema: SettingSectionDef[] = [
         key: "diffusers_offload_mode",
         label: "Offload mode",
         component: "select",
-        defaultValue: "none",
       },
     ],
   },
@@ -67,25 +65,22 @@ export const settingsSchema: SettingSectionDef[] = [
     id: "vae_encoder",
     title: "VAE",
     settings: [
-      { key: "sd_vae", label: "VAE model", component: "select", defaultValue: "Automatic" },
-      { key: "no_half_vae", label: "Full precision VAE", component: "switch", defaultValue: false },
+      { key: "sd_vae", label: "VAE model", component: "select" },
+      { key: "no_half_vae", label: "Full precision VAE", component: "switch" },
       {
         key: "diffusers_vae_upcast",
         label: "VAE upcast",
         component: "select",
-        defaultValue: "default",
       },
       {
         key: "diffusers_vae_slicing",
         label: "VAE slicing",
         component: "switch",
-        defaultValue: false,
       },
       {
         key: "diffusers_vae_tiling",
         label: "VAE tiling",
         component: "switch",
-        defaultValue: false,
       },
     ],
   },
@@ -99,7 +94,6 @@ export const settingsSchema: SettingSectionDef[] = [
         key: "prompt_mean_norm",
         label: "Mean normalization",
         component: "switch",
-        defaultValue: true,
       },
       {
         key: "comma_padding_backtrack",
@@ -107,7 +101,6 @@ export const settingsSchema: SettingSectionDef[] = [
         component: "number",
         min: 0,
         max: 74,
-        defaultValue: 20,
       },
     ],
   },
@@ -115,20 +108,18 @@ export const settingsSchema: SettingSectionDef[] = [
     id: "cuda",
     title: "Compute",
     settings: [
-      { key: "precision", label: "Precision", component: "select", defaultValue: "Autocast" },
+      { key: "precision", label: "Precision", component: "select" },
       { key: "cuda_dtype", label: "CUDA dtype", component: "select" },
-      { key: "no_half", label: "Disable half precision", component: "switch", defaultValue: false },
+      { key: "no_half", label: "Disable half precision", component: "switch" },
       {
         key: "cross_attention_optimization",
         label: "Cross attention",
         component: "select",
-        defaultValue: "Automatic",
       },
       {
         key: "cuda_compile_backend",
         label: "Compile backend",
         component: "select",
-        defaultValue: "none",
       },
     ],
   },
@@ -136,13 +127,12 @@ export const settingsSchema: SettingSectionDef[] = [
     id: "saving-images",
     title: "Image Options",
     settings: [
-      { key: "samples_save", label: "Save images", component: "switch", defaultValue: true },
-      { key: "samples_format", label: "Image format", component: "select", defaultValue: "jpg" },
+      { key: "samples_save", label: "Save images", component: "switch" },
+      { key: "samples_format", label: "Image format", component: "select" },
       {
         key: "samples_filename_pattern",
         label: "Filename pattern",
         component: "input",
-        defaultValue: "",
       },
       {
         key: "jpeg_quality",
@@ -151,21 +141,18 @@ export const settingsSchema: SettingSectionDef[] = [
         min: 1,
         max: 100,
         step: 1,
-        defaultValue: 85,
       },
       {
         key: "save_images_add_number",
         label: "Add number",
         component: "switch",
-        defaultValue: true,
       },
-      { key: "grid_save", label: "Save grids", component: "switch", defaultValue: true },
-      { key: "grid_format", label: "Grid format", component: "select", defaultValue: "jpg" },
+      { key: "grid_save", label: "Save grids", component: "switch" },
+      { key: "grid_format", label: "Grid format", component: "select" },
       {
         key: "use_save_to_dirs_for_ui",
         label: "Save to subdirs",
         component: "switch",
-        defaultValue: false,
       },
     ],
   },
@@ -243,55 +230,23 @@ export const settingsSchema: SettingSectionDef[] = [
         min: 0,
         max: 50,
         step: 1,
-        defaultValue: 1,
       },
       {
         key: "show_progress_type",
         label: "Preview method",
         component: "select",
-        defaultValue: "TAESD",
       },
       {
         key: "live_previews_enable",
         label: "Enable previews",
         component: "switch",
-        defaultValue: true,
       },
     ],
   },
   {
     id: "postprocessing",
     title: "Postprocessing",
-    settings: [
-      {
-        key: "postprocessing_enable_in_main_ui",
-        label: "Enable in main UI",
-        component: "switch",
-        defaultValue: false,
-      },
-      { key: "upscaler_for_img2img", label: "Img2img upscaler", component: "select" },
-      {
-        key: "face_restoration",
-        label: "Face restoration",
-        component: "switch",
-        defaultValue: false,
-      },
-      {
-        key: "face_restoration_model",
-        label: "Face model",
-        component: "select",
-        defaultValue: "CodeFormer",
-      },
-      {
-        key: "code_former_weight",
-        label: "CodeFormer weight",
-        component: "slider",
-        min: 0,
-        max: 1,
-        step: 0.05,
-        defaultValue: 0.2,
-      },
-    ],
+    settings: [{ key: "upscaler_for_img2img", label: "Img2img upscaler", component: "select" }],
   },
 ];
 
@@ -335,7 +290,10 @@ export function metaToSettingDef(key: string, info?: OptionInfoMeta): SettingDef
   return {
     key,
     label: info.label || key,
-    component: metaComponentMap[info.component] ?? "input",
+    component:
+      info.component === "dropdown" && info.component_args.multiselect
+        ? "multiselect"
+        : (metaComponentMap[info.component] ?? "input"),
     defaultValue: info.default,
     min: info.component_args.minimum,
     max: info.component_args.maximum,

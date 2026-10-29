@@ -91,7 +91,6 @@ const GRADIO_ONLY_KEYS = new Set([
   "quicksettings_list",
   "ui_request_timeout",
   "ui_disabled",
-  "compact_view",
   "ui_columns",
   "logmonitor_show",
   "logmonitor_refresh_period",
@@ -134,9 +133,7 @@ const GRADIO_ONLY_KEYS = new Set([
   "img2img_color_correction",
   "color_correction_method",
   "mask_apply_overlay",
-  "inpainting_mask_weight",
   "img2img_background_color",
-  "initial_noise_multiplier",
   // Aspect ratios - will be consumed by generation panel directly
   "aspect_ratios",
 ]);
@@ -154,7 +151,7 @@ const SENTINEL_AUTOMATIC = "Automatic";
 
 const HEX_REGEX = /^#[0-9a-fA-F]{6}$/;
 
-/** Build a SettingDef: backend metadata is authoritative for choices, curated provides label/description/component overrides */
+/** Build a SettingDef: backend metadata is authoritative for choices and defaults, curated provides label/description/component overrides */
 function buildSettingDef(
   key: string,
   info: OptionInfoMeta,
@@ -172,9 +169,6 @@ function buildSettingDef(
     ...(curated.setting.min !== undefined && { min: curated.setting.min }),
     ...(curated.setting.max !== undefined && { max: curated.setting.max }),
     ...(curated.setting.step !== undefined && { step: curated.setting.step }),
-    ...(curated.setting.defaultValue !== undefined && {
-      defaultValue: curated.setting.defaultValue,
-    }),
     ...(curated.setting.requiresRestart && { requiresRestart: true }),
     ...(curated.setting.baseFolderKey && {
       baseFolderKey: curated.setting.baseFolderKey,
