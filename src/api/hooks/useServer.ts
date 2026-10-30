@@ -2,6 +2,13 @@ import { useQuery } from "@tanstack/react-query";
 import { api } from "../client";
 import type { ResMemory, ResGPU, ServerInfo, LoadedModel } from "../types/server";
 import { SERVER_INFO_KEY } from "../queryKeys";
+import { useSessionStore } from "../session";
+
+/** Polls run only while the server takes this page's credentials. */
+function useMayPoll(enabled: boolean): boolean {
+  const refused = useSessionStore((s) => s.refused);
+  return enabled && !refused;
+}
 
 /** What the server runs and offers; the hook and the submit path share the cache entry. */
 export const serverInfoQuery = {
@@ -14,7 +21,8 @@ export function useServerInfo() {
   return useQuery({ ...serverInfoQuery, retry: 2 });
 }
 
-export function useMemory(enabled = true) {
+export function useMemory(wanted = true) {
+  const enabled = useMayPoll(wanted);
   return useQuery({
     queryKey: ["memory"],
     queryFn: () => api.get<ResMemory>("/sdapi/v2/memory"),
@@ -24,7 +32,8 @@ export function useMemory(enabled = true) {
   });
 }
 
-export function useGpuStatus(enabled = true) {
+export function useGpuStatus(wanted = true) {
+  const enabled = useMayPoll(wanted);
   return useQuery({
     queryKey: ["gpu"],
     queryFn: () => api.get<ResGPU[]>("/sdapi/v2/gpu"),
@@ -39,7 +48,8 @@ export function useCapabilities() {
   return data?.capabilities ?? null;
 }
 
-export function useLoadedModels(enabled = true) {
+export function useLoadedModels(wanted = true) {
+  const enabled = useMayPoll(wanted);
   return useQuery({
     queryKey: ["loaded-models"],
     queryFn: () => api.get<LoadedModel[]>("/sdapi/v2/loaded-models"),

@@ -30,8 +30,8 @@ import { api } from "@/api/client";
 import { ws } from "@/api/wsManager";
 import { endSession, startSession } from "@/api/session";
 import { queryClient } from "@/api/queryClient";
+import { CONNECTION_SECTION_ID } from "@/lib/constants";
 
-const CONNECTION_SECTION_ID = "__connection";
 const APPEARANCE_SECTION_ID = "__appearance";
 const BEHAVIOR_SECTION_ID = "__behavior";
 

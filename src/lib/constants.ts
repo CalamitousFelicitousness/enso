@@ -109,6 +109,9 @@ export const RIGHT_TABS: RightTabItem[] = [
   { id: "console", label: "Console", icon: Terminal },
 ];
 
+/** The Settings panel's Connection section, which other views open. */
+export const CONNECTION_SECTION_ID = "__connection";
+
 /** Primary nav items (Left Rail) */
 export const NAV_ITEMS: NavItem[] = [
   { id: "images", label: "Images", icon: ImageIcon },

@@ -26,6 +26,8 @@ interface SessionState {
   epoch: number;
   /** The user the server knows this page as; null without credentials. */
   user: string | null;
+  /** The server asks for credentials this page lacks, or refused the ones it sent. */
+  refused: boolean;
 }
 
 export const useSessionStore = create<SessionState>()(() => ({
@@ -34,6 +36,7 @@ export const useSessionStore = create<SessionState>()(() => ({
   expiresAt: 0,
   epoch: 0,
   user: null,
+  refused: false,
 }));
 
 const HINT_KEY = "enso-session-mode";
@@ -83,7 +86,7 @@ function scheduleRenewal(expiresAt: number) {
   renewTimer = setTimeout(() => void ensureSession(), delay);
 }
 
-function settle(mode: SessionMode, token: string | null, expiresAt: number) {
+function settle(mode: SessionMode, token: string | null, expiresAt: number, refused = false) {
   const before = useSessionStore.getState();
   const changed = before.mode !== mode || before.token !== token;
   useSessionStore.setState({
@@ -91,6 +94,7 @@ function settle(mode: SessionMode, token: string | null, expiresAt: number) {
     token,
     expiresAt,
     epoch: changed ? before.epoch + 1 : before.epoch,
+    refused,
   });
   if (mode !== "unavailable") writeHint(api.getBaseUrl(), mode);
   scheduleRenewal(expiresAt);
@@ -110,7 +114,7 @@ async function requestSession(): Promise<void> {
     if (err instanceof ApiError && err.status === 404) settle("legacy", null, 0);
     // Refused: the server asks for credentials this page lacks, so no earlier answer holds
     else if (err instanceof ApiError && (err.status === 401 || err.status === 403))
-      settle("unavailable", null, 0);
+      settle("unavailable", null, 0, true);
     else if (useSessionStore.getState().mode === "pending") settle("unavailable", null, 0);
   }
 }

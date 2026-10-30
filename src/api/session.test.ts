@@ -102,6 +102,10 @@ describe("the session request", () => {
     post.mockRejectedValue(new ApiError(401, "Unauthorized", {}));
     await ensureSession();
     expect(useSessionStore.getState().mode).toBe("unavailable");
+    expect(useSessionStore.getState().refused).toBe(true);
+    post.mockResolvedValue({ required: false });
+    await ensureSession();
+    expect(useSessionStore.getState().refused).toBe(false);
   });
 
   it("settles unavailable when the server cannot be reached", async () => {
@@ -109,6 +113,7 @@ describe("the session request", () => {
     vi.spyOn(api, "post").mockRejectedValue(new TypeError("Failed to fetch"));
     await startSession();
     expect(useSessionStore.getState().mode).toBe("unavailable");
+    expect(useSessionStore.getState().refused).toBe(false);
   });
 });
 

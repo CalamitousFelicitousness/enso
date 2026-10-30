@@ -1,7 +1,10 @@
 import { useServerInfo } from "@/api/hooks/useServer";
 import { useVersionInfo } from "@/hooks/useVersionInfo";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
-import { Wifi, WifiOff, Loader2 } from "lucide-react";
+import { Wifi, WifiOff, Loader2, KeyRound } from "lucide-react";
+import { useSessionStore } from "@/api/session";
+import { CONNECTION_SECTION_ID } from "@/lib/constants";
+import { useUiStore } from "@/stores/uiStore";
 
 const SYNC_TEXT = {
   "in-sync": "Frontend up to date",
@@ -11,16 +14,43 @@ const SYNC_TEXT = {
   unknown: "Frontend sync unknown",
 } as const;
 
+function openConnection() {
+  const ui = useUiStore.getState();
+  ui.openRightTab("settings");
+  ui.setPanelSelection("settingsSection", CONNECTION_SECTION_ID);
+}
+
 export function ConnectionIndicator() {
   const { data: serverInfo, isLoading, isError } = useServerInfo();
+  const refused = useSessionStore((s) => s.refused);
   const version = useVersionInfo();
 
-  if (isLoading) {
+  if (isLoading && !refused) {
     return (
       <div className="flex items-center gap-1.5 text-muted-foreground text-xs px-2">
         <Loader2 size={14} className="animate-spin" />
         <span>Connecting...</span>
       </div>
+    );
+  }
+
+  if (refused) {
+    return (
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button
+            type="button"
+            onClick={openConnection}
+            className="flex items-center gap-1.5 text-amber-500 text-xs px-2 hover:underline"
+          >
+            <KeyRound size={14} />
+            <span>Login needed</span>
+          </button>
+        </TooltipTrigger>
+        <TooltipContent side="bottom">
+          This server asks for a user name and password. Enter them in Settings, Connection.
+        </TooltipContent>
+      </Tooltip>
     );
   }
 
