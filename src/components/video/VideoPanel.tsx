@@ -21,13 +21,7 @@ import { useVideoCapsDefaults } from "@/hooks/useVideoCapsDefaults";
 import { sendToJob } from "@/hooks/useJobTracker";
 import { useDeleteJob } from "@/api/hooks/useJobs";
 import { ACTIONS } from "@/lib/media/progress";
-import {
-  BEING_SENT,
-  NOTHING_TO_STOP,
-  SENDING,
-  STOP_GENERATION,
-  STOP_UPLOAD,
-} from "@/lib/media/text";
+import { BEING_SENT, NOTHING_TO_STOP, STOP_GENERATION, STOP_UPLOAD } from "@/lib/media/text";
 import { buildCloudVideoRequest } from "@/lib/request/buildCloudVideo";
 import { buildVideoPayload } from "@/lib/video/buildVideoPayload";
 import { resolveVideoUi, kindToDomain } from "@/lib/videoModel";
@@ -133,14 +127,11 @@ export function VideoPanel() {
     toast.info(NOTHING_TO_STOP);
   }, [uploadPhase, cancel, runningVideoJobId, cancelJob]);
   const uploading = uploadPhase !== null && uploadPhase !== "sending";
-  const stopLabel =
-    uploadPhase === "sending"
-      ? SENDING
-      : uploading
-        ? STOP_UPLOAD
-        : runningVideoJobId
-          ? STOP_GENERATION
-          : NOTHING_TO_STOP;
+  const stopLabel = uploading
+    ? STOP_UPLOAD
+    : runningVideoJobId || uploadPhase === "sending"
+      ? STOP_GENERATION
+      : NOTHING_TO_STOP;
   const stopApplies = uploading || runningVideoJobId !== null;
 
   // Reference workflows condition on media: the server takes the init image

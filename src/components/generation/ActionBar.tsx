@@ -23,7 +23,6 @@ import { useJobFact } from "@/hooks/useJobFact";
 import {
   BEING_SENT,
   NO_SKIP,
-  SENDING,
   STOP_GENERATION,
   STOP_UPLOAD,
   WAIT_FOR_UPLOAD,
@@ -436,9 +435,7 @@ export const ActionBar = memo(function ActionBar() {
           className={uploadPhase === "sending" ? "opacity-50" : undefined}
           variant="destructive"
           size="icon-sm"
-          aria-label={
-            uploadPhase === "sending" ? SENDING : uploadPhase ? STOP_UPLOAD : STOP_GENERATION
-          }
+          aria-label={uploadPhase && uploadPhase !== "sending" ? STOP_UPLOAD : STOP_GENERATION}
           title={
             uploadPhase === "sending" ? BEING_SENT : uploadPhase ? STOP_UPLOAD : STOP_GENERATION
           }

@@ -23,7 +23,6 @@ import {
   NO_IMAGE_TO_SKIP,
   NOTHING_TO_STOP,
   processOthersText,
-  SENDING,
   STOP_PROCESSING,
   STOP_UPLOAD,
 } from "@/lib/media/text";
@@ -274,14 +273,11 @@ export function ProcessPanel() {
     toast.info(NOTHING_TO_STOP);
   }, [uploadPhase, cancel, runningId, cancelJob]);
   const uploading = uploadPhase !== null && uploadPhase !== "sending";
-  const stopLabel =
-    uploadPhase === "sending"
-      ? SENDING
-      : uploading
-        ? STOP_UPLOAD
-        : runningId
-          ? STOP_PROCESSING
-          : NOTHING_TO_STOP;
+  const stopLabel = uploading
+    ? STOP_UPLOAD
+    : runningId || uploadPhase === "sending"
+      ? STOP_PROCESSING
+      : NOTHING_TO_STOP;
   const stopApplies = uploading || runningId !== null;
 
   const handleSkip = useCallback(() => {
