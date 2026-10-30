@@ -41,6 +41,7 @@ import { isUploadRef, replayProblem } from "@/lib/jobs/replay";
 import { reasonText, replayMissingText } from "@/lib/jobs/text";
 import { entrySummary } from "@/lib/media/entry";
 import { ACTIONS } from "@/lib/media/progress";
+import { OFFER_MS } from "@/lib/notices";
 import { isGone, type Outcome } from "@/lib/media/stage";
 import {
   batchText,
@@ -427,6 +428,7 @@ export async function saveRecipe(from: RecipeFrom): Promise<ItemEntryV2 | null> 
           cancel: undefined,
           description: notes.length > 0 ? notes.join(". ") : undefined,
           action: { label: SHOW_IN_LIBRARY, onClick: () => showLibrary() },
+          duration: OFFER_MS,
         });
         return answer.entry;
       },
@@ -625,6 +627,7 @@ export async function importRecipeFiles(
     cancel: undefined,
     description: notes.length > 0 ? notes.join(". ") : undefined,
     action: { label: SHOW_IN_LIBRARY, onClick: () => showEntry(shown) },
+    duration: OFFER_MS,
   });
   if (restore && answers.length === 1 && last.entry.kind === "recipe") {
     useRestoreDialogStore.getState().openEntry(shown);

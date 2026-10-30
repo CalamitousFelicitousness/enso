@@ -16,6 +16,7 @@ import { applyFix } from "@/inputs/processing";
 import { outlineOf } from "@/inputs/outlineOf";
 import { useOutlineWithEnv } from "@/inputs/useOutline";
 import { detailProcessedText, fixLabel, problemText } from "@/lib/inputs/text";
+import { OFFER_MS } from "@/lib/notices";
 import { restoreFrom, resultTarget } from "@/lib/request/restore";
 import { useRunAgain } from "@/hooks/useRunAgain";
 import { useJobFact } from "@/hooks/useJobFact";
@@ -194,6 +195,7 @@ export const ActionBar = memo(function ActionBar() {
       toast.warning("Can't generate with these inputs", {
         description: problemText(problem),
         action: { label: fixLabel(problem), onClick: () => applyFix(env, problem) },
+        duration: OFFER_MS,
       });
       setImagesSubTab("input");
       return;

@@ -8,6 +8,7 @@ import { retryable } from "@/hooks/useSubmitToQueue";
 import { useUploadAction } from "@/hooks/useUploadAction";
 import { ACTIONS } from "@/lib/media/progress";
 import { RETRY, UPLOAD_CANCELLED, WAIT_FOR_UPLOAD } from "@/lib/media/text";
+import { OFFER_MS } from "@/lib/notices";
 import { useActionProgress } from "@/hooks/useActionProgress";
 import type { JobRequest } from "@/api/types/v2";
 import {
@@ -61,7 +62,7 @@ async function postFrom(ctx: RunContext, jobs: Jobs, prepared: Prepared, from: n
     const again = () => void jobs.run((next) => postFrom(next, jobs, current, failedAt));
     toast.error(`Queued ${failedAt} of ${jobs.ids.length} jobs`, {
       description: err instanceof Error ? err.message : String(err),
-      ...(retryable(err) ? { action: { label: RETRY, onClick: again } } : {}),
+      ...(retryable(err) ? { action: { label: RETRY, onClick: again }, duration: OFFER_MS } : {}),
     });
   }
 }

@@ -10,6 +10,7 @@ import type { BatchProgress } from "@/lib/media/batch";
 import type { SubmitPhase } from "@/lib/media/progress";
 import { UploadRefused } from "@/lib/media/refused";
 import { CANCEL } from "@/lib/media/text";
+import { OFFER_MS } from "@/lib/notices";
 import { sayLutRefused } from "./lutRefused";
 import { beginRun, commitRun, endRun, isCurrentRun, setRunPhase, setRunProgress } from "./progress";
 import { UploadBatch } from "./uploads";
@@ -62,7 +63,7 @@ const TOASTS: Notices = {
   refused: (title, err, offer) =>
     toast.error(title, {
       description: err.message,
-      ...(offer ? { action: { label: offer.label, onClick: offer.run } } : {}),
+      ...(offer ? { action: { label: offer.label, onClick: offer.run }, duration: OFFER_MS } : {}),
       ...(offer?.cancel ? { cancel: { label: CANCEL, onClick: () => {} } } : {}),
     }),
   lut: sayLutRefused,

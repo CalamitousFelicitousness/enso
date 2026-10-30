@@ -4,6 +4,7 @@
 
 import { toast } from "sonner";
 import { UNDO_FAILED } from "@/lib/inputs/text";
+import { OFFER_MS } from "@/lib/notices";
 import { failureText } from "./quota";
 
 interface Pending {
@@ -26,7 +27,6 @@ export interface OfferOptions {
 }
 
 const TOAST_ID = "inputs-undo";
-const DURATION_MS = 8000;
 
 let pending: Pending | null = null;
 let counter = 0;
@@ -65,7 +65,7 @@ export function offerUndo(
     toast(text, {
       id: TOAST_ID,
       description: detail ?? undefined,
-      duration: DURATION_MS,
+      duration: OFFER_MS,
       action: { label: "Undo", onClick: () => void runUndo() },
       onDismiss: forget,
       onAutoClose: forget,

@@ -41,6 +41,7 @@ import { holdsContent, type Frame } from "@/lib/inputs/types";
 import { assembleEntry, byLibraryOrder, clampName, type ThumbPart } from "@/lib/media/entry";
 import { isGone, type Outcome } from "@/lib/media/stage";
 import { batchText, serverFreedText, unpinnedText } from "@/lib/media/text";
+import { OFFER_MS } from "@/lib/notices";
 import { useGenerationStore } from "@/stores/generationStore";
 import { inputsReady, useInputStore } from "@/stores/inputStore";
 import { useUiStore } from "@/stores/uiStore";
@@ -405,6 +406,7 @@ async function storeEntry(parts: SaveParts): Promise<ItemEntryV2 | null> {
       id: toastId,
       description: movedText(answer) ?? undefined,
       action: { label: SHOW_IN_LIBRARY, onClick: () => showLibrary() },
+      duration: OFFER_MS,
     });
     return answer.entry;
   } catch (err) {

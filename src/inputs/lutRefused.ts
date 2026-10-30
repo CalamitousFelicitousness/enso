@@ -1,4 +1,5 @@
 import { toast } from "sonner";
+import { OFFER_MS } from "@/lib/notices";
 import type { LutRefused } from "@/lib/lut";
 import { OPEN_COLOR_GRADING, OPEN_COLOR_TAB } from "@/lib/media/text";
 import { openLutSection } from "@/lib/navigateToParam";
@@ -10,5 +11,6 @@ export function sayLutRefused(err: LutRefused): void {
       label: err.where === "images" ? OPEN_COLOR_TAB : OPEN_COLOR_GRADING,
       onClick: () => openLutSection(err.where),
     },
+    duration: OFFER_MS,
   });
 }
