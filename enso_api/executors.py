@@ -1091,9 +1091,11 @@ def execute_video(params: dict, job_id: str) -> dict:
     videos_refs: list[dict] = []
     if res.still:
         still = res.images[0] if res.images else None
-        path = None
-        if still is not None:
-            # sdnext does not report where it saved the still; save it here to
+        # images.save_image marks the image with the path it wrote
+        path = getattr(still, "already_saved_as", None)
+        path = str(path) if path and os.path.isfile(str(path)) else None
+        if path is None and still is not None:
+            # samples_save off: nothing was written, so save the still here to
             # keep the job result addressable
             from modules import images as img_module
             from modules.paths import resolve_output_path
