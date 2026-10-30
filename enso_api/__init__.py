@@ -181,7 +181,9 @@ def register_api(app, dependencies=None):
                 "/sdapi/v2/library": -1,
                 "/sdapi/v2/library/trash": -1,
                 "/sdapi/v2/library/trash/empty": -1,
+                "/sdapi/v2/library/{entry_id}": -1,
                 "/sdapi/v2/records": -1,
+                "/sdapi/v2/records/{job_id}": -1,
                 "/sdapi/v2/export": -1,
                 "/sdapi/v2/import": -1,
                 "/sdapi/v2/browser/delete": -1,
@@ -257,6 +259,8 @@ def register_api(app, dependencies=None):
             "/sdapi/v2/jobs/{job_id}/images/{index}": 0,
             "/sdapi/v2/jobs/{job_id}/processed/{index}": 0,
             "/sdapi/v2/outputs/{output_id}": 0,
+            "/sdapi/v2/library/{entry_id}": 0,
+            "/sdapi/v2/records/{job_id}": 0,
             # Cost 5 - GPU / compute / IO intensive
             "/sdapi/v2/jobs": 5,
             "/sdapi/v2/video/load": 5,

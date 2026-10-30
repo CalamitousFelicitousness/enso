@@ -9,10 +9,14 @@ from fastapi import HTTPException
 log = logging.getLogger("sd")
 
 
-def refuse(status: int, code: str, message: str, label: str = "Media store", **fields) -> NoReturn:
-    """Log and raise, leaving out the exception being handled; sdnext logs an API error only when its log limiter lets the path through."""
+def refuse(status: int, code: str, message: str, label: str = "Media store", quiet: bool = False, **fields) -> NoReturn:
+    """Log and raise, leaving out the exception being handled; sdnext logs an API error only when its log limiter lets the path through.
+
+    `quiet` logs at debug, for a state boot already logged once.
+    """
     extra = "".join(f" {key}={value}" for key, value in fields.items())
-    (log.warning if status >= 500 or status == 408 else log.info)(f"{label}: refused status={status} code={code}{extra}: {message}")
+    level = log.debug if quiet else log.warning if status >= 500 or status == 408 else log.info
+    level(f"{label}: refused status={status} code={code}{extra}: {message}")
     raise HTTPException(status_code=status, detail={"code": code, "message": message, **fields}) from None
 
 

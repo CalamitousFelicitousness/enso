@@ -70,7 +70,7 @@ T = TypeVar("T")
 def catalog_or_503() -> tuple[MediaStore, Entries, Records]:
     state = boot.state
     if state.store is None or state.entries is None or state.records is None:
-        refuse(503, "media_store_off", f"Media store off: {state.reason}")
+        refuse(503, "media_store_off", f"Media store off: {state.reason}", quiet=True)
     return state.store, state.entries, state.records
 
 
@@ -317,7 +317,7 @@ TRASH_LABEL = "Gallery"
 def deleted_or_503() -> DeletedFiles:
     state = boot.state
     if state.store is None or state.deleted is None:
-        refuse(503, "media_store_off", f"Media store off: {state.reason}", label=TRASH_LABEL)
+        refuse(503, "media_store_off", f"Media store off: {state.reason}", label=TRASH_LABEL, quiet=True)
     return state.deleted
 
 

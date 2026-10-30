@@ -51,7 +51,7 @@ serve_router = APIRouter(prefix="/sdapi/v2", tags=["Media"], dependencies=[Depen
 def store_or_503() -> MediaStore:
     store = boot.state.store
     if store is None:
-        refuse(503, "media_store_off", f"Media store off: {boot.state.reason}")
+        refuse(503, "media_store_off", f"Media store off: {boot.state.reason}", quiet=True)
     return store
 
 
