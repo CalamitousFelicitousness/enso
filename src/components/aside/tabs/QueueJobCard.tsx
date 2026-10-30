@@ -7,7 +7,7 @@ import { useRunAgain } from "@/hooks/useRunAgain";
 import { useJobFact } from "@/hooks/useJobFact";
 import { queueSlots, type QueueAction } from "@/lib/jobs/cardActions";
 import { jobKind } from "@/lib/jobs/domains";
-import { loadsModel } from "@/lib/jobs/requests";
+import { useLoadsModel } from "@/api/hooks/useVideo";
 import { FAILED_WHILE_CLOSED, MOVE_DOWN, MOVE_UP, RUN_AGAIN, slotWords } from "@/lib/jobs/text";
 import { Badge } from "@/components/ui/badge";
 import { JobWarnings } from "@/components/generation/JobWarnings";
@@ -103,6 +103,7 @@ export function QueueJobCard({
     });
   }, [cancelJob, job.id, job.status]);
 
+  const loads = useLoadsModel(job.request?.type ?? "", job.request);
   const act: Record<QueueAction, () => void> = {
     moveUp: () => onMoveUp(job),
     moveDown: () => onMoveDown(job),
@@ -116,7 +117,7 @@ export function QueueJobCard({
       status: job.status,
       domain: job.domain,
       hasResult: job.result !== null,
-      loads: job.request ? loadsModel(job.request.type ?? "", job.request) : null,
+      loads,
     },
     facts,
     place,

@@ -15,7 +15,7 @@ import { SAVE_RECIPE } from "@/lib/recipes/text";
 import { useJobFact } from "@/hooks/useJobFact";
 import { historySlots, type HistoryAction } from "@/lib/jobs/cardActions";
 import { jobKind } from "@/lib/jobs/domains";
-import { loadsModel } from "@/lib/jobs/requests";
+import { useLoadsModel } from "@/api/hooks/useVideo";
 import { RESTORE_BOTH, RESTORE_SETTINGS, RUN_AGAIN, slotWords } from "@/lib/jobs/text";
 import { DELETE_JOB, DELETE_JOB_NOTE } from "@/lib/gallery/text";
 import { ageText } from "@/lib/media/text";
@@ -59,6 +59,7 @@ export function HistoryJobCard({ job }: HistoryJobCardProps) {
   const { runAgain, isRunning } = useRunAgain();
   const facts = useJobFact(job.id);
   const [restoring, setRestoring] = useState(false);
+  const loads = useLoadsModel(job.type, job.result?.params);
   const kind = jobKind(job.type);
   const TypeIcon = JOB_ICONS[kind.icon];
   // Video jobs leave `images` empty and carry their poster on the video ref.
@@ -81,7 +82,7 @@ export function HistoryJobCard({ job }: HistoryJobCardProps) {
       type: job.type,
       status: job.status,
       hasParams: job.result !== null,
-      loads: loadsModel(job.type, job.result?.params),
+      loads,
     },
     facts,
   );

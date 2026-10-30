@@ -16,6 +16,8 @@ import { UploadBatch } from "@/inputs/uploads";
 import { UserAbortError } from "@/lib/abort";
 import { replayProblem } from "@/lib/jobs/replay";
 import { loadsModel } from "@/lib/jobs/requests";
+import { loadedVideoModel } from "@/api/hooks/useVideo";
+import { queryClient } from "@/api/queryClient";
 import {
   OTHER_MODEL,
   otherModelText,
@@ -103,7 +105,11 @@ export async function runAgain(jobId: string): Promise<Job | null> {
     const loads = first
       ? { model: first }
       : typeof type === "string"
-        ? loadsModel(type, record.request)
+        ? loadsModel(
+            type,
+            record.request,
+            loadedVideoModel(queryClient.getQueryData(["video-engines"])),
+          )
         : null;
     toast.success(runAgainQueuedText(loads), { id, cancel: undefined });
     return job;

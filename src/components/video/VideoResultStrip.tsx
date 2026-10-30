@@ -37,7 +37,7 @@ import { SlotMenuItem } from "@/components/ui/slot-row";
 import { useJobFact } from "@/hooks/useJobFact";
 import { useRunAgain } from "@/hooks/useRunAgain";
 import { runAgainSlot } from "@/lib/jobs/cardActions";
-import { loadsModel } from "@/lib/jobs/requests";
+import { useLoadsModel } from "@/api/hooks/useVideo";
 import { RESTORE_SETTINGS, RUN_AGAIN, slotWords } from "@/lib/jobs/text";
 import { useHorizontalWheel } from "@/hooks/useHorizontalWheel";
 import { useActiveVideoCaps } from "@/hooks/useActiveVideoCaps";
@@ -69,7 +69,7 @@ const HOVER_DELAY_MS = 300;
 function RunAgainItem({ result }: { result: VideoResult }) {
   const facts = useJobFact(result.id);
   const { runAgain, isRunning } = useRunAgain();
-  const loads = loadsModel(resultJobType(result), result.params);
+  const loads = useLoadsModel(resultJobType(result), result.params);
   const slot = runAgainSlot("runAgain", "completed", facts, loads);
   return (
     <SlotMenuItem

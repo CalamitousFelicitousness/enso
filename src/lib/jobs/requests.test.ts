@@ -15,6 +15,13 @@ describe("loadsModel", () => {
     });
   });
 
+  it("loads nothing when the job's model is the loaded one", () => {
+    const request = { engine: "WAN Video", model: "WAN 2.2 A14B T2V" };
+    expect(loadsModel("video", request, "WAN 2.2 A14B T2V")).toBeNull();
+    expect(loadsModel("video", request, "WAN 2.2 A14B I2V")).toEqual({ model: "WAN 2.2 A14B T2V" });
+    expect(loadsModel("ltx", null, "LTXVideo 2.5 22B T2V Distilled")).toEqual({ model: null });
+  });
+
   it("loads nothing for a cloud video or an image job, and names none it cannot read", () => {
     expect(loadsModel("cloud_video", { model: "veo-3" })).toBeNull();
     expect(loadsModel("generate", { prompt: "x" })).toBeNull();

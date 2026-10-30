@@ -398,12 +398,14 @@ async def get_output(output_id: str):
 
 @router.get("/video/engines", response_model=list[VideoEngine], tags=["Video"])
 async def list_video_engines():
+    from modules.modeldata import model_data
     from modules.video_models import models_def, video_load
 
     from enso_api.util import is_model_cached
     from enso_api.video_caps import group_paths, video_model_mode
 
-    current_loaded = video_load.loaded_model
+    pipe = model_data.sd_model
+    current_loaded = video_load.loaded_model if pipe is not None else None
     result = []
     for engine_name, model_list in models_def.models.items():
         if engine_name == "None":
@@ -415,7 +417,8 @@ async def list_video_engines():
             if not models_def.is_model(m):
                 continue
             cached = is_model_cached(m.repo) if m.repo else False
-            loaded = m.name == current_loaded if current_loaded else False
+            # sdnext keeps the name after another model replaces the pipe; a run reloads on a class mismatch
+            loaded = m.name == current_loaded and (not isinstance(m.repo_cls, type) or isinstance(pipe, m.repo_cls))
             mode = video_model_mode(m)
             details.append(VideoModelEnriched(name=m.name, repo=m.repo or "", url=m.url or "", cached=cached, loaded=loaded, mode=mode, workflow=m.workflow, group_path=groups.get(m.name, [])))
         result.append({"engine": engine_name, "models": model_names, "model_details": details})

@@ -9,8 +9,13 @@ export interface LoadsModel {
   model: string | null;
 }
 
-/** What a job of this type loads when it runs; null for a type that loads nothing. */
-export function loadsModel(type: string, request: unknown): LoadsModel | null {
+/** What a job of this type loads when it runs; null for a type that loads
+ * nothing, or whose model is `loaded`, the video model the server has loaded. */
+export function loadsModel(
+  type: string,
+  request: unknown,
+  loaded: string | null = null,
+): LoadsModel | null {
   if (!LOADS_MODEL.has(type)) return null;
   const params: Record<string, unknown> =
     typeof request === "object" && request !== null ? (request as Record<string, unknown>) : {};
@@ -19,6 +24,9 @@ export function loadsModel(type: string, request: unknown): LoadsModel | null {
     return typeof value === "string" && value.trim() !== "" ? value : null;
   };
   // a video model's name carries its engine's ("WAN 2.2 A14B T2V")
-  if (type === "video") return { model: text("model") ?? text("engine") };
-  return { model: text(type === "framepack" ? "variant" : "model") };
+  const model =
+    type === "video"
+      ? (text("model") ?? text("engine"))
+      : text(type === "framepack" ? "variant" : "model");
+  return model !== null && model === loaded ? null : { model };
 }

@@ -5,13 +5,31 @@ import type { VideoEngine, VideoLoadResponse, VideoModelCaps } from "../types/vi
 import type { LocalVideoModel } from "../types/cloud";
 import { engineToKind, jobTypeToKind } from "@/lib/videoModel";
 import { capsKey } from "@/lib/video/caps";
+import { loadsModel, type LoadsModel } from "@/lib/jobs/requests";
 
-export function useVideoEngines() {
+export function useVideoEngines(enabled = true) {
   return useQuery({
     queryKey: ["video-engines"],
     queryFn: () => api.get<VideoEngine[]>("/sdapi/v2/video/engines"),
     staleTime: 300_000,
+    enabled,
   });
+}
+
+/** The video model the server has loaded, by name; null for none. */
+export function loadedVideoModel(engines: VideoEngine[] | undefined): string | null {
+  for (const engine of engines ?? []) {
+    const detail = engine.model_details?.find((d) => d.loaded);
+    if (detail) return detail.name;
+  }
+  return null;
+}
+
+/** What a job loads when it runs, against the video model the server has loaded. */
+export function useLoadsModel(type: string, request: unknown): LoadsModel | null {
+  const named = loadsModel(type, request);
+  const { data } = useVideoEngines(named?.model != null);
+  return named && loadsModel(type, request, loadedVideoModel(data));
 }
 
 // Caps are process-static on the server, so unlike video-engines (whose

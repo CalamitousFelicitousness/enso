@@ -13,7 +13,7 @@ import {
   type Slot,
 } from "@/lib/jobs/cardActions";
 import { isTerminal, isVideoDomain } from "@/lib/jobs/domains";
-import { loadsModel } from "@/lib/jobs/requests";
+import { useLoadsModel } from "@/api/hooks/useVideo";
 import { failedWith } from "@/lib/mediaFiles";
 import { recordTarget, restoreFrom } from "@/lib/request/restore";
 import { useJobQueueStore } from "@/stores/jobStore";
@@ -57,7 +57,7 @@ export function useJobActions(
   });
   const request = useVideoRequest(jobId, typeof facts !== "string" && isVideoDomain(facts.domain));
   const type = request?.["type"];
-  const loads = typeof type === "string" ? loadsModel(type, request) : null;
+  const loads = useLoadsModel(typeof type === "string" ? type : "", request);
   const { runAgain, isRunning } = useRunAgain();
   const restore = (kind: "inputs" | "both") => () => {
     if (!jobId) return;
