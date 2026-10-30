@@ -273,6 +273,10 @@ MEDIA_TYPES = {
     "jxl": "image/jxl",
     "mp4": "video/mp4",
     "webm": "video/webm",
+    "mov": "video/quicktime",
+    "mkv": "video/x-matroska",
+    "avi": "video/x-msvideo",
+    "ts": "video/mp2t",
     "gif": "image/gif",
 }
 

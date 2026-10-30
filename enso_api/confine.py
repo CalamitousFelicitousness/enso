@@ -37,7 +37,7 @@ GALLERY_FOLDERS = (
     "outdir_control_grids",
 )
 
-VIDEO_EXTENSIONS = {".mp4", ".webm", ".mov", ".avi", ".mkv", ".flv", ".wmv", ".m4v"}
+VIDEO_EXTENSIONS = {".mp4", ".webm", ".mov", ".avi", ".mkv", ".ts", ".flv", ".wmv", ".m4v"}
 # What the Gallery lists, mirrored by the client's MEDIA_EXTENSIONS
 GALLERY_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp", ".tiff", ".tif", ".avif"} | VIDEO_EXTENSIONS
 

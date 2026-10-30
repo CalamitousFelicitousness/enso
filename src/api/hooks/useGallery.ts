@@ -100,6 +100,7 @@ const MEDIA_EXTENSIONS = new Set([
   ".mov",
   ".avi",
   ".mkv",
+  ".ts",
   ".flv",
   ".wmv",
   ".m4v",

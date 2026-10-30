@@ -17,6 +17,7 @@ HEIF_BRANDS = {b"mif1", b"msf1"}
 AVIF_BRANDS = {b"avif", b"avis"}
 M4A_BRANDS = {b"M4A ", b"M4B "}
 DIB_HEADER_SIZES = {12, 40, 52, 56, 64, 108, 124}
+TS_PACKET = 188
 
 # Every extension a blob can carry, with the type it is served as
 TYPES = {
@@ -36,6 +37,7 @@ TYPES = {
     "avi": "video/x-msvideo",
     "webm": "video/webm",
     "mkv": "video/x-matroska",
+    "ts": "video/mp2t",
     "wav": "audio/wav",
     "flac": "audio/flac",
     "mp3": "audio/mpeg",
@@ -128,6 +130,9 @@ def sniff(head: bytes) -> Sniffed:
         return media("flac")
     if head.startswith(b"OggS"):
         return media("ogg")
+    # MPEG-TS: a 0x47 sync byte opening every 188-byte packet in the head
+    if len(head) > 2 * TS_PACKET and all(head[i] == 0x47 for i in range(0, len(head), TS_PACKET)):
+        return media("ts")
     for probe in (riff, ftyp, ebml, mpeg_audio, text):
         found = probe(head)
         if found is not None:
