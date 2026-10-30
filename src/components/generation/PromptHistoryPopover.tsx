@@ -4,6 +4,7 @@ import { useGenerationStore } from "@/stores/generationStore";
 import { usePromptHistoryStore, type PromptHistoryEntry } from "@/stores/promptHistoryStore";
 import { CalendarClock, Star, Copy, ClipboardPaste, X, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import { copyText } from "@/lib/clipboard";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
@@ -45,8 +46,9 @@ export function PromptHistoryPopover({ onClose }: PromptHistoryPopoverProps) {
   }
 
   function copy(h: PromptHistoryEntry) {
-    void navigator.clipboard?.writeText(h.prompt);
-    toast.success("Copied to clipboard");
+    void copyText(h.prompt).then((ok) => {
+      if (ok) toast.success("Copied to clipboard");
+    });
   }
 
   const Row = (h: PromptHistoryEntry) => {

@@ -11,6 +11,7 @@ import { useServerLog, useClearLog } from "@/api/hooks/useLog";
 import { useKeepAliveVisible } from "@/components/ui/keep-alive";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { copyText } from "@/lib/clipboard";
 
 interface ParsedLine {
   id: number;
@@ -175,7 +176,7 @@ export function ConsoleTab() {
           l.time ? `${l.time} ${l.level.padEnd(8)} ${l.module}:${l.func}  ${l.msg}` : l.raw,
         )
         .join("\n");
-      await navigator.clipboard.writeText(text);
+      await copyText(text);
     }
   }
 

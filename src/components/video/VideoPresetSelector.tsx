@@ -1,6 +1,7 @@
 import { useState, useCallback, useMemo, useRef } from "react";
 import { Save, Download, Upload, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import { copyText } from "@/lib/clipboard";
 import { Combobox } from "@/components/ui/combobox";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -68,8 +69,9 @@ export function VideoPresetSelector({ domain }: VideoPresetSelectorProps) {
 
   const handleExport = useCallback(() => {
     const json = exportPresets(domain);
-    void navigator.clipboard.writeText(json);
-    toast.success("Presets copied to clipboard");
+    void copyText(json).then((ok) => {
+      if (ok) toast.success("Presets copied to clipboard");
+    });
   }, [domain, exportPresets]);
 
   const handleImportClick = useCallback(() => {

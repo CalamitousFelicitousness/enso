@@ -10,6 +10,7 @@ import { GalleryJobItems } from "./GalleryJob";
 import { sendPictureToCanvas } from "@/lib/sendTo";
 import { galleryPicture } from "@/inputs/adopt";
 import { failedWith } from "@/lib/mediaFiles";
+import { copyText } from "@/lib/clipboard";
 import { isVideoFile } from "@/lib/mediaType";
 import { VIDEO_TO_CANVAS_TEXT } from "@/lib/inputs/text";
 import { gridColumns } from "@/lib/gallery/grid";
@@ -230,7 +231,7 @@ export function GalleryGrid({ actions, trashEmpty }: GalleryGridProps) {
   }, []);
 
   const handleCopyPath = useCallback(() => {
-    if (contextFile) navigator.clipboard.writeText(contextFile.fullPath).catch(() => {});
+    if (contextFile) void copyText(contextFile.fullPath);
   }, [contextFile]);
 
   const handleOpenLightbox = useCallback(() => {

@@ -16,6 +16,7 @@ import { UPLOAD_FAILED } from "@/lib/media/text";
 import { SubmitLabel } from "@/components/ui/submit-label";
 import { CUSTOM_PROMPT_TASKS } from "@/lib/captionModels";
 import { toast } from "sonner";
+import { copyText } from "@/lib/clipboard";
 
 type CaptionDefaultType = "VLM" | "OpenCLiP" | "Tagger";
 
@@ -182,8 +183,9 @@ export function QuickInterrogateDialog({ open, onOpenChange, file }: QuickInterr
 
   const handleCopy = useCallback(() => {
     if (caption) {
-      void navigator.clipboard.writeText(caption);
-      toast.success("Caption copied to clipboard");
+      void copyText(caption).then((ok) => {
+        if (ok) toast.success("Caption copied to clipboard");
+      });
     }
   }, [caption]);
 

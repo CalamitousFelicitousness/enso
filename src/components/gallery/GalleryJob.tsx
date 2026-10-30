@@ -24,6 +24,7 @@ import {
   slotWords,
 } from "@/lib/jobs/text";
 import { SAVE_RECIPE } from "@/lib/recipes/text";
+import { copyText } from "@/lib/clipboard";
 import { cn } from "@/lib/utils";
 
 const ROWS: Record<GalleryAction, { label: string; icon: LucideIcon }> = {
@@ -60,13 +61,11 @@ function CopyJobId({ id }: { id: string | null }) {
       title={id ? `${COPY_JOB_ID} (${id})` : COPY_JOB_ID}
       onClick={() => {
         if (!id) return;
-        void navigator.clipboard
-          .writeText(id)
-          .then(() => {
-            setCopied(true);
-            setTimeout(() => setCopied(false), 1500);
-          })
-          .catch(() => {});
+        void copyText(id).then((ok) => {
+          if (!ok) return;
+          setCopied(true);
+          setTimeout(() => setCopied(false), 1500);
+        });
       }}
     >
       {copied ? <Check size={10} /> : <Copy size={10} />}

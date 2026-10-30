@@ -27,6 +27,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { toast } from "sonner";
+import { copyText } from "@/lib/clipboard";
 import { toDisplayString } from "@/lib/utils";
 import {
   useCivitModel,
@@ -1291,8 +1292,10 @@ export function CivitModelDetail({ modelId, onClose, onSearchCreator }: CivitMod
                           <ContextMenuSeparator />
                           <ContextMenuItem
                             onClick={() => {
-                              void navigator.clipboard.writeText(creatorName);
-                              toast.success("Username copied", { description: creatorName });
+                              void copyText(creatorName).then((ok) => {
+                                if (ok)
+                                  toast.success("Username copied", { description: creatorName });
+                              });
                             }}
                           >
                             <Copy size={14} /> Copy username

@@ -43,6 +43,7 @@ import {
   slotWords,
 } from "@/lib/jobs/text";
 import { toast } from "sonner";
+import { copyText } from "@/lib/clipboard";
 import { admit, announceRefusals } from "@/inputs/admit";
 
 const PARAM_GROUPS: { label: string; keys: string[] }[] = [
@@ -423,9 +424,10 @@ export function PngInfoDialog({ open, onOpenChange }: PngInfoDialogProps) {
     onOpenChange(nextOpen);
   };
 
-  const copyText = useCallback((text: string, label: string) => {
-    void navigator.clipboard.writeText(text);
-    toast.success(`${label} copied to clipboard`);
+  const copyLabelled = useCallback((text: string, label: string) => {
+    void copyText(text).then((ok) => {
+      if (ok) toast.success(`${label} copied to clipboard`);
+    });
   }, []);
 
   // parameters has generation info (Steps, Prompt, Size-1, etc.); items has image metadata (width, height, mode)
@@ -577,7 +579,7 @@ export function PngInfoDialog({ open, onOpenChange }: PngInfoDialogProps) {
                         <PromptSection
                           label="Prompt"
                           text={prompt}
-                          onCopy={() => copyText(prompt, "Prompt")}
+                          onCopy={() => copyLabelled(prompt, "Prompt")}
                           onUse={() => {
                             sendPromptToGeneration(prompt);
                             toast.success("Prompt applied");
@@ -590,7 +592,7 @@ export function PngInfoDialog({ open, onOpenChange }: PngInfoDialogProps) {
                         <PromptSection
                           label="Negative Prompt"
                           text={negativePrompt}
-                          onCopy={() => copyText(negativePrompt, "Negative prompt")}
+                          onCopy={() => copyLabelled(negativePrompt, "Negative prompt")}
                           onUse={() => {
                             sendPromptToGeneration(prompt, negativePrompt);
                             toast.success("Prompts applied");
@@ -637,22 +639,22 @@ export function PngInfoDialog({ open, onOpenChange }: PngInfoDialogProps) {
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="start">
                       {prompt && (
-                        <DropdownMenuItem onClick={() => copyText(prompt, "Prompt")}>
+                        <DropdownMenuItem onClick={() => copyLabelled(prompt, "Prompt")}>
                           Copy Prompt
                         </DropdownMenuItem>
                       )}
                       {negativePrompt && (
                         <DropdownMenuItem
-                          onClick={() => copyText(negativePrompt, "Negative prompt")}
+                          onClick={() => copyLabelled(negativePrompt, "Negative prompt")}
                         >
                           Copy Negative
                         </DropdownMenuItem>
                       )}
-                      <DropdownMenuItem onClick={() => copyText(infoText, "Raw info")}>
+                      <DropdownMenuItem onClick={() => copyLabelled(infoText, "Raw info")}>
                         Copy Raw Info
                       </DropdownMenuItem>
                       {paramLine && (
-                        <DropdownMenuItem onClick={() => copyText(paramLine, "Parameters")}>
+                        <DropdownMenuItem onClick={() => copyLabelled(paramLine, "Parameters")}>
                           Copy Parameters
                         </DropdownMenuItem>
                       )}

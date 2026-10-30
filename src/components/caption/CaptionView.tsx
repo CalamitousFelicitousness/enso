@@ -1,6 +1,7 @@
 import { useCallback } from "react";
 import { Upload, X, Loader2, ImageOff, Copy, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
+import { copyText } from "@/lib/clipboard";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -65,8 +66,9 @@ export function CaptionView() {
 
   const handleCopy = useCallback(() => {
     if (answerText) {
-      void navigator.clipboard.writeText(answerText);
-      toast.success("Copied to clipboard");
+      void copyText(answerText).then((ok) => {
+        if (ok) toast.success("Copied to clipboard");
+      });
     }
   }, [answerText]);
 

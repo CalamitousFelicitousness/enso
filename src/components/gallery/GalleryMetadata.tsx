@@ -10,6 +10,7 @@ import { browserFilePath } from "@/api/browserFile";
 import { mediaUrl, useSessionStore } from "@/api/session";
 import { MediaImg, MediaVideo } from "@/components/ui/media";
 import { isVideoFile } from "@/lib/mediaType";
+import { copyText } from "@/lib/clipboard";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
@@ -127,7 +128,7 @@ export function GalleryMetadata({ trash }: { trash: TrashFileActions | null }) {
   };
 
   const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text).catch(() => {});
+    void copyText(text);
   };
 
   const copyPromptToGeneration = () => {
@@ -397,9 +398,11 @@ function MetaRow({ label, value, copyable }: { label: string; value: string; cop
   const [copied, setCopied] = useState(false);
 
   const handleCopy = () => {
-    navigator.clipboard.writeText(value).catch(() => {});
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
+    void copyText(value).then((ok) => {
+      if (!ok) return;
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    });
   };
 
   return (
@@ -483,9 +486,11 @@ function entriesToText(entries: [string, string][]): string {
 function CopyEntriesButton({ entries }: { entries: [string, string][] }) {
   const [copied, setCopied] = useState(false);
   const handleCopy = () => {
-    navigator.clipboard.writeText(entriesToText(entries)).catch(() => {});
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
+    void copyText(entriesToText(entries)).then((ok) => {
+      if (!ok) return;
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    });
   };
   return (
     <button
@@ -537,9 +542,11 @@ function ParamCell({ label, value }: { label: string; value: string }) {
   const isWide = label.length + value.length > 25;
 
   const handleCopy = () => {
-    navigator.clipboard.writeText(value).catch(() => {});
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
+    void copyText(value).then((ok) => {
+      if (!ok) return;
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    });
   };
 
   return (

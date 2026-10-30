@@ -1,6 +1,7 @@
 import { useState, useMemo, useCallback } from "react";
 import { Copy, ClipboardPaste } from "lucide-react";
 import { toast } from "sonner";
+import { copyText, pasteText } from "@/lib/clipboard";
 import { computeSectionCount } from "@/lib/framepackSections";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -74,18 +75,16 @@ export function SectionTimeline({
   );
 
   const handleCopy = useCallback(() => {
-    void navigator.clipboard.writeText(value);
-    toast.success("Copied section prompts");
+    void copyText(value).then((ok) => {
+      if (ok) toast.success("Copied section prompts");
+    });
   }, [value]);
 
   const handlePaste = useCallback(async () => {
-    try {
-      const text = await navigator.clipboard.readText();
-      onChange(text);
-      toast.success("Pasted section prompts");
-    } catch {
-      toast.error("Failed to read clipboard");
-    }
+    const text = await pasteText();
+    if (text === null) return;
+    onChange(text);
+    toast.success("Pasted section prompts");
   }, [onChange]);
 
   return (

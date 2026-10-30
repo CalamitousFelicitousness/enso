@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { Download, Bookmark, Ban, Check, Search, ExternalLink, Copy, Zap } from "lucide-react";
 import { toast } from "sonner";
+import { copyText } from "@/lib/clipboard";
 import type { CivitModel } from "@/api/types/civitai";
 import {
   useCivitBookmarks,
@@ -147,8 +148,9 @@ export function CivitResultCard({
                 <ContextMenuSeparator />
                 <ContextMenuItem
                   onClick={() => {
-                    void navigator.clipboard.writeText(creatorName);
-                    toast.success("Username copied", { description: creatorName });
+                    void copyText(creatorName).then((ok) => {
+                      if (ok) toast.success("Username copied", { description: creatorName });
+                    });
                   }}
                 >
                   <Copy size={14} /> Copy username
