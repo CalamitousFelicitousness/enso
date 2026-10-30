@@ -318,16 +318,12 @@ def image_seed(img) -> int | None:
     return seed if isinstance(seed, int) else None
 
 
-def image_ref(job_id: str, index: int, img, path, save_images: bool, outdir, params: dict) -> dict | None:
-    """A ref to one output image: the file the pipeline saved, else one saved here, else staged
-    when the request does not save. None when none of those worked."""
+def image_ref(job_id: str, index: int, img, save_images: bool, outdir, params: dict) -> dict | None:
+    """A ref to one output image: saved here, else staged when the request does not save.
+    None when neither worked."""
     url = f"/sdapi/v2/jobs/{job_id}/images/{index}"
     width = img.width if hasattr(img, "width") else 0
     height = img.height if hasattr(img, "height") else 0
-    if path and os.path.isfile(str(path)):
-        path = str(path)
-        ext = os.path.splitext(path)[1].lstrip(".").lower()
-        return {"index": index, "path": path, "url": url, "width": width, "height": height, "format": ext or "png", "size": os.path.getsize(path)}
     if img is None:
         return None
     if save_images:
@@ -365,14 +361,14 @@ def image_ref(job_id: str, index: int, img, path, save_images: bool, outdir, par
     return None
 
 
-def collect_images(job_id: str, output_images: list, saved_paths: list, save_images: bool, outdir, params: dict) -> tuple[list[dict], dict]:
+def collect_images(job_id: str, output_images: list, save_images: bool, outdir, params: dict) -> tuple[list[dict], dict]:
     """Refs to a job's output images and the seeds sdnext recorded for each, in the
     same order, so a seed belongs to the image at its index even when one is missing.
     `outdir` names the folder an image the pipeline did not save is saved to."""
     refs: list[dict] = []
     seeds: list[int | None] = []
     for i, img in enumerate(output_images):
-        ref = image_ref(job_id, i, img, saved_paths[i] if i < len(saved_paths) else None, save_images, outdir, params)
+        ref = image_ref(job_id, i, img, save_images, outdir, params)
         if ref is None:
             continue
         refs.append(ref)
@@ -560,9 +556,6 @@ def execute_generate(params: dict, job_id: str) -> dict:
             # control_run yields the processed picture before and after generation
             if len(item) > 1 and item[1] is not None and all(item[1] is not kept for kept in output_processed):
                 output_processed.append(item[1])
-
-        # Capture saved file paths BEFORE end() clears state.results
-        saved_paths = list(shared.state.results) if hasattr(shared.state, "results") and shared.state.results else []
     finally:
         shared.state.end(jobid)
         if detailer_restore is not None:
@@ -577,7 +570,7 @@ def execute_generate(params: dict, job_id: str) -> dict:
 
         return resolve_output_path(shared.opts.outdir_samples, shared.opts.outdir_img2img_samples if inputs or inits else shared.opts.outdir_txt2img_samples)
 
-    image_refs, seed_info = collect_images(job_id, output_images, saved_paths, save_images, samples_dir, params)
+    image_refs, seed_info = collect_images(job_id, output_images, save_images, samples_dir, params)
 
     # Save processed control images to disk and build refs
     processed_refs = []
@@ -916,7 +909,6 @@ def execute_detail(params: dict, job_id: str) -> dict:
     try:
         processed = processing.process_images_inner(p)
         output_images = list(processed.images) if processed and getattr(processed, "images", None) else []
-        saved_paths = list(shared.state.results) if hasattr(shared.state, "results") and shared.state.results else []
     finally:
         shared.state.end(jobid)
         restore()
@@ -926,7 +918,7 @@ def execute_detail(params: dict, job_id: str) -> dict:
 
         return resolve_output_path(shared.opts.outdir_samples, shared.opts.outdir_img2img_samples)
 
-    image_refs, seed_info = collect_images(job_id, output_images, saved_paths, save_images, samples_dir, params)
+    image_refs, seed_info = collect_images(job_id, output_images, save_images, samples_dir, params)
 
     result = {"images": image_refs, "info": seed_info, "params": {k: v for k, v in params.items() if k != "type"}}
     if not save_images and image_refs:
@@ -1093,20 +1085,16 @@ def execute_video(params: dict, job_id: str) -> dict:
             script_args=video_script_defaults,
             needs_load=needs_load,
         )
-        # Capture saved file paths BEFORE end() clears state.results; in still
-        # mode the product is an image saved through the regular sample path,
-        # and its filename only surfaces here
-        saved_paths = [str(p2) for p2 in (getattr(shared.state, "results", None) or [])]
     finally:
         shared.state.end(jobid)
 
     videos_refs: list[dict] = []
     if res.still:
         still = res.images[0] if res.images else None
-        path = next((p2 for p2 in saved_paths if os.path.isfile(p2)), None)
-        if path is None and still is not None:
-            # samples_save disabled: nothing was written, so save the still
-            # directly to keep the job result addressable
+        path = None
+        if still is not None:
+            # sdnext does not report where it saved the still; save it here to
+            # keep the job result addressable
             from modules import images as img_module
             from modules.paths import resolve_output_path
 
