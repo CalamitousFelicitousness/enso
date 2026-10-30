@@ -19,7 +19,7 @@ def probe_video_file(path: str) -> dict:
     except Exception:
         return info
     try:
-        with av.open(path, metadata_errors="ignore") as container:
+        with av.open(path) as container:
             if container.streams.video:
                 stream = container.streams.video[0]
                 ctx = stream.codec_context
