@@ -354,7 +354,11 @@ class JobQueue:
         if job["status"] == "pending":
             cancelled = self.store.cancel(job_id)
             if cancelled:
-                release_uploads(job_id)
+                # a runner waiting for the lock releases them as it leaves
+                with self.in_flight_lock:
+                    waiting = job_id in self.in_flight
+                if not waiting:
+                    release_uploads(job_id)
                 self.push_progress(job_id, WsEventCancelled().model_dump(exclude_none=True))
             return cancelled
         return self.store.delete(job_id)
@@ -488,6 +492,14 @@ class JobQueue:
             try:
                 self.enter(job_id)
                 stack.callback(self.leave, job_id)
+                # Pending until the lock is free: behind a load or another client's generation the job
+                # would read running, show the holder's progress, and its cancel would interrupt the holder
+                locked = contextlib.ExitStack()
+                stack.callback(locked.close)
+                locked.enter_context(self.sdnext.queue_lock)
+                if not hold_lock:
+                    # the executor's sdnext entry point takes the lock itself
+                    locked.close()
                 if not self.set_status(job_id, "running", current=("pending",), started_at=JobStore.now()):
                     log.info(f"Job queue: skipped id={job_id}, no longer pending")
                     return
@@ -519,9 +531,7 @@ class JobQueue:
                 log.addHandler(capture)
                 stack.callback(log.removeHandler, capture)
 
-                # hold_lock=False for executors whose sdnext entry point acquires
-                # queue_lock internally; serialization still holds, just one level down
-                with self.sdnext.queue_lock if hold_lock else contextlib.nullcontext():
+                with locked:
                     if job_id in self._cancel_ids:
                         if self.set_status(job_id, "cancelled", completed_at=JobStore.now()):
                             self.push_progress(job_id, WsEventStatus(status="cancelled").model_dump(exclude_none=True))

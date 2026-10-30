@@ -244,6 +244,51 @@ def test_a_job_cancelled_before_its_runner_starts_is_skipped(queue, released):
     assert_unwound(queue, "a", released)
 
 
+class WaitingLock(FakeLock):
+    """Runs `waiting` as the lock is taken, standing in for the time another holder keeps it."""
+
+    def __init__(self, waiting):
+        super().__init__()
+        self.waiting = waiting
+
+    def __enter__(self):
+        self.waiting()
+        super().__enter__()
+
+
+def test_a_job_reads_pending_until_it_holds_the_lock(queue, released):
+    seen = []
+    queue.sdnext.queue_lock = WaitingLock(lambda: seen.append(queue.store.get("a")["status"]))
+    queue.sdnext.table["generate"]["fn"] = lambda params, job_id: seen.append(queue.sdnext.queue_lock.held) or done(params, job_id)
+    queue.enqueue("generate", {}, 0, "a")
+    turn(queue)
+    assert seen == ["pending", True]
+    assert queue.store.get("a")["status"] == "completed"
+    assert_unwound(queue, "a", released)
+
+
+def test_a_cancel_while_waiting_for_the_lock_interrupts_nothing(queue, released, monkeypatch):
+    interrupts, calls = [], []
+    monkeypatch.setattr(queue.sdnext.state, "interrupt", lambda: interrupts.append(1))
+    queue.sdnext.queue_lock = WaitingLock(lambda: queue.cancel("a"))
+    queue.sdnext.table["generate"]["fn"] = lambda params, job_id: calls.append(job_id)
+    queue.enqueue("generate", {}, 0, "a")
+    turn(queue)
+    assert (calls, interrupts) == ([], [])
+    assert queue.store.get("a")["status"] == "cancelled"
+    assert_unwound(queue, "a", released)
+
+
+def test_an_executor_that_locks_inside_sdnext_waits_for_the_lock_then_runs_without_it(queue, released):
+    held = []
+    queue.sdnext.table["ltx"] = {"fn": lambda params, job_id: held.append(queue.sdnext.queue_lock.held) or done(params, job_id), "lock": "internal"}
+    queue.enqueue("ltx", {}, 0, "a")
+    turn(queue)
+    assert held == [False]
+    assert queue.store.get("a")["status"] == "completed"
+    assert_unwound(queue, "a", released)
+
+
 def test_a_cloud_job_runs_on_the_pool(queue, released):
     queue._cloud_pool = InlinePool()
     queue.enqueue("cloud", {"seed": 5}, 0, "a")
