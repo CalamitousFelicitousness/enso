@@ -168,6 +168,8 @@ export function runAgainQueuedText(loads: LoadsModel | null): string {
 }
 
 export const RUN_AGAIN_FAILED = "Could not run the job again";
+export const JOB_DELETED = "Job deleted";
+export const DELETE_JOB_FAILED = "Could not delete the job";
 export const OTHER_MODEL = "Running on a different model";
 
 export function otherModelText(ranOn: string, loaded: string): string {

@@ -8,7 +8,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import type { Job } from "@/api/types/v2";
-import { useDeleteJob } from "@/api/hooks/useJobs";
+import { deleteJobWithUndo } from "@/inputs/jobDelete";
 import { useRunAgain } from "@/hooks/useRunAgain";
 import { saveRecipe } from "@/inputs/recipes";
 import { SAVE_RECIPE } from "@/lib/recipes/text";
@@ -55,7 +55,6 @@ interface HistoryJobCardProps {
 }
 
 export function HistoryJobCard({ job }: HistoryJobCardProps) {
-  const deleteJob = useDeleteJob();
   const { runAgain, isRunning } = useRunAgain();
   const facts = useJobFact(job.id);
   const [restoring, setRestoring] = useState(false);
@@ -75,7 +74,7 @@ export function HistoryJobCard({ job }: HistoryJobCardProps) {
     restoreBoth: () => restore(true),
     runAgain: () => void runAgain(job.id),
     saveRecipe: () => void saveRecipe({ kind: "job", job }),
-    delete: () => deleteJob.mutate(job.id),
+    delete: () => deleteJobWithUndo(job.id),
   };
   const slots = historySlots(
     {

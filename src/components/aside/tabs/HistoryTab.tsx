@@ -28,6 +28,7 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { HistoryJobCard } from "./HistoryJobCard";
+import { useHeldDeletes } from "@/inputs/jobDelete";
 import { HistoryBulkDeleteDialog } from "./HistoryBulkDeleteDialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
@@ -80,6 +81,8 @@ export function HistoryTab() {
     limit: PAGE_SIZE,
     offset: page * PAGE_SIZE,
   });
+  const held = useHeldDeletes((s) => s.ids);
+  const items = data?.items.filter((job) => !held.has(job.id));
 
   const bulkAction = useBulkJobAction();
 
@@ -245,7 +248,7 @@ export function HistoryTab() {
             <p className="text-xs text-muted-foreground px-3 py-4 text-center">Loading...</p>
           )}
 
-          {!isLoading && data && data.items.length === 0 && (
+          {!isLoading && items && items.length === 0 && (
             <div className="flex flex-col items-center gap-2 px-3 py-8 text-muted-foreground">
               <History className="h-8 w-8 opacity-30" />
               <p className="text-xs text-center">
@@ -254,7 +257,7 @@ export function HistoryTab() {
             </div>
           )}
 
-          {data?.items.map((job) => (
+          {items?.map((job) => (
             <HistoryJobCard key={job.id} job={job} />
           ))}
         </div>
