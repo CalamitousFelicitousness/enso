@@ -16,7 +16,7 @@ import {
 import type { OutputFileState } from "@/lib/gallery/trash";
 
 // The narrowest tile that holds the words on one line, clear of the cover's badges
-const WORDS_FROM = 72;
+export const WORDS_FROM = 72;
 
 /** A result whose file left its folder: the picture dimmed under the trash glyph,
  * or a crossed picture once the file is deleted for good, and a word where the tile

@@ -122,6 +122,8 @@ def broken_thumbnail(filepath: str, reason: str) -> dict:
         stat_size = 0
         mtime_ms = 0
     size = shared.opts.extra_networks_card_size
+    # decoder errors quote the path they opened; the page shows the file's name
+    reason = reason.replace(filepath, os.path.basename(filepath))
     return {
         "exif": f"Broken file: {reason}",
         "data": PLACEHOLDER_BROKEN_DATA_URL,

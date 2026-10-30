@@ -141,26 +141,26 @@ export function GalleryLightbox() {
         <div className="flex items-center gap-1">
           {!isVideo && (
             <>
-              <LightboxButton onClick={() => zoom.setScale((s) => s * 1.25)}>
+              <LightboxButton label="Zoom in" onClick={() => zoom.setScale((s) => s * 1.25)}>
                 <ZoomIn size={16} />
               </LightboxButton>
-              <LightboxButton onClick={() => zoom.setScale((s) => s / 1.25)}>
+              <LightboxButton label="Zoom out" onClick={() => zoom.setScale((s) => s / 1.25)}>
                 <ZoomOut size={16} />
               </LightboxButton>
-              <LightboxButton onClick={zoom.resetTransform}>
+              <LightboxButton label="Reset zoom" onClick={zoom.resetTransform}>
                 <RotateCcw size={16} />
               </LightboxButton>
               <span className="text-3xs text-white/50 font-mono tabular-nums w-10 text-center">
                 {Math.round(zoom.scale * 100)}%
               </span>
               {fileCount > 1 && (
-                <LightboxButton onClick={handleCompare}>
+                <LightboxButton label="Compare" onClick={handleCompare}>
                   <GitCompareArrows size={16} />
                 </LightboxButton>
               )}
             </>
           )}
-          <LightboxButton onClick={closeLightbox}>
+          <LightboxButton label="Close lightbox" onClick={closeLightbox}>
             <X size={16} />
           </LightboxButton>
         </div>
@@ -222,6 +222,9 @@ export function GalleryLightbox() {
       {/* Navigation arrows */}
       {lightboxIndex > 0 && (
         <button
+          type="button"
+          aria-label="Previous image"
+          title="Previous image"
           className="absolute left-2 top-1/2 -translate-y-1/2 w-10 h-10 flex items-center justify-center rounded-full bg-black/50 text-white/70 hover:text-white hover:bg-black/70 transition-colors"
           onClick={(e) => {
             e.stopPropagation();
@@ -233,6 +236,9 @@ export function GalleryLightbox() {
       )}
       {lightboxIndex < maxIndex && (
         <button
+          type="button"
+          aria-label="Next image"
+          title="Next image"
           className="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 flex items-center justify-center rounded-full bg-black/50 text-white/70 hover:text-white hover:bg-black/70 transition-colors"
           onClick={(e) => {
             e.stopPropagation();
@@ -258,9 +264,20 @@ export function GalleryLightbox() {
   );
 }
 
-function LightboxButton({ children, onClick }: { children: React.ReactNode; onClick: () => void }) {
+function LightboxButton({
+  label,
+  children,
+  onClick,
+}: {
+  label: string;
+  children: React.ReactNode;
+  onClick: () => void;
+}) {
   return (
     <button
+      type="button"
+      aria-label={label}
+      title={label}
       onClick={onClick}
       className="w-8 h-8 flex items-center justify-center rounded text-white/70 hover:text-white hover:bg-white/10 transition-colors"
     >

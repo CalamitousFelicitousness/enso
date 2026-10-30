@@ -406,7 +406,7 @@ const BatchTile = memo(function BatchTile({
                 image={result.images[coverIndex]}
                 alt="Batch cover"
                 className="h-full w-full object-cover"
-                compact={size < 48}
+                size={size}
               />
               <OutputTrashMark id={coverId} state={coverState} size={size} />
               {inTrash > 0 && (
@@ -565,7 +565,7 @@ const ResultThumb = memo(function ResultThumb({
             image={item.image}
             alt="Result"
             className="w-full h-full object-cover"
-            compact={size < 48}
+            size={size}
           />
           <OutputTrashMark id={describedBy} state={fileState} size={size} />
 

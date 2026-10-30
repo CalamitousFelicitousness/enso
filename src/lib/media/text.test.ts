@@ -175,7 +175,7 @@ describe("the words of the library and its trash", () => {
       "Delete 3 saved entries (2 removed by others) for everyone? They cannot be brought back.",
     );
     expect(emptyBothText(1, 0, { count: 0, name: null }, 2 * MB, null)).toBe(
-      "Delete 1 removed input from this browser? About 2 MB here are freed. They cannot be brought back.",
+      "Delete 1 removed input from this browser? About 2 MB here is freed. It cannot be brought back.",
     );
   });
 

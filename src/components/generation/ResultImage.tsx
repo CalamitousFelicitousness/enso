@@ -1,14 +1,15 @@
 import { ImageOff } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useMediaSrc } from "@/hooks/useMediaSrc";
+import { WORDS_FROM } from "./OutputTrash";
 
 interface ResultImageProps {
   /** Durable output URL, data URI, blob URL, or raw base64. */
   image: string;
   alt: string;
   className?: string;
-  /** Drop the caption in tiles too small to fit it. */
-  compact?: boolean;
+  /** The tile's side in px, which sizes the placeholder; none for a large view. */
+  size?: number;
 }
 
 /**
@@ -17,7 +18,7 @@ interface ResultImageProps {
  * swept, files the user deleted, and staged unsaved outputs past their TTL.
  * A broken-image glyph reads as a bug; this reads as a fact about the file.
  */
-export function ResultImage({ image, alt, className, compact }: ResultImageProps) {
+export function ResultImage({ image, alt, className, size }: ResultImageProps) {
   const media = useMediaSrc(image);
 
   if (media.failed) {
@@ -29,8 +30,10 @@ export function ResultImage({ image, alt, className, compact }: ResultImageProps
           className,
         )}
       >
-        <ImageOff className={compact ? "size-3" : "size-4"} aria-hidden />
-        {!compact && <span className="text-3xs leading-none">Unavailable</span>}
+        <ImageOff className={size !== undefined && size < 48 ? "size-3" : "size-4"} aria-hidden />
+        {(size === undefined || size >= WORDS_FROM) && (
+          <span className="text-3xs leading-none">Unavailable</span>
+        )}
       </div>
     );
   }

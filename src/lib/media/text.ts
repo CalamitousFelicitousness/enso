@@ -426,8 +426,12 @@ export function emptyBothText(
     removals > 0 ? sizePart(here, "here") : null,
     entries > 0 ? sizePart(server, "on the server") : null,
   ].filter((s): s is string => s !== null);
-  const freed = sizes.length > 0 ? ` ${capitalised(sizes.join(" and "))} are freed.` : "";
-  return `Delete ${parts.join(" and ")}?${freed} They cannot be brought back.`;
+  const freed =
+    sizes.length > 0
+      ? ` ${capitalised(sizes.join(" and "))} ${sizes.length > 1 ? "are" : "is"} freed.`
+      : "";
+  const gone = removals + entries === 1 ? "It cannot" : "They cannot";
+  return `Delete ${parts.join(" and ")}?${freed} ${gone} be brought back.`;
 }
 
 /** After deleting from the trash on the server: what it freed, and that the
