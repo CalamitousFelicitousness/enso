@@ -24,6 +24,22 @@ export type VideoModelCaps = DeepRequired<
 // lockstep with the Pydantic-side Literal in enso_api/models.py.
 export type VideoMode = VideoModelEnriched["mode"];
 
+/** One encoder preset from sdnext's GET /sdapi/v1/video/codecs, an sdnext route outside the snapshot. */
+export interface VideoCodec {
+  name: string;
+  title: string;
+  description: string;
+  ext: string;
+  allowed_exts: string[];
+  /** key=value pairs joined by ":" */
+  options: string;
+  pix_fmt: string | null;
+  /** null when the encoder is not available */
+  hardware: boolean | null;
+  /** compiled into the server's av build; null when av is not installed */
+  available: boolean | null;
+}
+
 // Local UI types - not in OpenAPI by design.
 //
 // VideoResult is a store shape composed after the wire response arrives;

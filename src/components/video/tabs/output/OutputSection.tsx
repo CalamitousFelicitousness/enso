@@ -8,7 +8,15 @@ import { Combobox } from "@/components/ui/combobox";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { OUTPUT_PRESETS, qualityToCrf, crfToQuality } from "@/lib/videoOutputPresets";
-import type { VideoModelCaps } from "@/api/types/video";
+import {
+  FALLBACK_CODECS,
+  codecRow,
+  formatsFor,
+  outputProblem,
+  pickCodec,
+} from "@/lib/video/codecs";
+import { useVideoCodecs } from "@/api/hooks/useVideo";
+import type { VideoCodec, VideoModelCaps } from "@/api/types/video";
 
 const FPS_HELP =
   "Playback rate written into the output container.<br>On <b><i>Frames</i></b>-based models the frame count is fixed, so this only sets playback speed: length in seconds = frames / FPS. On <b><i>Duration</i></b>-based models the frame count comes from duration x FPS, so raising it renders more frames and costs proportionally more.<br><br>Some models lock the rate they were trained at and disable this.";
@@ -17,6 +25,28 @@ const presetOptions = OUTPUT_PRESETS.map((p) => p.id);
 const presetLabels: Record<string, string> = Object.fromEntries(
   OUTPUT_PRESETS.map((p) => [p.id, p.label]),
 );
+
+function codecGroups(codecs: readonly VideoCodec[]) {
+  const option = (c: VideoCodec) => ({
+    value: c.name,
+    label: c.title,
+    disabled: c.available !== true,
+  });
+  return [
+    { heading: "Software", options: codecs.filter((c) => c.available && !c.hardware).map(option) },
+    { heading: "Hardware", options: codecs.filter((c) => c.available && c.hardware).map(option) },
+    { heading: "Not available", options: codecs.filter((c) => !c.available).map(option) },
+  ].filter((g) => g.options.length > 0);
+}
+
+function codecLabel(value: string, label: string) {
+  if (label === value) return value;
+  return (
+    <>
+      {label} <span className="text-muted-foreground">{value}</span>
+    </>
+  );
+}
 
 export function OutputSection({ caps }: { caps?: VideoModelCaps }) {
   const fps = useVideoStore((s) => s.fps);
@@ -33,6 +63,12 @@ export function OutputSection({ caps }: { caps?: VideoModelCaps }) {
   const width = useVideoStore((s) => s.width);
   const fpResolution = useVideoStore((s) => s.fpResolution);
   const setParam = useVideoStore((s) => s.setParam);
+  const codecQuery = useVideoCodecs();
+  const codecs = useMemo(
+    () => codecQuery.data ?? (codecQuery.isError ? FALLBACK_CODECS : []),
+    [codecQuery.data, codecQuery.isError],
+  );
+  const groups = useMemo(() => codecGroups(codecs), [codecs]);
 
   const isCustom = outputPreset === "custom";
   const isLossless = outputPreset === "lossless";
@@ -70,7 +106,18 @@ export function OutputSection({ caps }: { caps?: VideoModelCaps }) {
     setParam("codecOptions", hasExtraOpts ? `${crfStr},${hasExtraOpts}` : crfStr);
   };
 
+  const handleCodecChange = (name: string) => {
+    setParam("codec", name);
+    const row = codecRow(codecs, name);
+    if (!row) return;
+    const next = pickCodec(row, format);
+    setParam("format", next.format);
+    setParam("codecOptions", next.codecOptions);
+  };
+
   const presetDescription = OUTPUT_PRESETS.find((p) => p.id === outputPreset)?.description;
+  const codecDescription = codecRow(codecs, codec)?.description;
+  const problem = isCustom ? outputProblem(codecs, codec, format) : null;
 
   return (
     <SectionLeader title="Output" collapsible defaultCollapsed>
@@ -112,20 +159,26 @@ export function OutputSection({ caps }: { caps?: VideoModelCaps }) {
             <Label className="text-2xs text-muted-foreground w-16 shrink-0">Codec</Label>
             <Combobox
               value={codec}
-              onValueChange={(v) => setParam("codec", v)}
-              options={["libx264", "libx265", "libvpx-vp9", "libaom-av1", "ffv1"]}
+              onValueChange={handleCodecChange}
+              groups={groups}
+              renderLabel={codecLabel}
+              searchPlaceholder="Search codecs..."
               className="h-6 text-2xs flex-1"
             />
           </div>
+          {codecDescription && (
+            <p className="text-3xs text-muted-foreground ml-18 pl-0.5">{codecDescription}</p>
+          )}
           <div className="flex items-center gap-2">
             <Label className="text-2xs text-muted-foreground w-16 shrink-0">Format</Label>
             <Combobox
               value={format}
               onValueChange={(v) => setParam("format", v)}
-              options={["mp4", "webm", "mkv", "gif"]}
+              options={formatsFor(codecs, codec)}
               className="h-6 text-2xs flex-1"
             />
           </div>
+          {problem && <p className="text-3xs text-amber-500 ml-18 pl-0.5">{problem}</p>}
           <div className="flex items-center gap-2">
             <ParamLabel
               className="text-2xs text-muted-foreground w-16 shrink-0"

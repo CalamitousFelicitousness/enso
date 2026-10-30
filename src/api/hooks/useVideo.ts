@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "../client";
-import type { VideoEngine, VideoLoadResponse, VideoModelCaps } from "../types/video";
+import type { VideoCodec, VideoEngine, VideoLoadResponse, VideoModelCaps } from "../types/video";
 import type { LocalVideoModel } from "../types/cloud";
 import { engineToKind, jobTypeToKind } from "@/lib/videoModel";
 import { capsKey } from "@/lib/video/caps";
@@ -46,6 +46,17 @@ export function useVideoCaps(): Map<string, VideoModelCaps> {
     for (const c of data ?? []) map.set(capsKey(c.engine, c.model), c);
     return map;
   }, [data]);
+}
+
+// The encoder table is fixed for the server process; a server without the
+// route answers 404, which the caller turns into the fallback list.
+export function useVideoCodecs() {
+  return useQuery({
+    queryKey: ["video-codecs"],
+    queryFn: () => api.get<VideoCodec[]>("/sdapi/v1/video/codecs"),
+    staleTime: Infinity,
+    retry: false,
+  });
 }
 
 export function useLoadVideoModel() {
