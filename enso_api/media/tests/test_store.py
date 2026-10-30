@@ -33,7 +33,11 @@ def test_the_same_bytes_again_are_held(store, clock):
 
 
 def test_a_lost_row_heals_on_ingest(store, layout):
+    heals = []
+    store.healed = lambda: heals.append(1)
     row, _ = put(store, png(1))
+    put(store, png(1))
+    assert not heals
     os.remove(layout.blob_path(row.hash, row.ext))
     assert store.claim([row.hash]).lost == [row.hash]
     assert store.row(row.hash).lost_at is not None
@@ -41,6 +45,7 @@ def test_a_lost_row_heals_on_ingest(store, layout):
     assert not created
     assert healed.lost_at is None
     assert store.get(row.hash) is not None
+    assert len(heals) == 1
 
 
 def test_a_file_of_another_size_is_replaced(store, layout):

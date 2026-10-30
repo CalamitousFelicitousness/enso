@@ -12,6 +12,7 @@ from enso_api.media.layout import OPTION_LABEL, Layout, configured_path, pending
 from enso_api.media.records import Records
 from enso_api.media.schema import MIGRATIONS
 from enso_api.media.store import MediaStore
+from enso_api.media.worker import publish_media
 from enso_api.sqlite import Database, NewerDatabase
 
 log = logging.getLogger("sd")
@@ -151,7 +152,7 @@ def init(data_dir: str) -> None:
                 f.write(layout.root + "\n")
         except OSError as e:
             log.warning(f"Media store: could not record the root in {marker_path}: {e}")
-    store = MediaStore(layout, db)
+    store = MediaStore(layout, db, healed=publish_media)
     # Before the queue names its pending jobs' uploads: a row a power loss dropped is taken back in from its file first
     reconcile(store, layout, walk=True)
     taken = store.take_legacy_uploads(uploads)
@@ -173,7 +174,7 @@ def start() -> None:
         return
     from enso_api.job_queue import job_queue
     from enso_api.media import collector, verify
-    from enso_api.media.worker import MediaWorker, publish_media
+    from enso_api.media.worker import MediaWorker
     from enso_api.recipes import identity
 
     store = state.store

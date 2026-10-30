@@ -130,11 +130,13 @@ def folder_term(path: str) -> Term:
 
 
 class MediaStore:
-    def __init__(self, layout: Layout, db: Database, now: Callable[[], int] = now_ms, inflight: Inflight | None = None):
+    def __init__(self, layout: Layout, db: Database, now: Callable[[], int] = now_ms, inflight: Inflight | None = None, healed: Callable[[], None] | None = None):
         self.layout = layout
         self.db = db
         self.now = now
         self.inflight = inflight or Inflight()
+        # Called after an ingest brings back bytes the store had lost
+        self.healed = healed or (lambda: None)
         self.settings_logged: set[str] = set()
 
     # bytes
@@ -161,7 +163,8 @@ class MediaStore:
         with self.db.write() as w:
             found = w.conn.execute("SELECT * FROM blobs WHERE hash = ?", (finished.digest,)).fetchone()
             existing = BlobRow.from_row(found) if found else None
-            if existing is not None and existing.lost_at is None and self.file_ok(existing):
+            held = existing is not None and existing.lost_at is None and self.file_ok(existing)
+            if held:
                 try:
                     os.replace(part_path, self.path(existing))
                     fsync_dir(self.layout.fan_dir(finished.digest))
@@ -193,6 +196,8 @@ class MediaStore:
                     (finished.digest, ext, finished.size, kind, now, now, now, int(transient), width, height),
                 )
             row = BlobRow.from_row(w.conn.execute("SELECT * FROM blobs WHERE hash = ?", (finished.digest,)).fetchone())
+        if existing is not None and not held:
+            self.healed()
         return row, existing is None
 
     def ingest_chunks(self, chunks_in: Iterable[bytes], declared: int, transient: bool = False) -> tuple[BlobRow, bool]:
