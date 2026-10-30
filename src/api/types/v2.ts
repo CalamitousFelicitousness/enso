@@ -401,6 +401,10 @@ export interface ProcessDlssParams {
   fg_mode: string;
   fg_factor: number;
   fg_threshold: number;
+  mp4_codec: string;
+  mp4_ext: string;
+  mp4_pix: string;
+  mp4_opt: string;
 }
 
 export interface ProcessCreateVideoParams {

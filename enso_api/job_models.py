@@ -1207,6 +1207,10 @@ class ProcessDlssParams(StrictBaseModel):
     fg_mode: str = "fps"
     fg_factor: int = 2
     fg_threshold: float = 0.4
+    mp4_codec: str = "libx264"
+    mp4_ext: str = "mp4"
+    mp4_pix: str = "yuv420p"
+    mp4_opt: str = "crf=18:preset=medium"
 
 
 class ProcessCreateVideoParams(StrictBaseModel):

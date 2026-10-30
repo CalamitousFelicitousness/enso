@@ -7740,6 +7740,26 @@
             "title": "Fg Threshold",
             "type": "number"
           },
+          "mp4_codec": {
+            "default": "libx264",
+            "title": "Mp4 Codec",
+            "type": "string"
+          },
+          "mp4_ext": {
+            "default": "mp4",
+            "title": "Mp4 Ext",
+            "type": "string"
+          },
+          "mp4_opt": {
+            "default": "crf=18:preset=medium",
+            "title": "Mp4 Opt",
+            "type": "string"
+          },
+          "mp4_pix": {
+            "default": "yuv420p",
+            "title": "Mp4 Pix",
+            "type": "string"
+          },
           "nr_blend": {
             "default": 0.73974,
             "title": "Nr Blend",

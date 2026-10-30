@@ -200,6 +200,10 @@ export const DEFAULT_SECTIONS: ProcessSections = {
       fg_mode: "fps",
       fg_factor: 2,
       fg_threshold: 0.4,
+      mp4_codec: "libx264",
+      mp4_ext: "mp4",
+      mp4_pix: "yuv420p",
+      mp4_opt: "crf=18:preset=medium",
     },
   },
   createVideo: {
