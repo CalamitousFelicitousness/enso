@@ -2,7 +2,8 @@ import os
 
 import pytest
 
-from enso_api.media.collector import HOUR_MS, free_now
+from enso_api.media import collector
+from enso_api.media.collector import HOUR_MS, free_now, reconcile
 from enso_api.media.entries import MAX_PINNED, Entries, EntryIn, EntryPatch, EntryRank, Gone, Refused, evict_past_cap, evictions
 from enso_api.media.settings import DAY_MS
 from enso_api.media.tests.helpers import link_record, png, put
@@ -220,6 +221,34 @@ def test_emptying_frees_what_only_those_entries_named_and_nothing_touched_within
     assert store.row(alone) is None and not os.path.exists(alone_path)
     assert store.row(shared) is not None and store.row(recorded) is not None and store.row(claimed) is not None
     assert store.row(claimed).unnamed_since is not None
+
+
+def test_a_lost_blob_is_neither_reclaimable_nor_counted_as_freed(entries, store, clock):
+    (lost,) = blobs(store, 1)
+    clock.advance(2 * HOUR_MS)
+    entries.save(entry("trash", {"a": lost}), None, False)
+    entries.patch("trash", EntryPatch(trashed=True), None)
+    os.remove(store.path(store.row(lost)))
+    reconcile(store, store.layout, walk=True)
+    assert store.row(lost).lost_at is not None
+    assert entries.reclaimable() == 0
+    assert free_now(store, entries.delete(["trash"]).hashes) == 0
+    assert store.row(lost) is None
+
+
+def test_a_file_that_cannot_be_removed_is_not_counted_as_freed(entries, store, clock, monkeypatch):
+    (stuck,) = blobs(store, 1)
+    clock.advance(2 * HOUR_MS)
+    entries.save(entry("trash", {"a": stuck}), None, False)
+    entries.patch("trash", EntryPatch(trashed=True), None)
+    path = store.path(store.row(stuck))
+
+    def refuse(_path):
+        raise PermissionError("busy")
+
+    monkeypatch.setattr(collector.os, "remove", refuse)
+    assert free_now(store, entries.delete(["trash"]).hashes) == 0
+    assert store.row(stuck) is None and os.path.exists(path)
 
 
 def test_evictions_are_stable_under_ties_and_keep_the_kept_row():

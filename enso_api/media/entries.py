@@ -398,10 +398,10 @@ class Entries:
         return deleted
 
     def reclaimable(self) -> int:
-        """The bytes named by trashed entries and by nothing else."""
+        """The bytes on disk named by trashed entries and by nothing else."""
         with self.db.read(snapshot=True) as conn:
             return conn.execute(
-                "SELECT COALESCE(SUM(size), 0) FROM blobs WHERE hash IN"
+                "SELECT COALESCE(SUM(size), 0) FROM blobs WHERE lost_at IS NULL AND hash IN"
                 " (SELECT eb.hash FROM entry_blobs eb JOIN entries e ON e.id = eb.entry_id WHERE e.trashed_at IS NOT NULL)"
                 " AND hash NOT IN (SELECT eb.hash FROM entry_blobs eb JOIN entries e ON e.id = eb.entry_id WHERE e.trashed_at IS NULL)"
                 " AND hash NOT IN (SELECT hash FROM record_blobs) AND hash NOT IN (SELECT hash FROM job_blobs)"

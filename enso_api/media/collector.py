@@ -213,14 +213,15 @@ def delete_blobs(store: MediaStore, hashes: tuple[str, ...], predicate: str, bin
                     applied.kept += 1
             w.commit()
             for blob in gone:
+                applied.blobs += 1
                 try:
                     os.remove(store.path(blob))
                 except FileNotFoundError:
-                    pass
+                    continue
                 except OSError as e:
                     # The file stays as a stray, adopted with a fresh grace by the next walk
                     log.warning(f"Media store: {blob.hash}.{blob.ext} left on disk: {e}")
-                applied.blobs += 1
+                    continue
                 applied.bytes += blob.size
 
 
