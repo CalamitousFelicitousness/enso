@@ -101,7 +101,6 @@ test("a reference goes out at the size the model resizes it to", async ({ page, 
   await expect(app.leftPanel.getByText(`${size} (from 3180×5772)`)).toBeVisible();
   await app.setPrompt("Keep the picture as it is.");
   await app.setSize(704, 1280);
-  await app.setSampler("Euler", "Default");
   await app.setSteps(8);
 
   const media = watchMedia(page);

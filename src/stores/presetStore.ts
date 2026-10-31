@@ -86,7 +86,7 @@ const BUILT_IN_PRESETS: GenerationPreset[] = [
     compatibleTypes: ["f1", "f2"],
     builtIn: true,
     createdAt: 0,
-    params: { width: 1024, height: 1024, sampler: "Euler", steps: 20, cfgScale: 1, flowShift: 3 },
+    params: { width: 1024, height: 1024, sampler: "Default", steps: 20, cfgScale: 1, flowShift: 3 },
   },
   {
     id: "builtin-sd3-default",
@@ -94,7 +94,7 @@ const BUILT_IN_PRESETS: GenerationPreset[] = [
     compatibleTypes: ["sd3"],
     builtIn: true,
     createdAt: 0,
-    params: { width: 1024, height: 1024, sampler: "Euler", steps: 28, cfgScale: 5 },
+    params: { width: 1024, height: 1024, sampler: "Default", steps: 28, cfgScale: 5 },
   },
   {
     id: "builtin-portrait",
@@ -140,7 +140,7 @@ const BUILT_IN_PRESETS: GenerationPreset[] = [
     compatibleTypes: ALL_TYPES,
     builtIn: true,
     createdAt: 0,
-    params: { sampler: "Euler", steps: 4, cfgScale: 1 },
+    params: { sampler: "Default", steps: 4, cfgScale: 1 },
   },
 ];
 

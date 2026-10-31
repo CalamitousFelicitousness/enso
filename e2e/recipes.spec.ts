@@ -51,7 +51,6 @@ test("a recipe goes out as a file, comes back, and runs with its seed", async ({
   const prompt = `a lighthouse on a cliff at dusk ${Date.now().toString(36)}`;
   await app.setPrompt(prompt);
   await app.setSize(BASE.width, BASE.height);
-  await app.setSampler("Euler", "Default");
   await app.setSteps(8);
   const first: Job = await app.generate();
   expect(first.error ?? null).toBeNull();

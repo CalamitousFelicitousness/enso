@@ -22,8 +22,6 @@ async function prepare(app: Enso): Promise<void> {
   await app.addReferences(PORTRAIT);
   await app.setPrompt(EDIT);
   await app.setSize(BASE.width, BASE.height);
-  // The first-run sampler is Euler, which flow-match models reject
-  await app.setSampler("Euler", "Default");
   await app.setSteps(8);
 }
 

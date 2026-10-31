@@ -243,7 +243,7 @@ export const defaultParams = {
   prompt: "",
   negativePrompt: "",
   styles: [] as string[],
-  sampler: "Euler",
+  sampler: "Default",
   steps: 20,
   width: 1024,
   height: 1024,

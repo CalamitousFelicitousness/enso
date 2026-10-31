@@ -104,7 +104,6 @@ test("the trash counts the Gallery's files on a line of its own", async ({ page 
   await app.open();
   await app.setPrompt("A lighthouse at dusk, oil painting");
   await app.setSize(704, 1280);
-  await app.setSampler("Euler", "Default");
   await app.setSteps(8);
   const job = await app.generate();
   jobs.push(job.id);

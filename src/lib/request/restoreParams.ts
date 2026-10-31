@@ -81,7 +81,7 @@ export function extractParams(source: SettingsSource): ExtractedSettings {
     styles: Array.isArray(p.styles) ? p.styles : [],
 
     // Sampler
-    sampler: str(p.sampler_name, "Euler"),
+    sampler: str(p.sampler_name, "Default"),
     steps: num(p.steps, 20),
 
     // Resolution - control uses width_before/height_before, legacy uses width/height

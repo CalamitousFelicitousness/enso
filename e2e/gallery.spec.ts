@@ -25,7 +25,6 @@ test.afterEach(async ({ request }) => {
 async function generate(app: Enso): Promise<Job> {
   await app.setPrompt("A lighthouse at dusk, oil painting");
   await app.setSize(704, 1280);
-  await app.setSampler("Euler", "Default");
   await app.setSteps(8);
   const job = await app.generate();
   jobs.push(job.id);

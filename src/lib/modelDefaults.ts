@@ -11,9 +11,9 @@ type PartialGenParams = Partial<
 const MODEL_DEFAULTS: Record<string, PartialGenParams> = {
   sd: { width: 512, height: 512, cfgScale: 7, steps: 20, sampler: "DPM++ 2M" },
   sdxl: { width: 1024, height: 1024, cfgScale: 7, steps: 20, sampler: "DPM++ 2M" },
-  sd3: { width: 1024, height: 1024, cfgScale: 5, steps: 28, sampler: "Euler" },
-  f1: { width: 1024, height: 1024, cfgScale: 1, steps: 20, sampler: "Euler", flowShift: 3 },
-  f2: { width: 1024, height: 1024, cfgScale: 1, steps: 20, sampler: "Euler", flowShift: 3 },
+  sd3: { width: 1024, height: 1024, cfgScale: 5, steps: 28, sampler: "Default" },
+  f1: { width: 1024, height: 1024, cfgScale: 1, steps: 20, sampler: "Default", flowShift: 3 },
+  f2: { width: 1024, height: 1024, cfgScale: 1, steps: 20, sampler: "Default", flowShift: 3 },
   sc: { width: 1024, height: 1024, cfgScale: 4, steps: 20 },
 };
 
