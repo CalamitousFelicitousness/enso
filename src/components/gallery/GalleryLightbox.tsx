@@ -57,7 +57,7 @@ export function GalleryLightbox() {
   // Full-size image URL
   const fullUrl = useMemo(() => {
     if (!file) return null;
-    return browserFilePath(file.fullPath);
+    return browserFilePath(file.fullPath, file.mtime);
   }, [file]);
 
   // Reset transform on navigation (adjust state during render pattern)
@@ -85,7 +85,7 @@ export function GalleryLightbox() {
     const sortedFiles = useGalleryStore.getState().sortedFiles;
     const nextFile = sortedFiles[nextIndex];
     if (!nextFile) return;
-    const nextUrl = browserFilePath(nextFile.fullPath);
+    const nextUrl = browserFilePath(nextFile.fullPath, nextFile.mtime);
     const aName = file?.relativePath.split("/").pop() ?? "Image A";
     const bName = nextFile.relativePath.split("/").pop() ?? "Image B";
     useComparisonStore

@@ -8,6 +8,7 @@ import type {
   CachedThumb,
 } from "@/api/types/gallery";
 import { getCachedFolder } from "@/lib/folderCache";
+import { carriedThumbs, sameStamp } from "@/lib/gallery/listing";
 import { pruneSelection, relocate } from "@/lib/gallery/selection";
 
 const SORT_STORAGE_KEY = "enso-gallery-sort";
@@ -191,16 +192,25 @@ export const useGalleryStore = create<GalleryState>()((set) => ({
         : { loaded: 0, total: null },
     });
   },
-  // A list read again keeps only the choices whose files are still in it
+  // A list read again keeps only the choices and thumbnails whose files are
+  // still in it; a file written again at its path is another file
   setFiles: (files) =>
     set((s) => {
       const kept = pruneSelection(s, s.files, files);
+      const rewritten =
+        kept.selectedFile !== null &&
+        s.selectedFile !== null &&
+        !sameStamp(kept.selectedFile, s.selectedFile);
+      const thumbs = carriedThumbs(s.files, files, s.thumbs);
       return {
         files,
+        thumbs: thumbs.size === s.thumbs.size ? s.thumbs : thumbs,
         selectedIds: sameIds(kept.selectedIds, s.selectedIds) ? s.selectedIds : kept.selectedIds,
         selectedFile:
-          kept.selectedFile?.id === s.selectedFile?.id ? s.selectedFile : kept.selectedFile,
-        selectedThumb: kept.selectedFile ? s.selectedThumb : null,
+          kept.selectedFile?.id === s.selectedFile?.id && !rewritten
+            ? s.selectedFile
+            : kept.selectedFile,
+        selectedThumb: kept.selectedFile && !rewritten ? s.selectedThumb : null,
         selectionLeft: s.selectionLeft || kept.left,
       };
     }),

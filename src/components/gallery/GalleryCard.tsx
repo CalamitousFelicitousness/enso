@@ -51,10 +51,10 @@ export const GalleryCard = memo(function GalleryCard({
     hoverTimer.current = setTimeout(() => {
       const el = videoRef.current;
       if (!el) return;
-      el.src = mediaUrl(browserFilePath(file.fullPath));
+      el.src = mediaUrl(browserFilePath(file.fullPath, file.mtime));
       el.play().catch(() => {});
     }, HOVER_DELAY);
-  }, [isVideo, file.fullPath]);
+  }, [isVideo, file.fullPath, file.mtime]);
 
   const handleMouseLeave = useCallback(() => {
     if (!isVideo) return;

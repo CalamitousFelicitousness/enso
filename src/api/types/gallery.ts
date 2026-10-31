@@ -40,6 +40,9 @@ export interface GalleryFile {
   relativePath: string;
   fullPath: string;
   id: string;
+  /** The file's mtime in ms and size as listed, which tell it from an earlier file at its path; null when the server sent none. */
+  mtime: number | null;
+  size: number | null;
   trash?: TrashFacts;
 }
 

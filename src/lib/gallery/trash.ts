@@ -21,6 +21,8 @@ export function trashFiles(items: readonly ItemTrashedFileV2[]): GalleryFile[] {
     relativePath: `${item.folder_label.replace(/\/+$/, "")}/${item.name}`,
     fullPath: item.path,
     id: `trash:${item.id}`,
+    mtime: item.mtime,
+    size: item.size,
     trash: {
       id: item.id,
       from: item.folder_label,

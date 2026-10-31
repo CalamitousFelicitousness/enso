@@ -48,6 +48,8 @@ describe("trashFiles", () => {
       relativePath: "outputs/text/00044.png",
       fullPath: item.path,
       id: "trash:0123456789abcdef",
+      mtime: 5,
+      size: 10,
       trash: {
         id: item.id,
         from: "outputs/text/",
@@ -69,6 +71,8 @@ describe("sortTime", () => {
       relativePath: file.relativePath,
       fullPath: file.fullPath,
       id: file.id,
+      mtime: file.mtime,
+      size: file.size,
     };
     expect(sortTime(file, thumb("x"))).toBe(1000);
     expect(sortTime(plain, thumb("x"))).toBe(5);

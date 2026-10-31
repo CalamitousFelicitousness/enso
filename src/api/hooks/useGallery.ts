@@ -22,6 +22,7 @@ import {
   invalidateFolder,
 } from "@/lib/folderCache";
 import { Semaphore } from "@/lib/concurrency";
+import { carriedThumbs, changedFiles, parseFileEntry, thumbFits } from "@/lib/gallery/listing";
 import { filesDeletedText } from "@/lib/gallery/text";
 import { isTrashFolder } from "@/lib/gallery/trash";
 import { saveBlob } from "@/lib/mediaFiles";
@@ -36,8 +37,11 @@ const inflightIds = new Set<string>();
  * returned no usable thumb (broken/corrupt source file). Prevents the viewport
  * from re-firing the same request on every scroll. Transient failures (network,
  * abort) are NOT recorded, so they remain retryable on the next viewport change.
+ * Keyed with the stamp, so a file written again at the path is tried again.
  */
 const failedIds = new Set<string>();
+
+const failedKey = (file: GalleryFile) => `${file.id}##T##${file.mtime}.${file.size}`;
 
 export function useBrowserFolders() {
   return useQuery({
@@ -54,33 +58,6 @@ export function useSubdirs(folder: string | null) {
     enabled: folder !== null,
     staleTime: 30_000,
   });
-}
-
-function parseFileEntry(raw: string): GalleryFile {
-  const sep = "##F##";
-  const idx = raw.indexOf(sep);
-  if (idx < 0) {
-    const decoded = decodeURIComponent(raw);
-    return { folder: "", relativePath: decoded, fullPath: decoded, id: raw };
-  }
-  let folderEnc = raw.slice(0, idx);
-  let relEnc = raw.slice(idx + sep.length);
-  // Restore Windows drive letter colons
-  if (
-    folderEnc.length > 3 &&
-    folderEnc[1] === "%" &&
-    folderEnc[2] === "3" &&
-    folderEnc[3] === "A"
-  ) {
-    folderEnc = folderEnc[0] + ":" + folderEnc.slice(4);
-  }
-  if (relEnc.length > 3 && relEnc[1] === "%" && relEnc[2] === "3" && relEnc[3] === "A") {
-    relEnc = relEnc[0] + ":" + relEnc.slice(4);
-  }
-  const folder = decodeURIComponent(folderEnc);
-  const relativePath = decodeURIComponent(relEnc);
-  const fullPath = folder.replace(/\/+$/, "") + "/" + relativePath;
-  return { folder, relativePath, fullPath, id: raw };
 }
 
 const MEDIA_EXTENSIONS = new Set([
@@ -119,20 +96,21 @@ const FILE_BATCH_INTERVAL = 150; // ms between flushing accumulated files to the
 // ---------------------------------------------------------------------------
 
 /**
- * Batch-read IndexedDB for cached thumbnails matching the given files.
+ * Batch-read IndexedDB for cached thumbnails matching the given files, each
+ * drawn from the file as listed, not from an earlier one at its path.
  * Returns [fileId, CachedThumb][] pairs - caller decides how to apply them.
  */
 async function readCachedThumbs(files: GalleryFile[]): Promise<[string, CachedThumb][]> {
   if (files.length === 0) return [];
-  const pathToId = new Map(files.map((f) => [f.fullPath, f.id]));
+  const byPath = new Map(files.map((f) => [f.fullPath, f]));
 
   // Batch-read from IndexedDB in a single transaction
-  const cached = await batchGetThumbs([...pathToId.keys()]);
+  const cached = await batchGetThumbs([...byPath.keys()]);
 
   const batch: [string, CachedThumb][] = [];
   for (const [path, thumb] of cached) {
-    const fileId = pathToId.get(path);
-    if (fileId) batch.push([fileId, thumb]);
+    const file = byPath.get(path);
+    if (file && thumbFits(file, thumb)) batch.push([file.id, thumb]);
   }
   return batch;
 }
@@ -283,16 +261,11 @@ async function backgroundRefresh(folder: string, signal: AbortSignal) {
     const { files: newFiles } = await streamFiles(folder, signal);
     if (signal.aborted) return;
 
-    // Diff: find files only in newFiles (added)
-    const oldIds = new Set(prevFiles.map((f) => f.id));
-    const addedFiles = newFiles.filter((f) => !oldIds.has(f.id));
+    // Added: files new to the list, and files written again at their path
+    const addedFiles = changedFiles(prevFiles, newFiles);
 
-    // Build new thumb map: carry over existing thumbs, drop removed files
-    const newIds = new Set(newFiles.map((f) => f.id));
-    const newThumbs = new Map<string, CachedThumb>();
-    for (const [id, thumb] of prevThumbs) {
-      if (newIds.has(id)) newThumbs.set(id, thumb);
-    }
+    // Carry over existing thumbs, less those of removed or rewritten files
+    const newThumbs = carriedThumbs(prevFiles, newFiles, prevThumbs);
 
     // Update folder cache
     setCachedFolder(folder, newFiles, newThumbs, info.mtime);
@@ -394,7 +367,7 @@ function startFileStream(
           const rekeyed: [string, CachedThumb][] = [];
           for (const f of allFiles) {
             const thumb = pathToThumb.get(f.fullPath);
-            if (thumb) rekeyed.push([f.id, thumb]);
+            if (thumb && thumbFits(f, thumb)) rekeyed.push([f.id, thumb]);
           }
           endStore.setFiles(allFiles);
           // Replace (not merge) to drop orphaned child-context IDs that would
@@ -549,7 +522,7 @@ export function useGalleryRefresh() {
 export async function fetchThumb(file: GalleryFile): Promise<CachedThumb | null> {
   try {
     const cached = await getThumb(file.fullPath);
-    if (cached) return cached;
+    if (cached && thumbFits(file, cached)) return cached;
   } catch {
     // IndexedDB read errors are non-fatal, fall through to API
   }
@@ -614,7 +587,7 @@ function scheduleThumbFlush() {
 function dispatchThumb(file: GalleryFile) {
   if (
     inflightIds.has(file.id) ||
-    failedIds.has(file.id) ||
+    failedIds.has(failedKey(file)) ||
     useGalleryStore.getState().thumbs.has(file.id)
   )
     return;
@@ -630,7 +603,7 @@ function dispatchThumb(file: GalleryFile) {
         if (folder) folderCacheBatchBuffer.push([folder, [[file.id, thumb]]]);
         scheduleThumbFlush();
       } else {
-        failedIds.add(file.id);
+        failedIds.add(failedKey(file));
       }
     })
     .catch(() => {

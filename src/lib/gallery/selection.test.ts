@@ -7,6 +7,8 @@ const file = (name: string): GalleryFile => ({
   relativePath: name,
   fullPath: `/out/${name}`,
   id: `/out##F##${name}`,
+  mtime: 1,
+  size: 1,
 });
 const [a, b, c] = [file("a.png"), file("b.png"), file("c.png")];
 

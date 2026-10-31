@@ -115,7 +115,7 @@ export function GalleryMetadata({ trash }: { trash: TrashFileActions | null }) {
   }
 
   const filename = selectedFile.relativePath.split("/").pop() ?? selectedFile.relativePath;
-  const fullUrl = browserFilePath(selectedFile.fullPath);
+  const fullUrl = browserFilePath(selectedFile.fullPath, selectedFile.mtime);
 
   const formatSize = (bytes: number) => {
     if (bytes < 1024) return `${bytes} B`;

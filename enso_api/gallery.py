@@ -11,7 +11,7 @@ from urllib.parse import quote, unquote
 
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
-from modules import files_cache, images, modelstats, shared
+from modules import files_cache, images, shared
 from modules.logger import log
 from PIL import Image
 from pydantic import BaseModel, Field  # pylint: disable=no-name-in-module
@@ -19,6 +19,7 @@ from starlette.websockets import WebSocket, WebSocketState
 
 from enso_api.confine import VIDEO_EXTENSIONS, gallery_folders, is_allowed_path, is_readable_path, outside_media_store, protected_roots
 from enso_api.errors import refuse
+from enso_api.listing import entry, file_stamp
 from enso_api.media.companions import PATH_NOT_ALLOWED, TAKEN, gather, is_media, protected_reason, reason_of
 from enso_api.media.placement import folder_lock, place
 from enso_api.routes import media_file
@@ -116,9 +117,8 @@ def broken_thumbnail(filepath: str, reason: str) -> dict:
     IndexedDB), so subsequent viewport scrolls do not re-issue the request.
     """
     try:
-        stat_size, stat_mtime = modelstats.stat(filepath)
-        mtime_ms = stat_mtime.timestamp() * 1000
-    except Exception:
+        mtime_ms, stat_size = file_stamp(os.stat(filepath))
+    except OSError:
         stat_size = 0
         mtime_ms = 0
     size = shared.opts.extra_networks_card_size
@@ -141,7 +141,7 @@ def register_api(app: FastAPI):  # register api
         from modules.video import get_video_params
 
         try:
-            stat_size, stat_mtime = modelstats.stat(filepath)
+            mtime_ms, stat_size = file_stamp(os.stat(filepath))
             # Reusing the first-frame jpg written at save time skips the decode and the
             # full-resolution resample; reading it first lets a truncated one fall back.
             source = None
@@ -168,7 +168,7 @@ def register_api(app: FastAPI):  # register api
                 "width": width,
                 "height": height,
                 "size": stat_size,
-                "mtime": stat_mtime.timestamp() * 1000,  # JS timestamps use milliseconds
+                "mtime": mtime_ms,
             }
         except Exception as e:
             # modules.video.get_video_params already logs the open failure at ERROR;
@@ -178,7 +178,7 @@ def register_api(app: FastAPI):  # register api
 
     def get_image_thumbnail(filepath):
         try:
-            stat_size, stat_mtime = modelstats.stat(filepath)
+            mtime_ms, stat_size = file_stamp(os.stat(filepath))
             image = Image.open(filepath)
             geninfo, _items = images.read_info_from_image(image)
             h = shared.opts.extra_networks_card_size
@@ -196,7 +196,7 @@ def register_api(app: FastAPI):  # register api
                 "width": width,
                 "height": height,
                 "size": stat_size,
-                "mtime": stat_mtime.timestamp() * 1000,  # JS timestamps use milliseconds
+                "mtime": mtime_ms,
             }
         except Exception as e:
             log.error(f'Gallery image: file="{filepath}" {e}')
@@ -485,11 +485,13 @@ def register_api(app: FastAPI):  # register api
             # files = list(files_cache.directory_files(folder, recursive=True))
             # files.sort(key=os.path.getmtime)
             for f in files:
+                try:
+                    st = os.stat(f)
+                except OSError:
+                    # Gone since the walk
+                    continue
                 numFiles += 1
-                file = os.path.relpath(f, folder)
-                msg = quote(folder) + "##F##" + quote(file)
-                msg = msg[:1] + ":" + msg[4:] if msg[1:4] == "%3A" else msg
-                await manager.send(ws, msg)
+                await manager.send(ws, entry(folder, f, st))
             await manager.send(ws, "#END#")
             t1 = time.time()
             log.debug(f'Gallery: type=ws folder="{folder}" files={numFiles} time={t1 - t0:.3f}')
