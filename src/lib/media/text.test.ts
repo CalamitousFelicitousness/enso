@@ -151,8 +151,17 @@ describe("the words of the library and its trash", () => {
     expect(notMovedText(38)).toBe("38 saved entries in this browser, not moved yet");
     expect(inTrashText("Portrait")).toBe('"Portrait" is in the trash; restore it first');
     expect(unpinnedText(20)).toBe("It came back unpinned: 20 entries are pinned");
-    expect(deleteForEveryoneText("Portrait", "alice")).toBe(
+    expect(deleteForEveryoneText("Portrait", { name: "alice", reason: "removed" })).toBe(
       'Delete "Portrait" for everyone? alice removed it. It cannot be brought back.',
+    );
+  });
+
+  it("say whose entry a delete for everyone takes, and how it reached the trash", () => {
+    expect(deleteForEveryoneText("Portrait", { name: "alice", reason: "theirs" })).toBe(
+      'Delete "Portrait" for everyone? alice saved it. It cannot be brought back.',
+    );
+    expect(deleteForEveryoneText("Portrait", { name: "alice", reason: "pushed out" })).toBe(
+      'Delete "Portrait" for everyone? alice saved it; it was pushed out of the library. It cannot be brought back.',
     );
   });
 
@@ -167,14 +176,36 @@ describe("the words of the library and its trash", () => {
     expect(trashHeaderText(0, 0, 0, 0)).toBe("");
   });
 
-  it("ask before emptying both parts, saying who removed the entries", () => {
-    expect(emptyBothText(12, 2, { count: 1, name: "alice" }, 85 * MB, 1.2 * 1024 * MB)).toBe(
+  it("ask before emptying both parts, saying who removed or saved the entries", () => {
+    const none = { count: 0, name: null };
+    expect(
+      emptyBothText(
+        12,
+        2,
+        { removed: { count: 1, name: "alice" }, saved: none },
+        85 * MB,
+        1.2 * 1024 * MB,
+      ),
+    ).toBe(
       "Delete 12 removed inputs from this browser and 2 saved entries (one removed by alice) for everyone? About 85 MB here and about 1.2 GB on the server are freed. They cannot be brought back.",
     );
-    expect(emptyBothText(0, 3, { count: 2, name: null }, null, null)).toBe(
+    expect(
+      emptyBothText(0, 3, { removed: { count: 2, name: null }, saved: none }, null, null),
+    ).toBe(
       "Delete 3 saved entries (2 removed by others) for everyone? They cannot be brought back.",
     );
-    expect(emptyBothText(1, 0, { count: 0, name: null }, 2 * MB, null)).toBe(
+    expect(
+      emptyBothText(
+        0,
+        3,
+        { removed: { count: 1, name: "bob" }, saved: { count: 2, name: "carol" } },
+        null,
+        null,
+      ),
+    ).toBe(
+      "Delete 3 saved entries (one removed by bob, 2 saved by carol) for everyone? They cannot be brought back.",
+    );
+    expect(emptyBothText(1, 0, { removed: none, saved: none }, 2 * MB, null)).toBe(
       "Delete 1 removed input from this browser? About 2 MB here is freed. It cannot be brought back.",
     );
   });

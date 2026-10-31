@@ -365,9 +365,22 @@ export function unpinnedText(max: number): string {
   return `It came back unpinned: ${max} entries are pinned`;
 }
 
-/** Asked before deleting an entry another user removed. */
-export function deleteForEveryoneText(name: string, by: string): string {
-  return `Delete "${name}" for everyone? ${by} removed it. It cannot be brought back.`;
+/** Another user's part in a trashed entry: they removed it, or it is theirs,
+ * removed by someone else or pushed out of the library. */
+export interface OtherUser {
+  name: string;
+  reason: "removed" | "theirs" | "pushed out";
+}
+
+/** Asked before deleting an entry another user removed or saved. */
+export function deleteForEveryoneText(name: string, other: OtherUser): string {
+  const why =
+    other.reason === "removed"
+      ? `${other.name} removed it.`
+      : other.reason === "pushed out"
+        ? `${other.name} saved it; it was pushed out of the library.`
+        : `${other.name} saved it.`;
+  return `Delete "${name}" for everyone? ${why} It cannot be brought back.`;
 }
 
 /** The size a list's part of the trash frees, or nothing while unmeasured. */
@@ -400,12 +413,26 @@ export interface RemovedByOthers {
   name: string | null;
 }
 
+/** The listed entries other users removed, and those of theirs someone else
+ * removed or the library pushed out. */
+export interface EntriesOfOthers {
+  removed: RemovedByOthers;
+  saved: RemovedByOthers;
+}
+
+/** "one removed by alice", "2 saved by others", or nothing. */
+function byOthersText(others: RemovedByOthers, did: string): string | null {
+  if (others.count === 0) return null;
+  const n = others.count === 1 ? "one" : String(others.count);
+  return `${n} ${did} by ${others.name ?? "others"}`;
+}
+
 /** What Empty asks before it deletes the listed removals here and the
  * listed entries for everyone. */
 export function emptyBothText(
   removals: number,
   entries: number,
-  others: RemovedByOthers,
+  others: EntriesOfOthers,
   here: number | null,
   server: number | null,
 ): string {
@@ -414,12 +441,11 @@ export function emptyBothText(
     parts.push(`${plural(removals, "removed input", "removed inputs")} from this browser`);
   }
   if (entries > 0) {
-    const whose =
-      others.count === 0
-        ? ""
-        : others.name
-          ? ` (${others.count === 1 ? "one" : others.count} removed by ${others.name})`
-          : ` (${others.count} removed by others)`;
+    const notes = [
+      byOthersText(others.removed, "removed"),
+      byOthersText(others.saved, "saved"),
+    ].filter((note): note is string => note !== null);
+    const whose = notes.length > 0 ? ` (${notes.join(", ")})` : "";
     parts.push(`${plural(entries, "saved entry", "saved entries")}${whose} for everyone`);
   }
   const sizes = [

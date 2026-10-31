@@ -4,6 +4,7 @@
 
 import type { ItemEntryV2 } from "@/api/types/media";
 import { shapeOfItem } from "@/lib/media/entry";
+import type { EntriesOfOthers, OtherUser, RemovedByOthers } from "@/lib/media/text";
 import { entryThumbs, shapeOfStored } from "./library";
 import { removalExpiry } from "./sweep";
 import type { StoredEntry, StoredPicture, StoredRemoval } from "./stored";
@@ -36,6 +37,8 @@ export interface TrashItem {
   expiresAt: number;
   /** Who removed it, when the server knows. */
   by: string | null;
+  /** Who saved it, when the server knows. */
+  owner: string | null;
   /** Removed by hand, or pushed out of the library by a save. */
   cause: "removed" | "evicted";
 }
@@ -66,6 +69,7 @@ export function removalItem(key: string, removal: StoredRemoval, removalMs: numb
     removedAt: removal.removedAt,
     expiresAt: removalExpiry(removal.removedAt, removalMs),
     by: null,
+    owner: null,
     cause: "removed",
   };
 }
@@ -85,6 +89,7 @@ export function legacyEntryItem(
     removedAt: entry.trashedAt,
     expiresAt: removalExpiry(entry.trashedAt, removalMs),
     by: null,
+    owner: null,
     cause: "removed",
   };
 }
@@ -106,7 +111,41 @@ export function serverEntryItem(
     // the server counts a restarted collection clock; an older one sends none
     expiresAt: item.expires_at ?? item.trashed_at + days * DAY,
     by: item.trashed_by ?? null,
+    owner: item.user ?? null,
     cause: item.trashed_cause === "evicted" ? "evicted" : "removed",
+  };
+}
+
+const isOther = (user: string | null, me: string | null): user is string =>
+  user !== null && user !== me;
+
+/** Who else Delete for everyone takes a server entry from: whoever removed
+ * it by hand, else whose it is. Null when nobody else is known. */
+export function otherUser(
+  item: Pick<TrashItem, "source" | "by" | "owner" | "cause">,
+  me: string | null,
+): OtherUser | null {
+  if (item.source !== "entry") return null;
+  if (item.cause === "removed" && isOther(item.by, me)) return { name: item.by, reason: "removed" };
+  if (isOther(item.owner, me)) {
+    return { name: item.owner, reason: item.cause === "evicted" ? "pushed out" : "theirs" };
+  }
+  return null;
+}
+
+function summed(names: readonly string[]): RemovedByOthers {
+  return { count: names.length, name: new Set(names).size === 1 ? (names[0] ?? null) : null };
+}
+
+/** The entries Empty takes from other users, by the rule Delete for everyone asks by. */
+export function entriesOfOthers(items: readonly TrashItem[], me: string | null): EntriesOfOthers {
+  const others = items.flatMap((item) => {
+    const other = otherUser(item, me);
+    return other ? [other] : [];
+  });
+  return {
+    removed: summed(others.filter((o) => o.reason === "removed").map((o) => o.name)),
+    saved: summed(others.filter((o) => o.reason !== "removed").map((o) => o.name)),
   };
 }
 

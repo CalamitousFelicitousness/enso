@@ -34,7 +34,9 @@ import {
 } from "@/lib/inputs/text";
 import {
   byRemoval,
+  entriesOfOthers,
   legacyEntryItem,
+  otherUser,
   removalItem,
   serverEntryItem,
   type TrashItem,
@@ -45,7 +47,6 @@ import {
   emptyBothText,
   MOVE_FIRST,
   trashHeaderText,
-  type RemovedByOthers,
 } from "@/lib/media/text";
 
 /** Read the removals when the list comes into view, and again whenever the
@@ -100,9 +101,10 @@ function TrashRow({ item, now, me }: { item: TrashItem; now: number; me: string 
   };
   const restore = () =>
     run(() => (item.source === "removal" ? restoreRemoval(item.key) : restoreEntry(item.key)));
-  // an entry someone else removed is deleted for them too: asked first
+  // an entry someone else removed or saved is deleted for them too: asked first
+  const other = otherUser(item, me);
   const remove = () => {
-    if (item.source === "entry" && item.by && item.by !== me) setConfirming(true);
+    if (other) setConfirming(true);
     else run(() => deleteNow(item));
   };
   return (
@@ -137,7 +139,7 @@ function TrashRow({ item, now, me }: { item: TrashItem; now: number; me: string 
       <ConfirmDialog
         open={confirming}
         title={DELETE_FOR_EVERYONE}
-        description={deleteForEveryoneText(item.name ?? item.title, item.by ?? "")}
+        description={other ? deleteForEveryoneText(item.name ?? item.title, other) : ""}
         confirmLabel="Delete"
         destructive
         onConfirm={() => {
@@ -168,15 +170,6 @@ function UnreadableRow({ id }: { id: string }) {
 
 const isTrashed = (entry: StoredEntry): entry is StoredEntry & { trashedAt: number } =>
   entry.trashedAt !== null;
-
-/** Who else removed the listed entries, for the Empty dialog. */
-function removedByOthers(items: readonly TrashItem[], me: string | null): RemovedByOthers {
-  const names = items
-    .filter((i) => i.source === "entry" && i.by && i.by !== me)
-    .map((i) => i.by ?? "");
-  const distinct = new Set(names);
-  return { count: names.length, name: distinct.size === 1 ? (names[0] ?? null) : null };
-}
 
 /** The Gallery trash's files, counted: they are restored and deleted there. */
 function FilesInTrashLine({ text }: { text: string }) {
@@ -323,7 +316,7 @@ export function TrashSection({ query, active }: { query: string; active: boolean
         description={emptyBothText(
           removalKeys.length,
           emptyEntries.length,
-          removedByOthers(onlyHere ? [] : items, me),
+          entriesOfOthers(onlyHere ? [] : items, me),
           reclaimable,
           emptyServer,
         )}

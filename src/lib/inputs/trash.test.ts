@@ -5,9 +5,11 @@ import type { ItemEntryV2 } from "@/api/types/media";
 import {
   byRemoval,
   clockStart,
+  entriesOfOthers,
   goingOnServer,
   goingWith,
   legacyEntryItem,
+  otherUser,
   removalItem,
   serverEntryItem,
   type TrashItem,
@@ -191,6 +193,11 @@ describe("serverEntryItem", () => {
     });
   });
 
+  it("keeps who saved the entry", () => {
+    expect(serverEntryItem(item({ user: "alice" }), 7).owner).toBe("alice");
+    expect(serverEntryItem(item(), 7).owner).toBeNull();
+  });
+
   it("counts the entries a shorter time lets go on the server", () => {
     const now = 10 * DAY;
     expect(goingOnServer([now - 3 * DAY, now - DAY, now - HOUR], 2, now)).toBe(1);
@@ -206,6 +213,95 @@ describe("serverEntryItem", () => {
   it("takes the server's expiry for an entry, and counts one from its removal without it", () => {
     expect(serverEntryItem(item({ expires_at: 5000 }), 7).expiresAt).toBe(5000);
     expect(serverEntryItem(item({ expires_at: null }), 7).expiresAt).toBe(2000 + WEEK);
+  });
+});
+
+describe("otherUser", () => {
+  const trashed = (
+    by: string | null,
+    owner: string | null,
+    cause: "removed" | "evicted",
+  ): Pick<TrashItem, "source" | "by" | "owner" | "cause"> => ({
+    source: "entry",
+    by,
+    owner,
+    cause,
+  });
+
+  it("asks before deleting another user's entry the pass pushed out", () => {
+    expect(otherUser(trashed(null, "alice", "evicted"), "bob")).toEqual({
+      name: "alice",
+      reason: "pushed out",
+    });
+  });
+
+  it("asks before deleting another user's entry this user's save pushed out", () => {
+    expect(otherUser(trashed("bob", "alice", "evicted"), "bob")).toEqual({
+      name: "alice",
+      reason: "pushed out",
+    });
+  });
+
+  it("does not ask the owner of an entry another user's save pushed out", () => {
+    expect(otherUser(trashed("bob", "alice", "evicted"), "alice")).toBeNull();
+  });
+
+  it("never asks on a server without users", () => {
+    expect(otherUser(trashed(null, null, "evicted"), null)).toBeNull();
+    expect(otherUser(trashed(null, null, "removed"), null)).toBeNull();
+  });
+
+  it("asks by who removed an entry by hand, else by whose it is", () => {
+    expect(otherUser(trashed("bob", "carol", "removed"), "alice")).toEqual({
+      name: "bob",
+      reason: "removed",
+    });
+    expect(otherUser(trashed("alice", "bob", "removed"), "alice")).toEqual({
+      name: "bob",
+      reason: "theirs",
+    });
+    expect(otherUser(trashed("alice", "alice", "removed"), "alice")).toBeNull();
+  });
+
+  it("never asks about what this browser stores", () => {
+    expect(
+      otherUser({ ...trashed("bob", "bob", "removed"), source: "removal" }, "alice"),
+    ).toBeNull();
+    expect(
+      otherUser({ ...trashed("bob", "bob", "removed"), source: "legacy" }, "alice"),
+    ).toBeNull();
+  });
+});
+
+describe("entriesOfOthers", () => {
+  const entryItem = (by: string | null, owner: string | null, cause: "removed" | "evicted") =>
+    ({ source: "entry", by, owner, cause }) as TrashItem;
+
+  it("counts what other users removed apart from what is theirs", () => {
+    expect(
+      entriesOfOthers(
+        [
+          entryItem("bob", "bob", "removed"),
+          entryItem("bob", "carol", "removed"),
+          entryItem(null, "carol", "evicted"),
+          entryItem("alice", "alice", "removed"),
+        ],
+        "alice",
+      ),
+    ).toEqual({ removed: { count: 2, name: "bob" }, saved: { count: 1, name: "carol" } });
+  });
+
+  it("names no one when several users are among them, and counts none without users", () => {
+    expect(
+      entriesOfOthers(
+        [entryItem(null, "bob", "evicted"), entryItem(null, "carol", "evicted")],
+        "alice",
+      ).saved,
+    ).toEqual({ count: 2, name: null });
+    expect(entriesOfOthers([entryItem(null, null, "evicted")], null)).toEqual({
+      removed: { count: 0, name: null },
+      saved: { count: 0, name: null },
+    });
   });
 });
 

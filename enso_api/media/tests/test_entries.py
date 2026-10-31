@@ -268,6 +268,24 @@ def test_the_pass_evicts_past_the_cap_and_never_a_pinned_or_trashed_row(entries,
     assert {item["id"] for item in entries.list(False)} == {*pins, *ids[2:5], *ids[6:]}
 
 
+def test_an_entry_a_save_pushes_out_keeps_its_owner(entries, store, clock):
+    store.update_settings({"library_cap": 10})
+    ids = fill(entries, store, clock, 10)
+    (picture,) = blobs(store, 2)
+    clock.advance(1000)
+    entries.save(entry("new", {"p": picture}), "bob", False)
+    gone = entries.list(False, [ids[0]])[0]
+    assert (gone["user"], gone["trashed_by"], gone["trashed_cause"]) == ("alice", "bob", "evicted")
+
+
+def test_the_pass_pushes_out_with_no_trashed_by_and_keeps_the_owner(entries, store, clock, db):
+    store.update_settings({"library_cap": 10})
+    ids = fill(entries, store, clock, 10)
+    assert evict_past_cap(db, 9, clock()) == [ids[0]]
+    gone = entries.list(False, [ids[0]])[0]
+    assert (gone["user"], gone["trashed_by"], gone["trashed_cause"]) == ("alice", None, "evicted")
+
+
 def test_a_trashed_entry_expires_from_its_trash_or_a_later_restarted_clock(entries, store, clock):
     (picture,) = blobs(store, 1)
     entries.save(entry("e1", {"p": picture}), None, False)
