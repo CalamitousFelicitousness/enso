@@ -155,6 +155,10 @@ def job_failure(e: Exception) -> tuple[int | None, str]:
     return (code if isinstance(code, int) else None), message
 
 
+class JobStopped(Exception):
+    """The user stopped or skipped a job before it made anything."""
+
+
 class UploadsMissing(Exception):
     """A request names uploads the media store does not hold."""
 
@@ -351,8 +355,8 @@ class JobQueue:
                 self._cancel_ids.add(job_id)
                 with contextlib.suppress(Exception):
                     self.sdnext.state.interrupt()
-            elif self.set_status(job_id, "cancelled", completed_at=JobStore.now()):
-                self.push_progress(job_id, WsEventStatus(status="cancelled").model_dump(exclude_none=True))
+            else:
+                self.finish_cancelled(job_id)
             return True
         if job["status"] == "pending":
             cancelled = self.store.cancel(job_id)
@@ -472,14 +476,17 @@ class JobQueue:
         else:
             self._dispatch_cloud_job(job, entry["fn"], job_type)
 
+    def finish_cancelled(self, job_id: str, error: str | None = None) -> None:
+        """Record a live job as cancelled and send the event that ends its sockets."""
+        if self.set_status(job_id, "cancelled", completed_at=JobStore.now(), error=error):
+            self.push_progress(job_id, WsEventCancelled().model_dump(exclude_none=True))
+
     def finish_failed(self, job_id: str, error: str) -> None:
         """Record a live job's failure, as cancelled when the user cancelled it, and tell its subscribers."""
-        cancelled = job_id in self._cancel_ids
-        if not self.set_status(job_id, "cancelled" if cancelled else "failed", completed_at=JobStore.now(), error=error):
-            return
-        self.push_progress(job_id, WsEventError(error=error).model_dump(exclude_none=True))
-        if cancelled:
-            self.push_progress(job_id, WsEventStatus(status="cancelled").model_dump(exclude_none=True))
+        if job_id in self._cancel_ids:
+            self.finish_cancelled(job_id, error)
+        elif self.set_status(job_id, "failed", completed_at=JobStore.now(), error=error):
+            self.push_progress(job_id, WsEventError(error=error).model_dump(exclude_none=True))
 
     def finish_completed(self, job_id: str, result) -> None:
         """Record a live job's result and tell its subscribers; a job cancelled meanwhile stays cancelled."""
@@ -549,13 +556,15 @@ class JobQueue:
 
                 with locked:
                     if job_id in self._cancel_ids:
-                        if self.set_status(job_id, "cancelled", completed_at=JobStore.now()):
-                            self.push_progress(job_id, WsEventStatus(status="cancelled").model_dump(exclude_none=True))
+                        self.finish_cancelled(job_id)
                         return
                     result = executor_fn(params, job_id)
                 if capture.entries:
                     result["warnings"] = capture.entries
                 self.finish_completed(job_id, result)
+            except JobStopped:
+                log.info(f"Job queue: stopped id={job_id} type={job_type}")
+                self.finish_cancelled(job_id)
             except Exception as e:
                 # Typed rejections (4xx code) are expected client errors: one line, no traceback
                 code, error_msg = job_failure(e)

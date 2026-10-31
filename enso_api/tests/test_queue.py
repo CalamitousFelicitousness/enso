@@ -233,6 +233,41 @@ def test_a_cancel_during_the_run_is_recorded_as_cancelled(queue, released):
     assert queue.stopped_by_user("a") is False
 
 
+def stop_as_the_page_does(queue, job_id):
+    queue.note_user_stop()
+    assert queue.cancel(job_id)
+
+
+@pytest.mark.parametrize("stop", [stop_as_the_page_does, lambda queue, job_id: queue.note_user_stop()], ids=["stop", "skip"])
+def test_a_job_stopped_before_it_made_anything_is_recorded_as_cancelled(queue, released, stop):
+    def stopped_midway(params, job_id):
+        stop(queue, job_id)
+        raise queue_module.JobStopped
+
+    queue.sdnext.table["generate"]["fn"] = stopped_midway
+    queue.enqueue("generate", {}, 0, "a")
+    events = queue.subscribe("a")
+    turn(queue)
+    row = queue.store.get("a")
+    assert (row["status"], row["error"], row["result"]) == ("cancelled", None, None)
+    assert drain(events)[-1] == {"type": "cancelled"}
+    assert queue.sdnext.displayed == []
+    assert_unwound(queue, "a", released)
+
+
+def test_a_cancelled_job_that_fails_ends_its_sockets_as_cancelled(queue, released):
+    def cancelled_midway(params, job_id):
+        queue.cancel(job_id)
+        raise RuntimeError("interrupted")
+
+    queue.sdnext.table["generate"]["fn"] = cancelled_midway
+    queue.enqueue("generate", {}, 0, "a")
+    events = queue.subscribe("a")
+    turn(queue)
+    assert [e["type"] for e in drain(events)][-1:] == ["cancelled"]
+    assert queue.store.get("a")["error"] == "RuntimeError: interrupted"
+
+
 def test_a_job_cancelled_before_its_runner_starts_is_skipped(queue, released):
     calls = []
     queue.sdnext.table["generate"]["fn"] = lambda params, job_id: calls.append(job_id)

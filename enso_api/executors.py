@@ -579,13 +579,13 @@ def execute_generate(params: dict, job_id: str) -> dict:
 
     # Run generation
     detailer_restore = install_detailer_per_model_patch(detailer_entries) if run_args["detailer_enabled"] else None
-    from enso_api.job_queue import job_queue
+    from enso_api.job_queue import JobStopped, job_queue
 
     jobid = shared.state.begin("API-V2", api=True)
     try:
         maps = process_before_generate(job_id, slots) if slots else {}
         control_run_module.control_set(extra_p_args)
-        # A stop during the pre-step ends the job as a stop during generation does: no image, no error
+        # A stop during the pre-step ends the job as a stop during generation does
         res = [] if job_queue.stopped_by_user(job_id) else control_run_module.control_run(**run_args)
 
         output_images = []
@@ -605,8 +605,10 @@ def execute_generate(params: dict, job_id: str) -> dict:
         if detailer_restore is not None:
             detailer_restore()
 
-    # control_run logs a pipeline exception and returns no image instead of raising
-    if not output_images and not job_queue.stopped_by_user(job_id):
+    if not output_images:
+        if job_queue.stopped_by_user(job_id):
+            raise JobStopped
+        # control_run logs a pipeline exception and returns no image instead of raising
         raise GenerationFailed(stop_message)
 
     def samples_dir() -> str:
@@ -690,6 +692,7 @@ def execute_process(params: dict, job_id: str) -> dict:
     from modules import video as video_module
     from modules.paths import resolve_output_path
 
+    from enso_api.job_queue import JobStopped, job_queue
     from enso_api.postprocess import build_script_args, log_control_drift, resolve_path_ref
     from enso_api.temp_store import get_staging_dir, stage_image
     from enso_api.video_result import build_video_ref, probe_video_file
@@ -738,10 +741,14 @@ def execute_process(params: dict, job_id: str) -> dict:
 
     if mode == "video":
         if not video_out or not os.path.isfile(str(video_out)):
+            if job_queue.stopped_by_user(job_id):
+                raise JobStopped
             raise RuntimeError(f"Process: {info or 'no video produced'}")
         if os.path.realpath(str(video_out)) == os.path.realpath(video_in):
             raise RuntimeError("Process: no video-capable script ran; enable SeedVR or DLSS")
     elif mode != "folder" and not outputs:
+        if job_queue.stopped_by_user(job_id):
+            raise JobStopped
         raise RuntimeError(f"Process: {info or 'no output produced'}")
 
     outpath = resolve_output_path(shared.opts.outdir_samples, shared.opts.outdir_extras_samples)
@@ -1007,6 +1014,7 @@ def execute_preprocess(params: dict, job_id: str) -> dict:
     from modules import shared
 
     from enso_api import preprocess
+    from enso_api.job_queue import JobStopped, job_queue
 
     slots = [{"key": item["key"], "process": item["process"], "params": item.get("params") or {}, "source": decode_image(item["image"]), "sent": item["image"], "apply": lambda image: None} for item in params.get("items") or []]
     jobid = shared.state.begin("API-V2-PRE", api=True)
@@ -1014,6 +1022,8 @@ def execute_preprocess(params: dict, job_id: str) -> dict:
         maps, failed = run_processors(job_id, slots)
     finally:
         shared.state.end(jobid)
+    if not maps and job_queue.stopped_by_user(job_id):
+        raise JobStopped
     if failed:
         raise PreStepFailed(failure_text(failed))
     return {"images": [], "maps": maps, "info": {"revision": preprocess.REVISION}, "params": {"items": [{k: v for k, v in item.items() if k != "image"} for item in params.get("items") or []]}}
@@ -1036,10 +1046,14 @@ def refuse_codec_options(params: dict) -> None:
 
 
 def require_saved(job_id: str, refs: list, wanted: bool) -> None:
-    """Fail a video job that saved nothing it was asked to save; sdnext has logged the cause."""
-    from enso_api.job_queue import job_queue
+    """End a video job that saved nothing: stopped when the user stopped it, else failed when it was asked to save (sdnext has logged the cause)."""
+    from enso_api.job_queue import JobStopped, job_queue
 
-    if wanted and not refs and not job_queue.stopped_by_user(job_id):
+    if refs:
+        return
+    if job_queue.stopped_by_user(job_id):
+        raise JobStopped
+    if wanted:
         raise GenerationFailed(None, "No video was saved. The Console shows the reason.")
 
 
