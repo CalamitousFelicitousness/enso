@@ -52,6 +52,20 @@ export function codecRow(codecs: readonly VideoCodec[], name: string): VideoCode
   return codecs.find((c) => c.name === name);
 }
 
+/** Codec picker groups: software, then hardware, then the codecs this server cannot use, disabled. */
+export function codecGroups(codecs: readonly VideoCodec[]) {
+  const option = (c: VideoCodec) => ({
+    value: c.name,
+    label: c.title,
+    disabled: c.available !== true,
+  });
+  return [
+    { heading: "Software", options: codecs.filter((c) => c.available && !c.hardware).map(option) },
+    { heading: "Hardware", options: codecs.filter((c) => c.available && c.hardware).map(option) },
+    { heading: "Not available", options: codecs.filter((c) => !c.available).map(option) },
+  ].filter((g) => g.options.length > 0);
+}
+
 /** Containers the codec writes; every listed container for a codec the table does not know. */
 export function formatsFor(codecs: readonly VideoCodec[], name: string): string[] {
   const row = codecRow(codecs, name);

@@ -7623,8 +7623,8 @@
             "type": "number"
           },
           "video_type": {
-            "default": "MP4",
-            "description": "GIF, PNG or MP4",
+            "default": "libx264",
+            "description": "GIF, PNG, or a codec name from /sdapi/v1/video/codecs",
             "title": "Video Type",
             "type": "string"
           }

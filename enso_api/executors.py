@@ -734,7 +734,7 @@ def execute_process(params: dict, job_id: str) -> dict:
             None,
             outputs,
             filename=create_video.get("filename") or None,
-            video_type=create_video.get("video_type", "MP4"),
+            video_type=create_video.get("video_type", "libx264"),
             duration=create_video.get("duration", 2.0),
             loop=create_video.get("loop", True),
             interpolate=create_video.get("interpolate", 0),

@@ -1,15 +1,31 @@
+import { useMemo } from "react";
 import { ParamSlider } from "@/components/generation/ParamSlider";
 import { ParamRow, ParamGrid } from "@/components/generation/ParamRow";
 import { Combobox } from "@/components/ui/combobox";
 import { Input } from "@/components/ui/input";
+import { codecLabel } from "@/components/video/codecLabel";
+import { useVideoCodecs } from "@/api/hooks/useVideo";
+import { FALLBACK_CODECS, codecGroups, codecRow, outputProblem } from "@/lib/video/codecs";
 import { ProcessSection, CheckRow } from "./ProcessSection";
 import { useProcessSection } from "./useProcessSection";
 
-const TYPES = ["MP4", "GIF", "PNG"];
+// sdnext saves these as animated images; every other value names a video codec
+const ANIMATIONS = ["GIF", "PNG"];
 
 export function CreateVideoSection() {
   const { enabled, params, applies, setEnabled, set } = useProcessSection("createVideo");
-  const isMp4 = params.video_type === "MP4";
+  const codecQuery = useVideoCodecs();
+  const codecs = useMemo(
+    () => codecQuery.data ?? (codecQuery.isError ? FALLBACK_CODECS : []),
+    [codecQuery.data, codecQuery.isError],
+  );
+  const groups = useMemo(
+    () => [{ heading: "Animation", options: ANIMATIONS }, ...codecGroups(codecs)],
+    [codecs],
+  );
+  const isVideo = !ANIMATIONS.includes(params.video_type);
+  const description = isVideo ? codecRow(codecs, params.video_type)?.description : undefined;
+  const problem = isVideo ? outputProblem(codecs, params.video_type, "") : null;
 
   return (
     <ProcessSection
@@ -21,11 +37,13 @@ export function CreateVideoSection() {
       inapplicableHint="Needs a batch or folder run with at least two images."
     >
       <ParamGrid>
-        <ParamRow label="Format">
+        <ParamRow label="Video codec">
           <Combobox
             value={params.video_type}
             onValueChange={set("video_type")}
-            options={TYPES}
+            groups={groups}
+            renderLabel={codecLabel}
+            searchPlaceholder="Search codecs..."
             className="h-6 text-2xs w-full"
           />
         </ParamRow>
@@ -41,6 +59,8 @@ export function CreateVideoSection() {
           />
         </ParamRow>
       </ParamGrid>
+      {description && <p className="text-3xs text-muted-foreground">{description}</p>}
+      {problem && <p className="text-3xs text-amber-500">{problem}</p>}
       <ParamGrid>
         <ParamSlider
           label="Duration"
@@ -53,17 +73,19 @@ export function CreateVideoSection() {
           decimals={2}
           suffix="s"
         />
-        <ParamSlider
-          label="Pad frames"
-          tooltip="Extra copies of the first and last frame, so the video holds on them."
-          value={params.pad}
-          onChange={set("pad")}
-          min={0}
-          max={24}
-          step={1}
-        />
+        {isVideo && (
+          <ParamSlider
+            label="Pad frames"
+            tooltip="Extra copies of the first and last frame, so the video holds on them."
+            value={params.pad}
+            onChange={set("pad")}
+            min={0}
+            max={24}
+            step={1}
+          />
+        )}
       </ParamGrid>
-      {isMp4 && (
+      {isVideo && (
         <ParamGrid>
           <ParamSlider
             label="Interpolate"
@@ -86,7 +108,7 @@ export function CreateVideoSection() {
           />
         </ParamGrid>
       )}
-      {isMp4 && (
+      {isVideo && (
         <ParamSlider
           label="Change sensitivity"
           tooltip="How different two consecutive images must be for interpolation to treat them as a scene cut instead of blending."
@@ -97,7 +119,7 @@ export function CreateVideoSection() {
           step={0.05}
         />
       )}
-      {!isMp4 && (
+      {!isVideo && (
         <CheckRow
           label="Loop"
           checked={params.loop}

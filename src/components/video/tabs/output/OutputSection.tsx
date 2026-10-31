@@ -10,13 +10,15 @@ import { Switch } from "@/components/ui/switch";
 import { OUTPUT_PRESETS, qualityToCrf, crfToQuality } from "@/lib/videoOutputPresets";
 import {
   FALLBACK_CODECS,
+  codecGroups,
   codecRow,
   formatsFor,
   outputProblem,
   pickCodec,
 } from "@/lib/video/codecs";
+import { codecLabel } from "@/components/video/codecLabel";
 import { useVideoCodecs } from "@/api/hooks/useVideo";
-import type { VideoCodec, VideoModelCaps } from "@/api/types/video";
+import type { VideoModelCaps } from "@/api/types/video";
 
 const FPS_HELP =
   "Playback rate written into the output container.<br>On <b><i>Frames</i></b>-based models the frame count is fixed, so this only sets playback speed: length in seconds = frames / FPS. On <b><i>Duration</i></b>-based models the frame count comes from duration x FPS, so raising it renders more frames and costs proportionally more.<br><br>Some models lock the rate they were trained at and disable this.";
@@ -25,28 +27,6 @@ const presetOptions = OUTPUT_PRESETS.map((p) => p.id);
 const presetLabels: Record<string, string> = Object.fromEntries(
   OUTPUT_PRESETS.map((p) => [p.id, p.label]),
 );
-
-function codecGroups(codecs: readonly VideoCodec[]) {
-  const option = (c: VideoCodec) => ({
-    value: c.name,
-    label: c.title,
-    disabled: c.available !== true,
-  });
-  return [
-    { heading: "Software", options: codecs.filter((c) => c.available && !c.hardware).map(option) },
-    { heading: "Hardware", options: codecs.filter((c) => c.available && c.hardware).map(option) },
-    { heading: "Not available", options: codecs.filter((c) => !c.available).map(option) },
-  ].filter((g) => g.options.length > 0);
-}
-
-function codecLabel(value: string, label: string) {
-  if (label === value) return value;
-  return (
-    <>
-      {label} <span className="text-muted-foreground">{value}</span>
-    </>
-  );
-}
 
 export function OutputSection({ caps }: { caps?: VideoModelCaps }) {
   const fps = useVideoStore((s) => s.fps);

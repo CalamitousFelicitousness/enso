@@ -210,7 +210,7 @@ export const DEFAULT_SECTIONS: ProcessSections = {
     enabled: false,
     params: {
       filename: "",
-      video_type: "MP4",
+      video_type: "libx264",
       duration: 2,
       loop: true,
       pad: 1,
@@ -441,7 +441,7 @@ export const useProcessStore = create<ProcessState>()(
     }),
     {
       name: "enso-process",
-      version: 2,
+      version: 3,
       partialize: ({
         mode,
         inputDir,
@@ -457,8 +457,15 @@ export const useProcessStore = create<ProcessState>()(
         saveOutput,
         sections,
       }),
-      // v1 persisted flat upscale fields; the section shape replaces them
-      migrate: (persisted, version) => (version < 2 ? {} : persisted) as PersistedProcess,
+      migrate: (persisted, version) => {
+        // v1 persisted flat upscale fields; the section shape replaces them
+        if (version < 2) return {} as PersistedProcess;
+        const saved = persisted as PersistedProcess;
+        // v2 offered MP4, which sdnext saves with its default codec
+        const video = saved.sections?.createVideo;
+        if (version < 3 && video?.params.video_type === "MP4") video.params.video_type = "libx264";
+        return saved;
+      },
       merge: (persisted, current) => {
         const saved = (persisted ?? {}) as Partial<PersistedProcess>;
         const keys = Object.keys(DEFAULT_SECTIONS) as ProcessSectionKey[];

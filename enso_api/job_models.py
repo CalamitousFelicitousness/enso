@@ -1217,7 +1217,7 @@ class ProcessCreateVideoParams(StrictBaseModel):
     """Args of the "Create Video" script: one video from every output of a batch or folder run."""
 
     filename: str = Field(default="", description="Output name; empty uses the samples filename pattern")
-    video_type: str = Field(default="MP4", description="GIF, PNG or MP4")
+    video_type: str = Field(default="libx264", description="GIF, PNG, or a codec name from /sdapi/v1/video/codecs")
     duration: float = 2.0
     loop: bool = True
     pad: int = 1
