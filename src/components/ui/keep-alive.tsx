@@ -9,6 +9,7 @@ import {
   type ReactNode,
 } from "react";
 import { cn } from "@/lib/utils";
+import { UiPathSegment } from "./ui-path";
 
 // ── Contexts ───────────────────────────────────────────────────────
 
@@ -104,7 +105,13 @@ export function KeepAlivePanel({
         inert={!visible}
         className={cn(visible ? activeClassName : hiddenClassName)}
       >
-        {shouldRender ? children : null}
+        {shouldRender ? (
+          id != null ? (
+            <UiPathSegment segment={id}>{children}</UiPathSegment>
+          ) : (
+            children
+          )
+        ) : null}
       </div>
     </KeepAliveVisibleContext.Provider>
   );

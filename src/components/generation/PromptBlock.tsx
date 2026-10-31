@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, type ReactNode } from "react";
 import { usePromptEnhanceStore } from "@/stores/promptEnhanceStore";
+import { useRememberedCollapse } from "@/components/ui/ui-path";
 import { usePromptEnhancer } from "@/hooks/usePromptEnhancer";
 import { useUploadView } from "@/hooks/useActionProgress";
 import type { UploadBatch } from "@/inputs/uploads";
@@ -96,7 +97,8 @@ export function PromptBlock({
   actions,
   tourId,
 }: PromptBlockProps) {
-  const [showNegative, setShowNegative] = useState(false);
+  const [negativeCollapsed, setNegativeCollapsed] = useRememberedCollapse("Negative prompt", true);
+  const showNegative = !negativeCollapsed;
   const pinned = usePromptEnhanceStore((s) => s.pinned);
 
   // Latest-value ref so enhance() reads the current prompt without being
@@ -201,7 +203,7 @@ export function PromptBlock({
       )}
 
       {negativeMode === "collapsible" && (
-        <Collapsible open={showNegative} onOpenChange={setShowNegative}>
+        <Collapsible open={showNegative} onOpenChange={(open) => setNegativeCollapsed(!open)}>
           <CollapsibleTrigger className="flex items-center gap-1 text-2xs text-muted-foreground hover:text-foreground transition-colors">
             {showNegative ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
             Negative prompt

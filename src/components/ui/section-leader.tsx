@@ -3,6 +3,7 @@ import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { KeepAlivePanel } from "./keep-alive";
+import { UiPathSegment, useRememberedCollapse } from "./ui-path";
 
 interface SectionLeaderProps {
   title: string;
@@ -55,7 +56,8 @@ const SectionLeader = memo(function SectionLeader({
   tooltip,
   children,
 }: SectionLeaderProps) {
-  const [collapsed, setCollapsed] = useState(defaultCollapsed);
+  const [remembered, setCollapsed] = useRememberedCollapse(title, defaultCollapsed);
+  const collapsed = collapsible && remembered;
 
   const isActive = enableable ? enabled && !parentDisabled : !parentDisabled;
   const hasBar = level < 2;
@@ -74,7 +76,7 @@ const SectionLeader = memo(function SectionLeader({
     };
     document.addEventListener("param-section-expand", handler);
     return () => document.removeEventListener("param-section-expand", handler);
-  }, [collapsible, title]);
+  }, [collapsible, title, setCollapsed]);
 
   // Keyboard: ArrowRight expands, ArrowLeft collapses
   const handleKeyDown = useCallback(
@@ -88,10 +90,10 @@ const SectionLeader = memo(function SectionLeader({
         setCollapsed(true);
       }
     },
-    [collapsible, collapsed],
+    [collapsible, collapsed, setCollapsed],
   );
 
-  const toggleCollapse = useCallback(() => setCollapsed((c) => !c), []);
+  const toggleCollapse = useCallback(() => setCollapsed(!collapsed), [setCollapsed, collapsed]);
 
   // --- Tooltip-wrapped title text ---
   const titleEl = (titleClass: string) => {
@@ -271,7 +273,7 @@ const SectionLeader = memo(function SectionLeader({
             )}
             hiddenClassName="hidden"
           >
-            {children}
+            <UiPathSegment segment={title}>{children}</UiPathSegment>
           </KeepAlivePanel>
         )}
       </div>

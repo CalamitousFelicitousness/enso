@@ -81,6 +81,9 @@ interface UiState {
   canvasLabelScale: number;
   canvasBackground: CanvasBackground;
 
+  // Collapsed state of collapsible sections, keyed by their place in the UI (useRememberedCollapse)
+  sectionCollapsed: Record<string, boolean>;
+
   // Prompt autocomplete
   promptAutocomplete: boolean;
   dictMinChars: number;
@@ -118,6 +121,7 @@ interface UiState {
   addRecentCommand: (id: string) => void;
   setQuickSettingsKeys: (keys: string[] | null) => void;
   setPendingSettingsSearch: (query: string | null) => void;
+  setSectionCollapsed: (key: string, collapsed: boolean) => void;
   setPromptAutocomplete: (enabled: boolean) => void;
   setDictMinChars: (n: number) => void;
   setDictKeepUnderscores: (enabled: boolean) => void;
@@ -194,6 +198,7 @@ export const useUiStore = create<UiState>()(
       uiScale: 18,
       canvasLabelScale: 1,
       canvasBackground: "dots",
+      sectionCollapsed: {},
       promptAutocomplete: true,
       dictMinChars: 3,
       dictKeepUnderscores: false,
@@ -239,6 +244,8 @@ export const useUiStore = create<UiState>()(
         }),
       setQuickSettingsKeys: (keys) => set({ quickSettingsKeys: keys }),
       setPendingSettingsSearch: (query) => set({ pendingSettingsSearch: query }),
+      setSectionCollapsed: (key, collapsed) =>
+        set((s) => ({ sectionCollapsed: { ...s.sectionCollapsed, [key]: collapsed } })),
       setPromptAutocomplete: (enabled) => set({ promptAutocomplete: enabled }),
       setDictMinChars: (n) => set({ dictMinChars: Math.max(2, Math.min(6, n)) }),
       setDictKeepUnderscores: (enabled) => set({ dictKeepUnderscores: enabled }),
