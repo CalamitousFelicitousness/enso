@@ -1,6 +1,8 @@
 """Image processors run before generation, so the map the page shows is the map the pipeline receives."""
 
 import copy
+import json
+from collections import OrderedDict
 
 from PIL import Image
 
@@ -10,9 +12,13 @@ from enso_api.job_warnings import JobLogCapture
 REVISION = "1"
 # Transparent pixels are laid over this before a processor sees them
 BACKGROUND = "black"
+# Maps a later job can take instead of running the processor again
+MAPS_KEPT = 256
 
 # Every processor's default parameters as they were at boot; the Gradio control UI edits the live table
 defaults: dict[str, dict] = {}
+# The media store hash of each map made, by map_key, least recently used first
+maps_made: OrderedDict[str, str] = OrderedDict()
 
 
 class ProcessorFailed(Exception):
@@ -79,6 +85,27 @@ def run(processor_id: str, image: Image.Image, params: dict) -> Image.Image:
     if result.size != source.size:
         raise ProcessorFailed(processor_id, f"returned {result.width}x{result.height} for a {source.width}x{source.height} picture")
     return result
+
+
+def map_key(processor_id: str, params: dict, digest: str) -> str:
+    """What makes a map: the processor with every parameter, the runner's revision and the picture's sha256."""
+    complete = json.dumps({**defaults.get(processor_id, {}), **params}, sort_keys=True, default=str)
+    return f"{processor_id}|{REVISION}|{complete}|{digest}"
+
+
+def recall(key: str) -> str | None:
+    """The hash of the map last made under key."""
+    digest = maps_made.get(key)
+    if digest is not None:
+        maps_made.move_to_end(key)
+    return digest
+
+
+def remember(key: str, digest: str) -> None:
+    maps_made[key] = digest
+    maps_made.move_to_end(key)
+    while len(maps_made) > MAPS_KEPT:
+        maps_made.popitem(last=False)
 
 
 def release() -> None:

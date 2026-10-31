@@ -242,8 +242,34 @@ class PreStepFailed(Exception):
         super().__init__(reason)
 
 
+def source_hash(store, sent) -> str | None:
+    """The sha256 of a picture sent as an upload ref; None for one sent inline."""
+    from enso_api.documents import REF_PREFIX
+
+    if isinstance(sent, str) and sent.startswith(REF_PREFIX):
+        return store.resolve_ref(sent[len(REF_PREFIX) :])
+    return None
+
+
+def stored_map(store, job_id: str, key: str):
+    """The hash and image of the map an earlier job made under key, now named by this job; None once the store lost it."""
+    from PIL import Image
+
+    from enso_api import preprocess
+
+    digest = preprocess.recall(key)
+    path = store.path_of(digest) if digest else None
+    if path is None or store.name_job(job_id, [digest]):
+        return None
+    with Image.open(path) as opened:
+        return digest, opened.copy()
+
+
 def run_processors(job_id: str, slots: list[dict]) -> tuple[dict[str, str], dict[str, str]]:
-    """Run each slot's processor; the maps go into the media store named by the job and out in one maps event, then `apply` takes each map."""
+    """Run each slot's processor; the maps go into the media store named by the job and out in one maps event, then `apply` takes each map.
+
+    A map made before from the same picture, processor and parameters is taken from the store.
+    """
     import io
 
     from enso_api import preprocess
@@ -254,21 +280,37 @@ def run_processors(job_id: str, slots: list[dict]) -> tuple[dict[str, str], dict
     store = require_store()
     maps: dict[str, str] = {}
     failed: dict[str, str] = {}
+    made: dict[str, tuple] = {}
+    refused: dict[str, str] = {}
     try:
         for slot in slots:
             if job_queue.stopped_by_user(job_id):
                 break
-            try:
-                image = preprocess.run(slot["process"], slot["source"], slot["params"])
-            except preprocess.ProcessorFailed as e:
-                failed[slot["key"]] = e.reason
+            digest = source_hash(store, slot.get("sent"))
+            key = preprocess.map_key(slot["process"], slot["params"], digest) if digest else None
+            if key in refused:
+                failed[slot["key"]] = refused[key]
                 continue
-            buf = io.BytesIO()
-            image.save(buf, format="PNG")
-            row, _ = store.ingest_bytes(buf.getvalue())
-            store.name_job(job_id, [row.hash])
-            maps[slot["key"]] = f"/sdapi/v2/blobs/{row.hash}"
-            slot["apply"](image)
+            found = (made.get(key) or stored_map(store, job_id, key)) if key else None
+            if found is None:
+                try:
+                    image = preprocess.run(slot["process"], slot["source"], slot["params"])
+                except preprocess.ProcessorFailed as e:
+                    failed[slot["key"]] = e.reason
+                    if key:
+                        refused[key] = e.reason
+                    continue
+                buf = io.BytesIO()
+                image.save(buf, format="PNG")
+                row, _ = store.ingest_bytes(buf.getvalue())
+                store.name_job(job_id, [row.hash])
+                found = (row.hash, image)
+                if key:
+                    preprocess.remember(key, row.hash)
+            if key:
+                made[key] = found
+            maps[slot["key"]] = f"/sdapi/v2/blobs/{found[0]}"
+            slot["apply"](found[1])
     finally:
         preprocess.release()
     job_queue.push_maps(job_id, WsEventMaps(maps=maps, failed=failed).model_dump())
@@ -405,7 +447,7 @@ def execute_generate(params: dict, job_id: str) -> dict:
     for i, spec in enumerate(params.get("input_process") or []):
         if spec and inputs and i < len(inputs):
             shared_init = inits is not None and i < len(inits) and sent_inits[i] == sent_inputs[i]
-            slots.append({"key": spec["key"], "process": spec["process"], "params": spec.get("params") or {}, "source": inputs[i], "apply": replacing(inputs, inits if shared_init else None, i)})
+            slots.append({"key": spec["key"], "process": spec["process"], "params": spec.get("params") or {}, "source": inputs[i], "sent": sent_inputs[i], "apply": replacing(inputs, inits if shared_init else None, i)})
 
     # Build units from control dicts
     units = []
@@ -443,8 +485,10 @@ def execute_generate(params: dict, job_id: str) -> dict:
             unit.override = decode_image(override_b64)
         units.append(unit)
         if u.get("key") and u.get("process") not in (None, "", "None"):
-            source = unit.override if unit.override is not None else (inputs[0] if inputs else None)
-            slots.append({"key": u["key"], "process": u["process"], "params": u.get("process_params") or {}, "source": source, "apply": lambda image, unit=unit: setattr(unit, "override", image)})
+            own = unit.override is not None
+            source = unit.override if own else (inputs[0] if inputs else None)
+            sent = override_b64 if own else (sent_inputs[0] if inputs else None)
+            slots.append({"key": u["key"], "process": u["process"], "params": u.get("process_params") or {}, "source": source, "sent": sent, "apply": lambda image, unit=unit: setattr(unit, "override", image)})
 
     # Build IP adapter args
     ip_adapter_args = {}
@@ -964,7 +1008,7 @@ def execute_preprocess(params: dict, job_id: str) -> dict:
 
     from enso_api import preprocess
 
-    slots = [{"key": item["key"], "process": item["process"], "params": item.get("params") or {}, "source": decode_image(item["image"]), "apply": lambda image: None} for item in params.get("items") or []]
+    slots = [{"key": item["key"], "process": item["process"], "params": item.get("params") or {}, "source": decode_image(item["image"]), "sent": item["image"], "apply": lambda image: None} for item in params.get("items") or []]
     jobid = shared.state.begin("API-V2-PRE", api=True)
     try:
         maps, failed = run_processors(job_id, slots)
