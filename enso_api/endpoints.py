@@ -549,8 +549,10 @@ def checkpoint_guidance(model) -> CheckpointGuidanceV2:
     """Guidance settings that reach the loaded pipeline."""
     from modules import processing_args
 
-    # the names set_pipeline_args keeps; it drops every other pipeline kwarg
-    call = set(processing_args.get_params(model))
+    from enso_api.sdnext_features import guidance_params
+
+    # older sdnext reports only the call kwargs set_pipeline_args keeps, which miss a modular pipeline's guider
+    call = processing_args.get_guidance_params(model) if guidance_params() else set(processing_args.get_params(model))
     return CheckpointGuidanceV2(
         cfg_applicable="guidance_scale" in call,
         true_cfg_applicable="true_cfg_scale" in call,

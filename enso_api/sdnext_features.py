@@ -6,6 +6,8 @@ import subprocess
 # unit's own picture, and two units run on a union model. A squash or cherry-pick of the same
 # change on another branch gets its hash added here.
 CONTROL_SEPARATE_INIT_COMMITS = ("ea0d5c79f",)
+# db944539b (dev, 2026-10-31): processing_args.get_guidance_params, which also counts what a modular pipeline's guider takes.
+GUIDANCE_PARAMS_COMMITS = ("db944539b",)
 
 known: dict[str, bool] = {}
 
@@ -32,3 +34,8 @@ def has_commit(commit: str) -> bool:
 def control_separate_init() -> bool:
     """A separate init image (input_type 2 with inits) leaves each control unit its own picture."""
     return any(has_commit(commit) for commit in CONTROL_SEPARATE_INIT_COMMITS)
+
+
+def guidance_params() -> bool:
+    """sdnext reports which guidance settings reach a pipeline, its guider included."""
+    return any(has_commit(commit) for commit in GUIDANCE_PARAMS_COMMITS)
