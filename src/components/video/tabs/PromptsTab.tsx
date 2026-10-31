@@ -6,7 +6,7 @@ import { StylesSection } from "./prompts/StylesSection";
 import { useVideoTabContext } from "./useVideoTabContext";
 
 export function PromptsTab() {
-  const { kind } = useVideoTabContext();
+  const { kind, caps } = useVideoTabContext();
   const prompt = useVideoStore((s) => s.prompt);
   const negative = useVideoStore((s) => s.negative);
   const setParam = useVideoStore((s) => s.setParam);
@@ -23,6 +23,7 @@ export function PromptsTab() {
         onNegativeChange={setNegative}
         // Cloud providers take no negative prompt on the wire.
         negativeMode={kind === "cloud" ? "hidden" : "always"}
+        negativeIgnored={!caps.guidance.negative_prompt_applicable}
         enhanceType="video"
         getVisionImage={videoInitVisionSource}
         placeholder="Describe the video..."

@@ -1,7 +1,7 @@
 import { useRef, useEffect, useMemo } from "react";
 import { cn } from "@/lib/utils";
 import { EditorView } from "@codemirror/view";
-import { Compartment } from "@codemirror/state";
+import { Compartment, EditorState } from "@codemirror/state";
 import { useUiStore } from "@/stores/uiStore";
 import { useKeepAliveVisible } from "@/components/ui/keep-alive";
 import { useExtraNetworks, usePromptStyles } from "@/api/hooks/useNetworks";
@@ -23,9 +23,21 @@ interface PromptFieldProps {
   onChange: (value: string) => void;
   placeholder?: string;
   className?: string;
+  /** Kept and shown, not editable. */
+  readOnly?: boolean;
 }
 
-export function PromptField({ value, onChange, placeholder, className }: PromptFieldProps) {
+function readOnlyExtensions(readOnly: boolean) {
+  return [EditorState.readOnly.of(readOnly), EditorView.editable.of(!readOnly)];
+}
+
+export function PromptField({
+  value,
+  onChange,
+  placeholder,
+  className,
+  readOnly = false,
+}: PromptFieldProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
   const lastValue = useRef(value);
@@ -40,6 +52,7 @@ export function PromptField({ value, onChange, placeholder, className }: PromptF
   const wildcardComp = useRef(new Compartment());
   const dictComp = useRef(new Compartment());
   const autocompleteComp = useRef(new Compartment());
+  const readOnlyComp = useRef(new Compartment());
 
   const acEnabled = useUiStore((s) => s.promptAutocomplete);
 
@@ -125,6 +138,7 @@ export function PromptField({ value, onChange, placeholder, className }: PromptF
       extensions: [
         ...promptExtensions(placeholder),
         onDocChange,
+        readOnlyComp.current.of(readOnlyExtensions(readOnly)),
         autocompleteComp.current.of(acEnabled ? promptAutocomplete() : []),
         embeddingComp.current.of(embeddingNamesFacet.of(embeddingNames)),
         loraComp.current.of(loraNamesFacet.of(loras)),
@@ -178,6 +192,12 @@ export function PromptField({ value, onChange, placeholder, className }: PromptF
     });
   }, [acEnabled]);
 
+  useEffect(() => {
+    viewRef.current?.dispatch({
+      effects: readOnlyComp.current.reconfigure(readOnlyExtensions(readOnly)),
+    });
+  }, [readOnly]);
+
   // ── Reconfigure facets when data changes ───────────────────────────
 
   useEffect(() => {
@@ -215,11 +235,12 @@ export function PromptField({ value, onChange, placeholder, className }: PromptF
   return (
     <div
       ref={containerRef}
+      aria-disabled={readOnly || undefined}
       className={cn(
         "border-input bg-muted/30 rounded-md border resize-y overflow-hidden",
         "transition-[color,box-shadow]",
         "[&:has(.cm-focused)]:border-primary/50 [&:has(.cm-focused)]:ring-1 [&:has(.cm-focused)]:ring-primary/20",
-        "hover:border-border-hover",
+        readOnly ? "opacity-50 cursor-not-allowed" : "hover:border-border-hover",
         className,
       )}
     />

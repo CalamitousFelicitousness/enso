@@ -15,6 +15,8 @@ import { ChevronDown, ChevronRight, Sparkles, Loader2, Settings2 } from "lucide-
 import { PromptEnhanceWorkspace } from "./PromptEnhanceWorkspace";
 import type { PromptEnhanceRequest } from "@/api/types/promptEnhance";
 
+const NEGATIVE_IGNORED = "Ignored by the loaded model";
+
 export interface PromptBlockProps {
   value: string;
   onChange: (v: string) => void;
@@ -23,6 +25,9 @@ export interface PromptBlockProps {
   /** collapsible: images. always: local video. hidden: cloud video, which
    * sends no negative prompt. */
   negativeMode?: "collapsible" | "always" | "hidden";
+  /** The loaded model ignores the negative prompt: the field stays readable,
+   * not editable, beside the reason. */
+  negativeIgnored?: boolean;
   enhanceType: NonNullable<PromptEnhanceRequest["type"]>;
   getVisionImage: (batch: UploadBatch) => Promise<string | null>;
   placeholder?: string;
@@ -81,6 +86,7 @@ export function PromptBlock({
   negativeValue,
   onNegativeChange,
   negativeMode = "collapsible",
+  negativeIgnored = false,
   enhanceType,
   getVisionImage,
   placeholder = "Describe what you want to generate...",
@@ -116,12 +122,15 @@ export function PromptBlock({
   const accept = useCallback((p: string) => onChange(p), [onChange]);
 
   const negativeField = (
-    <PromptField
-      value={negativeValue}
-      onChange={onNegativeChange}
-      placeholder={negativePlaceholder}
-      className={negativeClassName}
-    />
+    <div title={negativeIgnored ? NEGATIVE_IGNORED : undefined}>
+      <PromptField
+        value={negativeValue}
+        onChange={onNegativeChange}
+        placeholder={negativePlaceholder}
+        className={negativeClassName}
+        readOnly={negativeIgnored}
+      />
+    </div>
   );
 
   return (
@@ -182,13 +191,23 @@ export function PromptBlock({
         </div>
       </div>
 
-      {negativeMode === "always" && negativeField}
+      {negativeMode === "always" && (
+        <div>
+          {negativeField}
+          {negativeIgnored && (
+            <p className="mt-1 text-2xs text-muted-foreground">{NEGATIVE_IGNORED}</p>
+          )}
+        </div>
+      )}
 
       {negativeMode === "collapsible" && (
         <Collapsible open={showNegative} onOpenChange={setShowNegative}>
           <CollapsibleTrigger className="flex items-center gap-1 text-2xs text-muted-foreground hover:text-foreground transition-colors">
             {showNegative ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
             Negative prompt
+            {negativeIgnored && (
+              <span className="ml-1 text-muted-foreground/70">{NEGATIVE_IGNORED}</span>
+            )}
           </CollapsibleTrigger>
           <CollapsibleContent forceMount>
             <KeepAlivePanel lazy active={showNegative} activeClassName="" hiddenClassName="hidden">

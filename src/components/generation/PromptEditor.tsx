@@ -5,6 +5,7 @@ import { useRegisterCommand } from "@/lib/commandRegistry";
 import { CalendarClock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
+import { useModelCapabilities } from "@/hooks/useModelCapabilities";
 import { PromptBlock } from "./PromptBlock";
 import { PromptHistoryPopover } from "./PromptHistoryPopover";
 import { CloudEnhanceButton } from "./CloudEnhanceButton";
@@ -23,6 +24,8 @@ export function PromptEditor() {
 
   const setPrompt = useCallback((v: string) => setParam("prompt", v), [setParam]);
   const setNegative = useCallback((v: string) => setParam("negativePrompt", v), [setParam]);
+  // Stays live until the loaded pipeline is known
+  const negativeApplicable = useModelCapabilities().guidance?.negative_applicable ?? true;
 
   useRegisterCommand({
     id: "prompt:open-history",
@@ -40,6 +43,7 @@ export function PromptEditor() {
       negativeValue={negativePrompt}
       onNegativeChange={setNegative}
       negativeMode="collapsible"
+      negativeIgnored={!negativeApplicable}
       enhanceType="text"
       getVisionImage={imageCanvasVisionSource}
       placeholder="Describe what you want to generate..."

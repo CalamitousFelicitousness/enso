@@ -480,6 +480,7 @@ class CheckpointGuidanceV2(BaseModel):
     cfg_applicable: bool = Field(description="The pipeline call takes guidance_scale")
     true_cfg_applicable: bool = Field(description="The pipeline call takes true_cfg_scale")
     rescale_applicable: bool = Field(description="The pipeline call takes guidance_rescale")
+    negative_applicable: bool = Field(description="The pipeline call takes negative_prompt")
     pag_applicable: bool = Field(description="sdnext applies PAG to this model family: SD 1.5 and SDXL, text-to-image")
 
 

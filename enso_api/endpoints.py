@@ -555,6 +555,7 @@ def checkpoint_guidance(model) -> CheckpointGuidanceV2:
         cfg_applicable="guidance_scale" in call,
         true_cfg_applicable="true_cfg_scale" in call,
         rescale_applicable="guidance_rescale" in call,
+        negative_applicable="negative_prompt" in call,
         pag_applicable=shared.sd_model_type in ("sd", "sdxl"),
     )
 

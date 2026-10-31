@@ -95,6 +95,11 @@
             "title": "Cfg Applicable",
             "type": "boolean"
           },
+          "negative_applicable": {
+            "description": "The pipeline call takes negative_prompt",
+            "title": "Negative Applicable",
+            "type": "boolean"
+          },
           "pag_applicable": {
             "description": "sdnext applies PAG to this model family: SD 1.5 and SDXL, text-to-image",
             "title": "Pag Applicable",
@@ -115,6 +120,7 @@
           "cfg_applicable",
           "true_cfg_applicable",
           "rescale_applicable",
+          "negative_applicable",
           "pag_applicable"
         ],
         "title": "CheckpointGuidanceV2",
