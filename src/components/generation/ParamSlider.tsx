@@ -12,6 +12,10 @@ import { cn } from "@/lib/utils";
 
 // ── Utility functions ──────────────────────────────────────────────
 
+// The help opened from a press is held in each slider's state, outside Radix's one-open rule;
+// this closes the one open when any other slider shows its help.
+let closeOpenHelp: (() => void) | null = null;
+
 function deriveDecimals(step: number): number {
   const s = String(step);
   const dot = s.indexOf(".");
@@ -130,6 +134,26 @@ export const ParamSlider = memo(function ParamSlider({
     [min, range, decimals, suffix],
   );
 
+  const closeHelp = useCallback(() => {
+    clearTimeout(helpTimer.current);
+    setShowHelp(false);
+    if (closeOpenHelp === closeHelp) closeOpenHelp = null;
+  }, []);
+
+  const closeOtherHelp = useCallback(() => {
+    if (closeOpenHelp && closeOpenHelp !== closeHelp) closeOpenHelp();
+  }, [closeHelp]);
+
+  const triggerHelp = useCallback(() => {
+    closeOtherHelp();
+    closeOpenHelp = closeHelp;
+    clearTimeout(helpTimer.current);
+    setShowHelp(true);
+    helpTimer.current = setTimeout(closeHelp, 3000);
+  }, [closeHelp, closeOtherHelp]);
+
+  useEffect(() => closeHelp, [closeHelp]);
+
   // ── Drag interaction ───────────────────────────────────────────
   // No onChange during drag - only imperative DOM updates.
   // onChange fires once on pointerUp with the final value.
@@ -139,6 +163,8 @@ export const ParamSlider = memo(function ParamSlider({
       // a press hides the hint until the pointer leaves and comes back, as a native title does
       clearTimeout(hoverTimer.current);
       setHovered(false);
+      // touch has no hover, so a press on a disabled slider shows why it is disabled
+      if (disabled && disabledHint && e.button === 0) triggerHelp();
       if (disabled || editing) return;
       if ((e.target as HTMLElement).dataset["valueSpan"] !== undefined) return;
       if (e.button !== 0) return;
@@ -156,7 +182,7 @@ export const ParamSlider = memo(function ParamSlider({
       d.lastValue = value;
       setDragging(true);
     },
-    [disabled, editing, value],
+    [disabled, disabledHint, editing, triggerHelp, value],
   );
 
   const handlePointerMove = useCallback(
@@ -302,12 +328,6 @@ export const ParamSlider = memo(function ParamSlider({
   const isAtDefault = hasReset && value === defaultValue;
   const hasContextItems = hasReset || !!helpText;
 
-  const triggerHelp = useCallback(() => {
-    clearTimeout(helpTimer.current);
-    setShowHelp(true);
-    helpTimer.current = setTimeout(() => setShowHelp(false), 3000);
-  }, []);
-
   // ── Render ─────────────────────────────────────────────────────
 
   const trackContent = (
@@ -323,7 +343,7 @@ export const ParamSlider = memo(function ParamSlider({
       tabIndex={disabled ? -1 : 0}
       className={cn(
         "relative h-5 rounded-sm bg-muted/60 select-none overflow-hidden",
-        // the handlers ignore a disabled slider; hover still shows why it is disabled
+        // the handlers ignore a disabled slider; hover or a press still shows why it is disabled
         disabled
           ? "opacity-50 cursor-not-allowed"
           : dragging
@@ -332,7 +352,10 @@ export const ParamSlider = memo(function ParamSlider({
         "focus-visible:ring-1 focus-visible:ring-ring/50",
       )}
       onPointerEnter={() => {
-        hoverTimer.current = setTimeout(() => setHovered(true), 300);
+        hoverTimer.current = setTimeout(() => {
+          closeOtherHelp();
+          setHovered(true);
+        }, 300);
       }}
       onPointerLeave={() => {
         clearTimeout(hoverTimer.current);
