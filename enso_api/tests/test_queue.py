@@ -352,3 +352,20 @@ def test_the_job_context_names_the_job_while_its_executor_runs(queue, released):
     turn(queue)
     assert seen == ["a", "b"]
     assert active_job.get() is None
+
+
+def drain(q) -> list:
+    found = []
+    while not q.empty():
+        found.append(q.get_nowait())
+    return found
+
+
+def test_every_socket_gets_a_running_jobs_maps_event_once_whenever_it_joins(queue):
+    event = {"type": "maps", "maps": {"k": "/sdapi/v2/blobs/h"}, "failed": {}}
+    early = queue.subscribe("a")
+    queue.push_maps("a", event)
+    late = queue.subscribe("a")
+    assert (drain(early), drain(late)) == ([event], [event])
+    queue.clear_current("a")
+    assert drain(queue.subscribe("a")) == []

@@ -23,6 +23,7 @@ import { useJobFact } from "@/hooks/useJobFact";
 import {
   BEING_SENT,
   NO_SKIP,
+  NO_SKIP_WHILE_MAPS,
   STOP_GENERATION,
   STOP_UPLOAD,
   WAIT_FOR_UPLOAD,
@@ -30,6 +31,7 @@ import {
 import { useSubmitProgress } from "@/inputs/progress";
 import { hasLegacyInputs } from "@/inputs/legacyResult";
 import { resultActions } from "@/lib/jobs/cardActions";
+import { skipApplies } from "@/lib/jobs/skip";
 import {
   LAST_NOT_REPLAYABLE,
   NO_RESULT_YET,
@@ -220,9 +222,18 @@ export const ActionBar = memo(function ActionBar() {
 
   const handleSkip = useCallback(() => {
     if (runningJob && runningJob.domain === "generate") {
+      if (!skipApplies(runningJob)) {
+        toast.info(NO_SKIP_WHILE_MAPS);
+        return;
+      }
       sendToJob(runningJob.id, { type: "skip" });
     }
   }, [runningJob]);
+  const skipBlocked = !runningGenJob
+    ? NO_SKIP
+    : runningJob?.domain === "generate" && !skipApplies(runningJob)
+      ? NO_SKIP_WHILE_MAPS
+      : null;
 
   const lastFacts = useJobFact(lastResult?.jobId);
   const { runAgain } = useRunAgain();
@@ -461,17 +472,17 @@ export const ActionBar = memo(function ActionBar() {
         </Button>
       )}
 
-      {/* Skip: always in its slot, unavailable while no generation runs */}
+      {/* Skip: always in its slot, unavailable while no generation runs or its maps are made */}
       <Button
         type="button"
         data-param="skip"
         onClick={handleSkip}
-        aria-disabled={runningGenJob ? undefined : true}
-        className={runningGenJob ? undefined : "opacity-50"}
+        aria-disabled={skipBlocked ? true : undefined}
+        className={skipBlocked ? "opacity-50" : undefined}
         variant="secondary"
         size="icon-sm"
         aria-label="Skip current"
-        title={runningGenJob ? "Skip current" : NO_SKIP}
+        title={skipBlocked ?? "Skip current"}
       >
         <SkipForward size={14} />
       </Button>

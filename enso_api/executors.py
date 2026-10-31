@@ -271,7 +271,7 @@ def run_processors(job_id: str, slots: list[dict]) -> tuple[dict[str, str], dict
             slot["apply"](image)
     finally:
         preprocess.release()
-    job_queue.push_progress(job_id, WsEventMaps(maps=maps, failed=failed).model_dump())
+    job_queue.push_maps(job_id, WsEventMaps(maps=maps, failed=failed).model_dump())
     return maps, failed
 
 

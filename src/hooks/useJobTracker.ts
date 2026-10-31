@@ -244,6 +244,7 @@ export function useJobTracker() {
               }
               break;
             case "maps":
+              s.markMapsArrived(jobId);
               void installMaps(data.maps, data.failed);
               break;
             case "completed": {

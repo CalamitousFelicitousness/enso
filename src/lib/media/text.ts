@@ -192,6 +192,9 @@ export function uploadingText(percent: number): string {
 
 export const STOP_UPLOAD = "Stop the upload";
 export const NO_SKIP = "No generation to skip";
+/** Skip while the server makes a job's maps, which every image uses. */
+export const NO_SKIP_WHILE_MAPS =
+  "Nothing to skip while the maps are made. Stop ends the job and keeps the maps made so far";
 export const NO_IMAGE_TO_SKIP = "No image to skip";
 export const STOP_GENERATION = "Stop generation";
 export const STOP_PROCESSING = "Stop processing";

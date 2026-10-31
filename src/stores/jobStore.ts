@@ -19,6 +19,8 @@ export interface TrackedJob {
   request: JobRequest | null;
   /** The maps the job makes before generating. */
   mapKeys: string[];
+  /** Its maps event arrived: the maps are made and generation follows. */
+  mapsArrived: boolean;
   priority: number;
   /** Found on the server at a page start rather than sent from this page. */
   rehydrated: boolean;
@@ -59,6 +61,7 @@ export interface JobQueueState {
     phase?: string | null,
   ) => void;
   setStages: (id: string, stages: string[]) => void;
+  markMapsArrived: (id: string) => void;
   updatePreview: (id: string, previewUrl: string) => void;
   completeJob: (id: string, result: JobResult) => void;
   failJob: (id: string, error: string) => void;
@@ -106,6 +109,7 @@ export const useJobQueueStore = create<JobQueueState>()((set) => ({
         createdAt: Date.now(),
         request,
         mapKeys,
+        mapsArrived: false,
         priority,
         rehydrated: false,
         endedWhileClosed: false,
@@ -200,6 +204,13 @@ export const useJobQueueStore = create<JobQueueState>()((set) => ({
         stage: 0,
       });
       return { jobs: next };
+    }),
+
+  markMapsArrived: (id) =>
+    set((state) => {
+      const job = state.jobs.get(id);
+      if (!job || job.mapsArrived) return state;
+      return { jobs: new Map(state.jobs).set(id, { ...job, mapsArrived: true }) };
     }),
 
   updatePreview: (id, previewUrl) =>

@@ -232,6 +232,8 @@ class JobQueue:
         self.stopped_ids: set[str] = set()
         self._subscribers: dict[str, list[asyncio.Queue]] = {}
         self._sub_lock = threading.Lock()
+        # A running job's maps event, for sockets that join after it was sent
+        self.maps_events: dict[str, dict] = {}
         self._current_job_id: str | None = None
         self._initialized = False
         self.output_register_failures = 0
@@ -369,6 +371,9 @@ class JobQueue:
             if job_id not in self._subscribers:
                 self._subscribers[job_id] = []
             self._subscribers[job_id].append(queue)
+            held = self.maps_events.get(job_id)
+            if held is not None:
+                queue.put_nowait(held)
         return queue
 
     def unsubscribe(self, job_id: str, queue: asyncio.Queue) -> None:
@@ -383,6 +388,14 @@ class JobQueue:
         with self._sub_lock:
             subs = self._subscribers.get(job_id, [])
             for q in subs:
+                with contextlib.suppress(asyncio.QueueFull):
+                    q.put_nowait(data)
+
+    def push_maps(self, job_id: str, data: dict) -> None:
+        """Send a job's maps event and keep it until the job ends; each socket gets it once, whenever it joins."""
+        with self._sub_lock:
+            self.maps_events[job_id] = data
+            for q in self._subscribers.get(job_id, []):
                 with contextlib.suppress(asyncio.QueueFull):
                     q.put_nowait(data)
 
@@ -482,6 +495,8 @@ class JobQueue:
         self._current_job_id = None
         self.stopped_ids.discard(job_id)
         self._cancel_ids.discard(job_id)
+        with self._sub_lock:
+            self.maps_events.pop(job_id, None)
 
     def _run_local_job(self, job: dict, executor_fn, job_type: str, hold_lock: bool = True) -> None:
         job_id = job["id"]

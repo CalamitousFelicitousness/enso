@@ -49,6 +49,7 @@ function tracked(job: Job, record: StoredJob, endedWhileClosed: boolean): Tracke
     createdAt: record.createdAt,
     request: record.request as unknown as JobRequest,
     mapKeys: record.mapKeys,
+    mapsArrived: false,
     priority: typeof priority === "number" ? priority : 0,
     rehydrated: true,
     endedWhileClosed,
