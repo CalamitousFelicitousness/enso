@@ -281,6 +281,7 @@ class JobQueue:
         if legacy_path:
             migrate_db_files(os.path.join(legacy_path, "jobs.db"), db_path)
         self.store = JobStore(db_path)
+        self.store.settle_moves()
         mark_dir_git_ignored(data_path)
         self._recover_stale_jobs()
         self.name_live_uploads()

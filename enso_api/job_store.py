@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import contextlib
 import json
+import logging
 import os
 import shutil
 import uuid
@@ -13,6 +14,8 @@ from enso_api.sqlite import Database
 if TYPE_CHECKING:
     import sqlite3
     from collections.abc import Iterable, Mapping, Sequence
+
+log = logging.getLogger("sd")
 
 TERMINAL = ("completed", "failed", "cancelled")
 # A row older than its file by more than this means the file was written again after the job
@@ -45,8 +48,17 @@ CREATE TABLE IF NOT EXISTS outputs (
 CREATE INDEX IF NOT EXISTS idx_outputs_path ON outputs(path);
 """
 
+# The outputs rows a Gallery move is taking along, written before its files move
+SCHEMA_V2 = """
+CREATE TABLE output_moves (
+    output_id TEXT PRIMARY KEY,
+    from_path TEXT NOT NULL,
+    to_path   TEXT NOT NULL
+);
+"""
+
 # Version 1 is the schema every earlier build created, so an existing file is stamped without a change
-MIGRATIONS = [(1, SCHEMA_V1)]
+MIGRATIONS = [(1, SCHEMA_V1), (2, SCHEMA_V2)]
 # Spellings per query, under SQLite's bound-parameter limit
 LOOKUP_CHUNK = 500
 
@@ -317,6 +329,46 @@ class JobStore:
             return 0
         with self.db.write() as w:
             return sum(w.conn.execute("UPDATE outputs SET path = ? WHERE id = ?", update).rowcount for update in updates)
+
+    def plan_moves(self, moves: Iterable[tuple[str, str, str]]) -> None:
+        """Journal output rows about to follow their files, as (output id, from, to), before the files move."""
+        rows = [(output_id, os.path.realpath(src), os.path.realpath(dst)) for output_id, src, dst in moves]
+        if not rows:
+            return
+        with self.db.write(durable=True) as w:
+            w.conn.executemany("INSERT OR REPLACE INTO output_moves (output_id, from_path, to_path) VALUES (?, ?, ?)", rows)
+
+    def finish_moves(self, moved: Iterable[tuple[str, str]], planned: Iterable[tuple[str, str, str]]) -> None:
+        """In one write, point the rows of what moved, as (output id, new path), at their new paths and drop the planned
+        journal rows."""
+        updates = [(os.path.realpath(path), output_id) for output_id, path in moved]
+        settled = [(output_id, os.path.realpath(dst)) for output_id, _, dst in planned]
+        if not updates and not settled:
+            return
+        with self.db.write(durable=True) as w:
+            w.conn.executemany("UPDATE outputs SET path = ? WHERE id = ?", updates)
+            w.conn.executemany("DELETE FROM output_moves WHERE output_id = ? AND to_path = ?", settled)
+
+    def settle_moves(self) -> None:
+        """Settle the Gallery moves a crash left between their files and their rows: a row follows a file that reached
+        its new path and stays with one that did not. Runs before any route serves."""
+        from enso_api.media.moving import arrived
+
+        with self.db.read() as conn:
+            planned = [tuple(row) for row in conn.execute("SELECT output_id, from_path, to_path FROM output_moves")]
+        moved: list[tuple[str, str]] = []
+        settled: list[tuple[str, str, str]] = []
+        for output_id, src, dst in planned:
+            try:
+                if arrived(src, dst):
+                    moved.append((output_id, dst))
+            except OSError as e:
+                log.warning(f"Job queue: move of output={output_id} to {dst} left for the next start: {e}")
+                continue
+            settled.append((output_id, src, dst))
+        self.finish_moves(moved, settled)
+        if settled:
+            log.info(f"Job queue: settled moves followed={len(moved)} stayed={len(settled) - len(moved)}")
 
     def resolve_output(self, output_id: str) -> dict | None:
         with self.db.read() as conn:

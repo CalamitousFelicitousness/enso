@@ -12,7 +12,7 @@ def test_existing_file_is_stamped_without_a_change(root):
     conn.commit()
     conn.close()
     store = JobStore(path)
-    assert store.db.version == 1
+    assert store.db.version == 2
     assert store.get("a")["status"] == "pending"
     store.close()
 

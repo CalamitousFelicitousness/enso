@@ -1,6 +1,5 @@
 import asyncio
 import base64
-import contextlib
 import io
 import os
 import time
@@ -20,8 +19,8 @@ from starlette.websockets import WebSocket, WebSocketState
 from enso_api.confine import VIDEO_EXTENSIONS, gallery_folders, is_allowed_path, is_readable_path, outside_media_store, protected_roots
 from enso_api.errors import refuse
 from enso_api.listing import entry, file_stamp
-from enso_api.media.companions import PATH_NOT_ALLOWED, TAKEN, gather, is_media, protected_reason, reason_of
-from enso_api.media.placement import folder_lock, place
+from enso_api.media.companions import PATH_NOT_ALLOWED, gather, is_media, protected_reason, reason_of
+from enso_api.media.moving import move
 from enso_api.routes import media_file
 from enso_api.session import admit_socket, media_auth
 from enso_api.video_result import sibling_thumb
@@ -385,52 +384,11 @@ def register_api(app: FastAPI):  # register api
         if kept is not None:
             refuse(403, "protected_folder", kept, label="Gallery")
         items, errors = gather(req.files, is_allowed_path, protected, time.time())
-        store = job_queue.store
-        mtimes: dict[str, float] = {}
-        for item in items:
-            for name in (item.name, *item.companions):
-                with contextlib.suppress(OSError):
-                    mtimes[os.path.join(item.folder, name)] = os.stat(os.path.join(item.folder, name)).st_mtime * 1000
-        rows = store.output_ids_at(mtimes) if store is not None else {}
-        moved: list[str] = []
-        repaths: list[tuple[str, str]] = []
-        for item in items:
-            if item.folder == destination:
-                errors.extend({"file": path, "error": "Already in this folder"} for path in item.asked())
-                continue
-            with folder_lock(destination):
-                taken = next((name for name in (item.name, *item.companions) if os.path.lexists(os.path.join(destination, name))), None)
-                if taken is not None:
-                    reason = TAKEN if taken == item.name else f"A file named {taken} is already there"
-                    errors.extend({"file": path, "error": reason} for path in item.asked())
-                    continue
-                try:
-                    place(item.path, os.path.join(destination, item.name))
-                except FileExistsError:
-                    errors.extend({"file": path, "error": TAKEN} for path in item.asked())
-                    continue
-                except OSError as e:
-                    errors.extend({"file": path, "error": reason_of(e)} for path in item.asked())
-                    continue
-                placed = [item.name]
-                for companion in item.companions:
-                    try:
-                        place(os.path.join(item.folder, companion), os.path.join(destination, companion))
-                    except OSError as e:
-                        log.warning(f'Gallery move: "{companion}" beside "{item.name}" kept: {e}')
-                        if companion in item.requested:
-                            errors.append({"file": item.requested[companion], "error": reason_of(e)})
-                        continue
-                    placed.append(companion)
-            for name in placed:
-                if is_media(name):
-                    moved.append(item.spelled(name))
-                repaths.extend((output_id, os.path.join(destination, name)) for output_id in rows.get(os.path.join(item.folder, name), ()))
-        if store is not None and repaths:
-            store.repath_outputs(repaths)
+        result = move(items, destination, job_queue.store)
+        errors.extend(result.errors)
         forget_folders(req.files, [*(item.folder for item in items), destination, os.path.abspath(req.destination)])
-        report("move", moved, errors)
-        return JSONResponse(content={"moved": moved, "errors": errors})
+        report("move", result.moved, errors)
+        return JSONResponse(content={"moved": result.moved, "errors": errors})
 
     def download_files(req: ReqDownload):
         """Create a zip archive of gallery files and stream it to the client."""

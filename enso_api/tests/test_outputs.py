@@ -119,3 +119,65 @@ def test_repathed_rows_follow_the_file(store, root):
     assert store.repath_outputs([]) == 0
     assert store.resolve_output("job1-out")["path"] == os.path.realpath(moved)
     assert store.output_job(path_spellings(moved), ms(NOW)) == "job1"
+
+
+def journal(store: JobStore) -> list[tuple[str, str, str]]:
+    with store.db.read() as conn:
+        return [tuple(found) for found in conn.execute("SELECT output_id, from_path, to_path FROM output_moves")]
+
+
+def planned_move(store: JobStore, root: str) -> tuple[str, str]:
+    path = output(root, "a.png", NOW)
+    row(store, path, "job1", NOW)
+    os.makedirs(os.path.join(root, "moved"))
+    target = os.path.join(root, "moved", "a.png")
+    store.plan_moves([("job1-out", path, target)])
+    return path, target
+
+
+def test_a_finished_move_repaths_and_clears_its_journal(store, root):
+    path, target = planned_move(store, root)
+    assert journal(store) == [("job1-out", os.path.realpath(path), os.path.realpath(target))]
+    os.rename(path, target)
+    store.finish_moves([("job1-out", target)], [("job1-out", path, target)])
+    assert store.resolve_output("job1-out")["path"] == os.path.realpath(target)
+    assert journal(store) == []
+
+
+def test_a_move_whose_file_arrived_before_a_crash_is_followed_at_start(store, root):
+    path, target = planned_move(store, root)
+    os.rename(path, target)
+    store.close()
+    reopened = JobStore(store.db_path)
+    try:
+        reopened.settle_moves()
+        assert reopened.resolve_output("job1-out")["path"] == os.path.realpath(target)
+        assert journal(reopened) == []
+    finally:
+        reopened.close()
+
+
+def test_a_move_whose_file_never_left_keeps_its_row(store, root):
+    path, _ = planned_move(store, root)
+    store.settle_moves()
+    assert store.resolve_output("job1-out")["path"] == os.path.realpath(path)
+    assert journal(store) == []
+
+
+def test_a_file_left_at_both_names_finishes_its_move(store, root):
+    path, target = planned_move(store, root)
+    os.link(path, target)
+    store.settle_moves()
+    assert not os.path.exists(path)
+    assert store.resolve_output("job1-out")["path"] == os.path.realpath(target)
+
+
+def test_another_file_at_the_new_name_keeps_the_row_home(store, root):
+    path, target = planned_move(store, root)
+    with open(target, "wb") as f:
+        f.write(b"another")
+    store.settle_moves()
+    assert os.path.exists(path)
+    assert os.path.exists(target)
+    assert store.resolve_output("job1-out")["path"] == os.path.realpath(path)
+    assert journal(store) == []
