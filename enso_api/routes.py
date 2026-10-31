@@ -386,6 +386,7 @@ async def get_output(output_id: str):
     def serve():
         row = job_queue.store.resolve_output(output_id)
         if row is None:
+            log.debug(f"Outputs: {output_id} not registered")
             raise HTTPException(status_code=404, detail="Output not found")
         file_path = row["path"]
         if not os.path.isfile(file_path):

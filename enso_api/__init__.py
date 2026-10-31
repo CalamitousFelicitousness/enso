@@ -193,6 +193,8 @@ def register_api(app, dependencies=None):
                 "/sdapi/v2/browser/trash/delete": -1,
                 "/sdapi/v2/browser/trash/empty": -1,
                 "/sdapi/v2/browser/trash/outputs": -1,
+                # A deleted output's 404 is an expected answer; the route logs it at debug
+                "/sdapi/v2/outputs/{output_id}": -1,
             }
         )
     except ImportError:
