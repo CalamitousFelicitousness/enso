@@ -226,7 +226,7 @@ class GenerationFailed(Exception):
     logged = True
 
     def __init__(self, reason: str | None, detail: str = "No image was generated. The Console shows the reason."):
-        self.reason = reason  # control_run's own stop message, when it gave one
+        self.reason = reason  # the failed pass's error or control_run's own stop message, when there is one
         self.detail = reason or detail
         super().__init__(self.detail)
 
@@ -600,6 +600,7 @@ def execute_generate(params: dict, job_id: str) -> dict:
             # control_run yields the processed picture before and after generation
             if len(item) > 1 and item[1] is not None and all(item[1] is not kept for kept in output_processed):
                 output_processed.append(item[1])
+        pass_error = shared.state.error if sdnext_features.pass_error() else ""
     finally:
         shared.state.end(jobid)
         if detailer_restore is not None:
@@ -608,8 +609,9 @@ def execute_generate(params: dict, job_id: str) -> dict:
     if not output_images:
         if job_queue.stopped_by_user(job_id):
             raise JobStopped
-        # control_run logs a pipeline exception and returns no image instead of raising
-        raise GenerationFailed(stop_message)
+        # control_run logs a pipeline exception and returns no image instead of raising; the failed pass also stops
+        # its later inputs with "Interrupted", so the pass's own error comes first
+        raise GenerationFailed(pass_error or stop_message)
 
     def samples_dir() -> str:
         from modules.paths import resolve_output_path

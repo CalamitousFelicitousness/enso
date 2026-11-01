@@ -8,6 +8,8 @@ import subprocess
 CONTROL_SEPARATE_INIT_COMMITS = ("ea0d5c79f",)
 # db944539b (dev, 2026-10-31): processing_args.get_guidance_params, which also counts what a modular pipeline's guider takes.
 GUIDANCE_PARAMS_COMMITS = ("db944539b",)
+# 122a4393d (dev, 2026-10-31): State.fail keeps a failed pass's exception message on shared.state.error.
+PASS_ERROR_COMMITS = ("122a4393d",)
 
 known: dict[str, bool] = {}
 
@@ -39,3 +41,8 @@ def control_separate_init() -> bool:
 def guidance_params() -> bool:
     """sdnext reports which guidance settings reach a pipeline, its guider included."""
     return any(has_commit(commit) for commit in GUIDANCE_PARAMS_COMMITS)
+
+
+def pass_error() -> bool:
+    """sdnext keeps a failed pass's exception message on shared.state.error until the next job begins."""
+    return any(has_commit(commit) for commit in PASS_ERROR_COMMITS)
