@@ -3,8 +3,33 @@ import { ModelSelector } from "@/components/models/ModelSelector";
 import { PresetSelector } from "@/components/generation/PresetSelector";
 import { ImageToolsMenu } from "@/components/generation/ImageToolsMenu";
 import { ConnectionIndicator } from "@/components/connection/ConnectionIndicator";
-import { PanelLeftOpen } from "lucide-react";
+import { PanelLeftOpen, Undo2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { runUndo, useUndoOffer } from "@/inputs/undo";
+import { NOTHING_TO_UNDO, undoTitleText } from "@/lib/inputs/text";
+import { formatShortcut, SHORTCUTS } from "@/lib/shortcuts";
+
+/** Runs the change the notice showing offers to undo; grayed out while none does. */
+function UndoButton() {
+  const title = useUndoOffer((s) => s.title);
+  const shortcut = SHORTCUTS["undo"];
+  const label = title
+    ? undoTitleText(title, shortcut ? formatShortcut(shortcut) : null)
+    : NOTHING_TO_UNDO;
+  return (
+    <Button
+      variant="ghost"
+      size="icon-sm"
+      onClick={() => void runUndo()}
+      disabled={!title}
+      aria-label={label}
+      title={label}
+      className="text-muted-foreground"
+    >
+      <Undo2 size={16} />
+    </Button>
+  );
+}
 
 export function TopToolBar() {
   const leftRailCollapsed = useUiStore((s) => s.leftRailCollapsed);
@@ -51,6 +76,7 @@ export function TopToolBar() {
 
       {/* Right side controls */}
       <div className="flex items-center gap-1 flex-shrink-0">
+        <UndoButton />
         <ConnectionIndicator />
       </div>
     </header>

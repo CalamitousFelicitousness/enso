@@ -40,6 +40,7 @@ import { deleteEntry, emptyServerTrash } from "./library";
 import { liveCids } from "./live";
 import { failureText, isQuotaError, spaceFreed } from "./quota";
 import { forgetThumbs } from "./thumbs";
+import { endUndoFor } from "./undo";
 
 interface TrashState {
   /** Removal records this build can read, by key. */
@@ -194,6 +195,8 @@ export async function deleteNow(item: Pick<TrashItem, "source" | "key">): Promis
     return;
   }
   if (item.source !== "removal") return;
+  // deleted for good: an Undo of that removal would hold its bytes
+  endUndoFor(item.key);
   const deleted = await deleteAndTell(
     [{ store: TRASH, key: item.key }],
     deletedFromTrashText(1),
@@ -212,6 +215,7 @@ export async function emptyTrash(
 ): Promise<void> {
   const parts: string[] = [];
   if (removals.length > 0) {
+    for (const key of removals) endUndoFor(key);
     try {
       await settleInputs();
       const outcome = await deleteForGood(

@@ -747,3 +747,19 @@ export const STORAGE_FULL = "Storage is full.";
 export const FULL_WITH_OTHER_TABS =
   "Storage is full. Close the other Enso tabs, then delete again.";
 export const UNDO_FAILED = "Could not undo";
+
+/** The Top Bar's Undo while nothing can be undone. */
+export const NOTHING_TO_UNDO = "Nothing to undo";
+
+/** "Undo: Input 2 removed (Ctrl+Z)". */
+export function undoTitleText(title: string, keys: string | null): string {
+  return keys ? `Undo: ${title} (${keys})` : `Undo: ${title}`;
+}
+
+/** "In the trash for 7 days": where a removal went. */
+export function inTrashText(days: number): string {
+  return `In the trash ${keptForText(days)}`;
+}
+
+/** The removal notice's button that opens the trash. */
+export const SHOW_TRASH = "Show trash";

@@ -20,10 +20,12 @@ import { removalCids, type Inputs, type Removal } from "@/lib/inputs/stored";
 import {
   addedText,
   duplicatedText,
+  inTrashText,
   NOT_KEPT_IN_TRASH,
   NOTHING_TO_DUPLICATE,
   positionLabel,
   renumberText,
+  SHOW_TRASH,
 } from "@/lib/inputs/text";
 import {
   cidsOf,
@@ -40,6 +42,8 @@ import { revealFrame } from "./reveal";
 import { keepingSize } from "./sizeSync";
 import { preparePictures } from "./route";
 import { forgetRemoval, recordRemoval } from "./trash";
+import { readTrashDays } from "./db";
+import { showLibrary } from "./library";
 import { isQuotaError, reportFull } from "./quota";
 import { offerUndo } from "./undo";
 import { outlineOf } from "./outlineOf";
@@ -61,7 +65,8 @@ export interface Inverse {
   frames: readonly Frame[];
 }
 
-/** An Undo offer for an inverse, holding the bytes of what it brings back. */
+/** An Undo offer for an inverse, holding the bytes of what it brings back.
+ * A `settle` finishes the change, so its offer ends with the notice. */
 export function offerInverse(
   title: string,
   description: string | null,
@@ -70,7 +75,7 @@ export function offerInverse(
 ): void {
   offerUndo(title, description, inverse.run, {
     holds: () => cidsOf(inverse.frames),
-    ...(settle ? { settle } : {}),
+    ...(settle ? { settle, brief: true } : {}),
   });
 }
 
@@ -184,14 +189,21 @@ async function removed(
       reportFull("A removed input");
     }
   }
+  const days = key ? await readTrashDays().catch(() => null) : null;
+  const kept = days === null ? null : inTrashText(days);
   offerUndo(
     title,
-    renumber,
+    [renumber, kept].filter(Boolean).join(". ") || null,
     () => {
       undo();
       if (key) void forgetRemoval(key);
     },
-    { holds: () => removalCids(removal) },
+    {
+      holds: () => removalCids(removal),
+      ...(key
+        ? { tag: key, also: { label: SHOW_TRASH, onClick: () => showLibrary("trash") } }
+        : {}),
+    },
   );
 }
 

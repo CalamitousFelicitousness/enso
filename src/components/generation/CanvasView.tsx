@@ -27,7 +27,7 @@ import { INPUTS_FULL_HINT } from "@/inputs/capacity";
 import { getOrderedFrames, parseFrameId } from "@/canvas/frameList";
 import { useInputCommands } from "@/canvas/useInputCommands";
 import { ModeToggle } from "./ModeToggle";
-import { RotateCcw, X, Plus } from "lucide-react";
+import { LocateFixed, X, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 /** The frame files go to: the given one, else the selected one, else the first. */
@@ -270,19 +270,18 @@ export const CanvasView = memo(function CanvasView() {
           title="Reset zoom"
           className="bg-background/80 backdrop-blur-sm"
         >
-          <RotateCcw size={12} />
+          <LocateFixed size={12} />
         </Button>
-        {hasAnyContent && (
-          <Button
-            variant="secondary"
-            size="icon-xs"
-            onClick={handleClearAll}
-            title="Clear all frames"
-            className="bg-background/80 backdrop-blur-sm"
-          >
-            <X size={12} />
-          </Button>
-        )}
+        <Button
+          variant="secondary"
+          size="icon-xs"
+          onClick={handleClearAll}
+          disabled={!hasAnyContent}
+          title={hasAnyContent ? "Clear all frames" : "Nothing to clear"}
+          className="bg-background/80 backdrop-blur-sm"
+        >
+          <X size={12} />
+        </Button>
       </div>
 
       {/* The mask toolbar shows while the selected frame composes a picture

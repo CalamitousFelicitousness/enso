@@ -36,6 +36,7 @@ import {
   SAVE_FAILED,
   savedText,
   SHOW_IN_LIBRARY,
+  SHOW_TRASH,
 } from "@/lib/inputs/text";
 import { holdsContent, type Frame } from "@/lib/inputs/types";
 import { assembleEntry, byLibraryOrder, clampName, type ThumbPart } from "@/lib/media/entry";
@@ -242,11 +243,16 @@ export async function trashEntry(id: string): Promise<void> {
     refused(err, entryChangeFailedText("trash", name));
     return;
   }
-  offerUndo(entryTrashedText(name), null, async () => {
-    const back = await untrashEntry(id);
-    const moved = back && movedText(back);
-    if (moved) toast.info(moved);
-  });
+  offerUndo(
+    entryTrashedText(name),
+    null,
+    async () => {
+      const back = await untrashEntry(id);
+      const moved = back && movedText(back);
+      if (moved) toast.info(moved);
+    },
+    { also: { label: SHOW_TRASH, onClick: () => showLibrary("trash") } },
+  );
 }
 
 function dropFromTrash(ids: readonly string[]): void {

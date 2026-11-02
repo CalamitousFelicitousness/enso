@@ -304,7 +304,7 @@ function StripLimitRow() {
       title,
       description,
       () => useGenerationStore.getState().putBackResults(removed, previous),
-      { settle: () => void generationHistoryDb.deleteMany(removed.map((r) => r.id)) },
+      { settle: () => void generationHistoryDb.deleteMany(removed.map((r) => r.id)), brief: true },
     );
   };
 

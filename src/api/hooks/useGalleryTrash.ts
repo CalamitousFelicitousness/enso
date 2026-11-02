@@ -24,6 +24,7 @@ import type {
   ResTrashedV2,
 } from "../types/media";
 import { offerUndo } from "@/inputs/undo";
+import { SHOW_TRASH } from "@/lib/inputs/text";
 import { invalidateFolder, invalidateFoldersHolding } from "@/lib/folderCache";
 import {
   DELETE_NOW_FAILED,
@@ -196,6 +197,7 @@ export async function trashPaths(paths: readonly string[], hidden = 0): Promise<
         trashed.map((item) => item.id),
         { undoing: true },
       ),
+    { also: { label: SHOW_TRASH, onClick: showInGalleryTrash } },
   );
   return true;
 }
