@@ -912,6 +912,7 @@
                   "mapping": {
                     "area": "#/components/schemas/RuleAreaV2",
                     "buckets": "#/components/schemas/RuleBucketsV2",
+                    "canvas": "#/components/schemas/RuleCanvasV2",
                     "cap": "#/components/schemas/RuleCapV2",
                     "exact": "#/components/schemas/RuleExactV2",
                     "floor": "#/components/schemas/RuleFloorV2",
@@ -937,6 +938,9 @@
                   },
                   {
                     "$ref": "#/components/schemas/RuleFloorV2"
+                  },
+                  {
+                    "$ref": "#/components/schemas/RuleCanvasV2"
                   }
                 ]
               },
@@ -945,6 +949,51 @@
               }
             ],
             "title": "Rule"
+          },
+          "rule_several": {
+            "anyOf": [
+              {
+                "discriminator": {
+                  "mapping": {
+                    "area": "#/components/schemas/RuleAreaV2",
+                    "buckets": "#/components/schemas/RuleBucketsV2",
+                    "canvas": "#/components/schemas/RuleCanvasV2",
+                    "cap": "#/components/schemas/RuleCapV2",
+                    "exact": "#/components/schemas/RuleExactV2",
+                    "floor": "#/components/schemas/RuleFloorV2",
+                    "shortest": "#/components/schemas/RuleShortestV2"
+                  },
+                  "propertyName": "kind"
+                },
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/RuleAreaV2"
+                  },
+                  {
+                    "$ref": "#/components/schemas/RuleCapV2"
+                  },
+                  {
+                    "$ref": "#/components/schemas/RuleBucketsV2"
+                  },
+                  {
+                    "$ref": "#/components/schemas/RuleShortestV2"
+                  },
+                  {
+                    "$ref": "#/components/schemas/RuleExactV2"
+                  },
+                  {
+                    "$ref": "#/components/schemas/RuleFloorV2"
+                  },
+                  {
+                    "$ref": "#/components/schemas/RuleCanvasV2"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rule Several"
           }
         },
         "title": "DeclaredSizeV2",
@@ -13277,6 +13326,41 @@
           "aspect_multiple"
         ],
         "title": "RuleBucketsV2",
+        "type": "object"
+      },
+      "RuleCanvasV2": {
+        "description": "Scaled down, sides rounded half to even, until the canvas (each side rounded up to the multiple, clamped to\nmin_side and max_side) fits the area and the long side max_side; the pad to the canvas is the consumer's.",
+        "properties": {
+          "area": {
+            "title": "Area",
+            "type": "integer"
+          },
+          "kind": {
+            "const": "canvas",
+            "title": "Kind",
+            "type": "string"
+          },
+          "max_side": {
+            "title": "Max Side",
+            "type": "integer"
+          },
+          "min_side": {
+            "title": "Min Side",
+            "type": "integer"
+          },
+          "multiple": {
+            "title": "Multiple",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "kind",
+          "area",
+          "multiple",
+          "min_side",
+          "max_side"
+        ],
+        "title": "RuleCanvasV2",
         "type": "object"
       },
       "RuleCapV2": {

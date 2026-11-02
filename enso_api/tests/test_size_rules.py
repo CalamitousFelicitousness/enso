@@ -3,6 +3,7 @@ from enso_api.size_rules import declared, server_formats
 QWEN = {"rule": {"kind": "area", "area": 1048576, "multiple": 32, "round": "nearest"}, "output_area": 1048576}
 JOY = {"rule": {"kind": "buckets", "sizes": [[1792, 512], [1024, 1024]], "fit": "cover", "ratio": "h/w", "aspect_multiple": 1}}
 FLUX2 = {"rule": {"kind": "cap", "area": 1048576}, "limits": {"min_side": 64, "max_aspect": 8.0}}
+FLUX3 = {"rule": {"kind": "canvas", "area": 4194304, "multiple": 16, "min_side": 64, "max_side": 4096}, "rule_several": {"kind": "cap", "area": 1048576}}
 
 
 def test_declarations_read_as_sdnext_answers_them():
@@ -10,6 +11,9 @@ def test_declarations_read_as_sdnext_answers_them():
     assert qwen is not None and qwen.rule.kind == "area" and qwen.output_area == 1048576
     assert declared("j", lambda: JOY).rule.sizes == [[1792, 512], [1024, 1024]]
     assert declared("f", lambda: FLUX2).limits.max_aspect == 8.0
+    assert declared("f", lambda: FLUX2).rule_several is None
+    flux3 = declared("f3", lambda: FLUX3)
+    assert flux3 is not None and flux3.rule.kind == "canvas" and flux3.rule.max_side == 4096 and flux3.rule_several.kind == "cap"
     assert declared("n", lambda: {"rule": None}).rule is None
 
 

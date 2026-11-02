@@ -50,6 +50,26 @@ describe("sent sizes of a set's members", () => {
     });
   });
 
+  it("fits a lone reference by the rule and each of several by the several-pictures rule", () => {
+    const flux3: Declaration = {
+      kind: "declared",
+      declared: {
+        rule: { kind: "canvas", area: 4096 * 1024, multiple: 16, minSide: 64, maxSide: 4096 },
+        ruleSeveral: { kind: "cap", area: 1024 * 1024 },
+      },
+    };
+    const one = computeOutline([frame("refs", "reference", photo("big", 6000, 4000))], env(flux3));
+    expect(one.sent[0].fit).toEqual({ width: 2496, height: 1664, mode: "stretch" });
+    const two = computeOutline(
+      [frame("refs", "reference", photo("big", 6000, 4000), photo("other", 6000, 4000))],
+      env(flux3),
+    );
+    expect(two.sent.map((s) => s.fit)).toEqual([
+      { width: 1254, height: 836, mode: "stretch" },
+      { width: 1254, height: 836, mode: "stretch" },
+    ]);
+  });
+
   it("carries the sent size into the frame's slots", () => {
     const outline = computeOutline(
       [frame("refs", "reference", photo("big", 6000, 4000), photo("small", 800, 600))],

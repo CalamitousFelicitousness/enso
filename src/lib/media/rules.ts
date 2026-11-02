@@ -31,6 +31,14 @@ function ruleOf(wire: NonNullable<DeclaredSizeV2["rule"]>): SizeRule {
       return { kind: "exact", width: wire.width, height: wire.height };
     case "floor":
       return { kind: "floor", multiple: wire.multiple };
+    case "canvas":
+      return {
+        kind: "canvas",
+        area: wire.area,
+        multiple: wire.multiple,
+        minSide: wire.min_side,
+        maxSide: wire.max_side,
+      };
   }
 }
 
@@ -39,6 +47,7 @@ export function declaredSize(wire: DeclaredSizeV2): DeclaredSize {
   const limits = wire.limits ?? null;
   return {
     rule: wire.rule ? ruleOf(wire.rule) : null,
+    ...(wire.rule_several ? { ruleSeveral: ruleOf(wire.rule_several) } : {}),
     ...(limits && (limits.min_side != null || limits.max_aspect != null)
       ? {
           limits: {
@@ -57,6 +66,16 @@ export function declarationOf(value: DeclaredSize | null | undefined): Declarati
   if (value === undefined) return UNKNOWN;
   if (value === null) return UNREPORTED;
   return { kind: "declared", declared: value };
+}
+
+/** The declaration as it applies to each picture of a set of `count`. */
+export function forSetOf(declaration: Declaration, count: number): Declaration {
+  if (declaration.kind !== "declared" || count < 2 || !declaration.declared.ruleSeveral)
+    return declaration;
+  return {
+    kind: "declared",
+    declared: { ...declaration.declared, rule: declaration.declared.ruleSeveral },
+  };
 }
 
 /** The rule a declaration applies, or null for none or none known. */

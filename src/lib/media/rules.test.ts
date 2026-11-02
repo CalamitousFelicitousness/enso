@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { declarationOf, declaredSize, ruleIn, sameDeclaration } from "./rules";
+import { declarationOf, declaredSize, forSetOf, ruleIn, sameDeclaration } from "./rules";
 
 describe("declarations from the server", () => {
   it("maps each rule from the wire's snake_case, buckets as width and height", () => {
@@ -51,6 +51,23 @@ describe("declarations from the server", () => {
     });
     expect(ruleIn(declared)).toEqual({ kind: "shortest", side: 224 });
     expect(ruleIn(declarationOf(null))).toBeNull();
+  });
+
+  it("applies the several-pictures rule to a set of two or more only", () => {
+    const flux3 = declaredSize({
+      rule: { kind: "canvas", area: 4194304, multiple: 16, min_side: 64, max_side: 4096 },
+      rule_several: { kind: "cap", area: 1048576 },
+    });
+    expect(flux3).toEqual({
+      rule: { kind: "canvas", area: 4194304, multiple: 16, minSide: 64, maxSide: 4096 },
+      ruleSeveral: { kind: "cap", area: 1048576 },
+    });
+    const declared = declarationOf(flux3);
+    expect(ruleIn(forSetOf(declared, 1))).toEqual(flux3.rule);
+    expect(ruleIn(forSetOf(declared, 2))).toEqual({ kind: "cap", area: 1048576 });
+    const qwen = declarationOf({ rule: { kind: "shortest", side: 224 } });
+    expect(forSetOf(qwen, 3)).toBe(qwen);
+    expect(forSetOf(declarationOf(null), 3)).toEqual({ kind: "unreported" });
   });
 
   it("compares declarations by value", () => {

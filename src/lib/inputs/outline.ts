@@ -5,7 +5,7 @@
 // exactly `sent`, `controls` and `ipAdapters`.
 
 import type { EffectiveLimit } from "@/lib/media/limits";
-import type { Declaration } from "@/lib/media/rules";
+import { forSetOf, type Declaration } from "@/lib/media/rules";
 import {
   fitTo,
   ruleRefusal,
@@ -636,21 +636,22 @@ export function computeOutline(frames: Frame[], env: OutlineEnv = {}): Outline {
   // from its own size, an Initial composite from the generation size
   const frameOf = new Map(frames.map((f) => [f.id, f]));
   const sizes = env.sizes ?? null;
+  const reference = sizes ? forSetOf(sizes.reference, plain.length) : null;
   const cloud = env.cloud ?? null;
   const sizeInput = (input: SentInput): SentInput => {
     const frame = frameOf.get(input.frameId);
     if (cloud && !input.unreadable && frame)
       return { ...input, ...encodedFor(cloud, frame, input) };
-    if (!sizes || !set || input.unreadable || !frame) return input;
+    if (!sizes || !reference || !set || input.unreadable || !frame) return input;
     if (input.pictureId === null) {
       if (composedPictures(frame).some((p) => overLimit(p, env.inputLimit))) return input;
-      return { ...input, ...sizedBy(sizes.reference, sizes.target, false) };
+      return { ...input, ...sizedBy(reference, sizes.target, false) };
     }
     const picture = frame.pictures.find((p) => p.id === input.pictureId);
     if (!picture || overLimit(picture, env.inputLimit)) return input;
     return {
       ...input,
-      ...sizedBy(sizes.reference, { width: picture.width, height: picture.height }, false),
+      ...sizedBy(reference, { width: picture.width, height: picture.height }, false),
     };
   };
   const sized = settled.map((e) => {

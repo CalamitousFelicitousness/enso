@@ -9,14 +9,24 @@ import { Enso, PORTRAIT } from "./support/app";
 import { jobLog, loadedCheckpoint, pipelineImages, watchMedia } from "./support/backend";
 
 // A reference goes out at the size the loaded model resizes it to, read from
-// the checkpoint's reference_size: the row says the size, the upload is that
-// size, the pipeline receives it, and Run again claims it. A picture above
-// the server's limit is refused before anything decodes it. The 6x portrait
-// (3180x5772) fits to 768x1376 under Qwen-Image 2.1's rule, a size the suite
-// already uses.
+// the checkpoint's reference_size for a set of that many: the row says the
+// size, the upload is that size, the pipeline receives it, and Run again
+// claims it. A picture above the server's limit is refused before anything
+// decodes it. The 6x portrait (3180x5772) fits to 768x1376 under Qwen-Image
+// 2.1's rule, a size the suite already uses.
+
+interface WireRule {
+  kind: string;
+  area?: number;
+  multiple?: number;
+  round?: string;
+  min_side?: number;
+  max_side?: number;
+}
 
 interface Declared {
-  rule: { kind: string; area?: number; multiple?: number; round?: string } | null;
+  rule: WireRule | null;
+  rule_several?: WireRule | null;
 }
 
 let folder = "";
@@ -66,9 +76,8 @@ function headerOnlyPng(width: number, height: number): string {
   return path;
 }
 
-/** The rule a wire declaration names, for the kinds whose fields read alike. */
-function areaOrCap(declared: Declared | null | undefined): SizeRule | null {
-  const rule = declared?.rule;
+/** A wire rule of the kinds the edit models declare, in the browser's shape. */
+function ruleOf(rule: WireRule | null | undefined): SizeRule | null {
   if (rule?.kind === "area" && rule.area && rule.multiple && rule.round) {
     return {
       kind: "area",
@@ -78,63 +87,87 @@ function areaOrCap(declared: Declared | null | undefined): SizeRule | null {
     };
   }
   if (rule?.kind === "cap" && rule.area) return { kind: "cap", area: rule.area };
+  if (rule?.kind === "canvas" && rule.area && rule.multiple && rule.min_side && rule.max_side) {
+    return {
+      kind: "canvas",
+      area: rule.area,
+      multiple: rule.multiple,
+      minSide: rule.min_side,
+      maxSide: rule.max_side,
+    };
+  }
   return null;
 }
 
-test("a reference goes out at the size the model resizes it to", async ({ page, request }) => {
-  const checkpoint = (await loadedCheckpoint(request)) as Awaited<
-    ReturnType<typeof loadedCheckpoint>
-  > & { reference_size?: Declared | null };
-  const rule = areaOrCap(checkpoint.reference_size);
-  test.skip(
-    !checkpoint.loaded || checkpoint.request_sets_size !== true || rule === null,
-    `needs a loaded edit model that declares an area or cap rule for references (loaded: ${checkpoint.name ?? "none"})`,
-  );
-  const app = new Enso(page);
-  await app.open();
-  const file = await largePortrait(page);
-  const expected = rule && fitTo(rule, { width: 3180, height: 5772 });
-  expect(expected, "the rule shrinks the 6x portrait").not.toBeNull();
-  const size = `${expected?.width}×${expected?.height}`;
+/** The rule each picture of a set of `count` references goes out under. */
+function ruleFor(declared: Declared | null | undefined, count: number): SizeRule | null {
+  if (!declared) return null;
+  return ruleOf(count > 1 && declared.rule_several ? declared.rule_several : declared.rule);
+}
 
-  await app.addReferences(file);
-  await expect(app.leftPanel.getByText(`${size} (from 3180×5772)`)).toBeVisible();
-  await app.setPrompt("Keep the picture as it is.");
-  await app.setSize(704, 1280);
-  await app.setSteps(8);
-
-  const media = watchMedia(page);
-  const job = await app.generate();
-  expect(job.error ?? null).toBeNull();
-  await media.settled();
-  // the fitted copy is the upload of the expected size; the original goes up beside it for the record
-  const sizes: string[] = [];
-  for (const upload of media.uploads) {
-    if (!upload.hash) continue;
-    const blob = await request.get(`/sdapi/v2/blobs/${upload.hash}`);
-    const bytes = new Uint8Array(await blob.body());
-    const header = await imageHeader((offset, length) =>
-      Promise.resolve(bytes.slice(offset, offset + length)),
+for (const count of [1, 2]) {
+  const title =
+    count === 1
+      ? "a reference goes out at the size the model resizes it to"
+      : "each of two references goes out at the size the model resizes a set's pictures to";
+  test(title, async ({ page, request }) => {
+    const checkpoint = (await loadedCheckpoint(request)) as Awaited<
+      ReturnType<typeof loadedCheckpoint>
+    > & { reference_size?: Declared | null };
+    const rule = ruleFor(checkpoint.reference_size, count);
+    test.skip(
+      !checkpoint.loaded ||
+        checkpoint.request_sets_size !== true ||
+        (checkpoint.max_input_images ?? 1) < count ||
+        rule === null,
+      `needs a loaded edit model taking ${count} references with a declared rule (loaded: ${checkpoint.name ?? "none"})`,
     );
-    if (header.kind !== "unknown" && header.size) {
-      sizes.push(`${header.size.width}x${header.size.height}`);
-    }
-  }
-  const wire = `${expected?.width}x${expected?.height}`;
-  expect(sizes).toContain(wire);
-  const log = jobLog(job.id);
-  if (log) expect(pipelineImages(log)).toEqual([wire]);
+    const app = new Enso(page);
+    await app.open();
+    const file = await largePortrait(page);
+    const expected = rule && fitTo(rule, { width: 3180, height: 5772 });
+    expect(expected, "the rule shrinks the 6x portrait").not.toBeNull();
+    const size = `${expected?.width}×${expected?.height}`;
 
-  const uploads: string[] = [];
-  page.on("request", (r) => {
-    if (r.method() === "POST" && new URL(r.url()).pathname === "/sdapi/v2/blobs") {
-      uploads.push(r.url());
+    await app.addReferences(...Array.from({ length: count }, () => file));
+    await expect(app.leftPanel.getByText(`${size} (from 3180×5772)`)).toHaveCount(count);
+    await app.setPrompt("Keep the picture as it is.");
+    await app.setSize(704, 1280);
+    await app.setSteps(8);
+
+    const media = watchMedia(page);
+    const job = await app.generate();
+    expect(job.error ?? null).toBeNull();
+    await media.settled();
+    // the fitted copy is the upload of the expected size; the original goes up beside it for the record
+    const sizes: string[] = [];
+    for (const upload of media.uploads) {
+      if (!upload.hash) continue;
+      const blob = await request.get(`/sdapi/v2/blobs/${upload.hash}`);
+      const bytes = new Uint8Array(await blob.body());
+      const header = await imageHeader((offset, length) =>
+        Promise.resolve(bytes.slice(offset, offset + length)),
+      );
+      if (header.kind !== "unknown" && header.size) {
+        sizes.push(`${header.size.width}x${header.size.height}`);
+      }
     }
+    const wire = `${expected?.width}x${expected?.height}`;
+    expect(sizes).toContain(wire);
+    const log = jobLog(job.id);
+    if (log) expect(pipelineImages(log)).toEqual(Array.from({ length: count }, () => wire));
+
+    const uploads: string[] = [];
+    page.on("request", (r) => {
+      if (r.method() === "POST" && new URL(r.url()).pathname === "/sdapi/v2/blobs") {
+        uploads.push(r.url());
+      }
+    });
+    const again = await app.runAgain();
+    expect(again.error ?? null).toBeNull();
+    expect(uploads, "uploads during Run again").toEqual([]);
   });
-  const again = await app.runAgain();
-  expect(again.error ?? null).toBeNull();
-  expect(uploads, "uploads during Run again").toEqual([]);
-});
+}
 
 test("a picture above the server's limit is refused before it is read", async ({ page }) => {
   const app = new Enso(page);

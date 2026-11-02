@@ -529,7 +529,18 @@ class RuleFloorV2(BaseModel):
     multiple: int
 
 
-SizeRuleV2 = Annotated[RuleAreaV2 | RuleCapV2 | RuleBucketsV2 | RuleShortestV2 | RuleExactV2 | RuleFloorV2, Field(discriminator="kind")]
+class RuleCanvasV2(BaseModel):
+    """Scaled down, sides rounded half to even, until the canvas (each side rounded up to the multiple, clamped to
+    min_side and max_side) fits the area and the long side max_side; the pad to the canvas is the consumer's."""
+
+    kind: Literal["canvas"]
+    area: int
+    multiple: int
+    min_side: int
+    max_side: int
+
+
+SizeRuleV2 = Annotated[RuleAreaV2 | RuleCapV2 | RuleBucketsV2 | RuleShortestV2 | RuleExactV2 | RuleFloorV2 | RuleCanvasV2, Field(discriminator="kind")]
 
 
 class SizeLimitsV2(BaseModel):
@@ -541,6 +552,8 @@ class DeclaredSizeV2(BaseModel):
     """What a consumer resamples a picture to, as SD.Next declares it; rule null when it declares none."""
 
     rule: SizeRuleV2 | None = None
+    rule_several: SizeRuleV2 | None = None
+    """The rule when the set holds two or more pictures, where it differs."""
     limits: SizeLimitsV2 | None = None
     """What the consumer refuses, checked on the picture that goes out."""
     output_area: int | None = None

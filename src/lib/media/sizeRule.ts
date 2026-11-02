@@ -23,7 +23,9 @@ export type SizeRule =
   /** The longest side, the other rounded to the multiple (the cloud presets). */
   | { kind: "longest"; side: number; multiple: number }
   /** Each side floored to the multiple by a crop, any size. */
-  | { kind: "floor"; multiple: number };
+  | { kind: "floor"; multiple: number }
+  /** Scaled down until the canvas, each side rounded up to the multiple, fits the area (Flux3). */
+  | { kind: "canvas"; area: number; multiple: number; minSide: number; maxSide: number };
 
 export interface SizeLimits {
   minSide?: number;
@@ -33,6 +35,8 @@ export interface SizeLimits {
 /** A consumer's declaration; `rule: null` when it resamples to no fixed size. */
 export interface DeclaredSize {
   rule: SizeRule | null;
+  /** The rule for a set of two or more pictures, where it differs. */
+  ruleSeveral?: SizeRule;
   limits?: SizeLimits;
   outputArea?: number;
 }
@@ -110,6 +114,23 @@ export function ruleSize(rule: SizeRule, size: PixelSize): PixelSize {
     }
     case "floor":
       return { width: w - (w % rule.multiple), height: h - (h % rule.multiple) };
+    case "canvas":
+      return canvasFit(rule, size);
+  }
+}
+
+// The sides the consumer resamples to; the pad out to the canvas is its own,
+// so the picture sent is the scaled sides
+function canvasFit(rule: Extract<SizeRule, { kind: "canvas" }>, size: PixelSize): PixelSize {
+  const { width: w, height: h } = size;
+  const canvas = (side: number) =>
+    Math.min(rule.maxSide, Math.max(rule.minSide, Math.ceil(side / rule.multiple) * rule.multiple));
+  let scale = Math.min(1, Math.sqrt(rule.area / (w * h)), rule.maxSide / Math.max(w, h));
+  for (;;) {
+    const width = Math.max(1, roundHalfEven(w * scale));
+    const height = Math.max(1, roundHalfEven(h * scale));
+    if (canvas(width) * canvas(height) <= rule.area) return { width, height };
+    scale *= 0.995;
   }
 }
 

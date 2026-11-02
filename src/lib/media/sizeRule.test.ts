@@ -8,7 +8,7 @@ import {
   type DeclaredSize,
   type SizeRule,
 } from "./sizeRule";
-import { GOLDEN, JOY_SIZES, KONTEXT_SIZES } from "./sizeRule.golden";
+import { FLUX3_FILL, GOLDEN, JOY_SIZES, KONTEXT_SIZES } from "./sizeRule.golden";
 
 const sizes = (list: [number, number][]) => list.map(([width, height]) => ({ width, height }));
 
@@ -33,6 +33,13 @@ const JOY: SizeRule = {
   aspectMultiple: 1,
 };
 const CLIP: SizeRule = { kind: "shortest", side: 224 };
+const FLUX3: SizeRule = {
+  kind: "canvas",
+  area: 4096 * 1024,
+  multiple: 16,
+  minSide: 64,
+  maxSide: 4096,
+};
 
 const size = (width: number, height: number): PixelSize => ({ width, height });
 
@@ -134,6 +141,18 @@ describe("fitTo", () => {
       mode: "stretch",
     });
     expect(fitTo(openrouter, size(2048, 1000))).toBeNull();
+  });
+
+  it("scales Flux3's single reference as its canvas rule does", () => {
+    for (const [w, h, fw, fh] of FLUX3_FILL) {
+      expect(ruleSize(FLUX3, size(w, h)), `${w}x${h}`).toEqual(size(fw, fh));
+    }
+    // the canvas 2048x2064 is over the area, so the scale backs off
+    expect(fitTo(FLUX3, size(2040, 2056))).toEqual({ width: 2030, height: 2046, mode: "stretch" });
+    // the long side holds 4096 before the area does
+    expect(fitTo(FLUX3, size(8192, 1024))).toEqual({ width: 4096, height: 512, mode: "stretch" });
+    expect(fitTo(FLUX3, size(2048, 2048))).toBeNull();
+    expect(fitTo(FLUX3, size(17, 900))).toBeNull();
   });
 
   it("sends a floored size whole", () => {
