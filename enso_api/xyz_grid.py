@@ -89,7 +89,7 @@ def resolve_axis_values(axis_label: str, values_str: str) -> tuple[list, list[st
     if opt.label == "Nothing":
         return [0], []
 
-    valslist = [restore_comma(x.strip()) for x in re_plain_comma.split(values_str) if x]
+    valslist = [restore_comma(x.strip()) for x in re_plain_comma.split(values_str) if x.strip()]
     errors = []
 
     if opt.type == int:
