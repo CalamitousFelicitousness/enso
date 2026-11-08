@@ -1,6 +1,7 @@
 import type Konva from "konva";
 import {
   FIT_MAX_SCALE,
+  actualSize,
   centerOn,
   containsBox,
   fitBoxBest,
@@ -85,7 +86,7 @@ export interface Camera {
   /** One step along the zoom ladder about the container's centre. */
   zoomStep: (direction: 1 | -1) => void;
   canZoom: (direction: 1 | -1) => boolean;
-  /** One image pixel per CSS pixel, about the container's centre. */
+  /** One image pixel per CSS pixel, with the current frame centred. */
   zoomToUnit: () => void;
   /** Pan by fractions of the container. */
   panStep: (fx: number, fy: number) => void;
@@ -358,7 +359,8 @@ export function createCamera(store: CameraStore): Camera {
     zoomToUnit: () => {
       if (!size) return;
       setFollow(null);
-      command(fixed(zoomTo(target(), centre(size), unit)), "key");
+      const box = targets?.picture(current) ?? targets?.picture("output") ?? null;
+      command(fixed(actualSize(target(), box, size, unit)), "key");
     },
     panStep: (fx, fy) => {
       if (!size) return;

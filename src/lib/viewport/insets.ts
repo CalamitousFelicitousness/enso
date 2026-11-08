@@ -35,6 +35,8 @@ export interface FitTargets {
   all: Box | null;
   /** A frame with its own dock as it is now; null for an unknown id. */
   frame: (id: string) => Box | null;
+  /** A frame's picture area alone, without its dock. */
+  picture: (id: string) => Box | null;
   /** The container insets to fit inside; a fit keeps the one that scales most. */
   insets: Insets[];
 }
@@ -108,6 +110,7 @@ export function fitTargets(frames: readonly FitFrame[], chrome: ChromeBoxes): Fi
       const dock = worldBox(chrome, dockKey(id));
       return dock ? unionBoxes([frame.box, dock]) : frame.box;
     },
+    picture: (id) => frames.find((f) => f.id === id)?.box ?? null,
     insets: screenInsets(chrome),
   };
 }

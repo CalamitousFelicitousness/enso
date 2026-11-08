@@ -19,7 +19,7 @@ export const SHOW_ALL_HELD = "Showing all frames as they change; moving the view
 export const ZOOM_IN = "Zoom in";
 export const ZOOM_OUT = "Zoom out";
 export const ZOOM_100 = "Zoom to 100%";
-export const ZOOM_100_TITLE = "One image pixel per browser pixel";
+export const ZOOM_100_TITLE = "The current frame centred, one image pixel per browser pixel";
 export const ZOOM_FRAME = "Zoom to the current frame";
 export const ZOOM_MENU = "View options";
 

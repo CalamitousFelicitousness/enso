@@ -52,6 +52,9 @@ describe("fitTargets", () => {
     // A dock wider than its frame widens the target
     expect(targets.frame("output")).toEqual({ x: 559, y: -300, width: 600, height: 812 });
     expect(targets.frame("input:missing")).toBeNull();
+    // The picture alone leaves the dock out
+    expect(targets.picture("input:a")).toEqual(input.box);
+    expect(targets.picture("input:missing")).toBeNull();
   });
 
   it("takes a frame alone when its dock has not reported", () => {

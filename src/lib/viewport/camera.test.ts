@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  actualSize,
   centerOn,
   clampScale,
   containsBox,
@@ -84,6 +85,24 @@ describe("zoom", () => {
       y: -100,
       scale: 2,
     });
+  });
+
+  it("shows a box at actual size with its middle centred, wherever the view was", () => {
+    const container = { width: 800, height: 600 };
+    const box = { x: 1000, y: -200, width: 512, height: 768 };
+    const shown = actualSize({ x: 37, y: -90, scale: 0.2 }, box, container, 1.5);
+    expect(shown.scale).toBe(1.5);
+    const middle = worldToScreen(shown, { x: 1256, y: 184 });
+    expect(middle.x).toBeCloseTo(400, 9);
+    expect(middle.y).toBeCloseTo(300, 9);
+  });
+
+  it("keeps the container's centre at actual size without a box", () => {
+    const vp: Viewport = { x: 37, y: -90, scale: 0.2 };
+    const container = { width: 800, height: 600 };
+    const before = screenToWorld(vp, { x: 400, y: 300 });
+    const shown = actualSize(vp, null, container, 1.5);
+    expect(worldToScreen(shown, before).x).toBeCloseTo(400, 9);
   });
 });
 

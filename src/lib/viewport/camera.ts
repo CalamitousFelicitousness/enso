@@ -93,6 +93,14 @@ export function centerOn(vp: Viewport, world: Point, container: Size): Viewport 
   };
 }
 
+/** One unit of `unit` scale with the box's middle centred; without a box,
+ * about the container's centre. */
+export function actualSize(vp: Viewport, box: Box | null, container: Size, unit: number): Viewport {
+  if (!box) return zoomTo(vp, { x: container.width / 2, y: container.height / 2 }, unit);
+  const middle = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+  return centerOn({ ...vp, scale: unit }, middle, container);
+}
+
 /** The viewport after a resize that keeps the world point under the centre. */
 export function keepCenter(vp: Viewport, before: Size, after: Size): Viewport {
   return {
