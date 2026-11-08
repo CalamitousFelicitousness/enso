@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState } from "react";
-import { useImageZoomPan } from "@/hooks/useImageZoomPan";
+import { useImageZoomPan, usePictureZoomKeys } from "@/hooks/useImageZoomPan";
 import type { ComparisonImage } from "@/stores/comparisonStore";
 
 interface SwipeModeProps {
@@ -9,9 +9,22 @@ interface SwipeModeProps {
 
 export function SwipeMode({ imageA, imageB }: SwipeModeProps) {
   const zoom = useImageZoomPan();
+  usePictureZoomKeys("comparison", zoom);
   const [dividerPct, setDividerPct] = useState(50);
   const draggingDivider = useRef(false);
-  const containerRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const { bind: bindZoom } = zoom;
+  const bindContainer = useCallback(
+    (el: HTMLDivElement | null) => {
+      containerRef.current = el;
+      const unbind = bindZoom(el);
+      return () => {
+        containerRef.current = null;
+        unbind?.();
+      };
+    },
+    [bindZoom],
+  );
 
   const handleDividerDown = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
@@ -36,13 +49,12 @@ export function SwipeMode({ imageA, imageB }: SwipeModeProps) {
   return (
     // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- role="application" surfaces own gesture handlers per WAI-ARIA 1.2
     <div
-      ref={containerRef}
+      ref={bindContainer}
       role="application"
       aria-label="Comparison swipe view; arrow keys move divider"
       // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- role="application" takes keyboard ownership per WAI-ARIA 1.2
       tabIndex={0}
       className="relative h-full w-full overflow-hidden select-none outline-none focus-visible:ring-ring/50 focus-visible:ring-[3px]"
-      onWheel={zoom.handlers.onWheel}
       onMouseDown={zoom.handlers.onMouseDown}
       onMouseMove={zoom.handlers.onMouseMove}
       onMouseUp={zoom.handlers.onMouseUp}

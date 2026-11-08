@@ -4,7 +4,7 @@ import { useGalleryStore } from "@/stores/galleryStore";
 import { useShortcut } from "@/hooks/useShortcut";
 import { useShortcutScope } from "@/hooks/useShortcutScope";
 import { useKeepAliveVisible } from "@/components/ui/keep-alive";
-import { useImageZoomPan } from "@/hooks/useImageZoomPan";
+import { useImageZoomPan, usePictureZoomKeys } from "@/hooks/useImageZoomPan";
 import { isVideoFile } from "@/lib/mediaType";
 import { browserFilePath } from "@/api/browserFile";
 import { mediaUrl } from "@/api/session";
@@ -16,7 +16,7 @@ import {
   ChevronRight,
   ZoomIn,
   ZoomOut,
-  RotateCcw,
+  Fullscreen,
   GitCompareArrows,
 } from "lucide-react";
 import { useComparisonStore } from "@/stores/comparisonStore";
@@ -47,6 +47,7 @@ export function GalleryLightbox() {
   const selectFile = useGalleryStore((s) => s.selectFile);
 
   const zoom = useImageZoomPan();
+  const { bind } = zoom;
   const pressAt = useRef<{ x: number; y: number } | null>(null);
   const [prevIndex, setPrevIndex] = useState(lightboxIndex);
 
@@ -105,10 +106,7 @@ export function GalleryLightbox() {
   useShortcut("lightbox-close", () => closeLightbox(), active);
   useShortcut("lightbox-prev", () => navigate(-1), active);
   useShortcut("lightbox-next", () => navigate(1), active);
-  useShortcut("lightbox-zoom-in", () => zoom.setScale((s) => s * 1.25), active);
-  useShortcut("lightbox-zoom-in-eq", () => zoom.setScale((s) => s * 1.25), active);
-  useShortcut("lightbox-zoom-out", () => zoom.setScale((s) => s / 1.25), active);
-  useShortcut("lightbox-zoom-reset", () => zoom.resetTransform(), active);
+  usePictureZoomKeys("lightbox", zoom, active);
 
   if (!isOpen || !file) return null;
 
@@ -147,8 +145,8 @@ export function GalleryLightbox() {
               <LightboxButton label="Zoom out" onClick={() => zoom.setScale((s) => s / 1.25)}>
                 <ZoomOut size={16} />
               </LightboxButton>
-              <LightboxButton label="Reset zoom" onClick={zoom.resetTransform}>
-                <RotateCcw size={16} />
+              <LightboxButton label="Fit to window" onClick={zoom.resetTransform}>
+                <Fullscreen size={16} />
               </LightboxButton>
               <span className="text-3xs text-white/50 font-mono tabular-nums w-10 text-center">
                 {Math.round(zoom.scale * 100)}%
@@ -178,13 +176,13 @@ export function GalleryLightbox() {
       ) : (
         // eslint-disable-next-line jsx-a11y/click-events-have-key-events,jsx-a11y/no-noninteractive-element-interactions -- role="application" surface; lightbox scope provides global close/prev/next/zoom shortcuts
         <div
+          ref={bind}
           role="application"
           aria-label="Image viewer; arrow keys navigate, plus/minus to zoom"
           // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- role="application" takes keyboard ownership per WAI-ARIA 1.2
           tabIndex={0}
           className="flex-1 flex items-center justify-center overflow-hidden select-none outline-none focus-visible:ring-ring/50 focus-visible:ring-[3px]"
           style={{ cursor: zoom.style.cursor }}
-          onWheel={zoom.handlers.onWheel}
           onMouseDown={(e) => {
             e.stopPropagation();
             pressAt.current = { x: e.clientX, y: e.clientY };

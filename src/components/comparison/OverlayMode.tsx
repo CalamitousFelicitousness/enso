@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { useImageZoomPan } from "@/hooks/useImageZoomPan";
+import { useImageZoomPan, usePictureZoomKeys } from "@/hooks/useImageZoomPan";
 import { useShortcut } from "@/hooks/useShortcut";
 import type { ComparisonImage } from "@/stores/comparisonStore";
 
@@ -10,24 +10,26 @@ interface OverlayModeProps {
 
 export function OverlayMode({ imageA, imageB }: OverlayModeProps) {
   const zoom = useImageZoomPan();
+  const { bind } = zoom;
   const [showB, setShowB] = useState(false);
 
   const toggle = useCallback(() => setShowB((v) => !v), []);
 
   // Space toggles A/B regardless of which element has focus, via the comparison scope
   useShortcut("comparison-toggle", toggle);
+  usePictureZoomKeys("comparison", zoom);
 
   const current = showB ? imageB : imageA;
 
   return (
     // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- role="application" surfaces own gesture handlers per WAI-ARIA 1.2
     <div
+      ref={bind}
       role="application"
       aria-label="Comparison overlay; click or Space to toggle A/B"
       // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- role="application" takes keyboard ownership per WAI-ARIA 1.2
       tabIndex={0}
       className="relative h-full w-full overflow-hidden flex items-center justify-center select-none outline-none focus-visible:ring-ring/50 focus-visible:ring-[3px]"
-      onWheel={zoom.handlers.onWheel}
       onMouseDown={zoom.handlers.onMouseDown}
       onMouseMove={zoom.handlers.onMouseMove}
       onMouseUp={zoom.handlers.onMouseUp}

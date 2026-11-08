@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useImageZoomPan } from "@/hooks/useImageZoomPan";
+import { useImageZoomPan, usePictureZoomKeys } from "@/hooks/useImageZoomPan";
 import type { ComparisonImage } from "@/stores/comparisonStore";
 
 interface DiffModeProps {
@@ -65,6 +65,8 @@ function computeHeatmap(imgA: HTMLImageElement, imgB: HTMLImageElement): string 
 
 export function DiffMode({ imageA, imageB }: DiffModeProps) {
   const zoom = useImageZoomPan();
+  const { bind } = zoom;
+  usePictureZoomKeys("comparison", zoom);
   const [heatmapSrc, setHeatmapSrc] = useState<string | null>(null);
   const computedRef = useRef<string>("");
 
@@ -101,12 +103,12 @@ export function DiffMode({ imageA, imageB }: DiffModeProps) {
   return (
     // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- role="application" surfaces own gesture handlers per WAI-ARIA 1.2
     <div
+      ref={bind}
       role="application"
       aria-label="Comparison difference view"
       // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- role="application" takes keyboard ownership per WAI-ARIA 1.2
       tabIndex={0}
       className="relative h-full w-full overflow-hidden flex items-center justify-center select-none outline-none focus-visible:ring-ring/50 focus-visible:ring-[3px]"
-      onWheel={zoom.handlers.onWheel}
       onMouseDown={zoom.handlers.onMouseDown}
       onMouseMove={zoom.handlers.onMouseMove}
       onMouseUp={zoom.handlers.onMouseUp}

@@ -311,6 +311,25 @@ export const SHORTCUTS: Record<string, ShortcutDef> = {
     category: "Lightbox",
     label: "Next image",
   },
+  "lightbox-zoom-fit": {
+    id: "lightbox-zoom-fit",
+    key: "1",
+    code: "Digit1",
+    shift: true,
+    scope: "lightbox",
+    category: "Lightbox",
+    label: "Fit to window",
+  },
+  "lightbox-zoom-100": {
+    id: "lightbox-zoom-100",
+    key: "0",
+    code: "Digit0",
+    shift: true,
+    scope: "lightbox",
+    category: "Lightbox",
+    label: "Zoom to 100%",
+  },
+  // After the Shift+digit keys: Shift+0 types "=" on a German layout
   "lightbox-zoom-in": {
     id: "lightbox-zoom-in",
     key: "+",
@@ -337,7 +356,7 @@ export const SHORTCUTS: Record<string, ShortcutDef> = {
     key: "0",
     scope: "lightbox",
     category: "Lightbox",
-    label: "Reset zoom",
+    label: "Fit to window",
   },
 
   // Comparison
@@ -390,8 +409,34 @@ export const SHORTCUTS: Record<string, ShortcutDef> = {
     category: "Comparison",
     label: "Swap images",
   },
+  "comparison-zoom-fit": {
+    id: "comparison-zoom-fit",
+    key: "1",
+    code: "Digit1",
+    shift: true,
+    scope: "comparison",
+    category: "Comparison",
+    label: "Fit to window",
+  },
+  "comparison-zoom-100": {
+    id: "comparison-zoom-100",
+    key: "0",
+    code: "Digit0",
+    shift: true,
+    scope: "comparison",
+    category: "Comparison",
+    label: "Zoom to 100%",
+  },
+  // After the Shift+digit keys: Shift+0 types "=" on a German layout
   "comparison-zoom-in": {
     id: "comparison-zoom-in",
+    key: "+",
+    scope: "comparison",
+    category: "Comparison",
+    label: "Zoom in",
+  },
+  "comparison-zoom-in-eq": {
+    id: "comparison-zoom-in-eq",
     key: "=",
     scope: "comparison",
     category: "Comparison",
@@ -409,7 +454,7 @@ export const SHORTCUTS: Record<string, ShortcutDef> = {
     key: "0",
     scope: "comparison",
     category: "Comparison",
-    label: "Reset zoom",
+    label: "Fit to window",
   },
 
   // Tutorial
