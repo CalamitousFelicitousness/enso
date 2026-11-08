@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useRef } from "react";
 import { useCanvasStore } from "@/stores/canvasStore";
 import { useInputStore } from "@/stores/inputStore";
 import { useShortcut } from "@/hooks/useShortcut";
@@ -6,6 +6,7 @@ import { Move, Paintbrush, Eraser, Eye, EyeOff, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { Label } from "@/components/ui/label";
+import { useScreenChrome } from "@/canvas/navigation/chrome";
 
 export function CanvasToolbar() {
   const activeTool = useCanvasStore((s) => s.activeTool);
@@ -41,6 +42,8 @@ export function CanvasToolbar() {
   }, [activeTool, setActiveTool]);
 
   const handleSizeChange = useCallback(([v]: number[]) => setBrushSize(v), [setBrushSize]);
+  const rootRef = useRef<HTMLDivElement>(null);
+  useScreenChrome("toolbar", rootRef);
 
   // Keyboard shortcuts (dispatched via the global shortcut system, scoped to "canvas")
   useShortcut("canvas-move", () => setActiveTool("move"));
@@ -60,7 +63,10 @@ export function CanvasToolbar() {
   });
 
   return (
-    <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-2 px-3 py-1.5 rounded-lg dark:bg-popover/80 bg-popover/70 backdrop-blur-xl border border-border/50 ring-1 dark:ring-white/[0.05] ring-black/[0.05] shadow-lg shadow-black/30">
+    <div
+      ref={rootRef}
+      className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-2 px-3 py-1.5 rounded-lg dark:bg-popover/80 bg-popover/70 backdrop-blur-xl border border-border/50 ring-1 dark:ring-white/[0.05] ring-black/[0.05] shadow-lg shadow-black/30"
+    >
       {/* Move */}
       <Button
         variant="toggle"

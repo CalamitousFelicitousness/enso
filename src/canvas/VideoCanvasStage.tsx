@@ -1,4 +1,4 @@
-import { useRef, useEffect, useState, useCallback } from "react";
+import { useRef, useEffect, useState, useCallback, useMemo } from "react";
 import { Stage } from "react-konva";
 import { useVideoCanvasStore } from "@/stores/videoCanvasStore";
 import { useVideoStore } from "@/stores/videoStore";
@@ -9,12 +9,12 @@ import { VideoOutputFrame } from "./layers/VideoOutputFrame";
 import type { VideoCanvasLayout } from "./useVideoFrameLayout";
 import type { VideoSlotId } from "@/stores/videoCanvasStore";
 import { videoViewport } from "./viewportAdapter";
+import { useChromeBoxes } from "./navigation/chrome";
 import { useKeepAliveVisible } from "@/components/ui/keep-alive";
+import { FIT_MAX_SCALE, fitBoxBest, unitScale } from "@/lib/viewport/camera";
+import { fitTargets, type FitFrame } from "@/lib/viewport/insets";
 import type Konva from "konva";
 import "./konvaSetup";
-
-const PADDING = 32;
-const LABEL_HEIGHT = 19;
 
 interface VideoCanvasStageProps {
   layout: VideoCanvasLayout;
@@ -32,9 +32,28 @@ export function VideoCanvasStage({ layout, onPickImage }: VideoCanvasStageProps)
 
   const visible = useKeepAliveVisible();
 
-  const panZoom = usePanZoom({ stageRef, viewport: videoViewport, enabled: visible });
+  const { initX, lastX, referencesX, outputX, displayW, displayH } = layout;
+  const unit = unitScale(layout.displayScale);
+  const panZoom = usePanZoom({
+    stageRef,
+    viewport: videoViewport,
+    unitScale: unit,
+    enabled: visible,
+  });
 
-  const { initX, lastX, referencesX, outputX, totalBounds, displayW, displayH } = layout;
+  const chrome = useChromeBoxes(videoViewport.chrome);
+  const targets = useMemo(() => {
+    const slot = (id: string, x: number): FitFrame => ({
+      id,
+      box: { x, y: 0, width: displayW, height: displayH },
+    });
+    const frames: FitFrame[] = [];
+    if (layout.showInit) frames.push(slot("init", initX));
+    if (layout.showLast) frames.push(slot("last", lastX));
+    if (layout.showReferences) frames.push(slot("references", referencesX));
+    frames.push(slot("output", outputX));
+    return fitTargets(frames, chrome);
+  }, [layout, initX, lastX, referencesX, outputX, displayW, displayH, chrome]);
 
   // Container-responsive sizing
   useEffect(() => {
@@ -60,18 +79,12 @@ export function VideoCanvasStage({ layout, onPickImage }: VideoCanvasStageProps)
     if (frameW <= 0 || frameH <= 0) return;
     if (containerSize.width <= 0 || containerSize.height <= 0) return;
     const key = `${frameW}x${frameH}:${layout.slotCount}`;
-    if (prevFrameRef.current === key) return;
+    if (prevFrameRef.current === key || !targets.all) return;
+    const vp = fitBoxBest(targets.all, containerSize, targets.insets, FIT_MAX_SCALE);
+    if (!vp) return;
     prevFrameRef.current = key;
-
-    const totalWidth = totalBounds.maxX - totalBounds.minX;
-    const totalHeight = LABEL_HEIGHT + totalBounds.maxY;
-    const availW = containerSize.width - PADDING * 2;
-    const availH = containerSize.height - PADDING * 2;
-    const scale = Math.min(availW / totalWidth, availH / totalHeight, 1);
-    const x = (containerSize.width - totalWidth * scale) / 2 - totalBounds.minX * scale;
-    const y = (containerSize.height - totalHeight * scale) / 2 + LABEL_HEIGHT * scale;
-    setViewport({ x, y, scale });
-  }, [containerSize, frameW, frameH, totalBounds, layout.slotCount, setViewport]);
+    setViewport(vp);
+  }, [containerSize, frameW, frameH, targets, layout.slotCount, setViewport]);
 
   const onMouseDown = useCallback(
     (e: Konva.KonvaEventObject<MouseEvent>) => {

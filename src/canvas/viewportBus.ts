@@ -1,8 +1,6 @@
-export interface ViewportState {
-  x: number;
-  y: number;
-  scale: number;
-}
+import type { Viewport } from "@/lib/viewport/types";
+
+export type ViewportState = Viewport;
 
 type Listener = (vp: ViewportState) => void;
 

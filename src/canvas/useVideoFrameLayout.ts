@@ -29,7 +29,6 @@ export interface VideoCanvasLayout {
   /** Visible-frame count; part of the stage re-fit key so slot changes
    * trigger a re-fit. */
   slotCount: number;
-  totalBounds: { minX: number; maxX: number; maxY: number };
   displayScale: number;
   displayW: number;
   displayH: number;
@@ -103,7 +102,6 @@ export function useVideoFrameLayout(): VideoCanvasLayout {
       referenceChildren,
       referenceAddCell,
       slotCount,
-      totalBounds: { minX: 0, maxX: outputX + dw, maxY: dh },
       displayScale: ds,
       displayW: dw,
       displayH: dh,

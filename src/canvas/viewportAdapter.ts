@@ -1,4 +1,5 @@
 import { createViewportBus, type ViewportBus, type ViewportState } from "./viewportBus";
+import { createChromeRegistry, type ChromeRegistry } from "./navigation/chrome";
 import { useCanvasStore } from "@/stores/canvasStore";
 import { useVideoCanvasStore } from "@/stores/videoCanvasStore";
 
@@ -22,6 +23,8 @@ export interface ViewportAdapter {
   setViewport: (v: Partial<ViewportState>) => void;
   /** Committed changes only: auto-fit, reset zoom, gesture end. */
   subscribe: (cb: (vp: ViewportState) => void) => () => void;
+  /** The measured chrome this canvas's fits keep in view or clear of. */
+  chrome: ChromeRegistry;
 }
 
 function createViewportAdapter(store: ViewportStore): ViewportAdapter {
@@ -42,6 +45,7 @@ function createViewportAdapter(store: ViewportStore): ViewportAdapter {
       store.subscribe((state, prev) => {
         if (state.viewport !== prev.viewport) cb(state.viewport);
       }),
+    chrome: createChromeRegistry(),
   };
 }
 

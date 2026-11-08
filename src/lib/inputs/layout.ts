@@ -12,6 +12,7 @@ import {
   REFERENCE_MIN_CELL_HEIGHT,
   REFERENCE_MOTHER_PADDING,
 } from "./grid";
+import type { Box } from "@/lib/viewport/types";
 import type { MapSlot, OutlineEntry } from "./outline";
 import type { FrameRole, Size } from "./types";
 
@@ -90,12 +91,7 @@ export interface SetFramePosition {
  * for the shape and `role` for the meaning. */
 export type FramePosition = ComposedFramePosition | SetFramePosition;
 
-export interface Box {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-}
+export type { Box };
 
 /** Display-space bounds of a frame position. */
 export function frameBox(frame: FramePosition): Box {
@@ -132,7 +128,6 @@ export interface FrameLayout {
   inputColumnBottom: number;
   controlColumnBottom: number;
   controlColumnX: number;
-  totalBounds: { minX: number; maxX: number; maxY: number };
 }
 
 function setFrame(
@@ -234,10 +229,5 @@ export function computeCanvasLayout(input: LayoutInput): FrameLayout {
     inputColumnBottom: bottoms.input,
     controlColumnBottom: bottoms.control,
     controlColumnX,
-    totalBounds: {
-      minX: started.control ? controlColumnX : 0,
-      maxX: outputX + outputDisplayW,
-      maxY: Math.max(displayH, outputDisplayH, bottoms.input, bottoms.control),
-    },
   };
 }

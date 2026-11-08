@@ -4,6 +4,8 @@ import { useDropTarget } from "@/hooks/useDropTarget";
 import { useWindowPaste } from "@/hooks/useWindowPaste";
 import { useKeepAliveVisible } from "@/components/ui/keep-alive";
 import type { EntryPayload, ImagePayload } from "@/lib/drag";
+import { screenToWorld } from "@/lib/viewport/camera";
+import { ChromeContext } from "./navigation/chrome";
 import type { ViewportAdapter } from "./viewportAdapter";
 
 /** A pointer position on the canvas, in container and canvas coordinates. */
@@ -58,15 +60,10 @@ export function CanvasSurface({
   const pointFrom = useCallback(
     (e: React.DragEvent): SurfacePoint => {
       const rect = e.currentTarget.getBoundingClientRect();
-      const vp = viewport.getViewport();
       const screenX = e.clientX - rect.left;
       const screenY = e.clientY - rect.top;
-      return {
-        screenX,
-        screenY,
-        canvasX: (screenX - vp.x) / vp.scale,
-        canvasY: (screenY - vp.y) / vp.scale,
-      };
+      const world = screenToWorld(viewport.getViewport(), { x: screenX, y: screenY });
+      return { screenX, screenY, canvasX: world.x, canvasY: world.y };
     },
     [viewport],
   );
@@ -119,22 +116,24 @@ export function CanvasSurface({
   }, [viewport]);
 
   return (
-    <div className={cn("relative flex h-full w-full flex-col overflow-hidden", className)}>
-      {/* Clips the transformed overlay, and is the box every frame header
-          measures its anchor against. */}
-      <div
-        className={cn(
-          "relative min-h-0 flex-1 overflow-hidden",
-          isOver && "ring-2 ring-primary ring-inset",
-        )}
-        {...dropHandlers}
-      >
-        {children}
-        <div ref={overlayRef} className="pointer-events-none absolute inset-0 origin-top-left">
-          {overlay}
+    <ChromeContext.Provider value={viewport.chrome}>
+      <div className={cn("relative flex h-full w-full flex-col overflow-hidden", className)}>
+        {/* Clips the transformed overlay, and is the box every frame header
+            measures its anchor against. */}
+        <div
+          className={cn(
+            "relative min-h-0 flex-1 overflow-hidden",
+            isOver && "ring-2 ring-primary ring-inset",
+          )}
+          {...dropHandlers}
+        >
+          {children}
+          <div ref={overlayRef} className="pointer-events-none absolute inset-0 origin-top-left">
+            {overlay}
+          </div>
         </div>
+        {below}
       </div>
-      {below}
-    </div>
+    </ChromeContext.Provider>
   );
 }

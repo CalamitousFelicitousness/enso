@@ -69,8 +69,8 @@ interface PersistedFrame {
   naturalHeight: number;
 }
 
+/** The camera is not kept: every load fits the view afresh. */
 interface PersistedVideoCanvasState {
-  viewport: ViewportState;
   initFrame: PersistedFrame | null;
   lastFrame: PersistedFrame | null;
   references?: PersistedFrame[];
@@ -85,7 +85,6 @@ interface LegacyPersistedFrame {
 }
 
 interface LegacyPersistedVideoCanvasState {
-  viewport?: ViewportState;
   initFrame?: LegacyPersistedFrame | null;
   lastFrame?: LegacyPersistedFrame | null;
   references?: LegacyPersistedFrame[];
@@ -97,8 +96,18 @@ const videoCanvasIdbStorage = createIdbStorage<PersistedVideoCanvasState>(
   {
     legacyKey: "enso-video-canvas",
     ...writeProblems("video-canvas", "video inputs", () => videoCanvasIdbStorage.retry()),
+    // Every put copies each File in the record, so a record of the same
+    // pictures (by id; a picture's bytes never change) is not written again
+    same: (a, b) =>
+      a.initFrame?.id === b.initFrame?.id &&
+      a.lastFrame?.id === b.lastFrame?.id &&
+      sameIds(a.references ?? [], b.references ?? []),
   },
 );
+
+function sameIds(a: readonly PersistedFrame[], b: readonly PersistedFrame[]): boolean {
+  return a.length === b.length && a.every((frame, i) => frame.id === b[i]?.id);
+}
 
 function stripFrame(frame: VideoFrameImage): PersistedFrame {
   return {
@@ -135,7 +144,6 @@ function migrateFrame(saved: LegacyPersistedFrame | null | undefined): Persisted
 }
 
 const FRESH_RECORD: PersistedVideoCanvasState = {
-  viewport: { x: 0, y: 0, scale: 1 },
   initFrame: null,
   lastFrame: null,
   references: [],
@@ -259,14 +267,12 @@ export const useVideoCanvasStore = create<VideoCanvasState>()(
         if (version !== 0) return FRESH_RECORD;
         const legacy = persisted as LegacyPersistedVideoCanvasState;
         return {
-          viewport: legacy.viewport ?? FRESH_RECORD.viewport,
           initFrame: migrateFrame(legacy.initFrame),
           lastFrame: migrateFrame(legacy.lastFrame),
           references: (legacy.references ?? []).map(migrateFrame).filter(Boolean),
         };
       },
       partialize: (state): PersistedVideoCanvasState => ({
-        viewport: state.viewport,
         initFrame: state.initFrame ? stripFrame(state.initFrame) : null,
         lastFrame: state.lastFrame ? stripFrame(state.lastFrame) : null,
         // All-image lists only: video and audio references carry probe
@@ -281,7 +287,6 @@ export const useVideoCanvasStore = create<VideoCanvasState>()(
         if (!saved) return current;
         return {
           ...current,
-          viewport: saved.viewport ?? current.viewport,
           initFrame: saved.initFrame ? rehydrateFrame(saved.initFrame) : current.initFrame,
           lastFrame: saved.lastFrame ? rehydrateFrame(saved.lastFrame) : current.lastFrame,
           references: (saved.references ?? []).map(rehydrateFrame).filter(Boolean),

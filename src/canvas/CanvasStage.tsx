@@ -1,4 +1,4 @@
-import { useRef, useEffect, useState, useCallback } from "react";
+import { useRef, useEffect, useState, useCallback, useMemo } from "react";
 import { Stage } from "react-konva";
 import { useCanvasStore } from "@/stores/canvasStore";
 import { useGenerationStore } from "@/stores/generationStore";
@@ -12,10 +12,13 @@ import { FrameLayer } from "./layers/FrameLayer";
 import { MaskLayer } from "./layers/MaskLayer";
 import { ChromeLayer } from "./layers/ChromeLayer";
 import { OutputLayer } from "./layers/OutputLayer";
-import { getOrderedFrames, computeFocusViewport } from "./frameList";
 import type { CanvasLayout } from "./useCanvasLayout";
 import { frameBox, type ComposedFramePosition } from "@/lib/inputs/layout";
+import { getOrderedFrames, inputFrameId } from "@/lib/inputs/frames";
+import { FIT_MAX_SCALE, centerOn, containsBox, fitBoxBest, unitScale } from "@/lib/viewport/camera";
+import { fitTargets } from "@/lib/viewport/insets";
 import { CanvasBackground } from "./CanvasBackground";
+import { useChromeBoxes } from "./navigation/chrome";
 import { mainViewport } from "./viewportAdapter";
 import { useKeepAliveVisible } from "@/components/ui/keep-alive";
 import type Konva from "konva";
@@ -24,9 +27,6 @@ import "./konvaSetup";
 // Read at event time so a lock or mode change does not re-render the stage.
 const canvasCanGesture = () => !useCanvasStore.getState().modeLocked;
 const canvasOnGesture = () => useCanvasStore.getState().switchToCanvasMode();
-
-const PADDING = 32;
-const LABEL_HEIGHT = 19;
 
 interface CanvasStageProps {
   layout: CanvasLayout;
@@ -50,10 +50,21 @@ export function CanvasStage({ layout, onPickFile, onAddCell }: CanvasStageProps)
   const focusFitTrigger = useCanvasStore((s) => s.focusFitTrigger);
   const selectedFrameId = useInputStore((s) => s.selectedFrameId);
   const visible = useKeepAliveVisible();
+  const unit = unitScale(layout.displayScale);
+  const chrome = useChromeBoxes(mainViewport.chrome);
+  const targets = useMemo(
+    () =>
+      fitTargets(
+        getOrderedFrames(layout).map(({ id, ...box }) => ({ id, box })),
+        chrome,
+      ),
+    [layout, chrome],
+  );
 
   const panZoom = usePanZoom({
     stageRef,
     viewport: mainViewport,
+    unitScale: unit,
     canGesture: canvasCanGesture,
     onGesture: canvasOnGesture,
     enabled: visible,
@@ -61,7 +72,7 @@ export function CanvasStage({ layout, onPickFile, onAddCell }: CanvasStageProps)
   const maskPaint = useMaskPaint({ stageRef, spaceHeld: panZoom.spaceHeld, layout });
   const imageTransform = useImageTransform(stageRef);
 
-  const { outputX, totalBounds, displayScale } = layout;
+  const { outputX, displayScale } = layout;
 
   // Picture nodes register from FrameLayer and mask nodes from MaskLayer;
   // the Transformer finds its target among them.
@@ -119,32 +130,23 @@ export function CanvasStage({ layout, onPickFile, onAddCell }: CanvasStageProps)
     if (frameW <= 0 || frameH <= 0) return;
     if (containerSize.width <= 0 || containerSize.height <= 0) return;
     const key = `${frameW}x${frameH}`;
-    if (prevFrameRef.current === key) return;
+    if (prevFrameRef.current === key || !targets.all) return;
+    const vp = fitBoxBest(targets.all, containerSize, targets.insets, FIT_MAX_SCALE);
+    if (!vp) return;
     prevFrameRef.current = key;
+    setViewport(vp);
+  }, [canvasMode, containerSize, frameW, frameH, targets, setViewport]);
 
-    const totalWidth = totalBounds.maxX - totalBounds.minX;
-    const totalHeight = LABEL_HEIGHT + totalBounds.maxY;
-    const availW = containerSize.width - PADDING * 2;
-    const availH = containerSize.height - PADDING * 2;
-    const scale = Math.min(availW / totalWidth, availH / totalHeight, 1);
-    const x = (containerSize.width - totalWidth * scale) / 2 - totalBounds.minX * scale;
-    const y = (containerSize.height - totalHeight * scale) / 2 + LABEL_HEIGHT * scale;
-    setViewport({ x, y, scale });
-  }, [canvasMode, containerSize, frameW, frameH, totalBounds, setViewport]);
-
-  // Focus-mode viewport: fit a single frame to fill the container.
+  // Focus-mode viewport: fit one frame and its dock to fill the container,
+  // again whenever either changes size.
   useEffect(() => {
     if (canvasMode !== "focus") return;
     if (containerSize.width <= 0 || containerSize.height <= 0) return;
-
-    const frames = getOrderedFrames(layout);
-    const targetId = focusedFrameId ?? "output";
-    const frame = frames.find((f) => f.id === targetId) ?? frames.find((f) => f.id === "output");
-    if (!frame) return;
-
-    const vp = computeFocusViewport(frame, containerSize.width, containerSize.height);
-    setViewport(vp);
-  }, [canvasMode, focusedFrameId, focusFitTrigger, layout, containerSize, setViewport]);
+    const box = targets.frame(focusedFrameId ?? "output") ?? targets.frame("output");
+    if (!box) return;
+    const vp = fitBoxBest(box, containerSize, targets.insets, FIT_MAX_SCALE);
+    if (vp) setViewport(vp);
+  }, [canvasMode, focusedFrameId, focusFitTrigger, targets, containerSize, setViewport]);
 
   // Reset prevFrameRef when entering canvas mode so auto-fit can re-trigger.
   useEffect(() => {
@@ -161,21 +163,13 @@ export function CanvasStage({ layout, onPickFile, onAddCell }: CanvasStageProps)
     const frame = layout.frames.find((f) => f.frameId === reveal.frameId);
     if (!frame) return;
     revealedRef.current = reveal.n;
-    const box = frameBox(frame);
-    const { x, y, scale } = useCanvasStore.getState().viewport;
-    const left = box.x * scale + x;
-    const top = box.y * scale + y;
-    const inView =
-      left >= 0 &&
-      top >= 0 &&
-      left + box.width * scale <= containerSize.width &&
-      top + box.height * scale <= containerSize.height;
-    if (inView) return;
-    setViewport({
-      x: containerSize.width / 2 - (box.x + box.width / 2) * scale,
-      y: containerSize.height / 2 - (box.y + box.height / 2) * scale,
-    });
-  }, [reveal, canvasMode, layout, containerSize, setViewport]);
+    const box = targets.frame(inputFrameId(frame.frameId)) ?? frameBox(frame);
+    const vp = useCanvasStore.getState().viewport;
+    if (containsBox(vp, containerSize, box)) return;
+    setViewport(
+      centerOn(vp, { x: box.x + box.width / 2, y: box.y + box.height / 2 }, containerSize),
+    );
+  }, [reveal, canvasMode, layout, targets, containerSize, setViewport]);
 
   // Compose event handlers: maskPaint first, then panZoom
   const onMouseDown = useCallback(

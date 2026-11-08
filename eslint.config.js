@@ -101,6 +101,7 @@ export default defineConfig([
       "src/lib/request/wire.ts",
       "src/lib/resultStrip.ts",
       "src/lib/trim.ts",
+      "src/lib/viewport/**/*.ts",
     ],
     rules: {
       "@typescript-eslint/no-restricted-imports": [
@@ -143,6 +144,13 @@ export default defineConfig([
           "Image",
           "createImageBitmap",
           "OffscreenCanvas",
+          "matchMedia",
+          "requestAnimationFrame",
+          "cancelAnimationFrame",
+          "performance",
+          "getComputedStyle",
+          "WheelEvent",
+          "PointerEvent",
         ].map((name) => ({ name, message: "Pure modules do not touch the browser." })),
       ],
       "no-restricted-properties": [

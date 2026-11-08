@@ -244,8 +244,6 @@ export const DEFAULT_GENERATION_PARAMS = {
   denoisingStrength: 0.5,
 };
 
-export const ZOOM_LIMITS = { min: 0.1, max: 16 };
-
 export const RESIZE_MODES = ["None", "Fixed", "Crop", "Fill", "Outpaint", "Context aware"];
 
 /** Hires fix size modes (Scale uses hr_resize_x/y=0, Fixed uses explicit dims) */

@@ -19,6 +19,7 @@ import { resolveOutputSize } from "@/lib/sizeCompute";
 import { FrameDock } from "./FrameDock";
 import { OutputFramePanel } from "./OutputFramePanel";
 import type { ViewportState } from "@/canvas/viewportBus";
+import { useWorldChrome } from "@/canvas/navigation/chrome";
 
 interface FramePanelsProps {
   layout: CanvasLayout;
@@ -123,6 +124,7 @@ export function FramePanels({
 
       {onAddInputFrame && (
         <AddFrameButton
+          chromeKey="add:input"
           x={0}
           y={layout.inputColumnBottom}
           width={displayW}
@@ -136,6 +138,7 @@ export function FramePanels({
       )}
       {onAddControlFrame && (
         <AddFrameButton
+          chromeKey="add:control"
           x={layout.controlColumnX}
           y={layout.controlColumnBottom}
           width={displayW}
@@ -159,6 +162,7 @@ export function FramePanels({
 }
 
 interface AddFrameButtonProps {
+  chromeKey: string;
   /** Display-space anchor: the button sits just below the column's last frame. */
   x: number;
   y: number;
@@ -172,6 +176,7 @@ interface AddFrameButtonProps {
 }
 
 function AddFrameButton({
+  chromeKey,
   x,
   y,
   width,
@@ -183,6 +188,8 @@ function AddFrameButton({
   onClick,
 }: AddFrameButtonProps) {
   const combinedScale = viewport.scale * labelScale;
+  const rootRef = useRef<HTMLDivElement>(null);
+  useWorldChrome(chromeKey, rootRef, { x, y, edge: "top", scale: labelScale });
   const style = useMemo<React.CSSProperties>(() => {
     const screenX = x * viewport.scale + viewport.x;
     const screenY = y * viewport.scale + viewport.y;
@@ -198,7 +205,7 @@ function AddFrameButton({
   }, [x, y, width, viewport.scale, viewport.x, viewport.y, combinedScale]);
 
   return (
-    <div style={style} className="z-50">
+    <div ref={rootRef} style={style} className="z-50">
       <button
         type="button"
         onClick={onClick}

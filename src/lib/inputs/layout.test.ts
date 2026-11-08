@@ -34,7 +34,7 @@ describe("computeCanvasLayout", () => {
     expect(layout.displayScale).toBe(1);
     expect(layout.displayW).toBe(1024);
     expect(layout.outputX).toBe(1024 + 48);
-    expect(layout.totalBounds).toEqual({ minX: 0, maxX: 1024 + 48 + 1024, maxY: 512 });
+    expect(layout.outputDisplayW).toBe(1024);
     const tall = computeCanvasLayout(input([], { frame: { width: 512, height: 1024 } }));
     expect(tall.displayScale).toBe(0.5);
     expect(tall.displayW).toBe(256);
@@ -72,7 +72,6 @@ describe("computeCanvasLayout", () => {
     expect(second([processed, plain])).toBe(512 + 64);
     expect(second([plain, processed])).toBe(512 + 64 + 22);
     expect(second([plain, processed], 2)).toBe(512 + 16 + (32 + 22) * 2 + 16);
-    expect(computeCanvasLayout(input([processed])).totalBounds.maxX).toBe(1024 + 48 + 1024);
   });
 
   it("keeps the add cell of an IP-Adapter frame when the input images are at capacity", () => {

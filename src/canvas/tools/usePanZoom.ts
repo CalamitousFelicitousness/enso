@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef } from "react";
-import { ZOOM_LIMITS } from "@/lib/constants";
+import { scaleRange, zoomAbout } from "@/lib/viewport/camera";
 import type Konva from "konva";
 import type { ViewportAdapter } from "../viewportAdapter";
 import { setPanKey } from "../konvaSetup";
@@ -7,6 +7,8 @@ import { setPanKey } from "../konvaSetup";
 interface PanZoomOptions {
   stageRef: React.RefObject<Konva.Stage | null>;
   viewport: ViewportAdapter;
+  /** The stage scale that shows one image pixel per CSS pixel; the zoom limits are relative to it. */
+  unitScale: number;
   /** Swallow pan and zoom while it returns false (the images mode lock). */
   canGesture?: () => boolean;
   /** Runs on each pan or zoom event that is allowed through. */
@@ -18,6 +20,7 @@ interface PanZoomOptions {
 export function usePanZoom({
   stageRef,
   viewport,
+  unitScale,
   canGesture,
   onGesture,
   enabled = true,
@@ -44,29 +47,21 @@ export function usePanZoom({
       const pointer = stage.getPointerPosition();
       if (!pointer) return;
 
-      const oldScale = stage.scaleX();
-      const direction = e.evt.deltaY > 0 ? -1 : 1;
-      const factor = 1.1;
-      const newScale = Math.min(
-        ZOOM_LIMITS.max,
-        Math.max(ZOOM_LIMITS.min, direction > 0 ? oldScale * factor : oldScale / factor),
+      const factor = e.evt.deltaY > 0 ? 1 / 1.1 : 1.1;
+      const next = zoomAbout(
+        { x: stage.x(), y: stage.y(), scale: stage.scaleX() },
+        pointer,
+        factor,
+        scaleRange(unitScale),
       );
 
-      const mousePointTo = {
-        x: (pointer.x - stage.x()) / oldScale,
-        y: (pointer.y - stage.y()) / oldScale,
-      };
-
-      const newX = pointer.x - mousePointTo.x * newScale;
-      const newY = pointer.y - mousePointTo.y * newScale;
-
       // Imperative Konva update - no React re-render
-      stage.x(newX);
-      stage.y(newY);
-      stage.scaleX(newScale);
-      stage.scaleY(newScale);
+      stage.x(next.x);
+      stage.y(next.y);
+      stage.scaleX(next.scale);
+      stage.scaleY(next.scale);
       stage.batchDraw();
-      viewport.bus.emit({ x: newX, y: newY, scale: newScale });
+      viewport.bus.emit(next);
 
       // Debounced store sync
       if (wheelSyncTimer.current) clearTimeout(wheelSyncTimer.current);
@@ -79,7 +74,7 @@ export function usePanZoom({
         }
       }, 150);
     },
-    [stageRef, viewport, canGesture, onGesture],
+    [stageRef, viewport, unitScale, canGesture, onGesture],
   );
 
   const handleMouseDown = useCallback(

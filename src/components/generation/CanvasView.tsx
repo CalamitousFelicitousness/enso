@@ -24,7 +24,7 @@ import { FramePanels } from "@/canvas/panels/FramePanels";
 import { CanvasProgressOverlay } from "@/canvas/CanvasProgressOverlay";
 import { useCanvasLayout } from "@/canvas/useCanvasLayout";
 import { INPUTS_FULL_HINT } from "@/inputs/capacity";
-import { getOrderedFrames, parseFrameId } from "@/canvas/frameList";
+import { getOrderedFrames, parseFrameId } from "@/lib/inputs/frames";
 import { useInputCommands } from "@/canvas/useInputCommands";
 import { ModeToggle } from "./ModeToggle";
 import { LocateFixed, X, Plus } from "lucide-react";

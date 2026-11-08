@@ -21,6 +21,7 @@ import { VideoCanvasStage } from "@/canvas/VideoCanvasStage";
 import { ReferenceSortableOverlay } from "@/canvas/ReferenceSortableOverlay";
 import { INPUT_COLOR_ACTIVE, INPUT_COLOR_INACTIVE, OUTPUT_COLOR } from "@/canvas/frameColors";
 import { FrameHeader } from "@/canvas/panels/FrameHeader";
+import { dockKey } from "@/lib/viewport/insets";
 import { VideoPlayer } from "@/components/video/VideoPlayer";
 import { VideoCompare } from "@/components/video/VideoCompare";
 import { VideoResultActions } from "@/components/video/VideoResultActions";
@@ -302,6 +303,7 @@ export function VideoCanvasView() {
               mode="panel"
               color={initColor}
               label="Init"
+              chromeKey={dockKey("init")}
               canvasX={layout.initX}
               frameW={displayW}
               viewport={viewport}
@@ -353,6 +355,7 @@ export function VideoCanvasView() {
               mode="panel"
               color={lastColor}
               label="Last"
+              chromeKey={dockKey("last")}
               canvasX={layout.lastX}
               frameW={displayW}
               viewport={viewport}
@@ -391,6 +394,7 @@ export function VideoCanvasView() {
               color={referencesColor}
               label="Refs"
               sizeText={`${references.length}/${maxReferences}`}
+              chromeKey={dockKey("references")}
               canvasX={layout.referencesX}
               frameW={displayW}
               viewport={viewport}
@@ -441,6 +445,7 @@ export function VideoCanvasView() {
             color={OUTPUT_COLOR}
             label="Output"
             sizeText={sizeText}
+            chromeKey={dockKey("output")}
             canvasX={outputX}
             frameW={displayW}
             viewport={viewport}

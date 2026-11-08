@@ -56,6 +56,8 @@ import { RoleToggle } from "@/components/generation/tabs/input/RoleToggle";
 import type { ViewportState } from "@/canvas/viewportBus";
 import { INPUTS_FULL_HINT } from "@/inputs/capacity";
 import { duplicateFrame, removePicture } from "@/inputs/edits";
+import { inputFrameId } from "@/lib/inputs/frames";
+import { dockKey } from "@/lib/viewport/insets";
 import { MapLine } from "./MapLine";
 
 interface FrameDockProps {
@@ -392,6 +394,7 @@ export function FrameDock({
         }
         sizeText={sizeText}
         status={status}
+        chromeKey={dockKey(inputFrameId(frame.frameId))}
         canvasX={frame.x}
         canvasY={frame.y}
         frameW={frameW}

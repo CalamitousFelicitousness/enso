@@ -28,6 +28,7 @@ import type { GenerationInfo } from "@/api/types/generation";
 import { pickedSeed } from "@/lib/request/restoreParams";
 import { JobWarnings } from "@/components/generation/JobWarnings";
 import { OUTPUT_COLOR } from "@/canvas/frameColors";
+import { dockKey } from "@/lib/viewport/insets";
 import { DockTab, FrameHeader } from "./FrameHeader";
 
 function InfoRow({ label, value, mono = false }: { label: string; value: string; mono?: boolean }) {
@@ -226,6 +227,7 @@ export function OutputFramePanel({
       label="Output"
       sizeText={sizeText}
       statusLine={fileState ? <FileTrashLine state={fileState} now={now} /> : undefined}
+      chromeKey={dockKey("output")}
       canvasX={canvasX}
       frameW={frameW}
       viewport={viewport}

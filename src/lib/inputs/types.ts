@@ -2,6 +2,10 @@
 // composes or sends. Plain data only; object URLs and decoded images belong to
 // the media module.
 
+import type { Size } from "@/lib/viewport/types";
+
+export type { Size };
+
 export type MediaKind = "image" | "video" | "audio";
 
 /** What a frame does with its pictures. Initial and Control frames flatten
@@ -18,11 +22,6 @@ export interface Transform {
   scaleX: number;
   scaleY: number;
   rotation: number;
-}
-
-export interface Size {
-  width: number;
-  height: number;
 }
 
 /** How a composed frame places its base picture whenever the frame changes

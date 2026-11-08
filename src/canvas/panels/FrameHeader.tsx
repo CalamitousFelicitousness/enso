@@ -2,10 +2,11 @@
 // the canvas, with the dock's tabs and drawer below it in panel mode, or a
 // hat flush with the frame's top.
 
-import { useMemo, type ReactNode } from "react";
+import { useMemo, useRef, type ReactNode } from "react";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DOCK_LINE_HEIGHT, ELEMENT_GAP } from "@/lib/inputs/layout";
+import { useWorldChrome } from "@/canvas/navigation/chrome";
 
 export const HEADER_HEIGHT = 30;
 export const PANEL_WIDTH = 320;
@@ -123,6 +124,8 @@ export interface FrameHeaderProps {
   subheader?: ReactNode;
   /** Panel mode: a second line under the header, shown collapsed or not. */
   statusLine?: ReactNode;
+  /** The key the canvas's fits know this header by; without one it is not measured. */
+  chromeKey?: string | undefined;
 }
 
 export function FrameHeader({
@@ -145,8 +148,18 @@ export function FrameHeader({
   tabBar,
   subheader,
   statusLine,
+  chromeKey,
 }: FrameHeaderProps) {
   const combinedScale = viewport.scale * labelScale;
+  const rootRef = useRef<HTMLDivElement>(null);
+  // The header's bottom-left in display units: a hat sits on the frame's
+  // top edge, a panel ELEMENT_GAP above it
+  useWorldChrome(chromeKey, rootRef, {
+    x: canvasX - STROKE_HALF,
+    y: canvasY + STROKE_HALF - (mode === "panel" ? ELEMENT_GAP : 0),
+    edge: "bottom",
+    scale: labelScale,
+  });
 
   const style = useMemo<React.CSSProperties>(() => {
     if (mode === "hat") {
@@ -184,6 +197,7 @@ export function FrameHeader({
 
   return (
     <div
+      ref={rootRef}
       style={style}
       className="z-50"
       role="group"

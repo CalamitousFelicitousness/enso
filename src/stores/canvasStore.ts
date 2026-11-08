@@ -5,7 +5,7 @@ import { loose } from "@/lib/inputs/loose";
 import { reportStorageProblem } from "@/lib/storageHealth";
 import { DEFAULT_SIZE_MULTIPLE } from "@/lib/sizeCompute";
 import { writeProblems } from "@/inputs/quota";
-import type { FrameId } from "@/canvas/frameList";
+import type { FrameId } from "@/lib/inputs/frames";
 import type { ViewportState } from "@/canvas/viewportBus";
 
 export type ToolType =
@@ -66,8 +66,8 @@ interface CanvasState {
   setSizeMultiple: (multiple: number) => void;
 }
 
+/** The camera is not kept: every load fits the view afresh. */
 interface PersistedCanvasState {
-  viewport: ViewportState;
   activeTool: ToolType;
   brushSize: number;
   maskVisible: boolean;
@@ -92,7 +92,6 @@ async function viewOfLegacyRecord(): Promise<StorageValue<PersistedCanvasState> 
       const state = loose<PersistedCanvasState>(record?.state);
       if (!state) continue;
       const kept = {
-        viewport: state.viewport,
         activeTool: state.activeTool,
         brushSize: state.brushSize,
         maskVisible: state.maskVisible,
@@ -113,6 +112,8 @@ async function viewOfLegacyRecord(): Promise<StorageValue<PersistedCanvasState> 
 const canvasStorage = createGatedStorage<PersistedCanvasState>(canvasRecords, "enso-canvas/state", {
   seed: viewOfLegacyRecord,
   ...writeProblems("canvas", "canvas view", () => canvasStorage.retry()),
+  // The record is rebuilt on every change to the store, the camera's included
+  same: (a, b) => JSON.stringify(a) === JSON.stringify(b),
 });
 
 export const useCanvasStore = create<CanvasState>()(
@@ -186,7 +187,6 @@ export const useCanvasStore = create<CanvasState>()(
         });
       },
       partialize: (state): PersistedCanvasState => ({
-        viewport: state.viewport,
         activeTool: state.activeTool,
         brushSize: state.brushSize,
         maskVisible: state.maskVisible,
@@ -201,7 +201,6 @@ export const useCanvasStore = create<CanvasState>()(
         if (!saved) return current;
         return {
           ...current,
-          viewport: saved.viewport ?? current.viewport,
           activeTool: saved.activeTool ?? current.activeTool,
           brushSize: saved.brushSize ?? current.brushSize,
           maskVisible: saved.maskVisible ?? current.maskVisible,
