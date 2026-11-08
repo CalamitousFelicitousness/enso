@@ -9,7 +9,7 @@ import {
   useSyncExternalStore,
   type RefObject,
 } from "react";
-import type { ChromeBoxes, ChromeEntry } from "@/lib/viewport/insets";
+import type { ChromeBoxes, ChromeEntry, ScreenChrome } from "@/lib/viewport/insets";
 
 export interface ChromeRegistry {
   set: (key: string, entry: ChromeEntry) => void;
@@ -29,7 +29,9 @@ function sameEntry(a: ChromeEntry, b: ChromeEntry): boolean {
     );
   }
   if (a.kind === "screen" && b.kind === "screen") {
-    return a.edge === b.edge && a.extent === b.extent;
+    return (
+      a.place === b.place && a.width === b.width && a.height === b.height && a.clear === b.clear
+    );
   }
   return false;
 }
@@ -109,21 +111,38 @@ export function useWorldChrome(
   }, [registry, key, ref, x, y, edge, scale]);
 }
 
-/** Reports how far an element pinned to the container's bottom edge reaches
- * in from it, in CSS pixels, while it is mounted. */
-export function useScreenChrome(key: string, ref: RefObject<HTMLElement | null>): void {
+/** How an element pinned to the container reaches in from its edges, in CSS
+ * pixels; null while it is not laid out. */
+export function measureScreenChrome(
+  el: HTMLElement,
+  place: ScreenChrome["place"],
+  clear: boolean,
+): ScreenChrome | null {
+  const parent = el.offsetParent;
+  if (!(parent instanceof HTMLElement) || el.offsetHeight === 0) return null;
+  if (place === "corner") {
+    const width = parent.clientWidth - el.offsetLeft;
+    return { kind: "screen", place, width, height: parent.clientHeight - el.offsetTop, clear };
+  }
+  const height =
+    place === "top" ? el.offsetTop + el.offsetHeight : parent.clientHeight - el.offsetTop;
+  return { kind: "screen", place, width: el.offsetWidth, height, clear };
+}
+
+/** Reports an element pinned to the container's top or bottom edge while it
+ * is mounted; a fit keeps clear of it unless `clear` is false. */
+export function useScreenChrome(
+  key: string,
+  ref: RefObject<HTMLElement | null>,
+  { place = "bottom", clear = true }: { place?: "top" | "bottom"; clear?: boolean } = {},
+): void {
   const registry = useContext(ChromeContext);
   useLayoutEffect(() => {
     const el = ref.current;
     if (!registry || !el) return;
     const report = () => {
-      const parent = el.offsetParent;
-      if (!(parent instanceof HTMLElement) || el.offsetHeight === 0) return;
-      registry.set(key, {
-        kind: "screen",
-        edge: "bottom",
-        extent: parent.clientHeight - el.offsetTop,
-      });
+      const entry = measureScreenChrome(el, place, clear);
+      if (entry) registry.set(key, entry);
     };
     report();
     const observer = new ResizeObserver(report);
@@ -132,5 +151,5 @@ export function useScreenChrome(key: string, ref: RefObject<HTMLElement | null>)
       observer.disconnect();
       registry.delete(key);
     };
-  }, [registry, key, ref]);
+  }, [registry, key, ref, place, clear]);
 }

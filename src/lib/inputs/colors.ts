@@ -1,6 +1,6 @@
-// The accent colour of each kind of frame, shared by the Konva layers and the DOM docks.
+// The accent colour of each kind of frame, shared by the Konva layers, the docks and the minimap.
 
-import type { FrameRole } from "@/lib/inputs/types";
+import type { FrameRole } from "./types";
 
 export const INPUT_COLOR_ACTIVE = "#4ade80";
 export const INPUT_COLOR_REFERENCE = "#38bdf8";

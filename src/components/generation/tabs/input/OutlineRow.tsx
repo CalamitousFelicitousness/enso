@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { useInputStore } from "@/stores/inputStore";
 import { useThumb } from "@/inputs/thumbs";
 import { removeFrame, setFrameOn } from "@/inputs/edits";
-import { frameColor } from "@/canvas/frameColors";
+import { frameColor } from "@/lib/inputs/colors";
 import type { OutlineEntry } from "@/lib/inputs/outline";
 import {
   controlTypeLabel,

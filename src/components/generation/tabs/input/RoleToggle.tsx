@@ -2,7 +2,7 @@
 // role. The Input tab's inspector and the canvas docks share it.
 
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { frameColor } from "@/canvas/frameColors";
+import { frameColor } from "@/lib/inputs/colors";
 import { roleLabel } from "@/lib/inputs/text";
 import type { FrameRole } from "@/lib/inputs/types";
 import { ROLE_HINTS } from "./roleHints";

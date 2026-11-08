@@ -17,6 +17,14 @@ export function setViewMode(mode: "focus" | "canvas"): void {
   else mainCamera.showAll();
 }
 
+/** A frame picked to look at: it becomes the current frame, and Focus fits it. */
+export function focusFrame(id: FrameId): void {
+  const parsed = parseFrameId(id);
+  if (parsed.kind === "input") useInputStore.getState().selectFrame(parsed.id);
+  useCanvasStore.getState().setFocusedFrame(id);
+  setViewMode("focus");
+}
+
 export function useFrameCursor(layout: FrameLayout, visible: boolean): FrameId {
   const current = useCanvasStore((s) => s.focusedFrameId) ?? "output";
   const setCurrent = useCanvasStore((s) => s.setFocusedFrame);

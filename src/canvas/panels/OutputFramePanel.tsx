@@ -27,7 +27,7 @@ import { downloadMedia, failedWith } from "@/lib/mediaFiles";
 import type { GenerationInfo } from "@/api/types/generation";
 import { pickedSeed } from "@/lib/request/restoreParams";
 import { JobWarnings } from "@/components/generation/JobWarnings";
-import { OUTPUT_COLOR } from "@/canvas/frameColors";
+import { OUTPUT_COLOR } from "@/lib/inputs/colors";
 import { dockKey } from "@/lib/viewport/insets";
 import { DockTab, FrameHeader } from "./FrameHeader";
 

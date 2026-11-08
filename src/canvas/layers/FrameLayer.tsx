@@ -11,7 +11,7 @@ import { memo, useCallback } from "react";
 import { Group, Image as KonvaImage, Layer, Rect, Text } from "react-konva";
 import { CornerBrackets } from "@/canvas/layers/CornerBrackets";
 import { PICKER_NAME } from "@/canvas/navigation/camera";
-import { frameColor, PROCESSED_COLOR, UNREADABLE_COLOR } from "@/canvas/frameColors";
+import { frameColor, PROCESSED_COLOR, UNREADABLE_COLOR } from "@/lib/inputs/colors";
 import { useCanvasStore } from "@/stores/canvasStore";
 import { useInputStore } from "@/stores/inputStore";
 import { useEffectiveLimit } from "@/inputs/admit";

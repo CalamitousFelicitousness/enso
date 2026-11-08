@@ -59,6 +59,8 @@ interface CanvasState {
   sizeMultiple: number;
   /** A frame to bring into view in canvas mode, counted per request; not persisted. */
   reveal: { frameId: string; n: number } | null;
+  /** The canvas is wide enough for the minimap beside the bottom chrome; not persisted. */
+  minimapRoom: boolean;
 
   setViewport: (viewport: Partial<ViewportState>) => void;
   requestReveal: (frameId: string) => void;
@@ -75,6 +77,7 @@ interface CanvasState {
   setGestureFrame: (frameId: string | null) => void;
   togglePanelCollapsed: (key: string, currentCollapsed: boolean) => void;
   setSizeMultiple: (multiple: number) => void;
+  setMinimapRoom: (room: boolean) => void;
 }
 
 /** The camera is not kept: every load fits the view afresh. */
@@ -142,6 +145,7 @@ export const useCanvasStore = create<CanvasState>()(
       modeFlips: 0,
       sizeMultiple: DEFAULT_SIZE_MULTIPLE,
       reveal: null,
+      minimapRoom: true,
 
       requestReveal: (frameId) => set((s) => ({ reveal: { frameId, n: (s.reveal?.n ?? 0) + 1 } })),
       setCanvasMode: (mode) =>
@@ -167,6 +171,7 @@ export const useCanvasStore = create<CanvasState>()(
       setGestureFrame: (frameId) =>
         set((s) => (s.gestureFrameId === frameId ? s : { gestureFrameId: frameId })),
       setSizeMultiple: (multiple) => set({ sizeMultiple: multiple }),
+      setMinimapRoom: (room) => set((s) => (s.minimapRoom === room ? s : { minimapRoom: room })),
 
       togglePanelCollapsed: (key, currentCollapsed: boolean) =>
         set((s) => {

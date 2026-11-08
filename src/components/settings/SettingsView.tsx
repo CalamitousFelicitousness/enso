@@ -32,6 +32,8 @@ import { endSession, startSession } from "@/api/session";
 import { queryClient } from "@/api/queryClient";
 import { CONNECTION_SECTION_ID } from "@/lib/constants";
 import {
+  MINIMAP_LABEL,
+  MINIMAP_SETTING_DESCRIPTION,
   WHEEL_OPTIONS,
   WHEEL_SETTING_DESCRIPTION,
   WHEEL_SETTING_LABEL,
@@ -192,6 +194,8 @@ function AppearancePanel() {
   const setUiScale = useUiStore((s) => s.setUiScale);
   const canvasLabelScale = useUiStore((s) => s.canvasLabelScale);
   const setCanvasLabelScale = useUiStore((s) => s.setCanvasLabelScale);
+  const canvasMinimap = useUiStore((s) => s.canvasMinimap);
+  const setCanvasMinimap = useUiStore((s) => s.setCanvasMinimap);
   const canvasBackground = useUiStore((s) => s.canvasBackground);
   const setCanvasBackground = useUiStore((s) => s.setCanvasBackground);
 
@@ -276,6 +280,10 @@ function AppearancePanel() {
               {canvasLabelScale.toFixed(1)}x
             </span>
           </div>
+        </SettingRow>
+
+        <SettingRow label={MINIMAP_LABEL} description={MINIMAP_SETTING_DESCRIPTION} inline>
+          <Switch checked={canvasMinimap} onCheckedChange={setCanvasMinimap} />
         </SettingRow>
 
         <SettingRow

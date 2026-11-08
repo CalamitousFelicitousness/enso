@@ -61,6 +61,8 @@ interface UiState {
   autoFitFrame: boolean;
   /** What a plain wheel does over the canvas. */
   canvasWheel: WheelMode;
+  /** The Images canvas shows its minimap where there is room. */
+  canvasMinimap: boolean;
   /** The notice that a move left Focus mode has been shown once. */
   focusFlipNoticed: boolean;
 
@@ -108,6 +110,7 @@ interface UiState {
   setVideoResultThumbSize: (size: number) => void;
   setAutoFitFrame: (enabled: boolean) => void;
   setCanvasWheel: (mode: WheelMode) => void;
+  setCanvasMinimap: (on: boolean) => void;
   setFocusFlipNoticed: () => void;
   setAutoApplyModelDefaults: (enabled: boolean) => void;
   setLivePreviews: (enabled: boolean) => void;
@@ -196,6 +199,7 @@ export const useUiStore = create<UiState>()(
       videoResultThumbSize: 56,
       autoFitFrame: true,
       canvasWheel: "pan",
+      canvasMinimap: true,
       focusFlipNoticed: false,
       autoApplyModelDefaults: false,
       livePreviews: true,
@@ -224,6 +228,7 @@ export const useUiStore = create<UiState>()(
         set({ videoResultThumbSize: Math.max(40, Math.min(120, size)) }),
       setAutoFitFrame: (enabled) => set({ autoFitFrame: enabled }),
       setCanvasWheel: (mode) => set({ canvasWheel: mode }),
+      setCanvasMinimap: (on) => set({ canvasMinimap: on }),
       setFocusFlipNoticed: () => set({ focusFlipNoticed: true }),
       setAutoApplyModelDefaults: (enabled) => set({ autoApplyModelDefaults: enabled }),
       setLivePreviews: (enabled) => set({ livePreviews: enabled }),

@@ -8,6 +8,9 @@ import { composedPictures, isComposed } from "@/lib/inputs/types";
 import { frameBox, inBox } from "@/lib/inputs/layout";
 import { mainCamera } from "@/canvas/navigation/cameras";
 import { CanvasControls } from "@/canvas/navigation/CanvasControls";
+import { ImagesMinimap } from "@/canvas/ImagesMinimap";
+import { MINIMAP_NO_ROOM, MINIMAP_TOGGLE } from "@/canvas/navigation/text";
+import { useRegisterCommand } from "@/lib/commandRegistry";
 import { useCameraCommands } from "@/canvas/navigation/useCameraCommands";
 import { setViewMode, useFrameCursor } from "@/canvas/navigation/useFrameCursor";
 import { unitScale } from "@/lib/viewport/camera";
@@ -34,7 +37,7 @@ import { INPUTS_FULL_HINT } from "@/inputs/capacity";
 import { getOrderedFrames } from "@/lib/inputs/frames";
 import { useInputCommands } from "@/canvas/useInputCommands";
 import { ModeToggle } from "./ModeToggle";
-import { X, Plus } from "lucide-react";
+import { X, Plus, MapIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 /** A left drag on empty canvas pans with the move tool; the mask tools paint. */
@@ -95,6 +98,23 @@ export const CanvasView = memo(function CanvasView() {
     name: "canvas",
     frameCommands: true,
   });
+  const minimapOn = useUiStore((s) => s.canvasMinimap);
+  const minimapRoom = useCanvasStore((s) => s.minimapRoom);
+  const setMinimap = useCallback((on: boolean) => {
+    useUiStore.getState().setCanvasMinimap(on);
+    if (on && !useCanvasStore.getState().minimapRoom) toast.info(MINIMAP_NO_ROOM);
+  }, []);
+  useRegisterCommand(
+    {
+      id: "canvas:toggle-minimap",
+      label: MINIMAP_TOGGLE,
+      group: "Canvas",
+      keywords: ["minimap", "overview", "map", "navigator"],
+      icon: MapIcon,
+      run: () => setMinimap(!useUiStore.getState().canvasMinimap),
+    },
+    visible,
+  );
   const currentName = useMemo(() => {
     if (current === "output") return "Output";
     const index = layout.frames.findIndex((f) => `input:${f.frameId}` === current);
@@ -234,6 +254,7 @@ export const CanvasView = memo(function CanvasView() {
           camera={mainCamera}
           mode={<ModeToggle mode={canvasMode} onModeChange={setViewMode} flips={modeFlips} />}
           frameName={currentName}
+          minimap={{ on: minimapOn, room: minimapRoom, onChange: setMinimap }}
           tour="canvas-controls"
         >
           <Button
@@ -257,6 +278,7 @@ export const CanvasView = memo(function CanvasView() {
           </Button>
         </CanvasControls>
       }
+      minimap={<ImagesMinimap layout={layout} current={current} />}
     >
       <CanvasStage layout={layout} onPickFile={handlePickForFrame} onAddCell={handlePickForFrame} />
 

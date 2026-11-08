@@ -51,7 +51,7 @@ It runs as a standard SD.Next extension: starting SD.Next with `--enso` clones i
 ### Infinite Canvas
 
 - **Konva.js-powered** - Smooth pan, zoom, and transform at any scale
-- **Navigation** - Scroll to pan, pinch or Ctrl+scroll to zoom, drag empty canvas; Shift+1 shows every frame, Shift+0 is 100%, arrows step through frames
+- **Navigation** - Scroll to pan, pinch or Ctrl+scroll to zoom, drag empty canvas; Shift+1 shows every frame, Shift+0 is 100%, arrows step through frames; the minimap in the corner shows every frame, and a drag or a click in it moves the view
 - **Multi-frame workspace** - Place input images, masks, and results side by side
 - **Smart viewport** - Efficient culling and lazy loading for large workspaces
 - **Transform controls** - Resize, rotate, flip with visual handles

@@ -226,14 +226,16 @@ export function useViewportGestures({ surfaceRef, camera, tool, enabled }: Viewp
         width: surface.clientWidth,
         height: surface.clientHeight,
       };
+      // The minimap passes its wheel to the canvas, which zooms about its own centre
+      const overMap = e.target instanceof Element && e.target.closest("[data-minimap]") !== null;
       step(
         {
           type: "wheel",
           time: e.timeStamp,
           wheel: e,
           defaultPrevented: e.defaultPrevented,
-          target: targetOf(e),
-          point: pointOf(e),
+          target: overMap ? "content" : targetOf(e),
+          point: overMap ? { x: container.width / 2, y: container.height / 2 } : pointOf(e),
           container,
         },
         e,

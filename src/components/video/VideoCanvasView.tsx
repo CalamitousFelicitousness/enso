@@ -25,7 +25,7 @@ import { useUiStore } from "@/stores/uiStore";
 import { useVideoFrameLayout } from "@/canvas/useVideoFrameLayout";
 import { VideoCanvasStage } from "@/canvas/VideoCanvasStage";
 import { ReferenceSortableOverlay } from "@/canvas/ReferenceSortableOverlay";
-import { INPUT_COLOR_ACTIVE, INPUT_COLOR_INACTIVE, OUTPUT_COLOR } from "@/canvas/frameColors";
+import { INPUT_COLOR_ACTIVE, INPUT_COLOR_INACTIVE, OUTPUT_COLOR } from "@/lib/inputs/colors";
 import { FrameHeader } from "@/canvas/panels/FrameHeader";
 import { dockKey } from "@/lib/viewport/insets";
 import { VideoPlayer } from "@/components/video/VideoPlayer";

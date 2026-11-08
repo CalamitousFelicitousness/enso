@@ -28,6 +28,8 @@ interface CanvasSurfaceProps {
   overlay?: ReactNode;
   /** The controls pinned top-right, above the anchored chrome. */
   controls?: ReactNode;
+  /** The minimap pinned bottom-right, above the anchored chrome. */
+  minimap?: ReactNode;
   /** Chrome below the canvas, outside its clip. */
   below?: ReactNode;
   onDropFiles?: (files: File[], point: SurfacePoint) => void;
@@ -55,6 +57,7 @@ export function CanvasSurface({
   children,
   overlay,
   controls,
+  minimap,
   below,
   onDropFiles,
   onDropImage,
@@ -146,6 +149,7 @@ export function CanvasSurface({
             {overlay}
           </div>
           {controls}
+          {minimap}
         </div>
         {below}
       </div>

@@ -1,5 +1,7 @@
+import { useRef } from "react";
 import { useJobQueueStore, selectViewedJob } from "@/stores/jobStore";
 import type { JobQueueState, TrackedJob } from "@/stores/jobStore";
+import { useScreenChrome } from "@/canvas/navigation/chrome";
 
 const CLOUD_PHASE_LABELS: Record<string, string> = {
   submitted: "Submitting...",
@@ -17,6 +19,13 @@ interface CanvasProgressOverlayProps {
 export function CanvasProgressOverlay({ select = selectViewedJob }: CanvasProgressOverlayProps) {
   const job = useJobQueueStore(select);
   if (!job || job.status !== "running") return null;
+  return <ProgressCard job={job} />;
+}
+
+// The minimap makes room for the card; fits draw under it
+function ProgressCard({ job }: { job: TrackedJob }) {
+  const cardRef = useRef<HTMLDivElement>(null);
+  useScreenChrome("progress", cardRef, { clear: false });
 
   const pct = Math.round(job.progress * 100);
   const hasSteps = job.step > 0 && job.steps > 0;
@@ -24,7 +33,10 @@ export function CanvasProgressOverlay({ select = selectViewedJob }: CanvasProgre
 
   return (
     <div className="absolute inset-x-0 bottom-0 p-4 pointer-events-none">
-      <div className="flex flex-col gap-1 bg-background/80 backdrop-blur-sm rounded-lg px-3 py-2 max-w-md mx-auto">
+      <div
+        ref={cardRef}
+        className="flex flex-col gap-1 bg-background/80 backdrop-blur-sm rounded-lg px-3 py-2 max-w-md mx-auto"
+      >
         {(job.stageName || hasSteps || showPhase) && (
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             {job.stageName && (

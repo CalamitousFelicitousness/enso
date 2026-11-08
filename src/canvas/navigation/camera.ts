@@ -91,6 +91,8 @@ export interface Camera {
   panStep: (fx: number, fy: number) => void;
   /** Centre a frame that is not wholly in view, at the same zoom. */
   reveal: (id: string, kind: Extract<TweenKind, "reveal" | "step">) => void;
+  /** Centre a world point, at the same zoom. */
+  centerAt: (world: Point) => void;
   /** A command took over: the gestures close the running wheel sequence. */
   onCommand: (cb: () => void) => () => void;
   /** What the drawn canvas holds under a container point. */
@@ -375,6 +377,11 @@ export function createCamera(store: CameraStore): Camera {
       setFollow(null);
       const middle = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
       command(fixed(centerOn(base, middle, size)), kind);
+    },
+    centerAt: (world) => {
+      if (!size) return;
+      setFollow(null);
+      command(fixed(centerOn(target(), world, size)), "step");
     },
     onCommand: (cb) => {
       commands.add(cb);

@@ -51,3 +51,17 @@ export const GESTURES_HEADING = "Canvas navigation";
 
 export const TUTORIAL_TITLE = "Moving around";
 export const TUTORIAL_BODY = `Scroll to move around, ${MOD}+scroll or pinch to zoom. The percentage opens Show all frames and the other views.`;
+
+export const MINIMAP_LABEL = "Canvas minimap";
+export const MINIMAP_HINT =
+  "Drag to move the view, click to centre it, double-click a frame to focus it";
+export const MINIMAP_SHOW = "Show minimap";
+export const MINIMAP_TOGGLE = "Show or hide the minimap";
+export const MINIMAP_NO_ROOM = "The canvas is too narrow for the minimap";
+export const MINIMAP_SETTING_DESCRIPTION =
+  "Overview of every frame; drag in it to move the view, double-click a frame to focus it";
+
+/** "Focus Input 1, Reference": what Enter or a double-click on a minimap frame does. */
+export function focusLabel(name: string): string {
+  return `Focus ${name}`;
+}

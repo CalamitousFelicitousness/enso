@@ -28,7 +28,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { KeepAlivePanel, KeepAliveSwitch } from "@/components/ui/keep-alive";
 import { DockTab, FrameHeader, InfoLine } from "./FrameHeader";
-import { frameColor } from "@/canvas/frameColors";
+import { frameColor } from "@/lib/inputs/colors";
 import { useInputStore } from "@/stores/inputStore";
 import type { OutlineEntry, SizeSourcePick } from "@/lib/inputs/outline";
 import {

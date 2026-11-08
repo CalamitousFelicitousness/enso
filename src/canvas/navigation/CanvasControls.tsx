@@ -3,8 +3,10 @@ import { ChevronDown, Fullscreen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
+  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuShortcut,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
@@ -12,7 +14,10 @@ import { SHORTCUTS, formatShortcut } from "@/lib/shortcuts";
 import { zoomPercent } from "@/lib/viewport/camera";
 import { cn } from "@/lib/utils";
 import type { Camera } from "./camera";
+import { useScreenChrome } from "./chrome";
 import {
+  MINIMAP_NO_ROOM,
+  MINIMAP_SHOW,
   SHOW_ALL,
   SHOW_ALL_HELD,
   ZOOM_100,
@@ -54,8 +59,24 @@ function ShowAllButton({ camera }: { camera: Camera }) {
   );
 }
 
+/** The minimap setting as the menu shows it (Images). */
+export interface MinimapToggle {
+  on: boolean;
+  /** The canvas is wide enough to draw it. */
+  room: boolean;
+  onChange: (on: boolean) => void;
+}
+
 /** The zoom readout, written from the camera's frames, and its menu. */
-function ZoomMenu({ camera, frameName }: { camera: Camera; frameName?: string | undefined }) {
+function ZoomMenu({
+  camera,
+  frameName,
+  minimap,
+}: {
+  camera: Camera;
+  frameName?: string | undefined;
+  minimap?: MinimapToggle | undefined;
+}) {
   const textRef = useRef<HTMLSpanElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const [open, setOpen] = useState(false);
@@ -112,6 +133,22 @@ function ZoomMenu({ camera, frameName }: { camera: Camera; frameName?: string | 
             <DropdownMenuShortcut>{keyOf("canvas-zoom-frame")}</DropdownMenuShortcut>
           </DropdownMenuItem>
         )}
+        {minimap && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuCheckboxItem
+              checked={minimap.on}
+              disabled={!minimap.room}
+              onCheckedChange={minimap.onChange}
+              onSelect={(e) => e.preventDefault()}
+            >
+              {MINIMAP_SHOW}
+            </DropdownMenuCheckboxItem>
+            {!minimap.room && (
+              <p className="pr-2 pb-1.5 pl-8 text-2xs text-muted-foreground">{MINIMAP_NO_ROOM}</p>
+            )}
+          </>
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   );
@@ -123,6 +160,8 @@ interface CanvasControlsProps {
   mode?: ReactNode;
   /** The current frame's name, for Zoom to it (Images). */
   frameName?: string;
+  /** The minimap's menu item (Images). */
+  minimap?: MinimapToggle;
   /** What the canvas holds: add, clear. */
   children?: ReactNode;
   /** The tutorial step that points here. */
@@ -130,9 +169,19 @@ interface CanvasControlsProps {
 }
 
 /** The top-right cluster: how the canvas is viewed, then what it holds. */
-export function CanvasControls({ camera, mode, frameName, children, tour }: CanvasControlsProps) {
+export function CanvasControls({
+  camera,
+  mode,
+  frameName,
+  minimap,
+  children,
+  tour,
+}: CanvasControlsProps) {
+  const rootRef = useRef<HTMLDivElement>(null);
+  useScreenChrome("controls", rootRef, { place: "top" });
   return (
     <div
+      ref={rootRef}
       className="absolute top-2 right-2 flex items-center gap-3"
       data-key-surface="canvas"
       data-tour={tour}
@@ -140,7 +189,7 @@ export function CanvasControls({ camera, mode, frameName, children, tour }: Canv
       <div className="flex items-center gap-1.5">
         {mode}
         <ShowAllButton camera={camera} />
-        <ZoomMenu camera={camera} frameName={frameName} />
+        <ZoomMenu camera={camera} frameName={frameName} minimap={minimap} />
       </div>
       {children && <div className="flex items-center gap-1.5">{children}</div>}
     </div>
