@@ -4,14 +4,8 @@ import {
   type CompletionContext,
   type CompletionResult,
 } from "@codemirror/autocomplete";
-import {
-  embeddingNamesFacet,
-  loraNamesFacet,
-  styleNamesFacet,
-  wildcardNamesFacet,
-  dictTagsFacet,
-} from "./facets";
-import type { DictTag } from "@/api/types/dict";
+import { embeddingNamesFacet, loraNamesFacet, styleNamesFacet, wildcardNamesFacet } from "./facets";
+import { lookupDictTags } from "@/api/dicts";
 import { NAME_PART, PARTIAL_TAG } from "@/lib/recipes/networks";
 import { useUiStore } from "@/stores/uiStore";
 
@@ -101,84 +95,35 @@ const DICT_CATEGORY_TYPES: Record<number, string> = {
   13: "dictColor",
 };
 
-/** Binary search for the first tag with the given prefix. */
-function lowerBound(tags: DictTag[], prefix: string): number {
-  let lo = 0;
-  let hi = tags.length;
-  while (lo < hi) {
-    const mid = (lo + hi) >>> 1;
-    if (tags[mid].name < prefix) lo = mid + 1;
-    else hi = mid;
-  }
-  return lo;
-}
-
 function formatCount(count: number): string {
   if (count >= 1_000_000) return `${(count / 1_000_000).toFixed(1)}M`;
   if (count >= 1_000) return `${(count / 1_000).toFixed(0)}k`;
   return String(count);
 }
 
-function dictTagSource(ctx: CompletionContext): CompletionResult | null {
+const MAX_DICT_RESULTS = 50;
+
+async function dictTagSource(ctx: CompletionContext): Promise<CompletionResult | null> {
   const { dictMinChars, dictKeepUnderscores, dictAppendComma } = useUiStore.getState();
   const minCharsPattern = new RegExp(`(?<=^|[\\s,])\\w{${dictMinChars},}`);
   const match = ctx.matchBefore(minCharsPattern);
   if (!match) return null;
-  const tags = ctx.state.facet(dictTagsFacet);
-  if (tags.length === 0) return null;
+  const tags = await lookupDictTags(match.text.toLowerCase(), MAX_DICT_RESULTS);
+  if (ctx.aborted || tags.length === 0) return null;
 
-  const query = match.text.toLowerCase();
-  const MAX_RESULTS = 50;
   const formatName = dictKeepUnderscores ? (n: string) => n : (n: string) => n.replace(/_/g, " ");
   const suffix = dictAppendComma ? ", " : " ";
-
-  // Prefix match via binary search (O(log n + k))
-  const start = lowerBound(tags, query);
-  const options: {
-    label: string;
-    displayLabel: string;
-    detail: string;
-    type: string;
-    boost: number;
-    apply: string;
-  }[] = [];
-  for (let i = start; i < tags.length && options.length < MAX_RESULTS; i++) {
-    if (!tags[i].name.startsWith(query)) break;
-    const name = formatName(tags[i].name);
-    options.push({
+  const options = tags.map((tag) => {
+    const name = formatName(tag.name);
+    return {
       label: name,
-      displayLabel: tags[i].name.replace(/_/g, " "),
-      detail: formatCount(tags[i].count),
-      type: DICT_CATEGORY_TYPES[tags[i].category] ?? "dictGeneral",
+      displayLabel: tag.name.replace(/_/g, " "),
+      detail: formatCount(tag.count),
+      type: DICT_CATEGORY_TYPES[tag.category] ?? "dictGeneral",
       boost: -10,
       apply: name + suffix,
-    });
-  }
-
-  // Substring fallback for 4+ chars if prefix found nothing, sorted by post count
-  if (options.length === 0 && query.length >= 4) {
-    const hits: { opt: (typeof options)[0]; count: number }[] = [];
-    for (let i = 0; i < tags.length && hits.length < MAX_RESULTS; i++) {
-      if (tags[i].name.includes(query)) {
-        const name = formatName(tags[i].name);
-        hits.push({
-          opt: {
-            label: name,
-            displayLabel: tags[i].name.replace(/_/g, " "),
-            detail: formatCount(tags[i].count),
-            type: DICT_CATEGORY_TYPES[tags[i].category] ?? "dictGeneral",
-            boost: -10,
-            apply: name + suffix,
-          },
-          count: tags[i].count,
-        });
-      }
-    }
-    hits.sort((a, b) => b.count - a.count);
-    for (const h of hits) options.push(h.opt);
-  }
-
-  if (options.length === 0) return null;
+    };
+  });
   return { from: match.from, options, validFor: /^[\w ]+$/ };
 }
 

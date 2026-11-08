@@ -9,13 +9,7 @@ import { promptTooltips } from "./tooltips";
 import { cursorTracker } from "./cursor";
 import { promptKeymap } from "./keymaps";
 
-export {
-  embeddingNamesFacet,
-  loraNamesFacet,
-  styleNamesFacet,
-  wildcardNamesFacet,
-  dictTagsFacet,
-} from "./facets";
+export { embeddingNamesFacet, loraNamesFacet, styleNamesFacet, wildcardNamesFacet } from "./facets";
 
 export { promptAutocomplete } from "./autocomplete";
 

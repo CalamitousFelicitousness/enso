@@ -5,9 +5,8 @@ import { Compartment, EditorState } from "@codemirror/state";
 import { useUiStore } from "@/stores/uiStore";
 import { useKeepAliveVisible } from "@/components/ui/keep-alive";
 import { useExtraNetworks, usePromptStyles } from "@/api/hooks/useNetworks";
-import { useDictTagsMulti } from "@/api/hooks/useDicts";
+import { enableDicts } from "@/api/dicts";
 import { useOptions } from "@/api/hooks/useSettings";
-import type { DictTag } from "@/api/types/dict";
 import {
   promptExtensions,
   promptAutocomplete,
@@ -15,7 +14,6 @@ import {
   loraNamesFacet,
   styleNamesFacet,
   wildcardNamesFacet,
-  dictTagsFacet,
 } from "./prompt-cm";
 
 interface PromptFieldProps {
@@ -50,7 +48,6 @@ export function PromptField({
   const loraComp = useRef(new Compartment());
   const styleComp = useRef(new Compartment());
   const wildcardComp = useRef(new Compartment());
-  const dictComp = useRef(new Compartment());
   const autocompleteComp = useRef(new Compartment());
   const readOnlyComp = useRef(new Compartment());
 
@@ -96,29 +93,11 @@ export function PromptField({
     if (typeof appendComma === "boolean") useUiStore.getState().setDictAppendComma(appendComma);
   }, [optionsData]);
 
-  const enabledDicts = useMemo(
-    () => ((optionsData as Record<string, unknown>)?.["autocomplete_enabled"] as string[]) ?? [],
-    [optionsData],
-  );
-  const dictQueries = useDictTagsMulti(enabledDicts);
-  // Stable key: only recalculate when actual query data changes, not on every render
-  const dictDataKey = dictQueries.map((q) => q.dataUpdatedAt).join();
-  const mergedDictTags = useMemo(() => {
-    const all = dictQueries.flatMap((q) => q.data ?? []);
-    if (all.length === 0) return all;
-    all.sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
-    // Deduplicate consecutive entries, keeping the highest post count
-    const deduped: DictTag[] = [all[0]];
-    for (let i = 1; i < all.length; i++) {
-      if (all[i].name !== all[i - 1].name) {
-        deduped.push(all[i]);
-      } else if (all[i].count > deduped[deduped.length - 1].count) {
-        deduped[deduped.length - 1] = all[i];
-      }
-    }
-    return deduped;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dictDataKey]);
+  const enabledDicts = useMemo(() => {
+    const names = (optionsData as Record<string, unknown> | undefined)?.["autocomplete_enabled"];
+    return Array.isArray(names) ? names.filter((name) => typeof name === "string") : [];
+  }, [optionsData]);
+  useEffect(() => enableDicts(enabledDicts), [enabledDicts]);
 
   // ── Create editor on mount ─────────────────────────────────────────
 
@@ -144,7 +123,6 @@ export function PromptField({
         loraComp.current.of(loraNamesFacet.of(loras)),
         styleComp.current.of(styleNamesFacet.of(styles)),
         wildcardComp.current.of(wildcardNamesFacet.of(wildcards)),
-        dictComp.current.of(dictTagsFacet.of(mergedDictTags)),
       ],
       parent: containerRef.current,
     });
@@ -223,12 +201,6 @@ export function PromptField({
       effects: wildcardComp.current.reconfigure(wildcardNamesFacet.of(wildcards)),
     });
   }, [wildcards]);
-
-  useEffect(() => {
-    viewRef.current?.dispatch({
-      effects: dictComp.current.reconfigure(dictTagsFacet.of(mergedDictTags)),
-    });
-  }, [mergedDictTags]);
 
   // ── Render ─────────────────────────────────────────────────────────
 
