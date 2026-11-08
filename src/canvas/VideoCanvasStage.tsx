@@ -1,16 +1,14 @@
-import { useRef, useEffect, useState, useCallback, useMemo } from "react";
+import { useRef, useEffect, useLayoutEffect, useState, useMemo, useCallback } from "react";
 import { Stage } from "react-konva";
 import { useVideoCanvasStore } from "@/stores/videoCanvasStore";
 import { useVideoStore } from "@/stores/videoStore";
-import { usePanZoom } from "./tools/usePanZoom";
 import { VideoFrameLayer } from "./layers/VideoFrameLayer";
 import { VideoReferencesLayer } from "./layers/VideoReferencesLayer";
 import { VideoOutputFrame } from "./layers/VideoOutputFrame";
 import type { VideoCanvasLayout } from "./useVideoFrameLayout";
 import type { VideoSlotId } from "@/stores/videoCanvasStore";
-import { videoViewport } from "./viewportAdapter";
+import { videoCamera } from "./navigation/cameras";
 import { useChromeBoxes } from "./navigation/chrome";
-import { useKeepAliveVisible } from "@/components/ui/keep-alive";
 import { FIT_MAX_SCALE, fitBoxBest, unitScale } from "@/lib/viewport/camera";
 import { fitTargets, type FitFrame } from "@/lib/viewport/insets";
 import type Konva from "konva";
@@ -23,25 +21,17 @@ interface VideoCanvasStageProps {
 
 export function VideoCanvasStage({ layout, onPickImage }: VideoCanvasStageProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const stageRef = useRef<Konva.Stage>(null);
   const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
-  const viewport = useVideoCanvasStore((s) => s.viewport);
   const setViewport = useVideoCanvasStore((s) => s.setViewport);
   const frameW = useVideoStore((s) => s.width);
   const frameH = useVideoStore((s) => s.height);
 
-  const visible = useKeepAliveVisible();
-
   const { initX, lastX, referencesX, outputX, displayW, displayH } = layout;
   const unit = unitScale(layout.displayScale);
-  const panZoom = usePanZoom({
-    stageRef,
-    viewport: videoViewport,
-    unitScale: unit,
-    enabled: visible,
-  });
+  useLayoutEffect(() => videoCamera.setUnit(unit), [unit]);
+  const attachStage = useCallback((stage: Konva.Stage | null) => videoCamera.attach(stage), []);
 
-  const chrome = useChromeBoxes(videoViewport.chrome);
+  const chrome = useChromeBoxes(videoCamera.chrome);
   const targets = useMemo(() => {
     const slot = (id: string, x: number): FitFrame => ({
       id,
@@ -55,17 +45,17 @@ export function VideoCanvasStage({ layout, onPickImage }: VideoCanvasStageProps)
     return fitTargets(frames, chrome);
   }, [layout, initX, lastX, referencesX, outputX, displayW, displayH, chrome]);
 
-  // Container-responsive sizing
+  // Container-responsive sizing; the camera resizes the stage in the same
+  // frame, before React catches up
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
     const ro = new ResizeObserver((entries) => {
       const entry = entries[0];
       if (entry) {
-        setContainerSize({
-          width: entry.contentRect.width,
-          height: entry.contentRect.height,
-        });
+        const size = { width: entry.contentRect.width, height: entry.contentRect.height };
+        videoCamera.measure(size);
+        setContainerSize(size);
       }
     });
     ro.observe(el);
@@ -86,40 +76,10 @@ export function VideoCanvasStage({ layout, onPickImage }: VideoCanvasStageProps)
     setViewport(vp);
   }, [containerSize, frameW, frameH, targets, layout.slotCount, setViewport]);
 
-  const onMouseDown = useCallback(
-    (e: Konva.KonvaEventObject<MouseEvent>) => {
-      panZoom.onMouseDown(e);
-    },
-    [panZoom],
-  );
-
-  const onMouseMove = useCallback(
-    (e: Konva.KonvaEventObject<MouseEvent>) => {
-      panZoom.onMouseMove(e);
-    },
-    [panZoom],
-  );
-
-  const onMouseUp = useCallback(() => {
-    panZoom.onMouseUp();
-  }, [panZoom]);
-
   return (
     <div ref={containerRef} className="w-full h-full overflow-hidden">
       {containerSize.width > 0 && containerSize.height > 0 && (
-        <Stage
-          ref={stageRef}
-          width={containerSize.width}
-          height={containerSize.height}
-          x={viewport.x}
-          y={viewport.y}
-          scaleX={viewport.scale}
-          scaleY={viewport.scale}
-          onWheel={panZoom.onWheel}
-          onMouseDown={onMouseDown}
-          onMouseMove={onMouseMove}
-          onMouseUp={onMouseUp}
-        >
+        <Stage ref={attachStage} width={containerSize.width} height={containerSize.height}>
           {layout.showInit && (
             <VideoFrameLayer
               which="init"

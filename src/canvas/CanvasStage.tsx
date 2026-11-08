@@ -1,9 +1,8 @@
-import { useRef, useEffect, useState, useCallback, useMemo } from "react";
+import { useRef, useEffect, useLayoutEffect, useState, useCallback, useMemo } from "react";
 import { Stage } from "react-konva";
 import { useCanvasStore } from "@/stores/canvasStore";
 import { useGenerationStore } from "@/stores/generationStore";
 import { useInputStore } from "@/stores/inputStore";
-import { usePanZoom } from "./tools/usePanZoom";
 import { useMaskPaint } from "./tools/useMaskPaint";
 import { useImageTransform } from "./tools/useImageTransform";
 import { useSnap } from "./tools/useSnap";
@@ -19,14 +18,10 @@ import { FIT_MAX_SCALE, centerOn, containsBox, fitBoxBest, unitScale } from "@/l
 import { fitTargets } from "@/lib/viewport/insets";
 import { CanvasBackground } from "./CanvasBackground";
 import { useChromeBoxes } from "./navigation/chrome";
-import { mainViewport } from "./viewportAdapter";
+import { mainCamera } from "./navigation/cameras";
 import { useKeepAliveVisible } from "@/components/ui/keep-alive";
 import type Konva from "konva";
 import "./konvaSetup";
-
-// Read at event time so a lock or mode change does not re-render the stage.
-const canvasCanGesture = () => !useCanvasStore.getState().modeLocked;
-const canvasOnGesture = () => useCanvasStore.getState().switchToCanvasMode();
 
 interface CanvasStageProps {
   layout: CanvasLayout;
@@ -41,7 +36,6 @@ export function CanvasStage({ layout, onPickFile, onAddCell }: CanvasStageProps)
   const stageRef = useRef<Konva.Stage>(null);
   const trRef = useRef<Konva.Transformer>(null);
   const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
-  const viewport = useCanvasStore((s) => s.viewport);
   const setViewport = useCanvasStore((s) => s.setViewport);
   const frameW = useGenerationStore((s) => s.width);
   const frameH = useGenerationStore((s) => s.height);
@@ -51,7 +45,7 @@ export function CanvasStage({ layout, onPickFile, onAddCell }: CanvasStageProps)
   const selectedFrameId = useInputStore((s) => s.selectedFrameId);
   const visible = useKeepAliveVisible();
   const unit = unitScale(layout.displayScale);
-  const chrome = useChromeBoxes(mainViewport.chrome);
+  const chrome = useChromeBoxes(mainCamera.chrome);
   const targets = useMemo(
     () =>
       fitTargets(
@@ -61,15 +55,15 @@ export function CanvasStage({ layout, onPickFile, onAddCell }: CanvasStageProps)
     [layout, chrome],
   );
 
-  const panZoom = usePanZoom({
-    stageRef,
-    viewport: mainViewport,
-    unitScale: unit,
-    canGesture: canvasCanGesture,
-    onGesture: canvasOnGesture,
-    enabled: visible,
-  });
-  const maskPaint = useMaskPaint({ stageRef, spaceHeld: panZoom.spaceHeld, layout });
+  useLayoutEffect(() => mainCamera.setUnit(unit), [unit]);
+
+  // The camera owns the stage's transform; the tools keep their own ref
+  const attachStage = useCallback((stage: Konva.Stage | null) => {
+    stageRef.current = stage;
+    mainCamera.attach(stage);
+  }, []);
+
+  const maskPaint = useMaskPaint({ stageRef, camera: mainCamera, layout });
   const imageTransform = useImageTransform(stageRef);
 
   const { outputX, displayScale } = layout;
@@ -93,17 +87,17 @@ export function CanvasStage({ layout, onPickFile, onAddCell }: CanvasStageProps)
     displayScale,
   );
 
-  // Container-responsive sizing
+  // Container-responsive sizing; the camera resizes the stage in the same
+  // frame, before React catches up
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
     const ro = new ResizeObserver((entries) => {
       const entry = entries[0];
       if (entry) {
-        setContainerSize({
-          width: entry.contentRect.width,
-          height: entry.contentRect.height,
-        });
+        const size = { width: entry.contentRect.width, height: entry.contentRect.height };
+        mainCamera.measure(size);
+        setContainerSize(size);
       }
     });
     ro.observe(el);
@@ -118,7 +112,9 @@ export function CanvasStage({ layout, onPickFile, onAddCell }: CanvasStageProps)
     if (!el) return;
     const rect = el.getBoundingClientRect();
     if (rect.width > 0 && rect.height > 0) {
-      setContainerSize({ width: rect.width, height: rect.height });
+      const size = { width: rect.width, height: rect.height };
+      mainCamera.measure(size);
+      setContainerSize(size);
     }
   }, [visible]);
 
@@ -164,34 +160,12 @@ export function CanvasStage({ layout, onPickFile, onAddCell }: CanvasStageProps)
     if (!frame) return;
     revealedRef.current = reveal.n;
     const box = targets.frame(inputFrameId(frame.frameId)) ?? frameBox(frame);
-    const vp = useCanvasStore.getState().viewport;
+    const vp = mainCamera.live();
     if (containsBox(vp, containerSize, box)) return;
-    setViewport(
+    mainCamera.set(
       centerOn(vp, { x: box.x + box.width / 2, y: box.y + box.height / 2 }, containerSize),
     );
-  }, [reveal, canvasMode, layout, targets, containerSize, setViewport]);
-
-  // Compose event handlers: maskPaint first, then panZoom
-  const onMouseDown = useCallback(
-    (e: Konva.KonvaEventObject<MouseEvent>) => {
-      maskPaint.onMouseDown(e);
-      panZoom.onMouseDown(e);
-    },
-    [maskPaint, panZoom],
-  );
-
-  const onMouseMove = useCallback(
-    (e: Konva.KonvaEventObject<MouseEvent>) => {
-      maskPaint.onMouseMove(e);
-      panZoom.onMouseMove(e);
-    },
-    [maskPaint, panZoom],
-  );
-
-  const onMouseUp = useCallback(() => {
-    maskPaint.onMouseUp();
-    panZoom.onMouseUp();
-  }, [maskPaint, panZoom]);
+  }, [reveal, canvasMode, layout, targets, containerSize]);
 
   const onClick = useCallback(
     (e: Konva.KonvaEventObject<MouseEvent>) => {
@@ -212,21 +186,15 @@ export function CanvasStage({ layout, onPickFile, onAddCell }: CanvasStageProps)
           <CanvasBackground
             width={containerSize.width}
             height={containerSize.height}
-            viewport={viewport}
-            bus={mainViewport.bus}
+            camera={mainCamera}
           />
           <Stage
-            ref={stageRef}
+            ref={attachStage}
             width={containerSize.width}
             height={containerSize.height}
-            x={viewport.x}
-            y={viewport.y}
-            scaleX={viewport.scale}
-            scaleY={viewport.scale}
-            onWheel={panZoom.onWheel}
-            onMouseDown={onMouseDown}
-            onMouseMove={onMouseMove}
-            onMouseUp={onMouseUp}
+            onMouseDown={maskPaint.onMouseDown}
+            onMouseMove={maskPaint.onMouseMove}
+            onMouseUp={maskPaint.onMouseUp}
             onMouseLeave={maskPaint.onMouseLeave}
             onClick={onClick}
           >

@@ -5,6 +5,7 @@ import { useEffectiveLimit } from "@/inputs/admit";
 import { useBlobImage } from "@/inputs/media";
 import { TOO_LARGE_TO_SHOW } from "@/lib/inputs/text";
 import type { ReferenceChildPosition } from "@/lib/inputs/layout";
+import { PICKER_NAME } from "@/canvas/navigation/camera";
 
 const ACTIVE_COLOR = "#a78bfa";
 const INACTIVE_COLOR = "#6b7280";
@@ -172,6 +173,7 @@ export function VideoReferencesLayer({
               strokeWidth={1}
               dash={[6, 4]}
               listening={true}
+              name={PICKER_NAME}
               onClick={(e) => {
                 if (e.evt.button === 0) onPickAdd?.();
               }}
@@ -200,6 +202,7 @@ export function VideoReferencesLayer({
             strokeWidth={2}
             dash={[8, 4]}
             listening={true}
+            name={PICKER_NAME}
             onClick={(e) => {
               if (e.evt.button === 0) onPickAdd?.();
             }}

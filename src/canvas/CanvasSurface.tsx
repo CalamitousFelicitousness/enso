@@ -6,7 +6,9 @@ import { useKeepAliveVisible } from "@/components/ui/keep-alive";
 import type { EntryPayload, ImagePayload } from "@/lib/drag";
 import { screenToWorld } from "@/lib/viewport/camera";
 import { ChromeContext } from "./navigation/chrome";
-import type { ViewportAdapter } from "./viewportAdapter";
+import type { SurfaceTool } from "@/lib/viewport/gestures";
+import type { Camera } from "./navigation/camera";
+import { useViewportGestures } from "./navigation/useViewportGestures";
 
 /** A pointer position on the canvas, in container and canvas coordinates. */
 export interface SurfacePoint {
@@ -17,7 +19,9 @@ export interface SurfacePoint {
 }
 
 interface CanvasSurfaceProps {
-  viewport: ViewportAdapter;
+  camera: Camera;
+  /** Which tool owns the left button; read at event time. Defaults to the move tool. */
+  tool?: () => SurfaceTool;
   /** The Konva stage, plus chrome pinned to the container edges. */
   children: ReactNode;
   /** Chrome anchored to canvas coordinates; rides the pan delta. */
@@ -36,13 +40,16 @@ interface CanvasSurfaceProps {
   className?: string;
 }
 
+const moveTool = (): SurfaceTool => "move";
+
 /**
  * The container contract both canvases share: a clipped positioning context
  * sized to the stage, a drop target, a paste target, and the wrapper that
  * carries canvas-anchored chrome through a gesture.
  */
 export function CanvasSurface({
-  viewport,
+  camera,
+  tool = moveTool,
   children,
   overlay,
   below,
@@ -55,6 +62,7 @@ export function CanvasSurface({
   className,
 }: CanvasSurfaceProps) {
   const overlayRef = useRef<HTMLDivElement>(null);
+  const clipRef = useRef<HTMLDivElement>(null);
 
   // Read off the freshest viewport: a gesture may not have committed yet.
   const pointFrom = useCallback(
@@ -62,10 +70,10 @@ export function CanvasSurface({
       const rect = e.currentTarget.getBoundingClientRect();
       const screenX = e.clientX - rect.left;
       const screenY = e.clientY - rect.top;
-      const world = screenToWorld(viewport.getViewport(), { x: screenX, y: screenY });
+      const world = screenToWorld(camera.live(), { x: screenX, y: screenY });
       return { screenX, screenY, canvasX: world.x, canvasY: world.y };
     },
-    [viewport],
+    [camera],
   );
 
   const dropImage = useCallback(
@@ -88,6 +96,7 @@ export function CanvasSurface({
   });
 
   const visible = useKeepAliveVisible();
+  useViewportGestures({ surfaceRef: clipRef, camera, tool, enabled: visible });
   useWindowPaste((files) => onPasteFiles?.(files), visible && onPasteFiles !== undefined, {
     accept: acceptFile,
     kinds: acceptKinds,
@@ -96,35 +105,37 @@ export function CanvasSurface({
   // A gesture moves the stage imperatively and only commits on release, so the
   // chrome rides the same delta until the store catches up.
   useEffect(() => {
-    return viewport.bus.subscribe((vp) => {
+    return camera.bus.subscribe((vp) => {
       const node = overlayRef.current;
       if (!node) return;
-      const base = viewport.getCommitted();
+      const base = camera.committed();
       const ratio = vp.scale / base.scale;
       const dx = vp.x - base.x * ratio;
       const dy = vp.y - base.y * ratio;
       node.style.transform = `translate(${dx}px, ${dy}px) scale(${ratio})`;
     });
-  }, [viewport]);
+  }, [camera]);
 
   // A committed change re-renders the chrome at the new viewport, so the delta
   // has to clear or it double-applies.
   useEffect(() => {
-    return viewport.subscribe(() => {
+    return camera.subscribe(() => {
       if (overlayRef.current) overlayRef.current.style.transform = "";
     });
-  }, [viewport]);
+  }, [camera]);
 
   return (
-    <ChromeContext.Provider value={viewport.chrome}>
+    <ChromeContext.Provider value={camera.chrome}>
       <div className={cn("relative flex h-full w-full flex-col overflow-hidden", className)}>
         {/* Clips the transformed overlay, and is the box every frame header
-            measures its anchor against. */}
+            measures its anchor against. Gestures bind here; it owns touch and
+            selection so a drag pans instead of scrolling or selecting. */}
         <div
           className={cn(
-            "relative min-h-0 flex-1 overflow-hidden",
+            "relative min-h-0 flex-1 touch-none overflow-hidden select-none",
             isOver && "ring-2 ring-primary ring-inset",
           )}
+          ref={clipRef}
           {...dropHandlers}
         >
           {children}

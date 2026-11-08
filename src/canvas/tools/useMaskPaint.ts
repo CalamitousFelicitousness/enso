@@ -1,13 +1,15 @@
-import { useCallback, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { useCanvasStore } from "@/stores/canvasStore";
 import { useInputStore } from "@/stores/inputStore";
 import type { MaskStroke } from "@/lib/inputs/types";
 import type { CanvasLayout } from "@/canvas/useCanvasLayout";
 import type Konva from "konva";
+import type { Camera } from "../navigation/camera";
 
 interface UseMaskPaintOptions {
   stageRef: React.RefObject<Konva.Stage | null>;
-  spaceHeld: React.RefObject<boolean>;
+  /** Space held pans instead of painting; an interrupt drops the stroke under way. */
+  camera: Camera;
   /** Canvas layout; used to hit-test Initial frames on pointerdown and to
    * project pointer coords into the pinned frame's local pixel space. */
   layout: CanvasLayout;
@@ -25,7 +27,7 @@ interface UseMaskPaintOptions {
  * start and never re-resolved mid-drag. A stroke that drags off-frame
  * keeps attaching to the original frame.
  */
-export function useMaskPaint({ stageRef, spaceHeld, layout }: UseMaskPaintOptions) {
+export function useMaskPaint({ stageRef, camera, layout }: UseMaskPaintOptions) {
   const isDrawing = useRef(false);
   const pointsBuffer = useRef<number[]>([]);
   const toolRef = useRef<MaskStroke["tool"]>("brush");
@@ -123,7 +125,7 @@ export function useMaskPaint({ stageRef, spaceHeld, layout }: UseMaskPaintOption
 
   const handleMouseDown = useCallback(
     (e: Konva.KonvaEventObject<MouseEvent>) => {
-      if (!isMaskTool() || e.evt.button !== 0 || spaceHeld.current) return;
+      if (!isMaskTool() || e.evt.button !== 0 || camera.panKeyHeld.current) return;
       const stage = stageRef.current;
       if (!stage) return;
       const hit = hitTestInitialFrame(stage);
@@ -153,7 +155,7 @@ export function useMaskPaint({ stageRef, spaceHeld, layout }: UseMaskPaintOption
         line.getLayer()?.batchDraw();
       }
     },
-    [stageRef, spaceHeld, hitTestInitialFrame, isMaskTool, layout.frames],
+    [stageRef, camera, hitTestInitialFrame, isMaskTool, layout.frames],
   );
 
   const handleMouseMove = useCallback(
@@ -223,6 +225,22 @@ export function useMaskPaint({ stageRef, spaceHeld, layout }: UseMaskPaintOption
       line.getLayer()?.batchDraw();
     }
   }, []);
+
+  // A pinch drops the stroke under way rather than keeping half of it
+  useEffect(
+    () =>
+      camera.onInterrupt(() => {
+        if (!isDrawing.current) return;
+        isDrawing.current = false;
+        pinnedFrameId.current = null;
+        const line = activeLineRef.current;
+        if (line) {
+          line.visible(false);
+          line.getLayer()?.batchDraw();
+        }
+      }),
+    [camera],
+  );
 
   const handleMouseUp = useCallback(() => {
     commitLine();

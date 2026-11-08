@@ -31,6 +31,11 @@ import { ws } from "@/api/wsManager";
 import { endSession, startSession } from "@/api/session";
 import { queryClient } from "@/api/queryClient";
 import { CONNECTION_SECTION_ID } from "@/lib/constants";
+import {
+  WHEEL_OPTIONS,
+  WHEEL_SETTING_DESCRIPTION,
+  WHEEL_SETTING_LABEL,
+} from "@/canvas/navigation/text";
 
 const APPEARANCE_SECTION_ID = "__appearance";
 const BEHAVIOR_SECTION_ID = "__behavior";
@@ -323,6 +328,8 @@ function StripLimitRow() {
 function BehaviorPanel() {
   const livePreviews = useUiStore((s) => s.livePreviews);
   const setLivePreviews = useUiStore((s) => s.setLivePreviews);
+  const canvasWheel = useUiStore((s) => s.canvasWheel);
+  const setCanvasWheel = useUiStore((s) => s.setCanvasWheel);
 
   return (
     <div>
@@ -334,6 +341,14 @@ function BehaviorPanel() {
           inline
         >
           <Switch checked={livePreviews} onCheckedChange={setLivePreviews} />
+        </SettingRow>
+        <SettingRow label={WHEEL_SETTING_LABEL} description={WHEEL_SETTING_DESCRIPTION}>
+          <SegmentedControl
+            options={WHEEL_OPTIONS}
+            value={canvasWheel}
+            onValueChange={setCanvasWheel}
+            animated
+          />
         </SettingRow>
         <StripLimitRow />
         <MediaSettingsRows />

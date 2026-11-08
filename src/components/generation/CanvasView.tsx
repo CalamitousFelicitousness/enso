@@ -6,7 +6,8 @@ import { addFilesToInputs, addServerPictures } from "@/inputs/route";
 import { clearAllFrames, clearFrame, removeFrame } from "@/inputs/edits";
 import { composedPictures, isComposed } from "@/lib/inputs/types";
 import { frameBox, inBox } from "@/lib/inputs/layout";
-import { mainViewport } from "@/canvas/viewportAdapter";
+import { mainCamera } from "@/canvas/navigation/cameras";
+import type { SurfaceTool } from "@/lib/viewport/gestures";
 import { CanvasSurface, type SurfacePoint } from "@/canvas/CanvasSurface";
 import { useUiStore } from "@/stores/uiStore";
 import { useShortcutScope } from "@/hooks/useShortcutScope";
@@ -29,6 +30,10 @@ import { useInputCommands } from "@/canvas/useInputCommands";
 import { ModeToggle } from "./ModeToggle";
 import { LocateFixed, X, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
+
+/** A left drag on empty canvas pans with the move tool; the mask tools paint. */
+const imagesTool = (): SurfaceTool =>
+  useCanvasStore.getState().activeTool === "move" ? "move" : "other";
 
 /** The frame files go to: the given one, else the selected one, else the first. */
 function targetFrame(frameId: string | null) {
@@ -223,7 +228,8 @@ export const CanvasView = memo(function CanvasView() {
 
   return (
     <CanvasSurface
-      viewport={mainViewport}
+      camera={mainCamera}
+      tool={imagesTool}
       onDropFiles={handleDropFiles}
       onDropImage={handleDropImage}
       onDropEntry={handleDropEntry}

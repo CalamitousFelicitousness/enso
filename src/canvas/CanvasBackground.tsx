@@ -1,19 +1,13 @@
 import { useRef, useEffect, useCallback } from "react";
 import { useResolvedTheme } from "@/hooks/useResolvedTheme";
 import { useUiStore } from "@/stores/uiStore";
-import type { ViewportBus } from "./viewportBus";
-
-interface Viewport {
-  x: number;
-  y: number;
-  scale: number;
-}
+import type { Viewport } from "@/lib/viewport/types";
+import type { Camera } from "./navigation/camera";
 
 interface CanvasBackgroundProps {
   width: number;
   height: number;
-  viewport: Viewport;
-  bus?: ViewportBus;
+  camera: Camera;
 }
 
 // --- Colors ---
@@ -210,7 +204,7 @@ function drawIsometric(
 
 // --- Component ---
 
-export function CanvasBackground({ width, height, viewport, bus }: CanvasBackgroundProps) {
+export function CanvasBackground({ width, height, camera }: CanvasBackgroundProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const noiseCache = useRef<{ data: ImageData; w: number; h: number; mode: string } | null>(null);
   const ctxRef = useRef<CanvasRenderingContext2D | null>(null);
@@ -242,41 +236,19 @@ export function CanvasBackground({ width, height, viewport, bus }: CanvasBackgro
     return ctx;
   }, [width, height]);
 
-  // Viewport-aware patterns: redraw on store-driven changes (auto-fit, mode switch)
+  // Viewport-aware patterns: drawn now, then inside the camera's frame on
+  // every move
   useEffect(() => {
     if (pattern === "noise") return;
-    const ctx = getCtx();
-    if (!ctx) return;
-
-    if (pattern === "dots") drawDotField(ctx, width, height, viewport, mode);
-    else drawIsometric(ctx, width, height, viewport, mode);
-  }, [getCtx, width, height, viewport, mode, pattern]);
-
-  // Bus-driven imperative redraw during pan/zoom gesture (rAF-coalesced)
-  useEffect(() => {
-    if (!bus) return;
-    let pendingVp: Viewport | null = null;
-    let rafId: number | null = null;
-
-    const unsub = bus.subscribe((vp) => {
-      pendingVp = vp;
-      if (rafId !== null) return;
-      rafId = requestAnimationFrame(() => {
-        rafId = null;
-        if (!pendingVp || pattern === "noise") return;
-        const ctx = getCtx();
-        if (!ctx) return;
-        if (pattern === "dots") drawDotField(ctx, width, height, pendingVp, mode);
-        else drawIsometric(ctx, width, height, pendingVp, mode);
-        pendingVp = null;
-      });
-    });
-
-    return () => {
-      unsub();
-      if (rafId !== null) cancelAnimationFrame(rafId);
+    const draw = (vp: Viewport) => {
+      const ctx = getCtx();
+      if (!ctx) return;
+      if (pattern === "dots") drawDotField(ctx, width, height, vp, mode);
+      else drawIsometric(ctx, width, height, vp, mode);
     };
-  }, [bus, pattern, getCtx, width, height, mode]);
+    draw(camera.live());
+    return camera.bus.subscribe(draw);
+  }, [camera, getCtx, width, height, mode, pattern]);
 
   // Static noise: only redraw on resize or mode change
   useEffect(() => {

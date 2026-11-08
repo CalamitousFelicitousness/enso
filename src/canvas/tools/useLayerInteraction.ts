@@ -2,9 +2,20 @@ import { useCallback, useEffect, useMemo, useRef } from "react";
 import { useCanvasStore } from "@/stores/canvasStore";
 import { useInputStore } from "@/stores/inputStore";
 import type Konva from "konva";
+import { interrupting } from "../navigation/interrupt";
 import type { useSnap } from "./useSnap";
 
 export type Snap = ReturnType<typeof useSnap>;
+
+/** A drag or transform a pinch interrupted: the node goes back to the
+ * placement the document holds. */
+function putBack(frameId: string, layerId: string, node: Konva.Node) {
+  const frame = useInputStore.getState().frames.find((f) => f.id === frameId);
+  const stored =
+    frame?.pictures.find((p) => p.id === layerId)?.transform ??
+    frame?.mask.objects.find((m) => m.id === layerId)?.transform;
+  if (stored) node.setAttrs(stored);
+}
 
 /** Select, drag and transform handlers for the per-frame picture and mask
  * nodes, shared by the layers that render them. */
@@ -34,10 +45,13 @@ export function useLayerInteraction(snap: Snap) {
   const onLayerDragEnd = useCallback(
     (frameId: string, layerId: string, e: Konva.KonvaEventObject<DragEvent>) => {
       snapRef.current.clearGuides();
-      useInputStore.getState().patchTransform(frameId, layerId, {
-        x: e.target.x(),
-        y: e.target.y(),
-      });
+      if (interrupting()) putBack(frameId, layerId, e.target);
+      else {
+        useInputStore.getState().patchTransform(frameId, layerId, {
+          x: e.target.x(),
+          y: e.target.y(),
+        });
+      }
       useCanvasStore.getState().setGestureFrame(null);
     },
     [],
@@ -47,13 +61,16 @@ export function useLayerInteraction(snap: Snap) {
     (frameId: string, layerId: string, e: Konva.KonvaEventObject<Event>) => {
       snapRef.current.clearGuides();
       const node = e.target as Konva.Image;
-      useInputStore.getState().patchTransform(frameId, layerId, {
-        x: node.x(),
-        y: node.y(),
-        scaleX: node.scaleX(),
-        scaleY: node.scaleY(),
-        rotation: node.rotation(),
-      });
+      if (interrupting()) putBack(frameId, layerId, node);
+      else {
+        useInputStore.getState().patchTransform(frameId, layerId, {
+          x: node.x(),
+          y: node.y(),
+          scaleX: node.scaleX(),
+          scaleY: node.scaleY(),
+          rotation: node.rotation(),
+        });
+      }
       useCanvasStore.getState().setGestureFrame(null);
     },
     [],

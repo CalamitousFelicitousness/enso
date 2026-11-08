@@ -10,6 +10,7 @@
 import { memo, useCallback } from "react";
 import { Group, Image as KonvaImage, Layer, Rect, Text } from "react-konva";
 import { CornerBrackets } from "@/canvas/layers/CornerBrackets";
+import { PICKER_NAME } from "@/canvas/navigation/camera";
 import { frameColor, PROCESSED_COLOR, UNREADABLE_COLOR } from "@/canvas/frameColors";
 import { useCanvasStore } from "@/stores/canvasStore";
 import { useInputStore } from "@/stores/inputStore";
@@ -180,6 +181,7 @@ const ComposedFrame = memo(function ComposedFrame({
         width={frame.displayW}
         height={frame.displayH}
         fill="transparent"
+        name={filled ? "" : PICKER_NAME}
         onClick={handleClick}
         onTap={handleClick}
         onDblClick={handleDblClick}
@@ -399,6 +401,7 @@ const SetFrame = memo(function SetFrame({
         width={frame.motherW}
         height={frame.motherH}
         fill="transparent"
+        name={frame.children.length > 0 ? "" : PICKER_NAME}
         onClick={handleMotherClick}
         onTap={handleMotherClick}
       />
@@ -442,6 +445,7 @@ const SetFrame = memo(function SetFrame({
             width={frame.addCellPosition.w}
             height={frame.addCellPosition.h}
             fill="transparent"
+            name={PICKER_NAME}
             onClick={handleAdd}
             onTap={handleAdd}
           />

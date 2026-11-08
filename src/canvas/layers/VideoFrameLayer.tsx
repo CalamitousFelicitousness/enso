@@ -4,6 +4,7 @@ import { useVideoCanvasStore } from "@/stores/videoCanvasStore";
 import { useEffectiveLimit } from "@/inputs/admit";
 import { useBlobImage } from "@/inputs/media";
 import { tooLargeToShowText } from "@/lib/inputs/text";
+import { PICKER_NAME } from "@/canvas/navigation/camera";
 
 const ACTIVE_COLOR = "#4ade80";
 const INACTIVE_COLOR = "#6b7280";
@@ -55,6 +56,7 @@ export function VideoFrameLayer({
             height={height}
             fill="#1a1a1a"
             listening={true}
+            name={PICKER_NAME}
             onClick={handleClick}
             onTap={handleTap}
           />

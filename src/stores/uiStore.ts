@@ -15,6 +15,7 @@ import {
   type VideoSubTab,
 } from "@/lib/constants";
 import { mergeUiState } from "@/lib/uiStateMerge";
+import type { WheelMode } from "@/lib/viewport/wheel";
 
 type ColorMode = "dark" | "light" | "system";
 type CanvasBackground = "dots" | "noise" | "iso";
@@ -58,6 +59,8 @@ interface UiState {
 
   // Canvas preferences
   autoFitFrame: boolean;
+  /** What a plain wheel does over the canvas. */
+  canvasWheel: WheelMode;
 
   // Model defaults
   autoApplyModelDefaults: boolean;
@@ -102,6 +105,7 @@ interface UiState {
   setResultThumbSize: (size: number) => void;
   setVideoResultThumbSize: (size: number) => void;
   setAutoFitFrame: (enabled: boolean) => void;
+  setCanvasWheel: (mode: WheelMode) => void;
   setAutoApplyModelDefaults: (enabled: boolean) => void;
   setLivePreviews: (enabled: boolean) => void;
   toggleLeftPanel: () => void;
@@ -188,6 +192,7 @@ export const useUiStore = create<UiState>()(
       resultThumbSize: 56,
       videoResultThumbSize: 56,
       autoFitFrame: true,
+      canvasWheel: "pan",
       autoApplyModelDefaults: false,
       livePreviews: true,
       recentCommandIds: [],
@@ -214,6 +219,7 @@ export const useUiStore = create<UiState>()(
       setVideoResultThumbSize: (size) =>
         set({ videoResultThumbSize: Math.max(40, Math.min(120, size)) }),
       setAutoFitFrame: (enabled) => set({ autoFitFrame: enabled }),
+      setCanvasWheel: (mode) => set({ canvasWheel: mode }),
       setAutoApplyModelDefaults: (enabled) => set({ autoApplyModelDefaults: enabled }),
       setLivePreviews: (enabled) => set({ livePreviews: enabled }),
       toggleLeftPanel: () => set((s) => ({ leftPanelCollapsed: !s.leftPanelCollapsed })),

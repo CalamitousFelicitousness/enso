@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { useVideoStore } from "@/stores/videoStore";
 import { useVideoCanvasStore, type VideoSlotId } from "@/stores/videoCanvasStore";
 import { useActiveVideoCaps } from "@/hooks/useActiveVideoCaps";
-import { videoViewport } from "@/canvas/viewportAdapter";
+import { videoCamera } from "@/canvas/navigation/cameras";
 import { CanvasSurface, type SurfacePoint } from "@/canvas/CanvasSurface";
 import { CanvasProgressOverlay } from "@/canvas/CanvasProgressOverlay";
 import { VideoCompareStrip } from "./VideoCompareStrip";
@@ -288,7 +288,7 @@ export function VideoCanvasView() {
 
   return (
     <CanvasSurface
-      viewport={videoViewport}
+      camera={videoCamera}
       onDropFiles={handleDropFiles}
       onDropImage={handleDropImage}
       onPasteFiles={handlePasteFiles}
