@@ -62,17 +62,36 @@ function wildcardSource(ctx: CompletionContext): CompletionResult | null {
   };
 }
 
+/** Where the typed text sits in a shown label, for highlighting. */
+function matchRange(label: string, typed: string): number[] {
+  const at = label.toLowerCase().indexOf(typed);
+  return at < 0 ? [] : [at, at + typed.length];
+}
+
+// Embeddings and dictionary tags come in the order given (filter: false), and
+// unfiltered results keep their source's place in the list: embeddings first.
 function embeddingSource(ctx: CompletionContext): CompletionResult | null {
   const match = ctx.matchBefore(/(?<=^|[\s,])\w{2,}/);
   if (!match) return null;
   const embeddings = ctx.state.facet(embeddingNamesFacet);
   const query = match.text.toLowerCase();
-  const filtered = embeddings.filter((n) => n.toLowerCase().includes(query));
-  if (filtered.length === 0) return null;
+  const starting: string[] = [];
+  const containing: string[] = [];
+  for (const name of embeddings) {
+    const lower = name.toLowerCase();
+    if (lower.startsWith(query)) starting.push(name);
+    else if (lower.includes(query)) containing.push(name);
+  }
+  if (starting.length + containing.length === 0) return null;
+  const byName = (a: string, b: string) => a.localeCompare(b);
   return {
     from: match.from,
-    options: filtered.map((name) => ({ label: name, type: "embedding" })),
-    validFor: /^\w+$/,
+    options: [...starting.sort(byName), ...containing.sort(byName)].map((name) => ({
+      label: name,
+      type: "embedding",
+    })),
+    filter: false,
+    getMatch: (option) => matchRange(option.label, query),
   };
 }
 
@@ -108,23 +127,32 @@ async function dictTagSource(ctx: CompletionContext): Promise<CompletionResult |
   const minCharsPattern = new RegExp(`(?<=^|[\\s,])\\w{${dictMinChars},}`);
   const match = ctx.matchBefore(minCharsPattern);
   if (!match) return null;
-  const tags = await lookupDictTags(match.text.toLowerCase(), MAX_DICT_RESULTS);
+  const typed = match.text.toLowerCase();
+  const tags = await lookupDictTags(typed, MAX_DICT_RESULTS);
   if (ctx.aborted || tags.length === 0) return null;
 
   const formatName = dictKeepUnderscores ? (n: string) => n : (n: string) => n.replace(/_/g, " ");
+  const spaced = (n: string) => n.replace(/_/g, " ");
   const suffix = dictAppendComma ? ", " : " ";
   const options = tags.map((tag) => {
     const name = formatName(tag.name);
     return {
       label: name,
-      displayLabel: tag.name.replace(/_/g, " "),
+      // a tag found by an alias or translation shows that term beside it
+      displayLabel:
+        tag.via === undefined ? spaced(tag.name) : `${spaced(tag.name)} (${spaced(tag.via)})`,
       detail: formatCount(tag.count),
       type: DICT_CATEGORY_TYPES[tag.category] ?? "dictGeneral",
-      boost: -10,
       apply: name + suffix,
     };
   });
-  return { from: match.from, options, validFor: /^[\w ]+$/ };
+  // the worker ranks; asked again on every keystroke
+  return {
+    from: match.from,
+    options,
+    filter: false,
+    getMatch: (option) => matchRange(option.displayLabel ?? option.label, spaced(typed)),
+  };
 }
 
 export function promptAutocomplete(): Extension {

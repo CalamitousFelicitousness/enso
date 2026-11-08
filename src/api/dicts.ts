@@ -3,12 +3,12 @@
 
 import { api } from "./client";
 import type { DictsRequest, DictsResponse } from "./dicts.worker";
-import type { DictTag } from "./types/dict";
+import type { TagMatch } from "@/lib/dicts/tags";
 
 let worker: Worker | null = null;
 let enabled = "";
 let nextId = 0;
-const waiting = new Map<number, (tags: DictTag[]) => void>();
+const waiting = new Map<number, (tags: TagMatch[]) => void>();
 
 function start(): Worker {
   const started = new Worker(new URL("./dicts.worker.ts", import.meta.url), { type: "module" });
@@ -50,8 +50,8 @@ export function enableDicts(names: readonly string[]): void {
   } satisfies DictsRequest);
 }
 
-/** Up to `limit` tags for a lowercase query; none until the dictionaries are in. */
-export function lookupDictTags(text: string, limit: number): Promise<DictTag[]> {
+/** Up to `limit` tags for what was typed, best first; none until the dictionaries are in. */
+export function lookupDictTags(text: string, limit: number): Promise<TagMatch[]> {
   const current = worker;
   if (!current) return Promise.resolve([]);
   const id = ++nextId;
