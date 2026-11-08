@@ -64,7 +64,7 @@ export type GestureEffect =
   /** preventDefault on the event that came in. */
   | { type: "prevent" }
   /** preventDefault on the mousedown that follows this pointerdown: no
-   * autoscroll, no primary-selection paste, no text selection. */
+   * autoscroll, no text selection. */
   | { type: "preventMouseDown" }
   /** Stop Konva's drags and transforms with nothing saved, and drop an
    * unfinished mask stroke. */
@@ -83,7 +83,7 @@ export type Drag =
   | { kind: "idle" }
   /** A left press on empty canvas that pans once it moves past the slop. */
   | { kind: "pending"; pointerId: number; pointer: PointerKind; start: Point }
-  | { kind: "pan"; pointerId: number; pointer: PointerKind; last: Point }
+  | { kind: "pan"; pointerId: number; pointer: PointerKind; last: Point; middle: boolean }
   | { kind: "pinch"; ids: readonly [number, number] }
   /** A pinch ended: the fingers left start nothing until every one lifts. */
   | { kind: "spent" };
@@ -179,7 +179,7 @@ function down(
   const spacePan = button === LEFT && state.space === "armed";
   if (middle || spacePan) {
     return {
-      state: { ...next, drag: { kind: "pan", pointerId, pointer: kind, last: point } },
+      state: { ...next, drag: { kind: "pan", pointerId, pointer: kind, last: point, middle } },
       effects: [{ type: "preventMouseDown" }, ...armPan(pointerId, kind)],
     };
   }
@@ -204,7 +204,10 @@ function move(state: GestureState, input: Extract<GestureInput, { type: "move" }
     if (Math.hypot(dx, dy) < SLOP_PX[drag.pointer]) return same(next);
     // From the press, so the canvas stays under the pointer
     return {
-      state: { ...next, drag: { kind: "pan", pointerId, pointer: drag.pointer, last: point } },
+      state: {
+        ...next,
+        drag: { kind: "pan", pointerId, pointer: drag.pointer, last: point, middle: false },
+      },
       effects: [...armPan(pointerId, drag.pointer), { type: "pan", dx, dy }],
     };
   }
@@ -238,7 +241,12 @@ function up(
 
   if (drag.kind === "pending" && drag.pointerId === pointerId) return same({ ...next, drag: idle });
   if (drag.kind === "pan" && drag.pointerId === pointerId) {
-    return { state: { ...next, drag: idle }, effects: [{ type: "commit" }] };
+    // Linux browsers paste the primary selection on a middle release nothing cancelled
+    const effects: GestureEffect[] =
+      input.type === "up" && drag.middle
+        ? [{ type: "prevent" }, { type: "commit" }]
+        : [{ type: "commit" }];
+    return { state: { ...next, drag: idle }, effects };
   }
   if (drag.kind === "pinch" && drag.ids.includes(pointerId)) {
     const after: Drag = touches.length > 0 ? { kind: "spent" } : idle;

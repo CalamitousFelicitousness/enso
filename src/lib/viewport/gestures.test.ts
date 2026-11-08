@@ -166,10 +166,20 @@ describe("pointer pans", () => {
       "clearClick",
       "start",
       "pan",
+      "prevent",
       "commit",
     ]);
     expect(pans(effects)).toEqual([[20, 5]]);
     expect(state.drag.kind).toBe("idle");
+  });
+
+  it("cancels only a middle release, moved or not, so no primary selection is pasted", () => {
+    expect(types(run([down(1, 10, 10, { button: 1 }), up(1)]).effects)).toContain("prevent");
+    const space = run([{ type: "spaceDown", focus: "canvas" }]).state;
+    const spacePan = run([down(1, 0, 0), move(1, 3, 0), up(1)], MOVE, space);
+    expect(types(spacePan.effects)).not.toContain("prevent");
+    const dragged = run([down(1, 0, 0), move(1, 9, 0), up(1)]);
+    expect(types(dragged.effects)).not.toContain("prevent");
   });
 
   it("pans with Space and the left button, over a picture too", () => {
@@ -228,6 +238,7 @@ describe("pointer pans", () => {
       { type: "cancel", pointerId: 1, kind: "mouse" },
     ]);
     expect(types(effects).at(-1)).toBe("commit");
+    expect(types(effects)).not.toContain("prevent");
     expect(state.drag.kind).toBe("idle");
   });
 });
