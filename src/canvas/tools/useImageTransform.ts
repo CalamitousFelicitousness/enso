@@ -4,14 +4,16 @@ import { useInputStore } from "@/stores/inputStore";
 import { removePicture } from "@/inputs/edits";
 import { useShortcut } from "@/hooks/useShortcut";
 import type Konva from "konva";
+import { OUTPUT_NAME } from "../layers/OutputLayer";
 
 /** Stage-level layer selection: a click on empty canvas deselects, and the
- * delete shortcuts remove the selected layer. */
-export function useImageTransform(stageRef: React.RefObject<Konva.Stage | null>) {
+ * delete shortcuts remove the selected layer while the canvas is on screen. */
+export function useImageTransform(stageRef: React.RefObject<Konva.Stage | null>, visible: boolean) {
   const onStageClick = useCallback(
     (e: Konva.KonvaEventObject<MouseEvent>) => {
       if (useCanvasStore.getState().activeTool !== "move") return;
-      if (e.target === stageRef.current) useInputStore.getState().setActiveItem(null);
+      const empty = e.target === stageRef.current || e.target.hasName(OUTPUT_NAME);
+      if (empty) useInputStore.getState().setActiveItem(null);
     },
     [stageRef],
   );
@@ -29,8 +31,8 @@ export function useImageTransform(stageRef: React.RefObject<Konva.Stage | null>)
     }
   }, []);
 
-  useShortcut("canvas-delete", deleteLayer);
-  useShortcut("canvas-delete-backspace", deleteLayer);
+  useShortcut("canvas-delete", deleteLayer, visible);
+  useShortcut("canvas-delete-backspace", deleteLayer, visible);
 
   return { onStageClick };
 }

@@ -255,3 +255,18 @@
     animation: renumber 900ms ease-out;
   }
 }
+
+/* A move that left Focus mode flashes the mode pill once */
+@keyframes mode-flip {
+  0% {
+    box-shadow: 0 0 0 2px oklch(from var(--primary) l c h / 0.8);
+  }
+  100% {
+    box-shadow: 0 0 0 2px transparent;
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .mode-flipped {
+    animation: mode-flip 300ms ease-out forwards;
+  }
+}

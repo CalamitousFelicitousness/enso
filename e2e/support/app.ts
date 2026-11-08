@@ -38,9 +38,15 @@ export class Enso {
   async open(): Promise<void> {
     await this.page.goto("");
     await this.page.getByRole("button", { name: "Skip", exact: true }).click();
-    // Focus mode centres the Output frame and leaves the Input frame under the Left Panel
-    await this.canvas.getByRole("button", { name: "Canvas", exact: true }).click();
+    // A fresh profile opens in Canvas mode, fitted to every frame
     await expect(this.canvas.getByText(/^Input/)).toBeVisible();
+  }
+
+  /** Fit every frame in view; the button stays pressed while the view keeps doing so. */
+  async showAll(): Promise<void> {
+    const button = this.canvas.getByRole("button", { name: "Show all frames", exact: true });
+    await button.click();
+    await expect(button).toHaveAttribute("aria-pressed", "true");
   }
 
   /** Load the page again in the same profile, in whichever view it was. The

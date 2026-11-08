@@ -62,7 +62,6 @@ export function useViewportGestures({ surfaceRef, camera, tool, enabled }: Viewp
     const env = (): GestureEnv => ({
       tool: tool(),
       wheelMode: useUiStore.getState().canvasWheel,
-      allowed: camera.canGesture(),
     });
 
     // The stage container's corner is the camera's origin
@@ -264,6 +263,7 @@ export function useViewportGestures({ surfaceRef, camera, tool, enabled }: Viewp
     };
 
     const onBlur = () => step({ type: "blur" }, null);
+    const closeWheel = camera.onCommand(() => step({ type: "closeWheel" }, null));
 
     const touchOptions = { capture: true };
     surface.addEventListener("pointerdown", onPointerDown);
@@ -303,6 +303,7 @@ export function useViewportGestures({ surfaceRef, camera, tool, enabled }: Viewp
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("keyup", onKeyUp);
       window.removeEventListener("blur", onBlur);
+      closeWheel();
       // Hidden mid-gesture: end it, and leave no key held for the next view
       hover = null;
       step({ type: "blur" }, null);

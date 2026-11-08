@@ -14,7 +14,7 @@ import {
 } from "./gestures";
 import { ctrlZoomFactor, wheelZoomFactor, type WheelInput } from "./wheel";
 
-const MOVE: GestureEnv = { tool: "move", wheelMode: "pan", allowed: true };
+const MOVE: GestureEnv = { tool: "move", wheelMode: "pan" };
 const PAINT: GestureEnv = { ...MOVE, tool: "other" };
 const container = { width: 800, height: 600 };
 
@@ -128,10 +128,28 @@ describe("wheel", () => {
     expect(types(effects).filter((t) => t === "settle")).toHaveLength(3);
   });
 
-  it("only prevents while the mode lock holds the camera", () => {
-    expect(run([wheel(1000, { deltaY: 30 })], { ...MOVE, allowed: false }).effects).toEqual([
-      { type: "prevent" },
-    ]);
+  it("swallows the rest of a sequence a command closed, until a gap", () => {
+    const closed = run([wheel(1000, { deltaY: 10 }), { type: "closeWheel" }]);
+    const tail = run(
+      [
+        wheel(1100, { deltaY: 10 }),
+        wheel(1100 + WHEEL_SETTLE_MS - 1, { deltaY: 10 }),
+        wheel(1100 + 2 * WHEEL_SETTLE_MS - 2, { deltaY: 10 }),
+      ],
+      MOVE,
+      closed.state,
+    );
+    // Each tail event extends the quiet it has to wait out
+    expect(types(tail.effects)).toEqual(["prevent", "prevent", "prevent"]);
+    const after = run([wheel(1100 + 4 * WHEEL_SETTLE_MS, { deltaY: 10 })], MOVE, tail.state);
+    expect(types(after.effects)).toEqual(["prevent", "start", "pan", "settle"]);
+    expect(after.state.wheelClosed).toBe(false);
+  });
+
+  it("lets a new sequence through after a command with no wheel running", () => {
+    const closed = run([{ type: "closeWheel" }]);
+    const next = run([wheel(5000, { deltaY: 10 })], MOVE, closed.state);
+    expect(types(next.effects)).toEqual(["prevent", "start", "pan", "settle"]);
   });
 });
 
@@ -211,14 +229,6 @@ describe("pointer pans", () => {
     ]);
     expect(types(effects).at(-1)).toBe("commit");
     expect(state.drag.kind).toBe("idle");
-  });
-
-  it("holds still while the mode lock is on, but still stops autoscroll", () => {
-    const locked = { ...MOVE, allowed: false };
-    expect(run([down(1, 0, 0, { button: 1 }), move(1, 9, 9)], locked).effects).toEqual([
-      { type: "preventMouseDown" },
-    ]);
-    expect(run([down(1, 0, 0), move(1, 9, 9)], locked).effects).toEqual([]);
   });
 });
 

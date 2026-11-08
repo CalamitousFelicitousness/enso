@@ -23,7 +23,6 @@ import { useWorldChrome } from "@/canvas/navigation/chrome";
 
 interface FramePanelsProps {
   layout: CanvasLayout;
-  viewport: ViewportState;
   labelScale: number;
   /** Open the file picker scoped to a composed frame. */
   onPickImage?: (frameId: string) => void;
@@ -41,7 +40,6 @@ interface FramePanelsProps {
 
 export function FramePanels({
   layout,
-  viewport,
   labelScale,
   onPickImage,
   onAddCell,
@@ -50,6 +48,8 @@ export function FramePanels({
   onAddInputFrame,
   onAddControlFrame,
 }: FramePanelsProps) {
+  // The committed camera: only the chrome re-renders when a move settles
+  const viewport = useCanvasStore((s) => s.viewport);
   const { outline, env } = useOutlineWithEnv();
   // Saving reads the facts the canvas shows maps by, as they are when it runs
   const envRef = useRef(env);

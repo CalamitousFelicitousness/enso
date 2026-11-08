@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { Label } from "@/components/ui/label";
 import { useScreenChrome } from "@/canvas/navigation/chrome";
+import { useKeepAliveVisible } from "@/components/ui/keep-alive";
 
 export function CanvasToolbar() {
   const activeTool = useCanvasStore((s) => s.activeTool);
@@ -46,21 +47,38 @@ export function CanvasToolbar() {
   useScreenChrome("toolbar", rootRef);
 
   // Keyboard shortcuts (dispatched via the global shortcut system, scoped to "canvas")
-  useShortcut("canvas-move", () => setActiveTool("move"));
-  useShortcut("canvas-brush", () => {
-    const tool = useCanvasStore.getState().activeTool;
-    setActiveTool(tool === "maskBrush" ? "move" : "maskBrush");
-  });
-  useShortcut("canvas-eraser", () => {
-    const tool = useCanvasStore.getState().activeTool;
-    setActiveTool(tool === "maskEraser" ? "move" : "maskEraser");
-  });
-  useShortcut("canvas-brush-smaller", () => {
-    setBrushSize(Math.max(1, useCanvasStore.getState().brushSize - 5));
-  });
-  useShortcut("canvas-brush-larger", () => {
-    setBrushSize(Math.min(200, useCanvasStore.getState().brushSize + 5));
-  });
+  const visible = useKeepAliveVisible();
+  useShortcut("canvas-move", () => setActiveTool("move"), visible);
+  useShortcut(
+    "canvas-brush",
+    () => {
+      const tool = useCanvasStore.getState().activeTool;
+      setActiveTool(tool === "maskBrush" ? "move" : "maskBrush");
+    },
+    visible,
+  );
+  useShortcut(
+    "canvas-eraser",
+    () => {
+      const tool = useCanvasStore.getState().activeTool;
+      setActiveTool(tool === "maskEraser" ? "move" : "maskEraser");
+    },
+    visible,
+  );
+  useShortcut(
+    "canvas-brush-smaller",
+    () => {
+      setBrushSize(Math.max(1, useCanvasStore.getState().brushSize - 5));
+    },
+    visible,
+  );
+  useShortcut(
+    "canvas-brush-larger",
+    () => {
+      setBrushSize(Math.min(200, useCanvasStore.getState().brushSize + 5));
+    },
+    visible,
+  );
 
   return (
     <div

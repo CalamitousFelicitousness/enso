@@ -26,6 +26,8 @@ interface CanvasSurfaceProps {
   children: ReactNode;
   /** Chrome anchored to canvas coordinates; rides the pan delta. */
   overlay?: ReactNode;
+  /** The controls pinned top-right, above the anchored chrome. */
+  controls?: ReactNode;
   /** Chrome below the canvas, outside its clip. */
   below?: ReactNode;
   onDropFiles?: (files: File[], point: SurfacePoint) => void;
@@ -52,6 +54,7 @@ export function CanvasSurface({
   tool = moveTool,
   children,
   overlay,
+  controls,
   below,
   onDropFiles,
   onDropImage,
@@ -142,6 +145,7 @@ export function CanvasSurface({
           <div ref={overlayRef} className="pointer-events-none absolute inset-0 origin-top-left">
             {overlay}
           </div>
+          {controls}
         </div>
         {below}
       </div>

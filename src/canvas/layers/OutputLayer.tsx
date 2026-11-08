@@ -2,10 +2,20 @@ import { useEffect, useState } from "react";
 import { Layer, Image as KonvaImage, Rect } from "react-konva";
 import { CornerBrackets } from "@/canvas/layers/CornerBrackets";
 import { useGenerationStore } from "@/stores/generationStore";
+import { useCanvasStore } from "@/stores/canvasStore";
 import { useJobQueueStore, selectViewedJob } from "@/stores/jobStore";
 import { loadMediaImage } from "@/api/session";
 
 const BORDER_COLOR = "#60a5fa";
+
+/** The Output's click target; a click on it counts as a click on empty canvas too. */
+export const OUTPUT_NAME = "output-frame";
+
+// A click on the Output makes it the current frame, which Focus mode fits
+const makeCurrent = (e: { evt: MouseEvent | TouchEvent }) => {
+  if ("button" in e.evt && e.evt.button !== 0) return;
+  useCanvasStore.getState().setFocusedFrame("output");
+};
 
 interface OutputLayerProps {
   offsetX: number;
@@ -90,9 +100,20 @@ export function OutputLayer({ offsetX, placeholderWidth, placeholderHeight }: Ou
   }
 
   return (
-    <Layer listening={false}>
+    <Layer>
+      <Rect
+        name={OUTPUT_NAME}
+        x={offsetX}
+        y={0}
+        width={placeholderWidth}
+        height={placeholderHeight}
+        fill="transparent"
+        onClick={makeCurrent}
+        onTap={makeCurrent}
+      />
       {hasImage && (
         <KonvaImage
+          listening={false}
           image={image}
           x={imgX}
           y={imgY}

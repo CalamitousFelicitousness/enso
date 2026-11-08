@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, memo } from "react";
+import { useCallback, useMemo, useRef, useState, useSyncExternalStore, memo } from "react";
 import { toast } from "sonner";
 import { useCanvasStore } from "@/stores/canvasStore";
 import { useInputStore } from "@/stores/inputStore";
@@ -7,6 +7,12 @@ import { clearAllFrames, clearFrame, removeFrame } from "@/inputs/edits";
 import { composedPictures, isComposed } from "@/lib/inputs/types";
 import { frameBox, inBox } from "@/lib/inputs/layout";
 import { mainCamera } from "@/canvas/navigation/cameras";
+import { CanvasControls } from "@/canvas/navigation/CanvasControls";
+import { useCameraCommands } from "@/canvas/navigation/useCameraCommands";
+import { setViewMode, useFrameCursor } from "@/canvas/navigation/useFrameCursor";
+import { unitScale } from "@/lib/viewport/camera";
+import type { FitFrame } from "@/lib/viewport/insets";
+import { positionLabel } from "@/lib/inputs/text";
 import type { SurfaceTool } from "@/lib/viewport/gestures";
 import { CanvasSurface, type SurfacePoint } from "@/canvas/CanvasSurface";
 import { useUiStore } from "@/stores/uiStore";
@@ -25,15 +31,26 @@ import { FramePanels } from "@/canvas/panels/FramePanels";
 import { CanvasProgressOverlay } from "@/canvas/CanvasProgressOverlay";
 import { useCanvasLayout } from "@/canvas/useCanvasLayout";
 import { INPUTS_FULL_HINT } from "@/inputs/capacity";
-import { getOrderedFrames, parseFrameId } from "@/lib/inputs/frames";
+import { getOrderedFrames } from "@/lib/inputs/frames";
 import { useInputCommands } from "@/canvas/useInputCommands";
 import { ModeToggle } from "./ModeToggle";
-import { LocateFixed, X, Plus } from "lucide-react";
+import { X, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 /** A left drag on empty canvas pans with the move tool; the mask tools paint. */
 const imagesTool = (): SurfaceTool =>
   useCanvasStore.getState().activeTool === "move" ? "move" : "other";
+
+/** The stored canvas view is in: the mode the first fit follows. */
+function useCanvasHydrated(): boolean {
+  return useSyncExternalStore(
+    (cb) => useCanvasStore.persist.onFinishHydration(cb),
+    () => useCanvasStore.persist.hasHydrated(),
+  );
+}
+
+const initialFollow = () =>
+  useCanvasStore.getState().canvasMode === "focus" ? ("frame" as const) : ("all" as const);
 
 /** The frame files go to: the given one, else the selected one, else the first. */
 function targetFrame(frameId: string | null) {
@@ -45,7 +62,6 @@ function targetFrame(frameId: string | null) {
 export const CanvasView = memo(function CanvasView() {
   const visible = useKeepAliveVisible();
   useShortcutScope("canvas", visible);
-  const setViewport = useCanvasStore((s) => s.setViewport);
   const selectedComposedHasImages = useInputStore((s) => {
     const f = s.frames.find((fr) => fr.id === s.selectedFrameId) ?? s.frames[0];
     return f !== undefined && isComposed(f.role) && composedPictures(f).length > 0;
@@ -55,17 +71,35 @@ export const CanvasView = memo(function CanvasView() {
   );
   const labelScale = useUiStore((s) => s.canvasLabelScale ?? 1);
   const canvasMode = useCanvasStore((s) => s.canvasMode);
-  const focusedFrameId = useCanvasStore((s) => s.focusedFrameId);
-  const setCanvasMode = useCanvasStore((s) => s.setCanvasMode);
-  const setFocusedFrame = useCanvasStore((s) => s.setFocusedFrame);
-  const bumpFocusFitTrigger = useCanvasStore((s) => s.bumpFocusFitTrigger);
-  const modeLocked = useCanvasStore((s) => s.modeLocked);
-  const setModeLocked = useCanvasStore((s) => s.setModeLocked);
+  const modeFlips = useCanvasStore((s) => s.modeFlips);
   const fileInputRef = useRef<HTMLInputElement>(null);
   // Where the picker's files go: a frame, or null for the selected one
   const [pickTarget, setPickTarget] = useState<string | null>(null);
 
   const layout = useCanvasLayout();
+  const current = useFrameCursor(layout, visible);
+  const fitFrames = useMemo<FitFrame[]>(
+    () => getOrderedFrames(layout).map(({ id, ...box }) => ({ id, box })),
+    [layout],
+  );
+  const inputsReady = useInputStore((s) => s.ready);
+  const hydrated = useCanvasHydrated();
+  useCameraCommands({
+    camera: mainCamera,
+    frames: fitFrames,
+    unit: unitScale(layout.displayScale),
+    current,
+    ready: inputsReady && hydrated,
+    initialFollow,
+    visible,
+    name: "canvas",
+    frameCommands: true,
+  });
+  const currentName = useMemo(() => {
+    if (current === "output") return "Output";
+    const index = layout.frames.findIndex((f) => `input:${f.frameId}` === current);
+    return index < 0 ? "Output" : positionLabel(index + 1);
+  }, [current, layout.frames]);
 
   // Which frame a drop landed on, or null for anywhere else
   const hitTestFrame = useCallback(
@@ -131,69 +165,17 @@ export const CanvasView = memo(function CanvasView() {
     [layout.inputsAtCapacity],
   );
 
-  const handleResetZoom = useCallback(() => {
-    if (canvasMode === "focus") {
-      bumpFocusFitTrigger();
-    } else {
-      setViewport({ x: 0, y: 0, scale: 1 });
-      setTimeout(() => setViewport({ x: 0, y: 0, scale: 0.999 }), 0);
-    }
-  }, [canvasMode, bumpFocusFitTrigger, setViewport]);
-
-  const handleToggleMode = useCallback(() => {
-    setCanvasMode(canvasMode === "focus" ? "canvas" : "focus");
-  }, [canvasMode, setCanvasMode]);
-
-  // Shortcut: toggle focus/canvas mode
-  useShortcut("canvas-toggle-mode", handleToggleMode);
   // Escape leaves Edit mode on a processed frame and goes back to the move tool
-  useShortcut("canvas-deselect", () => {
-    const canvas = useCanvasStore.getState();
-    canvas.setEditingFrame(null);
-    canvas.setActiveTool("move");
-  });
-
-  // Focus mode steps through the frames in list order; an input frame it
-  // reveals becomes the selected one, so the inspector follows
-  const focusStep = useCallback(
-    (delta: number) => {
-      if (canvasMode !== "focus") return;
-      const frames = getOrderedFrames(layout);
-      const idx = frames.findIndex((f) => f.id === (focusedFrameId ?? "output"));
-      const next = frames[idx + delta];
-      if (idx < 0 || !next) return;
-      setFocusedFrame(next.id);
-      const parsed = parseFrameId(next.id);
-      if (parsed.kind === "input") useInputStore.getState().selectFrame(parsed.id);
+  useShortcut(
+    "canvas-deselect",
+    () => {
+      const canvas = useCanvasStore.getState();
+      canvas.setEditingFrame(null);
+      canvas.setActiveTool("move");
     },
-    [canvasMode, layout, focusedFrameId, setFocusedFrame],
-  );
-  useShortcut(
-    "canvas-focus-prev",
-    useCallback(() => focusStep(-1), [focusStep]),
-  );
-  useShortcut(
-    "canvas-focus-next",
-    useCallback(() => focusStep(1), [focusStep]),
+    visible,
   );
   useInputCommands(visible);
-
-  // Re-center focused frame when panels resize the canvas area
-  const rightPanelCollapsed = useUiStore((s) => s.rightPanelCollapsed);
-  const leftPanelCollapsed = useUiStore((s) => s.leftPanelCollapsed);
-  const viewCollapsed = useUiStore((s) => s.viewCollapsed);
-  useEffect(() => {
-    if (canvasMode === "focus") bumpFocusFitTrigger();
-  }, [rightPanelCollapsed, leftPanelCollapsed, viewCollapsed, canvasMode, bumpFocusFitTrigger]);
-
-  // Validate focused frame still exists when layout changes
-  useEffect(() => {
-    if (canvasMode !== "focus" || !focusedFrameId) return;
-    const frames = getOrderedFrames(layout);
-    if (!frames.some((f) => f.id === focusedFrameId)) {
-      setFocusedFrame("output");
-    }
-  }, [canvasMode, focusedFrameId, layout, setFocusedFrame]);
 
   const handleClearFrame = useCallback((frameId: string) => {
     clearFrame(frameId);
@@ -207,7 +189,6 @@ export const CanvasView = memo(function CanvasView() {
     clearAllFrames();
   }, []);
 
-  const viewport = useCanvasStore((s) => s.viewport);
   // Set frames take picked files as cells, composed frames as layers
   const handlePickForFrame = useCallback((frameId: string) => openPicker(frameId), [openPicker]);
 
@@ -239,7 +220,6 @@ export const CanvasView = memo(function CanvasView() {
       overlay={
         <FramePanels
           layout={layout}
-          viewport={viewport}
           labelScale={labelScale}
           onPickImage={handlePickForFrame}
           onAddCell={handlePickForFrame}
@@ -249,46 +229,36 @@ export const CanvasView = memo(function CanvasView() {
           onAddControlFrame={handleAddControlFrame}
         />
       }
+      controls={
+        <CanvasControls
+          camera={mainCamera}
+          mode={<ModeToggle mode={canvasMode} onModeChange={setViewMode} flips={modeFlips} />}
+          frameName={currentName}
+          tour="canvas-controls"
+        >
+          <Button
+            variant="secondary"
+            size="icon-xs"
+            onClick={() => openPicker(null)}
+            title="Add an image to the selected frame"
+            className="bg-background/80 backdrop-blur-sm"
+          >
+            <Plus size={12} />
+          </Button>
+          <Button
+            variant="secondary"
+            size="icon-xs"
+            onClick={handleClearAll}
+            disabled={!hasAnyContent}
+            title={hasAnyContent ? "Clear all frames" : "Nothing to clear"}
+            className="bg-background/80 backdrop-blur-sm"
+          >
+            <X size={12} />
+          </Button>
+        </CanvasControls>
+      }
     >
       <CanvasStage layout={layout} onPickFile={handlePickForFrame} onAddCell={handlePickForFrame} />
-
-      {/* Top-right utility buttons */}
-      <div className="absolute top-2 right-2 flex items-center gap-1.5">
-        <ModeToggle
-          mode={canvasMode}
-          onModeChange={setCanvasMode}
-          locked={modeLocked}
-          onLockedChange={setModeLocked}
-        />
-        <Button
-          variant="secondary"
-          size="icon-xs"
-          onClick={() => openPicker(null)}
-          title="Add an image to the selected frame"
-          className="bg-background/80 backdrop-blur-sm"
-        >
-          <Plus size={12} />
-        </Button>
-        <Button
-          variant="secondary"
-          size="icon-xs"
-          onClick={handleResetZoom}
-          title="Reset zoom"
-          className="bg-background/80 backdrop-blur-sm"
-        >
-          <LocateFixed size={12} />
-        </Button>
-        <Button
-          variant="secondary"
-          size="icon-xs"
-          onClick={handleClearAll}
-          disabled={!hasAnyContent}
-          title={hasAnyContent ? "Clear all frames" : "Nothing to clear"}
-          className="bg-background/80 backdrop-blur-sm"
-        >
-          <X size={12} />
-        </Button>
-      </div>
 
       {/* The mask toolbar shows while the selected frame composes a picture
         and has at least one visible layer to paint over. */}

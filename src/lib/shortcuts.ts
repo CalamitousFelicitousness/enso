@@ -6,7 +6,10 @@ export type ShortcutCategory =
 
 export interface ShortcutDef {
   id: string;
+  /** The character the key produces, as the cheat sheet shows it. */
   key: string;
+  /** Matched by the physical key instead: `Digit0` is Shift+0 on every layout. */
+  code?: string;
   ctrl?: boolean;
   shift?: boolean;
   alt?: boolean;
@@ -143,6 +146,87 @@ export const SHORTCUTS: Record<string, ShortcutDef> = {
     scope: "canvas",
     category: "Canvas",
     label: "Remove layer",
+  },
+  "canvas-zoom-100": {
+    id: "canvas-zoom-100",
+    key: "0",
+    code: "Digit0",
+    shift: true,
+    scope: "canvas",
+    category: "Canvas",
+    label: "Zoom to 100%",
+  },
+  "canvas-show-all": {
+    id: "canvas-show-all",
+    key: "1",
+    code: "Digit1",
+    shift: true,
+    scope: "canvas",
+    category: "Canvas",
+    label: "Show all frames",
+  },
+  "canvas-zoom-frame": {
+    id: "canvas-zoom-frame",
+    key: "2",
+    code: "Digit2",
+    shift: true,
+    scope: "canvas",
+    category: "Canvas",
+    label: "Zoom to the current frame",
+  },
+  // After the Shift+digit keys: Shift+0 types "=" on a German layout
+  "canvas-zoom-in": {
+    id: "canvas-zoom-in",
+    key: "+",
+    scope: "canvas",
+    category: "Canvas",
+    label: "Zoom in",
+  },
+  "canvas-zoom-in-eq": {
+    id: "canvas-zoom-in-eq",
+    key: "=",
+    scope: "canvas",
+    category: "Canvas",
+    label: "Zoom in",
+  },
+  "canvas-zoom-out": {
+    id: "canvas-zoom-out",
+    key: "-",
+    scope: "canvas",
+    category: "Canvas",
+    label: "Zoom out",
+  },
+  "canvas-pan-left": {
+    id: "canvas-pan-left",
+    key: "ArrowLeft",
+    shift: true,
+    scope: "canvas",
+    category: "Canvas",
+    label: "Pan the view",
+  },
+  "canvas-pan-right": {
+    id: "canvas-pan-right",
+    key: "ArrowRight",
+    shift: true,
+    scope: "canvas",
+    category: "Canvas",
+    label: "Pan the view",
+  },
+  "canvas-pan-up": {
+    id: "canvas-pan-up",
+    key: "ArrowUp",
+    shift: true,
+    scope: "canvas",
+    category: "Canvas",
+    label: "Pan the view",
+  },
+  "canvas-pan-down": {
+    id: "canvas-pan-down",
+    key: "ArrowDown",
+    shift: true,
+    scope: "canvas",
+    category: "Canvas",
+    label: "Pan the view",
   },
   "canvas-toggle-mode": {
     id: "canvas-toggle-mode",
@@ -338,17 +422,36 @@ export const SHORTCUTS: Record<string, ShortcutDef> = {
   },
 };
 
-export function matchesEvent(def: ShortcutDef, e: KeyboardEvent): boolean {
+export type KeyInput = Pick<
+  KeyboardEvent,
+  "key" | "code" | "ctrlKey" | "metaKey" | "shiftKey" | "altKey"
+>;
+
+/** A lone symbol with no modifier: on some layouts it needs Shift, on others not. */
+function isBareSymbol(def: ShortcutDef): boolean {
+  return (
+    def.key.length === 1 &&
+    def.key.toLowerCase() === def.key.toUpperCase() &&
+    def.code === undefined &&
+    !def.ctrl &&
+    !def.shift &&
+    !def.alt &&
+    !def.meta
+  );
+}
+
+export function matchesEvent(def: ShortcutDef, e: KeyInput): boolean {
   const ctrl = def.ctrl ?? false;
   const shift = def.shift ?? false;
   const alt = def.alt ?? false;
   const meta = def.meta ?? false;
 
-  if (e.ctrlKey !== ctrl || e.shiftKey !== shift || e.altKey !== alt || e.metaKey !== meta) {
-    return false;
-  }
+  if (e.ctrlKey !== ctrl || e.altKey !== alt || e.metaKey !== meta) return false;
+  // `?` and `+` are matched by what they type, Shift or not
+  if (isBareSymbol(def)) return e.key === def.key;
+  if (e.shiftKey !== shift) return false;
+  if (def.code !== undefined) return e.code === def.code;
 
-  // For "?" the key is literally "?" but KeyboardEvent.key reports "?" when Shift+/ is pressed
   if (e.key === def.key) return true;
   // Case-insensitive letter match (e.key is "B" when shift is held, but we compare lowercase for unmodified keys)
   if (

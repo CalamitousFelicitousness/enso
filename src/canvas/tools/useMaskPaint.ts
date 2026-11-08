@@ -133,6 +133,8 @@ export function useMaskPaint({ stageRef, camera, layout }: UseMaskPaintOptions) 
 
       const { activeTool, brushSize } = useCanvasStore.getState();
       pinnedFrameId.current = hit.frameId;
+      // Marked before the selection, so Focus mode waits for the stroke to end
+      useCanvasStore.getState().setGestureFrame(hit.frameId);
       useInputStore.getState().selectFrame(hit.frameId);
       // A stroke on a frame showing its map is a stroke on the source
       const hitFrame = layout.frames.find((f) => f.frameId === hit.frameId);
@@ -210,6 +212,7 @@ export function useMaskPaint({ stageRef, camera, layout }: UseMaskPaintOptions) 
     isDrawing.current = false;
     const frameId = pinnedFrameId.current;
     pinnedFrameId.current = null;
+    useCanvasStore.getState().setGestureFrame(null);
 
     if (frameId && pointsBuffer.current.length >= 2) {
       useInputStore.getState().addStroke(frameId, {
@@ -233,6 +236,7 @@ export function useMaskPaint({ stageRef, camera, layout }: UseMaskPaintOptions) 
         if (!isDrawing.current) return;
         isDrawing.current = false;
         pinnedFrameId.current = null;
+        useCanvasStore.getState().setGestureFrame(null);
         const line = activeLineRef.current;
         if (line) {
           line.visible(false);

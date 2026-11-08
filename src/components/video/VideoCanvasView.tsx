@@ -1,10 +1,16 @@
-import { useCallback, useMemo, useRef } from "react";
+import { useCallback, useMemo, useRef, useSyncExternalStore } from "react";
 import { Download, Trash2, ImagePlus } from "lucide-react";
 import { toast } from "sonner";
 import { useVideoStore } from "@/stores/videoStore";
 import { useVideoCanvasStore, type VideoSlotId } from "@/stores/videoCanvasStore";
 import { useActiveVideoCaps } from "@/hooks/useActiveVideoCaps";
 import { videoCamera } from "@/canvas/navigation/cameras";
+import { CanvasControls } from "@/canvas/navigation/CanvasControls";
+import { useCameraCommands } from "@/canvas/navigation/useCameraCommands";
+import { useKeepAliveVisible } from "@/components/ui/keep-alive";
+import { useShortcutScope } from "@/hooks/useShortcutScope";
+import { unitScale } from "@/lib/viewport/camera";
+import type { FitFrame } from "@/lib/viewport/insets";
 import { CanvasSurface, type SurfacePoint } from "@/canvas/CanvasSurface";
 import { CanvasProgressOverlay } from "@/canvas/CanvasProgressOverlay";
 import { VideoCompareStrip } from "./VideoCompareStrip";
@@ -48,8 +54,43 @@ import { MediaImg } from "@/components/ui/media";
 const acceptDroppedFile = (file: File) =>
   file.type.startsWith("image/") || classifyReferenceFile(file.name) !== null;
 
+const followAll = () => "all" as const;
+
+function useVideoCanvasHydrated(): boolean {
+  return useSyncExternalStore(
+    (cb) => useVideoCanvasStore.persist.onFinishHydration(cb),
+    () => useVideoCanvasStore.persist.hasHydrated(),
+  );
+}
+
 export function VideoCanvasView() {
   const layout = useVideoFrameLayout();
+  const visible = useKeepAliveVisible();
+  useShortcutScope("canvas", visible);
+  const hydrated = useVideoCanvasHydrated();
+  const fitFrames = useMemo<FitFrame[]>(() => {
+    const { initX, lastX, referencesX, outputX, displayW, displayH } = layout;
+    const slot = (id: string, x: number): FitFrame => ({
+      id,
+      box: { x, y: 0, width: displayW, height: displayH },
+    });
+    const frames: FitFrame[] = [];
+    if (layout.showInit) frames.push(slot("init", initX));
+    if (layout.showLast) frames.push(slot("last", lastX));
+    if (layout.showReferences) frames.push(slot("references", referencesX));
+    frames.push(slot("output", outputX));
+    return frames;
+  }, [layout]);
+  useCameraCommands({
+    camera: videoCamera,
+    frames: fitFrames,
+    unit: unitScale(layout.displayScale),
+    current: "output",
+    ready: hydrated,
+    initialFollow: followAll,
+    visible,
+    name: "video-canvas",
+  });
   const caps = useActiveVideoCaps();
   const viewport = useVideoCanvasStore((s) => s.viewport);
   const initFrame = useVideoCanvasStore((s) => s.initFrame);
@@ -295,6 +336,7 @@ export function VideoCanvasView() {
       acceptFile={acceptDroppedFile}
       acceptKinds="pictures, videos and audio"
       below={results.length > 0 ? <VideoCompareStrip /> : null}
+      controls={<CanvasControls camera={videoCamera} />}
       overlay={
         <>
           {/* Floating header: Init frame */}

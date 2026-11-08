@@ -1,83 +1,43 @@
-import { Lock, Unlock, Focus, Maximize } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { useState } from "react";
+import { Focus, Maximize } from "lucide-react";
+import { SegmentedControl, type SegmentOption } from "@/components/ui/segmented-control";
+import { CANVAS_TIP, FOCUS_TIP } from "@/canvas/navigation/text";
+
+type Mode = "focus" | "canvas";
+
+const OPTIONS: SegmentOption<Mode>[] = [
+  { value: "focus", label: "Focus", icon: Focus, title: FOCUS_TIP },
+  { value: "canvas", label: "Canvas", icon: Maximize, title: CANVAS_TIP },
+];
 
 interface ModeToggleProps {
-  mode: "focus" | "canvas";
-  onModeChange: (mode: "focus" | "canvas") => void;
-  locked: boolean;
-  onLockedChange: (locked: boolean) => void;
+  mode: Mode;
+  onModeChange: (mode: Mode) => void;
+  /** Counts the moves that left Focus mode; each one flashes the pill. */
+  flips: number;
 }
 
-export function ModeToggle({ mode, onModeChange, locked, onLockedChange }: ModeToggleProps) {
-  const isFocus = mode === "focus";
-
+export function ModeToggle({ mode, onModeChange, flips }: ModeToggleProps) {
+  const [mounted] = useState(flips);
   return (
-    <div
-      className={cn(
-        "relative flex items-center h-6",
-        "dark:bg-popover/80 bg-popover/70 backdrop-blur-xl",
-        "ring-1 dark:ring-white/[0.05] ring-black/[0.05]",
-        "border border-border/50 shadow-lg shadow-black/20",
-      )}
-      style={{ borderRadius: "var(--control-radius)" }}
-    >
-      {/* Sliding highlight */}
-      <div
-        className={cn(
-          "absolute inset-y-[2px] left-[2px]",
-          "w-[calc((100%-24px)/2)]",
-          "bg-primary/20 border border-primary/40",
-          "transition-all duration-150 ease-out",
-          !isFocus && "translate-x-[calc(100%+20px)]",
-        )}
-        style={{ borderRadius: "var(--control-inner-radius)" }}
+    <div className="relative">
+      <SegmentedControl
+        options={OPTIONS}
+        value={mode}
+        onValueChange={onModeChange}
+        variant="icon-label"
+        animated
+        className="p-0.5 gap-0.5 dark:bg-popover/80 bg-popover/70 backdrop-blur-xl border-border/50 ring-1 dark:ring-white/[0.05] ring-black/[0.05] shadow-lg shadow-black/20"
       />
-
-      {/* Focus */}
-      <button
-        type="button"
-        onClick={() => onModeChange("focus")}
-        className={cn(
-          "relative z-10 flex-1 flex items-center justify-center gap-1 h-full px-2.5",
-          "text-2xs font-medium uppercase tracking-wider",
-          "transition-colors duration-150 cursor-pointer select-none",
-          "min-w-[60px]",
-          isFocus ? "text-primary" : "text-muted-foreground hover:text-foreground/70",
-        )}
-      >
-        <Focus size={10} />
-        Focus
-      </button>
-
-      {/* Lock divider */}
-      <button
-        type="button"
-        onClick={() => onLockedChange(!locked)}
-        title={locked ? "Unlock mode switching" : "Lock current mode"}
-        className={cn(
-          "relative z-10 flex items-center justify-center w-5 h-full ml-[1px]",
-          "transition-colors duration-150 cursor-pointer",
-          locked ? "text-primary" : "text-muted-foreground/50 hover:text-muted-foreground",
-        )}
-      >
-        {locked ? <Lock size={10} /> : <Unlock size={10} />}
-      </button>
-
-      {/* Canvas */}
-      <button
-        type="button"
-        onClick={() => onModeChange("canvas")}
-        className={cn(
-          "relative z-10 flex-1 flex items-center justify-center gap-1 h-full px-2.5",
-          "text-2xs font-medium uppercase tracking-wider",
-          "transition-colors duration-150 cursor-pointer select-none",
-          "min-w-[60px]",
-          !isFocus ? "text-primary" : "text-muted-foreground hover:text-foreground/70",
-        )}
-      >
-        <Maximize size={10} />
-        Canvas
-      </button>
+      {/* A new element per flip restarts the flash */}
+      {flips !== mounted && (
+        <span
+          key={flips}
+          aria-hidden
+          className="mode-flipped pointer-events-none absolute inset-0"
+          style={{ borderRadius: "var(--control-radius)" }}
+        />
+      )}
     </div>
   );
 }

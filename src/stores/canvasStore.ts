@@ -16,9 +16,18 @@ export type ToolType =
   | "maskEraser"
   | "rectSelect"
   | "lassoSelect"
-  | "colorPicker"
-  | "zoom"
-  | "pan";
+  | "colorPicker";
+
+const TOOLS: readonly ToolType[] = [
+  "move",
+  "brush",
+  "eraser",
+  "maskBrush",
+  "maskEraser",
+  "rectSelect",
+  "lassoSelect",
+  "colorPicker",
+];
 
 /** How the Images canvas is looked at and worked on. What it holds is the
  * input store's. */
@@ -39,10 +48,13 @@ interface CanvasState {
   /** Per-dock collapse override map, keyed by FrameId string: `input:${uuid}`
    * for frames, `"output"` for the Output dock. */
   panelCollapsedOverrides: Map<string, boolean>;
+  /** Focus: the camera follows the current frame. Canvas: it follows Show all
+   * until the view is moved, then stays. */
   canvasMode: "focus" | "canvas";
+  /** The current frame: what Focus fits and the arrows step from; null is the Output. */
   focusedFrameId: FrameId | null;
-  focusFitTrigger: number;
-  modeLocked: boolean;
+  /** Counts the times a move left Focus mode, for the pill to show it; not persisted. */
+  modeFlips: number;
   /** Width and height step of the loaded model; not persisted. */
   sizeMultiple: number;
   /** A frame to bring into view in canvas mode, counted per request; not persisted. */
@@ -52,9 +64,8 @@ interface CanvasState {
   requestReveal: (frameId: string) => void;
   setCanvasMode: (mode: "focus" | "canvas") => void;
   setFocusedFrame: (id: FrameId) => void;
-  switchToCanvasMode: () => void;
-  bumpFocusFitTrigger: () => void;
-  setModeLocked: (locked: boolean) => void;
+  /** A move left Focus mode. */
+  flipToCanvasMode: () => void;
   setActiveTool: (tool: ToolType) => void;
   setBrushSize: (size: number) => void;
   setMaskVisible: (visible: boolean) => void;
@@ -75,7 +86,6 @@ interface PersistedCanvasState {
   panelCollapsedOverrides: [string, boolean][];
   canvasMode: "focus" | "canvas";
   focusedFrameId: FrameId | null;
-  modeLocked: boolean;
 }
 
 const canvasRecords = idbBackend("enso-canvas", "state");
@@ -99,7 +109,6 @@ async function viewOfLegacyRecord(): Promise<StorageValue<PersistedCanvasState> 
         panelCollapsedOverrides: state.panelCollapsedOverrides,
         canvasMode: state.canvasMode,
         focusedFrameId: state.focusedFrameId,
-        modeLocked: state.modeLocked,
       };
       return { state: kept as PersistedCanvasState, version: 5 };
     }
@@ -128,10 +137,9 @@ export const useCanvasStore = create<CanvasState>()(
       peekingFrameId: null,
       gestureFrameId: null,
       panelCollapsedOverrides: new Map<string, boolean>(),
-      canvasMode: "focus",
+      canvasMode: "canvas",
       focusedFrameId: null,
-      focusFitTrigger: 0,
-      modeLocked: false,
+      modeFlips: 0,
       sizeMultiple: DEFAULT_SIZE_MULTIPLE,
       reveal: null,
 
@@ -142,10 +150,10 @@ export const useCanvasStore = create<CanvasState>()(
           focusedFrameId: mode === "focus" && !s.focusedFrameId ? "output" : s.focusedFrameId,
         })),
       setFocusedFrame: (id) => set({ focusedFrameId: id }),
-      switchToCanvasMode: () =>
-        set((s) => (s.canvasMode === "canvas" ? s : { canvasMode: "canvas" })),
-      bumpFocusFitTrigger: () => set((s) => ({ focusFitTrigger: s.focusFitTrigger + 1 })),
-      setModeLocked: (locked) => set({ modeLocked: locked }),
+      flipToCanvasMode: () =>
+        set((s) =>
+          s.canvasMode === "canvas" ? s : { canvasMode: "canvas", modeFlips: s.modeFlips + 1 },
+        ),
       setViewport: (viewport) => set((s) => ({ viewport: { ...s.viewport, ...viewport } })),
 
       setActiveTool: (tool) => set({ activeTool: tool }),
@@ -194,23 +202,27 @@ export const useCanvasStore = create<CanvasState>()(
         panelCollapsedOverrides: [...state.panelCollapsedOverrides.entries()],
         canvasMode: state.canvasMode,
         focusedFrameId: state.focusedFrameId,
-        modeLocked: state.modeLocked,
       }),
       merge: (persisted, current) => {
         const saved = persisted as Partial<PersistedCanvasState> | undefined;
         if (!saved) return current;
+        // Focus on nothing was the first-run state of older builds, which left
+        // the Input off-screen: those open on everything
+        const focus = saved.canvasMode === "focus" && saved.focusedFrameId != null;
         return {
           ...current,
-          activeTool: saved.activeTool ?? current.activeTool,
+          activeTool:
+            saved.activeTool && TOOLS.includes(saved.activeTool)
+              ? saved.activeTool
+              : current.activeTool,
           brushSize: saved.brushSize ?? current.brushSize,
           maskVisible: saved.maskVisible ?? current.maskVisible,
           maskColor: saved.maskColor ?? current.maskColor,
           panelCollapsedOverrides: saved.panelCollapsedOverrides
             ? new Map(saved.panelCollapsedOverrides)
             : current.panelCollapsedOverrides,
-          canvasMode: saved.canvasMode ?? "focus",
+          canvasMode: focus ? "focus" : "canvas",
           focusedFrameId: saved.focusedFrameId ?? null,
-          modeLocked: saved.modeLocked ?? false,
         };
       },
     },

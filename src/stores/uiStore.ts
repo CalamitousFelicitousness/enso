@@ -61,6 +61,8 @@ interface UiState {
   autoFitFrame: boolean;
   /** What a plain wheel does over the canvas. */
   canvasWheel: WheelMode;
+  /** The notice that a move left Focus mode has been shown once. */
+  focusFlipNoticed: boolean;
 
   // Model defaults
   autoApplyModelDefaults: boolean;
@@ -106,6 +108,7 @@ interface UiState {
   setVideoResultThumbSize: (size: number) => void;
   setAutoFitFrame: (enabled: boolean) => void;
   setCanvasWheel: (mode: WheelMode) => void;
+  setFocusFlipNoticed: () => void;
   setAutoApplyModelDefaults: (enabled: boolean) => void;
   setLivePreviews: (enabled: boolean) => void;
   toggleLeftPanel: () => void;
@@ -193,6 +196,7 @@ export const useUiStore = create<UiState>()(
       videoResultThumbSize: 56,
       autoFitFrame: true,
       canvasWheel: "pan",
+      focusFlipNoticed: false,
       autoApplyModelDefaults: false,
       livePreviews: true,
       recentCommandIds: [],
@@ -220,6 +224,7 @@ export const useUiStore = create<UiState>()(
         set({ videoResultThumbSize: Math.max(40, Math.min(120, size)) }),
       setAutoFitFrame: (enabled) => set({ autoFitFrame: enabled }),
       setCanvasWheel: (mode) => set({ canvasWheel: mode }),
+      setFocusFlipNoticed: () => set({ focusFlipNoticed: true }),
       setAutoApplyModelDefaults: (enabled) => set({ autoApplyModelDefaults: enabled }),
       setLivePreviews: (enabled) => set({ livePreviews: enabled }),
       toggleLeftPanel: () => set((s) => ({ leftPanelCollapsed: !s.leftPanelCollapsed })),

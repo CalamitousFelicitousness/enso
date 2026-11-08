@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { useUiStore } from "@/stores/uiStore";
+import { TUTORIAL_BODY, TUTORIAL_TITLE } from "@/canvas/navigation/text";
 
 export interface TutorialStep {
   target: string;
@@ -37,6 +38,12 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     description:
       "These tabs let you fine-tune sampler settings, guidance, refinement, control networks, and more.",
     placement: "right",
+  },
+  {
+    target: "canvas-controls",
+    title: TUTORIAL_TITLE,
+    description: TUTORIAL_BODY,
+    placement: "bottom",
   },
 ];
 

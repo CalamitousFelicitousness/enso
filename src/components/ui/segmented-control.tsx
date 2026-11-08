@@ -11,6 +11,8 @@ export interface SegmentOption<T extends string = string> {
   label: string;
   icon?: LucideIcon;
   disabled?: boolean;
+  /** Hover text; icon-only segments fall back to the label. */
+  title?: string;
 }
 
 export interface SegmentedControlProps<T extends string = string> {
@@ -160,7 +162,7 @@ function SegmentedControlInner<T extends string = string>(
               <ToggleGroupPrimitive.Item
                 value={option.value}
                 disabled={option.disabled}
-                title={variant === "icon-only" ? option.label : undefined}
+                title={option.title ?? (variant === "icon-only" ? option.label : undefined)}
                 aria-label={variant === "icon-only" ? option.label : undefined}
                 className={cn(
                   itemVariants({ variant, animated: effectiveAnimated }),

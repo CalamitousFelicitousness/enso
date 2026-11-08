@@ -41,6 +41,11 @@ export function worldToScreen(vp: Viewport, point: Point): Point {
   return { x: point.x * vp.scale + vp.x, y: point.y * vp.scale + vp.y };
 }
 
+/** Whether two viewports are the same view. */
+export function sameViewport(a: Viewport, b: Viewport): boolean {
+  return a.x === b.x && a.y === b.y && a.scale === b.scale;
+}
+
 /** The viewport at `scale` that keeps the world point under `anchor` there. */
 export function zoomTo(vp: Viewport, anchor: Point, scale: number): Viewport {
   const world = screenToWorld(vp, anchor);
@@ -86,6 +91,50 @@ export function centerOn(vp: Viewport, world: Point, container: Size): Viewport 
     y: container.height / 2 - world.y * vp.scale,
     scale: vp.scale,
   };
+}
+
+/** The viewport after a resize that keeps the world point under the centre. */
+export function keepCenter(vp: Viewport, before: Size, after: Size): Viewport {
+  return {
+    x: vp.x + (after.width - before.width) / 2,
+    y: vp.y + (after.height - before.height) / 2,
+    scale: vp.scale,
+  };
+}
+
+/** What the view shows: the container, and the box holding all the content. */
+export interface Scene {
+  container: Size;
+  all: Box | null;
+}
+
+/** A view that follows nothing, after the content or the container changed:
+ * "all" when it showed all of the content and would no longer, otherwise
+ * the same world point under the centre. */
+export function reframe(vp: Viewport, before: Scene, after: Scene): Viewport | "all" {
+  const kept = keepCenter(vp, before.container, after.container);
+  const showedAll = before.all !== null && containsBox(vp, before.container, before.all);
+  const showsAll = after.all === null || containsBox(kept, after.container, after.all);
+  return showedAll && !showsAll ? "all" : kept;
+}
+
+/** The zoom as a percentage of image pixels: 100 is one image pixel per CSS pixel. */
+export function zoomPercent(vp: Viewport, unit: number): number {
+  return (vp.scale / unit) * 100;
+}
+
+/** The percentages Zoom in and Zoom out step through; the ends are the limits. */
+export const ZOOM_LADDER = [
+  2, 5, 10, 25, 33, 50, 67, 100, 150, 200, 300, 400, 800, 1600, 3200,
+] as const;
+
+// A percentage within this of a step counts as on it, so 99.99999 steps past 100
+const ON_STEP = 1e-6;
+
+/** The next step past `percent` in `direction`; null past the last one. */
+export function ladderStep(percent: number, direction: 1 | -1): number | null {
+  if (direction > 0) return ZOOM_LADDER.find((step) => step > percent * (1 + ON_STEP)) ?? null;
+  return [...ZOOM_LADDER].reverse().find((step) => step < percent * (1 - ON_STEP)) ?? null;
 }
 
 /** The viewport that shows `box` whole and centred inside the container less

@@ -5,13 +5,19 @@ import {
   containsBox,
   fitBox,
   fitBoxBest,
+  keepCenter,
+  ladderStep,
+  reframe,
   scaleRange,
   screenToWorld,
   unitScale,
   visibleWorld,
   worldToScreen,
   zoomAbout,
+  zoomPercent,
   zoomTo,
+  ZOOM_LADDER,
+  ZOOM_LIMITS,
 } from "./camera";
 import type { Insets, Viewport } from "./types";
 
@@ -149,5 +155,82 @@ describe("fitBox", () => {
     // Width binds, so giving up height costs nothing and giving up width does
     expect(fitBoxBest(box, container, [right, bottom], 10)?.scale).toBe(1);
     expect(fitBoxBest(box, container, [], 10)).toBeNull();
+  });
+});
+
+describe("keepCenter and reframe", () => {
+  const small = { width: 800, height: 600 };
+  const wide = { width: 1000, height: 600 };
+
+  it("keeps the world point under the centre through a resize", () => {
+    const vp = { x: 37, y: -12, scale: 1.7 };
+    const before = screenToWorld(vp, { x: 400, y: 300 });
+    const after = screenToWorld(keepCenter(vp, small, wide), { x: 500, y: 300 });
+    expect(after.x).toBeCloseTo(before.x, 9);
+    expect(after.y).toBeCloseTo(before.y, 9);
+  });
+
+  it("shows all again when a view that showed everything no longer would", () => {
+    const vp = { x: 0, y: 0, scale: 1 };
+    const all = { x: 10, y: 10, width: 700, height: 500 };
+    expect(
+      reframe(vp, { container: small, all }, { container: small, all: { ...all, width: 900 } }),
+    ).toBe("all");
+    // Shrinking the container under the content counts the same
+    expect(
+      reframe(vp, { container: wide, all }, { container: { width: 600, height: 600 }, all }),
+    ).toBe("all");
+  });
+
+  it("leaves a view that did not show everything where it is", () => {
+    const zoomed = { x: -2000, y: -2000, scale: 4 };
+    const all = { x: 0, y: 0, width: 700, height: 500 };
+    const after = { container: small, all: { ...all, width: 2000 } };
+    expect(reframe(zoomed, { container: small, all }, after)).toEqual(zoomed);
+  });
+
+  it("keeps the centre when the content still fits", () => {
+    const vp = { x: 0, y: 0, scale: 1 };
+    const all = { x: 100, y: 100, width: 200, height: 200 };
+    expect(reframe(vp, { container: small, all }, { container: wide, all })).toEqual(
+      keepCenter(vp, small, wide),
+    );
+  });
+});
+
+describe("zoom percent and ladder", () => {
+  it("reads 100 at the unit scale", () => {
+    expect(zoomPercent({ x: 0, y: 0, scale: 2 }, 2)).toBe(100);
+    expect(zoomPercent({ x: 0, y: 0, scale: 1 }, 2)).toBe(50);
+  });
+
+  it("ends at the zoom limits", () => {
+    expect(ZOOM_LADDER[0]).toBe(ZOOM_LIMITS.min * 100);
+    expect(ZOOM_LADDER.at(-1)).toBe(ZOOM_LIMITS.max * 100);
+  });
+
+  it("steps to the next rung, from between rungs or on one", () => {
+    expect(ladderStep(100, 1)).toBe(150);
+    expect(ladderStep(100, -1)).toBe(67);
+    expect(ladderStep(87, 1)).toBe(100);
+    expect(ladderStep(87, -1)).toBe(67);
+    // A value a hair off a rung counts as on it
+    expect(ladderStep(99.99999999, 1)).toBe(150);
+    expect(ladderStep(1.5, 1)).toBe(2);
+  });
+
+  it("has no step past either end", () => {
+    expect(ladderStep(3200, 1)).toBeNull();
+    expect(ladderStep(2, -1)).toBeNull();
+    expect(ladderStep(1.5, -1)).toBeNull();
+  });
+
+  it("walks every rung up and back down", () => {
+    const up: number[] = [];
+    for (let p: number | null = 1; (p = ladderStep(p, 1)) !== null;) up.push(p);
+    const down: number[] = [];
+    for (let p: number | null = 4000; (p = ladderStep(p, -1)) !== null;) down.push(p);
+    expect(up).toEqual([...ZOOM_LADDER]);
+    expect(down).toEqual([...ZOOM_LADDER].reverse());
   });
 });

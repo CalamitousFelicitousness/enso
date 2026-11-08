@@ -1,7 +1,5 @@
-import { useRef, useEffect, useLayoutEffect, useState, useCallback, useMemo } from "react";
+import { useRef, useEffect, useState, useCallback } from "react";
 import { Stage } from "react-konva";
-import { useCanvasStore } from "@/stores/canvasStore";
-import { useGenerationStore } from "@/stores/generationStore";
 import { useInputStore } from "@/stores/inputStore";
 import { useMaskPaint } from "./tools/useMaskPaint";
 import { useImageTransform } from "./tools/useImageTransform";
@@ -12,12 +10,8 @@ import { MaskLayer } from "./layers/MaskLayer";
 import { ChromeLayer } from "./layers/ChromeLayer";
 import { OutputLayer } from "./layers/OutputLayer";
 import type { CanvasLayout } from "./useCanvasLayout";
-import { frameBox, type ComposedFramePosition } from "@/lib/inputs/layout";
-import { getOrderedFrames, inputFrameId } from "@/lib/inputs/frames";
-import { FIT_MAX_SCALE, centerOn, containsBox, fitBoxBest, unitScale } from "@/lib/viewport/camera";
-import { fitTargets } from "@/lib/viewport/insets";
+import type { ComposedFramePosition } from "@/lib/inputs/layout";
 import { CanvasBackground } from "./CanvasBackground";
-import { useChromeBoxes } from "./navigation/chrome";
 import { mainCamera } from "./navigation/cameras";
 import { useKeepAliveVisible } from "@/components/ui/keep-alive";
 import type Konva from "konva";
@@ -36,26 +30,8 @@ export function CanvasStage({ layout, onPickFile, onAddCell }: CanvasStageProps)
   const stageRef = useRef<Konva.Stage>(null);
   const trRef = useRef<Konva.Transformer>(null);
   const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
-  const setViewport = useCanvasStore((s) => s.setViewport);
-  const frameW = useGenerationStore((s) => s.width);
-  const frameH = useGenerationStore((s) => s.height);
-  const canvasMode = useCanvasStore((s) => s.canvasMode);
-  const focusedFrameId = useCanvasStore((s) => s.focusedFrameId);
-  const focusFitTrigger = useCanvasStore((s) => s.focusFitTrigger);
   const selectedFrameId = useInputStore((s) => s.selectedFrameId);
   const visible = useKeepAliveVisible();
-  const unit = unitScale(layout.displayScale);
-  const chrome = useChromeBoxes(mainCamera.chrome);
-  const targets = useMemo(
-    () =>
-      fitTargets(
-        getOrderedFrames(layout).map(({ id, ...box }) => ({ id, box })),
-        chrome,
-      ),
-    [layout, chrome],
-  );
-
-  useLayoutEffect(() => mainCamera.setUnit(unit), [unit]);
 
   // The camera owns the stage's transform; the tools keep their own ref
   const attachStage = useCallback((stage: Konva.Stage | null) => {
@@ -64,7 +40,7 @@ export function CanvasStage({ layout, onPickFile, onAddCell }: CanvasStageProps)
   }, []);
 
   const maskPaint = useMaskPaint({ stageRef, camera: mainCamera, layout });
-  const imageTransform = useImageTransform(stageRef);
+  const imageTransform = useImageTransform(stageRef, visible);
 
   const { outputX, displayScale } = layout;
 
@@ -104,8 +80,7 @@ export function CanvasStage({ layout, onPickFile, onAddCell }: CanvasStageProps)
     return () => ro.disconnect();
   }, []);
 
-  // Remeasure on KeepAlive reveal: closes the race where the observer is
-  // late and the auto-fit effect would skip with 0x0 dimensions.
+  // Remeasure on KeepAlive reveal, in case the observer reports late
   useEffect(() => {
     if (!visible) return;
     const el = containerRef.current;
@@ -117,55 +92,6 @@ export function CanvasStage({ layout, onPickFile, onAddCell }: CanvasStageProps)
       setContainerSize(size);
     }
   }, [visible]);
-
-  // Canvas-mode auto-fit: show all frames. Runs on initial render and whenever
-  // the generation size changes (e.g. autoFitFrame resizing to match image).
-  const prevFrameRef = useRef<string>("");
-  useEffect(() => {
-    if (canvasMode !== "canvas") return;
-    if (frameW <= 0 || frameH <= 0) return;
-    if (containerSize.width <= 0 || containerSize.height <= 0) return;
-    const key = `${frameW}x${frameH}`;
-    if (prevFrameRef.current === key || !targets.all) return;
-    const vp = fitBoxBest(targets.all, containerSize, targets.insets, FIT_MAX_SCALE);
-    if (!vp) return;
-    prevFrameRef.current = key;
-    setViewport(vp);
-  }, [canvasMode, containerSize, frameW, frameH, targets, setViewport]);
-
-  // Focus-mode viewport: fit one frame and its dock to fill the container,
-  // again whenever either changes size.
-  useEffect(() => {
-    if (canvasMode !== "focus") return;
-    if (containerSize.width <= 0 || containerSize.height <= 0) return;
-    const box = targets.frame(focusedFrameId ?? "output") ?? targets.frame("output");
-    if (!box) return;
-    const vp = fitBoxBest(box, containerSize, targets.insets, FIT_MAX_SCALE);
-    if (vp) setViewport(vp);
-  }, [canvasMode, focusedFrameId, focusFitTrigger, targets, containerSize, setViewport]);
-
-  // Reset prevFrameRef when entering canvas mode so auto-fit can re-trigger.
-  useEffect(() => {
-    if (canvasMode === "canvas") prevFrameRef.current = "";
-  }, [canvasMode]);
-
-  // A reveal request pans a frame the selection landed on into view, once
-  // per request, keeping the zoom. Focus mode reveals through focusedFrameId.
-  const reveal = useCanvasStore((s) => s.reveal);
-  const revealedRef = useRef(0);
-  useEffect(() => {
-    if (!reveal || reveal.n === revealedRef.current) return;
-    if (canvasMode !== "canvas" || containerSize.width <= 0) return;
-    const frame = layout.frames.find((f) => f.frameId === reveal.frameId);
-    if (!frame) return;
-    revealedRef.current = reveal.n;
-    const box = targets.frame(inputFrameId(frame.frameId)) ?? frameBox(frame);
-    const vp = mainCamera.live();
-    if (containsBox(vp, containerSize, box)) return;
-    mainCamera.set(
-      centerOn(vp, { x: box.x + box.width / 2, y: box.y + box.height / 2 }, containerSize),
-    );
-  }, [reveal, canvasMode, layout, targets, containerSize]);
 
   const onClick = useCallback(
     (e: Konva.KonvaEventObject<MouseEvent>) => {

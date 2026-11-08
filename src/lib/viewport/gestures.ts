@@ -18,8 +18,6 @@ export type SurfaceTool = "move" | "other";
 export interface GestureEnv {
   tool: SurfaceTool;
   wheelMode: WheelMode;
-  /** False while the mode lock holds the camera still. */
-  allowed: boolean;
 }
 
 export type GestureInput =
@@ -46,7 +44,10 @@ export type GestureInput =
     }
   | { type: "spaceDown"; focus: FocusClass }
   | { type: "spaceUp" }
-  | { type: "blur" };
+  | { type: "blur" }
+  /** A camera command (a fit, a zoom key) took over: the rest of the running
+   * wheel sequence, such as a trackpad flick's momentum, moves nothing. */
+  | { type: "closeWheel" };
 
 export type GestureEffect =
   /** Capture the pointer on the surface, so the release lands there. */
@@ -94,8 +95,10 @@ export interface GestureState {
   /** `armed`: Space pans; `blocked`: Space went down on a control over the
    * canvas and does nothing. */
   space: "up" | "armed" | "blocked";
-  /** When the last wheel event moved the camera. */
+  /** When the last wheel event came. */
   wheelAt: number;
+  /** The running wheel sequence was closed by a command. */
+  wheelClosed: boolean;
 }
 
 export const IDLE_GESTURES: GestureState = {
@@ -103,6 +106,7 @@ export const IDLE_GESTURES: GestureState = {
   touches: [],
   space: "up",
   wheelAt: Number.NEGATIVE_INFINITY,
+  wheelClosed: false,
 };
 
 /** A wheel sequence ends, and its camera commits, after this much quiet. */
@@ -156,7 +160,7 @@ function down(
     if (drag.kind === "pinch" || drag.kind === "spent") return same(next);
     const busyElsewhere =
       (drag.kind === "pan" || drag.kind === "pending") && drag.pointer !== "touch";
-    if (busyElsewhere || !env.allowed) return same(next);
+    if (busyElsewhere) return same(next);
     const first = touches.find((t) => t.id !== pointerId);
     if (!first) return same(next);
     return {
@@ -171,11 +175,6 @@ function down(
   }
 
   if (drag.kind !== "idle" || target !== "content") return same(next);
-  if (!env.allowed) {
-    return button === MIDDLE && kind !== "touch"
-      ? { state: next, effects: [{ type: "preventMouseDown" }] }
-      : same(next);
-  }
   const middle = button === MIDDLE && kind !== "touch";
   const spacePan = button === LEFT && state.space === "armed";
   if (middle || spacePan) {
@@ -259,18 +258,20 @@ function wheel(
   // A plain wheel over a dock or a control scrolls or steps it
   if (input.target !== "content" && !normalized.pinch) return same(state);
   const prevent: GestureEffect = { type: "prevent" };
-  if (!env.allowed) return { state, effects: [prevent] };
+  const gap = input.time - state.wheelAt >= WHEEL_SETTLE_MS;
+  if (state.wheelClosed && !gap)
+    return { state: { ...state, wheelAt: input.time }, effects: [prevent] };
   const intent = wheelIntent(normalized, env.wheelMode);
   if (!intent) return { state, effects: [prevent] };
   const effects: GestureEffect[] = [prevent];
-  if (input.time - state.wheelAt >= WHEEL_SETTLE_MS) effects.push({ type: "start" });
+  if (gap) effects.push({ type: "start" });
   effects.push(
     intent.kind === "pan"
       ? { type: "pan", dx: intent.dx, dy: intent.dy }
       : { type: "zoom", point: input.point, factor: intent.factor },
     { type: "settle" },
   );
-  return { state: { ...state, wheelAt: input.time }, effects };
+  return { state: { ...state, wheelAt: input.time, wheelClosed: false }, effects };
 }
 
 function spaceDown(state: GestureState, focus: FocusClass): GestureStep {
@@ -292,7 +293,10 @@ function blur(state: GestureState): GestureStep {
   } else if (drag.kind === "pinch") {
     effects.push({ type: "commit" });
   }
-  return { state: { ...IDLE_GESTURES, wheelAt: state.wheelAt }, effects };
+  return {
+    state: { ...IDLE_GESTURES, wheelAt: state.wheelAt, wheelClosed: state.wheelClosed },
+    effects,
+  };
 }
 
 /**
@@ -322,6 +326,8 @@ export function gestureStep(
     }
     case "blur":
       return blur(state);
+    case "closeWheel":
+      return same({ ...state, wheelClosed: true });
   }
 }
 
@@ -339,6 +345,6 @@ export function surfaceCursor(
   if (state.space === "armed") return "grab";
   if (env.tool !== "move" || hover === null) return null;
   if (hover === "picker") return "pointer";
-  if (hover === "draggable" || !env.allowed) return "";
+  if (hover === "draggable") return "";
   return "grab";
 }
