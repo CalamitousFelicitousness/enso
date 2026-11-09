@@ -1,5 +1,6 @@
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import { DB, LOCAL } from "@/lib/profile/names";
+import { persistLocal } from "@/profile/local";
 import type { VideoResult } from "@/api/types/video";
 import { createIdbListDb } from "@/lib/idbListDb";
 import { evict, MAX_PINNED } from "@/lib/video/history";
@@ -15,7 +16,7 @@ import {
 } from "@/lib/video/paramRegistry";
 
 export const videoHistoryDb = createIdbListDb<VideoResult>({
-  dbName: "SDNextVideoHistory",
+  dbName: DB.videoHistory,
   storeName: "results",
   sortKey: "timestamp",
 });
@@ -82,7 +83,7 @@ function withTouched(
 }
 
 export const useVideoStore = create<VideoState>()(
-  persist(
+  persistLocal(
     (set, get) => ({
       ...VIDEO_PARAM_DEFAULTS,
 
@@ -206,7 +207,7 @@ export const useVideoStore = create<VideoState>()(
       reset: () => set({ ...VIDEO_PARAM_DEFAULTS, touched: new Set<VideoParamKey>() }),
     }),
     {
-      name: "enso-video",
+      name: LOCAL.video,
       version: 8,
       partialize: (state) => {
         const p: Record<string, unknown> = {};

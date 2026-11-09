@@ -1,5 +1,6 @@
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import { LOCAL } from "@/lib/profile/names";
+import { persistLocal } from "@/profile/local";
 import type { SizeMode } from "@/lib/sizeCompute";
 
 export type { SizeMode };
@@ -56,7 +57,7 @@ const defaultState = {
 };
 
 export const useImg2ImgStore = create<Img2ImgState>()(
-  persist(
+  persistLocal(
     (_set) => ({
       ...defaultState,
 
@@ -75,7 +76,7 @@ export const useImg2ImgStore = create<Img2ImgState>()(
       reset: () => _set(defaultState),
     }),
     {
-      name: "enso-img2img",
+      name: LOCAL.img2img,
       version: 2,
       partialize: ({
         resizeMode,

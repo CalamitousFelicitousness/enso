@@ -1,5 +1,6 @@
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import { LOCAL } from "@/lib/profile/names";
+import { persistLocal, readLocal } from "@/profile/local";
 import { legacyLutPair, NO_LUT, type LutPair } from "@/lib/lut";
 
 /** The Process view's color LUT: its name and the hash the server holds its
@@ -12,7 +13,7 @@ interface ProcessLutState extends LutPair {
 /** The LUT an older build's `enso-process` names, as a bare upload ref. */
 function legacySeed(): LutPair | null {
   try {
-    const raw = localStorage.getItem("enso-process");
+    const raw = readLocal(LOCAL.process);
     const saved = raw ? (JSON.parse(raw) as Record<string, unknown>) : null;
     const state = saved?.["state"] as
       { sections?: { grading?: { params?: { lut_cube_file?: unknown } } } } | undefined;
@@ -23,13 +24,13 @@ function legacySeed(): LutPair | null {
 }
 
 export const useProcessLutStore = create<ProcessLutState>()(
-  persist(
+  persistLocal(
     (set) => ({
       ...NO_LUT,
       set: (pair) => set({ name: pair.name, hash: pair.hash }),
     }),
     {
-      name: "enso-process-lut",
+      name: LOCAL.processLut,
       partialize: (s): LutPair => ({ name: s.name, hash: s.hash }),
       merge: (persisted, current) => ({
         ...current,

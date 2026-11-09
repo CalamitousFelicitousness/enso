@@ -4,7 +4,7 @@
 
 import type { StorageValue } from "zustand/middleware";
 import { newId } from "@/lib/id";
-import { createGatedStorage, idbBackend, type KeyValueBackend } from "@/lib/idbStorage";
+import { createGatedStorage, legacyReader, type KeyValueBackend } from "@/lib/idbStorage";
 import { applyImports, EMPTY_WORKING, planImports, type LegacyRecord } from "@/lib/inputs/imports";
 import {
   legacyFingerprint,
@@ -24,6 +24,7 @@ import {
   type WorkingDocument,
 } from "@/lib/inputs/stored";
 import { DOCUMENTS } from "@/lib/inputs/storeLayout";
+import { DB, RECORD, STATE_STORE } from "@/lib/profile/names";
 import type { Size } from "@/lib/inputs/types";
 import { useGenerationStore } from "@/stores/generationStore";
 import {
@@ -71,11 +72,11 @@ export class UnstorableDocument extends Error {
 
 /** The canvas record's formats, newest first. Version 3 is a JSON string. */
 const LEGACY = [
-  { id: "canvas-v4", key: "enso-canvas-v4", version: 4 },
-  { id: "canvas-v3", key: "enso-canvas", version: 3 },
+  { id: "canvas-v4", key: RECORD.canvasV4, version: 4 },
+  { id: "canvas-v3", key: RECORD.canvasV3, version: 3 },
 ] as const;
 
-const legacyCanvas = idbBackend("enso-canvas", "state");
+const legacyCanvas = legacyReader(DB.canvas, STATE_STORE);
 
 interface FoundSource {
   id: string;
@@ -161,10 +162,10 @@ async function convert(source: FoundSource): Promise<LegacyImport> {
 
 /** The control units record older builds kept beside the canvas: one format. */
 const CONTROL_SOURCE = "control-v1";
-const legacyControl = idbBackend("enso-control", "state");
+const legacyControl = legacyReader(DB.control, STATE_STORE);
 
 async function findControlSource(): Promise<FoundSource> {
-  const raw = await legacyControl.get("units");
+  const raw = await legacyControl.get(RECORD.control);
   if (raw === null || raw === undefined) return { id: CONTROL_SOURCE, fingerprint: null };
   return { id: CONTROL_SOURCE, fingerprint: controlFingerprint(raw), state: raw };
 }
@@ -221,7 +222,7 @@ export async function legacyMarks(): Promise<Record<string, string>> {
   }
 }
 
-const KEY = "working";
+const KEY = RECORD.working;
 
 /** The revision of the stored document this tab last read or wrote. */
 let revision = 0;

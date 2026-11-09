@@ -3,6 +3,8 @@ import { useTutorialStore, TUTORIAL_STEPS } from "@/stores/tutorialStore";
 import { useShortcutScope } from "@/hooks/useShortcutScope";
 import { useShortcut } from "@/hooks/useShortcut";
 import { Button } from "@/components/ui/button";
+import { LOCAL, LOCAL_PREFIX } from "@/lib/profile/names";
+import { localKeys } from "@/profile/local";
 
 function useTutorialAutoStart() {
   const completed = useTutorialStore((s) => s.completed);
@@ -11,8 +13,9 @@ function useTutorialAutoStart() {
 
   useEffect(() => {
     if (completed || active || __VERCEL__) return;
-    const keys = Object.keys(localStorage);
-    const hasPriorData = keys.some((k) => k.startsWith("enso-") && k !== "enso-tutorial");
+    const hasPriorData = localKeys().some(
+      (k) => k.startsWith(LOCAL_PREFIX) && k !== LOCAL.tutorial,
+    );
     if (hasPriorData) return;
     const timer = setTimeout(start, 800);
     return () => clearTimeout(timer);

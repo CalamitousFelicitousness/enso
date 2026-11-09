@@ -1,5 +1,6 @@
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import { LOCAL } from "@/lib/profile/names";
+import { persistLocal } from "@/profile/local";
 import { newId } from "@/lib/id";
 
 export interface PromptHistoryEntry {
@@ -29,7 +30,7 @@ interface PromptHistoryState {
 }
 
 export const usePromptHistoryStore = create<PromptHistoryState>()(
-  persist(
+  persistLocal(
     (set) => ({
       history: [],
       limit: 60,
@@ -64,6 +65,6 @@ export const usePromptHistoryStore = create<PromptHistoryState>()(
 
       clear: () => set((state) => ({ history: state.history.filter((h) => h.pinned) })),
     }),
-    { name: "enso-prompt-history" },
+    { name: LOCAL.promptHistory },
   ),
 );

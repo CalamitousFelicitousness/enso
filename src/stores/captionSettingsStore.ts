@@ -1,5 +1,6 @@
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import { LOCAL } from "@/lib/profile/names";
+import { persistLocal } from "@/profile/local";
 import { VLM_DEFAULT, VLM_SYSTEM_DEFAULT, TAGGER_DEFAULT } from "@/lib/captionModels";
 
 interface VlmSettings {
@@ -55,7 +56,7 @@ interface CaptionSettingsState {
 }
 
 export const useCaptionSettingsStore = create<CaptionSettingsState>()(
-  persist(
+  persistLocal(
     (set) => ({
       vlm: {
         model: VLM_DEFAULT,
@@ -102,7 +103,7 @@ export const useCaptionSettingsStore = create<CaptionSettingsState>()(
       setTagger: (patch) => set((s) => ({ tagger: { ...s.tagger, ...patch } })),
     }),
     {
-      name: "enso-caption-settings",
+      name: LOCAL.captionSettings,
       merge: (persisted, current) => {
         const p = persisted as Partial<CaptionSettingsState> | undefined;
         return {

@@ -20,6 +20,7 @@ import type {
 import { UserAbortError } from "@/lib/abort";
 import { entryThumbs } from "@/lib/inputs/library";
 import { readEntry, readJob, type StoredInputs } from "@/lib/inputs/stored";
+import { META_KEY } from "@/lib/inputs/metaKeys";
 import { JOBS, LIBRARY } from "@/lib/inputs/storeLayout";
 import { sweepPolicy } from "@/lib/inputs/sweep";
 import type { ThumbPart } from "@/lib/media/entry";
@@ -230,8 +231,6 @@ export function answerOf(err: unknown): MoveAnswer {
 
 // The real move
 
-const META_TARGET = "migrateTarget";
-const META_SILENCED = "migrateSilencedUntil";
 const SILENCE_MS = 7 * DAY;
 
 /** File names for a frame set's bytes, by cid, for the server's downloads. */
@@ -434,8 +433,8 @@ const REAL_ENV: MoveEnv = {
   moveOne: (item, context) =>
     item.kind === "entry" ? moveEntry(item, context) : moveRecord(item, context),
   forget: (item) => deleteRecords(item.kind === "entry" ? LIBRARY : JOBS, [item.id]),
-  readTarget: async () => readTarget(await readMeta(META_TARGET).catch(() => null)),
-  writeTarget: (target) => writeMeta(META_TARGET, target),
+  readTarget: async () => readTarget(await readMeta(META_KEY.migrateTarget).catch(() => null)),
+  writeTarget: (target) => writeMeta(META_KEY.migrateTarget, target),
   exclusive: (run) =>
     typeof navigator !== "undefined" && navigator.locks
       ? navigator.locks.request("enso-migrate", { ifAvailable: true }, (lock) =>
@@ -517,7 +516,7 @@ export async function offerMove(): Promise<void> {
     return null;
   });
   if (!waiting) return;
-  const silenced = await readMeta(META_SILENCED).catch(() => null);
+  const silenced = await readMeta(META_KEY.migrateSilenced).catch(() => null);
   if (typeof silenced === "number" && silenced > Date.now()) return;
   const text = moveOfferText(
     waiting.entries,
@@ -533,7 +532,7 @@ export async function offerMove(): Promise<void> {
     action: { label: MOVE, onClick: () => void startMove() },
     cancel: {
       label: NOT_NOW,
-      onClick: () => void writeMeta(META_SILENCED, Date.now() + SILENCE_MS),
+      onClick: () => void writeMeta(META_KEY.migrateSilenced, Date.now() + SILENCE_MS),
     },
   });
 }

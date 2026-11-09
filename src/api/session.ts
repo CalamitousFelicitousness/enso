@@ -1,7 +1,9 @@
 import { create } from "zustand";
 import { api, ApiError } from "./client";
 import type { SessionInfo } from "./types/server";
+import { LOCAL } from "@/lib/profile/names";
 import { base64ToObjectUrl } from "@/lib/utils";
+import { readLocal, writeLocal } from "@/profile/local";
 
 /** How media loads and sockets carry the credential they cannot send as a header. */
 export type SessionMode =
@@ -39,7 +41,6 @@ export const useSessionStore = create<SessionState>()(() => ({
   refused: false,
 }));
 
-const HINT_KEY = "enso-session-mode";
 const RENEW_BEFORE_MS = 60 * 60 * 1000;
 const RENEW_GAP_MS = 10_000;
 
@@ -51,7 +52,7 @@ let renewTimer: ReturnType<typeof setTimeout> | null = null;
 /** The mode this base settled on last time, when media can load before it is confirmed. */
 function readHint(base: string): SessionMode | null {
   try {
-    const hint = JSON.parse(localStorage.getItem(HINT_KEY) ?? "null") as {
+    const hint = JSON.parse(readLocal(LOCAL.sessionMode) ?? "null") as {
       base?: unknown;
       mode?: unknown;
     } | null;
@@ -62,12 +63,9 @@ function readHint(base: string): SessionMode | null {
   }
 }
 
+/** The hint only saves a round trip at the next start. */
 function writeHint(base: string, mode: SessionMode) {
-  try {
-    localStorage.setItem(HINT_KEY, JSON.stringify({ base, mode }));
-  } catch {
-    // the hint only saves a round trip at the next start
-  }
+  writeLocal(LOCAL.sessionMode, JSON.stringify({ base, mode }));
 }
 
 function crossOrigin(): boolean {

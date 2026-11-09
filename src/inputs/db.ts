@@ -28,17 +28,12 @@ import {
   type SweepPlan,
   type SweepPolicy,
 } from "@/lib/inputs/sweep";
+import { CLAIM_PREFIX, META_KEY, type MetaKey } from "@/lib/inputs/metaKeys";
 import { isHash } from "@/lib/media/hash";
+import { DB } from "@/lib/profile/names";
 
-const NAME = "enso-inputs";
+const NAME = DB.inputs;
 const VERSION = 7;
-const ORPHANS = "orphans";
-/** When each hashes row that no document names was first seen unnamed. */
-const HASH_ORPHANS = "hashOrphans";
-/** The days the trash keeps what goes to it, as the user set them. */
-const TRASH_DAYS = "trashDays";
-/** Cids of what the user deleted from the trash, whose bytes have not gone yet. */
-const RECLAIM = "reclaim";
 const LOCK = "enso-inputs";
 
 /** The database was created by a build with a newer layout. */
@@ -134,7 +129,7 @@ export async function readDocument<T>(
 
 // A revision of a document is claimed by adding this key, which only one
 // writer can do. Claims are cleared by the sweep, when no other tab is open.
-const CLAIM = "rev:";
+const CLAIM = CLAIM_PREFIX;
 const claimKey = (store: string, key: string, revision: number) =>
   `${CLAIM}${store}:${key}:${String(revision).padStart(12, "0")}`;
 
@@ -354,12 +349,12 @@ export async function readBlobs(keys: readonly string[]): Promise<Map<string, Bl
 }
 
 /** A value this page keeps in the meta store, such as its client id. */
-export async function readMeta(key: string): Promise<unknown> {
+export async function readMeta(key: MetaKey): Promise<unknown> {
   const db = await open();
   return result(db.transaction(META, "readonly").objectStore(META).get(key));
 }
 
-export function writeMeta(key: string, value: unknown): Promise<void> {
+export function writeMeta(key: MetaKey, value: unknown): Promise<void> {
   return putMeta(key, value);
 }
 
@@ -468,11 +463,11 @@ function strings(value: unknown): string[] {
 export async function readTrashDays(): Promise<number> {
   const db = await open();
   return trashDays(
-    await result(db.transaction(META, "readonly").objectStore(META).get(TRASH_DAYS)),
+    await result(db.transaction(META, "readonly").objectStore(META).get(META_KEY.trashDays)),
   );
 }
 
-async function putMeta(key: string, value: unknown): Promise<void> {
+async function putMeta(key: MetaKey, value: unknown): Promise<void> {
   const db = await open();
   const tx = db.transaction(META, "readwrite");
   const done = finished(tx);
@@ -484,7 +479,7 @@ async function putMeta(key: string, value: unknown): Promise<void> {
 /** Set how many days the trash keeps what goes to it; the sweep of the next
  * page start reads it. */
 export function writeTrashDays(days: number): Promise<void> {
-  return putMeta(TRASH_DAYS, trashDays(days));
+  return putMeta(META_KEY.trashDays, trashDays(days));
 }
 
 /** The stores of a database that hold documents. */
@@ -495,7 +490,7 @@ function documentStoresOf(names: readonly string[]): string[] {
 /** Every record of every document store, read by its store's reader in one
  * transaction; a record the reader refuses is left out. */
 async function readFacts(tx: IDBTransaction, stores: readonly string[]): Promise<RecordFacts[]> {
-  const policy = sweepPolicy(trashDays(await result(tx.objectStore(META).get(TRASH_DAYS))));
+  const policy = sweepPolicy(trashDays(await result(tx.objectStore(META).get(META_KEY.trashDays))));
   const facts: RecordFacts[] = [];
   for (const name of stores) {
     if (!Object.hasOwn(READERS, name)) continue;
@@ -584,14 +579,16 @@ async function deleteAndNote(targets: readonly Target[]): Promise<void> {
   const tx = db.transaction([...stores, META], "readwrite");
   const done = finished(tx);
   try {
-    const policy = sweepPolicy(trashDays(await result(tx.objectStore(META).get(TRASH_DAYS))));
-    const asked = new Set(strings(await result(tx.objectStore(META).get(RECLAIM))));
+    const policy = sweepPolicy(
+      trashDays(await result(tx.objectStore(META).get(META_KEY.trashDays))),
+    );
+    const asked = new Set(strings(await result(tx.objectStore(META).get(META_KEY.reclaim))));
     for (const { store, key } of targets) {
       const record: unknown = await result(tx.objectStore(store).get(key));
       for (const cid of namedBy(store, record, policy)) asked.add(cid);
       tx.objectStore(store).delete(key);
     }
-    tx.objectStore(META).put([...asked], RECLAIM);
+    tx.objectStore(META).put([...asked], META_KEY.reclaim);
     tx.commit();
   } catch (err) {
     done.catch(() => {});
@@ -619,8 +616,10 @@ async function deleteAndFree(
   let freed = 0;
   let plan: ReclaimPlan;
   try {
-    const policy = sweepPolicy(trashDays(await result(tx.objectStore(META).get(TRASH_DAYS))));
-    const asked = new Set(strings(await result(tx.objectStore(META).get(RECLAIM))));
+    const policy = sweepPolicy(
+      trashDays(await result(tx.objectStore(META).get(META_KEY.trashDays))),
+    );
+    const asked = new Set(strings(await result(tx.objectStore(META).get(META_KEY.reclaim))));
     for (const { store, key } of targets) {
       const record: unknown = await result(tx.objectStore(store).get(key));
       for (const cid of namedBy(store, record, policy)) asked.add(cid);
@@ -643,7 +642,7 @@ async function deleteAndFree(
       // the rows of the fitted copies made from it
       tx.objectStore(HASHES).delete(IDBKeyRange.bound(`${cid}/`, `${cid}/￿`));
     }
-    tx.objectStore(META).delete(RECLAIM);
+    tx.objectStore(META).delete(META_KEY.reclaim);
     tx.commit();
   } catch (err) {
     done.catch(() => {});
@@ -657,7 +656,7 @@ async function deleteAndFree(
   await done;
   for (const key of plan.remove) held.delete(key);
   if (plan.waiting.length > 0) {
-    await putMeta(RECLAIM, plan.waiting).catch((err: unknown) => {
+    await putMeta(META_KEY.reclaim, plan.waiting).catch((err: unknown) => {
       console.warn("[inputs] could not note the pictures this page holds", err);
     });
   }
@@ -705,27 +704,30 @@ async function sweep(readers: Readonly<Record<string, StoreReader>>): Promise<vo
       const keys = await result(store.getAllKeys());
       stores.push({ store: name, keys, records });
     }
-    const policy = sweepPolicy(trashDays(await result(tx.objectStore(META).get(TRASH_DAYS))));
+    const policy = sweepPolicy(
+      trashDays(await result(tx.objectStore(META).get(META_KEY.trashDays))),
+    );
     const reading = readForSweep(stores, readers, now, policy);
     for (const { store, key } of reading.expired) tx.objectStore(store).delete(key);
-    for (const cid of strings(await result(tx.objectStore(META).get(RECLAIM)))) {
+    for (const cid of strings(await result(tx.objectStore(META).get(META_KEY.reclaim)))) {
       reading.urgent.add(cid);
     }
     const keys = (await result(tx.objectStore(BLOBS).getAllKeys())).filter(
       (key) => typeof key === "string",
     );
-    const orphans = ((await result(tx.objectStore(META).get(ORPHANS))) ?? {}) as Orphans;
+    const orphans = ((await result(tx.objectStore(META).get(META_KEY.orphans))) ?? {}) as Orphans;
     plan = planSweep(keys, reading.named, orphans, now, reading.urgent);
     for (const key of plan.remove) tx.objectStore(BLOBS).delete(key);
     const rows = (await result(tx.objectStore(HASHES).getAllKeys())).filter(
       (key) => typeof key === "string",
     );
-    const rowOrphans = ((await result(tx.objectStore(META).get(HASH_ORPHANS))) ?? {}) as Orphans;
+    const rowOrphans = ((await result(tx.objectStore(META).get(META_KEY.hashOrphans))) ??
+      {}) as Orphans;
     rowPlan = planSweep(rows, reading.named, rowOrphans, now, reading.urgent);
     for (const key of rowPlan.remove) tx.objectStore(HASHES).delete(key);
-    tx.objectStore(META).delete(ORPHANS);
-    tx.objectStore(META).delete(HASH_ORPHANS);
-    tx.objectStore(META).delete(RECLAIM);
+    tx.objectStore(META).delete(META_KEY.orphans);
+    tx.objectStore(META).delete(META_KEY.hashOrphans);
+    tx.objectStore(META).delete(META_KEY.reclaim);
     tx.objectStore(META).delete(IDBKeyRange.bound(CLAIM, `${CLAIM}￿`));
   } catch (err) {
     done.catch(() => {});
@@ -737,10 +739,10 @@ async function sweep(readers: Readonly<Record<string, StoreReader>>): Promise<vo
     throw err;
   }
   await done;
-  await putMeta(ORPHANS, plan.orphans).catch((err: unknown) => {
+  await putMeta(META_KEY.orphans, plan.orphans).catch((err: unknown) => {
     console.warn("[inputs] could not store when unused pictures were first seen", err);
   });
-  await putMeta(HASH_ORPHANS, rowPlan.orphans).catch((err: unknown) => {
+  await putMeta(META_KEY.hashOrphans, rowPlan.orphans).catch((err: unknown) => {
     console.warn("[inputs] could not store when unused hashes were first seen", err);
   });
 }

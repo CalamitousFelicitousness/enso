@@ -10,13 +10,14 @@ import type {
 import { getCachedFolder } from "@/lib/folderCache";
 import { carriedThumbs, sameStamp } from "@/lib/gallery/listing";
 import { pruneSelection, relocate } from "@/lib/gallery/selection";
+import { LOCAL } from "@/lib/profile/names";
+import { readLocal, writeLocal } from "@/profile/local";
 
-const SORT_STORAGE_KEY = "enso-gallery-sort";
 const DEFAULT_SORT: GallerySort = { field: "name", dir: "asc" };
 
 const loadPersistedSort = (): GallerySort => {
   try {
-    const raw = localStorage.getItem(SORT_STORAGE_KEY);
+    const raw = readLocal(LOCAL.gallerySort);
     if (!raw) return DEFAULT_SORT;
     const parsed = JSON.parse(raw) as Partial<GallerySort>;
     const fields: GallerySortField[] = ["name", "mtime", "size", "width"];
@@ -30,35 +31,19 @@ const loadPersistedSort = (): GallerySort => {
       return { field: parsed.field!, dir: parsed.dir! };
     }
   } catch {
-    // quota, privacy mode, malformed JSON - fall through to default
+    // malformed JSON - fall through to default
   }
   return DEFAULT_SORT;
 };
 
 const savePersistedSort = (sort: GallerySort): void => {
-  try {
-    localStorage.setItem(SORT_STORAGE_KEY, JSON.stringify(sort));
-  } catch {
-    // ignore quota/privacy errors
-  }
+  writeLocal(LOCAL.gallerySort, JSON.stringify(sort));
 };
 
-const PICTURE_ONLY_STORAGE_KEY = "enso-gallery-picture-only";
-
-const loadPictureOnly = (): boolean => {
-  try {
-    return localStorage.getItem(PICTURE_ONLY_STORAGE_KEY) === "1";
-  } catch {
-    return false;
-  }
-};
+const loadPictureOnly = (): boolean => readLocal(LOCAL.galleryPictureOnly) === "1";
 
 const savePictureOnly = (on: boolean): void => {
-  try {
-    localStorage.setItem(PICTURE_ONLY_STORAGE_KEY, on ? "1" : "0");
-  } catch {
-    // ignore quota/privacy errors
-  }
+  writeLocal(LOCAL.galleryPictureOnly, on ? "1" : "0");
 };
 
 interface GalleryState {

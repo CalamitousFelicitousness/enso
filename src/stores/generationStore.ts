@@ -1,5 +1,6 @@
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import { DB, LOCAL } from "@/lib/profile/names";
+import { persistLocal } from "@/profile/local";
 import { createIdbListDb } from "@/lib/idbListDb";
 import type { MaskStroke, Size } from "@/lib/inputs/types";
 import type { DetailerOverrides, DetailerModelEntry, JobWarning } from "@/api/types/v2";
@@ -41,7 +42,7 @@ export interface GenerationResult {
 }
 
 export const generationHistoryDb = createIdbListDb<GenerationResult>({
-  dbName: "SDNextHistory",
+  dbName: DB.history,
   storeName: "results",
   sortKey: "timestamp",
 });
@@ -384,7 +385,7 @@ export const defaultParams = {
 const defaultParamKeys = Object.keys(defaultParams) as (keyof typeof defaultParams)[];
 
 export const useGenerationStore = create<GenerationState>()(
-  persist(
+  persistLocal(
     (set, get) => ({
       ...defaultParams,
 
@@ -461,7 +462,7 @@ export const useGenerationStore = create<GenerationState>()(
       reset: () => set({ ...defaultParams }),
     }),
     {
-      name: "enso-generation",
+      name: LOCAL.generation,
       version: 5,
       // Every version before 4 took the strip's limit from sdnext's latent cache size;
       // before 5 the LUT field held an upload ref from the staging store before the media store

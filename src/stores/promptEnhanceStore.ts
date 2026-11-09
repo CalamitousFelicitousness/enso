@@ -1,5 +1,6 @@
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import { LOCAL } from "@/lib/profile/names";
+import { persistLocal } from "@/profile/local";
 import { newId } from "@/lib/id";
 
 export interface EnhanceHistoryEntry {
@@ -66,7 +67,7 @@ interface PromptEnhanceState {
 }
 
 export const usePromptEnhanceStore = create<PromptEnhanceState>()(
-  persist(
+  persistLocal(
     (set, get) => ({
       model: "",
       systemPrompt: "",
@@ -124,7 +125,7 @@ export const usePromptEnhanceStore = create<PromptEnhanceState>()(
       setHistoryLimit: (limit) => set({ historyLimit: limit }),
     }),
     {
-      name: "enso-enhance",
+      name: LOCAL.enhance,
       partialize: (state) => ({
         model: state.model,
         systemPrompt: state.systemPrompt,

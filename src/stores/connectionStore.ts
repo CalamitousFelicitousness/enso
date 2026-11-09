@@ -1,5 +1,6 @@
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import { LOCAL } from "@/lib/profile/names";
+import { persistLocal } from "@/profile/local";
 
 interface ConnectionState {
   /** Empty string means use window.location.origin (default) */
@@ -13,7 +14,7 @@ interface ConnectionState {
 }
 
 export const useConnectionStore = create<ConnectionState>()(
-  persist(
+  persistLocal(
     (set) => ({
       backendUrl: "",
       username: "",
@@ -24,6 +25,6 @@ export const useConnectionStore = create<ConnectionState>()(
       clearAuth: () => set({ username: "", password: "" }),
       reset: () => set({ backendUrl: "", username: "", password: "" }),
     }),
-    { name: "enso-connections" },
+    { name: LOCAL.connections },
   ),
 );

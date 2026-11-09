@@ -1,5 +1,6 @@
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import { LOCAL } from "@/lib/profile/names";
+import { persistLocal } from "@/profile/local";
 import type { UnifiedModel } from "@/api/types/cloud";
 
 interface ModelSelectionState {
@@ -9,7 +10,7 @@ interface ModelSelectionState {
 }
 
 export const useModelSelectionStore = create<ModelSelectionState>()(
-  persist(
+  persistLocal(
     (set) => ({
       activeModel: null,
 
@@ -18,7 +19,7 @@ export const useModelSelectionStore = create<ModelSelectionState>()(
       clear: () => set({ activeModel: null }),
     }),
     {
-      name: "enso-model-selection",
+      name: LOCAL.modelSelection,
       version: 2,
       // Defensive shape check on rehydrate: discard any persisted activeModel
       // whose `source` isn't one of the three known discriminator values, so

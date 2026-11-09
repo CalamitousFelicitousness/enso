@@ -1,5 +1,6 @@
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import { LOCAL } from "@/lib/profile/names";
+import { persistLocal } from "@/profile/local";
 
 interface CloudTextSlot {
   provider: string;
@@ -28,7 +29,7 @@ interface CloudTextState {
 const EMPTY: CloudTextSlot = { provider: "", model: "" };
 
 export const useCloudTextStore = create<CloudTextState>()(
-  persist(
+  persistLocal(
     (set) => ({
       enhance: EMPTY,
       caption: EMPTY,
@@ -44,6 +45,6 @@ export const useCloudTextStore = create<CloudTextState>()(
       setCaptionPrompt: (s) => set({ captionPrompt: s }),
       setVqaQuestion: (s) => set({ vqaQuestion: s }),
     }),
-    { name: "enso-cloud-text" },
+    { name: LOCAL.cloudText },
   ),
 );

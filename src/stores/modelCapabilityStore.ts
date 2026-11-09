@@ -1,5 +1,6 @@
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import { LOCAL } from "@/lib/profile/names";
+import { persistLocal } from "@/profile/local";
 import type { CheckpointGuidanceV2, CheckpointInfoV2, DetailerMode } from "@/api/types/models";
 import type { ModelSizes } from "@/lib/inputs/outline";
 import { declarationOf, declaredSize } from "@/lib/media/rules";
@@ -58,7 +59,7 @@ interface ModelCapabilityState {
 }
 
 export const useModelCapabilityStore = create<ModelCapabilityState>()(
-  persist(
+  persistLocal(
     (set, get) => ({
       byTitle: {},
 
@@ -73,6 +74,6 @@ export const useModelCapabilityStore = create<ModelCapabilityState>()(
         set({ byTitle: { ...kept, [checkpoint.title]: record } });
       },
     }),
-    { name: "enso-model-capabilities", version: 1 },
+    { name: LOCAL.modelCapabilities, version: 1 },
   ),
 );

@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { DB, RECORD, STATE_STORE } from "@/lib/profile/names";
 import { newId } from "@/lib/id";
 import { base64ToBlob } from "@/lib/utils";
 import { createIdbStorage } from "@/lib/idbStorage";
@@ -91,10 +92,10 @@ interface LegacyPersistedVideoCanvasState {
 }
 
 const videoCanvasIdbStorage = createIdbStorage<PersistedVideoCanvasState>(
-  "enso-video-canvas",
-  "state",
+  DB.videoCanvas,
+  STATE_STORE,
   {
-    legacyKey: "enso-video-canvas",
+    legacyKey: RECORD.videoCanvasV0,
     ...writeProblems("video-canvas", "video inputs", () => videoCanvasIdbStorage.retry()),
     // Every put copies each File in the record, so a record of the same
     // pictures (by id; a picture's bytes never change) is not written again
@@ -245,7 +246,7 @@ export const useVideoCanvasStore = create<VideoCanvasState>()(
     {
       // The key changed with the record format; the version 0 record stays
       // under "enso-video-canvas" for builds that still read JSON.
-      name: "enso-video-canvas-v1",
+      name: RECORD.videoCanvas,
       storage: videoCanvasIdbStorage,
       version: 1,
       onRehydrateStorage: () => (state, error) => {

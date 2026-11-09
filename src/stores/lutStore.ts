@@ -1,6 +1,7 @@
 import { useSyncExternalStore } from "react";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { DB, RECORD, STATE_STORE } from "@/lib/profile/names";
 import { createIdbStorage } from "@/lib/idbStorage";
 import { migratePendingLuts, type LutPlace, type PendingLut, type PendingLuts } from "@/lib/lut";
 import { reportStorageProblem } from "@/lib/storageHealth";
@@ -14,7 +15,7 @@ interface LutState {
   setPending: (where: LutPlace, pending: PendingLut | null) => void;
 }
 
-const lutStorage = createIdbStorage<PendingLuts>("enso-color-lut", "state", {
+const lutStorage = createIdbStorage<PendingLuts>(DB.colorLut, STATE_STORE, {
   ...writeProblems("color-lut", "color LUT", () => lutStorage.retry()),
 });
 
@@ -26,7 +27,7 @@ export const useLutStore = create<LutState>()(
       setPending: (where, pending) => set({ [where]: pending }),
     }),
     {
-      name: "enso-color-lut",
+      name: RECORD.colorLut,
       storage: lutStorage,
       version: 2,
       onRehydrateStorage: () => (_state, error) => {

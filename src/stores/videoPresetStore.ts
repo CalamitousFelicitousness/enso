@@ -1,5 +1,6 @@
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import { LOCAL } from "@/lib/profile/names";
+import { persistLocal } from "@/profile/local";
 import { useVideoStore } from "@/stores/videoStore";
 import { presetKeysFor, type VideoJobType } from "@/lib/video/paramRegistry";
 
@@ -98,7 +99,7 @@ interface VideoPresetState {
 }
 
 export const useVideoPresetStore = create<VideoPresetState>()(
-  persist(
+  persistLocal(
     (set, get) => ({
       presets: [],
 
@@ -159,7 +160,7 @@ export const useVideoPresetStore = create<VideoPresetState>()(
       },
     }),
     {
-      name: "enso-video-presets",
+      name: LOCAL.videoPresets,
       partialize: (state) => ({ presets: state.presets.filter((p) => !p.builtIn) }),
     },
   ),

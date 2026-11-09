@@ -1,5 +1,6 @@
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import { LOCAL } from "@/lib/profile/names";
+import { persistLocal } from "@/profile/local";
 
 /** The hash the server holds each video canvas file under, by the canvas's
  * frame and reference ids, so a reload claims the files instead of sending
@@ -12,7 +13,7 @@ interface VideoHashState {
 }
 
 export const useVideoHashStore = create<VideoHashState>()(
-  persist(
+  persistLocal(
     (set) => ({
       hashes: {},
       remember: (id, hash) =>
@@ -26,6 +27,6 @@ export const useVideoHashStore = create<VideoHashState>()(
             : { hashes: Object.fromEntries(kept) };
         }),
     }),
-    { name: "enso-video-hashes", partialize: (s) => ({ hashes: s.hashes }) },
+    { name: LOCAL.videoHashes, partialize: (s) => ({ hashes: s.hashes }) },
   ),
 );

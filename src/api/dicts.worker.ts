@@ -15,6 +15,7 @@ import {
   type TagMatch,
 } from "@/lib/dicts/tags";
 import { outdated, type Listed } from "@/lib/dicts/freshness";
+import { DB } from "@/lib/profile/names";
 import type { DictContent, DictInfo } from "./types/dict";
 
 interface LoadRequest {
@@ -32,7 +33,7 @@ export type DictsResponse =
 
 // Version 1 kept every tag as an object, which takes seconds to read back;
 // version 2 had no aliases or translations.
-const DB_NAME = "enso-dict-cache";
+const DB_NAME = DB.dicts;
 const DB_VERSION = 3;
 const STORE = "dicts";
 
@@ -60,7 +61,11 @@ function openDb(): Promise<IDBDatabase> {
       conn.createObjectStore(STORE);
     };
     req.onsuccess = () => {
-      req.result.onversionchange = () => req.result.close();
+      // let another tab's upgrade or delete through; the next use opens again
+      req.result.onversionchange = () => {
+        req.result.close();
+        db = null;
+      };
       resolve(req.result);
     };
     // a tab of an older build holds an older version open; go without the cache

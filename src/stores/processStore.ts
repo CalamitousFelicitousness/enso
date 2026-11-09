@@ -1,5 +1,6 @@
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import { LOCAL } from "@/lib/profile/names";
+import { persistLocal } from "@/profile/local";
 import type {
   ProcessCreateVideoParams,
   ProcessDetailerParams,
@@ -320,7 +321,7 @@ const NO_RESULTS = {
 };
 
 export const useProcessStore = create<ProcessState>()(
-  persist(
+  persistLocal(
     (set, get) => ({
       mode: "image",
       files: [],
@@ -440,7 +441,7 @@ export const useProcessStore = create<ProcessState>()(
       setCompareMode: (compareMode) => set({ compareMode }),
     }),
     {
-      name: "enso-process",
+      name: LOCAL.process,
       version: 3,
       partialize: ({
         mode,

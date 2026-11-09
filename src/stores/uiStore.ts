@@ -1,5 +1,6 @@
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import { LOCAL } from "@/lib/profile/names";
+import { persistLocal } from "@/profile/local";
 import {
   LIBRARY_SUB_TABS,
   MODELS_SUB_TABS,
@@ -183,7 +184,7 @@ const DEFAULT_PANEL_SELECTIONS: PanelSelections = {
 };
 
 export const useUiStore = create<UiState>()(
-  persist(
+  persistLocal(
     (set) => ({
       leftRailCollapsed: false,
       activeNavView: "images",
@@ -270,7 +271,7 @@ export const useUiStore = create<UiState>()(
       setCivitaiFavorites: (enabled) => set({ civitaiFavorites: enabled }),
     }),
     {
-      name: "enso-ui",
+      name: LOCAL.ui,
       version: 5,
       partialize: (state) => {
         const {

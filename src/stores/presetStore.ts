@@ -1,5 +1,6 @@
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import { LOCAL } from "@/lib/profile/names";
+import { persistLocal } from "@/profile/local";
 import { useGenerationStore } from "@/stores/generationStore";
 
 export interface GenerationPreset {
@@ -155,7 +156,7 @@ interface PresetState {
 }
 
 export const usePresetStore = create<PresetState>()(
-  persist(
+  persistLocal(
     (set, get) => ({
       presets: [],
 
@@ -217,7 +218,7 @@ export const usePresetStore = create<PresetState>()(
       },
     }),
     {
-      name: "enso-generation-presets",
+      name: LOCAL.generationPresets,
       partialize: (state) => ({ presets: state.presets.filter((p) => !p.builtIn) }),
     },
   ),

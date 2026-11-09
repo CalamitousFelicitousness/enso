@@ -1,6 +1,7 @@
 import type { CachedThumb } from "@/api/types/gallery";
+import { DB } from "@/lib/profile/names";
 
-const DB_NAME = "SDNextReact";
+const DB_NAME = DB.thumbs;
 const STORE_NAME = "thumbs";
 const DB_VERSION = 3;
 
@@ -19,8 +20,19 @@ function openDb(): Promise<IDBDatabase> {
       const store = db.createObjectStore(STORE_NAME, { keyPath: "path" });
       store.createIndex("folder", "folder", { unique: false });
     };
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error ?? new Error("IDB request failed"));
+    req.onsuccess = () => {
+      const db = req.result;
+      // let another tab's upgrade or delete through; the next use opens again
+      db.onversionchange = () => {
+        db.close();
+        dbPromise = null;
+      };
+      resolve(db);
+    };
+    req.onerror = () => {
+      dbPromise = null;
+      reject(req.error ?? new Error("IDB request failed"));
+    };
   });
   return dbPromise;
 }

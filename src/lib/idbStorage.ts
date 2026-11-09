@@ -1,4 +1,5 @@
 import type { PersistStorage, StorageValue } from "zustand/middleware";
+import type { DbName } from "@/lib/profile/names";
 
 /** Where records live. Rejections carry a non-null Error. */
 export interface KeyValueBackend {
@@ -173,7 +174,7 @@ export function createGatedStorage<S>(
 }
 
 /** One object store of an IndexedDB database as a key-value backend. */
-export function idbBackend(dbName: string, storeName: string): KeyValueBackend {
+export function idbBackend(dbName: DbName, storeName: string): KeyValueBackend {
   let dbPromise: Promise<IDBDatabase> | null = null;
 
   function openDb(): Promise<IDBDatabase> {
@@ -242,9 +243,55 @@ export function idbBackend(dbName: string, storeName: string): KeyValueBackend {
  * write costs the main thread nothing beyond the debounce. Records written
  * as JSON strings by earlier builds are still read. */
 export function createIdbStorage<S>(
-  dbName: string,
+  dbName: DbName,
   storeName: string,
   options: GatedStorageOptions<S> = {},
 ): GatedStorage<S> {
   return createGatedStorage(idbBackend(dbName, storeName), `${dbName}/${storeName}`, options);
+}
+
+/** Open a database only if this origin has it: null, with nothing created,
+ * when it has none. */
+export function openExisting(name: DbName): Promise<IDBDatabase | null> {
+  return new Promise((resolve, reject) => {
+    let absent = false;
+    const req = indexedDB.open(name);
+    // Without a version, an upgrade is asked for only by a database that did
+    // not exist; aborting it leaves none behind.
+    req.onupgradeneeded = () => {
+      absent = true;
+      req.transaction?.abort();
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => {
+      if (absent) resolve(null);
+      else reject(req.error ?? new Error("IDB open failed"));
+    };
+  });
+}
+
+/** Reads one object store of a database that only older builds wrote. Each
+ * read opens and closes the database, which is not created when missing. */
+export interface LegacyReader {
+  /** Resolves null when the database, the store or the key is absent. */
+  get(key: string): Promise<unknown>;
+}
+
+export function legacyReader(dbName: DbName, storeName: string): LegacyReader {
+  return {
+    get: async (key) => {
+      const db = await openExisting(dbName);
+      if (!db) return null;
+      try {
+        if (!db.objectStoreNames.contains(storeName)) return null;
+        return await new Promise((resolve, reject) => {
+          const req = db.transaction(storeName, "readonly").objectStore(storeName).get(key);
+          req.onsuccess = () => resolve(req.result ?? null);
+          req.onerror = () => reject(req.error ?? new Error("IDB request failed"));
+        });
+      } finally {
+        db.close();
+      }
+    },
+  };
 }

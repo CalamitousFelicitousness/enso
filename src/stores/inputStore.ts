@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { RECORD } from "@/lib/profile/names";
 import { newId } from "@/lib/id";
 import { useGenerationStore } from "@/stores/generationStore";
 import { reportStorageProblem } from "@/lib/storageHealth";
@@ -481,7 +482,7 @@ export const useInputStore = create<InputState>()(
       };
     },
     {
-      name: "working",
+      name: RECORD.working,
       storage,
       partialize: (s): PersistedInputs => working(s),
       merge: (persisted, current) => {

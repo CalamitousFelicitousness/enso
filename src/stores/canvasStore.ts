@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { persist, type StorageValue } from "zustand/middleware";
+import { DB, RECORD, STATE_STORE } from "@/lib/profile/names";
 import { createGatedStorage, idbBackend } from "@/lib/idbStorage";
 import { loose } from "@/lib/inputs/loose";
 import { reportStorageProblem } from "@/lib/storageHealth";
@@ -91,13 +92,13 @@ interface PersistedCanvasState {
   focusedFrameId: FrameId | null;
 }
 
-const canvasRecords = idbBackend("enso-canvas", "state");
+const canvasRecords = idbBackend(DB.canvas, STATE_STORE);
 
 /** The view settings of the canvas record an older build left, which also
  * held the input frames. Those records stay as they are for that build. */
 async function viewOfLegacyRecord(): Promise<StorageValue<PersistedCanvasState> | null> {
   try {
-    for (const key of ["enso-canvas-v4", "enso-canvas"]) {
+    for (const key of [RECORD.canvasV4, RECORD.canvasV3]) {
       const raw = await canvasRecords.get(key);
       const record = loose<StorageValue<PersistedCanvasState>>(
         typeof raw === "string" ? JSON.parse(raw) : raw,
@@ -183,7 +184,7 @@ export const useCanvasStore = create<CanvasState>()(
     {
       // A new key per record format: the builds that wrote "enso-canvas-v4"
       // and "enso-canvas" still read them after a rollback.
-      name: "enso-canvas-v5",
+      name: RECORD.canvas,
       storage: canvasStorage,
       version: 5,
       onRehydrateStorage: () => (_state, error) => {

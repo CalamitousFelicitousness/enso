@@ -13,9 +13,11 @@
  * non-null Error (project convention from commit cb661f5).
  */
 
+import type { DbName } from "@/lib/profile/names";
+
 interface ListDbConfig<T extends { id: string }> {
   /** IDB database name. Stable across releases; renaming creates a fresh DB. */
-  dbName: string;
+  dbName: DbName;
   /** Object store name within the database. */
   storeName: string;
   /**
@@ -60,8 +62,19 @@ export function createIdbListDb<T extends { id: string }>(config: ListDbConfig<T
           store.createIndex(sortKey, sortKey, { unique: false });
         }
       };
-      req.onsuccess = () => resolve(req.result);
-      req.onerror = () => reject(req.error ?? new Error("IDB request failed"));
+      req.onsuccess = () => {
+        const db = req.result;
+        // let another tab's upgrade or delete through; the next use opens again
+        db.onversionchange = () => {
+          db.close();
+          dbPromise = null;
+        };
+        resolve(db);
+      };
+      req.onerror = () => {
+        dbPromise = null;
+        reject(req.error ?? new Error("IDB request failed"));
+      };
     });
     return dbPromise;
   }

@@ -1,5 +1,6 @@
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import { LOCAL } from "@/lib/profile/names";
+import { persistLocal } from "@/profile/local";
 import type { Download } from "@/lib/recipes/models";
 
 /** The most downloads remembered; the oldest go first. */
@@ -14,7 +15,7 @@ interface ModelHashState {
 }
 
 export const useModelHashStore = create<ModelHashState>()(
-  persist(
+  persistLocal(
     (set) => ({
       downloads: [],
       remember: (download) =>
@@ -27,6 +28,6 @@ export const useModelHashStore = create<ModelHashState>()(
           ].slice(-KEPT),
         })),
     }),
-    { name: "enso-model-downloads", partialize: (s) => ({ downloads: s.downloads }) },
+    { name: LOCAL.modelDownloads, partialize: (s) => ({ downloads: s.downloads }) },
   ),
 );

@@ -23,6 +23,15 @@ const randomUuid = {
     "Secure contexts only, so the app would not start over plain http; use newId from @/lib/id.",
 };
 
+const STORAGE = ["localStorage", "sessionStorage", "indexedDB"];
+const STORAGE_MESSAGE =
+  "Storage goes through the modules that name it in src/lib/profile/names.ts: @/profile/local for localStorage, the openers for IndexedDB.";
+const storageGlobals = STORAGE.map((name) => ({ name, message: STORAGE_MESSAGE }));
+const storageProperties = ["window", "globalThis", "self"].flatMap((object) =>
+  STORAGE.map((property) => ({ object, property, message: STORAGE_MESSAGE })),
+);
+const PERSIST_OPTIONS = "CallExpression[callee.name='persist'] > ObjectExpression";
+
 export default defineConfig([
   globalIgnores([
     "dist",
@@ -84,6 +93,37 @@ export default defineConfig([
     },
   },
   {
+    // What this browser keeps is named in src/lib/profile/names.ts and reached
+    // through these files alone. Flat config keeps the last matching block's
+    // options for a rule, so the pure-module block below repeats them.
+    files: ["src/**/*.{ts,tsx}"],
+    ignores: [
+      "src/**/*.test.ts",
+      "src/profile/local.ts",
+      "src/lib/idbStorage.ts",
+      "src/lib/idbListDb.ts",
+      "src/lib/thumbnailCache.ts",
+      "src/inputs/db.ts",
+      "src/api/dicts.worker.ts",
+    ],
+    rules: {
+      "no-restricted-globals": ["error", ...storageGlobals],
+      "no-restricted-properties": ["error", randomUuid, ...storageProperties],
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector: `${PERSIST_OPTIONS}:not(:has(> Property[key.name='storage']))`,
+          message:
+            "A store kept in localStorage persists through persistLocal from @/profile/local; one in IndexedDB names its gated storage.",
+        },
+        {
+          selector: `${PERSIST_OPTIONS} > Property[key.name='name'] > :matches(Literal, TemplateLiteral)`,
+          message: "A persisted store takes its name from src/lib/profile/names.ts.",
+        },
+      ],
+    },
+  },
+  {
     // Pure modules: values in, values out. They run in the node test
     // environment, so nothing here may reach a store, React or the DOM.
     files: [
@@ -93,6 +133,7 @@ export default defineConfig([
       "src/lib/lut.ts",
       "src/lib/jobs/**/*.ts",
       "src/lib/media/**/*.ts",
+      "src/lib/profile/**/*.ts",
       "src/lib/recipes/**/*.ts",
       "src/lib/request/generateParams.ts",
       "src/lib/request/fitNote.ts",
@@ -116,6 +157,7 @@ export default defineConfig([
                 "@/components/*",
                 "@/canvas/*",
                 "@/inputs/*",
+                "@/profile/*",
                 "@/api/client",
                 "react",
                 "react-dom",
@@ -159,6 +201,7 @@ export default defineConfig([
         { object: "URL", property: "createObjectURL", message: "Object URLs belong to media." },
         { object: "URL", property: "revokeObjectURL", message: "Object URLs belong to media." },
         randomUuid,
+        ...storageProperties,
       ],
     },
   },

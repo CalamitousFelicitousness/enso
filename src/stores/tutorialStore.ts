@@ -1,5 +1,6 @@
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import { LOCAL } from "@/lib/profile/names";
+import { persistLocal } from "@/profile/local";
 import { useUiStore } from "@/stores/uiStore";
 import { TUTORIAL_BODY, TUTORIAL_TITLE } from "@/canvas/navigation/text";
 
@@ -60,7 +61,7 @@ interface TutorialState {
 }
 
 export const useTutorialStore = create<TutorialState>()(
-  persist(
+  persistLocal(
     (set) => ({
       active: false,
       currentStep: 0,
@@ -95,7 +96,7 @@ export const useTutorialStore = create<TutorialState>()(
       reset: () => set({ completed: false }),
     }),
     {
-      name: "enso-tutorial",
+      name: LOCAL.tutorial,
       partialize: (state) => ({ completed: state.completed }),
     },
   ),
