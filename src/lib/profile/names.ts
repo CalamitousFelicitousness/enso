@@ -26,6 +26,10 @@ export const LOCAL = {
   sessionMode: "enso-session-mode",
   gallerySort: "enso-gallery-sort",
   galleryPictureOnly: "enso-gallery-picture-only",
+  // When this browser first opened Enso: a first run has none.
+  profile: "enso-profile",
+  // A reset asked for, running, or done and not yet told.
+  reset: "enso-reset",
 } as const;
 
 export type LocalKey = (typeof LOCAL)[keyof typeof LOCAL];

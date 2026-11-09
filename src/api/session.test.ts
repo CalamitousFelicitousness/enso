@@ -193,13 +193,13 @@ describe("endSession", () => {
   it("ends a session the page's cookie carries", async () => {
     const { end, endSession } = await settled(null, true);
     await endSession();
-    expect(end).toHaveBeenCalledWith("/sdapi/v2/session", undefined);
+    expect(end).toHaveBeenCalledWith("/sdapi/v2/session", undefined, undefined);
   });
 
   it("names the token of a session on another origin", async () => {
     const { end, endSession } = await settled("http://127.0.0.1:7855", true);
     await endSession();
-    expect(end).toHaveBeenCalledWith("/sdapi/v2/session", { t: "t1" });
+    expect(end).toHaveBeenCalledWith("/sdapi/v2/session", { t: "t1" }, undefined);
   });
 
   it("has nothing to end on a server that asks for no credentials", async () => {
@@ -211,6 +211,14 @@ describe("endSession", () => {
   it("takes a refusal for a session already ended", async () => {
     const { ApiError, end, endSession } = await settled(null, true);
     end.mockRejectedValue(new ApiError(404, "Not Found", {}));
-    await expect(endSession()).resolves.toBeUndefined();
+    await expect(endSession()).resolves.toBe(true);
+  });
+
+  it("answers false when the server cannot be reached", async () => {
+    const { ApiError, end, endSession } = await settled(null, true);
+    end.mockRejectedValueOnce(new TypeError("Failed to fetch"));
+    await expect(endSession()).resolves.toBe(false);
+    end.mockRejectedValueOnce(new ApiError(502, "Bad Gateway", {}));
+    await expect(endSession()).resolves.toBe(false);
   });
 });

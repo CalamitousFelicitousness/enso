@@ -22,7 +22,7 @@ import {
   storeOffText,
 } from "@/lib/media/text";
 import { inputsReady } from "@/stores/inputStore";
-import { readTrashDays, writeTrashDays } from "./db";
+import { readStoredTrashDays, readTrashDays, writeTrashDays } from "./db";
 import { failureText } from "./quota";
 import { offerMove } from "./migrate";
 import { useTrash } from "./trash";
@@ -69,7 +69,7 @@ export async function chooseRetention(days: number): Promise<() => Promise<void>
  * inputs go early is asked about first, and until then the copy keeps the
  * browser's own. */
 async function follow(serverDays: number): Promise<void> {
-  const local = await readTrashDays().catch(() => null);
+  const local = await readStoredTrashDays().catch(() => null);
   if (local === null || !shortensRetention(serverDays, local)) {
     // a notice about an earlier answer no longer applies
     toast.dismiss(RETENTION_TOAST);

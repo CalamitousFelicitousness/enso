@@ -28,8 +28,24 @@ export type ProfileGroup =
   | "connection"
   /** What older builds kept here that has not moved to the server. */
   | "legacy"
-  /** What is fetched or worked out again. */
+  /** What is fetched or worked out again, and the first-run marker: these go
+   * only when every content row does. */
   | "caches";
+
+/** The groups a reset offers to choose, in the order it shows them. */
+export type ResetRow = Exclude<ProfileGroup, "caches">;
+
+export const RESET_ROWS: readonly ResetRow[] = [
+  "work",
+  "parameters",
+  "saved",
+  "interface",
+  "connection",
+  "legacy",
+];
+
+/** The rows that hold what the user made and set; all four make a full reset. */
+export const CONTENT_ROWS: readonly ResetRow[] = ["work", "parameters", "saved", "interface"];
 
 export type ProfileEntry =
   /** A localStorage key. `fields` of its state belong to another group. */
@@ -99,4 +115,5 @@ export const MANIFEST: readonly ProfileEntry[] = [
   { kind: "local", key: LOCAL.client, group: "connection" },
   { kind: "local", key: LOCAL.modelCapabilities, group: "caches" },
   { kind: "local", key: LOCAL.modelDownloads, group: "caches" },
+  { kind: "local", key: LOCAL.profile, group: "caches" },
 ];

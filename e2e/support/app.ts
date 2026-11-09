@@ -334,10 +334,52 @@ export class Enso {
     return this.submit(() => slot.click());
   }
 
+  /** The same profile in a second page, as another tab. */
+  async openAgain(): Promise<Enso> {
+    const app = new Enso(await this.page.context().newPage());
+    await app.page.goto("");
+    await expect(app.page.getByRole("button", { name: "Help", exact: true })).toBeVisible();
+    return app;
+  }
+
+  /** The reset dialog, opened from the palette, with its counts in. */
+  async resetDialog(): Promise<Locator> {
+    await this.page.keyboard.press("Control+k");
+    await this.page.getByPlaceholder("Type a command...").fill("Reset Enso in this browser");
+    await this.page.keyboard.press("Enter");
+    const dialog = this.page.getByRole("dialog", { name: "Reset Enso in this browser?" });
+    await expect(dialog).toBeVisible();
+    await expect(dialog.getByText("Counting...")).toHaveCount(0);
+    return dialog;
+  }
+
+  /** Reset the rows named, by their labels, and wait for the page the reset
+   * loads; the notice after it is returned. */
+  async reset(rows: readonly string[]): Promise<string> {
+    const dialog = await this.resetDialog();
+    for (const box of await dialog.getByRole("checkbox").all()) {
+      if ((await box.isChecked()) !== rows.includes(await labelOf(box))) await box.click();
+    }
+    await Promise.all([
+      this.page.waitForEvent("load"),
+      dialog.getByRole("button", { name: "Reset", exact: true }).click(),
+    ]);
+    const notice = this.page.locator("[data-sonner-toast]").filter({ hasText: /^Enso reset/ });
+    await expect(notice).toBeVisible();
+    return notice.innerText();
+  }
+
   /** Open a Right Panel tab by its rail button; a click on the open tab would close it. */
   async openRightTab(name: string): Promise<void> {
     const tab = this.page.getByRole("button", { name, exact: true });
     if ((await tab.getAttribute("aria-pressed")) !== "true") await tab.click();
     await expect(tab).toHaveAttribute("aria-pressed", "true");
   }
+}
+
+/** The text of the label a control is named by. */
+function labelOf(control: Locator): Promise<string> {
+  return control.evaluate(
+    (el) => document.querySelector(`label[for="${el.id}"]`)?.textContent ?? "",
+  );
 }

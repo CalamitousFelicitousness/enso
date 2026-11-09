@@ -3,23 +3,29 @@ import { useTutorialStore, TUTORIAL_STEPS } from "@/stores/tutorialStore";
 import { useShortcutScope } from "@/hooks/useShortcutScope";
 import { useShortcut } from "@/hooks/useShortcut";
 import { Button } from "@/components/ui/button";
-import { LOCAL, LOCAL_PREFIX } from "@/lib/profile/names";
-import { localKeys } from "@/profile/local";
+import { useSessionStore } from "@/api/session";
+import { profileFirstRun } from "@/profile/marker";
+import { useResetNoticeShowing } from "@/profile/notice";
 
+/** Once, on a browser that kept nothing of Enso when the page started, after
+ * the notice of a reset and while the server admits the page. */
 function useTutorialAutoStart() {
   const completed = useTutorialStore((s) => s.completed);
   const active = useTutorialStore((s) => s.active);
   const start = useTutorialStore((s) => s.start);
+  const noticeShowing = useResetNoticeShowing((s) => s.showing);
+  const refused = useSessionStore((s) => s.refused);
+  const started = useRef(false);
 
   useEffect(() => {
-    if (completed || active || __VERCEL__) return;
-    const hasPriorData = localKeys().some(
-      (k) => k.startsWith(LOCAL_PREFIX) && k !== LOCAL.tutorial,
-    );
-    if (hasPriorData) return;
-    const timer = setTimeout(start, 800);
+    if (started.current || completed || active || __VERCEL__ || !profileFirstRun()) return;
+    if (noticeShowing || refused) return;
+    const timer = setTimeout(() => {
+      started.current = true;
+      start();
+    }, 800);
     return () => clearTimeout(timer);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [completed, active, noticeShowing, refused, start]);
 }
 
 interface Rect {

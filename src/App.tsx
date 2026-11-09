@@ -8,6 +8,8 @@ import { useResolvedTheme } from "@/hooks/useResolvedTheme";
 import { useVersionWatch } from "@/hooks/useVersionWatch";
 import { useStorageProblems } from "@/hooks/useStorageProblems";
 import { useInputNotices } from "@/hooks/useInputNotices";
+import { useResetNotice } from "@/profile/notice";
+import { useProfileCommands } from "@/profile/commands";
 import "./App.css";
 
 function App() {
@@ -17,6 +19,8 @@ function App() {
   useVersionWatch();
   useStorageProblems();
   useInputNotices();
+  useResetNotice();
+  useProfileCommands();
 
   // Color mode
   useEffect(() => {

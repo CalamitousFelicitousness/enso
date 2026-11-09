@@ -4,6 +4,7 @@
 
 import {
   BLOBS,
+  DOCUMENTS,
   HASHES,
   JOBS,
   JOBS_BY_CREATION,
@@ -28,9 +29,12 @@ import {
   type SweepPlan,
   type SweepPolicy,
 } from "@/lib/inputs/sweep";
+import { EMPTY_WORKING } from "@/lib/inputs/imports";
 import { CLAIM_PREFIX, META_KEY, type MetaKey } from "@/lib/inputs/metaKeys";
+import { splitWorking } from "@/lib/inputs/stored";
 import { isHash } from "@/lib/media/hash";
-import { DB } from "@/lib/profile/names";
+import { DB, RECORD } from "@/lib/profile/names";
+import { neverOpen, profileFrozen } from "@/profile/freeze";
 
 const NAME = DB.inputs;
 const VERSION = 7;
@@ -49,6 +53,7 @@ export class DocumentConflict extends Error {
 let opening: Promise<IDBDatabase> | null = null;
 
 function open(): Promise<IDBDatabase> {
+  if (profileFrozen()) return neverOpen();
   opening ??= new Promise<IDBDatabase>((resolve, reject) => {
     const req = indexedDB.open(NAME, VERSION);
     // Creates what a version lacks and moves no data, so an upgrade cannot fail on a record
@@ -467,6 +472,22 @@ export async function readTrashDays(): Promise<number> {
   );
 }
 
+/** The days this browser last took from the server; null when it keeps no copy. */
+export async function readStoredTrashDays(): Promise<number | null> {
+  const db = await open();
+  const stored: unknown = await result(
+    db.transaction(META, "readonly").objectStore(META).get(META_KEY.trashDays),
+  );
+  return stored === undefined ? null : trashDays(stored);
+}
+
+/** How many records each store holds, read in one transaction. */
+export async function countRecords(stores: readonly string[]): Promise<number[]> {
+  const db = await open();
+  const tx = db.transaction(stores, "readonly");
+  return Promise.all(stores.map((store) => result(tx.objectStore(store).count())));
+}
+
 async function putMeta(key: MetaKey, value: unknown): Promise<void> {
   const db = await open();
   const tx = db.transaction(META, "readwrite");
@@ -768,4 +789,99 @@ export function enterTab(): Promise<void> {
     });
   })();
   return entered;
+}
+
+/** How many other tabs of this origin hold their inputs: every hold of the
+ * lock, held or waiting, but this page's own. Null without Web Locks. */
+export async function otherTabs(): Promise<number | null> {
+  if (!("locks" in navigator)) return null;
+  await entered;
+  const { held = [], pending = [] } = await navigator.locks.query();
+  const holds = [...held, ...pending].filter((lock) => lock.name === LOCK).length;
+  return Math.max(0, holds - (entered ? 1 : 0));
+}
+
+export type Barrier<T> =
+  | { kind: "ran"; value: T }
+  /** Another tab held the lock for longer than the wait. */
+  | { kind: "busy" }
+  /** The browser has no Web Locks. */
+  | { kind: "unlocked" };
+
+/** Run with every other tab of this origin kept out of its inputs: the lock
+ * held exclusively, waited for at most `waitMs`. A tab that is loading waits
+ * for `run` to end before it reads anything. */
+export async function withInputsBarrier<T>(
+  run: () => Promise<T>,
+  waitMs: number,
+): Promise<Barrier<T>> {
+  if (!("locks" in navigator)) return { kind: "unlocked" };
+  try {
+    const value = await navigator.locks.request(
+      LOCK,
+      { mode: "exclusive", signal: AbortSignal.timeout(waitMs) },
+      run,
+    );
+    return { kind: "ran", value };
+  } catch (err) {
+    if (err instanceof DOMException && (err.name === "TimeoutError" || err.name === "AbortError"))
+      return { kind: "busy" };
+    throw err;
+  }
+}
+
+/** Clear these document stores and meta keys in one transaction, with the
+ * bytes and hashes rows nothing left names. With `marks`, the working
+ * document is replaced by an empty one at its next revision, carrying the
+ * marks of the legacy records so none is brought in again; the revision
+ * claims stay, so a tab holding an older copy meets a conflict. False, with
+ * nothing changed, when the database has a document store this build cannot
+ * read. */
+export async function resetInputs(
+  clear: readonly string[],
+  meta: readonly MetaKey[],
+  marks: Record<string, string> | null,
+): Promise<boolean> {
+  const db = await open();
+  const names = [...db.objectStoreNames];
+  const documentStores = documentStoresOf(names);
+  if (documentStores.some((name) => !Object.hasOwn(READERS, name))) return false;
+  const tx = db.transaction(names, "readwrite");
+  const done = finished(tx);
+  try {
+    for (const store of clear) tx.objectStore(store).clear();
+    if (marks && clear.includes(DOCUMENTS)) {
+      const range = IDBKeyRange.bound(
+        claimKey(DOCUMENTS, RECORD.working, 0),
+        claimKey(DOCUMENTS, RECORD.working, 999_999_999_999),
+      );
+      const last = (await result(tx.objectStore(META).getAllKeys(range))).at(-1);
+      const revision =
+        (typeof last === "string" ? Number(last.slice(last.lastIndexOf(":") + 1)) : 0) + 1;
+      const { record } = splitWorking({ ...EMPTY_WORKING, imports: marks }, revision);
+      tx.objectStore(META).add(true, claimKey(DOCUMENTS, RECORD.working, revision));
+      tx.objectStore(DOCUMENTS).put(record, RECORD.working);
+    }
+    if (clear.length > 0) {
+      const named = new Set((await readFacts(tx, documentStores)).flatMap((f) => f.cids));
+      for (const store of [BLOBS, HASHES]) {
+        const keys = (await result(tx.objectStore(store).getAllKeys())).filter(
+          (key): key is string => typeof key === "string",
+        );
+        for (const key of keys) if (!named.has(blobCid(key))) tx.objectStore(store).delete(key);
+      }
+    }
+    for (const key of meta) tx.objectStore(META).delete(key);
+    tx.commit();
+  } catch (err) {
+    done.catch(() => {});
+    try {
+      tx.abort();
+    } catch {
+      // already finished
+    }
+    throw err;
+  }
+  await done;
+  return true;
 }

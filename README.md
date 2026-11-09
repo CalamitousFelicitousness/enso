@@ -110,6 +110,7 @@ It runs as a standard SD.Next extension: starting SD.Next with `--enso` clones i
 - Save frames, sets of inputs and recipes (prompt, settings, model and input pictures) to a library on the server, shared by every browser
 - Restore a recipe through one dialog, or run it as it is with its model loaded first
 - Export any entry as an `.enso` file and import it on another server; models are matched by hash, with Find on CivitAI for the ones it lacks
+- Reset Enso in this browser (Settings, This browser) clears what the browser keeps and leaves the library on the server
 - See [docs/library.md](docs/library.md)
 
 ### Model Management

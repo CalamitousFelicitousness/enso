@@ -100,6 +100,7 @@ export default defineConfig([
     ignores: [
       "src/**/*.test.ts",
       "src/profile/local.ts",
+      "src/profile/boot.ts",
       "src/lib/idbStorage.ts",
       "src/lib/idbListDb.ts",
       "src/lib/thumbnailCache.ts",
@@ -119,6 +120,24 @@ export default defineConfig([
         {
           selector: `${PERSIST_OPTIONS} > Property[key.name='name'] > :matches(Literal, TemplateLiteral)`,
           message: "A persisted store takes its name from src/lib/profile/names.ts.",
+        },
+      ],
+    },
+  },
+  {
+    // The boot module runs before the app: nothing it imports may create a store.
+    files: ["src/main.tsx", "src/profile/boot.ts"],
+    rules: {
+      "@typescript-eslint/no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: ["@/stores/*", "@/components/*", "@/hooks/*", "@/api/*", "react", "react-dom"],
+              allowTypeImports: true,
+              message: "The boot module runs before any store exists.",
+            },
+          ],
         },
       ],
     },

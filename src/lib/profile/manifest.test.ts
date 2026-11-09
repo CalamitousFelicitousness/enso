@@ -1,17 +1,22 @@
 import { describe, expect, it } from "vitest";
 import { META_KEYS } from "@/lib/inputs/metaKeys";
 import { META, STORES } from "@/lib/inputs/storeLayout";
-import { MANIFEST, type ProfileEntry } from "./manifest";
+import { MANIFEST, RESET_ROWS, type ProfileEntry } from "./manifest";
 import { DB, LOCAL, LOCAL_PREFIX } from "./names";
 
 const of = <K extends ProfileEntry["kind"]>(kind: K) =>
   MANIFEST.filter((e): e is Extract<ProfileEntry, { kind: K }> => e.kind === kind);
 
 describe("the profile manifest", () => {
-  it("gives every localStorage key exactly one entry", () => {
+  it("gives every localStorage key but the reset's own record exactly one entry", () => {
     const keys = of("local").map((e) => e.key);
     expect(new Set(keys).size).toBe(keys.length);
-    expect([...keys].sort()).toEqual(Object.values(LOCAL).sort());
+    const owned = Object.values(LOCAL).filter((key) => key !== LOCAL.reset);
+    expect([...keys].sort()).toEqual(owned.sort());
+  });
+
+  it("gives every row at least one entry", () => {
+    for (const row of RESET_ROWS) expect(MANIFEST.some((e) => e.group === row)).toBe(true);
   });
 
   it("names every localStorage key under the prefix", () => {

@@ -140,14 +140,20 @@ export function startSession(): Promise<void> {
 
 /** End the session this page holds on the server, before the credentials or the base change, so nothing
  * they admitted outlives them. A server without sessions, or one that already forgot this one, has nothing
- * to end. */
-export async function endSession(): Promise<void> {
+ * to end. False when the server could not be reached. */
+export async function endSession(signal?: AbortSignal): Promise<boolean> {
   const { mode, token } = useSessionStore.getState();
-  if (mode !== "cookie" && mode !== "token") return;
+  if (mode !== "cookie" && mode !== "token") return true;
   try {
-    await api.delete("/sdapi/v2/session", mode === "token" && token ? { t: token } : undefined);
-  } catch {
-    // nothing left to end
+    await api.delete(
+      "/sdapi/v2/session",
+      mode === "token" && token ? { t: token } : undefined,
+      signal,
+    );
+    return true;
+  } catch (err) {
+    // a refusal means the server holds no such session
+    return err instanceof ApiError && err.status < 500;
   }
 }
 

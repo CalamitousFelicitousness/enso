@@ -1,5 +1,6 @@
 import type { CachedThumb } from "@/api/types/gallery";
 import { DB } from "@/lib/profile/names";
+import { neverOpen, profileFrozen } from "@/profile/freeze";
 
 const DB_NAME = DB.thumbs;
 const STORE_NAME = "thumbs";
@@ -8,6 +9,7 @@ const DB_VERSION = 3;
 let dbPromise: Promise<IDBDatabase> | null = null;
 
 function openDb(): Promise<IDBDatabase> {
+  if (profileFrozen()) return neverOpen();
   if (dbPromise) return dbPromise;
   dbPromise = new Promise((resolve, reject) => {
     const req = indexedDB.open(DB_NAME, DB_VERSION);

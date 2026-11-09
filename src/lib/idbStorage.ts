@@ -1,5 +1,6 @@
 import type { PersistStorage, StorageValue } from "zustand/middleware";
 import type { DbName } from "@/lib/profile/names";
+import { neverOpen, profileFrozen } from "@/profile/freeze";
 
 /** Where records live. Rejections carry a non-null Error. */
 export interface KeyValueBackend {
@@ -15,9 +16,6 @@ interface GatedStorageOptions<S> {
   /** Record read when the store's own key is empty. Left untouched so the
    * build that wrote it can still hydrate after a rollback. */
   legacyKey?: string;
-  /** Builds the first record when the store's own key and legacyKey are both
-   * empty. Its result is written before the read resolves. */
-  seed?: () => Promise<StorageValue<S> | null>;
   /** Called for every failed write. */
   onWriteError?: (error: unknown) => void;
   /** Called for the write that ends a streak of failures. */
@@ -46,7 +44,7 @@ export function createGatedStorage<S>(
   label: string,
   options: GatedStorageOptions<S> = {},
 ): GatedStorage<S> {
-  const { debounceMs = 2000, legacyKey, seed, onWriteError, onWriteRecovered, same } = options;
+  const { debounceMs = 2000, legacyKey, onWriteError, onWriteRecovered, same } = options;
 
   function decode(raw: unknown): StorageValue<S> | null {
     if (raw === null || raw === undefined) return null;
@@ -72,7 +70,7 @@ export function createGatedStorage<S>(
   let stored: StorageValue<S> | null = null;
 
   function flush() {
-    if (writing || pendingKey === null || pendingValue === null) return;
+    if (profileFrozen() || writing || pendingKey === null || pendingValue === null) return;
     const k = pendingKey;
     const v = pendingValue;
     pendingKey = null;
@@ -125,17 +123,13 @@ export function createGatedStorage<S>(
       }
       let raw = await backend.get(key);
       if (raw === null && legacyKey) raw = await backend.get(legacyKey);
-      let value = decode(raw);
-      if (value === null && seed) {
-        value = await seed();
-        if (value !== null) await backend.set(key, value);
-      }
+      const value = decode(raw);
       stored = value;
       open = true;
       return value;
     },
     setItem: (key, value) => {
-      if (!open) return;
+      if (!open || profileFrozen()) return;
       // the value a finished or running write leaves in the backend
       const latest = pendingValue ?? writing ?? stored;
       if (same && latest && same(latest.state, value.state)) return;
@@ -178,6 +172,7 @@ export function idbBackend(dbName: DbName, storeName: string): KeyValueBackend {
   let dbPromise: Promise<IDBDatabase> | null = null;
 
   function openDb(): Promise<IDBDatabase> {
+    if (profileFrozen()) return neverOpen();
     if (!dbPromise) {
       dbPromise = new Promise<IDBDatabase>((resolve, reject) => {
         const req = indexedDB.open(dbName, 1);

@@ -14,6 +14,7 @@
  */
 
 import type { DbName } from "@/lib/profile/names";
+import { neverOpen, profileFrozen } from "@/profile/freeze";
 
 interface ListDbConfig<T extends { id: string }> {
   /** IDB database name. Stable across releases; renaming creates a fresh DB. */
@@ -52,6 +53,7 @@ export function createIdbListDb<T extends { id: string }>(config: ListDbConfig<T
   let dbPromise: Promise<IDBDatabase> | null = null;
 
   function openDb(): Promise<IDBDatabase> {
+    if (profileFrozen()) return neverOpen();
     if (dbPromise) return dbPromise;
     dbPromise = new Promise((resolve, reject) => {
       const req = indexedDB.open(dbName, DB_VERSION);

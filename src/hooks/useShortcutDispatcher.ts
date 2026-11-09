@@ -34,7 +34,8 @@ export function useShortcutDispatcher() {
       const { scopeStack, handlers } = useShortcutStore.getState();
       const activeScope = scopeStack[scopeStack.length - 1];
 
-      // Try active scope first, then fall back to global
+      // Try active scope first, then fall back to global; a modal dialog shadows every key
+      if (activeScope === "dialog") return;
       const scopesToCheck = activeScope === "global" ? ["global"] : [activeScope, "global"];
 
       for (const scope of scopesToCheck) {

@@ -133,37 +133,6 @@ describe("createGatedStorage", () => {
     expect(records.get("doc")).toEqual(record(8));
   });
 
-  it("seeds an empty store and writes the seed at once", async () => {
-    const { backend, records } = memoryBackend();
-    const seed = vi.fn(() => Promise.resolve(record(5)));
-    const storage = createGatedStorage<Doc>(backend, "test", { seed });
-    await expect(storage.getItem("doc")).resolves.toEqual(record(5));
-    expect(records.get("doc")).toEqual(record(5));
-    expect(seed).toHaveBeenCalledTimes(1);
-  });
-
-  it("does not seed over an existing or legacy record", async () => {
-    const seed = vi.fn(() => Promise.resolve(record(5)));
-    const own = memoryBackend({ doc: record(1) });
-    await createGatedStorage<Doc>(own.backend, "test", { seed }).getItem("doc");
-    const legacy = memoryBackend({ old: record(2) });
-    await createGatedStorage<Doc>(legacy.backend, "test", { seed, legacyKey: "old" }).getItem(
-      "doc",
-    );
-    expect(seed).not.toHaveBeenCalled();
-  });
-
-  it("stays closed when the seed fails", async () => {
-    const { backend, records } = memoryBackend();
-    const storage = createGatedStorage<Doc>(backend, "test", {
-      seed: () => Promise.reject(new Error("seed failed")),
-    });
-    await expect(storage.getItem("doc")).rejects.toThrow("seed failed");
-    void storage.setItem("doc", record(0));
-    await settle();
-    expect(records.has("doc")).toBe(false);
-  });
-
   it("reports every failed write, since each can fail for another reason", async () => {
     const { backend, fail } = memoryBackend();
     const onWriteError = vi.fn();
@@ -352,5 +321,32 @@ describe("createGatedStorage", () => {
     void storage.removeItem("doc");
     await settle();
     expect(records.has("doc")).toBe(false);
+  });
+});
+
+describe("createGatedStorage in a frozen profile", () => {
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
+
+  /** The module and the freeze flag with fresh state. */
+  async function fresh() {
+    vi.resetModules();
+    const storage = await import("./idbStorage");
+    const freeze = await import("@/profile/freeze");
+    return { ...storage, ...freeze };
+  }
+
+  it("drops a pending write, refuses a new one and settles without writing", async () => {
+    const { createGatedStorage, freezeProfile } = await fresh();
+    const { backend, records, writes } = memoryBackend({ doc: record(1) });
+    const storage = createGatedStorage<Doc>(backend, "test");
+    await storage.getItem("doc");
+    void storage.setItem("doc", record(2));
+    freezeProfile();
+    void storage.setItem("doc", record(3));
+    await expect(storage.settle()).resolves.toBeUndefined();
+    await settle();
+    expect(writes()).toBe(0);
+    expect(records.get("doc")).toEqual(record(1));
   });
 });

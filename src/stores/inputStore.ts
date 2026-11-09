@@ -28,11 +28,11 @@ import type {
   Transform,
 } from "@/lib/inputs/types";
 import { DocumentConflict, NewerDatabase } from "@/inputs/db";
+import { legacyMarks } from "@/inputs/legacySources";
 import { FULL_ID, isQuotaError, reportFull } from "@/inputs/quota";
 import {
   createInputsStorage,
   keepsFrames,
-  legacyMarks,
   loadOffer,
   overruleOtherTab,
   UnreadableBlobs,

@@ -5,8 +5,25 @@ import { useCapabilities } from "@/api/hooks/useServer";
 import { useImagesTabs } from "@/components/generation/tabs/useImagesTabs";
 import { useVideoTabs } from "@/components/video/tabs/useVideoTabs";
 import { cn } from "@/lib/utils";
-import { PanelLeftClose, PanelLeftOpen, HelpCircle } from "lucide-react";
+import {
+  PanelLeftClose,
+  PanelLeftOpen,
+  HelpCircle,
+  GraduationCap,
+  Keyboard,
+  ListRestart,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { useShortcutStore } from "@/stores/shortcutStore";
+import { useResetDialogStore } from "@/stores/resetDialogStore";
+import { HELP, KEYBOARD_SHORTCUTS, RESET_OPEN, SHOW_TUTORIAL } from "@/lib/profile/text";
 import { SubTabStrip } from "./SubTabStrip";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Separator } from "@/components/ui/separator";
@@ -31,6 +48,8 @@ export function LeftTabRail() {
   const toggleViewCollapsed = useUiStore((s) => s.toggleViewCollapsed);
   const toggleLeftRail = useUiStore((s) => s.toggleLeftRail);
   const startTutorial = useTutorialStore((s) => s.start);
+  const setCheatsheetOpen = useShortcutStore((s) => s.setCheatsheetOpen);
+  const openReset = useResetDialogStore((s) => s.openReset);
 
   const capabilities = useCapabilities();
 
@@ -101,21 +120,41 @@ export function LeftTabRail() {
         {/* Help + External links */}
         <div className="flex flex-col gap-0.5 px-1.5 pb-2">
           <Separator className="mb-1.5 bg-rail-border" />
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                type="button"
-                onClick={startTutorial}
-                className={cn(
-                  "flex items-center justify-center w-full aspect-square rounded-md transition-colors",
-                  "text-rail-foreground/30 hover:text-rail-foreground/60 hover:bg-rail-accent",
-                )}
-              >
-                <HelpCircle size={16} />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent side="right">Help</TooltipContent>
-          </Tooltip>
+          <DropdownMenu>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    type="button"
+                    aria-label={HELP}
+                    className={cn(
+                      "flex items-center justify-center w-full aspect-square rounded-md transition-colors",
+                      "text-rail-foreground/30 hover:text-rail-foreground/60 hover:bg-rail-accent",
+                      "data-[state=open]:text-rail-foreground/60 data-[state=open]:bg-rail-accent",
+                    )}
+                  >
+                    <HelpCircle size={16} />
+                  </button>
+                </DropdownMenuTrigger>
+              </TooltipTrigger>
+              <TooltipContent side="right">{HELP}</TooltipContent>
+            </Tooltip>
+            <DropdownMenuContent side="right" align="end">
+              <DropdownMenuItem onSelect={startTutorial}>
+                <GraduationCap />
+                {SHOW_TUTORIAL}
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => setCheatsheetOpen(true)}>
+                <Keyboard />
+                {KEYBOARD_SHORTCUTS}
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem variant="destructive" onSelect={openReset}>
+                <ListRestart />
+                {RESET_OPEN}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           {EXTERNAL_LINKS.map((link) => {
             const Icon = link.icon;
             return (

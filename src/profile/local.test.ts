@@ -99,3 +99,21 @@ describe("the local door", () => {
     expect(localKeys().sort()).toEqual(["enso-ui", "modalZoom"]);
   });
 });
+
+describe("the local door in a frozen profile", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("drops writes and removals and still answers reads", async () => {
+    const { readLocal, writeLocal, removeLocal } = await load();
+    const { freezeProfile } = await import("./freeze");
+    const storage = memoryStorage();
+    storage.items.set("enso-ui", "a");
+    vi.stubGlobal("localStorage", storage);
+    freezeProfile();
+    writeLocal("enso-ui", "b");
+    removeLocal("enso-ui");
+    writeLocal("enso-tutorial", "c");
+    expect(readLocal("enso-ui")).toBe("a");
+    expect(storage.items.has("enso-tutorial")).toBe(false);
+  });
+});

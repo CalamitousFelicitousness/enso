@@ -1,5 +1,5 @@
 export type ShortcutScope =
-  "global" | "canvas" | "gallery" | "lightbox" | "comparison" | "tutorial";
+  "global" | "canvas" | "gallery" | "lightbox" | "comparison" | "tutorial" | "dialog";
 
 export type ShortcutCategory =
   "Global" | "Canvas" | "Gallery" | "Lightbox" | "Comparison" | "Navigation" | "Tutorial";

@@ -4,17 +4,12 @@
 
 import type { StorageValue } from "zustand/middleware";
 import { newId } from "@/lib/id";
-import { createGatedStorage, legacyReader, type KeyValueBackend } from "@/lib/idbStorage";
+import { createGatedStorage, type KeyValueBackend } from "@/lib/idbStorage";
 import { applyImports, EMPTY_WORKING, planImports, type LegacyRecord } from "@/lib/inputs/imports";
-import {
-  legacyFingerprint,
-  legacyToFrames,
-  type ImportNote,
-  type LegacyImport,
-} from "@/lib/inputs/legacy";
+import { legacyToFrames, type ImportNote, type LegacyImport } from "@/lib/inputs/legacy";
 import { REFERENCE_HEIGHT } from "@/lib/inputs/layout";
 import { setSizes } from "@/lib/inputs/reducers";
-import { controlFingerprint, controlToFrames, readLegacyControl } from "@/lib/inputs/legacyControl";
+import { controlToFrames, readLegacyControl } from "@/lib/inputs/legacyControl";
 import { loose } from "@/lib/inputs/loose";
 import {
   joinWorking,
@@ -24,7 +19,7 @@ import {
   type WorkingDocument,
 } from "@/lib/inputs/stored";
 import { DOCUMENTS } from "@/lib/inputs/storeLayout";
-import { DB, RECORD, STATE_STORE } from "@/lib/profile/names";
+import { RECORD } from "@/lib/profile/names";
 import type { Size } from "@/lib/inputs/types";
 import { useGenerationStore } from "@/stores/generationStore";
 import {
@@ -40,6 +35,7 @@ import {
 import { bytesFor } from "./fetch";
 import { headerSize } from "./admit";
 import { decodeLegacyUnits } from "./legacyControl";
+import { CONTROL_SOURCE, findControlSource, findSources, type FoundSource } from "./legacySources";
 
 /** What reading the stored inputs turned up besides the document. */
 export interface HydrationFindings {
@@ -68,51 +64,6 @@ export class UnreadableBlobs extends Error {
  * written: the stored one stays readable. */
 export class UnstorableDocument extends Error {
   override name = "UnstorableDocument";
-}
-
-/** The canvas record's formats, newest first. Version 3 is a JSON string. */
-const LEGACY = [
-  { id: "canvas-v4", key: RECORD.canvasV4, version: 4 },
-  { id: "canvas-v3", key: RECORD.canvasV3, version: 3 },
-] as const;
-
-const legacyCanvas = legacyReader(DB.canvas, STATE_STORE);
-
-interface FoundSource {
-  id: string;
-  /** Null when storage holds no record of this format. */
-  fingerprint: string | null;
-  /** The record's state, when it was read to be fingerprinted. */
-  state?: unknown;
-}
-
-/** The state of a legacy record of the version its key should hold, else null. */
-function stateOf(raw: unknown, version: number): unknown {
-  const stored = loose<StorageValue<unknown>>(typeof raw === "string" ? JSON.parse(raw) : raw);
-  return stored?.version === version ? (stored.state ?? null) : null;
-}
-
-/** Every format of the legacy canvas record, newest first, with a fingerprint
- * for those storage holds. A record stored as text is parsed only while it
- * could still be the one to import: nothing imported yet and no newer record.
- * After that it is not watched, and stands for itself. */
-async function findSources(imports: Record<string, string>): Promise<FoundSource[]> {
-  const known = LEGACY.some((format) => imports[format.id] !== undefined);
-  const sources: FoundSource[] = [];
-  let newerFound = false;
-  for (const { id, key, version } of LEGACY) {
-    const raw = await legacyCanvas.get(key);
-    if (raw === null || raw === undefined) {
-      sources.push({ id, fingerprint: null });
-    } else if (typeof raw === "string" && (known || newerFound)) {
-      sources.push({ id, fingerprint: "unread" });
-    } else {
-      const state = stateOf(raw, version);
-      sources.push({ id, fingerprint: legacyFingerprint(state), state });
-    }
-    newerFound ||= raw !== null && raw !== undefined;
-  }
-  return sources;
 }
 
 interface LegacyBytes {
@@ -160,16 +111,6 @@ async function convert(source: FoundSource): Promise<LegacyImport> {
   return legacyToFrames(await withoutDeadBlobs(source.state), newId);
 }
 
-/** The control units record older builds kept beside the canvas: one format. */
-const CONTROL_SOURCE = "control-v1";
-const legacyControl = legacyReader(DB.control, STATE_STORE);
-
-async function findControlSource(): Promise<FoundSource> {
-  const raw = await legacyControl.get(RECORD.control);
-  if (raw === null || raw === undefined) return { id: CONTROL_SOURCE, fingerprint: null };
-  return { id: CONTROL_SOURCE, fingerprint: controlFingerprint(raw), state: raw };
-}
-
 /** Control and IP-Adapter frames from the units record, placed against the
  * current frame size; units that took the canvas as their picture link to
  * the document's first Initial frame. */
@@ -207,19 +148,6 @@ export async function loadOffer(
   }
   const source = (await findSources({})).find((s) => s.id === offer.id);
   return source?.fingerprint === offer.fingerprint ? convert(source) : null;
-}
-
-/** Marks for every legacy record there is, as if each had been imported. For
- * a document started empty on purpose, which should stay empty. */
-export async function legacyMarks(): Promise<Record<string, string>> {
-  try {
-    const found = [...(await findSources({})), await findControlSource()];
-    return Object.fromEntries(
-      found.flatMap((s) => (s.fingerprint === null ? [] : [[s.id, s.fingerprint]])),
-    );
-  } catch {
-    return {};
-  }
 }
 
 const KEY = RECORD.working;

@@ -76,3 +76,12 @@ checks every member against its name and its size limits before it keeps
 anything, and refuses a file made by a newer version of Enso with the version
 it saw. Nothing server-specific travels: no paths, users, job ids or processed
 maps; an imported recipe makes its maps again when it runs.
+
+## Resetting a Browser
+
+Reset Enso in this browser (Settings, This browser, or the Help menu) clears
+what one browser keeps: inputs and results, prompts and settings, presets,
+interface state and, when chosen, the connection. The library and its trash,
+the Gallery, the job history and the server's settings stay as they are. A
+cleared connection gives the browser a new identity; the server retires the
+job records the old one saved after 90 days without a new one.

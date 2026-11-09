@@ -13,6 +13,7 @@ import {
 } from "zustand/middleware";
 import type { LocalKey } from "@/lib/profile/names";
 import { reportStorageProblem } from "@/lib/storageHealth";
+import { profileFrozen } from "./freeze";
 
 const PROBLEM_ID = "local-storage";
 const WHAT = "settings";
@@ -55,6 +56,7 @@ function get(key: string): string | null {
 }
 
 function set(key: string, value: string): void {
+  if (profileFrozen()) return;
   const local = storage();
   if (!local) {
     refused(true);
@@ -69,6 +71,7 @@ function set(key: string, value: string): void {
 }
 
 function remove(key: string): void {
+  if (profileFrozen()) return;
   try {
     storage()?.removeItem(key);
   } catch {
@@ -86,6 +89,11 @@ export function writeLocal(key: LocalKey, value: string): void {
 
 export function removeLocal(key: LocalKey): void {
   remove(key);
+}
+
+/** Remove keys found by localKeys(): those of builds the manifest does not know. */
+export function removeLocalKeys(keys: readonly string[]): void {
+  for (const key of keys) remove(key);
 }
 
 /** Every key this origin's localStorage holds, Enso's or not. */

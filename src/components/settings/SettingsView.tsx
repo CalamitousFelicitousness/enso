@@ -31,6 +31,9 @@ import { ws } from "@/api/wsManager";
 import { endSession, startSession } from "@/api/session";
 import { queryClient } from "@/api/queryClient";
 import { CONNECTION_SECTION_ID } from "@/lib/constants";
+import { PANEL_KEYWORDS, PANEL_TITLE } from "@/lib/profile/text";
+import { isResetting } from "@/profile/request";
+import { ThisBrowserPanel } from "./ThisBrowserPanel";
 import {
   MINIMAP_LABEL,
   MINIMAP_SETTING_DESCRIPTION,
@@ -41,6 +44,41 @@ import {
 
 const APPEARANCE_SECTION_ID = "__appearance";
 const BEHAVIOR_SECTION_ID = "__behavior";
+const BROWSER_SECTION_ID = "__browser";
+
+interface LocalSection {
+  id: string;
+  title: string;
+  /** What the search finds the section by, beside its title. */
+  keywords: readonly string[];
+}
+
+/** Enso's own sections, after the server's. */
+const LOCAL_SECTIONS: readonly LocalSection[] = [
+  {
+    id: CONNECTION_SECTION_ID,
+    title: "Connection",
+    keywords: ["server", "address", "url", "port", "password", "sign in", "login"],
+  },
+  {
+    id: APPEARANCE_SECTION_ID,
+    title: "Appearance",
+    keywords: ["theme", "color mode", "dark", "light", "accent", "ui scale", "minimap"],
+  },
+  {
+    id: BEHAVIOR_SECTION_ID,
+    title: "Behavior",
+    keywords: ["live previews", "scroll wheel", "result strip", "trash", "largest input picture"],
+  },
+  { id: BROWSER_SECTION_ID, title: PANEL_TITLE, keywords: PANEL_KEYWORDS },
+];
+const LOCAL_IDS = new Set(LOCAL_SECTIONS.map((s) => s.id));
+
+function localMatches(section: LocalSection, query: string): boolean {
+  return (
+    section.title.toLowerCase().includes(query) || section.keywords.some((k) => k.includes(query))
+  );
+}
 
 // Hoist panel JSX to module scope so React element references stay stable
 // across re-renders. `lazy` on the Connection panel defers its mount-time
@@ -72,6 +110,14 @@ const STATIC_PANELS = [
     hiddenClassName="hidden"
   >
     <BehaviorPanel />
+  </KeepAlivePanel>,
+  <KeepAlivePanel
+    key={BROWSER_SECTION_ID}
+    id={BROWSER_SECTION_ID}
+    activeClassName=""
+    hiddenClassName="hidden"
+  >
+    <ThisBrowserPanel />
   </KeepAlivePanel>,
 ];
 
@@ -665,9 +711,7 @@ export function SettingsView({ onDirtyChange }: SettingsViewProps = {}) {
 
   // Resolve active section: use first section if none selected or selection is stale
   const resolvedActive = useMemo(() => {
-    if (activeSection === CONNECTION_SECTION_ID) return CONNECTION_SECTION_ID;
-    if (activeSection === APPEARANCE_SECTION_ID) return APPEARANCE_SECTION_ID;
-    if (activeSection === BEHAVIOR_SECTION_ID) return BEHAVIOR_SECTION_ID;
+    if (activeSection && LOCAL_IDS.has(activeSection)) return activeSection;
     if (activeSection && allSections.some((s) => s.id === activeSection)) return activeSection;
     // When backend is ready, default to the first backend section;
     // otherwise show Connection so users can fix the URL
@@ -744,6 +788,14 @@ export function SettingsView({ onDirtyChange }: SettingsViewProps = {}) {
     return new Set(filteredSections.map((s) => s.id));
   }, [searchQuery, filteredSections]);
 
+  const matchingLocal = useMemo(() => {
+    if (!searchQuery) return [];
+    const q = searchQuery.toLowerCase();
+    return LOCAL_SECTIONS.filter((s) => localMatches(s, q));
+  }, [searchQuery]);
+
+  const onLocalSection = LOCAL_IDS.has(resolvedActive) && !searchQuery;
+
   // Notify parent of dirty state changes
   useEffect(() => {
     onDirtyChange?.(dirtyCount > 0);
@@ -753,6 +805,7 @@ export function SettingsView({ onDirtyChange }: SettingsViewProps = {}) {
   useEffect(() => {
     if (dirtyCount === 0) return;
     const handler = (e: BeforeUnloadEvent) => {
+      if (isResetting()) return;
       e.preventDefault();
     };
     window.addEventListener("beforeunload", handler);
@@ -837,60 +890,37 @@ export function SettingsView({ onDirtyChange }: SettingsViewProps = {}) {
             })}
             {/* Enso UI local-only settings */}
             <div className="mt-2 pt-2 border-t border-border flex flex-col gap-0.5">
-              <button
-                onClick={() => {
-                  setActiveSection(CONNECTION_SECTION_ID);
-                  setSearchQuery("");
-                }}
-                className={cn(
-                  "w-full text-left text-xs px-2 py-1.5 rounded-md transition-colors",
-                  "hover:bg-accent hover:text-accent-foreground",
-                  resolvedActive === CONNECTION_SECTION_ID &&
-                    !searchQuery &&
-                    "bg-accent text-accent-foreground font-medium",
-                  matchingSectionIds && "opacity-30",
-                )}
-              >
-                Connection
-              </button>
-              <button
-                onClick={() => {
-                  setActiveSection(APPEARANCE_SECTION_ID);
-                  setSearchQuery("");
-                }}
-                className={cn(
-                  "w-full text-left text-xs px-2 py-1.5 rounded-md transition-colors",
-                  "hover:bg-accent hover:text-accent-foreground",
-                  resolvedActive === APPEARANCE_SECTION_ID &&
-                    !searchQuery &&
-                    "bg-accent text-accent-foreground font-medium",
-                  matchingSectionIds && "opacity-30",
-                )}
-              >
-                Appearance
-              </button>
-              <button
-                onClick={() => {
-                  setActiveSection(BEHAVIOR_SECTION_ID);
-                  setSearchQuery("");
-                }}
-                className={cn(
-                  "w-full text-left text-xs px-2 py-1.5 rounded-md transition-colors",
-                  "hover:bg-accent hover:text-accent-foreground",
-                  resolvedActive === BEHAVIOR_SECTION_ID &&
-                    !searchQuery &&
-                    "bg-accent text-accent-foreground font-medium",
-                  matchingSectionIds && "opacity-30",
-                )}
-              >
-                Behavior
-              </button>
+              {LOCAL_SECTIONS.map((section) => {
+                const isMatch = matchingLocal.includes(section);
+                return (
+                  <button
+                    key={section.id}
+                    onClick={() => handleNavigateToSection(section.id)}
+                    className={cn(
+                      "w-full text-left text-xs px-2 py-1.5 rounded-md transition-colors",
+                      "hover:bg-accent hover:text-accent-foreground",
+                      resolvedActive === section.id &&
+                        !searchQuery &&
+                        "bg-accent text-accent-foreground font-medium",
+                      searchQuery && isMatch && "text-primary font-medium",
+                      searchQuery && !isMatch && "opacity-30",
+                    )}
+                  >
+                    {section.title}
+                  </button>
+                );
+              })}
             </div>
           </div>
         </ScrollArea>
 
-        {/* Apply / Reset */}
-        <div className="p-2 border-t border-border flex flex-col gap-1.5">
+        {/* Apply / Reset: the server's settings only */}
+        <div
+          className={cn(
+            "p-2 border-t border-border flex flex-col gap-1.5",
+            onLocalSection && "hidden",
+          )}
+        >
           <Button
             size="sm"
             onClick={() => void handleApply()}
@@ -924,18 +954,18 @@ export function SettingsView({ onDirtyChange }: SettingsViewProps = {}) {
       </div>
 
       {/* Settings content */}
-      <ScrollArea className="flex-1">
+      <ScrollArea className="flex-1 min-w-0">
         <div className="p-4 max-w-2xl">
           {/* Static panels stay mounted across navigation to other sections so
               ConnectionPanel drafts (urlInput, userDraft, passDraft) and
               AppearancePanel state survive section switches. KeepAliveSwitch
               tolerates an unknown active id by rendering nothing, so when the
               user is on a backend section both panels are hidden. */}
-          <KeepAliveSwitch active={resolvedActive}>{STATIC_PANELS}</KeepAliveSwitch>
+          <KeepAliveSwitch active={searchQuery ? "" : resolvedActive}>
+            {STATIC_PANELS}
+          </KeepAliveSwitch>
 
-          {resolvedActive !== CONNECTION_SECTION_ID &&
-            resolvedActive !== APPEARANCE_SECTION_ID &&
-            resolvedActive !== BEHAVIOR_SECTION_ID &&
+          {!onLocalSection &&
             (!backendReady ? (
               <div className="flex items-center justify-center h-32 text-muted-foreground text-sm">
                 Loading settings...
@@ -943,6 +973,21 @@ export function SettingsView({ onDirtyChange }: SettingsViewProps = {}) {
             ) : searchQuery ? (
               // Search results across all sections
               <div className="space-y-6">
+                {matchingLocal.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {matchingLocal.map((section) => (
+                      <Button
+                        key={section.id}
+                        variant="outline"
+                        size="sm"
+                        className="text-xs"
+                        onClick={() => handleNavigateToSection(section.id)}
+                      >
+                        {section.title}
+                      </Button>
+                    ))}
+                  </div>
+                )}
                 {filteredSections.map((section) => (
                   <SettingsSection
                     key={section.id}
@@ -955,7 +1000,7 @@ export function SettingsView({ onDirtyChange }: SettingsViewProps = {}) {
                     onNavigateToSection={handleNavigateToSection}
                   />
                 ))}
-                {filteredSections.length === 0 && (
+                {filteredSections.length === 0 && matchingLocal.length === 0 && (
                   <p className="text-sm text-muted-foreground text-center py-8">
                     No settings match your search
                   </p>

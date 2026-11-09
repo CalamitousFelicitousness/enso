@@ -1,8 +1,7 @@
 import { create } from "zustand";
-import { persist, type StorageValue } from "zustand/middleware";
+import { persist } from "zustand/middleware";
 import { DB, RECORD, STATE_STORE } from "@/lib/profile/names";
 import { createGatedStorage, idbBackend } from "@/lib/idbStorage";
-import { loose } from "@/lib/inputs/loose";
 import { reportStorageProblem } from "@/lib/storageHealth";
 import { DEFAULT_SIZE_MULTIPLE } from "@/lib/sizeCompute";
 import { writeProblems } from "@/inputs/quota";
@@ -94,36 +93,7 @@ interface PersistedCanvasState {
 
 const canvasRecords = idbBackend(DB.canvas, STATE_STORE);
 
-/** The view settings of the canvas record an older build left, which also
- * held the input frames. Those records stay as they are for that build. */
-async function viewOfLegacyRecord(): Promise<StorageValue<PersistedCanvasState> | null> {
-  try {
-    for (const key of [RECORD.canvasV4, RECORD.canvasV3]) {
-      const raw = await canvasRecords.get(key);
-      const record = loose<StorageValue<PersistedCanvasState>>(
-        typeof raw === "string" ? JSON.parse(raw) : raw,
-      );
-      const state = loose<PersistedCanvasState>(record?.state);
-      if (!state) continue;
-      const kept = {
-        activeTool: state.activeTool,
-        brushSize: state.brushSize,
-        maskVisible: state.maskVisible,
-        maskColor: state.maskColor,
-        panelCollapsedOverrides: state.panelCollapsedOverrides,
-        canvasMode: state.canvasMode,
-        focusedFrameId: state.focusedFrameId,
-      };
-      return { state: kept as PersistedCanvasState, version: 5 };
-    }
-  } catch (err) {
-    console.error("[canvas] view settings of an older build could not be read", err);
-  }
-  return null;
-}
-
 const canvasStorage = createGatedStorage<PersistedCanvasState>(canvasRecords, "enso-canvas/state", {
-  seed: viewOfLegacyRecord,
   ...writeProblems("canvas", "canvas view", () => canvasStorage.retry()),
   // The record is rebuilt on every change to the store, the camera's included
   same: (a, b) => JSON.stringify(a) === JSON.stringify(b),
