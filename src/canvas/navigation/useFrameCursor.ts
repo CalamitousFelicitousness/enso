@@ -41,11 +41,13 @@ export function useFrameCursor(layout: FrameLayout, visible: boolean): FrameId {
     if (selected) setCurrent(inputFrameId(selected));
   }, [selected, busy, setCurrent]);
 
-  // A frame that goes away hands the cursor to the Output
+  // A frame that goes away hands the cursor to the Output; before the inputs
+  // are loaded every frame is missing
+  const inputsLoaded = useInputStore((s) => s.ready);
   useEffect(() => {
-    if (current === "output") return;
+    if (!inputsLoaded || current === "output") return;
     if (!getOrderedFrames(layout).some((f) => f.id === current)) setCurrent("output");
-  }, [layout, current, setCurrent]);
+  }, [inputsLoaded, layout, current, setCurrent]);
 
   // The Input tab and the palette ask for a frame: in Canvas mode the view
   // brings it in at the same zoom; Focus mode fits it as the current frame
