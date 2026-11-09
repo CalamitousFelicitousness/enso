@@ -39,7 +39,7 @@ export class Enso {
     await this.page.goto("");
     await this.page.getByRole("button", { name: "Skip", exact: true }).click();
     // A fresh profile opens in Canvas mode, fitted to every frame
-    await expect(this.canvas.getByText(/^Input/)).toBeVisible();
+    await expect(this.canvas.getByText("Input 1", { exact: true })).toBeVisible();
   }
 
   /** Fit every frame in view; the button stays pressed while the view keeps doing so. */
