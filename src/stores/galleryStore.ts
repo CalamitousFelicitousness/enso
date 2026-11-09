@@ -102,7 +102,6 @@ interface GalleryState {
   selectAll: () => void;
   deselectAll: () => void;
   removeFilesFromStore: (ids: string[]) => void;
-  reset: () => void;
 }
 
 /** What opening a folder clears: the choice and the view of the one before. */
@@ -293,21 +292,5 @@ export const useGalleryStore = create<GalleryState>()((set) => ({
         lightboxIndex: lightboxIn(s.lightboxIndex, s.sortedFiles, sortedFiles),
         loadProgress: { loaded: files.length, total: files.length },
       };
-    }),
-  reset: () =>
-    set({
-      ...OPENED,
-      selectedIds: new Set<string>(),
-      folders: [],
-      activeFolder: null,
-      activeKept: null,
-      files: [],
-      loadProgress: { loaded: 0, total: null },
-      thumbs: new Map(),
-      sortedFiles: [],
-      searchQuery: "",
-      thumbSize: 180,
-      layoutMode: "grid",
-      metadataPanelOpen: true,
     }),
 }));

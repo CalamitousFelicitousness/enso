@@ -62,7 +62,6 @@ interface VideoState extends VideoParamValues {
   swapCompare: () => void;
   clearCompare: () => void;
   setCompareOpen: (open: boolean) => void;
-  reset: () => void;
 }
 
 export type CompareSlot = "A" | "B";
@@ -203,8 +202,6 @@ export const useVideoStore = create<VideoState>()(
       clearCompare: () => set({ compareA: null, compareB: null, compareOpen: false }),
 
       setCompareOpen: (open) => set({ compareOpen: open }),
-
-      reset: () => set({ ...VIDEO_PARAM_DEFAULTS, touched: new Set<VideoParamKey>() }),
     }),
     {
       name: LOCAL.video,

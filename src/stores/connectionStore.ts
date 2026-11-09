@@ -9,7 +9,6 @@ interface ConnectionState {
   password: string;
   setBackendUrl: (url: string) => void;
   setAuth: (username: string, password: string) => void;
-  clearAuth: () => void;
   reset: () => void;
 }
 
@@ -22,7 +21,6 @@ export const useConnectionStore = create<ConnectionState>()(
 
       setBackendUrl: (url) => set({ backendUrl: url }),
       setAuth: (username, password) => set({ username, password }),
-      clearAuth: () => set({ username: "", password: "" }),
       reset: () => set({ backendUrl: "", username: "", password: "" }),
     }),
     { name: LOCAL.connections },

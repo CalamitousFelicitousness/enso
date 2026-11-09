@@ -6,7 +6,6 @@ import type { UnifiedModel } from "@/api/types/cloud";
 interface ModelSelectionState {
   activeModel: UnifiedModel | null;
   setActiveModel: (model: UnifiedModel | null) => void;
-  clear: () => void;
 }
 
 export const useModelSelectionStore = create<ModelSelectionState>()(
@@ -15,8 +14,6 @@ export const useModelSelectionStore = create<ModelSelectionState>()(
       activeModel: null,
 
       setActiveModel: (model) => set({ activeModel: model }),
-
-      clear: () => set({ activeModel: null }),
     }),
     {
       name: LOCAL.modelSelection,

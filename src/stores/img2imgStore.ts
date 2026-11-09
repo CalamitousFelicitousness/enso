@@ -39,7 +39,6 @@ interface Img2ImgState {
   setInpaintFullResPadding: (v: number) => void;
   setInpaintingMaskInvert: (v: boolean) => void;
   setMaskApplyOverlay: (v: boolean) => void;
-  reset: () => void;
 }
 
 const defaultState = {
@@ -72,8 +71,6 @@ export const useImg2ImgStore = create<Img2ImgState>()(
       setInpaintFullResPadding: (v) => _set({ inpaintFullResPadding: v }),
       setInpaintingMaskInvert: (v) => _set({ inpaintingMaskInvert: v }),
       setMaskApplyOverlay: (v) => _set({ maskApplyOverlay: v }),
-
-      reset: () => _set(defaultState),
     }),
     {
       name: LOCAL.img2img,

@@ -19,7 +19,6 @@ interface BackendStatusState extends BackendStatus {
   setStatus: (data: Partial<BackendStatus>) => void;
   setPreview: (url: string) => void;
   setConnected: (connected: boolean) => void;
-  reset: () => void;
 }
 
 const IDLE: BackendStatus = {
@@ -61,10 +60,4 @@ export const useBackendStatusStore = create<BackendStatusState>()((set) => ({
     }),
 
   setConnected: (connected) => set({ connected }),
-
-  reset: () =>
-    set((state) => {
-      if (state.previewUrl) URL.revokeObjectURL(state.previewUrl);
-      return { ...IDLE, connected: state.connected };
-    }),
 }));

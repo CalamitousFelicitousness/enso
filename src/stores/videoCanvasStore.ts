@@ -60,7 +60,6 @@ interface VideoCanvasState {
   reorderReference: (from: number, to: number) => void;
   clearReferences: () => void;
   setActiveSlot: (slot: VideoSlotId) => void;
-  clearAll: () => void;
 }
 
 interface PersistedFrame {
@@ -231,17 +230,6 @@ export const useVideoCanvasStore = create<VideoCanvasState>()(
       },
 
       setActiveSlot: (slot) => set({ activeSlot: slot }),
-
-      clearAll: () => {
-        const { initFrame, lastFrame, references } = get();
-        if (initFrame?.objectUrl) URL.revokeObjectURL(initFrame.objectUrl);
-        if (lastFrame?.objectUrl) URL.revokeObjectURL(lastFrame.objectUrl);
-        for (const r of references) {
-          if (r.objectUrl) URL.revokeObjectURL(r.objectUrl);
-          if (r.posterUrl) URL.revokeObjectURL(r.posterUrl);
-        }
-        set({ initFrame: null, lastFrame: null, references: [] });
-      },
     }),
     {
       // The key changed with the record format; the version 0 record stays

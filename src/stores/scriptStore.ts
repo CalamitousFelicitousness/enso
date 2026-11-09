@@ -10,7 +10,6 @@ interface ScriptState {
   setScriptArg: (index: number, value: unknown) => void;
   setAlwaysOnArg: (name: string, index: number, value: unknown) => void;
   setAlwaysOnEnabled: (name: string, enabled: boolean) => void;
-  reset: () => void;
 }
 
 export const useScriptStore = create<ScriptState>()((set) => ({
@@ -41,7 +40,4 @@ export const useScriptStore = create<ScriptState>()((set) => ({
 
   setAlwaysOnEnabled: (name, enabled) =>
     set((state) => ({ alwaysOnEnabled: { ...state.alwaysOnEnabled, [name]: enabled } })),
-
-  reset: () =>
-    set({ selectedScript: "", scriptArgs: [], alwaysOnOverrides: {}, alwaysOnEnabled: {} }),
 }));

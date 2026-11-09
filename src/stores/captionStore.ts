@@ -30,7 +30,6 @@ interface CaptionState {
   setProcessing: (v: boolean) => void;
   setMethod: (m: CaptionMethod) => void;
   setCloudMode: (m: "caption" | "vqa") => void;
-  reset: () => void;
 }
 
 export const useCaptionStore = create<CaptionState>()((set, get) => ({
@@ -63,17 +62,4 @@ export const useCaptionStore = create<CaptionState>()((set, get) => ({
   setProcessing: (v) => set({ isProcessing: v }),
   setMethod: (m) => set({ method: m }),
   setCloudMode: (m) => set({ cloudMode: m }),
-
-  reset: () => {
-    const prev = get().imagePreviewUrl;
-    if (prev) URL.revokeObjectURL(prev);
-    set({
-      image: null,
-      imagePreviewUrl: null,
-      result: null,
-      isProcessing: false,
-      method: "vlm",
-      cloudMode: "caption",
-    });
-  },
 }));

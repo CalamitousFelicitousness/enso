@@ -57,7 +57,6 @@ interface TutorialState {
   next: () => void;
   back: () => void;
   skip: () => void;
-  reset: () => void;
 }
 
 export const useTutorialStore = create<TutorialState>()(
@@ -92,8 +91,6 @@ export const useTutorialStore = create<TutorialState>()(
         }),
 
       skip: () => set({ active: false, completed: true }),
-
-      reset: () => set({ completed: false }),
     }),
     {
       name: LOCAL.tutorial,

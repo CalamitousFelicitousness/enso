@@ -237,7 +237,6 @@ export interface GenerationState {
   setHistoryLimit: (limit: number) => GenerationResult[];
   /** Results a lowered limit took off the strip, back on it under `limit`. */
   putBackResults: (results: GenerationResult[], limit: number) => void;
-  reset: () => void;
 }
 
 export const defaultParams = {
@@ -458,8 +457,6 @@ export const useGenerationStore = create<GenerationState>()(
           ].sort((a, b) => b.timestamp - a.timestamp),
         }));
       },
-
-      reset: () => set({ ...defaultParams }),
     }),
     {
       name: LOCAL.generation,
