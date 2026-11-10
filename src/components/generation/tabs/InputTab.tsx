@@ -1,7 +1,7 @@
 // The Input tab: the outline of the input document, what keeps the request
 // from being built, and the inspector of the selected frame.
 
-import { BookmarkPlus, Download, Loader2, Locate, ScrollText } from "lucide-react";
+import { BookmarkPlus, Download, Loader2, Locate, Plus, ScrollText } from "lucide-react";
 import { useInputStore } from "@/stores/inputStore";
 import { useModelCapabilities } from "@/hooks/useModelCapabilities";
 import { Button } from "@/components/ui/button";
@@ -144,7 +144,11 @@ export function InputTab() {
         )}
       </div>
 
-      <AddFrameMenu lockedType={lockedType} />
+      <AddFrameMenu lockedType={lockedType}>
+        <Button variant="outline" size="sm" className="w-full">
+          <Plus size={12} className="mr-1" /> Add Input
+        </Button>
+      </AddFrameMenu>
 
       {selected && selectedRole && (
         <>

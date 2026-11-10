@@ -2,9 +2,7 @@
 // are greyed once the model's image limit is reached; a Control frame can
 // only be of the type the other Control frames send.
 
-import { useCallback, useState } from "react";
-import { Plus } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { useCallback, useState, type ReactNode } from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useInputsAtCapacity } from "@/canvas/useInputsAtCapacity";
 import { INPUTS_FULL_HINT } from "@/inputs/capacity";
@@ -18,7 +16,13 @@ function entryClass(disabled: boolean, indent = false) {
   return `flex w-full items-center rounded-sm px-2 py-1.5 text-sm ${indent ? "pl-4 " : ""}${disabled ? "opacity-40 cursor-not-allowed" : "hover:bg-accent hover:text-accent-foreground"}`;
 }
 
-export function AddFrameMenu({ lockedType }: { lockedType: ControlType | null }) {
+interface AddFrameMenuProps {
+  lockedType: ControlType | null;
+  /** The button that opens the menu. */
+  children: ReactNode;
+}
+
+export function AddFrameMenu({ lockedType, children }: AddFrameMenuProps) {
   const framesFull = useInputsAtCapacity();
   const [open, setOpen] = useState(false);
   const closeAfter = useCallback((add: () => void) => {
@@ -28,11 +32,7 @@ export function AddFrameMenu({ lockedType }: { lockedType: ControlType | null })
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button variant="outline" size="sm" className="w-full">
-          <Plus size={12} className="mr-1" /> Add Input
-        </Button>
-      </PopoverTrigger>
+      <PopoverTrigger asChild>{children}</PopoverTrigger>
       <PopoverContent className="w-56 p-1" align="start">
         {INPUT_ROLES.map((role) => (
           <button

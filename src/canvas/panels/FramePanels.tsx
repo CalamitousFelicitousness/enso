@@ -1,6 +1,6 @@
 // The DOM chrome over the canvas: a dock per frame inside one sortable
-// context for frame reorder, the add buttons under each column, and the
-// Output dock.
+// context for frame reorder, the Add frame control under the input column,
+// and the Output dock.
 
 import { sizeText } from "@/lib/media/text";
 import { useCallback, useEffect, useMemo, useRef } from "react";
@@ -13,12 +13,13 @@ import { useOutlineWithEnv } from "@/inputs/useOutline";
 import { moveFrame } from "@/inputs/edits";
 import { saveFrames } from "@/inputs/library";
 import type { CanvasLayout } from "@/canvas/useCanvasLayout";
-import { INPUTS_FULL_HINT } from "@/inputs/capacity";
 import { useSizeSourceMark } from "@/canvas/useSizeSource";
 import { resolveOutputSize } from "@/lib/sizeCompute";
 import { FrameDock } from "./FrameDock";
 import { OutputFramePanel } from "./OutputFramePanel";
+import { AddFrameMenu } from "@/components/generation/tabs/input/AddFrameMenu";
 import type { ViewportState } from "@/canvas/viewportBus";
+import type { ControlType } from "@/lib/inputs/types";
 import { useWorldChrome } from "@/canvas/navigation/chrome";
 
 interface FramePanelsProps {
@@ -32,10 +33,6 @@ interface FramePanelsProps {
   onClearFrame?: (frameId: string) => void;
   /** Remove a frame from its column. */
   onRemoveFrame?: (frameId: string) => void;
-  /** Add an Initial frame at the end of the list. */
-  onAddInputFrame?: () => void;
-  /** Add a Control frame at the end of the list. */
-  onAddControlFrame?: () => void;
 }
 
 export function FramePanels({
@@ -45,8 +42,6 @@ export function FramePanels({
   onAddCell,
   onClearFrame,
   onRemoveFrame,
-  onAddInputFrame,
-  onAddControlFrame,
 }: FramePanelsProps) {
   // The committed camera: only the chrome re-renders when a move settles
   const viewport = useCanvasStore((s) => s.viewport);
@@ -89,7 +84,7 @@ export function FramePanels({
 
   const canRemove = outline.entries.length > 1;
   const frameIds = layout.frames.map((f) => f.frameId);
-  const { genSize, displayW } = layout;
+  const { genSize } = layout;
   const outputSize =
     layout.outputPicture ??
     resolveOutputSize(genSize, hiresEnabled, hiresScale, hiresResizeX, hiresResizeY, sizeMultiple);
@@ -122,33 +117,13 @@ export function FramePanels({
         })}
       </SortableContext>
 
-      {onAddInputFrame && (
-        <AddFrameButton
-          chromeKey="add:input"
-          x={0}
-          y={layout.inputColumnBottom}
-          width={displayW}
-          viewport={viewport}
-          labelScale={labelScale}
-          disabled={layout.inputsAtCapacity}
-          title={layout.inputsAtCapacity ? INPUTS_FULL_HINT : undefined}
-          label="Add Input Frame"
-          onClick={onAddInputFrame}
-        />
-      )}
-      {onAddControlFrame && (
-        <AddFrameButton
-          chromeKey="add:control"
-          x={layout.controlColumnX}
-          y={layout.controlColumnBottom}
-          width={displayW}
-          viewport={viewport}
-          labelScale={labelScale}
-          disabled={false}
-          label="Add Control Frame"
-          onClick={onAddControlFrame}
-        />
-      )}
+      <AddFrameControl
+        x={layout.inputColumnX}
+        y={layout.inputColumnBottom}
+        viewport={viewport}
+        labelScale={labelScale}
+        lockedType={outline.controls[0]?.settings.type ?? null}
+      />
 
       <OutputFramePanel
         canvasX={layout.outputX}
@@ -161,61 +136,43 @@ export function FramePanels({
   );
 }
 
-interface AddFrameButtonProps {
-  chromeKey: string;
-  /** Display-space anchor: the button sits just below the column's last frame. */
+interface AddFrameControlProps {
+  /** Display-space anchor: just below the input column's last frame. */
   x: number;
   y: number;
-  width: number;
   viewport: ViewportState;
   labelScale: number;
-  disabled: boolean;
-  title?: string | undefined;
-  label: string;
-  onClick: () => void;
+  lockedType: ControlType | null;
 }
 
-function AddFrameButton({
-  chromeKey,
-  x,
-  y,
-  width,
-  viewport,
-  labelScale,
-  disabled,
-  title,
-  label,
-  onClick,
-}: AddFrameButtonProps) {
+/** The one place the canvas adds a frame from; the role picked decides its column. */
+function AddFrameControl({ x, y, viewport, labelScale, lockedType }: AddFrameControlProps) {
   const combinedScale = viewport.scale * labelScale;
   const rootRef = useRef<HTMLDivElement>(null);
-  useWorldChrome(chromeKey, rootRef, { x, y, edge: "top", scale: labelScale });
-  const style = useMemo<React.CSSProperties>(() => {
-    const screenX = x * viewport.scale + viewport.x;
-    const screenY = y * viewport.scale + viewport.y;
-    return {
+  useWorldChrome("add", rootRef, { x, y, edge: "top", scale: labelScale });
+  const style = useMemo<React.CSSProperties>(
+    () => ({
       position: "absolute",
-      left: `${screenX}px`,
-      top: `${screenY}px`,
-      width: `${width}px`,
+      left: `${x * viewport.scale + viewport.x}px`,
+      top: `${y * viewport.scale + viewport.y}px`,
       transform: `scale(${combinedScale})`,
       transformOrigin: "top left",
       pointerEvents: "auto",
-    };
-  }, [x, y, width, viewport.scale, viewport.x, viewport.y, combinedScale]);
+    }),
+    [x, y, viewport.scale, viewport.x, viewport.y, combinedScale],
+  );
 
   return (
-    <div ref={rootRef} style={style} className="z-50">
-      <button
-        type="button"
-        onClick={onClick}
-        disabled={disabled}
-        title={title}
-        className="flex w-full items-center justify-center gap-1.5 rounded-md border border-dashed border-white/15 bg-white/[0.02] px-3 py-2 text-[11px] font-medium text-muted-foreground transition-colors hover:border-white/30 hover:bg-white/[0.04] hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-white/15 disabled:hover:bg-white/[0.02] disabled:hover:text-muted-foreground"
-      >
-        <Plus size={14} />
-        {label}
-      </button>
+    <div ref={rootRef} style={style} className="z-50 pt-2">
+      <AddFrameMenu lockedType={lockedType}>
+        <button
+          type="button"
+          className="flex items-center gap-1.5 rounded-md px-2 py-1 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-white/[0.06] hover:text-foreground data-[state=open]:bg-white/[0.06] data-[state=open]:text-foreground"
+        >
+          <Plus size={13} />
+          Add frame
+        </button>
+      </AddFrameMenu>
     </div>
   );
 }

@@ -5,11 +5,10 @@
 import { useMemo, useRef, type ReactNode } from "react";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { DOCK_LINE_HEIGHT, ELEMENT_GAP } from "@/lib/inputs/layout";
+import { DOCK_LINE_HEIGHT, DOCK_WIDTH, ELEMENT_GAP } from "@/lib/inputs/layout";
 import { useWorldChrome } from "@/canvas/navigation/chrome";
 
 export const HEADER_HEIGHT = 30;
-export const PANEL_WIDTH = 320;
 const DRAWER_MAX_HEIGHT = 420;
 const STROKE_HALF = 1;
 
@@ -184,7 +183,7 @@ export function FrameHeader({
       position: "absolute",
       left: `${screenLeftX}px`,
       bottom: `calc(100% - ${screenTopY}px)`,
-      width: `${PANEL_WIDTH}px`,
+      width: `${DOCK_WIDTH}px`,
       transform: `scale(${combinedScale})`,
       transformOrigin: "bottom left",
       pointerEvents: "auto" as const,

@@ -20,6 +20,7 @@ import {
   activeProcessor,
   composedPictures,
   hasMask,
+  holdsContent,
   isComposed,
   slotPictures,
   type ControlSettings,
@@ -118,6 +119,9 @@ export interface OutlineEntry {
   position: number;
   role: FrameRole;
   status: FrameStatus;
+  /** The frame holds nothing to draw: no picture or mask of its own, and none
+   * in the frame a linked Control frame takes its picture from. */
+  vacant: boolean;
   notSent: NotSentReason | null;
   sent: SentInput[];
   /** A set frame's pictures in order, leaving out those a role switch hid.
@@ -359,6 +363,14 @@ function needsModel(settings: ControlSettings, env: OutlineEnv): boolean {
   return !(settings.type === "controlnet" && env.controlUnified);
 }
 
+/** Nothing of its own to draw, and nothing in a linked Control frame's source. */
+function isVacant(frames: Frame[], frame: Frame): boolean {
+  if (holdsContent(frame)) return false;
+  if (frame.role !== "control" || !frame.link) return true;
+  const source = frames.find((f) => f.id === frame.link?.frameId);
+  return !source || source.pictures.length === 0;
+}
+
 /** The frame whose composite a Control frame sends: its link's target, else itself. */
 function controlSource(
   frames: Frame[],
@@ -555,6 +567,7 @@ export function computeOutline(frames: Frame[], env: OutlineEnv = {}): Outline {
       frameId: frame.id,
       position,
       role: frame.role,
+      vacant: isVacant(frames, frame),
       hiddenBySwitch: frame.pictures.filter((p) => p.hiddenBySwitch).length,
       linkedTo: frame.role === "control" && linkedIndex !== -1 ? linkedIndex + 1 : null,
       processor: activeProcessor(frame)?.id ?? null,

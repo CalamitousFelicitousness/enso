@@ -23,7 +23,7 @@ import { useShortcutScope } from "@/hooks/useShortcutScope";
 import { useShortcut } from "@/hooks/useShortcut";
 import { useKeepAliveVisible } from "@/components/ui/keep-alive";
 import { dropFailed, payloadToPicture } from "@/lib/sendTo";
-import type { EntryPayload, ImagePayload } from "@/lib/drag";
+import { ENTRY_MIME, type EntryPayload, type ImagePayload } from "@/lib/drag";
 import { recallEntry } from "@/inputs/recall";
 import { importAmong } from "@/inputs/recipes";
 import { isPictureOrRecipe } from "@/lib/recipes/recipe";
@@ -146,6 +146,21 @@ export const CanvasView = memo(function CanvasView() {
     [hitTestFrame],
   );
 
+  // A dragged picture lands in the frame under it, else the selected one,
+  // else the first; an entry joins the inputs wherever it is dropped
+  const handleDragPoint = useCallback(
+    (point: SurfacePoint | null, e?: React.DragEvent) => {
+      const { setDropFrame } = useCanvasStore.getState();
+      if (!point || e?.dataTransfer.types.includes(ENTRY_MIME)) {
+        setDropFrame(null);
+        return;
+      }
+      const inputs = useInputStore.getState();
+      setDropFrame(hitTestFrame(point) ?? inputs.selectedFrameId ?? inputs.frames[0]?.id ?? null);
+    },
+    [hitTestFrame],
+  );
+
   // A library entry joins the inputs wherever it is dropped
   const handleDropEntry = useCallback((payload: EntryPayload) => {
     void recallEntry(payload.entryId, "add");
@@ -212,16 +227,6 @@ export const CanvasView = memo(function CanvasView() {
   // Set frames take picked files as cells, composed frames as layers
   const handlePickForFrame = useCallback((frameId: string) => openPicker(frameId), [openPicker]);
 
-  // A new frame is selected so the next pick or paste lands in it
-  const handleAddInputFrame = useCallback(() => {
-    const inputs = useInputStore.getState();
-    inputs.selectFrame(inputs.addFrame("initial"));
-  }, []);
-  const handleAddControlFrame = useCallback(() => {
-    const inputs = useInputStore.getState();
-    inputs.selectFrame(inputs.addFrame("control"));
-  }, []);
-
   const handlePasteFiles = useCallback((files: File[]) => {
     const pictures = importAmong(files);
     if (pictures.length > 0) void addFilesToInputs(pictures);
@@ -232,6 +237,7 @@ export const CanvasView = memo(function CanvasView() {
       camera={mainCamera}
       tool={imagesTool}
       onDropFiles={handleDropFiles}
+      onDragPoint={handleDragPoint}
       onDropImage={handleDropImage}
       onDropEntry={handleDropEntry}
       onPasteFiles={handlePasteFiles}
@@ -245,8 +251,6 @@ export const CanvasView = memo(function CanvasView() {
           onAddCell={handlePickForFrame}
           onClearFrame={handleClearFrame}
           onRemoveFrame={handleRemoveFrame}
-          onAddInputFrame={handleAddInputFrame}
-          onAddControlFrame={handleAddControlFrame}
         />
       }
       controls={

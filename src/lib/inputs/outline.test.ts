@@ -304,6 +304,23 @@ describe("control and IP-Adapter frames", () => {
     expect(outline.entries[1]).toMatchObject({ status: "sent", linkedTo: 1 });
   });
 
+  it("calls a frame vacant while it and the frame it draws from hold nothing", () => {
+    const vacants = (frames: Frame[]) => computeOutline(frames).entries.map((e) => e.vacant);
+    const hidden = layer("h", { visible: false });
+    expect(
+      vacants([
+        frame("a", "initial"),
+        { ...frame("off", "reference"), enabled: false },
+        frame("b", "initial", hidden),
+        frame("r", "reference", picture("x")),
+      ]),
+    ).toEqual([true, true, false, false]);
+    const linked = (id: string): Frame => ({ ...unit("edges"), link: { frameId: id } });
+    expect(vacants([frame("man", "initial"), linked("man")])).toEqual([true, true]);
+    expect(vacants([frame("man", "initial", layer("m")), linked("man")])).toEqual([false, false]);
+    expect(vacants([linked("gone")])).toEqual([true]);
+  });
+
   it("says why a linked frame sends nothing", () => {
     const statuses = (frames: Frame[]) =>
       computeOutline(frames).entries.map((e) => `${e.status}${e.notSent ? `:${e.notSent}` : ""}`);

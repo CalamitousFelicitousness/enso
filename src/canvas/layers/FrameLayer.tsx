@@ -1,7 +1,8 @@
 // Canvas-native chrome for every frame. One Konva <Layer> in display space.
 // Each frame is one memoised component reading its own pictures: a composed
 // frame (Initial, Control) draws them in a transform Group in frame pixels,
-// a set frame (Reference, IP-Adapter) as a mother frame with a grid of cells.
+// a set frame (Reference, IP-Adapter) as a mother frame with a grid of cells,
+// a vacant frame of either kind as a drop line.
 //
 // Picture interaction (drag, scale, rotate, select) lives here. Masks render
 // on MaskLayer and the Transformer on ChromeLayer; it finds its node through
@@ -18,18 +19,26 @@ import { useEffectiveLimit } from "@/inputs/admit";
 import { useBlobImage } from "@/inputs/media";
 import { useMapStore, type MapEntry } from "@/inputs/maps";
 import type { MapSlot } from "@/lib/inputs/outline";
-import { TOO_LARGE_TO_SHOW, tooLargeToShowText } from "@/lib/inputs/text";
-import { isPlaced, type Frame, type Picture, type PlacedPicture } from "@/lib/inputs/types";
+import { vacantFrameText, TOO_LARGE_TO_SHOW, tooLargeToShowText } from "@/lib/inputs/text";
+import {
+  isComposed,
+  isPlaced,
+  type Frame,
+  type Picture,
+  type PlacedPicture,
+} from "@/lib/inputs/types";
 import {
   useLayerInteraction,
   type LayerInteraction,
   type Snap,
 } from "@/canvas/tools/useLayerInteraction";
-import type {
-  ComposedFramePosition,
-  FramePosition,
-  ReferenceChildPosition,
-  SetFramePosition,
+import {
+  VACANT_HEIGHT,
+  type ComposedFramePosition,
+  type FramePosition,
+  type ReferenceChildPosition,
+  type SetFramePosition,
+  type VacantFramePosition,
 } from "@/lib/inputs/layout";
 import type Konva from "konva";
 
@@ -41,9 +50,9 @@ interface FrameLayerProps {
   /** Registers each picture's node so the Transformer can attach to it. */
   setNodeRef: SetNodeRef;
   snap: Snap;
-  /** An empty composed frame was clicked: open the file picker for it. */
+  /** A composed frame with nothing to show was clicked: open the file picker for it. */
   onPickFile?: ((frameId: string) => void) | undefined;
-  /** A set frame's +Add cell, or an empty set frame, was clicked. */
+  /** A set frame's +Add cell, or a set frame with no cell, was clicked. */
   onAddCell?: ((frameId: string) => void) | undefined;
 }
 
@@ -75,12 +84,28 @@ export function FrameLayer({
     [onAddCell],
   );
 
+  const handleVacantClick = useCallback(
+    (frame: VacantFramePosition, linked: boolean) => {
+      useInputStore.getState().selectFrame(frame.frameId);
+      if (linked) return;
+      (isComposed(frame.role) ? onPickFile : onAddCell)?.(frame.frameId);
+    },
+    [onPickFile, onAddCell],
+  );
+
   if (frames.length === 0) return null;
 
   return (
     <Layer>
       {frames.map((frame) =>
-        frame.kind === "composed" ? (
+        frame.kind === "vacant" ? (
+          <VacantFrame
+            key={frame.frameId}
+            frame={frame}
+            isSelected={selectedFrameId === frame.frameId}
+            onClick={handleVacantClick}
+          />
+        ) : frame.kind === "composed" ? (
           <ComposedFrame
             key={frame.frameId}
             frame={frame}
@@ -130,6 +155,60 @@ function useComposedSource(frameId: string): { pictures: Picture[]; linked: bool
   const linked = useInputStore((s) => s.frames.find((f) => f.id === frameId)?.link !== null);
   return { pictures, linked };
 }
+
+// ── Vacant frame ──────────────────────────────────────────────────────
+
+const VACANT_STROKE = "rgba(255, 255, 255, 0.16)";
+const VACANT_TEXT = "#8b8ba0";
+
+interface VacantFrameProps {
+  frame: VacantFramePosition;
+  isSelected: boolean;
+  onClick: (frame: VacantFramePosition, linked: boolean) => void;
+}
+
+/** A frame that holds nothing: one dashed line to drop a picture on or click. */
+const VacantFrame = memo(function VacantFrame({ frame, isSelected, onClick }: VacantFrameProps) {
+  const linked = useInputStore((s) => s.frames.find((f) => f.id === frame.frameId)?.link != null);
+  // A picture dragged over the canvas would land here
+  const dropping = useCanvasStore((s) => s.dropFrameId === frame.frameId) && !linked;
+  const accent = frameColor(frame.role, true);
+  // The label scale, which the line's type and corners follow
+  const unit = frame.height / VACANT_HEIGHT;
+  const handleClick = () => onClick(frame, linked);
+  return (
+    <>
+      <Rect
+        x={frame.x}
+        y={frame.y}
+        width={frame.width}
+        height={frame.height}
+        cornerRadius={6 * unit}
+        fill={dropping ? "rgba(255, 255, 255, 0.06)" : "rgba(255, 255, 255, 0.02)"}
+        stroke={dropping ? accent : isSelected ? frameColor(frame.role, false) : VACANT_STROKE}
+        strokeWidth={dropping ? 2 : 1}
+        dash={[6, 4]}
+        dashEnabled={!dropping}
+        name={linked ? "" : PICKER_NAME}
+        onClick={handleClick}
+        onTap={handleClick}
+      />
+      <Text
+        x={frame.x}
+        y={frame.y}
+        width={frame.width}
+        height={frame.height}
+        align="center"
+        verticalAlign="middle"
+        text={vacantFrameText(linked)}
+        fontFamily="IBM Plex Sans"
+        fontSize={12 * unit}
+        fill={dropping ? accent : VACANT_TEXT}
+        listening={false}
+      />
+    </>
+  );
+});
 
 // ── Composed frame ────────────────────────────────────────────────────
 

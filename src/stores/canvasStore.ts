@@ -45,6 +45,8 @@ interface CanvasState {
   /** The frame whose picture is being dragged or transformed; its map waits
    * for the gesture to end, so the node under the pointer stays. Not persisted. */
   gestureFrameId: string | null;
+  /** The frame a picture dragged over the canvas would land in; not persisted. */
+  dropFrameId: string | null;
   /** Per-dock collapse override map, keyed by FrameId string: `input:${uuid}`
    * for frames, `"output"` for the Output dock. */
   panelCollapsedOverrides: Map<string, boolean>;
@@ -75,6 +77,7 @@ interface CanvasState {
   setEditingFrame: (frameId: string | null) => void;
   setPeekingFrame: (frameId: string | null) => void;
   setGestureFrame: (frameId: string | null) => void;
+  setDropFrame: (frameId: string | null) => void;
   togglePanelCollapsed: (key: string, currentCollapsed: boolean) => void;
   setSizeMultiple: (multiple: number) => void;
   setMinimapRoom: (room: boolean) => void;
@@ -110,6 +113,7 @@ export const useCanvasStore = create<CanvasState>()(
       editingFrameId: null,
       peekingFrameId: null,
       gestureFrameId: null,
+      dropFrameId: null,
       panelCollapsedOverrides: new Map<string, boolean>(),
       canvasMode: "canvas",
       focusedFrameId: null,
@@ -141,6 +145,8 @@ export const useCanvasStore = create<CanvasState>()(
         set((s) => (s.peekingFrameId === frameId ? s : { peekingFrameId: frameId })),
       setGestureFrame: (frameId) =>
         set((s) => (s.gestureFrameId === frameId ? s : { gestureFrameId: frameId })),
+      setDropFrame: (frameId) =>
+        set((s) => (s.dropFrameId === frameId ? s : { dropFrameId: frameId })),
       setSizeMultiple: (multiple) => set({ sizeMultiple: multiple }),
       setMinimapRoom: (room) => set((s) => (s.minimapRoom === room ? s : { minimapRoom: room })),
 

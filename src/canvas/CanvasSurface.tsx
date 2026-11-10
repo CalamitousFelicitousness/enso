@@ -33,6 +33,8 @@ interface CanvasSurfaceProps {
   /** Chrome below the canvas, outside its clip. */
   below?: ReactNode;
   onDropFiles?: (files: File[], point: SurfacePoint) => void;
+  /** Where a drag the surface takes is, as it moves; null once it leaves or drops. */
+  onDragPoint?: (point: SurfacePoint | null, e?: React.DragEvent) => void;
   /** What a drop or a paste takes. Defaults to images by MIME. */
   acceptFile?: (file: File) => boolean;
   /** What a drop or a paste takes, in words, for one that holds none of it. */
@@ -60,6 +62,7 @@ export function CanvasSurface({
   minimap,
   below,
   onDropFiles,
+  onDragPoint,
   onDropImage,
   onDropEntry,
   onPasteFiles,
@@ -100,6 +103,18 @@ export function CanvasSurface({
     ...(acceptFile ? { acceptFile } : {}),
     ...(acceptKinds ? { kinds: acceptKinds } : {}),
   });
+
+  const { onDragOver } = dropHandlers;
+  const dragOver = useCallback(
+    (e: React.DragEvent) => {
+      onDragOver(e);
+      if (e.defaultPrevented) onDragPoint?.(pointFrom(e), e);
+    },
+    [onDragOver, onDragPoint, pointFrom],
+  );
+  useEffect(() => {
+    if (!isOver) onDragPoint?.(null);
+  }, [isOver, onDragPoint]);
 
   const visible = useKeepAliveVisible();
   useViewportGestures({ surfaceRef: clipRef, camera, tool, enabled: visible });
@@ -143,6 +158,7 @@ export function CanvasSurface({
           )}
           ref={clipRef}
           {...dropHandlers}
+          onDragOver={dragOver}
         >
           {children}
           <div ref={overlayRef} className="pointer-events-none absolute inset-0 origin-top-left">

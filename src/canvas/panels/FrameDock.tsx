@@ -47,8 +47,8 @@ import {
 } from "@/lib/inputs/text";
 import { useLibrarySaving } from "@/inputs/library";
 import { SAVING, sizeText as pixelSizeText } from "@/lib/media/text";
-import { composedPictures } from "@/lib/inputs/types";
-import type { FramePosition } from "@/lib/inputs/layout";
+import { composedPictures, isComposed } from "@/lib/inputs/types";
+import { frameBox, type FramePosition } from "@/lib/inputs/layout";
 import { ReferenceSortableOverlay } from "@/canvas/ReferenceSortableOverlay";
 import { SIZE_SOURCE_HINT } from "@/canvas/useSizeSource";
 import { FrameInspector } from "@/components/generation/tabs/input/FrameInspector";
@@ -130,7 +130,7 @@ export function FrameDock({
   const [collapsed, setCollapsed] = useState(true);
 
   const role = storeFrame?.role ?? entry.role;
-  const isSet = frame.kind === "set";
+  const isSet = !isComposed(role);
   const cellCount = frame.kind === "set" ? frame.children.length : 0;
   const layerCount = storeFrame ? composedPictures(storeFrame).length : 0;
   const maskLineCount = storeFrame?.mask.strokes.length ?? 0;
@@ -152,7 +152,7 @@ export function FrameDock({
 
   if (!storeFrame) return null;
 
-  const frameW = frame.kind === "composed" ? frame.displayW : frame.motherW;
+  const frameW = frameBox(frame).width;
   const handlePickImage = () => onPickImage?.(frame.frameId);
   const handleAddCell = () => onAddCell?.(frame.frameId);
   const handleClear = () => onClearFrame?.(frame.frameId);

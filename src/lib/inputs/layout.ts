@@ -1,7 +1,8 @@
 // Where the frames sit on the canvas, from the outline alone. Image frames
-// (Initial, Reference) stack in the input column at x = 0; control frames
-// (Control, IP-Adapter) stack in a column to its left; the output sits to the
-// right. Everything is in display units: frame pixels scaled so the frame is
+// (Initial, Reference) stack in the input column; control frames (Control,
+// IP-Adapter) stack in a column to its left; the output sits to the right. A
+// vacant frame is a drop line, so a column of them is no wider than a dock.
+// Everything is in display units: frame pixels scaled so the frame is
 // REFERENCE_HEIGHT tall.
 
 import {
@@ -24,6 +25,10 @@ export const ELEMENT_GAP = 16;
 export const DOCK_LINE_HEIGHT = 22;
 /** Collapsed dock before the label scale: its header plus a 1px border. */
 const DOCK_HEIGHT = 32;
+/** The dock's width before the label scale. */
+export const DOCK_WIDTH = 320;
+/** A vacant frame's drop line before the label scale. */
+export const VACANT_HEIGHT = 56;
 const FRAME_GAP = 48;
 
 /** A composed frame: Initial or Control, drawn as one picture at the frame's
@@ -86,15 +91,31 @@ export interface SetFramePosition {
   addCellPosition: { x: number; y: number; w: number; h: number } | null;
 }
 
+/** A vacant frame of any role: a drop line the width of its dock. It takes its
+ * role's shape once it holds a picture. */
+export interface VacantFramePosition {
+  kind: "vacant";
+  role: FrameRole;
+  frameId: string;
+  /** Display-space top-left and dimensions. */
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
 /** Discriminated union the layout emits per frame, the Konva render layer
  * reads, and the DOM dock orchestrator iterates. Consumers narrow via `kind`
  * for the shape and `role` for the meaning. */
-export type FramePosition = ComposedFramePosition | SetFramePosition;
+export type FramePosition = ComposedFramePosition | SetFramePosition | VacantFramePosition;
 
 export type { Box };
 
 /** Display-space bounds of a frame position. */
 export function frameBox(frame: FramePosition): Box {
+  if (frame.kind === "vacant") {
+    return { x: frame.x, y: frame.y, width: frame.width, height: frame.height };
+  }
   return frame.kind === "composed"
     ? { x: frame.x, y: frame.y, width: frame.displayW, height: frame.displayH }
     : { x: frame.x, y: frame.y, width: frame.motherW, height: frame.motherH };
@@ -124,10 +145,10 @@ export interface FrameLayout {
   outputX: number;
   outputDisplayW: number;
   outputDisplayH: number;
-  /** Just below the last frame of each column; 0 when the column is empty. */
+  /** The input column's left edge, and just below its last frame; the bottom
+   * is 0 when the column is empty. */
+  inputColumnX: number;
   inputColumnBottom: number;
-  controlColumnBottom: number;
-  controlColumnX: number;
 }
 
 function setFrame(
@@ -178,7 +199,17 @@ export function computeCanvasLayout(input: LayoutInput): FrameLayout {
   const outputDisplayW = output.width * displayScale;
   const outputDisplayH = output.height * displayScale;
   const outputX = displayW + FRAME_GAP;
-  const controlColumnX = -(displayW + FRAME_GAP);
+  const vacantW = DOCK_WIDTH * labelScale;
+  const vacantH = VACANT_HEIGHT * labelScale;
+  const columnOf = (entry: OutlineEntry) =>
+    entry.role === "control" || entry.role === "ipAdapter" ? "control" : "input";
+  // A column is a frame wide once one of its frames holds a picture. Each
+  // keeps its right edge against its neighbour, so vacant columns cost a
+  // fit no more than their docks.
+  const holds = { input: false, control: false };
+  for (const entry of input.entries) if (!entry.vacant) holds[columnOf(entry)] = true;
+  const inputX = holds.input ? 0 : displayW - vacantW;
+  const controlX = inputX - FRAME_GAP - (holds.control ? displayW : vacantW);
   // A dock floats ELEMENT_GAP above its frame at the label scale, one line
   // taller on a frame with a processor
   const gapAbove = (entry: OutlineEntry) =>
@@ -190,11 +221,22 @@ export function computeCanvasLayout(input: LayoutInput): FrameLayout {
   const bottoms = { input: 0, control: 0 };
   const started = { input: false, control: false };
   for (const entry of input.entries) {
-    const column = entry.role === "control" || entry.role === "ipAdapter" ? "control" : "input";
-    const x = column === "control" ? controlColumnX : 0;
+    const column = columnOf(entry);
+    const x = column === "control" ? controlX : inputX;
     const y = started[column] ? bottoms[column] + gapAbove(entry) : 0;
     started[column] = true;
-    if (entry.role === "initial" || entry.role === "control") {
+    if (entry.vacant) {
+      frames.push({
+        kind: "vacant",
+        role: entry.role,
+        frameId: entry.frameId,
+        x,
+        y,
+        width: vacantW,
+        height: vacantH,
+      });
+      bottoms[column] = y + vacantH;
+    } else if (entry.role === "initial" || entry.role === "control") {
       frames.push({
         kind: "composed",
         role: entry.role,
@@ -226,8 +268,7 @@ export function computeCanvasLayout(input: LayoutInput): FrameLayout {
     outputX,
     outputDisplayW,
     outputDisplayH,
+    inputColumnX: inputX,
     inputColumnBottom: bottoms.input,
-    controlColumnBottom: bottoms.control,
-    controlColumnX,
   };
 }

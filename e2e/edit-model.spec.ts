@@ -152,10 +152,10 @@ test("inputs stop at the model's limit", async ({ page }) => {
   await app.open();
   await app.addReferences(...Array<string>(inputLimit).fill(PORTRAIT));
   const full = "This model takes no more input images";
-  await expect(app.canvas.getByRole("button", { name: "Add Input Frame" })).toBeDisabled();
-  await expect(app.canvas.getByRole("button", { name: "Add Input Frame" })).toHaveAttribute(
-    "title",
-    full,
-  );
+  await app.canvas.getByRole("button", { name: "Add frame" }).click();
+  const initial = page.getByRole("dialog").getByRole("button", { name: "Initial", exact: true });
+  await expect(initial).toBeDisabled();
+  await expect(initial).toHaveAttribute("title", full);
+  await page.keyboard.press("Escape");
   await expect(app.canvas.getByTitle(full).first()).toBeDisabled();
 });

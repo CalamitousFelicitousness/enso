@@ -434,6 +434,13 @@ export const CONTROL_PICTURE_SERVER_TEXT =
 export const SIZES_CHANGED_TEXT =
   "The loaded model uses references at a different size from the one shown, and the Input tab now shows it. Generate again to send that.";
 
+/** What a vacant frame says on its drop line. */
+export function vacantFrameText(linked: boolean): string {
+  return linked
+    ? "Its source frame holds no picture"
+    : "Drop a picture here, or click to choose one";
+}
+
 /** "Reference", "ControlNet": what a frame does, by its control type when it is a Control frame. */
 export function frameRoleLabel(frame: Pick<Frame, "role" | "control">): string {
   return frame.role === "control" ? controlTypeLabel(frame.control.type) : roleLabel(frame.role);

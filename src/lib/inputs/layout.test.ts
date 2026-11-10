@@ -57,7 +57,41 @@ describe("computeCanvasLayout", () => {
       "control@-1072,0 1024x512",
       "reference@0,576 1024x2028",
       "ipAdapter@-1072,576 1024x2028",
-      "initial@0,2668 1024x512",
+      "initial@0,2668 320x56",
+    ]);
+  });
+
+  it("draws a vacant frame as a drop line the width of its dock, against the output", () => {
+    const layout = computeCanvasLayout(input([frame("a", "initial"), frame("r", "reference")]));
+    expect(layout.frames.map((f) => f.kind)).toEqual(["vacant", "vacant"]);
+    expect(places([frame("a", "initial"), frame("r", "reference")])).toEqual([
+      "initial@704,0 320x56",
+      "reference@704,120 320x56",
+    ]);
+    expect(layout.inputColumnX).toBe(1024 - 320);
+    expect(layout.inputColumnBottom).toBe(120 + 56);
+    expect(places([frame("a", "initial")], { labelScale: 2 })).toEqual(["initial@384,0 640x112"]);
+  });
+
+  it("lines a vacant frame up with the frames of its column that hold a picture", () => {
+    expect(places([frame("a", "initial", layer("p")), frame("b", "initial")])).toEqual([
+      "initial@0,0 1024x512",
+      "initial@0,576 320x56",
+    ]);
+  });
+
+  it("keeps the control column against the input column, as wide as what it holds", () => {
+    expect(places([frame("a", "initial"), control("c")])).toEqual([
+      "initial@704,0 320x56",
+      "control@336,0 320x56",
+    ]);
+    expect(places([frame("a", "initial"), control("c", layer("e"))])).toEqual([
+      "initial@704,0 320x56",
+      "control@-368,0 1024x512",
+    ]);
+    expect(places([frame("a", "initial", layer("p")), control("c")])).toEqual([
+      "initial@0,0 1024x512",
+      "control@-368,0 320x56",
     ]);
   });
 
@@ -97,11 +131,13 @@ describe("computeCanvasLayout", () => {
 
   it("grows the stack gap with the label scale and reports the column bottoms", () => {
     const layout = computeCanvasLayout(
-      input([frame("a", "initial"), frame("b", "initial"), control("c")], { labelScale: 2 }),
+      input([frame("a", "initial", layer("p")), frame("b", "initial", layer("q")), control("c")], {
+        labelScale: 2,
+      }),
     );
     expect(frameBox(layout.frames[1]).y).toBe(512 + 16 + 64 + 16);
     expect(layout.inputColumnBottom).toBe(512 + 16 + 64 + 16 + 512);
-    expect(layout.controlColumnBottom).toBe(512);
+    expect(layout.inputColumnX).toBe(0);
     expect(computeCanvasLayout(input([])).inputColumnBottom).toBe(0);
   });
 });
