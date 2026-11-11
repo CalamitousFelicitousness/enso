@@ -17,7 +17,8 @@ interface NumberInputProps extends Omit<
 
 /**
  * Number input that defers clamping until blur/Enter so users can freely
- * type multi-digit values without intermediate states being clamped.
+ * type multi-digit values without intermediate states being clamped. Enter
+ * commits and keeps editing; only a changed value is written.
  */
 const NumberInput = memo(function NumberInput({
   value,
@@ -31,18 +32,25 @@ const NumberInput = memo(function NumberInput({
 }: NumberInputProps) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(String(value));
+  // typed since focus or the last commit
+  const [dirty, setDirty] = useState(false);
+  const [seen, setSeen] = useState(value);
+  if (!Object.is(seen, value)) {
+    setSeen(value);
+    if (!dirty) setDraft(String(value));
+  }
 
   const commit = () => {
-    setEditing(false);
     const parsed = parseFloat(draft);
-    if (Number.isNaN(parsed)) {
-      onChange(fallback ?? min ?? 0);
-      return;
+    let next = fallback ?? min ?? 0;
+    if (!Number.isNaN(parsed)) {
+      next = parsed;
+      if (min != null) next = Math.max(min, next);
+      if (max != null) next = Math.min(max, next);
     }
-    let clamped = parsed;
-    if (min != null) clamped = Math.max(min, clamped);
-    if (max != null) clamped = Math.min(max, clamped);
-    onChange(clamped);
+    setDirty(false);
+    setDraft(String(next));
+    if (!Object.is(next, value)) onChange(next);
   };
 
   return (
@@ -54,10 +62,17 @@ const NumberInput = memo(function NumberInput({
       value={editing ? draft : value}
       onFocus={() => {
         setEditing(true);
+        setDirty(false);
         setDraft(String(value));
       }}
-      onChange={(e) => setDraft(e.target.value)}
-      onBlur={commit}
+      onChange={(e) => {
+        setDirty(true);
+        setDraft(e.target.value);
+      }}
+      onBlur={() => {
+        commit();
+        setEditing(false);
+      }}
       onKeyDown={(e) => {
         if (e.key === "Enter") commit();
       }}

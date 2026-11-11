@@ -1,4 +1,4 @@
-import { useCallback, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ParamLabel } from "@/components/generation/ParamLabel";
 
 interface ColorPickerProps {
@@ -10,13 +10,31 @@ interface ColorPickerProps {
 
 export function ColorPicker({ label, value, onChange, tooltip }: ColorPickerProps) {
   const inputRef = useRef<HTMLInputElement>(null);
+  // React's onChange follows every `input` event while the picker is open; the
+  // setting takes the colour on the native `change`, when the picker commits.
+  const [draft, setDraft] = useState<string | null>(null);
+  const [seen, setSeen] = useState(value);
+  if (seen !== value) {
+    setSeen(value);
+    setDraft(null);
+  }
+  const latest = useRef({ value, onChange });
+  useEffect(() => {
+    latest.current = { value, onChange };
+  });
 
-  const handleChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      onChange(e.target.value);
-    },
-    [onChange],
-  );
+  useEffect(() => {
+    const input = inputRef.current;
+    if (!input) return;
+    const commit = () => {
+      setDraft(null);
+      if (input.value !== latest.current.value) latest.current.onChange(input.value);
+    };
+    input.addEventListener("change", commit);
+    return () => input.removeEventListener("change", commit);
+  }, []);
+
+  const shown = draft ?? value;
 
   return (
     <div className="flex items-center gap-2">
@@ -27,12 +45,12 @@ export function ColorPicker({ label, value, onChange, tooltip }: ColorPickerProp
         <input
           ref={inputRef}
           type="color"
-          value={value}
-          onChange={handleChange}
+          value={shown}
+          onChange={(e) => setDraft(e.target.value === value ? null : e.target.value)}
           className="h-6 w-8 cursor-pointer rounded border border-border bg-transparent p-0"
         />
 
-        <span className="text-2xs text-muted-foreground font-mono">{value}</span>
+        <span className="text-2xs text-muted-foreground font-mono">{shown}</span>
       </div>
     </div>
   );

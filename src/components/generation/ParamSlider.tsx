@@ -9,6 +9,7 @@ import {
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { getParamHelp, stripParamHelpHtml } from "@/data/parameterHelp";
 import { cn } from "@/lib/utils";
+import { useStepBurst } from "@/hooks/useCommittedSlider";
 
 // ── Utility functions ──────────────────────────────────────────────
 
@@ -83,7 +84,9 @@ export const ParamSlider = memo(function ParamSlider({
 }: ParamSliderProps) {
   const decimals = decimalsProp ?? deriveDecimals(step);
   const range = max - min;
-  const fill = range === 0 ? 100 : ((value - min) / range) * 100;
+  const { pending, step: stepTo, flush, commit } = useStepBurst(value, onChange);
+  const shown = pending ?? value;
+  const fill = range === 0 ? 100 : ((shown - min) / range) * 100;
 
   // ── State ──────────────────────────────────────────────────────
   const [editing, setEditing] = useState(false);
@@ -155,8 +158,8 @@ export const ParamSlider = memo(function ParamSlider({
   useEffect(() => closeHelp, [closeHelp]);
 
   // ── Drag interaction ───────────────────────────────────────────
-  // No onChange during drag - only imperative DOM updates.
-  // onChange fires once on pointerUp with the final value.
+  // No commit during drag - only imperative DOM updates.
+  // The final value commits once on pointerUp.
 
   const handlePointerDown = useCallback(
     (e: React.PointerEvent) => {
@@ -174,15 +177,17 @@ export const ParamSlider = memo(function ParamSlider({
       if (!track) return;
       track.setPointerCapture(e.pointerId);
 
+      // a drag ends a burst of key steps still settling
+      const from = flush() ?? value;
       const d = dragRef.current;
       d.startX = e.clientX;
-      d.startValue = value;
+      d.startValue = from;
       d.moved = false;
       d.shiftHeld = e.shiftKey;
-      d.lastValue = value;
+      d.lastValue = from;
       setDragging(true);
     },
-    [disabled, disabledHint, editing, triggerHelp, value],
+    [disabled, disabledHint, editing, triggerHelp, value, flush],
   );
 
   const handlePointerMove = useCallback(
@@ -243,29 +248,29 @@ export const ParamSlider = memo(function ParamSlider({
           const frac = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
           const raw = min + frac * range;
           const snapped = applySnap(raw, notches, snapRadius, range, e.shiftKey);
-          onChange(clampToStep(snapped));
+          commit(clampToStep(snapped));
         }
       } else {
         // Commit final drag value
-        onChange(d.lastValue);
+        commit(d.lastValue);
       }
     },
-    [dragging, min, range, notches, snapRadius, clampToStep, onChange],
+    [dragging, min, range, notches, snapRadius, clampToStep, commit],
   );
 
   // ── Click-to-edit ──────────────────────────────────────────────
 
   const startEdit = useCallback(() => {
     if (disabled) return;
-    setDraft(formatValue(value, decimals));
+    setDraft(formatValue(flush() ?? value, decimals));
     setEditing(true);
-  }, [disabled, value, decimals]);
+  }, [disabled, value, decimals, flush]);
 
   const commitEdit = useCallback(() => {
     setEditing(false);
     const parsed = parseFloat(draft);
-    if (!isNaN(parsed)) onChange(clampToStep(parsed));
-  }, [draft, onChange, clampToStep]);
+    if (!isNaN(parsed)) commit(clampToStep(parsed));
+  }, [draft, commit, clampToStep]);
 
   const cancelEdit = useCallback(() => {
     setEditing(false);
@@ -281,11 +286,11 @@ export const ParamSlider = memo(function ParamSlider({
       e.preventDefault();
       const dir = e.deltaY < 0 ? 1 : -1;
       const mult = e.shiftKey ? 0.1 : 1;
-      onChange(clampToStep(value + step * mult * dir));
+      stepTo((v) => clampToStep(v + step * mult * dir));
     };
     track.addEventListener("wheel", handler, { passive: false });
     return () => track.removeEventListener("wheel", handler);
-  }, [disabled, value, step, onChange, clampToStep]);
+  }, [disabled, step, stepTo, clampToStep]);
 
   // ── Keyboard ───────────────────────────────────────────────────
 
@@ -297,20 +302,20 @@ export const ParamSlider = memo(function ParamSlider({
         case "ArrowRight":
         case "ArrowUp":
           e.preventDefault();
-          onChange(clampToStep(value + step * mult));
+          stepTo((v) => clampToStep(v + step * mult));
           break;
         case "ArrowLeft":
         case "ArrowDown":
           e.preventDefault();
-          onChange(clampToStep(value - step * mult));
+          stepTo((v) => clampToStep(v - step * mult));
           break;
         case "Home":
           e.preventDefault();
-          onChange(min);
+          stepTo(() => min);
           break;
         case "End":
           e.preventDefault();
-          onChange(max);
+          stepTo(() => max);
           break;
         case "Enter":
           e.preventDefault();
@@ -318,7 +323,7 @@ export const ParamSlider = memo(function ParamSlider({
           break;
       }
     },
-    [disabled, value, step, min, max, onChange, clampToStep, startEdit],
+    [disabled, step, min, max, stepTo, clampToStep, startEdit],
   );
 
   // ── Context menu ───────────────────────────────────────────────
@@ -337,7 +342,7 @@ export const ParamSlider = memo(function ParamSlider({
       role="slider"
       aria-valuemin={min}
       aria-valuemax={max}
-      aria-valuenow={value}
+      aria-valuenow={shown}
       aria-label={tooltip ? stripParamHelpHtml(tooltip) : label}
       aria-disabled={disabled || undefined}
       tabIndex={disabled ? -1 : 0}
@@ -384,10 +389,10 @@ export const ParamSlider = memo(function ParamSlider({
       />
 
       {/* Boundary indicators */}
-      {value <= min && (
+      {shown <= min && (
         <div className="absolute left-0 top-[3px] bottom-[3px] w-0.5 bg-muted-foreground/30 pointer-events-none" />
       )}
-      {value >= max && (
+      {shown >= max && (
         <div className="absolute right-0 top-[3px] bottom-[3px] w-0.5 bg-primary/60 pointer-events-none" />
       )}
 
@@ -450,7 +455,7 @@ export const ParamSlider = memo(function ParamSlider({
               : "pointer-events-auto cursor-text hover:underline hover:decoration-dotted hover:underline-offset-2 hover:decoration-muted-foreground",
           )}
         >
-          {formatValue(value, decimals, suffix)}
+          {formatValue(shown, decimals, suffix)}
         </span>
       )}
     </div>
@@ -475,10 +480,7 @@ export const ParamSlider = memo(function ParamSlider({
       {withHelp(<ContextMenuTrigger asChild>{trackContent}</ContextMenuTrigger>)}
       <ContextMenuContent>
         {hasReset && (
-          <ContextMenuItem
-            disabled={disabled || isAtDefault}
-            onSelect={() => onChange(defaultValue)}
-          >
+          <ContextMenuItem disabled={disabled || isAtDefault} onSelect={() => commit(defaultValue)}>
             Reset to default ({formatValue(defaultValue, decimals)})
           </ContextMenuItem>
         )}

@@ -2,6 +2,7 @@ import { Label } from "@/components/ui/label";
 import { ParamLabel } from "@/components/generation/ParamLabel";
 import { Combobox } from "@/components/ui/combobox";
 import { Slider } from "@/components/ui/slider";
+import { useCommittedSlider } from "@/hooks/useCommittedSlider";
 import { Switch } from "@/components/ui/switch";
 import { SectionLeader } from "@/components/ui/section-leader";
 import { useCaptionSettingsStore } from "@/stores/captionSettingsStore";
@@ -129,19 +130,14 @@ function SliderField({
   step: number;
   onChange: (v: number) => void;
 }) {
+  const { shown, bind } = useCommittedSlider(value, onChange);
   return (
     <div className="flex flex-col gap-1.5">
       <div className="flex items-center justify-between">
         <Label className="text-xs">{label}</Label>
-        <span className="text-3xs text-muted-foreground font-mono tabular-nums">{value}</span>
+        <span className="text-3xs text-muted-foreground font-mono tabular-nums">{shown}</span>
       </div>
-      <Slider
-        value={[value]}
-        min={min}
-        max={max}
-        step={step}
-        onValueChange={([v]) => onChange(v)}
-      />
+      <Slider min={min} max={max} step={step} {...bind} />
     </div>
   );
 }

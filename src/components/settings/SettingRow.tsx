@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCommittedSlider } from "@/hooks/useCommittedSlider";
 import { Slider } from "@/components/ui/slider";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
@@ -81,9 +81,6 @@ interface CommittedSliderRowProps {
   disabled?: boolean;
 }
 
-/** Key steps closer together than this are one commit. */
-const KEY_BURST_MS = 300;
-
 /** A setting on a slider that takes effect when the value is committed: on
  * release, or once a burst of key steps ends. */
 export function CommittedSliderRow({
@@ -98,47 +95,7 @@ export function CommittedSliderRow({
   onCommit,
   disabled = false,
 }: CommittedSliderRowProps) {
-  // A pointer drag and a burst of key steps show their value before it commits
-  const dragging = useRef(false);
-  const burst = useRef<{ value: number; timer: ReturnType<typeof setTimeout> } | null>(null);
-  // the burst commits through the handler of the latest render
-  const latest = useRef(onCommit);
-  useEffect(() => {
-    latest.current = onCommit;
-  });
-  const [draft, setDraft] = useState<number | null>(null);
-  const shown = draft ?? value;
-  // a burst cut short by leaving still commits
-  useEffect(
-    () => () => {
-      const pending = burst.current;
-      if (!pending) return;
-      clearTimeout(pending.timer);
-      latest.current(pending.value);
-    },
-    [],
-  );
-  const cancelBurst = () => {
-    if (burst.current) clearTimeout(burst.current.timer);
-    burst.current = null;
-  };
-  const commit = (v: number) => {
-    cancelBurst();
-    if (dragging.current) {
-      setDraft(null);
-      onCommit(v);
-      return;
-    }
-    setDraft(v);
-    burst.current = {
-      value: v,
-      timer: setTimeout(() => {
-        burst.current = null;
-        setDraft(null);
-        latest.current(v);
-      }, KEY_BURST_MS),
-    };
-  };
+  const { shown, bind } = useCommittedSlider(value, onCommit);
 
   return (
     <SettingRow
@@ -153,20 +110,7 @@ export function CommittedSliderRow({
           max={max}
           step={step}
           disabled={disabled}
-          value={[shown]}
-          onPointerDown={() => {
-            // a drag takes over from keys still settling
-            cancelBurst();
-            dragging.current = true;
-          }}
-          onLostPointerCapture={() => {
-            dragging.current = false;
-            setDraft(null);
-          }}
-          onValueChange={([v]) => {
-            if (dragging.current) setDraft(v);
-          }}
-          onValueCommit={([v]) => commit(v)}
+          {...bind}
           aria-label={label}
           className="flex-1"
         />

@@ -1,6 +1,7 @@
 import { motion, AnimatePresence } from "motion/react";
 import { X } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
+import { useCommittedSlider } from "@/hooks/useCommittedSlider";
 import { api } from "@/api/client";
 import type { ActiveLora } from "./types";
 
@@ -73,17 +74,10 @@ export function ActiveLoraStack({
                         <span className="text-[0.6875rem] text-foreground truncate min-w-0 flex-shrink">
                           {lora.name.split("/").pop()}
                         </span>
-                        <Slider
-                          value={[lora.weight]}
-                          min={0}
-                          max={1}
-                          step={0.05}
-                          onValueChange={([v]) => onWeightChange(lora.name, v)}
-                          className="flex-1 min-w-16"
+                        <LoraWeight
+                          weight={lora.weight}
+                          onCommit={(v) => onWeightChange(lora.name, v)}
                         />
-                        <span className="font-mono text-4xs tabular-nums text-foreground shrink-0 w-8 text-right">
-                          {lora.weight.toFixed(2)}
-                        </span>
                         <button
                           type="button"
                           onClick={() => onRemove(lora.name)}
@@ -101,5 +95,18 @@ export function ActiveLoraStack({
         </motion.div>
       )}
     </AnimatePresence>
+  );
+}
+
+/** A weight change rewrites the prompt: one write per gesture. */
+function LoraWeight({ weight, onCommit }: { weight: number; onCommit: (v: number) => void }) {
+  const { shown, bind } = useCommittedSlider(weight, onCommit);
+  return (
+    <>
+      <Slider min={0} max={1} step={0.05} {...bind} className="flex-1 min-w-16" />
+      <span className="font-mono text-4xs tabular-nums text-foreground shrink-0 w-8 text-right">
+        {shown.toFixed(2)}
+      </span>
+    </>
   );
 }
