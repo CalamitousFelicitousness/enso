@@ -180,6 +180,18 @@ describe("createGatedStorage", () => {
     expect(writes()).toBe(2);
   });
 
+  it("settles to whether the last write landed", async () => {
+    const { backend, fail } = memoryBackend();
+    const storage = createGatedStorage<Doc>(backend, "test");
+    await storage.getItem("doc");
+    fail.set = true;
+    void storage.setItem("doc", record(1));
+    expect(await storage.settle()).toBe(false);
+    fail.set = false;
+    void storage.setItem("doc", record(2));
+    expect(await storage.settle()).toBe(true);
+  });
+
   it("tries a failed write again on request", async () => {
     const { backend, records, fail } = memoryBackend();
     const storage = createGatedStorage<Doc>(backend, "test");
@@ -234,6 +246,46 @@ describe("createGatedStorage", () => {
 
   describe("with a rule for states that store the same record", () => {
     const same = (a: Doc, b: Doc) => a.n === b.n;
+
+    it("keeps a refusal another writer caused, and retries with the state the page holds", async () => {
+      const { backend, records, fail } = memoryBackend({ doc: record(1) });
+      const onWriteRecovered = vi.fn();
+      const storage = createGatedStorage<Doc>(backend, "test", {
+        same,
+        onWriteRecovered,
+        writtenElsewhere: () => true,
+      });
+      await storage.getItem("doc");
+      fail.set = true;
+      void storage.setItem("doc", record(2));
+      await settle();
+      // another tab wrote meanwhile; this page goes back to what it had stored
+      records.set("doc", record(9));
+      void storage.setItem("doc", record(1));
+      expect(onWriteRecovered).not.toHaveBeenCalled();
+      fail.set = false;
+      storage.retry();
+      await settle();
+      expect(records.get("doc")).toEqual(record(1));
+    });
+
+    it("forgets a refused write once the state the backend holds comes back", async () => {
+      const { backend, records, fail } = memoryBackend({ doc: record(1) });
+      const onWriteRecovered = vi.fn();
+      const storage = createGatedStorage<Doc>(backend, "test", { same, onWriteRecovered });
+      await storage.getItem("doc");
+      fail.set = true;
+      void storage.setItem("doc", record(2));
+      await settle();
+      // an undo puts back what is stored: nothing is owed any more
+      void storage.setItem("doc", record(1));
+      expect(onWriteRecovered).toHaveBeenCalledTimes(1);
+      fail.set = false;
+      storage.retry();
+      await settle();
+      expect(records.get("doc")).toEqual(record(1));
+      expect(await storage.settle()).toBe(true);
+    });
 
     it("does not write back what it just read", async () => {
       const { backend, writes } = memoryBackend({ doc: record(1) });
@@ -344,7 +396,7 @@ describe("createGatedStorage in a frozen profile", () => {
     void storage.setItem("doc", record(2));
     freezeProfile();
     void storage.setItem("doc", record(3));
-    await expect(storage.settle()).resolves.toBeUndefined();
+    await expect(storage.settle()).resolves.toBe(false);
     await settle();
     expect(writes()).toBe(0);
     expect(records.get("doc")).toEqual(record(1));

@@ -21,19 +21,25 @@ interface GatedStorageOptions<S> {
   /** Called for the write that ends a streak of failures. */
   onWriteRecovered?: () => void;
   /** Whether two states would store the same record. A state that matches
-   * the one last read or written is not written again. */
+   * the one last read or written is not written again, and once the state the
+   * backend holds comes back, a refused write is no longer owed. */
   same?: (a: S, b: S) => boolean;
+  /** A failure meaning the backend may hold a record another writer put there:
+   * it is owed until a retry or a read, whatever the state comes back to. */
+  writtenElsewhere?: (error: unknown) => boolean;
 }
 
 export interface GatedStorage<S> extends PersistStorage<S> {
   /** Lets writes through after a failed read. The next write replaces the
    * record that could not be read. */
   startEmpty(): void;
-  /** Tries the last failed write again, unless a newer one is waiting. */
+  /** After a failed write, writes the state the store holds now, unless a
+   * newer write is waiting. */
   retry(): void;
   /** Writes what is waiting now, without the debounce, and resolves once no
-   * write is waiting or running; a failed write stays failed. */
-  settle(): Promise<void>;
+   * write is waiting or running: true when the last write landed and none
+   * waits. A failed write stays failed. */
+  settle(): Promise<boolean>;
 }
 
 /** Debounced PersistStorage over a key-value backend. Writes pass only once
@@ -44,7 +50,14 @@ export function createGatedStorage<S>(
   label: string,
   options: GatedStorageOptions<S> = {},
 ): GatedStorage<S> {
-  const { debounceMs = 2000, legacyKey, onWriteError, onWriteRecovered, same } = options;
+  const {
+    debounceMs = 2000,
+    legacyKey,
+    onWriteError,
+    onWriteRecovered,
+    same,
+    writtenElsewhere,
+  } = options;
 
   function decode(raw: unknown): StorageValue<S> | null {
     if (raw === null || raw === undefined) return null;
@@ -64,7 +77,9 @@ export function createGatedStorage<S>(
   /** The write in flight, done when it has landed or failed. */
   let inflight: Promise<void> | null = null;
   let failing = false;
-  let failed: { key: string; value: StorageValue<S> } | null = null;
+  let failed: { key: string; value: StorageValue<S>; elsewhere: boolean } | null = null;
+  /** The last state the store handed over: what it holds now. */
+  let last: { key: string; value: StorageValue<S> } | null = null;
   let open = false;
   /** What the backend holds, as far as this storage knows. */
   let stored: StorageValue<S> | null = null;
@@ -90,7 +105,7 @@ export function createGatedStorage<S>(
       })
       .catch((err: unknown) => {
         console.error(`[idb] ${label}: write failed`, err);
-        failed = { key: k, value: v };
+        failed = { key: k, value: v, elsewhere: writtenElsewhere?.(err) ?? false };
         failing = true;
         onWriteError?.(err);
       })
@@ -117,6 +132,7 @@ export function createGatedStorage<S>(
       pendingKey = null;
       pendingValue = null;
       failed = null;
+      last = null;
       if (timer) {
         clearTimeout(timer);
         timer = null;
@@ -130,9 +146,18 @@ export function createGatedStorage<S>(
     },
     setItem: (key, value) => {
       if (!open || profileFrozen()) return;
+      last = { key, value };
       // the value a finished or running write leaves in the backend
       const latest = pendingValue ?? writing ?? stored;
-      if (same && latest && same(latest.state, value.state)) return;
+      if (same && latest && same(latest.state, value.state)) {
+        // the backend holds this state already, so a refused write is not owed
+        if (latest === stored && failed && !failed.elsewhere) {
+          failed = null;
+          if (failing) onWriteRecovered?.();
+          failing = false;
+        }
+        return;
+      }
       pendingKey = key;
       pendingValue = value;
       if (timer) clearTimeout(timer);
@@ -155,14 +180,16 @@ export function createGatedStorage<S>(
     },
     retry: () => {
       if (!failed || pendingKey !== null) return;
-      pendingKey = failed.key;
-      pendingValue = failed.value;
+      const now = last ?? failed;
+      pendingKey = now.key;
+      pendingValue = now.value;
       flush();
     },
     settle: async () => {
       flush();
       // a value queued while a write runs goes out when that one ends
       while (inflight) await inflight;
+      return failed === null && pendingKey === null;
     },
   };
 }

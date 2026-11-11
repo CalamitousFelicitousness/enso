@@ -313,6 +313,7 @@ export function createInputsStorage(
   return createGatedStorage<PersistedInputs>(backend, "enso-inputs/documents", {
     onWriteError,
     onWriteRecovered,
+    writtenElsewhere: (err) => err instanceof DocumentConflict,
     // every change makes new objects, so the same objects are the same record
     same: (a, b) =>
       a.frames === b.frames &&

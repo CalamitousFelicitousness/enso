@@ -218,8 +218,9 @@ const storage = createInputsStorage(
   },
 );
 
-/** Resolves once the stored document holds the inputs as they are now. */
-export function settleInputs(): Promise<void> {
+/** Resolves once no write waits: true when the stored document holds the
+ * inputs as they are now. */
+export function settleInputs(): Promise<boolean> {
   return storage.settle();
 }
 
