@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   SHORTCUTS,
   formatShortcut,
+  isTextEntry,
   matchesEvent,
   type KeyInput,
   type ShortcutDef,
@@ -59,6 +60,59 @@ describe("matchesEvent", () => {
     expect(first("global", press("\\", { ctrlKey: true, shiftKey: true }))).toBe(
       "toggle-right-panel",
     );
+  });
+
+  it("matches a modified letter whatever its case, so Shift and Caps Lock leave it working", () => {
+    const undo = SHORTCUTS["undo"];
+    const redo: ShortcutDef = { ...undo, id: "redo", shift: true };
+    expect(matchesEvent(undo, press("Z", { ctrlKey: true }), false)).toBe(true);
+    expect(matchesEvent(redo, press("Z", { ctrlKey: true, shiftKey: true }), false)).toBe(true);
+    expect(matchesEvent(undo, press("Z", { ctrlKey: true, shiftKey: true }), false)).toBe(false);
+  });
+
+  it("matches a letter by its physical key on a layout without Latin letters", () => {
+    const undo = SHORTCUTS["undo"];
+    expect(matchesEvent(undo, press("я", { ctrlKey: true, code: "KeyZ" }), false)).toBe(true);
+    expect(matchesEvent(undo, press("й", { ctrlKey: true, code: "KeyQ" }), false)).toBe(false);
+    // a Latin key is matched by what it types, wherever the layout puts it
+    expect(matchesEvent(undo, press("y", { ctrlKey: true, code: "KeyZ" }), false)).toBe(false);
+  });
+
+  it("takes Cmd for Ctrl on macOS, and Ctrl still works there", () => {
+    const undo = SHORTCUTS["undo"];
+    expect(matchesEvent(undo, press("z", { metaKey: true }), true)).toBe(true);
+    expect(matchesEvent(undo, press("z", { ctrlKey: true }), true)).toBe(true);
+    expect(matchesEvent(undo, press("z", { metaKey: true }), false)).toBe(false);
+    expect(matchesEvent(SHORTCUTS["canvas-brush"], press("b", { metaKey: true }), true)).toBe(
+      false,
+    );
+    expect(matchesEvent(SHORTCUTS["canvas-brush"], press("b"), true)).toBe(true);
+  });
+});
+
+describe("isTextEntry", () => {
+  const el = (tagName: string, type = "", isContentEditable = false) => ({
+    tagName,
+    type,
+    isContentEditable,
+  });
+
+  it("holds for the controls that take typing", () => {
+    expect(isTextEntry(el("INPUT", "text"))).toBe(true);
+    expect(isTextEntry(el("INPUT", ""))).toBe(true);
+    expect(isTextEntry(el("INPUT", "number"))).toBe(true);
+    expect(isTextEntry(el("INPUT", "search"))).toBe(true);
+    expect(isTextEntry(el("TEXTAREA"))).toBe(true);
+    expect(isTextEntry(el("SELECT"))).toBe(true);
+    expect(isTextEntry(el("DIV", "", true))).toBe(true);
+  });
+
+  it("does not hold for controls that only take a click or a drag", () => {
+    for (const type of ["checkbox", "radio", "range", "color", "button", "file"]) {
+      expect(isTextEntry(el("INPUT", type))).toBe(false);
+    }
+    expect(isTextEntry(el("BUTTON"))).toBe(false);
+    expect(isTextEntry(null)).toBe(false);
   });
 });
 

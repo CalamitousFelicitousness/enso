@@ -485,35 +485,62 @@ function isBareSymbol(def: ShortcutDef): boolean {
   );
 }
 
-export function matchesEvent(def: ShortcutDef, e: KeyInput): boolean {
+const IS_MAC = typeof navigator !== "undefined" && navigator.platform.includes("Mac");
+
+const LETTER = /^[a-z]$/i;
+
+/** Whether a key event comes from a definition's key. On macOS Cmd stands in
+ * for Ctrl, as the labels show it, and Ctrl still works. */
+export function matchesEvent(def: ShortcutDef, e: KeyInput, mac = IS_MAC): boolean {
   const ctrl = def.ctrl ?? false;
   const shift = def.shift ?? false;
   const alt = def.alt ?? false;
   const meta = def.meta ?? false;
 
-  if (e.ctrlKey !== ctrl || e.altKey !== alt || e.metaKey !== meta) return false;
+  const command = mac ? e.ctrlKey || e.metaKey : e.ctrlKey;
+  const metaHeld = mac ? false : e.metaKey;
+  if (command !== ctrl || e.altKey !== alt || metaHeld !== meta) return false;
   // `?` and `+` are matched by what they type, Shift or not
   if (isBareSymbol(def)) return e.key === def.key;
   if (e.shiftKey !== shift) return false;
   if (def.code !== undefined) return e.code === def.code;
 
   if (e.key === def.key) return true;
-  // Case-insensitive letter match (e.key is "B" when shift is held, but we compare lowercase for unmodified keys)
-  if (
-    def.key.length === 1 &&
-    e.key.toLowerCase() === def.key.toLowerCase() &&
-    !ctrl &&
-    !alt &&
-    !meta
-  )
-    return true;
-
+  if (LETTER.test(def.key)) {
+    // Shift and Caps Lock change a letter's case, not which key it is
+    if (e.key.toLowerCase() === def.key.toLowerCase()) return true;
+    // a layout without Latin letters: the physical key names it
+    return !/^[\x20-\x7e]$/.test(e.key) && e.code === `Key${def.key.toUpperCase()}`;
+  }
   return false;
 }
 
-const MOD_SYMBOL = navigator.platform.includes("Mac") ? "\u2318" : "Ctrl";
-const SHIFT_SYMBOL = navigator.platform.includes("Mac") ? "\u21e7" : "Shift";
-const ALT_SYMBOL = navigator.platform.includes("Mac") ? "\u2325" : "Alt";
+/** Whether a focused element takes typing, so its own keys come first. */
+export function isTextEntry(
+  target: { tagName: string; type?: string; isContentEditable?: boolean } | null,
+): boolean {
+  if (!target) return false;
+  if (target.isContentEditable) return true;
+  if (target.tagName === "TEXTAREA" || target.tagName === "SELECT") return true;
+  return target.tagName === "INPUT" && !NOT_TYPED.has(target.type ?? "");
+}
+
+const NOT_TYPED = new Set([
+  "checkbox",
+  "radio",
+  "range",
+  "color",
+  "button",
+  "submit",
+  "reset",
+  "file",
+  "image",
+  "hidden",
+]);
+
+const MOD_SYMBOL = IS_MAC ? "\u2318" : "Ctrl";
+const SHIFT_SYMBOL = IS_MAC ? "\u21e7" : "Shift";
+const ALT_SYMBOL = IS_MAC ? "\u2325" : "Alt";
 
 const KEY_LABELS: Record<string, string> = {
   Enter: "\u23ce",
@@ -533,7 +560,7 @@ export function formatShortcut(def: ShortcutDef): string {
   if (def.ctrl) parts.push(MOD_SYMBOL);
   if (def.shift) parts.push(SHIFT_SYMBOL);
   if (def.alt) parts.push(ALT_SYMBOL);
-  if (def.meta && !navigator.platform.includes("Mac")) parts.push("Meta");
+  if (def.meta && !IS_MAC) parts.push("Meta");
   parts.push(KEY_LABELS[def.key] ?? def.key.toUpperCase());
   return parts.join("+");
 }
