@@ -9,6 +9,7 @@ import { ParamLabel } from "../ParamLabel";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Combobox } from "@/components/ui/combobox";
+import { useDraftText } from "@/hooks/useDraftText";
 
 export function AdvancedTab() {
   const state = useGenerationStore(
@@ -54,6 +55,13 @@ export function AdvancedTab() {
       .map(([k, v]) => `${k}: ${toDisplayString(v)}`)
       .join("\n");
   }
+
+  // the parse drops a line without its colon; the text stays as typed until blur
+  const overridesText = overridesToText(state.overrideSettings);
+  const overrides = useDraftText(overridesText, (text) => {
+    const next = parseOverrides(text);
+    if (overridesToText(next) !== overridesText) setParam("overrideSettings", next);
+  });
 
   return (
     <div className="flex flex-col gap-3 text-sm">
@@ -105,8 +113,7 @@ export function AdvancedTab() {
             Key-value overrides (one per line, key: value)
           </Label>
           <Textarea
-            value={overridesToText(state.overrideSettings)}
-            onChange={(e) => setParam("overrideSettings", parseOverrides(e.target.value))}
+            {...overrides}
             placeholder={"scheduler: Euler a\nsd_model_checkpoint: model.safetensors"}
             className="min-h-15 text-xs resize-y font-mono"
           />

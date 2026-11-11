@@ -6,6 +6,7 @@ import { computeSectionCount } from "@/lib/framepackSections";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { useDraftText } from "@/hooks/useDraftText";
 
 interface SectionTimelineProps {
   fps: number;
@@ -150,9 +151,9 @@ export function SectionTimeline({
             {allSame ? "All sections" : "Click a section to edit individually"}
           </label>
           {allSame && (
-            <Input
+            <PromptInput
               value={prompts[0] ?? ""}
-              onChange={(e) => handleGlobalChange(e.target.value)}
+              onCommit={handleGlobalChange}
               placeholder="Shared prompt for all sections"
               className="h-7 text-xs"
             />
@@ -162,9 +163,10 @@ export function SectionTimeline({
         /* Per-section prompt */
         <div className="space-y-1">
           <label className="text-2xs text-muted-foreground">Section {activeSection + 1}</label>
-          <Input
-            value={prompts[activeSection]}
-            onChange={(e) => handleSectionChange(activeSection, e.target.value)}
+          <PromptInput
+            key={activeSection}
+            value={prompts[activeSection] ?? ""}
+            onCommit={(text) => handleSectionChange(activeSection, text)}
             placeholder={`Prompt for section ${activeSection + 1}`}
             className="h-7 text-xs"
             // eslint-disable-next-line jsx-a11y/no-autofocus -- focus active section for immediate edit
@@ -174,4 +176,17 @@ export function SectionTimeline({
       )}
     </div>
   );
+}
+
+/** Holds its text as typed until blur; the stored prompts are joined and trimmed. */
+function PromptInput({
+  value,
+  onCommit,
+  ...props
+}: Omit<React.ComponentProps<typeof Input>, "value" | "onChange" | "onFocus" | "onBlur"> & {
+  value: string;
+  onCommit: (text: string) => void;
+}) {
+  const draft = useDraftText(value, onCommit);
+  return <Input {...props} {...draft} />;
 }
