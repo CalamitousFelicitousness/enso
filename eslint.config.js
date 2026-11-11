@@ -162,6 +162,7 @@ export default defineConfig([
       "src/lib/request/wire.ts",
       "src/lib/resultStrip.ts",
       "src/lib/trim.ts",
+      "src/lib/undo/**/*.ts",
       "src/lib/viewport/**/*.ts",
     ],
     rules: {
