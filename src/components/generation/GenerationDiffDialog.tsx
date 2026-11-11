@@ -40,6 +40,7 @@ import {
   skippedSettingsText,
 } from "@/lib/recipes/text";
 import { RETRY } from "@/lib/media/text";
+import { CARRIED_WITH, settingLabel, type SettingKey } from "@/lib/settingLabels";
 import type { RestoreSource } from "@/stores/restoreDialogStore";
 import type { GenerationState } from "@/stores/generationStore";
 import { useJobFact } from "@/hooks/useJobFact";
@@ -60,117 +61,6 @@ interface GenerationDiffDialogProps {
   onOpenChange: (open: boolean) => void;
   source: RestoreSource | null;
 }
-
-/** What each compared setting is called where it is set. */
-const LABELS: Partial<Record<keyof GenerationState, string>> = {
-  prompt: "Prompt",
-  negativePrompt: "Negative prompt",
-  sampler: "Sampler",
-  steps: "Steps",
-  width: "Width",
-  height: "Height",
-  batchSize: "Batch size",
-  batchCount: "Batch count",
-  cfgScale: "Guidance scale",
-  cfgEnd: "Guidance end",
-  guidanceRescale: "Rescale",
-  imageCfgScale: "Refine guidance scale",
-  pagScale: "Attention guidance",
-  pagAdaptive: "Adaptive",
-  seed: "Seed",
-  denoisingStrength: "Denoise",
-  hiresEnabled: "Hires",
-  hiresUpscaler: "Hires upscaler",
-  hiresScale: "Hires scale",
-  hiresSteps: "Hires steps",
-  hiresDenoising: "Hires denoise",
-  hiresResizeMode: "Hires size mode",
-  hiresSampler: "Hires sampler",
-  hiresForce: "Force hires",
-  hiresResizeX: "Hires width",
-  hiresResizeY: "Hires height",
-  hiresResizeContext: "Hires context",
-  refinerStart: "Refiner start",
-  refinerSteps: "Refiner steps",
-  refinerPrompt: "Refine prompt",
-  refinerNegative: "Refine negative",
-  sigmaMethod: "Sigma",
-  timestepSpacing: "Spacing",
-  betaSchedule: "Beta",
-  predictionMethod: "Prediction",
-  flowShift: "Flow shift",
-  baseShift: "Base shift",
-  maxShift: "Max shift",
-  sigmaAdjust: "Sigma adjust",
-  sigmaAdjustStart: "Sigma adjust start",
-  sigmaAdjustEnd: "Sigma adjust end",
-  thresholding: "Thresholding",
-  dynamic: "Dynamic shift",
-  rescale: "Rescale betas",
-  lowOrder: "Low order",
-  timestepsOverride: "Timesteps override",
-  timestepsPreset: "Timesteps preset",
-  clipSkip: "CLIP skip",
-  vaeType: "VAE type",
-  tiling: "Texture tiling",
-  hidiffusion: "HiDiffusion",
-  freeuEnabled: "FreeU",
-  freeuB1: "FreeU B1",
-  freeuB2: "FreeU B2",
-  freeuS1: "FreeU S1",
-  freeuS2: "FreeU S2",
-  hypertileUnetEnabled: "HyperTile UNet",
-  hypertileHiresOnly: "HyperTile hires only",
-  hypertileUnetTile: "HyperTile UNet tile",
-  hypertileUnetMinTile: "HyperTile UNet min tile",
-  hypertileUnetSwapSize: "HyperTile UNet swap size",
-  hypertileUnetDepth: "HyperTile UNet depth",
-  hypertileVaeEnabled: "HyperTile VAE",
-  hypertileVaeTile: "HyperTile VAE tile",
-  hypertileVaeSwapSize: "HyperTile VAE swap size",
-  teacacheEnabled: "TeaCache",
-  teacacheThresh: "TeaCache threshold",
-  tokenMergingMethod: "Token merging",
-  tomeRatio: "ToMe ratio",
-  todoRatio: "ToDo ratio",
-  detailerEnabled: "Detailer",
-  detailerOnly: "Detail only",
-  detailerDefaults: "Detailer settings",
-  detailerModels: "Detailer models",
-  hdrMode: "Latent correction mode",
-  hdrBrightness: "Latent brightness",
-  hdrSharpen: "Latent sharpen",
-  hdrColor: "Latent color",
-  hdrClamp: "Latent clamp",
-  hdrBoundary: "Latent range",
-  hdrThreshold: "Latent threshold",
-  hdrMaximize: "Latent maximize",
-  hdrMaxCenter: "Latent center",
-  hdrMaxBoundary: "Latent max range",
-  hdrColorPicker: "Latent tint color",
-  hdrTintRatio: "Latent tint strength",
-  gradingBrightness: "Brightness",
-  gradingContrast: "Contrast",
-  gradingSaturation: "Saturation",
-  gradingHue: "Hue",
-  gradingGamma: "Gamma",
-  gradingSharpness: "Sharpness",
-  gradingColorTemp: "Color temp (K)",
-  gradingShadows: "Shadows",
-  gradingMidtones: "Midtones",
-  gradingHighlights: "Highlights",
-  gradingClaheClip: "CLAHE clip",
-  gradingClaheGrid: "CLAHE grid",
-  gradingShadowsTint: "Shadows tint",
-  gradingHighlightsTint: "Highlights tint",
-  gradingSplitToneBalance: "Split tone balance",
-  gradingVignette: "Vignette",
-  gradingGrain: "Grain",
-  gradingLutFile: "Color LUT",
-  gradingLutStrength: "Color LUT strength",
-};
-
-const labelOf = (key: string) => LABELS[key as keyof GenerationState] ?? key;
 
 interface DiffGroup {
   label: string;
@@ -311,12 +201,6 @@ const DIFF_GROUPS: DiffGroup[] = [
     ],
   },
 ];
-
-/** Keys a row carries with its own, compared and applied together. */
-const LINKED: Partial<Record<string, readonly string[]>> = {
-  // a LUT is its file's name and the hash of its bytes; one without the other names another file
-  gradingLutFile: ["gradingLutHash"],
-};
 
 /** What a row shows of its keys' values. */
 function shown(key: string, values: Record<string, unknown>): unknown {
@@ -535,7 +419,7 @@ function RestoreBody({ source, onClose }: { source: RestoreSource; onClose: () =
       const rows: DiffRow[] = group.keys
         .filter((k) => k in mapped)
         .map((k) => {
-          const keys = [k, ...(LINKED[k] ?? [])];
+          const keys = [k, ...(CARRIED_WITH[k as SettingKey] ?? [])];
           const cur = Object.fromEntries(keys.map((key) => [key, current[key]]));
           const res = Object.fromEntries(keys.map((key) => [key, sent[key]]));
           return {
@@ -600,7 +484,7 @@ function RestoreBody({ source, onClose }: { source: RestoreSource; onClose: () =
   }, [target, settingsOn, inputsOn, modelOn, modelFact, model, onClose]);
 
   const handleApplyOne = useCallback((row: DiffRow) => {
-    applyParams(row.apply, `${labelOf(row.key)} applied`);
+    applyParams(row.apply, `${settingLabel(row.key)} applied`);
   }, []);
 
   const words = RESTORE_DIALOG_WORDS[source.kind];
@@ -723,7 +607,7 @@ function GroupSection({
       {rows.map((row) => (
         <tr key={row.key} className={row.changed ? "bg-amber-500/10" : "text-muted-foreground/60"}>
           <td className="py-0.5 px-2" title={row.key}>
-            {labelOf(row.key)}
+            {settingLabel(row.key)}
           </td>
           <td className="py-0.5 px-2 max-w-32 truncate">{formatValue(row.current)}</td>
           <td className="py-0.5 px-2 max-w-32 truncate font-medium">{formatValue(row.result)}</td>
