@@ -22,6 +22,7 @@ import { useGenerationStore } from "@/stores/generationStore";
 import { useLutStore } from "@/stores/lutStore";
 import { useProcessLutStore } from "@/stores/processLutStore";
 import { useProcessStore } from "@/stores/processStore";
+import { ignore } from "@/undo/marks";
 import type { Bytes, UploadBatch } from "./uploads";
 
 /** The pair a view's settings name. */
@@ -60,8 +61,11 @@ export function removeLut(where: LutPlace): void {
 function acceptLutHash(where: LutPlace, staged: PendingLut, hash: string): void {
   const next = acceptHash(lutPairOf(where), useLutStore.getState()[where], staged, hash);
   if (!next) return;
-  useLutStore.getState().setPending(where, next.pending);
-  setLutPair(where, next.pair);
+  // the server answered: the pick it names is the same pick, no step
+  ignore("LUT hash accepted", () => {
+    useLutStore.getState().setPending(where, next.pending);
+    setLutPair(where, next.pair);
+  });
 }
 
 /** Forget a hash the server no longer holds, while the pair still names it.
@@ -70,10 +74,12 @@ function forgetHash(where: LutPlace, pair: LutPair): void {
   const now = lutPairOf(where);
   if (now.name !== pair.name || now.hash !== pair.hash) return;
   const pending = useLutStore.getState()[where];
-  setLutPair(where, { ...now, hash: null });
-  if (pending && pair.hash && pending.hash === pair.hash) {
-    useLutStore.getState().setPending(where, { name: now.name, file: pending.file });
-  }
+  ignore("LUT hash forgotten", () => {
+    setLutPair(where, { ...now, hash: null });
+    if (pending && pair.hash && pending.hash === pair.hash) {
+      useLutStore.getState().setPending(where, { name: now.name, file: pending.file });
+    }
+  });
 }
 
 /** Forget the hash a job's request sent its LUT under, once the server was
@@ -135,7 +141,10 @@ export async function checkLut(
     const file = await mediaFile(url, pair.name);
     const now = lutPairOf(where);
     if (now.name === pair.name && now.hash === pair.hash) {
-      useLutStore.getState().setPending(where, { name: pair.name, file, hash: pair.hash });
+      const hash = pair.hash;
+      ignore("LUT bytes fetched", () =>
+        useLutStore.getState().setPending(where, { name: pair.name, file, hash }),
+      );
     }
   } catch (err) {
     console.warn(`[luts] the ${where} LUT could not be checked`, err);

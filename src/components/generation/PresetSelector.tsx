@@ -9,6 +9,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { useGenerationStore } from "@/stores/generationStore";
 import { usePresetStore, snapshotParams } from "@/stores/presetStore";
 import { useCurrentCheckpoint } from "@/api/hooks/useModels";
+import { recorded } from "@/undo/marks";
 
 export function PresetSelector() {
   const [saveOpen, setSaveOpen] = useState(false);
@@ -84,7 +85,8 @@ export function PresetSelector() {
       if (!file) return;
       const reader = new FileReader();
       reader.onload = () => {
-        const count = importPresets(reader.result as string);
+        // the file is read after the change event that picked it
+        const count = recorded(() => importPresets(reader.result as string));
         if (count > 0) toast.success(`Imported ${count} preset${count > 1 ? "s" : ""}`);
         else toast.error("No valid presets found in file");
       };

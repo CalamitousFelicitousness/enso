@@ -4,6 +4,7 @@ import { useCurrentCheckpoint } from "@/api/hooks/useModels";
 import { useGenerationStore } from "@/stores/generationStore";
 import { useUiStore } from "@/stores/uiStore";
 import { getModelDefaults, formatSuggestion } from "@/lib/modelDefaults";
+import { recorded, title as nameStep } from "@/undo/marks";
 
 /** Announces a model the server loaded while the page was open, with the
  * suggested settings for its family when the family changed. */
@@ -28,8 +29,13 @@ export function useLoadedModelNotice() {
       return;
     }
     const summary = formatSuggestion(defaults);
+    const named = { kind: "model defaults", args: { model: modelName } };
     if (useUiStore.getState().autoApplyModelDefaults) {
-      useGenerationStore.getState().setParams(defaults);
+      // the user's model load completes here, outside any input event
+      recorded(() => useGenerationStore.getState().setParams(defaults), {
+        view: "images",
+        title: named,
+      });
       toast.success(`Applied defaults for ${modelName}: ${summary}`);
       return;
     }
@@ -38,6 +44,7 @@ export function useLoadedModelNotice() {
       action: {
         label: "Apply",
         onClick: () => {
+          nameStep(named);
           useGenerationStore.getState().setParams(defaults);
           toast.success(`Applied defaults for ${modelName}`);
         },

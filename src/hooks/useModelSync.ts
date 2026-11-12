@@ -3,6 +3,7 @@ import { useCurrentCheckpoint, useModelList } from "@/api/hooks/useModels";
 import { followsLoaded } from "@/lib/modelSelection";
 import { useModelCapabilityStore } from "@/stores/modelCapabilityStore";
 import { useModelSelectionStore } from "@/stores/modelSelectionStore";
+import { ignore } from "@/undo/marks";
 
 /** Keeps the selection on the server's loaded image model, and remembers what
  * each loaded model reports about its pipeline. */
@@ -24,6 +25,8 @@ export function useModelSync() {
     const { activeModel, setActiveModel } = useModelSelectionStore.getState();
     if (!followsLoaded(loadedTitle, previous, activeModel)) return;
     const match = models.find((m) => m.title === loadedTitle);
-    if (match) setActiveModel({ ...match, source: "local" });
+    // the server moved, not the user: no step, and a pick it buries is given up
+    if (match)
+      ignore("model follows the loaded one", () => setActiveModel({ ...match, source: "local" }));
   }, [checkpoint, models]);
 }

@@ -9,6 +9,7 @@ import { useCanvasStore } from "@/stores/canvasStore";
 import { useGenerationStore } from "@/stores/generationStore";
 import { inputsReady, useInputStore } from "@/stores/inputStore";
 import { useUiStore } from "@/stores/uiStore";
+import { follow } from "@/undo/marks";
 import { outlineOf } from "./outlineOf";
 
 /** Frame size of the size source picture, snapped like any generation size. */
@@ -58,13 +59,15 @@ export function keepingSize(apply: () => void): void {
 /** A model with another size multiple re-snaps the frame: from the size source
  * while Fit has one, else the current Width and Height. */
 function snapToMultiple(multiple: number): void {
-  if (useUiStore.getState().autoFitFrame && sourceFrame()) {
-    syncToSource(true);
-    return;
-  }
-  const gen = useGenerationStore.getState();
-  gen.setParam("width", snapSize(gen.width, multiple));
-  gen.setParam("height", snapSize(gen.height, multiple));
+  follow("size multiple", () => {
+    if (useUiStore.getState().autoFitFrame && sourceFrame()) {
+      syncToSource(true);
+      return;
+    }
+    const gen = useGenerationStore.getState();
+    gen.setParam("width", snapSize(gen.width, multiple));
+    gen.setParam("height", snapSize(gen.height, multiple));
+  });
 }
 
 let started = false;

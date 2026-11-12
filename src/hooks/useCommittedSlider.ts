@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { recorded } from "@/undo/marks";
 
 /** Steps closer together than this are one commit. */
 const BURST_MS = 300;
@@ -36,7 +37,8 @@ export function useStepBurst(value: number, onCommit: (value: number) => void) {
   /** Commits the burst now; returns its value, or null when none was running. */
   const flush = useCallback(() => {
     const next = burst.current?.value ?? null;
-    if (next !== null) commit(next);
+    // the timer that ends a burst runs outside any input event
+    if (next !== null) recorded(() => commit(next));
     return next;
   }, [commit]);
 

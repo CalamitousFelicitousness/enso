@@ -19,6 +19,16 @@ const lutStorage = createIdbStorage<PendingLuts>(DB.colorLut, STATE_STORE, {
   ...writeProblems("color-lut", "color LUT", () => lutStorage.retry()),
 });
 
+let settle: () => void = () => {};
+const settled = new Promise<void>((resolve) => {
+  settle = resolve;
+});
+
+/** Resolves once the stored bytes are in, or the user chose to go on without them. */
+export function lutsSettled(): Promise<void> {
+  return settled;
+}
+
 export const useLutStore = create<LutState>()(
   persist(
     (set) => ({
@@ -33,6 +43,7 @@ export const useLutStore = create<LutState>()(
       onRehydrateStorage: () => (_state, error) => {
         if (!error) {
           reportStorageProblem({ kind: "resolved", id: "color-lut" });
+          settle();
           return;
         }
         reportStorageProblem({
@@ -40,7 +51,10 @@ export const useLutStore = create<LutState>()(
           id: "color-lut",
           what: "color LUT",
           retry: () => void useLutStore.persist.rehydrate(),
-          startEmpty: () => lutStorage.startEmpty(),
+          startEmpty: () => {
+            lutStorage.startEmpty();
+            settle();
+          },
         });
       },
       migrate: migratePendingLuts,

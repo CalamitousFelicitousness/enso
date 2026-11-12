@@ -29,6 +29,7 @@ import type {
 } from "@/lib/inputs/types";
 import { DocumentConflict, NewerDatabase } from "@/inputs/db";
 import { legacyMarks } from "@/inputs/legacySources";
+import { clear, ignore, note, rehydrating } from "@/undo/marks";
 import { FULL_ID, isQuotaError, reportFull } from "@/inputs/quota";
 import {
   createInputsStorage,
@@ -45,6 +46,49 @@ export type NewPicture = Omit<PictureSource, "id" | "cid">;
 
 /** A map on its way into a frame, with the cid its bytes are stored under when unchanged. */
 export type NewMap = NewPicture & { cid?: string };
+
+/** What a change to the inputs did, for the step it makes. */
+export type EditKind =
+  | "frame added"
+  | "frame removed"
+  | "frame moved"
+  | "role"
+  | "on"
+  | "cleared"
+  | "picture added"
+  | "picture removed"
+  | "picture moved"
+  | "picture changed"
+  | "placement"
+  | "visibility"
+  | "put back"
+  | "merged"
+  | "problem fixed"
+  | "fit"
+  | "link"
+  | "control"
+  | "ip adapter"
+  | "processor"
+  | "replaced"
+  | "stroke"
+  | "strokes cleared"
+  | "bake"
+  | "mask cleared"
+  | "mask region removed"
+  | "mask region changed"
+  | "restored"
+  | "appended"
+  | "refit"
+  | "size source";
+
+/** Consequences of another change, which never name a step. */
+const QUIET: ReadonlySet<EditKind> = new Set<EditKind>(["bake", "refit"]);
+
+function noteEdit(kind: EditKind, frameId: string | null): void {
+  note("images", frameId ? { kind, args: { frame: frameId } } : { kind }, {
+    quiet: QUIET.has(kind),
+  });
+}
 
 interface InputState extends WorkingDocument {
   /** The stored document is in, or the user chose to start without it.
@@ -70,6 +114,12 @@ interface InputState extends WorkingDocument {
   /** Remove everything the frame holds. */
   clearFrame: (frameId: string) => void;
   selectFrame: (frameId: string | null) => void;
+  /** Undo writes one side of the inputs back: frames, size source and selection
+   * in one write, past the image limit as a trash restore is. */
+  applyUndo: (
+    doc: { frames: Frame[]; sizeSource: SizeSourcePick | null },
+    selection: reduce.Selection | null,
+  ) => void;
   setActiveItem: (item: ActiveItem | null) => void;
   setImageLimit: (limit: number | null) => void;
 
@@ -195,7 +245,10 @@ const storage = createInputsStorage(
         kind: "conflict",
         id: "inputs",
         what: "inputs",
-        useStored: () => void useInputStore.persist.rehydrate(),
+        useStored: () => {
+          rehydrating(useInputStore, true);
+          void useInputStore.persist.rehydrate();
+        },
         keepMine: () => void overruleOtherTab().then(() => storage.retry()),
       });
     } else if (isQuotaError(error)) {
@@ -228,31 +281,34 @@ export function settleInputs(): Promise<boolean> {
  * objects go. Their Blobs would fail every later write. */
 function dropUnreadable(cids: string[]): void {
   const dead = new Set(cids);
-  useInputStore.setState((s) => {
-    const lost: InputReport["lost"] = { pictures: [], maskObjects: 0 };
-    const frames = s.frames.map((frame): Frame => {
-      const hit =
-        frame.pictures.some((p) => p.file && dead.has(p.cid)) ||
-        frame.mask.objects.some((m) => dead.has(m.cid));
-      if (!hit) return frame;
-      const objects = frame.mask.objects.filter((m) => !dead.has(m.cid));
-      lost.maskObjects += frame.mask.objects.length - objects.length;
+  ignore("unreadable bytes", () =>
+    useInputStore.setState((s) => {
+      const lost: InputReport["lost"] = { pictures: [], maskObjects: 0 };
+      const frames = s.frames.map((frame): Frame => {
+        const hit =
+          frame.pictures.some((p) => p.file && dead.has(p.cid)) ||
+          frame.mask.objects.some((m) => dead.has(m.cid));
+        if (!hit) return frame;
+        const objects = frame.mask.objects.filter((m) => !dead.has(m.cid));
+        lost.maskObjects += frame.mask.objects.length - objects.length;
+        return {
+          ...frame,
+          pictures: frame.pictures.map((p) => {
+            if (!p.file || !dead.has(p.cid)) return p;
+            lost.pictures.push({ frameId: frame.id, name: p.name });
+            return { ...p, file: null };
+          }),
+          mask: { ...frame.mask, objects },
+        };
+      });
       return {
-        ...frame,
-        pictures: frame.pictures.map((p) => {
-          if (!p.file || !dead.has(p.cid)) return p;
-          lost.pictures.push({ frameId: frame.id, name: p.name });
-          return { ...p, file: null };
-        }),
-        mask: { ...frame.mask, objects },
+        frames,
+        ...reduce.settleSelection(frames, s.frames, s),
+        report: addToReport(s.report, { lost }),
       };
-    });
-    return {
-      frames,
-      ...reduce.settleSelection(frames, s.frames, s),
-      report: addToReport(s.report, { lost }),
-    };
-  });
+    }),
+  );
+  clear("images");
 }
 
 const seedFrame = reduce.newFrame(newId(), "initial");
@@ -260,24 +316,29 @@ const seedFrame = reduce.newFrame(newId(), "initial");
 export const useInputStore = create<InputState>()(
   persist(
     (set, get) => {
-      /** Apply a change to the frame list and keep the selection valid. */
-      const edit = (change: (frames: Frame[]) => Frame[]) =>
+      /** Apply a change to the frame list and keep the selection valid. The
+       * kind and frame name the step it makes. */
+      const edit = (kind: EditKind, frameId: string | null, change: (frames: Frame[]) => Frame[]) =>
         whenReady(() =>
           set((s) => {
             const frames = change(s.frames);
-            return frames === s.frames
-              ? s
-              : { frames, ...reduce.settleSelection(frames, s.frames, s) };
+            if (frames === s.frames) return s;
+            noteEdit(kind, frameId);
+            return { frames, ...reduce.settleSelection(frames, s.frames, s) };
           }),
         );
-      const editFrame = (frameId: string, change: (frame: Frame) => Frame) =>
-        edit((frames) => reduce.updateFrame(frames, frameId, change));
+      const editFrame = (kind: EditKind, frameId: string, change: (frame: Frame) => Frame) =>
+        edit(kind, frameId, (frames) => reduce.updateFrame(frames, frameId, change));
       /** Apply a change the model's image limit may refuse. Before the stored
        * document is in there is nothing to count against, so it goes through. */
-      const guarded = (change: (frames: Frame[]) => Frame[]): boolean => {
+      const guarded = (
+        kind: EditKind,
+        frameId: string | null,
+        change: (frames: Frame[]) => Frame[],
+      ): boolean => {
         const { ready, frames, imageLimit } = get();
         if (!ready) {
-          edit(change);
+          edit(kind, frameId, change);
           return true;
         }
         const next = change(frames);
@@ -285,11 +346,14 @@ export const useInputStore = create<InputState>()(
           refused();
           return false;
         }
-        edit(() => next);
+        edit(kind, frameId, () => next);
         return true;
       };
-      const guardedFrame = (frameId: string, change: (frame: Frame) => Frame): boolean =>
-        guarded((frames) => reduce.updateFrame(frames, frameId, change));
+      const guardedFrame = (
+        kind: EditKind,
+        frameId: string,
+        change: (frame: Frame) => Frame,
+      ): boolean => guarded(kind, frameId, (frames) => reduce.updateFrame(frames, frameId, change));
       /** Make a layer the active one, when its frame is the selected one. */
       const activate = (frameId: string, id: string) =>
         whenReady(() =>
@@ -320,15 +384,21 @@ export const useInputStore = create<InputState>()(
 
         addFrame: (role, at) => {
           const frame = reduce.newFrame(newId(), role);
-          edit((frames) => reduce.insertFrame(frames, frame, at));
+          edit("frame added", frame.id, (frames) => reduce.insertFrame(frames, frame, at));
           return frame.id;
         },
         removeFrame: (frameId) =>
-          edit((frames) => (frames.length > 1 ? reduce.removeFrame(frames, frameId) : frames)),
-        moveFrame: (from, to) => edit((frames) => reduce.moveItem(frames, from, to)),
+          edit("frame removed", frameId, (frames) =>
+            frames.length > 1 ? reduce.removeFrame(frames, frameId) : frames,
+          ),
+        moveFrame: (from, to) =>
+          edit("frame moved", get().frames[from]?.id ?? null, (frames) =>
+            reduce.moveItem(frames, from, to),
+          ),
         switchRole: (frameId, role) => {
           const before = get().frames.find((f) => f.id === frameId);
-          if (!guardedFrame(frameId, (f) => reduce.switchRole(f, role, frameSize()))) return false;
+          if (!guardedFrame("role", frameId, (f) => reduce.switchRole(f, role, frameSize())))
+            return false;
           // the picture a switch to Initial places is the layer to work on
           const placed = get()
             .frames.find((f) => f.id === frameId)
@@ -337,9 +407,9 @@ export const useInputStore = create<InputState>()(
           return true;
         },
         setEnabled: (frameId, enabled) =>
-          guardedFrame(frameId, (f) => reduce.setEnabled(f, enabled)),
+          guardedFrame("on", frameId, (f) => reduce.setEnabled(f, enabled)),
         clearFrame: (frameId) =>
-          editFrame(frameId, (f) =>
+          editFrame("cleared", frameId, (f) =>
             reduce.clearIpMasks(
               reduce.clearMaskObjects(reduce.clearStrokes(reduce.clearPictures(f))),
             ),
@@ -364,36 +434,44 @@ export const useInputStore = create<InputState>()(
 
         addPicture: (frameId, picture) => {
           const source = named(picture);
-          if (!guardedFrame(frameId, (f) => reduce.addPicture(f, source, frameSize()))) return null;
+          if (
+            !guardedFrame("picture added", frameId, (f) =>
+              reduce.addPicture(f, source, frameSize()),
+            )
+          )
+            return null;
           activate(frameId, source.id);
           return source.id;
         },
         setOnlyPicture: (frameId, picture) => {
           const source = named(picture);
-          editFrame(frameId, (f) => reduce.setOnlyPicture(f, source));
+          editFrame("picture added", frameId, (f) => reduce.setOnlyPicture(f, source));
           activate(frameId, source.id);
           return source.id;
         },
         removePicture: (frameId, pictureId) =>
-          editFrame(frameId, (f) => reduce.removePicture(f, pictureId)),
+          editFrame("picture removed", frameId, (f) => reduce.removePicture(f, pictureId)),
         movePicture: (frameId, from, to) =>
-          editFrame(frameId, (f) => reduce.movePicture(f, from, to)),
+          editFrame("picture moved", frameId, (f) => reduce.movePicture(f, from, to)),
         patchPicture: (frameId, pictureId, patch) =>
-          editFrame(frameId, (f) => reduce.patchPicture(f, pictureId, patch)),
+          editFrame("picture changed", frameId, (f) => reduce.patchPicture(f, pictureId, patch)),
         setPictureTransform: (frameId, pictureId, transform) =>
-          editFrame(frameId, (f) => reduce.setPictureTransform(f, pictureId, transform)),
+          editFrame("placement", frameId, (f) =>
+            reduce.setPictureTransform(f, pictureId, transform),
+          ),
         patchTransform: (frameId, itemId, patch) =>
-          editFrame(frameId, (f) => reduce.patchTransform(f, itemId, patch)),
-        removeItem: (frameId, itemId) => editFrame(frameId, (f) => reduce.removeItem(f, itemId)),
+          editFrame("placement", frameId, (f) => reduce.patchTransform(f, itemId, patch)),
+        removeItem: (frameId, itemId) =>
+          editFrame("picture removed", frameId, (f) => reduce.removeItem(f, itemId)),
         setPictureVisible: (frameId, pictureId, visible) =>
-          guardedFrame(frameId, (f) =>
+          guardedFrame("visibility", frameId, (f) =>
             reduce.setPictureVisible(f, pictureId, visible, frameSize()),
           ),
         showHiddenBySwitch: (frameId) =>
-          guardedFrame(frameId, (f) => reduce.showHiddenBySwitch(f, frameSize())),
+          guardedFrame("visibility", frameId, (f) => reduce.showHiddenBySwitch(f, frameSize())),
 
         putBackFrame: (frame, at, linkedFrom) =>
-          edit((frames) => {
+          edit("put back", frame.id, (frames) => {
             if (frames.some((f) => f.id === frame.id)) return frames;
             return linkedFrom.reduce(
               (list, id) =>
@@ -402,80 +480,113 @@ export const useInputStore = create<InputState>()(
             );
           }),
         insertPicture: (frameId, picture, at) =>
-          editFrame(frameId, (f) => reduce.insertPicture(f, picture, at)),
-        mergeContent: (frameId, from) => editFrame(frameId, (f) => reduce.mergeContent(f, from)),
-        restoreFrame: (frame) => editFrame(frame.id, () => frame),
-        fixProblem: (problem) => edit((frames) => fixProblem(frames, problem)),
+          editFrame("picture added", frameId, (f) => reduce.insertPicture(f, picture, at)),
+        mergeContent: (frameId, from) =>
+          editFrame("merged", frameId, (f) => reduce.mergeContent(f, from)),
+        restoreFrame: (frame) => editFrame("put back", frame.id, () => frame),
+        fixProblem: (problem) =>
+          edit("problem fixed", null, (frames) => fixProblem(frames, problem)),
 
-        setFit: (frameId, fit) => editFrame(frameId, (f) => reduce.setFit(f, fit, frameSize())),
-        setLink: (frameId, targetId) => editFrame(frameId, (f) => reduce.setLink(f, targetId)),
-        patchControl: (frameId, patch) => editFrame(frameId, (f) => reduce.patchControl(f, patch)),
+        setFit: (frameId, fit) =>
+          editFrame("fit", frameId, (f) => reduce.setFit(f, fit, frameSize())),
+        setLink: (frameId, targetId) =>
+          editFrame("link", frameId, (f) => reduce.setLink(f, targetId)),
+        patchControl: (frameId, patch) =>
+          editFrame("control", frameId, (f) => reduce.patchControl(f, patch)),
         patchIpAdapter: (frameId, patch) =>
-          editFrame(frameId, (f) => reduce.patchIpAdapter(f, patch)),
+          editFrame("ip adapter", frameId, (f) => reduce.patchIpAdapter(f, patch)),
         addIpMask: (frameId, picture) => {
           const source = named(picture);
-          editFrame(frameId, (f) => reduce.addIpMask(f, source));
+          editFrame("ip adapter", frameId, (f) => reduce.addIpMask(f, source));
           return source.id;
         },
         removeIpMask: (frameId, pictureId) =>
-          editFrame(frameId, (f) => reduce.removeIpMask(f, pictureId)),
+          editFrame("ip adapter", frameId, (f) => reduce.removeIpMask(f, pictureId)),
         setProcessor: (frameId, processor) =>
-          editFrame(frameId, (f) => reduce.setProcessor(f, processor)),
+          editFrame("processor", frameId, (f) => reduce.setProcessor(f, processor)),
         replaceComposition: (frameId, map) =>
-          editFrame(frameId, (f) => reduce.replaceComposition(f, named(map, map.cid))),
+          editFrame("replaced", frameId, (f) => reduce.replaceComposition(f, named(map, map.cid))),
         replacePictures: (frameId, maps) =>
-          editFrame(frameId, (f) =>
+          editFrame("replaced", frameId, (f) =>
             reduce.replacePictures(
               f,
               new Map([...maps].map(([id, map]) => [id, named(map, map.cid)])),
             ),
           ),
 
-        addStroke: (frameId, stroke) => editFrame(frameId, (f) => reduce.addStroke(f, stroke)),
-        clearStrokes: (frameId) => editFrame(frameId, reduce.clearStrokes),
+        addStroke: (frameId, stroke) =>
+          editFrame("stroke", frameId, (f) => reduce.addStroke(f, stroke)),
+        clearStrokes: (frameId) => editFrame("strokes cleared", frameId, reduce.clearStrokes),
         applyBake: (frameId, consumed, objects) =>
-          editFrame(frameId, (f) => reduce.applyBake(f, consumed, objects)),
-        clearMaskObjects: (frameId) => editFrame(frameId, reduce.clearMaskObjects),
+          editFrame("bake", frameId, (f) => reduce.applyBake(f, consumed, objects)),
+        clearMaskObjects: (frameId) => editFrame("mask cleared", frameId, reduce.clearMaskObjects),
         removeMaskObject: (frameId, objectId) =>
-          editFrame(frameId, (f) => reduce.removeMaskObject(f, objectId)),
+          editFrame("mask region removed", frameId, (f) => reduce.removeMaskObject(f, objectId)),
         patchMaskObject: (frameId, objectId, patch) =>
-          editFrame(frameId, (f) => reduce.patchMaskObject(f, objectId, patch)),
+          editFrame("mask region changed", frameId, (f) =>
+            reduce.patchMaskObject(f, objectId, patch),
+          ),
 
         restoreFrames: (frames) =>
           whenReady(() =>
-            set((s) => ({
-              frames,
-              ...reduce.settleSelection(frames, s.frames, {
-                selectedFrameId: frames[0]?.id ?? null,
-                activeItem: null,
-              }),
-              sizeSource: null,
-            })),
+            set((s) => {
+              noteEdit("restored", null);
+              return {
+                frames,
+                ...reduce.settleSelection(frames, s.frames, {
+                  selectedFrameId: frames[0]?.id ?? null,
+                  activeItem: null,
+                }),
+                sizeSource: null,
+              };
+            }),
           ),
         appendFrames: (added) =>
           added.length === 0 ||
-          guarded((frames) => (frames.every(reduce.isBlank) ? added : [...frames, ...added])),
-        setSizeSource: (pick) => whenReady(() => set({ sizeSource: pick })),
+          guarded("appended", null, (frames) =>
+            frames.every(reduce.isBlank) ? added : [...frames, ...added],
+          ),
+        setSizeSource: (pick) =>
+          whenReady(() =>
+            set((s) => {
+              if (s.sizeSource === pick) return s;
+              noteEdit("size source", pick?.frameId ?? null);
+              return { sizeSource: pick };
+            }),
+          ),
+        applyUndo: (doc, selection) =>
+          set((s) => ({
+            frames: doc.frames,
+            sizeSource: doc.sizeSource,
+            ...reduce.settleSelection(doc.frames, s.frames, selection ?? s),
+          })),
         refitAll: (size) =>
-          edit((frames) => {
+          edit("refit", null, (frames) => {
             const next = frames.map((f) => refitFrame(f, size));
             return next.every((f, i) => f === frames[i]) ? frames : next;
           }),
 
         acceptImport: async (offer) => {
           const loaded = await loadOffer(offer, working(get()));
-          set((s) => {
-            // the record changed again or is gone: the next load offers what is there
-            if (!loaded) return { offers: answered(s, offer) };
-            const { doc, notes } = acceptOffer(
-              working(s),
-              offer,
-              loaded,
-              newId,
-              keepsFrames(offer),
-            );
-            return { ...doc, offers: answered(s, offer), report: addToReport(s.report, { notes }) };
-          });
+          ignore("import accepted", () =>
+            set((s) => {
+              // the record changed again or is gone: the next load offers what is there
+              if (!loaded) return { offers: answered(s, offer) };
+              const { doc, notes } = acceptOffer(
+                working(s),
+                offer,
+                loaded,
+                newId,
+                keepsFrames(offer),
+              );
+              return {
+                ...doc,
+                offers: answered(s, offer),
+                report: addToReport(s.report, { notes }),
+              };
+            }),
+          );
+          if (loaded) clear("images");
         },
         declineImport: (offer) =>
           set((s) => ({ ...declineOffer(working(s), offer), offers: answered(s, offer) })),
@@ -511,6 +622,8 @@ export const useInputStore = create<InputState>()(
         };
       },
       onRehydrateStorage: () => (_state, error) => {
+        // a failed or superseded read never reaches zustand's finish listeners
+        rehydrating(useInputStore, false);
         if (!error) {
           reportStorageProblem({ kind: "resolved", id: "inputs" });
           becomeReady();
@@ -521,10 +634,17 @@ export const useInputStore = create<InputState>()(
           id: "inputs",
           what: "inputs",
           newer: error instanceof NewerDocument || error instanceof NewerDatabase,
-          retry: () => void useInputStore.persist.rehydrate(),
+          retry: () => {
+            rehydrating(useInputStore, true);
+            void useInputStore.persist.rehydrate();
+          },
           startEmpty: () => {
-            storage.startEmpty();
-            becomeReady();
+            rehydrating(useInputStore, false);
+            ignore("start empty", () => {
+              storage.startEmpty();
+              becomeReady();
+            });
+            clear("images");
             // or the next load would bring an older build's canvas back in
             void legacyMarks().then((imports) => useInputStore.setState({ imports }));
           },

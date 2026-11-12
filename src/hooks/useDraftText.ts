@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { recorded } from "@/undo/marks";
 
 /**
  * A text field over a value that is parsed on write: it edits a draft while
@@ -18,7 +19,13 @@ export function useDraftText(value: string, onCommit: (text: string) => void) {
     pending.current = null;
     if (text !== null && text !== latest.current.value) latest.current.onCommit(text);
   }, []);
-  useEffect(() => commit, [commit]);
+  // an unmount can come from a render no input event caused
+  useEffect(
+    () => () => {
+      recorded(commit);
+    },
+    [commit],
+  );
 
   return {
     value: draft ?? value,

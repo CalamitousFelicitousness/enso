@@ -46,8 +46,9 @@ export interface StepName {
 
 /** The server half of a step. */
 export interface Command {
-  /** Must succeed before content leaves the document; a throw refuses the press. */
-  readonly guard?: (side: Side) => Promise<void>;
+  /** Must succeed before content leaves the document; a throw refuses the press.
+   * What it returns takes its write back when the press is dropped after it. */
+  readonly guard?: (side: Side) => Promise<(() => void) | void>;
   readonly undo: () => Promise<void> | void;
   readonly redo: () => Promise<void> | void;
   /** The step left the history for good: evicted, cut, cleared or dropped from Redo. */

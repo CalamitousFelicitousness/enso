@@ -7,6 +7,7 @@ import { newId } from "@/lib/id";
 import { useCanvasStore } from "@/stores/canvasStore";
 import { useGenerationStore } from "@/stores/generationStore";
 import { useInputStore } from "@/stores/inputStore";
+import { follow } from "@/undo/marks";
 import type { Frame, MaskObject, MaskStroke } from "@/lib/inputs/types";
 import { assignIdentities } from "./identity";
 import { rememberMaskBitmap } from "./bitmaps";
@@ -152,7 +153,7 @@ function reconcile(frameId: string): void {
   const lines = frame.mask.strokes;
   const drawable = lines.filter((l) => l.points.length >= 4);
   if (drawable.length === 0) {
-    useInputStore.getState().clearStrokes(frameId);
+    follow("bake", () => useInputStore.getState().clearStrokes(frameId));
     return;
   }
   const bakeHost = getHost();
@@ -206,7 +207,7 @@ function applyResult(fs: FrameState, job: Job, output: BakeOutput): void {
       transform: { x: region.x, y: region.y, scaleX: 1, scaleY: 1, rotation: 0 },
     };
   });
-  useInputStore.getState().applyBake(job.frameId, job.lines.length, objects);
+  follow("bake", () => useInputStore.getState().applyBake(job.frameId, job.lines.length, objects));
   fs.failures = 0;
   fs.failedLines = null;
   reconcile(job.frameId);

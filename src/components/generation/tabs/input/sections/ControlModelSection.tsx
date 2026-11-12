@@ -10,6 +10,7 @@ import { ParamSlider } from "@/components/generation/ParamSlider";
 import { ParamGrid } from "@/components/generation/ParamRow";
 import { Button } from "@/components/ui/button";
 import { useInputStore } from "@/stores/inputStore";
+import { follow } from "@/undo/marks";
 import { sentAsImage } from "@/lib/inputs/outline";
 import { controlTypeLabel, notSentLabel, sendAsImageLabel } from "@/lib/inputs/text";
 import { CONTROL_TYPES, type ControlType, type Frame } from "@/lib/inputs/types";
@@ -46,7 +47,9 @@ export function ControlModelSection({ frame }: { frame: Frame }) {
   // A model with listed modes runs in its first one unless another is picked:
   // sdnext maps an unknown mode to the first one on its own, without a word.
   useEffect(() => {
-    if (modes && modes.length > 0 && !modes.includes(control.mode)) set({ mode: modes[0] });
+    if (modes && modes.length > 0 && !modes.includes(control.mode)) {
+      follow("control mode", () => set({ mode: modes[0] }));
+    }
   });
 
   const showModel = control.type !== "style_transfer";

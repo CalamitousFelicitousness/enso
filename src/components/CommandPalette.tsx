@@ -15,6 +15,7 @@ import {
   CommandItem,
   CommandShortcut,
 } from "@/components/ui/command";
+import { recorded } from "@/undo/marks";
 
 export function CommandPalette() {
   const [open, setOpen] = useState(false);
@@ -87,9 +88,10 @@ export function CommandPalette() {
       setOpen(false);
       setSearch("");
       addRecentCommand(actionId);
+      // a frame after the key or click that chose it, so outside that event
       requestAnimationFrame(() => {
         if (action.kind === "command") {
-          runCommand(action.commandId);
+          recorded(() => runCommand(action.commandId));
         } else {
           void navigateToParam(action.target);
         }
