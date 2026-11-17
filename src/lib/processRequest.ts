@@ -5,6 +5,8 @@ import type { ProcessSectionKey, ProcessSections } from "@/stores/processStore";
 export const VIDEO_SECTIONS: readonly ProcessSectionKey[] = ["seedvr", "dlss"];
 /** Sections that run once over every output of a batch or folder run. */
 export const BATCH_SECTIONS: readonly ProcessSectionKey[] = ["createVideo"];
+/** Sections that write a file beside each image a run saves itself. */
+export const SAVED_SECTIONS: readonly ProcessSectionKey[] = ["hdr"];
 
 const WIRE_FIELD: Record<ProcessSectionKey, keyof ProcessJobParams> = {
   upscale: "upscale",
@@ -15,6 +17,7 @@ const WIRE_FIELD: Record<ProcessSectionKey, keyof ProcessJobParams> = {
   seedvr: "seedvr",
   pixelart: "pixelart",
   dlss: "dlss",
+  hdr: "hdr",
   createVideo: "create_video",
 };
 
@@ -22,6 +25,7 @@ const WIRE_FIELD: Record<ProcessSectionKey, keyof ProcessJobParams> = {
 export function sectionApplies(key: ProcessSectionKey, mode: ProcessMode): boolean {
   if (mode === "video") return VIDEO_SECTIONS.includes(key);
   if (BATCH_SECTIONS.includes(key)) return mode === "batch" || mode === "folder";
+  if (SAVED_SECTIONS.includes(key)) return mode === "image" || mode === "batch";
   return true;
 }
 

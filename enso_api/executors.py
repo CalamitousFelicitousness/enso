@@ -694,6 +694,7 @@ def execute_process(params: dict, job_id: str) -> dict:
     from modules import video as video_module
     from modules.paths import resolve_output_path
 
+    from enso_api import hdr
     from enso_api.job_queue import JobStopped, job_queue
     from enso_api.postprocess import build_script_args, log_control_drift, resolve_path_ref
     from enso_api.temp_store import get_staging_dir, stage_image
@@ -764,11 +765,13 @@ def execute_process(params: dict, job_id: str) -> dict:
             ref["temp"] = True
         return ref
 
+    saved = []
     for i, img in enumerate(outputs):
         if mode != "folder" and save_output:
             fpath, _txt, _exif = img_module.save_image(img, path=outpath, extension=shared.opts.samples_format, info=img.info.get("postprocessing"), grid=False, pnginfo_section_name="extras", existing_info=img.info)
             if fpath and os.path.isfile(str(fpath)):
                 image_refs.append(file_ref(i, str(fpath), img))
+                saved.append((img, str(fpath)))
             continue
         try:
             stage = stage_image(job_id, i, img)
@@ -778,6 +781,9 @@ def execute_process(params: dict, job_id: str) -> dict:
         if stage:
             image_refs.append(file_ref(i, stage["path"], img, temp=True))
             staged = True
+
+    if params.get("hdr") is not None:
+        info = hdr.after_save(params["hdr"], mode, save_output, saved, info or "")
 
     video_refs = []
     if mode == "video":

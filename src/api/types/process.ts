@@ -1,4 +1,5 @@
 export type {
+  ItemHdrSupportV2 as HdrSupport,
   ItemPostprocessControlV2 as PostprocessControl,
   ItemPostprocessScriptV2 as PostprocessScript,
   ResPostprocessScriptsV2 as PostprocessScriptsResponse,

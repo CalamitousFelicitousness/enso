@@ -743,8 +743,21 @@ class ItemPostprocessScriptV2(BaseModel):
     controls: list[ItemPostprocessControlV2] = Field(default_factory=list, title="Controls")
 
 
+class ItemHdrSupportV2(BaseModel):
+    samples_format: str | None = Field(default=None, title="Image file format")
+    hdr_format: str | None = Field(default=None, title="HDR encoding")
+    extension: str | None = Field(default=None, title="Extension", description="Of the HDR file, without the dot")
+    encoder: str | None = Field(default=None, title="Encoder", description="Executable or Python package that writes the file")
+    available: bool = Field(title="Available", description="An HDR file is written")
+    installs: bool = Field(default=False, title="Installs", description="The first conversion installs the encoder package")
+    replaces_output: bool = Field(default=False, title="Replaces output", description="sdnext's own runs write the HDR file instead of the normal output")
+    code: str | None = Field(default=None, title="Code", description="format-unsupported or encoder-missing when not available")
+    reason: str | None = Field(default=None, title="Reason")
+
+
 class ResPostprocessScriptsV2(BaseModel):
     scripts: list[ItemPostprocessScriptV2] = Field(title="Scripts", description="In the server's run order")
+    hdr: list[ItemHdrSupportV2] = Field(default_factory=list, title="HDR", description="What the HDR step writes for each image file format; empty when the server has no HDR step")
 
 
 # --- Server info models (v2) ---

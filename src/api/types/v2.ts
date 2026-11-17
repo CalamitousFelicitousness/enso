@@ -407,6 +407,12 @@ export interface ProcessDlssParams {
   mp4_opt: string;
 }
 
+export interface ProcessHdrParams {
+  hdr_method: string;
+  hdr_peak: number;
+  hdr_gamut: string;
+}
+
 export interface ProcessCreateVideoParams {
   filename: string;
   video_type: string;
@@ -439,6 +445,7 @@ export interface ProcessJobParams {
   seedvr?: ProcessSeedvrParams | undefined;
   pixelart?: ProcessPixelartParams | undefined;
   dlss?: ProcessDlssParams | undefined;
+  hdr?: ProcessHdrParams | undefined;
   create_video?: ProcessCreateVideoParams | undefined;
   priority?: number | undefined;
 }

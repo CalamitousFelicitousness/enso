@@ -12,11 +12,13 @@ import asyncio
 from fastapi import APIRouter
 from modules.logger import log
 
+from enso_api import hdr
 from enso_api.job_models import (
     ProcessCreateVideoParams,
     ProcessDetailerParams,
     ProcessDlssParams,
     ProcessGradingParams,
+    ProcessHdrParams,
     ProcessNudenetParams,
     ProcessPixelartParams,
     ProcessRembgParams,
@@ -37,6 +39,7 @@ SCRIPTS = {
     "SeedVR": ("seedvr", ProcessSeedvrParams),
     "PixelArt": ("pixelart", ProcessPixelartParams),
     "nVidia DLSS": ("dlss", ProcessDlssParams),
+    "HDR": ("hdr", ProcessHdrParams),
     "Create Video": ("create_video", ProcessCreateVideoParams),
 }
 # scripts whose process() takes pp.video
@@ -44,6 +47,9 @@ VIDEO_SCRIPTS = {"SeedVR", "nVidia DLSS"}
 # scripts that run once over the whole output set; execute_process calls the
 # save itself so the file path is known before the job completes
 BATCH_SCRIPTS = {"Create Video"}
+# scripts that write a file only when sdnext saves the output; execute_process
+# saves image and batch outputs and writes these itself (hdr.after_save)
+SAVED_SCRIPTS = {"HDR"}
 # Detailer controls that ProcessDetailerParams carries inside `defaults`
 DETAILER_DEFAULT_CONTROLS = {"enabled", "prompt", "negative", "steps", "strength", "resolution", "classes"}
 # model field -> control name where a control name is unusable as a field
@@ -137,7 +143,7 @@ def list_scripts() -> ResPostprocessScriptsV2:
                 controls=[describe_control(name, control) for name, control in controls.items()],
             )
         )
-    return ResPostprocessScriptsV2(scripts=items)
+    return ResPostprocessScriptsV2(scripts=items, hdr=hdr.formats())
 
 
 @router.get("/scripts", response_model=ResPostprocessScriptsV2, tags=["Process"])
@@ -176,6 +182,8 @@ def build_script_args(params: dict) -> tuple[dict, list[dict]]:
         if sub is None or name in BATCH_SCRIPTS:
             continue
         if mode == "video" and name not in VIDEO_SCRIPTS:
+            continue
+        if name in SAVED_SCRIPTS:
             continue
         sub = model.model_validate(sub).model_dump()
         renames = RENAMES.get(name, {})

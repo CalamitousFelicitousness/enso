@@ -4818,6 +4818,101 @@
         "title": "ItemExtraNetworkV2",
         "type": "object"
       },
+      "ItemHdrSupportV2": {
+        "properties": {
+          "available": {
+            "description": "An HDR file is written",
+            "title": "Available",
+            "type": "boolean"
+          },
+          "code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "format-unsupported or encoder-missing when not available",
+            "title": "Code"
+          },
+          "encoder": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Executable or Python package that writes the file",
+            "title": "Encoder"
+          },
+          "extension": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Of the HDR file, without the dot",
+            "title": "Extension"
+          },
+          "hdr_format": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "HDR encoding"
+          },
+          "installs": {
+            "default": false,
+            "description": "The first conversion installs the encoder package",
+            "title": "Installs",
+            "type": "boolean"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "replaces_output": {
+            "default": false,
+            "description": "sdnext's own runs write the HDR file instead of the normal output",
+            "title": "Replaces output",
+            "type": "boolean"
+          },
+          "samples_format": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Image file format"
+          }
+        },
+        "required": [
+          "available"
+        ],
+        "title": "ItemHdrSupportV2",
+        "type": "object"
+      },
       "ItemHistoryV2": {
         "properties": {
           "duration": {
@@ -8023,6 +8118,32 @@
         "title": "ProcessGradingParams",
         "type": "object"
       },
+      "ProcessHdrParams": {
+        "additionalProperties": false,
+        "description": "Args of the \"HDR\" script.",
+        "properties": {
+          "hdr_gamut": {
+            "default": "Rec.2020",
+            "description": "Rec.2020 or DCI-P3",
+            "title": "Hdr Gamut",
+            "type": "string"
+          },
+          "hdr_method": {
+            "default": "Algorithmic",
+            "description": "Algorithmic",
+            "title": "Hdr Method",
+            "type": "string"
+          },
+          "hdr_peak": {
+            "default": 1000,
+            "description": "Peak brightness in nits, 100 to 10000",
+            "title": "Hdr Peak",
+            "type": "number"
+          }
+        },
+        "title": "ProcessHdrParams",
+        "type": "object"
+      },
       "ProcessNudenetParams": {
         "additionalProperties": false,
         "description": "Args of the \"NudeNet\" script.",
@@ -8154,6 +8275,16 @@
             "anyOf": [
               {
                 "$ref": "#/components/schemas/ProcessGradingParams"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "hdr": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProcessHdrParams"
               },
               {
                 "type": "null"
@@ -12383,6 +12514,14 @@
       },
       "ResPostprocessScriptsV2": {
         "properties": {
+          "hdr": {
+            "description": "What the HDR step writes for each image file format; empty when the server has no HDR step",
+            "items": {
+              "$ref": "#/components/schemas/ItemHdrSupportV2"
+            },
+            "title": "HDR",
+            "type": "array"
+          },
           "scripts": {
             "description": "In the server's run order",
             "items": {

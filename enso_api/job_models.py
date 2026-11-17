@@ -1213,6 +1213,14 @@ class ProcessDlssParams(StrictBaseModel):
     mp4_opt: str = "crf=18:preset=medium"
 
 
+class ProcessHdrParams(StrictBaseModel):
+    """Args of the "HDR" script."""
+
+    hdr_method: str = Field(default="Algorithmic", description="Algorithmic")
+    hdr_peak: float = Field(default=1000.0, description="Peak brightness in nits, 100 to 10000")
+    hdr_gamut: str = Field(default="Rec.2020", description="Rec.2020 or DCI-P3")
+
+
 class ProcessCreateVideoParams(StrictBaseModel):
     """Args of the "Create Video" script: one video from every output of a batch or folder run."""
 
@@ -1253,6 +1261,7 @@ class ProcessParams(JobBase):
     seedvr: ProcessSeedvrParams | None = None
     pixelart: ProcessPixelartParams | None = None
     dlss: ProcessDlssParams | None = None
+    hdr: ProcessHdrParams | None = None
     create_video: ProcessCreateVideoParams | None = None
 
     @model_validator(mode="after")

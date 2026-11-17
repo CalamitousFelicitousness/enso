@@ -6,6 +6,7 @@ import type {
   ProcessDetailerParams,
   ProcessDlssParams,
   ProcessGradingParams,
+  ProcessHdrParams,
   ProcessMode,
   ProcessNudenetParams,
   ProcessPixelartParams,
@@ -26,6 +27,7 @@ export interface ProcessSectionParams {
   seedvr: ProcessSeedvrParams;
   pixelart: ProcessPixelartParams;
   dlss: ProcessDlssParams;
+  hdr: ProcessHdrParams;
   createVideo: ProcessCreateVideoParams;
 }
 
@@ -206,6 +208,10 @@ export const DEFAULT_SECTIONS: ProcessSections = {
       mp4_pix: "yuv420p",
       mp4_opt: "crf=18:preset=medium",
     },
+  },
+  hdr: {
+    enabled: false,
+    params: { hdr_method: "Algorithmic", hdr_peak: 1000, hdr_gamut: "Rec.2020" },
   },
   createVideo: {
     enabled: false,

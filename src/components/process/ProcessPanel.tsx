@@ -49,6 +49,7 @@ import { NudenetSection } from "./sections/NudenetSection";
 import { SeedvrSection } from "./sections/SeedvrSection";
 import { PixelartSection } from "./sections/PixelartSection";
 import { DlssSection } from "./sections/DlssSection";
+import { HdrSection } from "./sections/HdrSection";
 import { CreateVideoSection } from "./sections/CreateVideoSection";
 
 const MODES: { value: ProcessMode; label: string }[] = [
@@ -67,6 +68,7 @@ const SECTIONS: Record<ProcessSectionKey, () => React.ReactElement> = {
   seedvr: SeedvrSection,
   pixelart: PixelartSection,
   dlss: DlssSection,
+  hdr: HdrSection,
   createVideo: CreateVideoSection,
 };
 
@@ -80,6 +82,7 @@ const FIELD_KEYS: Record<string, ProcessSectionKey> = {
   seedvr: "seedvr",
   pixelart: "pixelart",
   dlss: "dlss",
+  hdr: "hdr",
   create_video: "createVideo",
 };
 
@@ -93,6 +96,7 @@ const FALLBACK_ORDER: ProcessSectionKey[] = [
   "seedvr",
   "pixelart",
   "dlss",
+  "hdr",
   "createVideo",
 ];
 
