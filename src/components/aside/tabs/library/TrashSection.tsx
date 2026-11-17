@@ -20,6 +20,7 @@ import { useLegacyEntries } from "@/hooks/useLegacyEntries";
 import { restoreEntry, restoreRemoval } from "@/inputs/recall";
 import { useThumb } from "@/inputs/thumbs";
 import { deleteNow, emptyTrash, loadTrash, measureTrash, useTrash } from "@/inputs/trash";
+import { clearsStepsText } from "@/lib/undo/text";
 import { filesInTrashLineText, READING_TRASH, SHOW_IN_GALLERY } from "@/lib/gallery/text";
 import type { StoredEntry } from "@/lib/inputs/stored";
 import { sweepPolicy } from "@/lib/inputs/sweep";
@@ -197,6 +198,7 @@ export function TrashSection({ query, active }: { query: string; active: boolean
   const localDays = useTrash((s) => s.days);
   const restoring = useTrash((s) => s.restoring);
   const reclaimable = useTrash((s) => s.reclaimable);
+  const clears = useTrash((s) => s.clears);
   const loaded = useTrash((s) => s.loaded);
   // the storage notice's Free space opens the list with Empty asked for
   const askEmpty = useTrash((s) => s.askEmpty);
@@ -313,13 +315,18 @@ export function TrashSection({ query, active }: { query: string; active: boolean
       <ConfirmDialog
         open={onlyHere ? removalKeys.length > 0 : confirming && emptiable}
         title="Empty the trash?"
-        description={emptyBothText(
-          removalKeys.length,
-          emptyEntries.length,
-          entriesOfOthers(onlyHere ? [] : items, me),
-          reclaimable,
-          emptyServer,
-        )}
+        description={[
+          emptyBothText(
+            removalKeys.length,
+            emptyEntries.length,
+            entriesOfOthers(onlyHere ? [] : items, me),
+            reclaimable,
+            emptyServer,
+          ),
+          removalKeys.length > 0 ? clearsStepsText(clears) : null,
+        ]
+          .filter((line) => line !== null)
+          .join(" ")}
         confirmLabel="Delete all"
         destructive
         onConfirm={() => {

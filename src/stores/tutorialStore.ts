@@ -3,6 +3,13 @@ import { LOCAL } from "@/lib/profile/names";
 import { persistLocal } from "@/profile/local";
 import { useUiStore } from "@/stores/uiStore";
 import { TUTORIAL_BODY, TUTORIAL_TITLE } from "@/canvas/navigation/text";
+import { formatShortcut, SHORTCUTS } from "@/lib/shortcuts";
+import { UNDO_TOUR_TITLE, undoTourText } from "@/lib/undo/text";
+
+const keysOf = (id: string) => {
+  const def = SHORTCUTS[id];
+  return def ? formatShortcut(def) : null;
+};
 
 export interface TutorialStep {
   target: string;
@@ -44,6 +51,12 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     target: "canvas-controls",
     title: TUTORIAL_TITLE,
     description: TUTORIAL_BODY,
+    placement: "bottom",
+  },
+  {
+    target: "undo-redo",
+    title: UNDO_TOUR_TITLE,
+    description: undoTourText(keysOf("undo"), keysOf("redo")),
     placement: "bottom",
   },
 ];

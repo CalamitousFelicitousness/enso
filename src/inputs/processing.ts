@@ -18,7 +18,7 @@ import {
 import { positionsLabel, processOutcomeText, type ProcessOutcome } from "@/lib/inputs/text";
 import { useInputStore } from "@/stores/inputStore";
 import { rememberHashes } from "./db";
-import { removePicture } from "./edits";
+import { removeOversized } from "./edits";
 import { installMap, lookupMaps, markFailed, useMapStore } from "./maps";
 import { createUploader, type Uploader } from "./materialise";
 import { submitJob } from "./submit";
@@ -188,16 +188,10 @@ export async function processNow(
 }
 
 /** Apply a problem's fix: a change to the frames, or the job that makes the
- * maps a model that runs elsewhere needs first. Pictures too large to send
- * keep their bytes, so they go with Undo. */
+ * maps a model that runs elsewhere needs first. */
 export function applyFix(env: OutlineEnv, problem: OutlineProblem): void {
   if (problem.code === "tooLarge") {
-    const store = useInputStore.getState();
-    for (const { frameId, pictureId } of problem.pictures) {
-      const frame = store.frames.find((f) => f.id === frameId);
-      if (frame?.pictures.some((p) => p.id === pictureId)) removePicture(frameId, pictureId);
-      else store.removeIpMask(frameId, pictureId);
-    }
+    removeOversized(problem.pictures);
     return;
   }
   if (!fixRunsJob(problem)) {

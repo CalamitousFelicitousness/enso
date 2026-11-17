@@ -1,6 +1,6 @@
-// What a user does to the input list that is worth telling and undoing. Every
-// removal writes a record the trash keeps for the retention period and offers
-// Undo; every change that renumbers the sent pictures says which.
+// What a user does to the input list that is worth telling. Every removal
+// writes a record the trash keeps for the retention period, riding on its
+// undo step; every change that renumbers the sent pictures says which.
 
 import { toast } from "sonner";
 import { newId } from "@/lib/id";
@@ -16,7 +16,7 @@ import {
 import { refitFrame } from "@/lib/inputs/geometry";
 import { cloneFrames, isBlank, newFrame } from "@/lib/inputs/reducers";
 import { addressChanges } from "@/lib/inputs/renumber";
-import { removalCids, type Inputs, type Removal } from "@/lib/inputs/stored";
+import type { Inputs, Removal } from "@/lib/inputs/stored";
 import {
   addedText,
   duplicatedText,
@@ -28,7 +28,6 @@ import {
   SHOW_TRASH,
 } from "@/lib/inputs/text";
 import {
-  cidsOf,
   composedPictures,
   holdsContent,
   isComposed,
@@ -41,12 +40,13 @@ import { currentMap, touchMap } from "./maps";
 import { revealFrame } from "./reveal";
 import { keepingSize } from "./sizeSync";
 import { preparePictures } from "./route";
-import { forgetRemoval, recordRemoval } from "./trash";
+import { recordRemoval, trashRecord } from "./trash";
 import { readTrashDays } from "./db";
 import { showLibrary } from "./library";
 import { isQuotaError, reportFull } from "./quota";
-import { offerUndo } from "./undo";
 import { outlineOf } from "./outlineOf";
+import { announce, attach, title, wait, type Announcement, type WaitHandle } from "@/undo/marks";
+import { nameText } from "@/lib/undo/text";
 
 const sentNow = (): SentInput[] => outlineOf(useInputStore.getState().frames).sent;
 
@@ -57,27 +57,6 @@ const sizeNow = (): Size => {
   const { width, height } = useGenerationStore.getState();
   return { width, height };
 };
-
-/** What undoes a change, and the frames it would bring back, whose bytes
- * must stay while it can. */
-export interface Inverse {
-  run: () => void;
-  frames: readonly Frame[];
-}
-
-/** An Undo offer for an inverse, holding the bytes of what it brings back.
- * A `settle` finishes the change, so its offer ends with the notice. */
-export function offerInverse(
-  title: string,
-  description: string | null,
-  inverse: Inverse,
-  settle?: () => void,
-): void {
-  offerUndo(title, description, inverse.run, {
-    holds: () => cidsOf(inverse.frames),
-    ...(settle ? { settle, brief: true } : {}),
-  });
-}
 
 /** Put a frame back where it was, or its content into the frame that took its place. */
 function putBackFrame(frame: Frame, index: number, linkedFrom: string[] = []): void {
@@ -106,36 +85,19 @@ function putBeside(frame: Frame, index: number): void {
   store.putBackFrame(copy, at + 1, []);
 }
 
-/** What puts the list, its Size from pick and the frame size back as they are now. */
-function holdList(): Inverse {
-  const { frames, sizeSource } = useInputStore.getState();
-  const size = sizeNow();
-  return {
-    frames,
-    run: () =>
-      keepingSize(() => {
-        const store = useInputStore.getState();
-        store.restoreFrames(frames);
-        store.setSizeSource(sizeSource);
-        useGenerationStore.getState().setParams({ ...size });
-      }),
-  };
-}
-
 /** Put back what a removal took out, whatever the model's limit says: a
  * frame where it was with its links, a picture into its frame (else a new
  * frame of its role), a cleared frame's content into it (else the frame
  * whole), and each frame of a cleared list so. What a replace put aside comes
  * back beside what replaced it, and a replaced list takes the list's place
- * again, sending the list to the trash. Returns what undoes the put-back. */
-export function putBack(removal: Removal): Inverse {
+ * again, sending the list to the trash. */
+export function putBack(removal: Removal): void {
   const { content, cause, size, from } = removal;
   if (content.kind === "frames" && cause === "replaced") {
     const now = sizeNow();
-    const inputs = { frames: content.frames, size: size ?? now, sizeSource: content.sizeSource };
-    return restoreFrames(inputs, now);
+    restoreFrames({ frames: content.frames, size: size ?? now, sizeSource: content.sizeSource });
+    return;
   }
-  const undo = holdList();
   const at = from.position - 1;
   switch (content.kind) {
     case "frame":
@@ -164,47 +126,50 @@ export function putBack(removal: Removal): Inverse {
       content.frames.forEach((frame, index) => putBackFrame(sized(frame, size), index));
       break;
   }
-  return undo;
 }
 
-/** Keep a record of the removal, tell it, and offer to undo it: by putting
- * back what it took out, unless the change has an inverse of its own. The
- * notice waits for the record, so a page closed right after cannot lose both. */
-async function removed(
-  removal: Removal,
-  title: string,
-  renumber: string | null,
-  undo: () => void = () => {
-    putBack(removal);
-  },
-): Promise<void> {
-  let key: string | null = null;
-  try {
-    key = await recordRemoval(removal);
-  } catch (err) {
+/** A removal's record, written now: null when it could not be, which is said. */
+function writeRecord(removal: Removal): Promise<string | null> {
+  return recordRemoval(removal).catch((err: unknown) => {
     console.error("[inputs] could not keep what was removed", err);
     if (isQuotaError(err)) {
-      // Undo still puts it back from memory
+      // Undo still puts it back from its step
       toast.warning(NOT_KEPT_IN_TRASH);
       reportFull("A removed input");
     }
-  }
-  const days = key ? await readTrashDays().catch(() => null) : null;
-  const kept = days === null ? null : inTrashText(days);
-  offerUndo(
-    title,
-    [renumber, kept].filter(Boolean).join(". ") || null,
-    () => {
-      undo();
-      if (key) void forgetRemoval(key);
-    },
-    {
-      holds: () => removalCids(removal),
-      ...(key
-        ? { tag: key, also: { label: SHOW_TRASH, onClick: () => showLibrary("trash") } }
-        : {}),
-    },
-  );
+    return null;
+  });
+}
+
+/** Keep a record of a removal on the step that made it. Called while the
+ * step is being made. */
+function keep(removal: Removal): Promise<string | null> {
+  const written = writeRecord(removal);
+  attach("images", trashRecord(removal, "after", written).command);
+  return written;
+}
+
+/** Tell removals once their records are written, so a page closed right after
+ * cannot lose both. */
+function tell(
+  notice: Announcement,
+  kept: readonly Promise<string | null>[],
+  text: string,
+  renumber: string | null,
+): void {
+  void Promise.all(kept).then(async (keys) => {
+    const inTrash = keys.some((key) => key !== null);
+    const days = inTrash ? await readTrashDays().catch(() => null) : null;
+    const retention = days === null ? null : inTrashText(days);
+    notice.show(text, {
+      description: [renumber, retention].filter(Boolean).join(". ") || null,
+      ...(inTrash ? { also: { label: SHOW_TRASH, onClick: () => showLibrary("trash") } } : {}),
+    });
+  });
+}
+
+function removed(removal: Removal, text: string, renumber: string | null): void {
+  tell(announce("images"), [keep(removal)], text, renumber);
 }
 
 /** Remove a frame. The last frame stays. */
@@ -224,7 +189,7 @@ export function removeFrame(frameId: string): void {
     from: { position, frameId, role: frame.role },
     content: { kind: "frame", index, frame, linkedFrom },
   };
-  void removed(
+  removed(
     removal,
     `${positionLabel(position)} removed`,
     renumberText(addressChanges(before, sentNow())),
@@ -232,27 +197,48 @@ export function removeFrame(frameId: string): void {
 }
 
 /** Remove one picture from a frame. */
-export function removePicture(frameId: string, pictureId: string): void {
+/** Take a picture out of its frame; the removal, or null when it is not there. */
+function takePicture(frameId: string, pictureId: string): Removal | null {
   const store = useInputStore.getState();
   const frame = store.frames.find((f) => f.id === frameId);
   const index = frame?.pictures.findIndex((p) => p.id === pictureId) ?? -1;
-  if (!frame || index < 0) return;
-  const picture = frame.pictures[index];
+  if (!frame || index < 0) return null;
   const position = positionOf(frameId);
-  const before = sentNow();
   store.removePicture(frameId, pictureId);
-  const removal: Removal = {
+  return {
     removedAt: Date.now(),
     cause: "removed",
     size: sizeNow(),
     from: { position, frameId, role: frame.role },
-    content: { kind: "picture", index, picture },
+    content: { kind: "picture", index, picture: frame.pictures[index] },
   };
-  void removed(
+}
+
+export function removePicture(frameId: string, pictureId: string): void {
+  const before = sentNow();
+  const removal = takePicture(frameId, pictureId);
+  if (removal?.content.kind !== "picture") return;
+  removed(
     removal,
-    `"${picture.name}" removed from ${positionLabel(position)}`,
+    `"${removal.content.picture.name}" removed from ${positionLabel(removal.from.position)}`,
     renumberText(addressChanges(before, sentNow())),
   );
+}
+
+/** Take out what is too large to send as one step with one notice: pictures
+ * go to the trash, an IP-Adapter mask stays in the step. */
+export function removeOversized(pictures: readonly { frameId: string; pictureId: string }[]): void {
+  const name = { kind: "oversized removed" } as const;
+  title(name);
+  const notice = announce("images");
+  const before = sentNow();
+  const kept: Promise<string | null>[] = [];
+  for (const { frameId, pictureId } of pictures) {
+    const removal = takePicture(frameId, pictureId);
+    if (removal) kept.push(keep(removal));
+    else useInputStore.getState().removeIpMask(frameId, pictureId);
+  }
+  tell(notice, kept, nameText(name), renumberText(addressChanges(before, sentNow())));
 }
 
 /** Remove everything a frame holds; the frame stays. */
@@ -270,7 +256,7 @@ export function clearFrame(frameId: string): void {
     from: { position, frameId, role: frame.role },
     content: { kind: "contents", frame },
   };
-  void removed(
+  removed(
     removal,
     `${positionLabel(position)} cleared`,
     renumberText(addressChanges(before, sentNow())),
@@ -290,7 +276,7 @@ export function clearAllFrames(): void {
     from: { position: 1, frameId: frames[0].id, role: frames[0].role },
     content: { kind: "frames", frames, sizeSource: store.sizeSource },
   };
-  void removed(removal, "All inputs cleared", null);
+  removed(removal, "All inputs cleared", null);
 }
 
 /** Switch a frame on or off. False when the model's limit refused it. */
@@ -299,8 +285,8 @@ export function setFrameOn(frameId: string, on: boolean): boolean {
   if (!useInputStore.getState().setEnabled(frameId, on)) return false;
   const renumber = renumberText(addressChanges(before, sentNow()));
   if (renumber) {
-    offerUndo(`${positionLabel(positionOf(frameId))} ${on ? "on" : "off"}`, renumber, () => {
-      useInputStore.getState().setEnabled(frameId, !on);
+    announce("images").show(`${positionLabel(positionOf(frameId))} ${on ? "on" : "off"}`, {
+      description: renumber,
     });
   }
   return true;
@@ -311,18 +297,18 @@ export function moveFrame(from: number, to: number): void {
   useInputStore.getState().moveFrame(from, to);
   const renumber = renumberText(addressChanges(before, sentNow()));
   if (renumber) {
-    offerUndo(`${positionLabel(from + 1)} is now ${positionLabel(to + 1)}`, renumber, () =>
-      useInputStore.getState().moveFrame(to, from),
-    );
+    announce("images").show(`${positionLabel(from + 1)} is now ${positionLabel(to + 1)}`, {
+      description: renumber,
+    });
   }
 }
 
 /** The frames a job was built from take the list's place, with their Size
  * from pick, at the frame size they were made at; what was there goes to the
- * trash. Returns what puts it back, at `previousSize`: the size from before
- * the restore began, which a restore of settings may already have changed.
- * Neither direction refits anything. */
-export function restoreFrames(inputs: Inputs, previousSize: Size): Inverse {
+ * trash, its record riding on the step being made. `previousSize` is the size
+ * from before the action began, which a restore of settings may already have
+ * changed. Nothing is refitted. */
+export function restoreFrames(inputs: Inputs, previousSize: Size = sizeNow()): void {
   const store = useInputStore.getState();
   const previous = { frames: store.frames, sizeSource: store.sizeSource };
   keepingSize(() => {
@@ -331,34 +317,22 @@ export function restoreFrames(inputs: Inputs, previousSize: Size): Inverse {
     inputStore.setSizeSource(inputs.sizeSource);
     useGenerationStore.getState().setParams({ ...inputs.size });
   });
-  let record: Promise<string | null> = Promise.resolve(null);
-  if (previous.frames.some(holdsContent)) {
-    const removal: Removal = {
-      removedAt: Date.now(),
-      cause: "replaced",
-      size: { ...previousSize },
-      from: { position: 1, frameId: previous.frames[0].id, role: previous.frames[0].role },
-      content: { kind: "frames", frames: previous.frames, sizeSource: previous.sizeSource },
-    };
-    record = recordRemoval(removal).catch((err: unknown) => {
-      console.error("[inputs] could not keep what was removed", err);
-      return null;
-    });
-  }
-  return {
-    frames: previous.frames,
-    run: () => {
-      keepingSize(() => {
-        const inputStore = useInputStore.getState();
-        inputStore.restoreFrames(previous.frames);
-        inputStore.setSizeSource(previous.sizeSource);
-        useGenerationStore.getState().setParams({ ...previousSize });
-      });
-      void record.then((key) => {
-        if (key) void forgetRemoval(key);
-      });
-    },
+  if (!previous.frames.some(holdsContent)) return;
+  const removal: Removal = {
+    removedAt: Date.now(),
+    cause: "replaced",
+    size: { ...previousSize },
+    from: { position: 1, frameId: previous.frames[0].id, role: previous.frames[0].role },
+    content: { kind: "frames", frames: previous.frames, sizeSource: previous.sizeSource },
   };
+  attach("images", trashRecord(removal, "after", writeRecord(removal)).command);
+}
+
+/** Land a change that waited, or make it now when nothing was awaited. */
+function landing(waited: WaitHandle | null, fn: () => void): boolean {
+  if (waited) return waited.land(fn);
+  fn();
+  return true;
 }
 
 /** The map in the pictures' place: a composed frame's composition becomes
@@ -371,18 +345,22 @@ export async function replaceWithMaps(env: OutlineEnv, frameId: string): Promise
   const frame = frames.find((f) => f.id === frameId);
   const entry = outlineEntry(computeOutline(frames, env), frameId);
   if (!frame || !entry) return false;
+  const position = positionOf(frameId);
   const mapName = (name: string) =>
     `${name.replace(/\.[^.]+$/, "")} (${frame.processor?.id ?? "map"}).png`;
   let apply: () => void;
+  let waited: WaitHandle | null = null;
   if (isComposed(frame.role)) {
     const slot = entry.maps[0];
     const map = slot?.state === "current" ? currentMap(slot.key) : null;
     if (!slot || !map || slot.spec.kind !== "composite") return false;
     const { width, height } = slot.spec;
+    waited = wait("images", { kind: "replace with maps", args: { frame: frameId, position } });
     let file: Blob;
     try {
       file = await resizeBlob(map.blob, width, height);
     } catch (err) {
+      waited.end();
       toast.error("Could not replace the pictures with the map", {
         description: err instanceof Error ? err.message : String(err),
       });
@@ -415,82 +393,79 @@ export async function replaceWithMaps(env: OutlineEnv, frameId: string): Promise
     apply = () => useInputStore.getState().replacePictures(frameId, maps);
   }
   if (useInputStore.getState().frames.find((f) => f.id === frameId) !== frame) {
+    waited?.end();
     toast.info("Nothing replaced: the frame changed while the map was being drawn");
     return false;
   }
-  const position = positionOf(frameId);
-  const before = sentNow();
-  // the map is drawn at the frame size, so the frame keeps its size both ways
-  keepingSize(apply);
-  const removal: Removal = {
-    removedAt: Date.now(),
-    cause: "replaced",
-    size: sizeNow(),
-    from: { position, frameId, role: frame.role },
-    content: { kind: "contents", frame },
-  };
-  void removed(
-    removal,
-    `${positionLabel(position)}: pictures replaced with their map`,
-    renumberText(addressChanges(before, sentNow())),
-    () => keepingSize(() => useInputStore.getState().restoreFrame(frame)),
-  );
-  return true;
+  return landing(waited, () => {
+    const before = sentNow();
+    // the map is drawn at the frame size, so the frame keeps its size both ways
+    keepingSize(apply);
+    const removal: Removal = {
+      removedAt: Date.now(),
+      cause: "replaced",
+      size: sizeNow(),
+      from: { position, frameId, role: frame.role },
+      content: { kind: "contents", frame },
+    };
+    removed(
+      removal,
+      `${positionLabel(position)}: pictures replaced with their map`,
+      renumberText(addressChanges(before, sentNow())),
+    );
+  });
 }
 
 /** One file in the place of a composed frame's pictures, fitted inside the
- * frame; the mask stays. The frame as it was goes to the trash behind Undo; a
- * file refused or unreadable leaves it as it was. */
+ * frame; the mask stays. The frame as it was goes to the trash, its record on
+ * the step; a file refused or unreadable leaves it as it was. */
 export async function replacePicture(frameId: string, file: File): Promise<void> {
+  const waited = wait("images", {
+    kind: "replace picture",
+    args: { frame: frameId, position: positionOf(frameId) },
+  });
   const [replacement] = await preparePictures([file]);
-  if (!replacement) return;
-  const store = useInputStore.getState();
-  const frame = store.frames.find((f) => f.id === frameId);
-  if (!frame) return;
-  const position = positionOf(frameId);
-  const before = sentNow();
-  const size = sizeNow();
-  for (const picture of frame.pictures) store.removePicture(frameId, picture.id);
-  store.selectFrame(frameId);
-  store.addPicture(frameId, replacement);
-  const removal: Removal = {
-    removedAt: Date.now(),
-    cause: "replaced",
-    size,
-    from: { position, frameId, role: frame.role },
-    content: { kind: "contents", frame },
-  };
-  void removed(
-    removal,
-    `${positionLabel(position)}: picture replaced`,
-    renumberText(addressChanges(before, sentNow())),
-    () => useInputStore.getState().restoreFrame(frame),
-  );
+  const frame = useInputStore.getState().frames.find((f) => f.id === frameId);
+  if (!replacement || !frame) {
+    waited.end();
+    return;
+  }
+  waited.land(() => {
+    const store = useInputStore.getState();
+    const position = positionOf(frameId);
+    const before = sentNow();
+    const size = sizeNow();
+    for (const picture of frame.pictures) store.removePicture(frameId, picture.id);
+    store.selectFrame(frameId);
+    store.addPicture(frameId, replacement);
+    const removal: Removal = {
+      removedAt: Date.now(),
+      cause: "replaced",
+      size,
+      from: { position, frameId, role: frame.role },
+      content: { kind: "contents", frame },
+    };
+    removed(
+      removal,
+      `${positionLabel(position)}: picture replaced`,
+      renumberText(addressChanges(before, sentNow())),
+    );
+  });
 }
 
 /** Add prepared frames after the inputs, or in the place of a blank list;
- * select the first and say where they went, with Undo. False when the
- * model's image limit refused them, which says so itself. */
+ * select the first and say where they went. Called while the step is being
+ * made. False when the model's image limit refused them, which says so itself. */
 export function addFrames(
   frames: Frame[],
   title: (positions: number[]) => string = addedText,
 ): boolean {
   if (frames.length === 0) return false;
-  const store = useInputStore.getState();
-  const undo: Inverse = store.frames.every(isBlank)
-    ? holdList()
-    : {
-        frames: [],
-        run: () => {
-          const current = useInputStore.getState();
-          for (const frame of frames) current.removeFrame(frame.id);
-        },
-      };
-  if (!store.appendFrames(frames)) return false;
+  if (!useInputStore.getState().appendFrames(frames)) return false;
   const outline = outlineOf(useInputStore.getState().frames);
   const positions = frames.flatMap((f) => outlineEntry(outline, f.id)?.position ?? []);
   revealFrame(frames[0].id);
-  offerInverse(title(positions), null, undo);
+  announce("images").show(title(positions));
   return true;
 }
 

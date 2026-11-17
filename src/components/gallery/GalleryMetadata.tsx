@@ -154,7 +154,7 @@ export function GalleryMetadata({ trash }: { trash: TrashFileActions | null }) {
         updates[storeKey] = Number.isNaN(num) ? val : num;
       }
     }
-    applyParams(updates, "Settings applied from the image");
+    applyParams(updates, { kind: "applied", args: { from: "the image" } });
   };
 
   const openFullSize = () => {

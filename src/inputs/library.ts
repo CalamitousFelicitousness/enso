@@ -50,8 +50,9 @@ import { currentMapsOf } from "./maps";
 import { outlineOf } from "./outlineOf";
 import { missingHashes } from "./submit";
 import { thumbBlob } from "./thumbs";
-import { offerUndo } from "./undo";
 import { UploadBatch } from "./uploads";
+import { command, invalidate } from "@/undo/marks";
+import type { Command } from "@/lib/undo/types";
 
 /** Saves under way, so their entry points read busy. */
 export const useLibrarySaving = create<{ saving: number }>()(() => ({ saving: 0 }));
@@ -83,7 +84,11 @@ function maxPins(): number {
   return queryClient.getQueryData<ResLibraryV2>(LIBRARY_KEY)?.pins.max ?? MAX_PINNED_ENTRIES;
 }
 
-function nameOf(id: string): string {
+/** What the undo history calls a saved entry's server item. */
+const entryTag = (id: string) => `entry:${id}`;
+
+/** An entry's name as the lists the page holds show it, else its id. */
+export function nameOf(id: string): string {
   const listed = [
     ...(queryClient.getQueryData<ResLibraryV2>(LIBRARY_KEY)?.entries ?? []),
     ...(queryClient.getQueryData<ResTrashV2>(TRASH_KEY)?.entries ?? []),
@@ -225,16 +230,23 @@ export async function untrashEntry(id: string): Promise<ResEntryChangeV2 | null>
   }
 }
 
-/** Move an entry back to the trash, as the Undo of bringing it out. */
-export async function moveToTrash(id: string): Promise<void> {
-  try {
-    await patch(id, { trashed: true });
-  } catch (err) {
-    refused(err, entryChangeFailedText("trash", nameOf(id)));
-  }
+/** A trash or a restore of a saved entry as the server half of its step.
+ * Each direction asks the server again and throws on a refusal, which the
+ * press reports; what a restore pushed out of the library is said. */
+export function entryCommand(id: string, made: "trashed" | "restored"): Command {
+  const set = async (trashed: boolean) => {
+    const answer = await patch(id, { trashed });
+    const moved = trashed ? null : movedText(answer);
+    if (moved) toast.info(moved);
+  };
+  return {
+    tags: [entryTag(id)],
+    undo: () => set(made === "restored"),
+    redo: () => set(made === "trashed"),
+  };
 }
 
-/** Move an entry to the trash, with Undo. */
+/** Move an entry to the trash, as a step of its own. */
 export async function trashEntry(id: string): Promise<void> {
   const name = nameOf(id);
   try {
@@ -243,14 +255,8 @@ export async function trashEntry(id: string): Promise<void> {
     refused(err, entryChangeFailedText("trash", name));
     return;
   }
-  offerUndo(
+  command("shared", { kind: "entry trashed", args: { name } }, entryCommand(id, "trashed")).show(
     entryTrashedText(name),
-    null,
-    async () => {
-      const back = await untrashEntry(id);
-      const moved = back && movedText(back);
-      if (moved) toast.info(moved);
-    },
     { also: { label: SHOW_TRASH, onClick: () => showLibrary("trash") } },
   );
 }
@@ -268,6 +274,7 @@ export async function deleteEntry(id: string): Promise<boolean> {
   try {
     const answer = await api.delete<ResFreedV2>(`/sdapi/v2/library/${encodeURIComponent(id)}`);
     dropFromTrash([id]);
+    invalidate(new Set([entryTag(id)]));
     toast(entryDeletedText(name), { description: serverFreedText(answer.freed, null) });
     return true;
   } catch (err) {
@@ -292,6 +299,7 @@ export async function emptyServerTrash(
       const chunk = ids.slice(start, start + EMPTY_CHUNK);
       const answer = await api.post<ResFreedV2>("/sdapi/v2/library/trash/empty", { ids: chunk });
       dropFromTrash(answer.deleted);
+      invalidate(new Set(answer.deleted.map(entryTag)));
       deleted += answer.deleted.length;
       freed += answer.freed;
     }

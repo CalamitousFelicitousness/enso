@@ -7,19 +7,17 @@ import { useMapLookups } from "@/inputs/useOutline";
 import { startSizeSync } from "@/inputs/sizeSync";
 import { startPendingSync } from "@/inputs/maps";
 import { useCapacitySync } from "@/inputs/capacity";
-import { Undo2, Upload } from "lucide-react";
-import { runUndo } from "@/inputs/undo";
+import { Upload } from "lucide-react";
 import { pickRecipeFiles } from "@/inputs/recipes";
-import { useShortcut } from "@/hooks/useShortcut";
 import { useRegisterCommand } from "@/lib/commandRegistry";
 import { useInputStore } from "@/stores/inputStore";
 
 /** Tells the user what loading the stored inputs turned up, and offers to
  * bring in inputs an older build saved after the first import. Also starts
  * the size sync, which waits for the same load, keeps the model's image
- * limit on the store, asks the map cache about the maps the frames name,
- * keeps the maps being made on the tracked jobs, and runs the pending undo
- * on Ctrl+Z. Registers Undo and Import a recipe file, which every view offers. */
+ * limit on the store, asks the map cache about the maps the frames name, and
+ * keeps the maps being made on the tracked jobs. Registers Import a recipe
+ * file, which every view offers. */
 export function useInputNotices() {
   const report = useInputStore((s) => s.report);
   const offers = useInputStore((s) => s.offers);
@@ -28,16 +26,6 @@ export function useInputNotices() {
   useEffect(() => startPendingSync(), []);
   useCapacitySync();
   useMapLookups();
-  useShortcut("undo", () => void runUndo());
-  useRegisterCommand({
-    id: "actions:undo",
-    label: "Undo the last change",
-    group: "Actions",
-    keywords: ["undo", "restore", "removed", "bring back", "revert"],
-    icon: Undo2,
-    shortcutId: "undo",
-    run: () => void runUndo(),
-  });
   useRegisterCommand({
     id: "recipes:import",
     label: "Import a recipe file",

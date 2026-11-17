@@ -17,6 +17,7 @@ import { useLoadedModelNotice } from "@/hooks/useLoadedModelNotice";
 import { useModelSync } from "@/hooks/useModelSync";
 import { useSizeMultipleSync } from "@/hooks/useSizeMultipleSync";
 import { useUndoHistory } from "@/undo/start";
+import { useUndoCommands } from "@/undo/useUndoCommands";
 import { useMediaSync } from "@/inputs/mediaSync";
 import { ShortcutOverlay } from "@/components/ShortcutOverlay";
 import { RestoreDialogHost } from "@/components/generation/RestoreDialogHost";
@@ -36,6 +37,7 @@ export function AppShell() {
   useModelSync();
   useSizeMultipleSync();
   useUndoHistory();
+  useUndoCommands();
   useMediaSync();
 
   useShortcut("toggle-left-rail", () => useUiStore.getState().toggleLeftRail());

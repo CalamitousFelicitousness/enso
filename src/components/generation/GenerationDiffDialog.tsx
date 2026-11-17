@@ -484,7 +484,7 @@ function RestoreBody({ source, onClose }: { source: RestoreSource; onClose: () =
   }, [target, settingsOn, inputsOn, modelOn, modelFact, model, onClose]);
 
   const handleApplyOne = useCallback((row: DiffRow) => {
-    applyParams(row.apply, `${settingLabel(row.key)} applied`);
+    applyParams(row.apply, { kind: "applied", args: { key: row.key } });
   }, []);
 
   const words = RESTORE_DIALOG_WORDS[source.kind];

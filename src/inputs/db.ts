@@ -527,9 +527,9 @@ async function readFacts(tx: IDBTransaction, stores: readonly string[]): Promise
   return facts;
 }
 
-/** The bytes emptying the trash would free: what only records in the trash
- * name. Each blob is read on its own and let go at once. */
-export async function reclaimableBytes(): Promise<number> {
+/** What emptying the trash would free: the content only records in the trash
+ * name, and its bytes. Each blob is read on its own and let go at once. */
+export async function reclaimableBytes(): Promise<{ bytes: number; cids: string[] }> {
   const db = await open();
   const names = [...db.objectStoreNames];
   const tx = db.transaction(names, "readonly");
@@ -544,12 +544,18 @@ export async function reclaimableBytes(): Promise<number> {
     )) as unknown[];
     for (const blob of derived) if (blob instanceof Blob) total += blob.size;
   }
-  return total;
+  return { bytes: total, cids: [...only] };
 }
 
 /** What deleting for good did: the bytes it freed and whose cids they were,
- * or that they wait for the next page start in one tab. */
-export type Reclaimed = { freed: number; cids: string[] } | { waiting: "otherTabs" };
+ * or that they wait for the next page start in one tab; and how many undo
+ * steps went with the content. */
+export type Reclaimed =
+  { freed: number; cids: string[]; cut: number } | { waiting: "otherTabs"; cut: number };
+
+/** Undo steps naming content no record names any more leave the history;
+ * how many went. */
+export type CutSteps = (cids: ReadonlySet<string>) => number;
 
 type Target = { store: string; key: string };
 
@@ -581,24 +587,39 @@ function namedBy(store: string, record: unknown, policy: SweepPolicy): string[] 
 export async function deleteForGood(
   targets: readonly Target[],
   live: () => ReadonlySet<string>,
+  cut: CutSteps,
 ): Promise<Reclaimed> {
-  if (targets.length === 0) return { freed: 0, cids: [] };
+  if (targets.length === 0) return { freed: 0, cids: [], cut: 0 };
   if (!(await alone())) {
-    await deleteAndNote(targets);
-    return { waiting: "otherTabs" };
+    const going = await deleteAndNote(targets);
+    // the bytes wait for the next start; what no record names still leaves undo now
+    const named = await namedNow();
+    return { waiting: "otherTabs", cut: cut(new Set([...going].filter((c) => !named.has(c)))) };
   }
-  const run = deleteAndFree(targets, live);
+  const run = deleteAndFree(targets, live, cut);
   freeing.add(run);
   const settled = () => freeing.delete(run);
   void run.then(settled, settled);
   return run;
 }
 
-async function deleteAndNote(targets: readonly Target[]): Promise<void> {
+/** The content every stored record names. */
+async function namedNow(): Promise<Set<string>> {
+  const db = await open();
+  const names = [...db.objectStoreNames];
+  const tx = db.transaction(names, "readonly");
+  const facts = await readFacts(tx, documentStoresOf(names));
+  return new Set(facts.flatMap((f) => f.cids));
+}
+
+/** Delete the records and note their content for the next start in one tab;
+ * returns the content they named. */
+async function deleteAndNote(targets: readonly Target[]): Promise<Set<string>> {
   const db = await open();
   const stores = [...new Set(targets.map((t) => t.store))];
   const tx = db.transaction([...stores, META], "readwrite");
   const done = finished(tx);
+  const going = new Set<string>();
   try {
     const policy = sweepPolicy(
       trashDays(await result(tx.objectStore(META).get(META_KEY.trashDays))),
@@ -606,7 +627,10 @@ async function deleteAndNote(targets: readonly Target[]): Promise<void> {
     const asked = new Set(strings(await result(tx.objectStore(META).get(META_KEY.reclaim))));
     for (const { store, key } of targets) {
       const record: unknown = await result(tx.objectStore(store).get(key));
-      for (const cid of namedBy(store, record, policy)) asked.add(cid);
+      for (const cid of namedBy(store, record, policy)) {
+        asked.add(cid);
+        going.add(cid);
+      }
       tx.objectStore(store).delete(key);
     }
     tx.objectStore(META).put([...asked], META_KEY.reclaim);
@@ -621,29 +645,37 @@ async function deleteAndNote(targets: readonly Target[]): Promise<void> {
     throw err;
   }
   await done;
+  return going;
 }
 
 /** This tab alone: the records, and the blobs of their cids that no record
- * names any more and this page does not hold. Held cids are noted after, in a
- * write of their own; without the note their bytes get the grace. */
+ * names any more and this page does not hold. The undo steps naming that
+ * content go first, so their bytes are freed with it. Held cids are noted
+ * after, in a write of their own; without the note their bytes get the grace. */
 async function deleteAndFree(
   targets: readonly Target[],
   live: () => ReadonlySet<string>,
+  cut: CutSteps,
 ): Promise<Reclaimed> {
   const db = await open();
   const names = [...db.objectStoreNames];
   const tx = db.transaction(names, "readwrite");
   const done = finished(tx);
   let freed = 0;
+  let steps: number;
   let plan: ReclaimPlan;
   try {
     const policy = sweepPolicy(
       trashDays(await result(tx.objectStore(META).get(META_KEY.trashDays))),
     );
     const asked = new Set(strings(await result(tx.objectStore(META).get(META_KEY.reclaim))));
+    const going = new Set<string>();
     for (const { store, key } of targets) {
       const record: unknown = await result(tx.objectStore(store).get(key));
-      for (const cid of namedBy(store, record, policy)) asked.add(cid);
+      for (const cid of namedBy(store, record, policy)) {
+        asked.add(cid);
+        going.add(cid);
+      }
       tx.objectStore(store).delete(key);
     }
     // read after the deletes, so the deleted records name nothing
@@ -652,6 +684,8 @@ async function deleteAndFree(
     const keys = (await result(tx.objectStore(BLOBS).getAllKeys())).filter(
       (key): key is string => typeof key === "string",
     );
+    // in the same tick as the read of what this page holds, which the cut changes
+    steps = cut(new Set([...going].filter((cid) => !named.has(cid))));
     plan = planReclaim(keys, asked, named, live());
     for (const key of plan.remove) {
       const blob: unknown = await result(tx.objectStore(BLOBS).get(key));
@@ -681,7 +715,7 @@ async function deleteAndFree(
       console.warn("[inputs] could not note the pictures this page holds", err);
     });
   }
-  return { freed, cids: [...new Set(plan.remove.map(blobCid))] };
+  return { freed, cids: [...new Set(plan.remove.map(blobCid))], cut: steps };
 }
 
 /** Whether this page holds the only lock of the app: no other tab is open. */

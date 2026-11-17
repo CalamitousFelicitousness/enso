@@ -1,5 +1,7 @@
 // The one way a picture gets into an input frame, whatever brought it: a
-// drop, a paste, the file picker, or "send to canvas" from a result.
+// drop, a paste, the file picker, or "send to canvas" from a result. Files
+// are read before anything changes, under a wait opened when the action
+// starts, and land in the frame as one step.
 
 import { toast } from "sonner";
 import { isVideoFile } from "@/lib/mediaType";
@@ -9,6 +11,7 @@ import type { ImageHeader } from "@/lib/media/dimensions";
 import { SLOW_DECODE_PIXELS, type Destination } from "@/lib/media/limits";
 import { readingText } from "@/lib/media/text";
 import { inputsReady, useInputStore, type NewPicture } from "@/stores/inputStore";
+import { title, wait, type WaitHandle } from "@/undo/marks";
 import { adoptFile, serverFile, serverHead, type ServerPicture } from "./adopt";
 import { admit, announceRefusals, decodedTooLarge, type Refused } from "./admit";
 import { rememberHashes, type Hashed } from "./db";
@@ -106,16 +109,31 @@ export interface Added {
   cid: string;
 }
 
-/** Add image files to an input frame: the one given, else the selected one,
- * else the first. Every file is decoded before any is added, so they land in
- * the order given, which is the order sent. Answers what entered, file by
- * file; null for a file refused or unreadable. */
-export async function addFilesToInputs(
+const positionNow = (frameId: string | null): number =>
+  frameId ? (outlineEntry(outlineOf(useInputStore.getState().frames), frameId)?.position ?? 0) : 0;
+
+/** The wait of pictures on their way into a frame: the one given, else the
+ * selected one. Opened before anything is read. */
+export function addingWait(count: number, frameId: string | null): WaitHandle {
+  const position = positionNow(frameId ?? useInputStore.getState().selectedFrameId);
+  return wait("images", { kind: "add pictures", args: { count, position } });
+}
+
+/** Files read and decoded for a frame, ready to place in a landing. */
+export interface ReadyPictures {
+  /** The frame the caller named; null takes the selected one, else the first. */
+  readonly frameId: string | null;
+  readonly prepared: readonly (Prepared | null)[];
+}
+
+/** Read and decode files for a frame. Every file is decoded before any is
+ * placed, so they land in the order given, which is the order sent. Null when
+ * the frame refuses them, which is said. */
+export async function readyPictures(
   files: File[],
-  frameId: string | null = null,
-): Promise<(Added | null)[]> {
+  frameId: string | null,
+): Promise<ReadyPictures | null> {
   await inputsReady();
-  const entered: (Added | null)[] = files.map(() => null);
   const wanted = frameId ?? useInputStore.getState().selectedFrameId;
   const target = useInputStore.getState().frames.find((f) => f.id === wanted);
   // A linked Control frame shows another frame's picture; its own would be
@@ -127,18 +145,32 @@ export async function addFilesToInputs(
     const name = entry ? positionLabel(entry.position) : "This frame";
     const source = entry?.linkedTo != null ? positionLabel(entry.linkedTo) : "another frame";
     toast.info(`${name} uses ${source}'s picture. Unlink it in Options to give it its own.`);
-    return entered;
+    return null;
   }
-  const prepared = await preparePictures(files);
-  const store = useInputStore.getState();
-  const frame = store.frames.find((f) => f.id === wanted) ?? store.frames[0];
-  if (!frame) return entered;
-  if (frameId) store.selectFrame(frame.id);
+  return { frameId, prepared: await preparePictures(files) };
+}
 
+/** What placing pictures did: each file's picture or null, how many went in,
+ * and where. */
+export interface Placed {
+  readonly entered: (Added | null)[];
+  readonly added: number;
+  readonly frameId: string | null;
+  readonly position: number;
+}
+
+/** Place decoded pictures in their frame; called in a landing. The model's
+ * image limit refuses what would exceed it and says so. */
+export function placePictures(ready: ReadyPictures): Placed {
+  const entered: (Added | null)[] = ready.prepared.map(() => null);
+  const store = useInputStore.getState();
+  const wanted = ready.frameId ?? store.selectedFrameId;
+  const frame = store.frames.find((f) => f.id === wanted) ?? store.frames[0];
+  if (!frame) return { entered, added: 0, frameId: null, position: 0 };
+  if (ready.frameId) store.selectFrame(frame.id);
   let added = 0;
-  prepared.forEach((picture, i) => {
+  ready.prepared.forEach((picture, i) => {
     if (!picture) return;
-    // the model's image limit refuses and says so
     const pictureId = store.addPicture(frame.id, picture);
     if (pictureId === null) return;
     added += 1;
@@ -148,12 +180,38 @@ export async function addFilesToInputs(
       ?.pictures.find((p) => p.id === pictureId)?.cid;
     if (cid) entered[i] = { pictureId, cid };
   });
-  // Without a frame under the pointer, say where the pictures went
-  if (added > 0 && !frameId && store.frames.length > 1) {
-    const entry = outlineEntry(outlineOf(useInputStore.getState().frames), frame.id);
-    if (entry) toast.info(`Added to ${positionLabel(entry.position)}`);
+  return { entered, added, frameId: frame.id, position: positionNow(frame.id) };
+}
+
+/** Add image files to an input frame: the one given, else the selected one,
+ * else the first, as one step. Answers what entered, file by file; null for
+ * a file refused or unreadable. */
+export async function addFilesToInputs(
+  files: File[],
+  frameId: string | null = null,
+  opened: WaitHandle | null = null,
+): Promise<(Added | null)[]> {
+  const waited = opened ?? addingWait(files.length, frameId);
+  try {
+    const ready = await readyPictures(files, frameId);
+    if (!ready || waited.cancelled) return files.map(() => null);
+    let placed = null as Placed | null;
+    waited.land(() => {
+      const done = placePictures(ready);
+      if (done.added > 0) {
+        title({ kind: "add pictures", args: { count: done.added, position: done.position } });
+      }
+      placed = done;
+    });
+    if (!placed) return files.map(() => null);
+    // Without a frame under the pointer, say where the pictures went
+    if (placed.added > 0 && !frameId && useInputStore.getState().frames.length > 1) {
+      if (placed.position > 0) toast.info(`Added to ${positionLabel(placed.position)}`);
+    }
+    return placed.entered;
+  } finally {
+    waited.end();
   }
-  return entered;
 }
 
 /** The pictures' bytes, each admitted from its first bytes before the rest is
@@ -203,13 +261,33 @@ export async function addServerPictures(
   const images = pictures.filter((p) => !isVideoFile(p.name));
   if (images.length < pictures.length) toast.info(VIDEO_TO_CANVAS_TEXT);
   if (images.length === 0) return false;
-  const fetched = await fetchAdmitted(images);
-  const kept = images.filter((_, i) => fetched[i] !== null);
-  const files = fetched.filter((file) => file !== null);
-  if (files.length === 0) return false;
-  const entered = await addFilesToInputs(files, frameId);
-  void rememberAdopted(kept, files, entered);
-  return entered.some((added) => added !== null);
+  const waited = addingWait(images.length, frameId);
+  try {
+    const fetched = await fetchAdmitted(images);
+    if (waited.cancelled) return false;
+    const kept = images.filter((_, i) => fetched[i] !== null);
+    const files = fetched.filter((file) => file !== null);
+    if (files.length === 0) return false;
+    const entered = await addFilesToInputs(files, frameId, waited);
+    void rememberAdopted(kept, files, entered);
+    return entered.some((added) => added !== null);
+  } finally {
+    waited.end();
+  }
+}
+
+/** Add an IP-Adapter mask from a file, as one step once it is read. */
+export async function addIpMaskFile(frameId: string, file: File): Promise<void> {
+  const waited = wait("images", {
+    kind: "ip mask",
+    args: { frame: frameId, position: positionNow(frameId) },
+  });
+  try {
+    const [mask] = await preparePictures([file], "ipMask");
+    if (mask) waited.land(() => useInputStore.getState().addIpMask(frameId, mask));
+  } finally {
+    waited.end();
+  }
 }
 
 async function rememberAdopted(

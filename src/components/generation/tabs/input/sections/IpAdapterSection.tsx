@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { ParamSlider } from "@/components/generation/ParamSlider";
 import { ImageUpload } from "@/components/generation/ImageUpload";
 import { useInputStore } from "@/stores/inputStore";
-import { preparePictures } from "@/inputs/route";
+import { addIpMaskFile } from "@/inputs/route";
 import { useThumb } from "@/inputs/thumbs";
 import type { Frame, Picture } from "@/lib/inputs/types";
 import { Row } from "../Row";
@@ -37,7 +37,7 @@ function Thumb({ picture, onRemove }: { picture: Picture; onRemove: () => void }
 /** The region masks, one per picture, in picture order. */
 export function IpAdapterSection({ frame }: { frame: Frame }) {
   const patchIpAdapter = useInputStore((s) => s.patchIpAdapter);
-  const addIpMask = useInputStore((s) => s.addIpMask);
+
   const removeIpMask = useInputStore((s) => s.removeIpMask);
   const { data: adapters } = useIPAdapterModels();
   const settings = frame.ipAdapter;
@@ -77,10 +77,7 @@ export function IpAdapterSection({ frame }: { frame: Frame }) {
           image={null}
           where="ipMask"
           onImageChange={(file) => {
-            if (!file) return;
-            void preparePictures([file], "ipMask").then(([mask]) => {
-              if (mask) addIpMask(frame.id, mask);
-            });
+            if (file) void addIpMaskFile(frame.id, file);
           }}
           label="Add mask"
           compact

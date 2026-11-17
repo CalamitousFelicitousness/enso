@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Combobox } from "@/components/ui/combobox";
 import { Textarea } from "@/components/ui/textarea";
+import { wait } from "@/undo/marks";
 
 export function CloudEnhanceButton() {
   const prompt = useGenerationStore((s) => s.prompt);
@@ -54,7 +55,9 @@ export function CloudEnhanceButton() {
     return (g?.models ?? []).map((m) => ({ value: m.id, label: m.name }));
   }, [providersWithModels, effectiveProvider]);
 
-  const handleEnhance = useCallback(() => {
+  // The enhanced prompt lands as one step when it comes back; Undo pressed
+  // meanwhile cancels it.
+  const handleEnhance = useCallback(async () => {
     if (!prompt.trim()) {
       toast.warning("Enter a prompt first");
       return;
@@ -63,27 +66,25 @@ export function CloudEnhanceButton() {
       toast.warning("Pick a cloud provider and model");
       return;
     }
-    enhanceMutation.mutate(
-      {
+    const waited = wait("images", { kind: "enhance" });
+    try {
+      const res = await enhanceMutation.mutateAsync({
         prompt,
         provider: effectiveProvider,
         model: slot.model,
         system_prompt: systemPrompt || undefined,
         nsfw,
-      },
-      {
-        onSuccess: (res) => {
-          setParam("prompt", res.enhanced);
-          toast.success(`Enhanced via ${res.provider} / ${res.model}`);
-          setOpen(false);
-        },
-        onError: (err) => {
-          toast.error("Cloud enhance failed", {
-            description: err instanceof Error ? err.message : String(err),
-          });
-        },
-      },
-    );
+      });
+      if (!waited.land(() => setParam("prompt", res.enhanced))) return;
+      toast.success(`Enhanced via ${res.provider} / ${res.model}`);
+      setOpen(false);
+    } catch (err) {
+      toast.error("Cloud enhance failed", {
+        description: err instanceof Error ? err.message : String(err),
+      });
+    } finally {
+      waited.end();
+    }
   }, [prompt, effectiveProvider, slot.model, systemPrompt, nsfw, enhanceMutation, setParam]);
 
   return (
@@ -155,7 +156,7 @@ export function CloudEnhanceButton() {
             </div>
 
             <Button
-              onClick={handleEnhance}
+              onClick={() => void handleEnhance()}
               disabled={!slot.provider || !slot.model || enhanceMutation.isPending}
               size="sm"
               className="w-full"

@@ -23,7 +23,12 @@ import {
 import { usePngInfo } from "@/api/hooks/usePngInfo";
 import { pngInfoParams } from "@/lib/pngInfoRestore";
 import { applyParams } from "@/lib/request/restore";
-import { sendImageToCanvas, sendFrameToVideoInit, sendPromptToGeneration } from "@/lib/sendTo";
+import {
+  sendImageAndPrompt,
+  sendImageToCanvas,
+  sendFrameToVideoInit,
+  sendPromptToGeneration,
+} from "@/lib/sendTo";
 import { useUploadAction } from "@/hooks/useUploadAction";
 import { useUploadView } from "@/hooks/useActionProgress";
 import { sendOne } from "@/inputs/uploads";
@@ -404,7 +409,7 @@ export function PngInfoDialog({ open, onOpenChange }: PngInfoDialogProps) {
         : { state: "none" };
 
   const handleApply = useCallback(() => {
-    applyParams(pngInfoParams(parameters), "Settings applied from PNG info");
+    applyParams(pngInfoParams(parameters), { kind: "applied", args: { from: "PNG info" } });
     onOpenChange(false);
   }, [parameters, onOpenChange]);
 
@@ -480,9 +485,7 @@ export function PngInfoDialog({ open, onOpenChange }: PngInfoDialogProps) {
 
   const handleSendImageAndPrompt = async () => {
     if (!fileRef) return;
-    if (!(await sendImageToCanvas(fileRef))) return;
-    if (prompt) sendPromptToGeneration(prompt, negativePrompt || undefined);
-    toast.success("Image and prompt sent");
+    await sendImageAndPrompt(fileRef, prompt, negativePrompt || undefined);
   };
 
   return (

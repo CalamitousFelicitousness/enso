@@ -13,6 +13,7 @@ import {
   type Draft,
   type Patch,
   type Scope,
+  type Step,
   type StepName,
 } from "@/lib/undo/types";
 import type { Gestures } from "./gesture";
@@ -20,8 +21,9 @@ import type { ItemMove, Slice } from "./slice";
 
 /** Where steps and outside writes go: the history. */
 export interface Sink {
-  /** Steps of one action, recorded in order. */
-  readonly record: (drafts: readonly Draft[]) => void;
+  /** Steps of one action, recorded in order; the steps they became, null
+   * for a draft the history did not keep. */
+  readonly record: (drafts: readonly Draft[]) => readonly (Step | null)[];
   /** Checked keys written by no step. */
   readonly touch: (cells: readonly string[]) => void;
   /** Follow-up writes to list items outside any step. */
@@ -82,6 +84,9 @@ export interface Recorder {
   readonly note: (scope: Scope, name: StepName, quiet?: boolean) => void;
   readonly title: (name: StepName) => void;
   readonly attach: (scope: Scope, command: Command) => void;
+  /** Call `fn` with the step being made in `scope` once it closes, or with
+   * null when no step is being made or none was. */
+  readonly onStep: (scope: Scope, fn: (step: Step | null) => void) => void;
   readonly ignore: <T>(origin: string, fn: () => T) => T;
   readonly follow: <T>(origin: string, fn: () => T) => T;
   readonly recorded: <T>(fn: () => T, view?: NavView, title?: StepName) => T;
@@ -130,6 +135,7 @@ export function createRecorder(options: RecorderOptions): Recorder {
   let notes: Note[] = [];
   let titled: StepName | null = null;
   let commands = new Map<Scope, Command[]>();
+  let watchers = new Map<Scope, ((step: Step | null) => void)[]>();
 
   const deafMode = () => modes.some((m) => m.kind === "ignore" || m.kind === "replay");
   const deaf = (slice: Slice) => deafStores.has(slice.store) || deafMode();
@@ -177,8 +183,25 @@ export function createRecorder(options: RecorderOptions): Recorder {
     titled = null;
     const attached = commands;
     commands = new Map();
-    if (!open && attached.size === 0) return;
+    const watching = watchers;
+    watchers = new Map();
+    const drafts = open || attached.size > 0 ? build(open, asOf, named, title, attached) : [];
+    const steps = drafts.length > 0 ? sink.record(drafts) : [];
+    for (const [scope, fns] of watching) {
+      const at = drafts.findIndex((d) => d.scope === scope);
+      const step = at >= 0 ? (steps[at] ?? null) : null;
+      for (const fn of fns) fn(step);
+    }
+  };
 
+  /** The drafts of a closing step, one per scope it changed. */
+  const build = (
+    open: Pending | null,
+    asOf: boolean,
+    named: readonly Note[],
+    title: StepName | null,
+    attached: ReadonlyMap<Scope, Command[]>,
+  ): Draft[] => {
     const byScope = new Map<Scope, Patch[]>();
     const contexts = new Map<Scope, Draft["context"]>();
     const riders: Patch[] = [];
@@ -223,9 +246,8 @@ export function createRecorder(options: RecorderOptions): Recorder {
     );
     const own = [...(docs.length === 1 ? [] : riders), ...shared];
     if (own.length > 0 || attached.has("shared")) drafts.push(draft("shared", own, []));
-    if (drafts.length === 0) return;
-    log?.closed?.(drafts);
-    sink.record(drafts);
+    if (drafts.length > 0) log?.closed?.(drafts);
+    return drafts;
   };
 
   /** The pending step's gesture is over although the gesture has not ended:
@@ -318,6 +340,13 @@ export function createRecorder(options: RecorderOptions): Recorder {
       arriving();
       titled ??= name;
     },
+    onStep: (scope, fn) => {
+      if (deafMode() || !arriving()) {
+        fn(null);
+        return;
+      }
+      watchers.set(scope, [...(watchers.get(scope) ?? []), fn]);
+    },
     attach: (scope, command) => {
       if (deafMode()) {
         command.dispose?.();
@@ -361,10 +390,11 @@ export function createRecorder(options: RecorderOptions): Recorder {
     },
     landing: (at, name, fn) => {
       close();
-      titled = name;
       try {
         return run({ kind: "landing", view: at }, fn);
       } finally {
+        // a title inside the landing names what landed; the wait's name otherwise
+        titled ??= name;
         close();
       }
     },

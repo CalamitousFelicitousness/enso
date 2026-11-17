@@ -23,7 +23,10 @@ async function showFull(what: string): Promise<void> {
   if (fullShown) return;
   fullShown = true;
   const [bytes, onlyTab] = await Promise.all([
-    reclaimableBytes().catch(() => 0),
+    reclaimableBytes().then(
+      (r) => r.bytes,
+      () => 0,
+    ),
     alone().catch(() => false),
   ]);
   const base = `${what} could not be stored.`;

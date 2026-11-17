@@ -1,6 +1,8 @@
 // The Gallery's trash over the server: the list as a query, and the writes a
 // folder and the Trash folder send. Each write applies its answer to the
-// Gallery's store, its caches and the list, then says what it did.
+// Gallery's store, its caches and the list, then says what it did. A trash
+// and a restore are steps of the undo history; deleting files for good cuts
+// the steps that would bring them back.
 
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -23,8 +25,9 @@ import type {
   ResTrashedOutputsV2,
   ResTrashedV2,
 } from "../types/media";
-import { offerUndo } from "@/inputs/undo";
 import { SHOW_TRASH } from "@/lib/inputs/text";
+import type { Command } from "@/lib/undo/types";
+import { command, invalidate } from "@/undo/marks";
 import { invalidateFolder, invalidateFoldersHolding } from "@/lib/folderCache";
 import {
   DELETE_NOW_FAILED,
@@ -135,21 +138,72 @@ function setOutputs(change: (map: ResTrashedOutputsV2) => ResTrashedOutputsV2) {
   queryClient.setQueryData<ResTrashedOutputsV2>(TRASHED_OUTPUTS_KEY, (old) => old && change(old));
 }
 
-function reportErrors(
-  title: string,
-  errors: { error: string; file?: string; name?: string }[],
-  stopped: unknown,
-) {
+type FileErrors = { error: string; file?: string; name?: string }[];
+
+/** The first file the server refused and why, or why the request stopped. */
+function errorsText(errors: FileErrors, stopped: unknown): string {
   const [first] = errors;
   const reason = first
     ? `${first.name || baseName(first.file ?? "")}: ${first.error}`
     : describe(stopped);
   const more = errors.length > 1 ? `, and ${errors.length - 1} more` : "";
-  toast.error(title, { description: `${reason}${more}` });
+  return `${reason}${more}`;
 }
 
-/** Move files to the trash by their paths, with their sidecars; Undo brings them back. */
-export async function trashPaths(paths: readonly string[], hidden = 0): Promise<boolean> {
+function reportErrors(title: string, errors: FileErrors, stopped: unknown) {
+  toast.error(title, { description: errorsText(errors, stopped) });
+}
+
+/** What a restore could not keep as it was: new names, sidecars left behind. */
+function restoredNotes(restored: ResRestoredV2["restored"]): string | null {
+  const notes = [
+    restoredAsText(restored.filter((r) => r.renamed).map((r) => r.name)),
+    restoredWithoutText(restored.flatMap((r) => r.left)),
+  ].filter((note): note is string => note !== null);
+  return notes.join(". ") || null;
+}
+
+/** What the undo history calls a file in the trash. */
+const fileTag = (id: string) => `gallery-trash:${id}`;
+
+/** A trash or a restore of Gallery files as the server half of its step. Each
+ * move gives the files new trash ids or new paths, which the next move reads;
+ * the tags name them while they are in the trash. A move that brings nothing
+ * across throws, which drops the step; one that brings some says what stayed. */
+function filesCommand(
+  made: "trashed" | "restored",
+  at: { trash: string[] } | { paths: string[] },
+  folder?: string,
+): Command {
+  let trash = "trash" in at ? at.trash : [];
+  let paths = "paths" in at ? at.paths : [];
+  const toTrash = async () => {
+    const { trashed, errors, error } = await moveToTrash(paths);
+    if (trashed.length === 0) throw new Error(errorsText(errors, error));
+    if (errors.length > 0 || error) reportErrors(notTrashedText(errors.length), errors, error);
+    trash = trashed.map((item) => item.id);
+    paths = [];
+  };
+  const back = async () => {
+    const { restored, errors, error } = await moveFromTrash(trash, folder);
+    if (restored.length === 0) throw new Error(errorsText(errors, error));
+    if (errors.length > 0 || error) reportErrors(notRestoredText(errors.length), errors, error);
+    const notes = restoredNotes(restored);
+    if (notes) toast.info(notes);
+    paths = restored.map((r) => r.path);
+    trash = [];
+  };
+  return {
+    get tags() {
+      return trash.map(fileTag);
+    },
+    undo: made === "trashed" ? back : toTrash,
+    redo: made === "trashed" ? toTrash : back,
+  };
+}
+
+/** Move files to the trash by their paths, with their sidecars, and show it. */
+async function moveToTrash(paths: readonly string[]) {
   const { answers, error } = await inChunks(paths, (files) =>
     api.post<ResTrashedV2>("/sdapi/v2/browser/trash", { files }),
   );
@@ -181,6 +235,12 @@ export async function trashPaths(paths: readonly string[], hidden = 0): Promise<
     void queryClient.invalidateQueries({ queryKey: OUTPUT_JOBS_KEY, refetchType: "none" });
     setOutputs((map) => outputsTrashed(map, trashed));
   }
+  return { trashed, errors, error };
+}
+
+/** Move files to the trash by their paths, with their sidecars, as a step. */
+export async function trashPaths(paths: readonly string[], hidden = 0): Promise<boolean> {
+  const { trashed, errors, error } = await moveToTrash(paths);
   if (errors.length > 0 || error) {
     reportErrors(
       trashed.length === 0 && errors.length === 0 ? TRASH_FAILED : notTrashedText(errors.length),
@@ -189,16 +249,15 @@ export async function trashPaths(paths: readonly string[], hidden = 0): Promise<
     );
   }
   if (trashed.length === 0) return false;
-  offerUndo(
-    filesMovedToTrashText(trashed.length, trashed[0].name),
-    hidden > 0 ? hiddenLeftText(hidden) : null,
-    () =>
-      void restoreTrashed(
-        trashed.map((item) => item.id),
-        { undoing: true },
-      ),
-    { also: { label: SHOW_TRASH, onClick: showInGalleryTrash } },
-  );
+  const [first] = trashed;
+  command(
+    "gallery",
+    { kind: "files trashed", args: { count: trashed.length, name: first.name } },
+    filesCommand("trashed", { trash: trashed.map((item) => item.id) }),
+  ).show(filesMovedToTrashText(trashed.length, first.name), {
+    description: hidden > 0 ? hiddenLeftText(hidden) : null,
+    also: { label: SHOW_TRASH, onClick: showInGalleryTrash },
+  });
   return true;
 }
 
@@ -210,13 +269,8 @@ export function trashGalleryFiles(files: readonly GalleryFile[], hidden = 0): Pr
   );
 }
 
-/** Bring files back from the trash, each to its own folder or to `folder`.
- * Undo moves them to the trash again; the Undo of a trash says only what came
- * back under another name. */
-export async function restoreTrashed(
-  ids: readonly string[],
-  { folder, undoing = false }: { folder?: string; undoing?: boolean } = {},
-): Promise<boolean> {
+/** Bring files back from the trash, each to its own folder or to `folder`, and show it. */
+async function moveFromTrash(ids: readonly string[], folder?: string) {
   const before = listed();
   const { answers, error } = await inChunks(ids, (part) =>
     api.post<ResRestoredV2>("/sdapi/v2/browser/trash/restore", {
@@ -244,6 +298,15 @@ export async function restoreTrashed(
       dirName,
     );
   }
+  return { restored, errors, error };
+}
+
+/** Bring files back from the trash, each to its own folder or to `folder`, as a step. */
+export async function restoreTrashed(
+  ids: readonly string[],
+  { folder }: { folder?: string } = {},
+): Promise<boolean> {
+  const { restored, errors, error } = await moveFromTrash(ids, folder);
   if (errors.length > 0 || error) {
     reportErrors(
       restored.length === 0 && errors.length === 0
@@ -254,19 +317,14 @@ export async function restoreTrashed(
     );
   }
   if (restored.length === 0) return false;
-  const notes = [
-    restoredAsText(restored.filter((r) => r.renamed).map((r) => r.name)),
-    restoredWithoutText(restored.flatMap((r) => r.left)),
-  ].filter((note): note is string => note !== null);
-  if (undoing) {
-    if (notes.length > 0) toast.info(notes.join(". "));
-    return true;
-  }
-  offerUndo(
-    filesRestoredText(restored.length, restored[0].name),
-    notes.join(". ") || null,
-    () => void trashPaths(restored.map((r) => r.path)),
-  );
+  const [first] = restored;
+  command(
+    "gallery",
+    { kind: "files restored", args: { count: restored.length, name: first.name } },
+    filesCommand("restored", { paths: restored.map((r) => r.path) }, folder),
+  ).show(filesRestoredText(restored.length, first.name), {
+    description: restoredNotes(restored),
+  });
   return true;
 }
 
@@ -280,6 +338,7 @@ function freed(answers: ResFreedV2[]): { ids: string[]; bytes: number } {
 async function forgetDeleted(ids: string[]) {
   const before = listed();
   dropListed(ids);
+  invalidate(new Set(ids.map(fileTag)));
   setOutputs((map) => outputsLeft(map, new Set(ids), Date.now()));
   try {
     await deleteThumbs(ids.flatMap((id) => before.get(id)?.path ?? []));

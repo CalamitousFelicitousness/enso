@@ -3,8 +3,10 @@
 // step as it closes and every settle write.
 
 import { useEffect } from "react";
+import { toast } from "sonner";
 import { OFFER_MS } from "@/lib/notices";
 import { DEFAULT_SIZE_MULTIPLE, snapSize } from "@/lib/sizeCompute";
+import { HISTORY_RESTARTED } from "@/lib/undo/text";
 import type { Draft, Scope, Step } from "@/lib/undo/types";
 import { revealFrame } from "@/inputs/reveal";
 import { keepingSize } from "@/inputs/sizeSync";
@@ -16,9 +18,11 @@ import { useModelSelectionStore } from "@/stores/modelSelectionStore";
 import { useUiStore } from "@/stores/uiStore";
 import { windowGestures } from "./gesture";
 import { install } from "./marks";
+import { undoNotices } from "./notices";
 import type { RecorderLog, SettleWrite } from "./recorder";
 import type { ReplayHooks } from "./replay";
 import { createUndo, type Undo } from "./service";
+import { followUndo } from "./store";
 import { fitSlice } from "./slices/fit";
 import { img2imgSlice } from "./slices/img2img";
 import { inputsSlice } from "./slices/inputs";
@@ -94,7 +98,8 @@ function devLog(): { log: RecorderLog; inspector: (undo: Undo) => Inspector } {
         const keys = Object.keys(
           write.patch.kind === "keys" ? write.patch.after : write.patch.items,
         );
-        console.debug("[undo] settle write", write.slice, keys, write.notes);
+        // a user action that wrote after its event without declaring it is not undoable
+        console.error("[undo] settle write", write.slice, keys, write.notes);
       },
       declared: (kind, origin) => keep(declared, { kind, origin, at: performance.now() }),
     },
@@ -121,8 +126,11 @@ export function startUndo(): Undo {
   if (running) return running.undo;
   const gestures = windowGestures();
   const dev = import.meta.env.DEV ? devLog() : null;
+  let made: Undo | null = null;
+  const notices = undoNotices(() => made);
   const undo = createUndo({
     gestures,
+    notices,
     view: () => useUiStore.getState().activeNavView,
     recorded: RECORDED,
     hooks,
@@ -139,6 +147,9 @@ export function startUndo(): Undo {
   ]) {
     undo.add(slice);
   }
+  made = undo;
+  const offNotices = undo.subscribe(notices.reconcile);
+  const offView = followUndo(undo);
   // both read their state from IndexedDB: their arrival is no one's step
   let stopped = false;
   void lutsSettled().then(() => {
@@ -147,18 +158,27 @@ export function startUndo(): Undo {
   void inputsReady().then(() => {
     if (!stopped) undo.add(inputsSlice());
   });
-  const uninstall = install(undo.marks);
+  const uninstall = install(undo.marks, {
+    holds: undo.holds,
+    cut: undo.cut,
+    cutSize: undo.cutSize,
+    invalidate: undo.invalidate,
+  });
   if (dev) (window as { __undo?: Inspector }).__undo = dev.inspector(undo);
   running = {
     undo,
     stop: () => {
       stopped = true;
+      offNotices();
+      offView();
       uninstall();
       undo.stop();
       gestures.stop();
       running = null;
     },
   };
+  // a tab the browser discarded comes back as a new page; what it kept is the stores'
+  if ((document as Document & { wasDiscarded?: boolean }).wasDiscarded) toast(HISTORY_RESTARTED);
   return undo;
 }
 

@@ -20,7 +20,14 @@ import type {
   Wait,
 } from "@/lib/undo/types";
 import type { Gestures } from "./gesture";
-import type { HeldAction, Marks, WaitHandle, WaitOptions } from "./marks";
+import type {
+  AnnounceOptions,
+  Announcement,
+  HeldAction,
+  Marks,
+  WaitHandle,
+  WaitOptions,
+} from "./marks";
 import { createRecorder, type Recorder, type RecorderLog } from "./recorder";
 import { replay, type ReplayHooks } from "./replay";
 import type { Slice } from "./slice";
@@ -29,7 +36,7 @@ export type PressKind = "undo" | "redo";
 
 export type Outcome =
   | { readonly kind: "none" }
-  | { readonly kind: "cancelled"; readonly wait: Wait }
+  | { readonly kind: "cancelled"; readonly wait: Wait; readonly name: StepName | null }
   | { readonly kind: "released"; readonly step: Step }
   | {
       readonly kind: "replayed";
@@ -45,8 +52,19 @@ export type Outcome =
   /** Something moved the step while its guards ran: nothing was done. */
   | { readonly kind: "stale" };
 
+/** What the history tells the user; the runtime shows it. */
+export interface Notices {
+  /** A step's doing notice, or a plain one when the action made no step. */
+  readonly doing: (step: Step | null, text: string, options: AnnounceOptions) => void;
+  /** How far a wait got, in its own notice with Cancel. */
+  readonly progress: (wait: Wait, name: StepName, text: string) => void;
+  /** What a press did. */
+  readonly pressed: (kind: PressKind, outcome: Outcome) => void;
+}
+
 export interface UndoOptions {
   readonly gestures: Gestures;
+  readonly notices?: Notices;
   /** The view on screen. */
   readonly view: () => NavView;
   /** Scopes whose own document is recorded. */
@@ -71,7 +89,14 @@ export interface Undo {
   readonly busy: () => boolean;
   /** A held step released from its own notice, in any order. */
   readonly release: (id: number) => void;
-  readonly cut: (cids: ReadonlySet<string>) => void;
+  /** A wait cancelled from its own notice, in any order. */
+  readonly cancel: (waitId: number) => void;
+  /** What an open wait is called. */
+  readonly waitName: (waitId: number) => StepName | null;
+  /** Steps naming these content ids leave the history; how many went. */
+  readonly cut: (cids: ReadonlySet<string>) => number;
+  /** How many steps a cut of these content ids would take. */
+  readonly cutSize: (cids: ReadonlySet<string>) => number;
   readonly invalidate: (tags: ReadonlySet<string>) => void;
   /** Content ids the history names: their bytes must stay. */
   readonly holds: () => Set<string>;
@@ -83,9 +108,12 @@ export interface Undo {
 
 interface OpenWait {
   readonly wait: Wait;
+  readonly name: StepName;
   readonly replaces: boolean;
   cancel: () => void;
 }
+
+const PROGRESS_EVERY_MS = 1000;
 
 export function createUndo(options: UndoOptions): Undo {
   const { gestures, view, hooks, holdMs, now = Date.now } = options;
@@ -162,9 +190,10 @@ export function createUndo(options: UndoOptions): Undo {
     ...(options.log && { log: options.log }),
     sink: {
       record: (drafts) => {
-        for (const draft of drafts) recordDraft(draft);
+        const steps = drafts.map(recordDraft);
         budget();
         notify();
+        return steps;
       },
       touch: (cells) => {
         stacks = core.touch(stacks, cells);
@@ -254,9 +283,10 @@ export function createUndo(options: UndoOptions): Undo {
       return { kind: "none" };
     }
     if (action.kind === "cancel") {
+      const name = waits.find((open) => open.wait.id === action.wait.id)?.name ?? null;
       cancelWaits((open) => open.wait.id === action.wait.id);
       notify();
-      return { kind: "cancelled", wait: action.wait };
+      return { kind: "cancelled", wait: action.wait, name };
     }
     if (action.kind === "release") {
       apply({ stacks: press.stacks, dropped: press.dropped });
@@ -304,12 +334,31 @@ export function createUndo(options: UndoOptions): Undo {
       pressing += 1;
       notify();
       try {
-        return await handle(kind, pressOptions?.only);
+        const outcome = await handle(kind, pressOptions?.only);
+        options.notices?.pressed(kind, outcome);
+        return outcome;
       } finally {
         pressing -= 1;
         notify();
       }
     });
+
+  /** The notice of a step the history now knows, or of no step. */
+  const announcement = (): Announcement & { bind: (step: Step | null) => void } => {
+    let bound: { step: Step | null } | null = null;
+    let queued: { text: string; options: AnnounceOptions } | null = null;
+    return {
+      bind: (step) => {
+        bound = { step };
+        if (queued) options.notices?.doing(step, queued.text, queued.options);
+        queued = null;
+      },
+      show: (text, showOptions = {}) => {
+        if (bound) options.notices?.doing(bound.step, text, showOptions);
+        else queued = { text, options: showOptions };
+      },
+    };
+  };
 
   const wait = (scope: Scope, name: StepName, waitOptions?: WaitOptions): WaitHandle => {
     recorder.close();
@@ -317,11 +366,14 @@ export function createUndo(options: UndoOptions): Undo {
     stacks = reserved.stacks;
     const at = view();
     let cancelled = false;
+    const abort = new AbortController();
     const open: OpenWait = {
       wait: { id: reserved.id, scope, view: at },
+      name,
       replaces: waitOptions?.replaces ?? false,
       cancel: () => {
         cancelled = true;
+        abort.abort();
       },
     };
     waits = [...waits, open];
@@ -329,20 +381,28 @@ export function createUndo(options: UndoOptions): Undo {
     const leave = () => {
       waits = waits.filter((w) => w !== open);
     };
+    let shownAt = -Infinity;
     return {
       get cancelled() {
         return cancelled;
       },
-      land: (fn) => {
+      signal: abort.signal,
+      land: (fn, landedAs) => {
         if (cancelled) return false;
         leave();
-        recorder.landing(at, name, fn);
+        recorder.landing(at, landedAs ?? name, fn);
         notify();
         return true;
       },
       end: () => {
         leave();
         notify();
+      },
+      progress: (text) => {
+        const time = now();
+        if (cancelled || time - shownAt < PROGRESS_EVERY_MS) return;
+        shownAt = time;
+        options.notices?.progress(open.wait, name, text);
       },
     };
   };
@@ -357,6 +417,11 @@ export function createUndo(options: UndoOptions): Undo {
   const marks: Marks = {
     note: (scope, name, noteOptions) => recorder.note(scope, name, noteOptions?.quiet ?? false),
     title: (name) => recorder.title(name),
+    announce: (scope) => {
+      const made = announcement();
+      recorder.onStep(scope, made.bind);
+      return made;
+    },
     attach: (scope, command) => recorder.attach(scope, command),
     ignore: (origin, fn) => recorder.ignore(origin, fn),
     follow: (origin, fn) => recorder.follow(origin, fn),
@@ -365,9 +430,12 @@ export function createUndo(options: UndoOptions): Undo {
     wait,
     command: (scope, name, command: Command) => {
       recorder.close();
-      recordDraft(bare(scope, name, { commands: [command] }));
+      const step = recordDraft(bare(scope, name, { commands: [command] }));
       budget();
       notify();
+      const made = announcement();
+      made.bind(step);
+      return made;
     },
     hold: (scope, name, action: HeldAction) => {
       recorder.close();
@@ -375,6 +443,9 @@ export function createUndo(options: UndoOptions): Undo {
       const step = recordDraft(bare(scope, name, { held: { ...action, until } }));
       if (step) schedule(step.id, until);
       notify();
+      const made = announcement();
+      made.bind(step);
+      return made;
     },
     clear: clearScope,
     rehydrating: (store, on) => {
@@ -398,6 +469,11 @@ export function createUndo(options: UndoOptions): Undo {
     press,
     next: (kind) => plan(kind).action,
     busy: () => pressing > 0,
+    cancel: (waitId) => {
+      cancelWaits((open) => open.wait.id === waitId);
+      notify();
+    },
+    waitName: (waitId) => waits.find((open) => open.wait.id === waitId)?.name ?? null,
     release: (id) => {
       const step = core.allSteps(stacks).find((s) => s.id === id);
       if (!step?.held) return;
@@ -410,9 +486,12 @@ export function createUndo(options: UndoOptions): Undo {
     },
     cut: (cids) => {
       recorder.close();
-      apply(core.cut(stacks, cids));
+      const change = core.cut(stacks, cids);
+      apply(change);
       notify();
+      return change.dropped.length;
     },
+    cutSize: (cids) => core.cut(stacks, cids).dropped.length,
     invalidate: (tags) => {
       apply(core.invalidate(stacks, tags));
       notify();

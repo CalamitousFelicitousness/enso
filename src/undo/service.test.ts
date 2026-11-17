@@ -5,8 +5,8 @@ import type { NavView } from "@/lib/constants";
 import type { Command, Scope } from "@/lib/undo/types";
 import { drivenGestures } from "./gesture";
 import { NO_HOOKS } from "./replay";
-import { createUndo, type UndoOptions } from "./service";
-import { keySlice } from "./slice";
+import { createUndo, type Notices, type UndoOptions } from "./service";
+import { keySlice, listSlice } from "./slice";
 
 const RECORDED: ReadonlySet<Scope> = new Set<Scope>(["images", "gallery", "shared"]);
 
@@ -486,5 +486,168 @@ describe("undo service", () => {
         },
       ),
     );
+  });
+});
+
+/** Notices that record what they were told. */
+function notices() {
+  return {
+    doing: vi.fn<Notices["doing"]>(),
+    progress: vi.fn<Notices["progress"]>(),
+    pressed: vi.fn<Notices["pressed"]>(),
+  };
+}
+
+/** A world whose images scope also holds pictures named by content id. */
+function withPictures() {
+  const w = world();
+  const pictures = createStore(() => ({ items: [] as { id: string; cid: string }[] }));
+  const cidOf = (value: unknown) => (value as { cid?: string } | null)?.cid;
+  w.undo.add(
+    listSlice({
+      name: "pictures",
+      scope: "images",
+      store: pictures,
+      items: (s) => s.items,
+      idOf: (p) => p.id,
+      keys: [],
+      set: (next) => pictures.setState({ items: [...next.items] }),
+      cids: (patch) =>
+        patch.kind === "list"
+          ? Object.values(patch.items).flatMap((c) =>
+              [cidOf(c.before), cidOf(c.after)].flatMap((cid) => (cid ? [[cid, 10] as const] : [])),
+            )
+          : [],
+      named: () => pictures.getState().items.map((p) => p.cid),
+    }),
+  );
+  return { ...w, pictures };
+}
+
+describe("undo service: names, notices and cuts", () => {
+  it("names a landing by a title made inside it, else by its wait", () => {
+    const w = world();
+    w.undo.marks.wait("images", { kind: "add pictures", args: { count: 3 } }).land(() => {
+      w.undo.marks.title({ kind: "add pictures", args: { count: 2 } });
+      w.settings.setState({ steps: 31 });
+    });
+    w.undo.marks.wait("images", { kind: "restore" }).land(() => w.settings.setState({ steps: 32 }));
+    expect(w.undo.stacks().byScope.images.undo.map((s) => s.name)).toEqual([
+      { kind: "add pictures", args: { count: 2 } },
+      { kind: "restore" },
+    ]);
+  });
+
+  it("aborts a cancelled wait's signal and says the wait's name", async () => {
+    const w = world();
+    const wait = w.undo.marks.wait("images", { kind: "recall", args: { name: "Set" } });
+    const [open] = w.undo.waits();
+    expect(w.undo.waitName(open.id)).toEqual({ kind: "recall", args: { name: "Set" } });
+    expect(wait.signal.aborted).toBe(false);
+    expect(await w.undo.press("undo")).toMatchObject({
+      kind: "cancelled",
+      name: { kind: "recall" },
+    });
+    expect(wait.signal.aborted).toBe(true);
+    expect(w.undo.waitName(open.id)).toBeNull();
+  });
+
+  it("cancels a wait from its own notice, out of order", () => {
+    const w = world();
+    const older = w.undo.marks.wait("images", { kind: "drop" });
+    const newer = w.undo.marks.wait("images", { kind: "recall" });
+    const [first] = w.undo.waits();
+    w.undo.cancel(first.id);
+    expect(older.cancelled).toBe(true);
+    expect(newer.cancelled).toBe(false);
+  });
+
+  it("passes a wait's progress on at most once a second", () => {
+    let time = 0;
+    const told = notices();
+    const w = world({ now: () => time, notices: told });
+    const wait = w.undo.marks.wait("images", { kind: "recall" });
+    wait.progress("1 of 3");
+    time = 400;
+    wait.progress("2 of 3");
+    time = 1100;
+    wait.progress("3 of 3");
+    expect(told.progress.mock.calls.map((call) => call[2])).toEqual(["1 of 3", "3 of 3"]);
+  });
+
+  it("shows an announcement with the step its gesture made, and plainly without one", () => {
+    const told = notices();
+    const { doing } = told;
+    const w = world({ notices: told });
+    w.act(() => {
+      w.settings.setState({ steps: 33 });
+      w.undo.marks.announce("images").show("Changed");
+    });
+    expect(doing).toHaveBeenCalledTimes(1);
+    expect(doing.mock.calls[0][0]).toMatchObject({ scope: "images" });
+    expect(doing.mock.calls[0][1]).toBe("Changed");
+    w.act(() => w.undo.marks.announce("images").show("Nothing changed"));
+    expect(doing).toHaveBeenLastCalledWith(null, "Nothing changed", {});
+  });
+
+  it("shows a command's and a held step's notice with their steps", () => {
+    const told = notices();
+    const { doing } = told;
+    const w = world({ notices: told });
+    w.undo.marks.command("gallery", { kind: "files trashed" }, command()).show("Moved");
+    w.undo.marks
+      .hold("shared", { kind: "delete job" }, { undo: () => {}, commit: () => {} })
+      .show("Deleted");
+    expect(doing.mock.calls.map((call) => [call[0]?.name.kind, call[1]])).toEqual([
+      ["files trashed", "Moved"],
+      ["delete job", "Deleted"],
+    ]);
+    expect(typeof doing.mock.calls[1][0]?.held?.until).toBe("number");
+  });
+
+  it("tells the notices what each press did", async () => {
+    const told = notices();
+    const { pressed } = told;
+    const w = world({ notices: told });
+    w.act(() => w.settings.setState({ steps: 35 }));
+    await w.undo.press("undo");
+    await w.undo.press("undo");
+    expect(pressed.mock.calls.map((call) => [call[0], call[1].kind])).toEqual([
+      ["undo", "replayed"],
+      ["undo", "none"],
+    ]);
+  });
+
+  it("counts the steps a cut would take without taking them, then takes them", () => {
+    const w = withPictures();
+    w.act(() => w.pictures.setState({ items: [{ id: "p", cid: "c1" }] }));
+    w.act(() => w.settings.setState({ steps: 34 }));
+    expect(w.undo.cutSize(new Set(["c1"]))).toBe(1);
+    expect(w.undo.holds()).toEqual(new Set(["c1"]));
+    expect(w.sides("images").undo).toHaveLength(2);
+    expect(w.undo.cut(new Set(["c1"]))).toBe(1);
+    expect(w.sides("images").undo).toHaveLength(1);
+    expect(w.undo.holds()).toEqual(new Set());
+  });
+
+  it("reads a command's tags when items go, so a moved item still drops its step", () => {
+    const w = world();
+    let tags = ["file:a"];
+    w.undo.marks.command(
+      "gallery",
+      { kind: "files trashed" },
+      {
+        undo: () => {},
+        redo: () => {},
+        get tags() {
+          return tags;
+        },
+      },
+    );
+    tags = ["file:b"];
+    w.undo.invalidate(new Set(["file:a"]));
+    expect(w.sides("gallery").undo).toHaveLength(1);
+    w.undo.invalidate(new Set(["file:b"]));
+    expect(w.sides("gallery").undo).toHaveLength(0);
   });
 });

@@ -91,6 +91,7 @@ import {
   quantFormatLabel,
 } from "@/lib/civitai";
 import {
+  sendImageAndPrompt,
   sendImageToCanvas,
   sendFrameToVideoInit,
   sendPromptToGeneration,
@@ -880,8 +881,8 @@ function ImageLightbox({
                   onClick={() => {
                     void (async () => {
                       try {
-                        const file = await mediaFile(fullUrl, "image.png");
-                        if (!(await sendImageToCanvas(file))) return;
+                        const read = () => mediaFile(fullUrl, "image.png");
+                        if (!(await sendImageToCanvas(read))) return;
                         onCloseAll();
                         toast.success("Sent to Canvas");
                       } catch {
@@ -943,14 +944,13 @@ function ImageLightbox({
                       onClick={() => {
                         void (async () => {
                           try {
-                            const file = await mediaFile(fullUrl, "image.png");
-                            if (!(await sendImageToCanvas(file))) return;
-                            sendPromptToGeneration(
+                            const read = () => mediaFile(fullUrl, "image.png");
+                            const sent = await sendImageAndPrompt(
+                              read,
                               meta["prompt"] as string,
                               hasNegative ? (meta["negativePrompt"] as string) : undefined,
                             );
-                            onCloseAll();
-                            toast.success("Image + Prompt sent to Canvas");
+                            if (sent) onCloseAll();
                           } catch {
                             toast.error("Failed to send");
                           }

@@ -19,6 +19,8 @@ export interface ShortcutDef {
   label: string;
   /** Left to the focused text field, which has its own meaning for the keys. */
   skipEditable?: boolean;
+  /** The Ctrl key itself, not Cmd on macOS, where Cmd with the key means something else. */
+  ctrlOnly?: boolean;
 }
 
 export const SHORTCUTS: Record<string, ShortcutDef> = {
@@ -62,6 +64,27 @@ export const SHORTCUTS: Record<string, ShortcutDef> = {
     scope: "global",
     category: "Global",
     label: "Undo the last change",
+    skipEditable: true,
+  },
+  redo: {
+    id: "redo",
+    key: "z",
+    ctrl: true,
+    shift: true,
+    scope: "global",
+    category: "Global",
+    label: "Redo the last undone change",
+    skipEditable: true,
+  },
+  // the same row in the shortcuts panel, which lists a label once
+  "redo-alt": {
+    id: "redo-alt",
+    key: "y",
+    ctrl: true,
+    ctrlOnly: true,
+    scope: "global",
+    category: "Global",
+    label: "Redo the last undone change",
     skipEditable: true,
   },
   "toggle-left-rail": {
@@ -497,8 +520,9 @@ export function matchesEvent(def: ShortcutDef, e: KeyInput, mac = IS_MAC): boole
   const alt = def.alt ?? false;
   const meta = def.meta ?? false;
 
-  const command = mac ? e.ctrlKey || e.metaKey : e.ctrlKey;
-  const metaHeld = mac ? false : e.metaKey;
+  const cmd = mac && !def.ctrlOnly;
+  const command = cmd ? e.ctrlKey || e.metaKey : e.ctrlKey;
+  const metaHeld = cmd ? false : e.metaKey;
   if (command !== ctrl || e.altKey !== alt || metaHeld !== meta) return false;
   // `?` and `+` are matched by what they type, Shift or not
   if (isBareSymbol(def)) return e.key === def.key;
@@ -557,7 +581,7 @@ const KEY_LABELS: Record<string, string> = {
 
 export function formatShortcut(def: ShortcutDef): string {
   const parts: string[] = [];
-  if (def.ctrl) parts.push(MOD_SYMBOL);
+  if (def.ctrl) parts.push(def.ctrlOnly ? "Ctrl" : MOD_SYMBOL);
   if (def.shift) parts.push(SHIFT_SYMBOL);
   if (def.alt) parts.push(ALT_SYMBOL);
   if (def.meta && !IS_MAC) parts.push("Meta");

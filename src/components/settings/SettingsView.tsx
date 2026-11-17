@@ -21,7 +21,7 @@ import { cn, toDisplayString } from "@/lib/utils";
 import { Save, RotateCcw, Search, ListRestart, Plug, Unplug, Check } from "lucide-react";
 import { useUiStore } from "@/stores/uiStore";
 import { generationHistoryDb, useGenerationStore } from "@/stores/generationStore";
-import { offerUndo } from "@/inputs/undo";
+import { hold } from "@/undo/marks";
 import { STRIP_LIMIT_MAX, STRIP_LIMIT_MIN } from "@/lib/resultStrip";
 import { STRIP_LIMIT_LABEL, stripLimitText, stripTrimmedText } from "@/lib/jobs/text";
 import type { ColorMode, CanvasBackground as CanvasBg } from "@/stores/uiStore";
@@ -359,12 +359,14 @@ function StripLimitRow() {
     const removed = useGenerationStore.getState().setHistoryLimit(value);
     if (removed.length === 0) return;
     const { title, description } = stripTrimmedText(removed.length);
-    offerUndo(
-      title,
-      description,
-      () => useGenerationStore.getState().putBackResults(removed, previous),
-      { settle: () => void generationHistoryDb.deleteMany(removed.map((r) => r.id)), brief: true },
-    );
+    hold(
+      "shared",
+      { kind: "strip trimmed", args: { count: removed.length } },
+      {
+        undo: () => useGenerationStore.getState().putBackResults(removed, previous),
+        commit: () => void generationHistoryDb.deleteMany(removed.map((r) => r.id)),
+      },
+    ).show(title, { description });
   };
 
   return (

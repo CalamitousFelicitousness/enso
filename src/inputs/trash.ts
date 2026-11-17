@@ -40,7 +40,9 @@ import { deleteEntry, emptyServerTrash } from "./library";
 import { liveCids } from "./live";
 import { failureText, isQuotaError, spaceFreed } from "./quota";
 import { forgetThumbs } from "./thumbs";
-import { endUndoFor } from "./undo";
+import { cut, cutSize } from "@/undo/marks";
+import { stepsClearedText } from "@/lib/undo/text";
+import type { Command, Side } from "@/lib/undo/types";
 
 interface TrashState {
   /** Removal records this build can read, by key. */
@@ -53,6 +55,8 @@ interface TrashState {
   restoring: ReadonlySet<string>;
   /** The bytes emptying the trash would free; null until measured. */
   reclaimable: number | null;
+  /** The undo steps emptying the trash would clear, measured with the bytes. */
+  clears: number;
   /** The storage notice asked for the Empty dialog. */
   askEmpty: boolean;
   loaded: boolean;
@@ -64,6 +68,7 @@ export const useTrash = create<TrashState>()(() => ({
   days: TRASH_DAYS.fallback,
   restoring: new Set(),
   reclaimable: null,
+  clears: 0,
   askEmpty: false,
   loaded: false,
 }));
@@ -87,6 +92,48 @@ export async function recordRemoval(removal: Removal): Promise<string> {
   await writeDocument(TRASH, key, record, blobs, 1);
   listed(key, record);
   return key;
+}
+
+/** A removal's trash record as the server half of a step. On the step's `out`
+ * side the content is out of the inputs and the record is kept: a replay that
+ * takes the content out writes it first, in the guard, so a full disk refuses
+ * the press. On the other side it is forgotten once the document that holds
+ * the content again is stored; a record left over is a duplicate, one
+ * forgotten early is the only copy lost. `forget` does that for the action's
+ * own way in. */
+export function trashRecord(
+  removal: Removal,
+  out: Side,
+  written: Promise<string | null>,
+): { command: Command; forget: () => Promise<void> } {
+  let key = written;
+  const forget = async () => {
+    const at = await key;
+    key = Promise.resolve(null);
+    if (!at) return;
+    const id = `removal:${at}`;
+    markRestoring(id, true);
+    try {
+      if (await settleInputs()) await forgetRemoval(at);
+    } finally {
+      markRestoring(id, false);
+    }
+  };
+  const command: Command = {
+    tags: [],
+    guard: async (side) => {
+      if (side !== out) return;
+      const at = await recordRemoval({ ...removal, removedAt: Date.now() });
+      key = Promise.resolve(at);
+      return () => {
+        key = Promise.resolve(null);
+        void forgetRemoval(at);
+      };
+    },
+    undo: () => (out === "before" ? undefined : forget()),
+    redo: () => (out === "after" ? undefined : forget()),
+  };
+  return { command, forget };
 }
 
 /** Drop a record whose content is back in the inputs. */
@@ -141,8 +188,8 @@ export async function measureTrash(): Promise<number | null> {
   try {
     // a removal's picture stays named by the stored document until its debounced save
     await settleInputs();
-    const bytes = await reclaimableBytes();
-    useTrash.setState({ reclaimable: bytes });
+    const { bytes, cids } = await reclaimableBytes();
+    useTrash.setState({ reclaimable: bytes, clears: cutSize(new Set(cids)) });
     return bytes;
   } catch (err) {
     console.error("[inputs] could not measure the trash", err);
@@ -171,7 +218,7 @@ async function deleteAndTell(
   let outcome: Reclaimed;
   try {
     await settleInputs();
-    outcome = await deleteForGood(targets, liveCids);
+    outcome = await deleteForGood(targets, liveCids, cut);
   } catch (err) {
     console.error("[inputs] could not delete for good", err);
     // only a deletion beside other tabs writes, so only it meets a full disk
@@ -183,7 +230,8 @@ async function deleteAndTell(
   const freed = "freed" in outcome ? outcome.freed : null;
   if ("cids" in outcome) forgetThumbs(outcome.cids);
   if (freed !== null && freed > 0) spaceFreed();
-  toast(title, { description: reclaimedText(freed) });
+  const lines = [reclaimedText(freed), stepsClearedText(outcome.cut)];
+  toast(title, { description: lines.filter((l) => l !== null).join(". ") });
   return true;
 }
 
@@ -195,8 +243,6 @@ export async function deleteNow(item: Pick<TrashItem, "source" | "key">): Promis
     return;
   }
   if (item.source !== "removal") return;
-  // deleted for good: an Undo of that removal would hold its bytes
-  endUndoFor(item.key);
   const deleted = await deleteAndTell(
     [{ store: TRASH, key: item.key }],
     deletedFromTrashText(1),
@@ -215,12 +261,12 @@ export async function emptyTrash(
 ): Promise<void> {
   const parts: string[] = [];
   if (removals.length > 0) {
-    for (const key of removals) endUndoFor(key);
     try {
       await settleInputs();
       const outcome = await deleteForGood(
         removals.map((key) => ({ store: TRASH, key })),
         liveCids,
+        cut,
       );
       const freed = "freed" in outcome ? outcome.freed : null;
       if ("cids" in outcome) forgetThumbs(outcome.cids);
@@ -230,6 +276,8 @@ export async function emptyTrash(
           ? `${aboutSize(freed)} freed here`
           : reclaimedText(freed),
       );
+      const steps = stepsClearedText(outcome.cut);
+      if (steps) parts.push(steps);
     } catch (err) {
       console.error("[inputs] could not empty the trash", err);
       toast.error(DELETE_FROM_TRASH_FAILED, {

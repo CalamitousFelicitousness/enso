@@ -31,6 +31,33 @@ const storageProperties = ["window", "globalThis", "self"].flatMap((object) =>
   STORAGE.map((property) => ({ object, property, message: STORAGE_MESSAGE })),
 );
 const PERSIST_OPTIONS = "CallExpression[callee.name='persist'] > ObjectExpression";
+const persistSyntax = [
+  {
+    selector: `${PERSIST_OPTIONS}:not(:has(> Property[key.name='storage']))`,
+    message:
+      "A store kept in localStorage persists through persistLocal from @/profile/local; one in IndexedDB names its gated storage.",
+  },
+  {
+    selector: `${PERSIST_OPTIONS} > Property[key.name='name'] > :matches(Literal, TemplateLiteral)`,
+    message: "A persisted store takes its name from src/lib/profile/names.ts.",
+  },
+];
+// Stores the undo history records: written through their own actions, so a
+// write is a step the recorder sees and the action names.
+const RECORDED_STORES = [
+  "Generation",
+  "Input",
+  "Img2Img",
+  "Lut",
+  "ModelSelection",
+  "Preset",
+  "Script",
+];
+const recordedSetState = {
+  selector: `CallExpression[callee.property.name='setState'][callee.object.name=/^use(${RECORDED_STORES.join("|")})Store$/]`,
+  message:
+    "A recorded store changes through its own actions; setState belongs to the store, its undo slice and useHistoryInit.ts.",
+};
 
 export default defineConfig([
   globalIgnores([
@@ -110,18 +137,20 @@ export default defineConfig([
     rules: {
       "no-restricted-globals": ["error", ...storageGlobals],
       "no-restricted-properties": ["error", randomUuid, ...storageProperties],
-      "no-restricted-syntax": [
-        "error",
-        {
-          selector: `${PERSIST_OPTIONS}:not(:has(> Property[key.name='storage']))`,
-          message:
-            "A store kept in localStorage persists through persistLocal from @/profile/local; one in IndexedDB names its gated storage.",
-        },
-        {
-          selector: `${PERSIST_OPTIONS} > Property[key.name='name'] > :matches(Literal, TemplateLiteral)`,
-          message: "A persisted store takes its name from src/lib/profile/names.ts.",
-        },
-      ],
+      "no-restricted-syntax": ["error", ...persistSyntax, recordedSetState],
+    },
+  },
+  {
+    // A recorded store's own file, its undo slice and the history's loader
+    // write it whole. Flat config keeps the last matching options, so the
+    // persist rules are repeated.
+    files: [
+      "src/stores/{generation,input,img2img,lut,modelSelection,preset,script}Store.ts",
+      "src/undo/slices/*.ts",
+      "src/hooks/useHistoryInit.ts",
+    ],
+    rules: {
+      "no-restricted-syntax": ["error", ...persistSyntax],
     },
   },
   {

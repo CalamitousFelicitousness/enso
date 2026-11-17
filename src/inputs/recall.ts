@@ -1,5 +1,6 @@
 // Saved and removed inputs back where they were: a library entry added after
-// the inputs or put in their place, and what the trash keeps put back.
+// the inputs or put in their place, and what the trash keeps put back. Each
+// reads before it writes: a wait, which lands as one step.
 
 import { toast } from "sonner";
 import { api, ApiError } from "@/api/client";
@@ -33,17 +34,17 @@ import {
   untrashedText,
 } from "@/lib/inputs/text";
 import type { Size } from "@/lib/inputs/types";
-import { fetchingText, inTrashText, RESTORE_CANCELLED } from "@/lib/media/text";
+import { fetchingText, inTrashText } from "@/lib/media/text";
 import { useGenerationStore } from "@/stores/generationStore";
 import { inputsReady } from "@/stores/inputStore";
+import { announce, attach, command, wait } from "@/undo/marks";
 import { readDocument } from "./db";
-import { addFrames, offerInverse, putBack, restoreFrames } from "./edits";
+import { addFrames, putBack, restoreFrames } from "./edits";
 import { bytesFor } from "./fetch";
-import { movedText, moveToTrash, touchEntry, untrashEntry } from "./library";
+import { entryCommand, movedText, nameOf, touchEntry, untrashEntry } from "./library";
 import { currentMap, installMap, lookupMaps } from "./maps";
 import { failureText } from "./quota";
-import { forgetRemoval, loadRemoval, loadTrash, markRestoring, useTrash } from "./trash";
-import { offerUndo, type UndoOffer } from "./undo";
+import { loadRemoval, loadTrash, trashRecord, useTrash } from "./trash";
 
 export type RecallMode = "add" | "replace";
 
@@ -74,7 +75,7 @@ export async function installEntryMaps(
 
 /** Put recalled frames in: "add" after the inputs, refitted when the frame
  * size differs; "replace" in their place at the size they were saved at,
- * the inputs going to the trash. Both offer Undo. False when refused. */
+ * the inputs going to the trash. Called in the landing. False when refused. */
 function placeFrames(inputs: Inputs, name: string, mode: RecallMode): boolean {
   const clone = cloneFrames(inputs.frames, inputs.sizeSource, newId, "drop");
   if (mode === "add") {
@@ -84,13 +85,14 @@ function placeFrames(inputs: Inputs, name: string, mode: RecallMode): boolean {
       : clone.frames.map((f) => refitFrame(f, now));
     return addFrames(frames);
   }
-  const inverse = restoreFrames(
-    { frames: clone.frames, size: inputs.size, sizeSource: clone.sizeSource },
-    sizeNow(),
-  );
-  offerInverse(replacedWithText(name, inputs.size), null, inverse);
+  restoreFrames({ frames: clone.frames, size: inputs.size, sizeSource: clone.sizeSource });
+  announce("images").show(replacedWithText(name, inputs.size));
   return true;
 }
+
+/** A recall as it waits: a replace is cancelled by a newer change to the inputs. */
+const recallWait = (name: string, mode: RecallMode) =>
+  wait("images", { kind: "recall", args: { name, mode } }, { replaces: mode === "replace" });
 
 /** Entries being recalled, so a second click while the first is read does nothing. */
 const recalling = new Set<string>();
@@ -101,9 +103,7 @@ const recalling = new Set<string>();
 export async function recallEntry(id: string, mode: RecallMode): Promise<boolean> {
   if (recalling.has(id)) return false;
   recalling.add(id);
-  // the notice of the fetch, once one starts
-  const hold: { offer: UndoOffer | null } = { offer: null };
-  const abort = new AbortController();
+  const waited = recallWait(nameOf(id), mode);
   try {
     let entry: ResEntryV2;
     try {
@@ -135,28 +135,21 @@ export async function recallEntry(id: string, mode: RecallMode): Promise<boolean
     let fetched: Awaited<ReturnType<typeof bytesFor>>;
     try {
       fetched = await bytesFor([...stored.cids, ...Object.values(entry.maps)], entry.hashes, {
-        signal: abort.signal,
-        onProgress: (p) => {
-          hold.offer ??= offerUndo(fetchingText(p.done, p.total, p.bytes), null, () => {
-            abort.abort();
-            toast.info(RESTORE_CANCELLED);
-          });
-          hold.offer.progress(fetchingText(p.done, p.total, p.bytes));
-        },
+        signal: waited.signal,
+        onProgress: (p) => waited.progress(fetchingText(p.done, p.total, p.bytes)),
       });
     } catch (err) {
       if (!(err instanceof UserAbortError)) {
-        hold.offer?.withdraw();
         toast.error(RECALL_FAILED, { description: failureText(err) });
       }
       return false;
     }
-    if (abort.signal.aborted) return false;
+    if (waited.cancelled) return false;
     const { inputs, lost } = joinInputs(stored.inputs, fetched.blobs);
     await inputsReady();
     await installEntryMaps(entry.maps, fetched.blobs);
-    if (!placeFrames(inputs, entry.name, mode)) {
-      hold.offer?.withdraw();
+    let placed = false;
+    if (!waited.land(() => (placed = placeFrames(inputs, entry.name, mode))) || !placed) {
       return false;
     }
     if (lost.pictures.length > 0) {
@@ -165,6 +158,7 @@ export async function recallEntry(id: string, mode: RecallMode): Promise<boolean
     touchEntry(id);
     return true;
   } finally {
+    waited.end();
     recalling.delete(id);
   }
 }
@@ -173,6 +167,7 @@ export async function recallEntry(id: string, mode: RecallMode): Promise<boolean
 export async function recallLegacyEntry(id: string, mode: RecallMode): Promise<boolean> {
   if (recalling.has(id)) return false;
   recalling.add(id);
+  const waited = recallWait(nameOf(id), mode);
   try {
     let stored: { document: ReadEntry; blobs: Map<string, Blob> } | null;
     try {
@@ -184,6 +179,7 @@ export async function recallLegacyEntry(id: string, mode: RecallMode): Promise<b
     }
     if (!stored) {
       // another tab moved it to the server, where it keeps its id
+      waited.end();
       recalling.delete(id);
       return await recallEntry(id, mode);
     }
@@ -194,64 +190,71 @@ export async function recallLegacyEntry(id: string, mode: RecallMode): Promise<b
     const { entry, lost } = joinEntry(stored.document.record, stored.blobs);
     await inputsReady();
     await installEntryMaps(entry.maps, stored.blobs);
-    if (!placeFrames(entry.inputs, entry.name, mode)) return false;
+    let placed = false;
+    if (!waited.land(() => (placed = placeFrames(entry.inputs, entry.name, mode))) || !placed) {
+      return false;
+    }
     if (lost.pictures.length > 0) {
       toast.warning(lostEntryPicturesText(lost.pictures.length, entry.name));
     }
     return true;
   } finally {
+    waited.end();
     recalling.delete(id);
   }
 }
 
-/** Put back what a removal took out, from the trash, with Undo; the record
- * goes once the offer settles without it. */
+/** Put back what a removal took out, from the trash, as one step; the record
+ * goes once the inputs holding its content are stored, and an undo writes it
+ * again before the content leaves. */
 export async function restoreRemoval(key: string): Promise<boolean> {
   const stored = useTrash.getState().removals.get(key);
-  let loaded: Awaited<ReturnType<typeof loadRemoval>>;
+  // a replaced list taken back puts the list in its place
+  const replaces = stored?.cause === "replaced" && stored.content.kind === "frames";
+  const waited = wait("images", { kind: "from trash" }, { replaces });
   try {
-    loaded = await loadRemoval(key);
-  } catch (err) {
-    console.error("[inputs] could not read a removal record", err);
-    toast.error(RECALL_FAILED, { description: failureText(err) });
-    return false;
-  }
-  if (!loaded) {
-    toast.info(NO_LONGER_IN_TRASH);
-    void loadTrash();
-    return false;
-  }
-  await inputsReady();
-  const id = `removal:${key}`;
-  markRestoring(id, true);
-  const inverse = putBack(loaded.removal);
-  offerInverse(
-    RESTORED_FROM_TRASH,
-    stored ? removalTitle(stored) : null,
-    {
-      frames: inverse.frames,
-      run: () => {
-        inverse.run();
-        markRestoring(id, false);
-      },
-    },
-    () => {
-      void forgetRemoval(key).then(() => {
-        markRestoring(id, false);
-        return loadTrash();
+    let loaded: Awaited<ReturnType<typeof loadRemoval>>;
+    try {
+      loaded = await loadRemoval(key);
+    } catch (err) {
+      console.error("[inputs] could not read a removal record", err);
+      toast.error(RECALL_FAILED, { description: failureText(err) });
+      return false;
+    }
+    if (!loaded) {
+      toast.info(NO_LONGER_IN_TRASH);
+      void loadTrash();
+      return false;
+    }
+    await inputsReady();
+    const { removal } = loaded;
+    const record = trashRecord(removal, "before", Promise.resolve(key));
+    const landed = waited.land(() => {
+      putBack(removal);
+      attach("images", record.command);
+      announce("images").show(RESTORED_FROM_TRASH, {
+        description: stored ? removalTitle(stored) : null,
       });
-    },
-  );
-  const lost = loaded.lost.pictures.length;
-  if (lost > 0) toast.warning(lostRestoredPicturesText(lost));
-  return true;
+    });
+    if (!landed) return false;
+    void record.forget().then(() => loadTrash());
+    const lost = loaded.lost.pictures.length;
+    if (lost > 0) toast.warning(lostRestoredPicturesText(lost));
+    return true;
+  } finally {
+    waited.end();
+  }
 }
 
 /** Bring an entry back from the server's trash into the library, as the
- * most recently used, with Undo. */
+ * most recently used, as a step of its own. */
 export async function restoreEntry(id: string): Promise<boolean> {
   const back = await untrashEntry(id);
   if (!back) return false;
-  offerUndo(untrashedText(back.entry.name), movedText(back), () => moveToTrash(id));
+  const name = back.entry.name;
+  command("shared", { kind: "entry restored", args: { name } }, entryCommand(id, "restored")).show(
+    untrashedText(name),
+    { description: movedText(back) },
+  );
   return true;
 }

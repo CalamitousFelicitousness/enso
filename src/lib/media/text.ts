@@ -235,8 +235,6 @@ export function fetchingText(done: number, total: number, bytes: number): string
   return `Fetching ${done} of ${plural(total, "picture", "pictures")}${size}`;
 }
 
-export const RESTORE_CANCELLED = "Restore cancelled";
-
 /** Pictures kept only with a job's record that the server had no room for. */
 export function keptOutText(count: number, room: number): string {
   const what = count === 1 ? "1 picture was" : `${count} pictures were`;

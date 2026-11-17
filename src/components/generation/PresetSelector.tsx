@@ -9,7 +9,8 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { useGenerationStore } from "@/stores/generationStore";
 import { usePresetStore, snapshotParams } from "@/stores/presetStore";
 import { useCurrentCheckpoint } from "@/api/hooks/useModels";
-import { recorded } from "@/undo/marks";
+import { announce, recorded, title } from "@/undo/marks";
+import { nameText } from "@/lib/undo/text";
 
 export function PresetSelector() {
   const [saveOpen, setSaveOpen] = useState(false);
@@ -42,8 +43,10 @@ export function PresetSelector() {
     (id: string) => {
       const preset = presets.find((p) => p.id === id);
       if (!preset) return;
+      const name = { kind: "preset", args: { name: preset.name } } as const;
+      title(name);
       setParams(preset.params);
-      toast.success(`Loaded preset: ${preset.name}`);
+      announce("images").show(nameText(name));
     },
     [presets, setParams],
   );

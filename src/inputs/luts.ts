@@ -37,7 +37,9 @@ export function lutPairOf(where: LutPlace): LutPair {
 
 function setLutPair(where: LutPlace, pair: LutPair): void {
   if (where === "images") {
-    useGenerationStore.setState({ gradingLutFile: pair.name, gradingLutHash: pair.hash });
+    useGenerationStore
+      .getState()
+      .setParams({ gradingLutFile: pair.name, gradingLutHash: pair.hash });
   } else {
     useProcessLutStore.getState().set(pair);
     // an older build reads the bare ref here; it now names no LUT

@@ -1,7 +1,7 @@
-// Restoring what a job ran with: its settings, its inputs, or both. Each
-// restore is one Undo, offered before anything is awaited, so Ctrl+Z pressed
-// while the inputs are read undoes this restore and not the one before. A
-// restore started while another still reads takes its place.
+// Restoring what a job ran with: its settings, its inputs, or both. A restore
+// that reads first is a wait, opened before anything is awaited, so Ctrl+Z
+// pressed while it reads cancels it and not the change before; it lands as
+// one step. A restore started while another still reads takes its place.
 
 import { toast } from "sonner";
 import { useGenerationStore, type GenerationState } from "@/stores/generationStore";
@@ -9,14 +9,15 @@ import type { GenerationResult } from "@/stores/generationStore";
 import { useImg2ImgStore } from "@/stores/img2imgStore";
 import { useUiStore } from "@/stores/uiStore";
 import { inputsReady } from "@/stores/inputStore";
-import { restoreFrames, type Inverse } from "@/inputs/edits";
-import { cidsOf } from "@/lib/inputs/types";
+import { restoreFrames } from "@/inputs/edits";
 import type { FetchOptions } from "@/inputs/fetch";
 import { loadJobInputs, loadRecord, type LoadedInputs } from "@/inputs/jobs";
 import { UserAbortError } from "@/lib/abort";
-import { fetchingText, RESTORE_CANCELLED } from "@/lib/media/text";
+import { fetchingText } from "@/lib/media/text";
 import { hasLegacyInputs, legacyResultInputs } from "@/inputs/legacyResult";
-import { offerUndo } from "@/inputs/undo";
+import { announce, title, wait, type WaitHandle } from "@/undo/marks";
+import type { StepName } from "@/lib/undo/types";
+import { nameText } from "@/lib/undo/text";
 import type { Job } from "@/api/types/v2";
 import type { LocalModel } from "@/api/types/cloud";
 import type { SdModelV2 } from "@/api/types/models";
@@ -165,13 +166,9 @@ export function pickOf(model: SdModelV2): ModelPick | null {
   return { kind: "pick", model: { ...model, source: "local" } };
 }
 
-/** Make the pick; returns what puts the previous one back. */
-function applyPick(pick: ModelPick | null): () => void {
-  if (pick?.kind !== "pick") return () => {};
-  const store = useModelSelectionStore.getState();
-  const before = store.activeModel;
-  store.setActiveModel(pick.model);
-  return () => useModelSelectionStore.getState().setActiveModel(before);
+/** Make the pick: it rides on the restore's step. */
+function applyPick(pick: ModelPick | null): void {
+  if (pick?.kind === "pick") useModelSelectionStore.getState().setActiveModel(pick.model);
 }
 
 function pickNote(pick: ModelPick | null): string | null {
@@ -196,178 +193,134 @@ function joinNotes(...notes: (string | null)[]): string | null {
   return said.length > 0 ? said.join(". ") : null;
 }
 
-/** Set generation settings; returns what puts back every value they changed. */
-function setSettings(params: Partial<GenerationState>): () => void {
-  const gen = useGenerationStore.getState();
-  const keys = Object.keys(params) as (keyof GenerationState)[];
-  const before = Object.fromEntries(keys.map((key) => [key, gen[key]])) as Partial<GenerationState>;
-  gen.setParams(params);
-  return () => useGenerationStore.getState().setParams(before);
-}
-
-/** Settings read from elsewhere (an image's metadata, a comparison), set
- * with the one Undo. */
-export function applyParams(params: Partial<GenerationState>, title: string): void {
+/** Settings read from elsewhere (an image's metadata, a comparison), set as
+ * one step under `name`. */
+export function applyParams(params: Partial<GenerationState>, name: StepName): void {
   if (Object.keys(params).length === 0) return;
-  offerUndo(title, null, setSettings(params));
+  title(name);
+  useGenerationStore.getState().setParams(params);
+  announce("images").show(nameText(name));
 }
 
-/** Apply read settings and return what puts back every value they changed. */
-export function applySettings(extracted: ExtractedSettings): {
-  revert: () => void;
-  notes: RestoreNote[];
-} {
+/** Apply read settings; returns what they could not restore. */
+export function applySettings(extracted: ExtractedSettings): RestoreNote[] {
   const { params, img2img, notes } = extracted;
-  const masks = useImg2ImgStore.getState();
-  const overlayBefore = masks.maskApplyOverlay;
-  const revertParams = setSettings(params);
-  if (img2img.maskApplyOverlay !== undefined) masks.setMaskApplyOverlay(img2img.maskApplyOverlay);
-  return {
-    revert: () => {
-      revertParams();
-      if (img2img.maskApplyOverlay !== undefined) {
-        useImg2ImgStore.getState().setMaskApplyOverlay(overlayBefore);
-      }
-    },
-    notes,
-  };
+  useGenerationStore.getState().setParams(params);
+  if (img2img.maskApplyOverlay !== undefined) {
+    useImg2ImgStore.getState().setMaskApplyOverlay(img2img.maskApplyOverlay);
+  }
+  return notes;
 }
 
-/** Restore settings, with the model pick when one is given, and offer the one Undo. */
+const restoreName = (kind: RestoreKind): StepName => ({ kind: "restore", args: { what: kind } });
+
+/** Restore settings, with the model pick when one is given, as one step:
+ * called in the click, or in the landing of a restore that read first. */
 export function restoreSettings(target: RestoreTarget, pick: ModelPick | null = null): void {
   if (!target.settings.ok) {
     toast.info(reasonText(target.settings.reason));
     return;
   }
-  const { revert, notes } = applySettings(target.settings.extracted);
-  const unpick = applyPick(pick);
-  offerUndo(
+  title(restoreName("settings"));
+  const notes = applySettings(target.settings.extracted);
+  applyPick(pick);
+  announce("images").show(
     pick?.kind === "pick" ? pickedText(pick.model.model_name) : restoredText("settings"),
-    joinNotes(
-      restoreNotesText(notes),
-      skippedNote(target),
-      pick?.kind === "missing" ? pickNote(pick) : null,
-    ),
-    () => {
-      unpick();
-      revert();
+    {
+      description: joinNotes(
+        restoreNotesText(notes),
+        skippedNote(target),
+        pick?.kind === "missing" ? pickNote(pick) : null,
+      ),
     },
   );
 }
 
 let latest = 0;
 
-/** The restore still waiting on its inputs: a newer restore cancels it first,
- * so the settings it applied do not outlive it. */
-let waiting: { cancel: () => void } | null = null;
-
-/** Restore inputs, or settings and inputs. The settings are applied at once;
- * the inputs replace the frames when they have been read, unless Undo or a
- * later restore came first. While their bytes come from the server the
- * notice says how far, and Cancel, Undo or Ctrl+Z stop it and put the
- * settings back. */
+/** Restore inputs, or settings and inputs, as a wait: nothing changes until
+ * the inputs have been read, then the settings, the model pick and the frames
+ * land as one step. While their bytes come from the server the wait's notice
+ * says how far, and its Cancel, Undo or Ctrl+Z stop it. When the inputs are
+ * gone the settings land alone with a note. A later restore takes the place
+ * of one still reading. */
 async function restoreWithInputs(
   target: RestoreTarget,
   kind: Exclude<RestoreKind, "settings">,
-  elsewhere = false,
-  pick: ModelPick | null = null,
+  elsewhere: boolean,
+  pick: ModelPick | null,
+  opened: WaitHandle | null = null,
 ) {
-  waiting?.cancel();
+  const waited = opened ?? wait("images", restoreName(kind), { replaces: true });
   const token = ++latest;
-  const gen = useGenerationStore.getState();
-  // the size from before anything changed is the one Undo puts back
-  const previousSize = { width: gen.width, height: gen.height };
-  let applied: ReturnType<typeof applySettings> | null = null;
-  if (kind === "both") {
-    if (!target.settings.ok) {
+  try {
+    if (kind === "both" && !target.settings.ok) {
       toast.info(reasonText(target.settings.reason));
       return;
     }
-    applied = applySettings(target.settings.extracted);
-  }
-  // the model goes with the settings
-  const unpick = applied ? applyPick(pick) : () => {};
-  const modelNote = applied ? pickNote(pick) : null;
-  const notes = applied?.notes ?? [];
-  let putBack: Inverse | null = null;
-  let undone = false;
-  const abort = new AbortController();
-  const cancel = () => {
-    undone = true;
-    abort.abort();
-    unpick();
-    applied?.revert();
-  };
-  const self = { cancel };
-  waiting = self;
-  const offer = offerUndo(
-    restoringText(kind, elsewhere),
-    null,
-    () => {
-      if (!putBack) {
-        cancel();
-        toast.info(RESTORE_CANCELLED);
+    waited.progress(restoringText(kind, elsewhere));
+    const modelNote = kind === "both" ? pickNote(pick) : null;
+    let loaded: LoadedInputs | null = null;
+    try {
+      loaded = await target.inputs({
+        signal: waited.signal,
+        onProgress: (p) => waited.progress(fetchingText(p.done, p.total, p.bytes)),
+      });
+    } catch (err) {
+      if (!(err instanceof UserAbortError)) {
+        console.error("[inputs] could not read a result's stored inputs", err);
+      }
+    }
+    if (waited.cancelled || token !== latest) return;
+    const settings = () => {
+      if (kind !== "both" || !target.settings.ok) return [];
+      const notes = applySettings(target.settings.extracted);
+      applyPick(pick);
+      return notes;
+    };
+    if (!loaded) {
+      if (kind !== "both") {
+        toast.info(restoreNotesText(["inputsGone"]));
         return;
       }
-      undone = true;
-      // the frames first, then the settings, so the size from before wins
-      putBack.run();
-      unpick();
-      applied?.revert();
-    },
-    {
-      holds: () => (putBack ? cidsOf(putBack.frames) : []),
-      // another change took the notice: the inputs no longer land over it
-      settle: () => {
-        if (!putBack) abort.abort();
-      },
-      waiting: true,
-    },
-  );
-  const live = () => !undone && token === latest && !abort.signal.aborted;
-
-  let loaded: LoadedInputs | null = null;
-  try {
-    loaded = await target.inputs({
-      signal: abort.signal,
-      onProgress: (p) => offer.progress(fetchingText(p.done, p.total, p.bytes)),
+      waited.land(() => {
+        const notes = settings();
+        announce("images").show(restoredText("settings", elsewhere), {
+          description: joinNotes(
+            restoreNotesText([...notes, "inputsGone"]),
+            skippedNote(target),
+            modelNote,
+          ),
+        });
+      }, restoreName("settings"));
+      return;
+    }
+    await inputsReady();
+    if (waited.cancelled || token !== latest) return;
+    const inputs = target.place === "recall" ? recalled(loaded.inputs) : loaded.inputs;
+    const gen = useGenerationStore.getState();
+    // the size the displaced inputs were made at, before the settings change it
+    const previousSize = { width: gen.width, height: gen.height };
+    waited.land(() => {
+      const notes = settings();
+      restoreFrames(inputs, previousSize);
+      announce("images").show(restoredText(kind, elsewhere), {
+        description: joinNotes(
+          restoreNotesText(notes),
+          kind === "both" ? skippedNote(target) : null,
+          modelNote,
+        ),
+      });
     });
-  } catch (err) {
-    if (!(err instanceof UserAbortError)) {
-      console.error("[inputs] could not read a result's stored inputs", err);
-    }
+    const lost = loaded.lost.pictures.length;
+    if (lost > 0) toast.warning(lostPicturesText(lost));
   } finally {
-    if (waiting === self) waiting = null;
+    waited.end();
   }
-  if (!live()) return;
-  if (!loaded) {
-    if (applied) {
-      offer.update(
-        restoredText("settings", elsewhere),
-        joinNotes(restoreNotesText([...notes, "inputsGone"]), skippedNote(target), modelNote),
-      );
-    } else {
-      offer.withdraw();
-      toast.info(restoreNotesText(["inputsGone"]));
-    }
-    return;
-  }
-  await inputsReady();
-  if (!live()) return;
-  putBack = restoreFrames(
-    target.place === "recall" ? recalled(loaded.inputs) : loaded.inputs,
-    previousSize,
-  );
-  offer.update(
-    restoredText(kind, elsewhere),
-    joinNotes(restoreNotesText(notes), applied ? skippedNote(target) : null, modelNote),
-  );
-  const lost = loaded.lost.pictures.length;
-  if (lost > 0) toast.warning(lostPicturesText(lost));
 }
 
 export function restoreInputs(target: RestoreTarget): Promise<void> {
-  return restoreWithInputs(target, "inputs");
+  return restoreWithInputs(target, "inputs", false, null);
 }
 
 export function restoreSettingsAndInputs(
@@ -377,27 +330,28 @@ export function restoreSettingsAndInputs(
   return restoreWithInputs(target, "both", false, pick);
 }
 
-/** A restore started outside the Images view: that view opens, and the
- * notice says where the inputs went. */
-export function restoreInImages(
-  target: RestoreTarget,
-  kind: Exclude<RestoreKind, "settings">,
-  pick: ModelPick | null = null,
-): Promise<void> {
-  useUiStore.getState().setNavView("images");
-  return restoreWithInputs(target, kind, true, pick);
-}
-
 /** A restore from a menu or a card: the target read first, then the model
- * picked as `modelPick` decides. */
+ * picked as `modelPick` decides. A wait from the start; one started outside
+ * the Images view opens that view, and its notice says where the inputs went. */
 export async function restoreFrom(
   target: Promise<RestoreTarget>,
   kind: RestoreKind,
   elsewhere = false,
 ): Promise<void> {
-  const read = await target;
-  const pick = kind === "inputs" ? null : await modelPick(read.model);
-  if (kind === "settings") return restoreSettings(read, pick);
-  if (elsewhere) return restoreInImages(read, kind, pick);
-  return kind === "inputs" ? restoreInputs(read) : restoreSettingsAndInputs(read, pick);
+  const waited = wait("images", restoreName(kind), { replaces: kind !== "settings" });
+  let handed = false;
+  try {
+    const read = await target;
+    const pick = kind === "inputs" ? null : await modelPick(read.model);
+    if (waited.cancelled) return;
+    if (kind === "settings") {
+      waited.land(() => restoreSettings(read, pick));
+      return;
+    }
+    if (elsewhere) useUiStore.getState().setNavView("images");
+    handed = true;
+    await restoreWithInputs(read, kind, elsewhere, pick, waited);
+  } finally {
+    if (!handed) waited.end();
+  }
 }

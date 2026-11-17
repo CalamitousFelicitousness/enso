@@ -27,7 +27,10 @@ function world() {
   const joins: { scope: Scope; slice: string; moves: readonly ItemMove[] }[] = [];
   const settles: SettleWrite[] = [];
   const sink: Sink = {
-    record: (d) => drafts.push([...d]),
+    record: (d) => {
+      drafts.push([...d]);
+      return d.map(() => null);
+    },
     touch: (cells) => touched.push([...cells]),
     join: (scope, slice, moves) => joins.push({ scope, slice, moves }),
   };
@@ -154,7 +157,14 @@ describe("recorder", () => {
     const settings = createStore(() => ({ steps: 20, cfg: 7 }));
     const gestures = drivenGestures();
     const drafts: Draft[] = [];
-    const sink: Sink = { record: (d) => drafts.push(...d), touch: () => {}, join: () => {} };
+    const sink: Sink = {
+      record: (d) => {
+        drafts.push(...d);
+        return d.map(() => null);
+      },
+      touch: () => {},
+      join: () => {},
+    };
     const recorder = createRecorder({ gestures, sink, view: () => "images" });
     const slice = keySlice({
       name: "settings",
@@ -580,7 +590,14 @@ describe("recorder", () => {
     const drafts: Draft[] = [];
     const recorder = createRecorder({
       gestures: { ...tracker, open: () => tracker.open() || tracker.adopt(event) },
-      sink: { record: (d) => drafts.push(...d), touch: () => {}, join: () => {} },
+      sink: {
+        record: (d) => {
+          drafts.push(...d);
+          return d.map(() => null);
+        },
+        touch: () => {},
+        join: () => {},
+      },
       view: () => "images",
       now: () => 1,
     });

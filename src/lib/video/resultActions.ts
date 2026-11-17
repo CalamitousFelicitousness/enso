@@ -9,6 +9,7 @@ import {
 import { mediaSrc } from "@/api/session";
 import { downloadMedia, failedWith } from "@/lib/mediaFiles";
 import type { VideoResult } from "@/api/types/video";
+import { wait } from "@/undo/marks";
 
 // Past the end of any clip; the extractor clamps to the real duration.
 const LAST_FRAME = 999999;
@@ -46,17 +47,19 @@ export function sendFrameToUpscaleFrom(result: VideoResult) {
   return withFrame(result, 0, sendFrameToUpscale, "Frame sent to Upscale");
 }
 
+/** The last frame into Init and the result's settings back, its model pick
+ * landing as one step once the frame is in. */
 export function extendFrom(result: VideoResult) {
+  const waited = wait("shared", { kind: "extend video" });
   return withFrame(
     result,
     LAST_FRAME,
     async (blob) => {
       if (!(await sendFrameToVideoInit(blob))) return false;
-      restoreVideoSettings(result.params, result.domain);
-      return true;
+      return waited.land(() => restoreVideoSettings(result.params, result.domain));
     },
     "Ready to extend video",
-  );
+  ).finally(() => waited.end());
 }
 
 export function restoreResultSettings(result: VideoResult) {

@@ -8,7 +8,12 @@ import { exceedsLimit } from "@/lib/inputs/capacity";
 import { refitFrame } from "@/lib/inputs/geometry";
 import { acceptOffer, declineOffer, type LegacyRecord } from "@/lib/inputs/imports";
 import { addToReport, type InputReport } from "@/lib/inputs/report";
-import type { OutlineProblem, SizeSourcePick } from "@/lib/inputs/outline";
+import {
+  computeOutline,
+  outlineEntry,
+  type OutlineProblem,
+  type SizeSourcePick,
+} from "@/lib/inputs/outline";
 import { fixProblem } from "@/lib/inputs/problems";
 import * as reduce from "@/lib/inputs/reducers";
 import { NewerDocument, type WorkingDocument } from "@/lib/inputs/stored";
@@ -29,6 +34,7 @@ import type {
 } from "@/lib/inputs/types";
 import { DocumentConflict, NewerDatabase } from "@/inputs/db";
 import { legacyMarks } from "@/inputs/legacySources";
+import { outlineOf } from "@/inputs/outlineOf";
 import { clear, ignore, note, rehydrating } from "@/undo/marks";
 import { FULL_ID, isQuotaError, reportFull } from "@/inputs/quota";
 import {
@@ -84,10 +90,21 @@ export type EditKind =
 /** Consequences of another change, which never name a step. */
 const QUIET: ReadonlySet<EditKind> = new Set<EditKind>(["bake", "refit"]);
 
-function noteEdit(kind: EditKind, frameId: string | null): void {
-  note("images", frameId ? { kind, args: { frame: frameId } } : { kind }, {
-    quiet: QUIET.has(kind),
-  });
+/** The frame's "Input N" after the change, else before it: a removed frame. */
+function positionIn(frameId: string, after: Frame[], before: Frame[]): number {
+  const entry =
+    outlineEntry(outlineOf(after), frameId) ?? outlineEntry(computeOutline(before), frameId);
+  return entry?.position ?? 0;
+}
+
+function noteEdit(kind: EditKind, frameId: string | null, after: Frame[], before: Frame[]): void {
+  note(
+    "images",
+    frameId
+      ? { kind, args: { frame: frameId, position: positionIn(frameId, after, before) } }
+      : { kind },
+    { quiet: QUIET.has(kind) },
+  );
 }
 
 interface InputState extends WorkingDocument {
@@ -323,7 +340,7 @@ export const useInputStore = create<InputState>()(
           set((s) => {
             const frames = change(s.frames);
             if (frames === s.frames) return s;
-            noteEdit(kind, frameId);
+            noteEdit(kind, frameId, frames, s.frames);
             return { frames, ...reduce.settleSelection(frames, s.frames, s) };
           }),
         );
@@ -530,7 +547,7 @@ export const useInputStore = create<InputState>()(
         restoreFrames: (frames) =>
           whenReady(() =>
             set((s) => {
-              noteEdit("restored", null);
+              noteEdit("restored", null, frames, s.frames);
               return {
                 frames,
                 ...reduce.settleSelection(frames, s.frames, {
@@ -550,7 +567,7 @@ export const useInputStore = create<InputState>()(
           whenReady(() =>
             set((s) => {
               if (s.sizeSource === pick) return s;
-              noteEdit("size source", pick?.frameId ?? null);
+              noteEdit("size source", pick?.frameId ?? null, s.frames, s.frames);
               return { sizeSource: pick };
             }),
           ),

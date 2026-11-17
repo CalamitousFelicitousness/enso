@@ -8,10 +8,15 @@ import type { VideoSubTab } from "@/lib/constants";
 import { useModelSelectionStore } from "@/stores/modelSelectionStore";
 import {
   addFilesToInputs,
+  addingWait,
   addServerPictures,
   fetchAdmitted,
+  placePictures,
   preparePictures,
+  readyPictures,
 } from "@/inputs/route";
+import { announce, wait } from "@/undo/marks";
+import { nameText } from "@/lib/undo/text";
 import { galleryPicture, resultPicture, type ServerPicture } from "@/inputs/adopt";
 import { mediaFile } from "@/lib/mediaFiles";
 import { engineToKind } from "@/lib/videoModel";
@@ -116,12 +121,57 @@ export async function sendFrameToUpscale(blob: Blob): Promise<boolean> {
   return true;
 }
 
+/** A file, or what reads it once the action's wait is open. */
+export type FileSource = File | (() => Promise<File>);
+
+const readSource = (source: FileSource) =>
+  typeof source === "function" ? source() : Promise.resolve(source);
+
 /** Answers whether the picture entered a frame. */
-export async function sendImageToCanvas(file: File): Promise<boolean> {
-  const [added] = await addFilesToInputs([file]);
-  if (!added) return false;
-  useUiStore.getState().setNavView("images");
-  return true;
+export async function sendImageToCanvas(source: FileSource): Promise<boolean> {
+  const waited = addingWait(1, null);
+  try {
+    const file = await readSource(source);
+    if (waited.cancelled) return false;
+    const [added] = await addFilesToInputs([file], null, waited);
+    if (!added) return false;
+    useUiStore.getState().setNavView("images");
+    return true;
+  } finally {
+    waited.end();
+  }
+}
+
+/** Send a picture and the prompts that made it to the Images view as one
+ * step: the picture is read first, then both land together. Answers whether
+ * the picture entered a frame. */
+export async function sendImageAndPrompt(
+  source: FileSource,
+  prompt: string,
+  negative?: string,
+): Promise<boolean> {
+  const name = { kind: "image and prompt" } as const;
+  const waited = wait("images", name);
+  try {
+    const file = await readSource(source);
+    if (waited.cancelled) return false;
+    const ready = await readyPictures([file], null);
+    if (!ready) return false;
+    let added = false;
+    waited.land(() => {
+      added = placePictures(ready).added > 0;
+      if (!added) return;
+      const gen = useGenerationStore.getState();
+      if (prompt) gen.setParam("prompt", prompt);
+      if (prompt && negative) gen.setParam("negativePrompt", negative);
+      announce("images").show(nameText(name));
+    });
+    if (!added) return false;
+    useUiStore.getState().setNavView("images");
+    return true;
+  } finally {
+    waited.end();
+  }
 }
 
 /** Send a picture the server holds to the canvas, which takes it into the
