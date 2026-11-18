@@ -8,6 +8,7 @@ import {
 } from "@/components/ui/context-menu";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { getParamHelp, stripParamHelpHtml } from "@/data/parameterHelp";
+import { historyKey } from "@/lib/shortcuts";
 import { cn } from "@/lib/utils";
 import { useStepBurst } from "@/hooks/useCommittedSlider";
 
@@ -91,6 +92,12 @@ export const ParamSlider = memo(function ParamSlider({
   // ── State ──────────────────────────────────────────────────────
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState("");
+  // a draft that still stands for the value follows it, as when Undo moves it
+  const [draftOf, setDraftOf] = useState(value);
+  if (!Object.is(draftOf, value)) {
+    setDraftOf(value);
+    if (editing && parseFloat(draft) === draftOf) setDraft(formatValue(value, decimals));
+  }
   const [dragging, setDragging] = useState(false);
   const [hovered, setHovered] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
@@ -421,6 +428,8 @@ export const ParamSlider = memo(function ParamSlider({
           // eslint-disable-next-line jsx-a11y/no-autofocus -- click-to-edit UX requires immediate focus
           autoFocus
           value={draft}
+          // an uncommitted draft keeps the browser's own undo for its typing
+          data-drafting={parseFloat(draft) === value ? undefined : ""}
           onChange={(e) => setDraft(e.target.value)}
           onBlur={commitEdit}
           onKeyDown={(e) => {
@@ -432,7 +441,8 @@ export const ParamSlider = memo(function ParamSlider({
               e.preventDefault();
               cancelEdit();
             }
-            e.stopPropagation();
+            // Undo and Redo reach the page, which leaves a draft's typing to the browser
+            if (!historyKey(e.nativeEvent)) e.stopPropagation();
           }}
           className="absolute inset-y-0 right-1.5 w-16 bg-transparent text-right font-mono text-3xs tabular-nums outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
           min={min}

@@ -1,11 +1,18 @@
 import fc from "fast-check";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createStore } from "zustand/vanilla";
+import { createStore, type StoreApi } from "zustand/vanilla";
 import type { NavView } from "@/lib/constants";
+import { openTyping, type TypingKind } from "@/lib/undo/stacks";
 import type { Command, Scope } from "@/lib/undo/types";
 import { drivenGestures } from "./gesture";
 import { NO_HOOKS } from "./replay";
-import { createUndo, type Notices, type UndoOptions } from "./service";
+import {
+  createUndo,
+  type EditorHandle,
+  type Notices,
+  type Undo,
+  type UndoOptions,
+} from "./service";
 import { keySlice, listSlice } from "./slice";
 
 const RECORDED: ReadonlySet<Scope> = new Set<Scope>(["images", "gallery", "shared"]);
@@ -649,5 +656,311 @@ describe("undo service: names, notices and cuts", () => {
     expect(w.sides("gallery").undo).toHaveLength(1);
     w.undo.invalidate(new Set(["file:b"]));
     expect(w.sides("gallery").undo).toHaveLength(0);
+  });
+});
+
+describe("a text field's typing", () => {
+  it("is the history's once a step recorded it, and the field's own when none ever did", () => {
+    const w = world();
+    const recorded = {};
+    const unrecorded = {};
+    w.gestures.start({}, recorded);
+    w.settings.setState({ steps: 30 });
+    w.gestures.end();
+    expect(w.undo.typedUnrecorded(recorded)).toBe(false);
+    // typed, but nothing it wrote is recorded
+    w.gestures.start({}, unrecorded);
+    w.gestures.end();
+    expect(w.undo.typedUnrecorded(unrecorded)).toBe(true);
+    // never typed into
+    expect(w.undo.typedUnrecorded({})).toBe(false);
+  });
+
+  it("stays the history's after its step leaves the stacks", async () => {
+    const w = world();
+    const field = {};
+    w.gestures.start({}, field);
+    w.settings.setState({ steps: 30 });
+    w.gestures.end();
+    await w.undo.press("undo");
+    // a new step clears the redo side the typing went to
+    w.act(() => w.settings.setState({ cfg: 5 }));
+    expect(w.sides("images").redo).toEqual([]);
+    expect(w.undo.typedUnrecorded(field)).toBe(false);
+    w.undo.marks.rehydrating(w.settings, true);
+    w.undo.marks.rehydrating(w.settings, false);
+    expect(w.undo.typedUnrecorded(field)).toBe(false);
+  });
+
+  it("stays the history's after its session types back to where it began", () => {
+    const w = world();
+    const field = {};
+    const session = {};
+    w.gestures.start(session, field);
+    w.settings.setState({ steps: 30 });
+    w.gestures.end();
+    w.gestures.start(session, field);
+    w.settings.setState({ steps: 20 });
+    w.gestures.end();
+    expect(w.sides("images").undo).toEqual([]);
+    expect(w.undo.typedUnrecorded(field)).toBe(false);
+  });
+});
+
+type Prompts = { prompt: string; negative: string; steps: number };
+
+/** A prompt editor over one key, its own history kept as CodeMirror keeps it:
+ * one group per typed change, emptied by a write from the store. */
+function promptEditor(
+  history: Undo,
+  store: StoreApi<Prompts>,
+  key: "prompt" | "negative",
+  gestures: ReturnType<typeof drivenGestures>,
+) {
+  let doc = store.getState()[key];
+  let done: string[] = [];
+  let undone: string[] = [];
+  let readOnly = false;
+  let resets = 0;
+  const handle: EditorHandle = {
+    undo: () => {
+      const back = done.at(-1);
+      if (readOnly || back === undefined) return false;
+      done = done.slice(0, -1);
+      undone = [...undone, doc];
+      change("undo", back);
+      return true;
+    },
+    redo: () => {
+      const forward = undone.at(-1);
+      if (readOnly || forward === undefined) return false;
+      undone = undone.slice(0, -1);
+      done = [...done, doc];
+      change("redo", forward);
+      return true;
+    },
+    undoDepth: () => done.length,
+    redoDepth: () => undone.length,
+    reset: () => {
+      done = [];
+      undone = [];
+      resets += 1;
+    },
+    text: () => doc,
+  };
+  function change(kind: TypingKind, next: string) {
+    const before = doc;
+    doc = next;
+    history.typing(handle, kind, before, () => store.setState({ [key]: next }));
+  }
+  store.subscribe((s) => {
+    if (s[key] === doc) return;
+    doc = s[key];
+    done = [];
+    undone = [];
+  });
+  return {
+    handle,
+    type: (next: string) => {
+      gestures.start();
+      done = [...done, doc];
+      undone = [];
+      change("input", next);
+      gestures.end();
+    },
+    get text() {
+      return doc;
+    },
+    get resets() {
+      return resets;
+    },
+    setReadOnly: (on: boolean) => {
+      readOnly = on;
+    },
+  };
+}
+
+function typingWorld() {
+  const settings = createStore<Prompts>(() => ({ prompt: "", negative: "", steps: 20 }));
+  const gestures = drivenGestures();
+  const history = createUndo({
+    gestures,
+    view: () => "images",
+    recorded: RECORDED,
+    hooks: NO_HOOKS,
+    holdMs: 1000,
+  });
+  history.add(
+    keySlice({
+      name: "settings",
+      scope: "images",
+      store: settings,
+      keys: ["prompt", "negative", "steps"],
+      set: (v) => settings.setState(v),
+    }),
+  );
+  const stack = () => history.stacks().byScope.images;
+  return {
+    settings,
+    history,
+    editor: (key: "prompt" | "negative") => promptEditor(history, settings, key, gestures),
+    act: (fn: () => void) => {
+      gestures.start();
+      fn();
+      gestures.end();
+    },
+    sides: () => ({ undo: stack().undo.length, redo: stack().redo.length }),
+    open: () => openTyping(history.stacks()),
+  };
+}
+
+describe("typing in a prompt editor", () => {
+  it("is one open run, which Undo steps back through the editor's own history", async () => {
+    const w = typingWorld();
+    const prompt = w.editor("prompt");
+    prompt.type("a");
+    prompt.type("ab");
+    expect(w.sides()).toEqual({ undo: 1, redo: 0 });
+    expect(w.open()?.name).toEqual({ kind: "typing", args: { slice: "settings", key: "prompt" } });
+    expect(w.history.next("undo").kind).toBe("editor");
+    expect(await w.history.press("undo")).toMatchObject({ kind: "typed" });
+    expect(prompt.text).toBe("a");
+    expect(w.settings.getState().prompt).toBe("a");
+    await w.history.press("undo");
+    expect(prompt.text).toBe("");
+    // back where the run began, with nothing else in reach
+    expect(await w.history.press("undo")).toEqual({ kind: "none" });
+    expect(w.open()).not.toBeNull();
+  });
+
+  it("redoes inside the editor while the run is open", async () => {
+    const w = typingWorld();
+    const prompt = w.editor("prompt");
+    prompt.type("a");
+    prompt.type("ab");
+    await w.history.press("undo");
+    expect(w.history.next("redo").kind).toBe("editor");
+    await w.history.press("redo");
+    expect(prompt.text).toBe("ab");
+    expect(w.settings.getState().prompt).toBe("ab");
+  });
+
+  it("closes when another step is recorded, and the editor's own history empties", async () => {
+    const w = typingWorld();
+    const prompt = w.editor("prompt");
+    prompt.type("a");
+    prompt.type("ab");
+    w.act(() => w.settings.setState({ steps: 30 }));
+    expect(w.open()).toBeNull();
+    expect(prompt.resets).toBe(1);
+    await w.history.press("undo");
+    expect(w.settings.getState().steps).toBe(20);
+    // the run as a whole
+    expect(await w.history.press("undo")).toMatchObject({ kind: "replayed", side: "before" });
+    expect(prompt.text).toBe("");
+  });
+
+  it("puts what the editor stepped back from on Redo when the editor hides", async () => {
+    const w = typingWorld();
+    const prompt = w.editor("prompt");
+    prompt.type("a");
+    prompt.type("ab");
+    await w.history.press("undo");
+    w.history.closeTyping(prompt.handle);
+    expect(w.open()).toBeNull();
+    expect(prompt.resets).toBe(1);
+    expect(w.sides()).toEqual({ undo: 1, redo: 1 });
+    await w.history.press("redo");
+    expect(prompt.text).toBe("ab");
+    await w.history.press("undo");
+    await w.history.press("undo");
+    expect(prompt.text).toBe("");
+  });
+
+  it("leaves no step for a run whose text came back to where it began", () => {
+    const w = typingWorld();
+    const prompt = w.editor("prompt");
+    prompt.type("a");
+    prompt.type("");
+    w.history.closeTyping(prompt.handle);
+    expect(w.sides()).toEqual({ undo: 0, redo: 0 });
+  });
+
+  it("undoes a read-only editor's run whole", async () => {
+    const w = typingWorld();
+    const prompt = w.editor("prompt");
+    prompt.type("a");
+    prompt.type("ab");
+    prompt.setReadOnly(true);
+    expect(await w.history.press("undo")).toMatchObject({ kind: "replayed", side: "before" });
+    expect(prompt.text).toBe("");
+    expect(w.sides()).toEqual({ undo: 0, redo: 1 });
+  });
+
+  it("closes one editor's run when another editor types, and only on that editor's hide", () => {
+    const w = typingWorld();
+    const prompt = w.editor("prompt");
+    const negative = w.editor("negative");
+    prompt.type("a");
+    w.history.closeTyping(negative.handle);
+    expect(w.open()?.typing?.editor).toBe(prompt.handle);
+    negative.type("b");
+    expect(prompt.resets).toBe(1);
+    expect(w.sides()).toEqual({ undo: 2, redo: 0 });
+    expect(w.open()?.typing?.editor).toBe(negative.handle);
+  });
+
+  it("keeps its run when the step that closes it writes back the text the run began from", async () => {
+    const w = typingWorld();
+    const prompt = w.editor("prompt");
+    prompt.type("a");
+    prompt.type("ab");
+    // a restore made in a gesture: the editor shows its text before the step is recorded
+    w.act(() => w.settings.setState({ prompt: "" }));
+    expect(w.sides()).toEqual({ undo: 2, redo: 0 });
+    await w.history.press("undo");
+    expect(prompt.text).toBe("ab");
+    await w.history.press("undo");
+    expect(prompt.text).toBe("");
+  });
+
+  it("empties the editor's own history after a change no run holds", async () => {
+    const w = typingWorld();
+    const prompt = w.editor("prompt");
+    // the store reads itself from storage: the change is no step's
+    w.history.marks.rehydrating(w.settings, true);
+    prompt.type("a");
+    w.history.marks.rehydrating(w.settings, false);
+    expect(w.sides()).toEqual({ undo: 0, redo: 0 });
+    expect(prompt.resets).toBe(1);
+    prompt.type("ab");
+    await w.history.press("undo");
+    expect(prompt.text).toBe("a");
+    expect(await w.history.press("undo")).toEqual({ kind: "none" });
+    expect(prompt.text).toBe("a");
+  });
+
+  it("does nothing on Redo when a read-only editor cannot redo what it stepped back from", async () => {
+    const w = typingWorld();
+    const prompt = w.editor("prompt");
+    prompt.type("a");
+    prompt.type("ab");
+    await w.history.press("undo");
+    prompt.setReadOnly(true);
+    expect(await w.history.press("redo")).toEqual({ kind: "none" });
+    expect(prompt.text).toBe("a");
+    expect(w.settings.getState().prompt).toBe("a");
+  });
+
+  it("steps through the editor when a press names the open run", async () => {
+    const w = typingWorld();
+    const prompt = w.editor("prompt");
+    prompt.type("a");
+    prompt.type("ab");
+    const only = w.open()?.id ?? -1;
+    expect(await w.history.press("undo", { only })).toMatchObject({ kind: "typed" });
+    expect(prompt.text).toBe("a");
+    expect(await w.history.press("redo", { only })).toMatchObject({ kind: "typed" });
+    expect(prompt.text).toBe("ab");
   });
 });

@@ -147,6 +147,19 @@ function changedText(step: Named): string {
   return step.patches.some((p) => p.kind === "list") ? "Inputs changed" : "Change";
 }
 
+/** "Typing in Prompt", "Typing in Detailer settings: prompt". A run typed back
+ * to where it began changes nothing, and is named by the key its name carries. */
+function typingText(args: Args, step: Named): string {
+  const [change] = keyChanges(step);
+  if (!change) {
+    const key = text(args, "key");
+    return key ? `Typing in ${keyLabel(text(args, "slice"), key)}` : "Typing";
+  }
+  const label = keyLabel(change.slice, change.key);
+  const field = fieldChange(change.before, change.after);
+  return field ? `Typing in ${label}: ${field.key}` : `Typing in ${label}`;
+}
+
 const RESTORE_KINDS: ReadonlySet<string> = new Set<RestoreKind>(["settings", "inputs", "both"]);
 
 /** What each named kind of step is called. */
@@ -184,6 +197,7 @@ const WORDS: Readonly<Record<string, (args: Args, step: Named) => string>> = {
   // named by what changed
   set: (_a, step) => changedText(step),
   edit: (_a, step) => changedText(step),
+  typing: (a, step) => typingText(a, step),
   command: () => "Change",
   // actions that name their own step
   "model defaults": (a) => `Defaults for ${text(a, "model")}`,

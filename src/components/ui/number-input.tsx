@@ -37,7 +37,8 @@ const NumberInput = memo(function NumberInput({
   const [seen, setSeen] = useState(value);
   if (!Object.is(seen, value)) {
     setSeen(value);
-    if (!dirty) setDraft(String(value));
+    // typing that came back to the value holds nothing of its own
+    if (!dirty || draft === String(seen)) setDraft(String(value));
   }
 
   const commit = () => {
@@ -60,6 +61,8 @@ const NumberInput = memo(function NumberInput({
       max={max}
       step={step}
       value={editing ? draft : value}
+      // an uncommitted draft keeps the browser's own undo for its typing
+      data-drafting={editing && draft !== String(value) ? "" : undefined}
       onFocus={() => {
         setEditing(true);
         setDirty(false);

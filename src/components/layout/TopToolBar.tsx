@@ -6,7 +6,7 @@ import { ConnectionIndicator } from "@/components/connection/ConnectionIndicator
 import { PanelLeftOpen, Redo2, Undo2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useUndo } from "@/undo/store";
-import { pressUndo } from "@/undo/useUndoCommands";
+import { pressUndo } from "@/undo/press";
 
 /** Undo and Redo of the newest change in reach of the view on screen, each
  * naming what it would do; grayed out when there is nothing. */

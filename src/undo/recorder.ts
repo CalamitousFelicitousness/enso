@@ -58,7 +58,8 @@ type Mode =
   | { readonly kind: "recorded"; readonly view: NavView | undefined }
   | { readonly kind: "follow" }
   | { readonly kind: "ignore" }
-  | { readonly kind: "replay" };
+  | { readonly kind: "replay" }
+  | { readonly kind: "typing" };
 
 interface Pending {
   /** The view the step was made from; null takes each scope's own. */
@@ -94,6 +95,9 @@ export interface Recorder {
   readonly landing: <T>(view: NavView, name: StepName, fn: () => T) => T;
   /** Write a step's side: nothing in it or set off by it is a step. */
   readonly replaying: <T>(fn: () => T) => T;
+  /** A prompt editor's change, written by `fn` and diffed at once: the drafts
+   * the history makes typing of, recorded by the caller. */
+  readonly typing: (fn: () => void) => Draft[];
   readonly deafen: (store: object, on: boolean) => void;
   readonly stop: () => void;
 }
@@ -141,6 +145,7 @@ export function createRecorder(options: RecorderOptions): Recorder {
   const deaf = (slice: Slice) => deafStores.has(slice.store) || deafMode();
   const recording = () => gestures.open() || modes.some(scoped);
   const following = () => modes.some((m) => m.kind === "follow");
+  const typingNow = () => modes.some((m) => m.kind === "typing");
 
   const observe = (slice: Slice): Seen => {
     const current = { value: slice.read(), context: slice.context?.() };
@@ -282,8 +287,9 @@ export function createRecorder(options: RecorderOptions): Recorder {
       if (!pending && slice.context) context.set(slice, current.context);
       return;
     }
-    // a follow-up write outside a step is joined or settled when its follow returns
-    if (pending || following()) return;
+    // a follow-up write outside a step is joined or settled when its follow returns,
+    // and typing is diffed when its write returns
+    if (pending || following() || typingNow()) return;
     if (recording()) openPending();
     else settle(slice, was, current);
   };
@@ -406,6 +412,13 @@ export function createRecorder(options: RecorderOptions): Recorder {
         if (!deafMode()) resnap(false);
         gestures.end();
       }
+    },
+    typing: (fn) => {
+      close();
+      const open: Pending = { view: view(), gesture: false, at: now(), context: new Map(context) };
+      run({ kind: "typing" }, fn);
+      notes = [];
+      return build(open, false, [], null, new Map<Scope, Command[]>());
     },
     deafen: (store, on) => {
       if (on) {

@@ -539,6 +539,15 @@ export function matchesEvent(def: ShortcutDef, e: KeyInput, mac = IS_MAC): boole
   return false;
 }
 
+/** Which history key an event is in a text field: Undo, Redo, or Ctrl+Y as a
+ * second Redo except on macOS, where text fields keep Ctrl+Y. */
+export function historyKey(e: KeyInput, mac = IS_MAC): "undo" | "redo" | null {
+  if (matchesEvent(SHORTCUTS["undo"], e, mac)) return "undo";
+  if (matchesEvent(SHORTCUTS["redo"], e, mac)) return "redo";
+  if (!mac && matchesEvent(SHORTCUTS["redo-alt"], e, mac)) return "redo";
+  return null;
+}
+
 /** Whether a focused element takes typing, so its own keys come first. */
 export function isTextEntry(
   target: { tagName: string; type?: string; isContentEditable?: boolean } | null,

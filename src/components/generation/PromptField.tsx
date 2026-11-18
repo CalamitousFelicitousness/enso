@@ -10,10 +10,12 @@ import { useOptions } from "@/api/hooks/useSettings";
 import {
   promptExtensions,
   promptAutocomplete,
+  promptHistory,
   embeddingNamesFacet,
   loraNamesFacet,
   styleNamesFacet,
   wildcardNamesFacet,
+  type PromptHistory,
 } from "./prompt-cm";
 
 interface PromptFieldProps {
@@ -23,6 +25,9 @@ interface PromptFieldProps {
   className?: string;
   /** Kept and shown, not editable. */
   readOnly?: boolean;
+  /** Undo and Redo stay inside the editor: the app's history does not
+   * record the store it writes. */
+  ownHistory?: boolean;
 }
 
 function readOnlyExtensions(readOnly: boolean) {
@@ -35,9 +40,11 @@ export function PromptField({
   placeholder,
   className,
   readOnly = false,
+  ownHistory = false,
 }: PromptFieldProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
+  const historyRef = useRef<PromptHistory | null>(null);
   const lastValue = useRef(value);
   const onChangeRef = useRef(onChange);
   // eslint-disable-next-line react-hooks/refs -- latest-ref pattern; CodeMirror callback reads via ref
@@ -104,19 +111,16 @@ export function PromptField({
   useEffect(() => {
     if (!containerRef.current) return;
 
-    const onDocChange = EditorView.updateListener.of((update) => {
-      if (update.docChanged) {
-        const next = update.state.doc.toString();
-        lastValue.current = next;
-        onChangeRef.current(next);
-      }
+    const textHistory = promptHistory(ownHistory, (next) => {
+      lastValue.current = next;
+      onChangeRef.current(next);
     });
 
     const view = new EditorView({
       doc: value,
       extensions: [
         ...promptExtensions(placeholder),
-        onDocChange,
+        textHistory.extension,
         readOnlyComp.current.of(readOnlyExtensions(readOnly)),
         autocompleteComp.current.of(acEnabled ? promptAutocomplete() : []),
         embeddingComp.current.of(embeddingNamesFacet.of(embeddingNames)),
@@ -127,11 +131,16 @@ export function PromptField({
       parent: containerRef.current,
     });
 
+    textHistory.attach(view);
+    historyRef.current = textHistory;
     viewRef.current = view;
     lastValue.current = value;
 
     return () => {
+      textHistory.close();
       view.destroy();
+      textHistory.detach();
+      historyRef.current = null;
       viewRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- mount only
@@ -140,15 +149,9 @@ export function PromptField({
   // ── Sync external value → editor ───────────────────────────────────
 
   useEffect(() => {
-    const view = viewRef.current;
-    if (!view || value === lastValue.current) return;
-    const doc = view.state.doc.toString();
-    if (value !== doc) {
-      view.dispatch({
-        changes: { from: 0, to: doc.length, insert: value },
-      });
-    }
+    if (value === lastValue.current) return;
     lastValue.current = value;
+    historyRef.current?.write(value);
   }, [value]);
 
   // ── Re-measure on reveal when hosted inside a KeepAlive panel ────────
@@ -156,10 +159,12 @@ export function PromptField({
   // unwrapped lines for one frame on first reveal until ResizeObserver fires.
   // Asking for an explicit measure on the hidden→visible transition removes
   // the flash. No-op (already measured) outside a KeepAlive boundary.
+  // Hiding ends the editor's typing run; a blur does not.
 
   const visible = useKeepAliveVisible();
   useEffect(() => {
     if (visible) viewRef.current?.requestMeasure();
+    else historyRef.current?.close();
   }, [visible]);
 
   // ── Toggle autocompletion extension on/off ───────────────────────────

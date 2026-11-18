@@ -16,6 +16,12 @@ const DRAG_MIME = "application/x-cm-chip";
 // full drag lifecycle (mousedown → dragend) so the DOM element survives.
 let rebuildLock = false;
 
+/** Write a chip's weight; the same text again would be an empty history step. */
+function setWeightText(view: EditorView, from: number, to: number, text: string) {
+  if (view.state.sliceDoc(from, to) === text) return;
+  view.dispatch({ changes: { from, to, insert: text } });
+}
+
 // ── Shared drag helpers ──────────────────────────────────────────────
 
 function setupDrag(
@@ -178,14 +184,7 @@ class LoraChipWidget extends WidgetType {
 
     const currentWeight = parseFloat(raw.slice(lastColon + 1, closeBracket));
     const newWeight = Math.max(0, Math.min(2, currentWeight + delta));
-
-    view.dispatch({
-      changes: {
-        from: this.from + lastColon + 1,
-        to: this.from + closeBracket,
-        insert: newWeight.toFixed(2),
-      },
-    });
+    setWeightText(view, this.from + lastColon + 1, this.from + closeBracket, newWeight.toFixed(2));
   }
 
   private showWeightSlider(anchor: HTMLElement) {
@@ -218,13 +217,7 @@ class LoraChipWidget extends WidgetType {
       const freshLastColon = freshRaw.lastIndexOf(":");
       const freshClose = freshRaw.lastIndexOf(">");
       if (freshLastColon >= 0 && freshClose >= 0) {
-        view.dispatch({
-          changes: {
-            from: this.from + freshLastColon + 1,
-            to: this.from + freshClose,
-            insert: val.toFixed(2),
-          },
-        });
+        setWeightText(view, this.from + freshLastColon + 1, this.from + freshClose, val.toFixed(2));
       }
     });
 

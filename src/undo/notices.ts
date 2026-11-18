@@ -100,8 +100,10 @@ export function undoNotices(history: () => Undo | null): UndoNotices {
 
   const pressed = (kind: PressKind, outcome: Outcome) => {
     switch (outcome.kind) {
+      // a typed step changed the text in place, where the user is looking
       case "none":
       case "stale":
+      case "typed":
         return;
       case "cancelled":
         doingStep = null;

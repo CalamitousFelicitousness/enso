@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   SHORTCUTS,
   formatShortcut,
+  historyKey,
   isTextEntry,
   matchesEvent,
   type KeyInput,
@@ -87,6 +88,23 @@ describe("matchesEvent", () => {
       false,
     );
     expect(matchesEvent(SHORTCUTS["canvas-brush"], press("b"), true)).toBe(true);
+  });
+});
+
+describe("historyKey", () => {
+  it("takes Undo and both Redo keys in a text field", () => {
+    expect(historyKey(press("z", { ctrlKey: true }), false)).toBe("undo");
+    expect(historyKey(press("Z", { ctrlKey: true, shiftKey: true }), false)).toBe("redo");
+    expect(historyKey(press("y", { ctrlKey: true }), false)).toBe("redo");
+    expect(historyKey(press("z"), false)).toBeNull();
+    expect(historyKey(press("x", { ctrlKey: true }), false)).toBeNull();
+  });
+
+  it("leaves Ctrl+Y to the text on macOS, where Cmd takes Undo and Redo", () => {
+    expect(historyKey(press("z", { metaKey: true }), true)).toBe("undo");
+    expect(historyKey(press("z", { metaKey: true, shiftKey: true }), true)).toBe("redo");
+    expect(historyKey(press("y", { ctrlKey: true }), true)).toBeNull();
+    expect(historyKey(press("y", { metaKey: true }), true)).toBeNull();
   });
 });
 

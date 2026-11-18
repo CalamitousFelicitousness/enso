@@ -100,12 +100,14 @@ export function DetailerSection() {
           onChange={(v) => setDefault("prompt", v)}
           placeholder="Detailer prompt, empty for none"
           className="min-h-12"
+          ownHistory
         />
         <PromptField
           value={d.negative ?? ""}
           onChange={(v) => setDefault("negative", v)}
           placeholder="Detailer negative prompt, empty for none"
           className="min-h-9"
+          ownHistory
         />
         <ParamRow
           label="Classes"

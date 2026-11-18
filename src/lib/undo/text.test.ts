@@ -53,6 +53,23 @@ describe("undo words", () => {
     expect(valueText("a\nb")).toBeNull();
   });
 
+  it("names typing by the field it changed, and a field inside a settings object", () => {
+    const typing = { kind: "typing" };
+    expect(stepText(step(typing, [keys("settings", { prompt: "a" }, { prompt: "ab" })]))).toBe(
+      "Typing in Prompt",
+    );
+    const detailer = keys(
+      "settings",
+      { detailerDefaults: { prompt: "", strength: 0.5 } },
+      { detailerDefaults: { prompt: "face", strength: 0.5 } },
+    );
+    expect(stepText(step(typing, [detailer]))).toBe("Typing in Detailer settings: prompt");
+    // typed back to where it began: no change left, the name carries the field
+    const named = { kind: "typing", args: { slice: "settings", key: "negativePrompt" } };
+    expect(stepText(step(named))).toBe("Typing in Negative prompt");
+    expect(stepText(step(typing))).toBe("Typing");
+  });
+
   it("names an input edit by its position, and says an input when there is none", () => {
     expect(nameText({ kind: "stroke", args: { frame: "f", position: 2 } })).toBe(
       "Brush stroke on Input 2",

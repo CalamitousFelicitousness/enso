@@ -1,6 +1,6 @@
 import { EditorView, keymap, placeholder as cmPlaceholder } from "@codemirror/view";
 import type { Extension } from "@codemirror/state";
-import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
+import { defaultKeymap } from "@codemirror/commands";
 import { bracketMatching } from "@codemirror/language";
 import { promptTheme } from "./theme";
 import { promptHighlighter } from "./decorations";
@@ -13,11 +13,12 @@ export { embeddingNamesFacet, loraNamesFacet, styleNamesFacet, wildcardNamesFace
 
 export { promptAutocomplete } from "./autocomplete";
 
+export { promptHistory, type PromptHistory } from "./history";
+
+/** Everything but the history, which `promptHistory` gives. */
 export function promptExtensions(placeholderText?: string): Extension[] {
   return [
     keymap.of(defaultKeymap),
-    keymap.of(historyKeymap),
-    history(),
     promptTheme,
     bracketMatching({ brackets: "()[]{}" }),
     promptHighlighter,

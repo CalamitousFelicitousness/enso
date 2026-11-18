@@ -40,6 +40,9 @@ export interface PromptBlockProps {
   actions?: ReactNode;
   /** Set on one instance only - TutorialOverlay resolves by first match. */
   tourId?: string;
+  /** Undo and Redo stay inside each field: the app's history does not record
+   * the store they write. */
+  ownHistory?: boolean;
 }
 
 /** Enhance. While its vision picture uploads it shows the upload's ring, and
@@ -96,6 +99,7 @@ export function PromptBlock({
   negativeClassName = "min-h-[3.125rem] mt-1.5",
   actions,
   tourId,
+  ownHistory = false,
 }: PromptBlockProps) {
   const [negativeCollapsed, setNegativeCollapsed] = useRememberedCollapse("Negative prompt", true);
   const showNegative = !negativeCollapsed;
@@ -131,6 +135,7 @@ export function PromptBlock({
         placeholder={negativePlaceholder}
         className={negativeClassName}
         readOnly={negativeIgnored}
+        ownHistory={ownHistory}
       />
     </div>
   );
@@ -189,6 +194,7 @@ export function PromptBlock({
             onChange={onChange}
             placeholder={placeholder}
             className={className}
+            ownHistory={ownHistory}
           />
         </div>
       </div>

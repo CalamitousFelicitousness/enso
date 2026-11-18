@@ -9,6 +9,7 @@ import type {
   Change,
   Command,
   Draft,
+  EditorFacts,
   Env,
   Facts,
   Patch,
@@ -34,8 +35,22 @@ import type { Slice } from "./slice";
 
 export type PressKind = "undo" | "redo";
 
+/** A prompt editor's own history, which serves its open typing run. */
+export interface EditorHandle {
+  /** One group of the editor's own history; false when it did nothing. */
+  readonly undo: () => boolean;
+  readonly redo: () => boolean;
+  readonly undoDepth: () => number;
+  readonly redoDepth: () => number;
+  /** Empty the editor's own history. */
+  readonly reset: () => void;
+  readonly text: () => string;
+}
+
 export type Outcome =
   | { readonly kind: "none" }
+  /** The open typing run's editor stepped its own history. */
+  | { readonly kind: "typed"; readonly step: Step }
   | { readonly kind: "cancelled"; readonly wait: Wait; readonly name: StepName | null }
   | { readonly kind: "released"; readonly step: Step }
   | {
@@ -84,6 +99,19 @@ export interface Undo {
   readonly marks: Marks;
   readonly recorder: Recorder;
   readonly press: (kind: PressKind, options?: { readonly only?: number }) => Promise<Outcome>;
+  /** A prompt editor changed its text: `write` puts it in the store at once,
+   * and the change extends the editor's typing run or opens one. */
+  readonly typing: (
+    editor: EditorHandle,
+    kind: core.TypingKind,
+    textAtOpen: string,
+    write: () => void,
+  ) => void;
+  /** The editor hid or is going away: its typing run closes. */
+  readonly closeTyping: (editor: EditorHandle) => void;
+  /** A text field was typed into and the history never recorded its typing:
+   * the typing is the field's own to undo. */
+  readonly typedUnrecorded: (field: object) => boolean;
   /** What a press would do now. */
   readonly next: (kind: PressKind) => core.Action;
   readonly busy: () => boolean;
@@ -155,8 +183,31 @@ export function createUndo(options: UndoOptions): Undo {
     }
   };
 
+  const editorOf = (step: Step | null): EditorHandle | null =>
+    (step?.typing?.editor as EditorHandle | undefined) ?? null;
+
+  /** The text an editor's own last change left: a store write the editor
+   * already shows, such as the one a closing step makes, is not its run's. */
+  let typed: { readonly editor: EditorHandle; readonly text: string } | null = null;
+
+  /** What the open typing run's editor can do. */
+  const editorFacts = (): EditorFacts | null => {
+    const open = core.openTyping(stacks);
+    const editor = editorOf(open);
+    if (!open?.typing || !editor) return null;
+    const text = typed?.editor === editor ? typed.text : editor.text();
+    return {
+      canUndo: editor.undoDepth() > 0,
+      canRedo: editor.redoDepth() > 0,
+      atOpen: text === open.typing.textAtOpen,
+    };
+  };
+
   const apply = (change: Change) => {
+    const open = core.openTyping(stacks);
     stacks = change.stacks;
+    // a closed run is a step of the history now: the editor's own groups would undo it twice
+    if (open && core.openTyping(stacks)?.id !== open.id) editorOf(open)?.reset();
     dispose(change.dropped);
   };
 
@@ -176,10 +227,11 @@ export function createUndo(options: UndoOptions): Undo {
   };
 
   const recordDraft = (draft: Draft) => {
-    const recorded = core.record(stacks, draft, env);
+    const recorded = core.record(stacks, draft, env, editorFacts());
     apply(recorded);
     // a newer step in the scope makes a list it would replace stale
     if (recorded.step) cancelWaits((open) => open.replaces && open.wait.scope === draft.scope);
+    if (recorded.step?.tag) gestures.recordedTyping(recorded.step.tag);
     return recorded.step;
   };
 
@@ -211,16 +263,20 @@ export function createUndo(options: UndoOptions): Undo {
     },
   });
 
-  const facts = (only?: number): Facts => ({
-    view: view(),
-    waits: waits.map((open) => open.wait),
-    recorded: options.recorded,
-    editor: null,
-    ...(only !== undefined && { only }),
-  });
+  /** With `stuck`, the editor's own history did nothing when asked. */
+  const facts = (only?: number, stuck = false): Facts => {
+    const editor = editorFacts();
+    return {
+      view: view(),
+      waits: waits.map((open) => open.wait),
+      recorded: options.recorded,
+      editor: editor && stuck ? { ...editor, canUndo: false, canRedo: false } : editor,
+      ...(only !== undefined && { only }),
+    };
+  };
 
-  const plan = (kind: PressKind, only?: number) =>
-    (kind === "undo" ? core.undo : core.redo)(stacks, facts(only), env);
+  const plan = (kind: PressKind, only?: number, stuck = false) =>
+    (kind === "undo" ? core.undo : core.redo)(stacks, facts(only, stuck), env);
 
   const bare = (scope: Scope, name: StepName, extra: Partial<Draft>): Draft => ({
     scope,
@@ -272,9 +328,27 @@ export function createUndo(options: UndoOptions): Undo {
     return { kind: "replayed", step, side, gaveUp: [], failed: null };
   };
 
+  /** The open typing run's editor steps its own history; null when that did
+   * nothing, as in a read-only editor. */
+  const typedPress = (kind: PressKind, press: core.Press): Outcome | null => {
+    if (press.action.kind !== "editor") return null;
+    const step = press.action.step;
+    const editor = editorOf(step);
+    apply({ stacks: press.stacks, dropped: press.dropped });
+    // the editor's change comes back through `typing`, which extends the run
+    const did = editor !== null && (kind === "undo" ? editor.undo() : editor.redo());
+    gestures.end();
+    notify();
+    return did ? { kind: "typed", step } : null;
+  };
+
   const handle = async (kind: PressKind, only?: number): Promise<Outcome> => {
     recorder.close();
     let press = plan(kind, only);
+    const typed = typedPress(kind, press);
+    if (typed) return typed;
+    // the run closes and the press acts on it, or on what is next, as a step
+    if (press.action.kind === "editor") press = plan(kind, only, true);
     const action = press.action;
     if (action.kind === "none") {
       // the press may still have dropped steps that gave up every key they held
@@ -342,6 +416,43 @@ export function createUndo(options: UndoOptions): Undo {
         notify();
       }
     });
+
+  /** A typing run named by the key it writes, for when it is typed back to where it began. */
+  const typingName = (draft: Draft): StepName => {
+    const [patch] = draft.patches;
+    const [key] = patch?.kind === "keys" ? Object.keys(patch.before) : [];
+    return patch && key
+      ? { kind: "typing", args: { slice: patch.slice, key } }
+      : { kind: "typing" };
+  };
+
+  const typing: Undo["typing"] = (editor, kind, textAtOpen, write) => {
+    const drafts = recorder.typing(write);
+    const [draft] = drafts;
+    if (draft && drafts.length === 1 && draft.scope !== "shared") {
+      const was = core.openTyping(stacks);
+      const run = { editor, textAtOpen, kind };
+      const named = { ...draft, name: typingName(draft) };
+      const recorded = core.recordTyping(stacks, named, run, env, editorFacts());
+      apply(recorded);
+      typed = { editor, text: editor.text() };
+      if (recorded.step) cancelWaits((open) => open.replaces && open.wait.scope === draft.scope);
+      if (core.openTyping(stacks)?.id !== was?.id) budget();
+    } else {
+      // ordinary steps, or none while the store is deaf: no run holds the change,
+      // so the editor's own group for it would take it back a second time
+      for (const each of drafts) recordDraft(each);
+      if (drafts.length > 0) budget();
+      if (editorOf(core.openTyping(stacks)) !== editor) editor.reset();
+    }
+    notify();
+  };
+
+  const closeTyping: Undo["closeTyping"] = (editor) => {
+    if (editorOf(core.openTyping(stacks)) !== editor) return;
+    apply(core.closeTyping(stacks, editorFacts(), env));
+    notify();
+  };
 
   /** The notice of a step the history now knows, or of no step. */
   const announcement = (): Announcement & { bind: (step: Step | null) => void } => {
@@ -467,6 +578,9 @@ export function createUndo(options: UndoOptions): Undo {
     marks,
     recorder,
     press,
+    typing,
+    closeTyping,
+    typedUnrecorded: (field) => gestures.typedUnrecorded(field),
     next: (kind) => plan(kind).action,
     busy: () => pressing > 0,
     cancel: (waitId) => {

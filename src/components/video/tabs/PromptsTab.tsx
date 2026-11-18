@@ -30,6 +30,7 @@ export function PromptsTab() {
         negativePlaceholder="Negative prompt (optional)"
         className="min-h-15"
         negativeClassName="min-h-9"
+        ownHistory
       />
       {kind !== "cloud" && <StylesSection />}
     </div>

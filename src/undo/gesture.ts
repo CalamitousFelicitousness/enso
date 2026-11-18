@@ -16,6 +16,10 @@ export interface Gestures {
   /** The text field the gesture's input event typed into, one object per
    * focus session; null when it typed into none. */
   readonly tag: () => object | null;
+  /** A step recorded the typing under this tag: its field is on the history. */
+  readonly recordedTyping: (tag: object) => void;
+  /** A text field was typed into and none of its typing was ever recorded. */
+  readonly typedUnrecorded: (field: object) => boolean;
   /** Nothing more in this task is the user's action. */
   readonly end: () => void;
   readonly listen: (listener: GestureListener) => () => void;
@@ -87,6 +91,8 @@ export function createGestures(post: (fn: () => void) => void): GestureTracker {
       return live.length > 0;
     },
     tag: () => tag,
+    recordedTyping: () => {},
+    typedUnrecorded: () => false,
     end,
     listen: (listener) => {
       listeners.add(listener);
@@ -171,6 +177,9 @@ function nextTask(): (fn: () => void) => void {
 export function windowGestures(win: Window = window): Gestures & { readonly stop: () => void } {
   const tracker = createGestures(nextTask());
   const sessions = new WeakMap<EventTarget, object>();
+  const fields = new WeakMap<object, EventTarget>();
+  const typed = new WeakSet<EventTarget>();
+  const recorded = new WeakSet<EventTarget>();
 
   const onStart = (e: Event) => {
     if (e.isTrusted) tracker.starts(e);
@@ -184,6 +193,8 @@ export function windowGestures(win: Window = window): Gestures & { readonly stop
       session = {};
       sessions.set(e.target, session);
     }
+    fields.set(session, e.target);
+    typed.add(e.target);
     tracker.typed(session);
   };
   // a new focus session: typing after it is a new run
@@ -206,6 +217,12 @@ export function windowGestures(win: Window = window): Gestures & { readonly stop
   return {
     open: () => tracker.open() || current(),
     tag: tracker.tag,
+    recordedTyping: (tag) => {
+      const field = fields.get(tag);
+      if (field) recorded.add(field);
+    },
+    typedUnrecorded: (field) =>
+      typed.has(field as EventTarget) && !recorded.has(field as EventTarget),
     end: tracker.end,
     listen: tracker.listen,
     stop: () => {
@@ -218,26 +235,39 @@ export function windowGestures(win: Window = window): Gestures & { readonly stop
 }
 
 /** Gestures driven by hand, for tests: `start` dispatches an input event,
- * `leave` ends its task without ending the gesture, `end` ends the gesture. */
+ * typed into `field` when it has a tag, `leave` ends its task without ending
+ * the gesture, `end` ends the gesture. */
 export function drivenGestures(): Gestures & {
-  readonly start: (tag?: object | null) => void;
+  readonly start: (tag?: object | null, field?: object) => void;
   readonly leave: () => void;
 } {
   const tracker = createGestures(() => {});
+  const fields = new WeakMap<object, object>();
+  const typed = new WeakSet<object>();
+  const recorded = new WeakSet<object>();
   let event = { eventPhase: 0 };
   return {
     open: tracker.open,
     tag: tracker.tag,
+    recordedTyping: (tag) => {
+      const field = fields.get(tag);
+      if (field) recorded.add(field);
+    },
+    typedUnrecorded: (field) => typed.has(field) && !recorded.has(field),
     end: () => {
       tracker.end();
       event.eventPhase = 0;
     },
     listen: tracker.listen,
-    start: (tag = null) => {
+    start: (tag = null, field) => {
       event.eventPhase = 0;
       event = { eventPhase: 2 };
       tracker.starts(event);
       if (tag) tracker.typed(tag);
+      if (tag && field) {
+        fields.set(tag, field);
+        typed.add(field);
+      }
     },
     leave: () => {
       event.eventPhase = 0;

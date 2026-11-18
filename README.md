@@ -52,7 +52,7 @@ It runs as a standard SD.Next extension: starting SD.Next with `--enso` clones i
 
 - **Konva.js-powered** - Smooth pan, zoom, and transform at any scale
 - **Navigation** - Scroll to pan, pinch or Ctrl+scroll to zoom, drag empty canvas; Shift+1 shows every frame, Shift+0 is 100%, arrows step through frames; the minimap in the corner shows every frame, and a drag or a click in it moves the view
-- **Undo and Redo** - Ctrl+Z and Ctrl+Shift+Z step back and forward through the changes made in the Images view: settings, frames, pictures and masks, restores and recalls. The Top Bar's Undo and Redo name the change each one takes back
+- **Undo and Redo** - Ctrl+Z and Ctrl+Shift+Z step back and forward through the changes made in the Images view: settings, frames, pictures and masks, restores and recalls, and typing, which a prompt takes back a burst at a time. The Top Bar's Undo and Redo name the change each one takes back
 - **Multi-frame workspace** - Place input images, masks, and results side by side
 - **Smart viewport** - Efficient culling and lazy loading for large workspaces
 - **Transform controls** - Resize, rotate, flip with visual handles
