@@ -1,7 +1,7 @@
 """HDR files beside saved outputs, written by sdnext's HDR step (scripts.hdr.hdr_process).
 
-sdnext's HDR script writes only when sdnext saves the output, and execute_process
-saves image and batch outputs itself, so those runs call the step here.
+sdnext's HDR script writes only when sdnext saves the output, and execute_process and
+execute_generate save their outputs themselves, so they call the step here.
 """
 
 import dataclasses
@@ -52,6 +52,17 @@ def write(saved: list[tuple[object, str]], params: dict) -> list[str]:
 def note(written: list[str]) -> str:
     """The HDR files a run wrote, for its info line."""
     return f"HDR: {os.path.basename(written[0])}" if len(written) == 1 else f"HDR: {len(written)} files"
+
+
+def after_generate(settings: list, save_images: bool, saved: list[tuple[object, str]]) -> list[str]:
+    """Write the HDR files the Scripts tab's HDR settings (mapping, peak, gamut) ask for."""
+    method, peak, gamut = settings
+    if method in (None, "", "None"):
+        return []
+    if not save_images:
+        log.warning("HDR: no HDR file was written: the output is not saved")
+        return []
+    return write(saved, {"hdr_method": method, "hdr_peak": peak, "hdr_gamut": gamut})
 
 
 def after_save(params: dict, mode: str, save_output: bool, saved: list[tuple[object, str]], info: str) -> str:

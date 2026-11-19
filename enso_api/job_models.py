@@ -597,12 +597,18 @@ class ControlMixin(StrictBaseModel):
     ip_adapter: list[IpAdapterUnitParams] = Field(default_factory=list)
 
 
+class AlwaysOnScriptArgs(StrictBaseModel):
+    """One always-on script's settings in its own order; None keeps a setting's default."""
+
+    args: list[Any] = Field(default_factory=list)
+
+
 class ScriptsMixin(StrictBaseModel):
-    """Selected script and always-on script overrides."""
+    """Selected script and always-on script settings, by the names /sdapi/v2/scripts lists."""
 
     script_name: str = ""
-    script_args: list[Any] = Field(default_factory=list)
-    alwayson_scripts: dict[str, Any] = Field(default_factory=dict)
+    script_args: list[Any] = Field(default_factory=list, description="The selected script's settings in its own order; None keeps a setting's default")
+    alwayson_scripts: dict[str, AlwaysOnScriptArgs] = Field(default_factory=dict)
     extra: dict[str, Any] = Field(default_factory=dict, description="Free-form pipeline overrides forwarded as control_set extras")
 
 

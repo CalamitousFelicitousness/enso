@@ -1,7 +1,6 @@
 import { Switch } from "@/components/ui/switch";
-import { useScriptStore } from "@/stores/scriptStore";
 import { ScriptArgControl } from "./ScriptArgControl";
-import { SCRIPT_LAYOUTS } from "./scriptLayouts";
+import { resolveLayout } from "./scriptLayouts";
 import { toDisplayString } from "@/lib/utils";
 import type { ScriptInfoV2 } from "@/api/types/script";
 
@@ -12,49 +11,46 @@ interface ScriptSectionProps {
 }
 
 export function ScriptSection({ script, getArgValue, setArgValue }: ScriptSectionProps) {
-  const layout = SCRIPT_LAYOUTS[script.name];
-  const sectionEnabled = useScriptStore((s) => s.alwaysOnEnabled[script.name] ?? false);
-  const setSectionEnabled = useScriptStore((s) => s.setAlwaysOnEnabled);
+  const layout = resolveLayout(
+    script.name,
+    script.args.map((arg) => arg.label),
+  );
 
   // Fallback: flat list for unknown scripts
   if (!layout) {
     return (
       <div className="flex flex-col gap-2">
-        {script.args.map((arg, i) => (
-          <ScriptArgControl
-            key={i}
-            arg={arg}
-            value={getArgValue(i)}
-            onChange={(v) => setArgValue(i, v)}
-          />
-        ))}
+        {script.args.map((arg, i) =>
+          arg.fixed ? null : (
+            <ScriptArgControl
+              key={i}
+              arg={arg}
+              value={getArgValue(i)}
+              onChange={(v) => setArgValue(i, v)}
+            />
+          ),
+        )}
       </div>
     );
   }
 
-  const hiddenSet = new Set(layout.hidden ?? []);
-  const hasHeaderRow = layout.headerRow && layout.headerRow.length > 0;
+  const hiddenSet = new Set(script.args.flatMap((arg, i) => (arg.fixed ? [i] : [])));
+  const hasHeaderRow = layout.headerRow.length > 0;
+  const enabler = layout.enabledBy;
+  const sectionDisabled = enabler != null && !getArgValue(enabler);
 
   return (
     <div className="flex flex-col gap-3">
       {hasHeaderRow && (
         <div className="flex items-center gap-4">
-          <label className="flex items-center gap-1.5 text-2xs text-muted-foreground cursor-pointer">
-            <Switch
-              size="sm"
-              checked={sectionEnabled}
-              onCheckedChange={(checked) => setSectionEnabled(script.name, checked)}
-            />
-            Enabled
-          </label>
-          {layout.headerRow!.map((idx) => {
+          {layout.headerRow.map((idx) => {
             const arg = script.args[idx];
             if (!arg || typeof (getArgValue(idx) ?? arg.value) !== "boolean") return null;
             const requirement = layout.headerArgRequires?.[idx];
             const requirementMet =
               !requirement ||
               toDisplayString(getArgValue(requirement.arg)).includes(requirement.includes);
-            const disabled = !sectionEnabled || !requirementMet;
+            const disabled = (idx !== enabler && sectionDisabled) || !requirementMet;
             return (
               <label
                 key={idx}
@@ -75,7 +71,6 @@ export function ScriptSection({ script, getArgValue, setArgValue }: ScriptSectio
       )}
 
       {layout.groups.map((group, gi) => {
-        const sectionDisabled = hasHeaderRow && !sectionEnabled;
         const ownDisabled =
           group.disabledUnless != null ? !getArgValue(group.disabledUnless) : false;
         const visibleArgs = group.args.filter(

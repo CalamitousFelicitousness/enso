@@ -129,3 +129,23 @@ def test_a_run_without_its_own_saves_writes_no_hdr_and_says_so(hdr, step, caplog
 @pytest.mark.parametrize(("info", "line"), [("Size: 8x8, ", "Size: 8x8, HDR: 1-a-hdr.png"), ("", "HDR: 1-a-hdr.png")])
 def test_the_info_line_gains_the_hdr_file(hdr, step, info, line):  # pylint: disable=redefined-outer-name,unused-argument
     assert hdr.after_save({}, "image", True, outputs("/out/1-a.png"), info) == line
+
+
+def test_a_generation_writes_hdr_beside_each_saved_output(hdr, step):  # pylint: disable=redefined-outer-name
+    assert hdr.after_generate(["Algorithmic", 1000, "Rec.2020"], True, outputs("/out/1-a.png", "/out/2-b.png")) == ["/out/1-a-hdr.png", "/out/2-b-hdr.png"]
+    assert step.calls == [("/out/1-a.png", "Algorithmic", 1000.0, "Rec.2020"), ("/out/2-b.png", "Algorithmic", 1000.0, "Rec.2020")]
+
+
+@pytest.mark.parametrize("method", [None, "", "None"])
+def test_a_generation_with_hdr_mapping_off_writes_nothing(hdr, step, caplog, method):  # pylint: disable=redefined-outer-name
+    caplog.set_level(logging.WARNING, logger="sd")
+    assert hdr.after_generate([method, 1000, "Rec.2020"], False, outputs("/out/1-a.png")) == []
+    assert not step.calls
+    assert not caplog.records
+
+
+def test_an_unsaved_generation_writes_no_hdr_and_says_so(hdr, step, caplog):  # pylint: disable=redefined-outer-name
+    caplog.set_level(logging.WARNING, logger="sd")
+    assert hdr.after_generate(["Algorithmic", 1000, "Rec.2020"], False, outputs("/tmp/1-a.png")) == []
+    assert not step.calls
+    assert [r.getMessage() for r in caplog.records] == ["HDR: no HDR file was written: the output is not saved"]

@@ -711,11 +711,21 @@ class ResPreprocessV2(BaseModel):
     image: str = Field(default="", title="Image", description="Processed image in base64 format")
 
 
+class ItemScriptArgV2(BaseModel):
+    label: str = Field(title="Label")
+    value: Any = Field(default=None, title="Default")
+    minimum: float | None = Field(default=None, title="Minimum")
+    maximum: float | None = Field(default=None, title="Maximum")
+    step: float | None = Field(default=None, title="Step")
+    choices: list[Any] | None = Field(default=None, title="Choices")
+    fixed: bool = Field(title="Fixed", description="Kept at its default: a job cannot set it")
+
+
 class ItemScriptV2(BaseModel):
     name: str = Field(title="Name")
     is_alwayson: bool = Field(title="Is Always-on")
-    contexts: list[str] = Field(default_factory=list, title="Contexts", description="txt2img, img2img, control")
-    args: list = Field(default_factory=list, title="Arguments")
+    contexts: list[str] = Field(title="Contexts", description="txt2img, img2img, control")
+    args: list[ItemScriptArgV2] = Field(title="Arguments", description="As the control runner, which generate jobs run on, defines them")
 
 
 class ResScriptsV2(BaseModel):

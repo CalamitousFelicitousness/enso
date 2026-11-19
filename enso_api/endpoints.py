@@ -762,15 +762,21 @@ async def get_scripts_v2(
     context: str | None = Query(default=None, description="Filter by context: txt2img, img2img, control"),
     alwayson: bool | None = Query(default=None, description="Filter by always-on status"),
 ):
-    """List available scripts with optional context and always-on filtering."""
+    """List available scripts with optional context and always-on filtering.
+
+    Settings come from the control runner, which generate jobs run on; an always-on script
+    Enso does not apply is left out.
+    """
     from modules import scripts_manager
 
+    from enso_api.script_settings import listed_args
+
     runners = [
+        (scripts_manager.scripts_control, "control"),
         (scripts_manager.scripts_txt2img, "txt2img"),
         (scripts_manager.scripts_img2img, "img2img"),
-        (scripts_manager.scripts_control, "control"),
     ]
-    dedup: dict[str, ItemScriptV2] = {}
+    dedup: dict[str, ItemScriptV2 | None] = {}
     for runner, ctx_label in runners:
         if runner is None:
             continue
@@ -780,17 +786,15 @@ async def get_scripts_v2(
             info = script.api_info
             key = info.name
             if key in dedup:
-                if ctx_label not in dedup[key].contexts:
-                    dedup[key].contexts.append(ctx_label)
-            else:
-                args = [{"label": a.label, "value": a.value, "minimum": a.minimum, "maximum": a.maximum, "step": a.step, "choices": a.choices} for a in info.args] if hasattr(info, "args") else []
-                dedup[key] = ItemScriptV2(
-                    name=info.name,
-                    is_alwayson=info.is_alwayson,
-                    contexts=[ctx_label],
-                    args=args,
-                )
-    scripts = list(dedup.values())
+                listed = dedup[key]
+                if listed is not None and ctx_label not in listed.contexts:
+                    listed.contexts.append(ctx_label)
+                continue
+            args = [{"label": a.label or "", "value": a.value, "minimum": a.minimum, "maximum": a.maximum, "step": a.step, "choices": a.choices, "fixed": False} for a in info.args] if hasattr(info, "args") else []
+            if info.is_alwayson:
+                args = listed_args(key, args)
+            dedup[key] = None if args is None else ItemScriptV2(name=info.name, is_alwayson=info.is_alwayson, contexts=[ctx_label], args=args)
+    scripts = [s for s in dedup.values() if s is not None]
     if context:
         scripts = [s for s in scripts if context.lower() in s.contexts]
     if alwayson is not None:

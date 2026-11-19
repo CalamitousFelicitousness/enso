@@ -10,6 +10,8 @@ CONTROL_SEPARATE_INIT_COMMITS = ("ea0d5c79f",)
 GUIDANCE_PARAMS_COMMITS = ("db944539b",)
 # 122a4393d (dev, 2026-10-31): State.fail keeps a failed pass's exception message on shared.state.error.
 PASS_ERROR_COMMITS = ("122a4393d",)
+# 314649359 (dev, 2026-11-18): DLSS's second pass keeps each image's own seed and prompt lines and grades nothing twice.
+DLSS_SECOND_PASS_COMMITS = ("314649359",)
 
 known: dict[str, bool] = {}
 
@@ -46,3 +48,8 @@ def guidance_params() -> bool:
 def pass_error() -> bool:
     """sdnext keeps a failed pass's exception message on shared.state.error until the next job begins."""
     return any(has_commit(commit) for commit in PASS_ERROR_COMMITS)
+
+
+def dlss_second_pass() -> bool:
+    """DLSS in a generation keeps each image's seed in its infotext and applies grading once."""
+    return any(has_commit(commit) for commit in DLSS_SECOND_PASS_COMMITS)

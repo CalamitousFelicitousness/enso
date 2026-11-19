@@ -9,7 +9,6 @@ const KEYS = [
   "selectedScript",
   "scriptArgs",
   "alwaysOnOverrides",
-  "alwaysOnEnabled",
 ] as const satisfies readonly (keyof Scripts)[];
 
 export const scriptsSlice = () =>

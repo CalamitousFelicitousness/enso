@@ -46,7 +46,6 @@ const KEY_LABELS: Readonly<Record<string, string>> = {
   "scripts.selectedScript": "Script",
   "scripts.scriptArgs": "Script settings",
   "scripts.alwaysOnOverrides": "Script settings",
-  "scripts.alwaysOnEnabled": "Scripts on",
   "lut.images": "Color LUT file",
   "presets.presets": "Presets",
   "model.activeModel": "Model",

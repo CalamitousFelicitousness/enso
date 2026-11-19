@@ -3,20 +3,18 @@ import { create } from "zustand";
 interface ScriptState {
   selectedScript: string;
   scriptArgs: unknown[];
+  /** Each always-on script's settings by position; null keeps the server's default. */
   alwaysOnOverrides: Record<string, unknown[]>;
-  alwaysOnEnabled: Record<string, boolean>;
 
   setSelectedScript: (name: string) => void;
   setScriptArg: (index: number, value: unknown) => void;
   setAlwaysOnArg: (name: string, index: number, value: unknown) => void;
-  setAlwaysOnEnabled: (name: string, enabled: boolean) => void;
 }
 
 export const useScriptStore = create<ScriptState>()((set) => ({
   selectedScript: "",
   scriptArgs: [],
   alwaysOnOverrides: {},
-  alwaysOnEnabled: {},
 
   setSelectedScript: (name) => set({ selectedScript: name, scriptArgs: [] }),
 
@@ -37,7 +35,4 @@ export const useScriptStore = create<ScriptState>()((set) => ({
       overrides[name] = args;
       return { alwaysOnOverrides: overrides };
     }),
-
-  setAlwaysOnEnabled: (name, enabled) =>
-    set((state) => ({ alwaysOnEnabled: { ...state.alwaysOnEnabled, [name]: enabled } })),
 }));

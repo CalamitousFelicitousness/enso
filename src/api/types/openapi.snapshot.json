@@ -1,6 +1,19 @@
 {
   "components": {
     "schemas": {
+      "AlwaysOnScriptArgs": {
+        "additionalProperties": false,
+        "description": "One always-on script's settings in its own order; None keeps a setting's default.",
+        "properties": {
+          "args": {
+            "items": {},
+            "title": "Args",
+            "type": "array"
+          }
+        },
+        "title": "AlwaysOnScriptArgs",
+        "type": "object"
+      },
       "CaptionParams": {
         "additionalProperties": false,
         "description": "Image captioning via VLM, OpenCLIP, or tagger backends.",
@@ -2432,7 +2445,9 @@
         ],
         "properties": {
           "alwayson_scripts": {
-            "additionalProperties": true,
+            "additionalProperties": {
+              "$ref": "#/components/schemas/AlwaysOnScriptArgs"
+            },
             "title": "Alwayson Scripts",
             "type": "object"
           },
@@ -3560,6 +3575,7 @@
             "title": "Schedulers Use Thresholding"
           },
           "script_args": {
+            "description": "The selected script's settings in its own order; None keeps a setting's default",
             "items": {},
             "title": "Script Args",
             "type": "array"
@@ -5695,10 +5711,80 @@
         "title": "ItemSamplerV2",
         "type": "object"
       },
+      "ItemScriptArgV2": {
+        "properties": {
+          "choices": {
+            "anyOf": [
+              {
+                "items": {},
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Choices"
+          },
+          "fixed": {
+            "description": "Kept at its default: a job cannot set it",
+            "title": "Fixed",
+            "type": "boolean"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "maximum": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Maximum"
+          },
+          "minimum": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Minimum"
+          },
+          "step": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Step"
+          },
+          "value": {
+            "title": "Default"
+          }
+        },
+        "required": [
+          "label",
+          "fixed"
+        ],
+        "title": "ItemScriptArgV2",
+        "type": "object"
+      },
       "ItemScriptV2": {
         "properties": {
           "args": {
-            "items": {},
+            "description": "As the control runner, which generate jobs run on, defines them",
+            "items": {
+              "$ref": "#/components/schemas/ItemScriptArgV2"
+            },
             "title": "Arguments",
             "type": "array"
           },
@@ -5721,7 +5807,9 @@
         },
         "required": [
           "name",
-          "is_alwayson"
+          "is_alwayson",
+          "contexts",
+          "args"
         ],
         "title": "ItemScriptV2",
         "type": "object"
@@ -15625,7 +15713,9 @@
         ],
         "properties": {
           "alwayson_scripts": {
-            "additionalProperties": true,
+            "additionalProperties": {
+              "$ref": "#/components/schemas/AlwaysOnScriptArgs"
+            },
             "title": "Alwayson Scripts",
             "type": "object"
           },
@@ -16793,6 +16883,7 @@
             "title": "Schedulers Use Thresholding"
           },
           "script_args": {
+            "description": "The selected script's settings in its own order; None keeps a setting's default",
             "items": {},
             "title": "Script Args",
             "type": "array"
@@ -23348,7 +23439,7 @@
     },
     "/sdapi/v2/scripts": {
       "get": {
-        "description": "List available scripts with optional context and always-on filtering.",
+        "description": "List available scripts with optional context and always-on filtering.\n\nSettings come from the control runner, which generate jobs run on; an always-on script\nEnso does not apply is left out.",
         "operationId": "get_scripts_v2_sdapi_v2_scripts_get",
         "parameters": [
           {

@@ -1,5 +1,6 @@
 import { ParamSlider } from "../../ParamSlider";
 import { ParamLabel } from "../../ParamLabel";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { Combobox } from "@/components/ui/combobox";
@@ -14,7 +15,32 @@ interface ScriptArgControlProps {
 }
 
 export function ScriptArgControl({ arg, value, onChange, disabled }: ScriptArgControlProps) {
+  if (arg.choices && arg.choices.length > 0 && Array.isArray(arg.value)) {
+    const choices = arg.choices.map((choice) => toDisplayString(choice));
+    const picked = Array.isArray(value) ? value.map((v) => toDisplayString(v)) : [];
+    return (
+      <div className={`flex flex-col gap-1.5${disabled ? " opacity-50 pointer-events-none" : ""}`}>
+        <ParamLabel className="text-2xs text-muted-foreground">{arg.label}</ParamLabel>
+        <div className="flex flex-wrap gap-x-3 gap-y-1.5">
+          {choices.map((choice) => (
+            <label key={choice} className="flex items-center gap-1.5 text-2xs cursor-pointer">
+              <Checkbox
+                checked={picked.includes(choice)}
+                onCheckedChange={(on) =>
+                  onChange(on ? [...picked, choice] : picked.filter((p) => p !== choice))
+                }
+                disabled={disabled}
+              />
+              {choice}
+            </label>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   if (arg.choices && arg.choices.length > 0) {
+    const choices = arg.choices.map((choice) => toDisplayString(choice));
     return (
       <div
         className={`flex items-center gap-2${disabled ? " opacity-50 pointer-events-none" : ""}`}
@@ -23,9 +49,9 @@ export function ScriptArgControl({ arg, value, onChange, disabled }: ScriptArgCo
           {arg.label}
         </ParamLabel>
         <Combobox
-          value={toDisplayString(value, arg.choices[0])}
+          value={toDisplayString(value, choices[0])}
           onValueChange={(v) => onChange(v)}
-          options={arg.choices}
+          options={choices}
           className="h-6 text-2xs flex-1"
         />
       </div>

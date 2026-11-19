@@ -428,7 +428,7 @@ def execute_generate(params: dict, job_id: str) -> dict:
     from modules.control import run as control_run_module
     from modules.control.unit import Unit
 
-    from enso_api import condition_images, control_units, sdnext_features
+    from enso_api import condition_images, control_units, hdr, script_settings, sdnext_features
     from enso_api.postprocess import resolve_path_ref
 
     condition_images.validate(params, shared.sd_model)
@@ -539,11 +539,7 @@ def execute_generate(params: dict, job_id: str) -> dict:
         **ip_adapter_args,
     }
 
-    override_script_name = params.get("script_name")
-    override_script_args = params.get("script_args", [])
-    if override_script_name:
-        run_args["override_script_name"] = override_script_name
-        run_args["override_script_args"] = override_script_args
+    script_args, own_scripts = script_settings.place(script_settings.control_runner(), params.get("script_name") or "", params.get("script_args") or [], params.get("alwayson_scripts") or {})
 
     # Apply masking options from request params (reset ALL opts to prevent stale values from triggering expensive operations like SAM segmentation)
     if mask is not None:
@@ -586,7 +582,7 @@ def execute_generate(params: dict, job_id: str) -> dict:
         maps = process_before_generate(job_id, slots) if slots else {}
         control_run_module.control_set(extra_p_args)
         # A stop during the pre-step ends the job as a stop during generation does
-        res = [] if job_queue.stopped_by_user(job_id) else control_run_module.control_run(**run_args)
+        res = [] if job_queue.stopped_by_user(job_id) else script_settings.call(control_run_module.control_run, run_args, script_args)
 
         output_images = []
         output_processed = []
@@ -619,6 +615,8 @@ def execute_generate(params: dict, job_id: str) -> dict:
         return resolve_output_path(shared.opts.outdir_samples, shared.opts.outdir_img2img_samples if inputs or inits else shared.opts.outdir_txt2img_samples)
 
     image_refs, seed_info = collect_images(job_id, output_images, save_images, samples_dir, params)
+    if own_scripts.get("hdr"):
+        hdr.after_generate(own_scripts["hdr"], save_images, [(output_images[ref["index"]], ref["path"]) for ref in image_refs])
 
     # Save processed control images to disk and build refs
     processed_refs = []

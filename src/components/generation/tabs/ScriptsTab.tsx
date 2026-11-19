@@ -1,5 +1,8 @@
 import { useCallback, useMemo, Fragment } from "react";
 import { useScripts } from "@/api/hooks/useScripts";
+import { usePostprocessScripts } from "@/api/hooks/usePostprocess";
+import { useOptions } from "@/api/hooks/useSettings";
+import { hdrState } from "@/lib/processHdr";
 import { useScriptStore } from "@/stores/scriptStore";
 import { SectionLeader, SectionDivider } from "@/components/ui/section-leader";
 import { ScriptArgControl } from "./scripts/ScriptArgControl";
@@ -90,6 +93,25 @@ function AlwaysOnSection({ script }: { script: ScriptInfoV2 }) {
   return (
     <SectionLeader title={script.name} collapsible defaultCollapsed>
       <ScriptSection script={script} getArgValue={getArgValue} setArgValue={setArgValue} />
+      {script.name === "hdr" && <HdrNote />}
     </SectionLeader>
+  );
+}
+
+/** What the HDR settings write beside each saved image, or why they write nothing. */
+function HdrNote() {
+  const { data: scripts } = usePostprocessScripts();
+  const { data: options } = useOptions();
+  const format = (options as Record<string, unknown> | undefined)?.["samples_format"];
+  const state = hdrState(
+    scripts?.hdr,
+    typeof format === "string" ? format : undefined,
+    "image",
+    true,
+  );
+  return (
+    <p className="mt-2 min-h-4 text-3xs text-muted-foreground">
+      {state.applies ? state.note : state.hint}
+    </p>
   );
 }
